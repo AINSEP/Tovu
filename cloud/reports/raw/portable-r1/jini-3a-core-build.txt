@@ -1,0 +1,5 @@
+
+> @jini-ai/core@0.6.23 build /home/user/Jini/packages/core
+> tsc -p tsconfig.json
+
+EXIT=0

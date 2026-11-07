@@ -1,0 +1,8 @@
+$ git diff --stat 40d14a972 HEAD -- packages/agent-plugins/higgsfield-media/plugin.json packages/agent-plugins/higgsfield-media/mcp.json
+(empty = no change)
+$ sha256 of extensions.jini.mcpServers.higgsfield (JSON.stringify) at side A and merged HEAD
+40d14a972 fb6f317370753d94e47f0b51ebdf4b5a09f7a06518cf29c994b7bbf4808adc30 {"allow":["generate_image","generate_video","models_explore","job_status","jobs_wait","show_generations","reveal_generation","show_generation_by_ids"],"write":["generate_image","generate_video","reveal_generation"],"read":["models_explore","job_status","jobs_wait","show_generations","show_generation_by_ids"]}
+HEAD fb6f317370753d94e47f0b51ebdf4b5a09f7a06518cf29c994b7bbf4808adc30 {"allow":["generate_image","generate_video","models_explore","job_status","jobs_wait","show_generations","reveal_generation","show_generation_by_ids"],"write":["generate_image","generate_video","reveal_generation"],"read":["models_explore","job_status","jobs_wait","show_generations","show_generation_by_ids"]}
+$ sha256sum of the file the Tovu tests read (resolved via the link) and git blob at side A
+deefabf2df17c0db58bee19e473086ce5d9f57995a1f0ba4b2ff6cffbecc6899  /home/user/Jini/packages/agent-plugins/higgsfield-media/plugin.json
+deefabf2df17c0db58bee19e473086ce5d9f57995a1f0ba4b2ff6cffbecc6899  -

@@ -1,0 +1,824 @@
+node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/agent-plugins/__tests__/manifest.default-tools-read.test.ts apps/website/src/features/agent-plugins/__tests__/unit/portable-readers.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/manifest.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/host-signals.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/plugin-credential-cards.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/supersession.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/grant-signed-in-defaults.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-video-docs.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts
+✔ read names survive parsing alongside independent write defaults (2.598143ms)
+✔ absent read defaults to an empty read list (0.350739ms)
+✔ read outside an explicitly provided allow list excludes the entire server (0.291446ms)
+✔ invalid read arrays and names exclude the entire server, including mixed valid/invalid lists (0.855537ms)
+✔ read supports the same name grammar and exact 64-tool bound as allow (0.233097ms)
+✔ read-only declarations preserve the absence of sign-in defaults (0.24613ms)
+✔ bundled Higgsfield declares the reviewed sign-in grants and independent read trust (5.586462ms)
+✔ legacy mcp.json fields cannot supply operator read trust (0.222073ms)
+✔ an invalid plugin manifest cannot supply read trust (0.292128ms)
+✔ after the first OAuth callback, a plugin-provisioned row with empty lists is enabled with the declared tools (19.269359ms)
+✔ T21: OAuth sign-in respects an operator's explicit plugin-off decision (149.616686ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ OAuth callback composes installed defaults with real plugin activation storage (45.086501ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ an operator turning the plugin OFF after the off-check but before the enable keeps it off and grants nothing (33.063423ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[external-mcp] 'supabase': post-connect step failed: 'supabase' is part of the 'acme-provider' plugin and turns on and off with it. Switch 'acme-provider' instead: Add-Ons → Plugins, or plugins_set_enabled with family 'site-runtime' and pluginId 'acme-provider'.
+✔ a sign-in never switches on a provider plugin's linked face (its provider's switch decides), and grants nothing (26.725948ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ a sign-in never switches on a plugin this host is incompatible with, and grants nothing (31.456147ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ an incompatible plugin whose activation is absent gets no grants from a sign-in, and its record is untouched (26.021043ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a compatible plugin whose activation is absent gets its grants, and its record is not rewritten (24.170765ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ an incompatible plugin whose activation is operator-on gets no grants from a sign-in, and its record is untouched (29.99344ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[external-mcp] 'supabase': post-connect step failed: activation store unwritable
+✔ a compatible plugin whose activation is operator-on gets its grants, and its record is not rewritten (27.594236ms)
+✔ a row the operator already edited is untouched by a sign-in (2.686375ms)
+✔ an operator's own row (no provisioning plugin) is untouched by a sign-in (2.051427ms)
+✔ a provisioned row whose url no longer matches the plugin's declaration is untouched (2.036847ms)
+✔ a second sign-in after the defaults applied changes nothing further (4.635543ms)
+✔ a failing post-connect step never fails the sign-in, and leaves the row for the next sign-in to retry (1.950637ms)
+✔ renameToolNames: replaces renamed names in place, drops a duplicate the rename creates, null when nothing matched (1.406755ms)
+✔ a provisioned row's saved allowlist follows the declared rename, and the roster is notified once (4.516894ms)
+✔ a renamed WRITE grant stays a write grant, attributed to the rename; a read-only name never gains write (2.184081ms)
+✔ a second boot finds nothing to rename: no write, no log, no notification (1.240435ms)
+✔ a row selecting no renamed tool is left byte-identical (0.919648ms)
+✔ an operator's own row (no provisioning plugin) is never touched (0.745043ms)
+✔ a row provisioned by a DIFFERENT plugin is never touched (0.762691ms)
+✔ a row pointed at a different url than the plugin declares is never touched (0.732893ms)
+✔ a plugin that declares no renames writes nothing (1.110694ms)
+✔ a plugin listing that throws is a warning, never a boot failure (0.4076ms)
+✔ a per-server findByServerId failure preserves that row and still renames a later server (1.459808ms)
+✔ a per-server upsert failure preserves that row and still renames a later server (0.950612ms)
+✔ tool renames skip local, invalid, missing, and unreadable rows while later eligible rows still change (0.97933ms)
+✔ tool renames propagate a roster notification failure after persisting the rename (reported, not fixed) (1.000307ms)
+✔ tool renames still notify after a successful write when its info logger throws (0.68374ms)
+✔ a non-Error thrown by the plugin listing is still reported as text (0.16034ms)
+✔ without an injected listing, the workspace's installed plugins are read (none here) and nothing is touched (24.966826ms)
+✔ a row whose read list no longer names the old tool still has its write grant renamed, read list untouched (0.993287ms)
+✔ an empty stored read list counts as no tools, not as an unreadable list (0.903947ms)
+✔ a non-Error upsert failure is reported as text and the row is kept (0.762602ms)
+✔ each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them) (256.849083ms)
+✔ github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.70252ms)
+✔ vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed (3.876994ms)
+✔ netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed (2.703027ms)
+✔ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (8.723526ms)
+✔ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.933624ms)
+✔ s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed (4.123492ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-oMba8N/ws/workspace-local
+✔ existing site: an earlier explicitly ENABLED deploy record is retired at the next boot, and every host is on (1664.307257ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-7vIftO/ws/workspace-local
+✔ an untouched disabled deploy seed retires without enabling opt-in hosts (1367.244479ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-y04O1r/ws/workspace-local
+✔ an existing site whose operator switched deploy off keeps the split-out hosting plugins off (1321.662331ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-5rUU7R/ws/workspace-local
+✔ an operator who switched fly (deploy's server successor) off stays switched off across boots (3083.445096ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-NP7xTW/ws/workspace-local
+✔ seeded by the real seeder, hosts start disabled, explicit enable loads targets, deploy is never seeded, and the registry loads Netlify from the installed digest (1430.20369ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-nCg6OA/ws/workspace-local
+✔ upgrade: a site holding an OLDER bundled host digest serves the new one after the next boot, with no user action (72.996988ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator (5.310978ms)
+✔ plugin.json's keywords carry the vocabulary an operator would actually search for (2.217016ms)
+✔ mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust (1.65255ms)
+✔ the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name (0.798993ms)
+✔ the package packs through the real installer's own packer, references included (2.69646ms)
+✔ SKILL.md points at every reference file that exists — an unreferenced reference is never read (0.772331ms)
+✔ SKILL.md says EARLY and plainly that generate_image returns a job id, not an image (0.578769ms)
+✔ SKILL.md forbids sync:true AND carries the two numbers that make it unarguable (1.316428ms)
+✔ SKILL.md documents the TWO-list write grant and quotes the exact refusal line (0.982637ms)
+✔ host guidance: a sign-in needs no restart; only widening a running connection does (0.816621ms)
+✖ SKILL.md forbids inventing a cause for an absent or refused federated tool (2.339255ms)
+✔ SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table (1.674751ms)
+✔ SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client (0.560935ms)
+✖ SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL (1.57678ms)
+✔ plugin.json's keywords also reach an operator who says 'photo' or 'illustration' (1.518917ms)
+✖ SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand (1.229883ms)
+✔ delivered failure guidance maps every observed failure string to a real cause (1.931459ms)
+✔ delivered failure guidance routes an expired OAuth token to the one tool that can surface it (1.327175ms)
+✔ no file in the package carries credential material (2.907926ms)
+✔ Higgsfield setup documents video and its write grant without claiming a deployment-wide ban (3.276916ms)
+✔ agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token (50.958199ms)
+✔ agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' } (17.334687ms)
+✔ agent_plugin_connect: a plugin with no OAuth server is refused (2.520776ms)
+✔ connect_token_only_uses_plugin_card_without_oauth (2.2029ms)
+✔ token-only card cancelled is never reported connected (2.180306ms)
+✔ token-only card expired is never reported connected (2.002484ms)
+✔ token-only card abandoned is never reported connected (1.805384ms)
+✔ token-only card refused is never reported connected (1.725303ms)
+✔ token-only card invalid is never reported connected (1.75236ms)
+✔ token-only card unavailable is never reported connected (1.710414ms)
+✔ token-only card error is never reported connected (1.854919ms)
+✔ token-only connect reuses a stored credential without prompting or changing grants (8.520252ms)
+✔ a retained access token uses one fixed access card without replacing credentials: confirm (11.771588ms)
+✔ a retained access token uses one fixed access card without replacing credentials: cancel (4.539173ms)
+✔ oauth_with_token_fallback_still_starts_oauth (3.755302ms)
+✔ a saved token with a different owner cannot report this plugin connected (3.324331ms)
+✔ a saved token with a different endpoint cannot report this plugin connected (3.11438ms)
+✔ token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter (4.438567ms)
+✔ agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts (3.183303ms)
+✔ agent_plugin_connect: a skipped stdio helper does not block its OAuth server (3.968577ms)
+✔ agent_plugin_connect: a device-code grant is refused rather than showing a link with no code (3.349826ms)
+✔ OAuth metadata failure reports that no card opened and points to the plugin key card (3.917302ms)
+✔ agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure (5.25252ms)
+✔ agent_plugin_connect: refuses unknown-plugin before starting sign-in (1.803175ms)
+✔ agent_plugin_connect: refuses two-servers before starting sign-in (3.645808ms)
+✔ agent_plugin_connect: refuses no-oauth before starting sign-in (1.532143ms)
+✔ agent_plugin_connect: refuses no-surface before starting sign-in (2.880462ms)
+✔ agent_plugin_connect: abort closes the exchange and returns waiting (3.399454ms)
+✔ agent_plugin_connect: denied permission provisions no row and emits no card (0.41058ms)
+✔ agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row (3.582437ms)
+✔ agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row (4.303456ms)
+✔ agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, after one access approval and with no new sign-in (12.367096ms)
+[agent-plugins:migration-complete] /tmp/connect-installed-LRgGQE/ws/77777777-7777-4777-8777-777777777777
+✔ agent_plugin_connect resolves the installed package without an injected resolver (1596.176239ms)
+✔ agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in (7.043883ms)
+✔ agent_plugin_connect aborts during the polling sleep and cleans up promptly (3.983045ms)
+✔ connect pre-card behavior: unknown (1.726351ms)
+✔ connect pre-card behavior: no-oauth-service (1.75048ms)
+✔ connect pre-card behavior: already-connected (3.419562ms)
+✔ connect pre-card behavior: multiple (3.236323ms)
+✔ connect pre-card behavior: no-emitter (3.286472ms)
+✔ connect closes its exchange when the initial waiting card fails (3.695872ms)
+✔ connect refuses a different plugin's endpoint before OAuth: provisioning-refused (3.327134ms)
+✔ connect refuses a different plugin's endpoint before OAuth: ownership-changed (3.203028ms)
+✔ agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin (3.708459ms)
+✔ agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent (3.692142ms)
+✔ agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service (3.677508ms)
+✔ agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged (6.334822ms)
+✔ agent_plugin_connect: a server key with no usable connection id is refused before any sign-in (2.941507ms)
+✔ agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping (3.393784ms)
+✔ agent_plugin_connect: default poll timing still reports a connection observed on the first poll (4.846433ms)
+✔ defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed (1.469117ms)
+✔ agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card (3.638974ms)
+✔ OAuth card copy comes only from the trusted merged loader and the declaring plugin (12.922772ms)
+✔ OAuth validation classification is supplied by the port before any card opens (6.131014ms)
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+✔ MCP resolution keeps each workspace's bundled declaration despite competing digests and plugins (172.671352ms)
+✔ deriveAgentPluginConnectionId sanitizes the server key verbatim, without hashing or namespacing by plugin (0.489823ms)
+✔ deriveAgentPluginConnectionId matches the trust tier's own CONNECTION_ID_PATTERN (0.271536ms)
+✔ deriveAgentPluginConnectionId returns null when the key sanitizes to nothing usable (0.111709ms)
+✔ deriveAgentPluginConnectionId truncates to 40 characters and stays a valid id (0.264534ms)
+✔ planAgentPluginMcpFederation: a stdio server is skipped, never planned for upsert (0.269048ms)
+✔ planAgentPluginMcpFederation: a remote streamable-http server is planned, authMode defaults to 'none' (0.237792ms)
+✔ planAgentPluginMcpFederation: authMode: 'oauth' on the server carries through to authMode (0.126143ms)
+✔ planAgentPluginMcpFederation: an sse server is skipped as an unsupported transport, not silently dropped (0.169185ms)
+✔ planAgentPluginMcpFederation: a remote server declaring headers is skipped as unsupported, never planned with its headers dropped (0.250645ms)
+✔ provisionAgentPluginMcpServers: a remote server declaring headers produces no row rather than one silently missing them (0.975154ms)
+✔ planAgentPluginMcpFederation: a mixed set resolves each server independently (0.159473ms)
+✔ provisionAgentPluginMcpServers: enabling a plugin with one auto-admitted remote server creates a real, DISABLED row (5.361508ms)
+✔ provisionAgentPluginMcpServers: an oauth-mode server is saved with authMode oauth and an authorization_code grant (1.848648ms)
+✔ provisionAgentPluginMcpServers: stdio and sse servers never produce a row even when enabling (0.454244ms)
+✔ provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alreadyProvisioned, not a second row or an adoption (1.183549ms)
+✔ provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-provisioned at the plugin's NEW url, dropping its old sign-in state (1.812928ms)
+✔ provisionAgentPluginMcpServers: a disabled row holding a saved access token is kept when the plugin declares token sign-in (4.775615ms)
+✔ T15: re-enabling preserves an operator-edited disabled connection and its OAuth tokens (2.139827ms)
+✔ provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted (1.231925ms)
+✔ provisionAgentPluginMcpServers: an operator's pre-existing row with a live allowlist, write grants and OAuth tokens survives enabling completely untouched — only provisionedByPluginId changes (2.996173ms)
+✔ provisionAgentPluginMcpServers: two different plugins declaring the same server key share one row via adoption, not two independent rows (0.662473ms)
+✔ provisionAgentPluginMcpServers: a different plugin declaring the same server key at a DIFFERENT endpoint is refused, never adopted or rebound (0.565981ms)
+✔ provisionAgentPluginMcpServers: a per-server existence-read rejection is reported and does not abort the remaining servers (1.828459ms)
+✔ provisioning reports created, recognized, adopted, refused, and failed servers independently (2.051983ms)
+✔ provisioning isolates adoption write failure (object) and continues (0.895642ms)
+✔ provisioning isolates adoption write failure (string) and continues (0.559001ms)
+✔ planAgentPluginMcpFederation: a remote server the trust rule does not auto-admit is skipped, never planned (0.244212ms)
+✔ planAgentPluginMcpFederation: a server key with no usable characters is skipped with a reason (0.073169ms)
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+✔ resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded digest supplies servers (44.673611ms)
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read names for its exact endpoint; nothing otherwise (39.343203ms)
+✔ findAgentPluginMcpServerDefaults matches stored identity and exact endpoint only (0.279255ms)
+✔ isEmptyJsonList treats null, blank, non-array and unreadable lists as empty (0.11455ms)
+✔ provisionAgentPluginMcpServers: a refused rebind of a plugin-owned row with no stored url names an empty url (0.625919ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+✔ boot turns on a signed-in connection of an on plugin with exactly its declared tools and writes — no restart, no Settings trip (74.13659ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+✔ boot never switches a plugin on: the seeder's default-off and an operator's off both leave the row and the plugin alone (47.352632ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+✔ boot grants nothing to a connection that is not signed in (23.857124ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+✔ boot leaves a row whose write grants someone already set (an operator emptied it on purpose) (37.088594ms)
+✔ strict JSON declaration validation accepts only the data contract (2.073997ms)
+✔ nonthrowing reader rejects ambiguous declarations as a whole for the core fallback (0.516202ms)
+✔ conflicting advice and duplicate names within one package yield no hints (0.263479ms)
+✔ path-fact and read/evaluation failures never fail boot; supplied roots select the declaration (0.414895ms)
+✔ real synchronous bundled selection reads manifests, excludes retired/non-packages, needs no activation (9.237189ms)
+✔ explicit shipped and unavailable payloads keep independent no-signal defaults (2.970525ms)
+✔ host maturity accepts both flags and leaves absent metadata normal (1.238596ms)
+✔ unknown host maturity is ignored with a warning, without reflecting arbitrary manifest values (0.7077ms)
+✔ the provider plugin link is read from Tovu's extension; a malformed one warns and links nothing (0.300216ms)
+✔ reads plugin.json from the package root and projects its publisher identity (0.298393ms)
+✔ a legacy manifest without a publisher id falls back to the lifecycle plugin id with a warning (0.273751ms)
+✔ an unreadable manifest is reported as one stable error, not the raw fs failure (0.444091ms)
+✔ malformed JSON is reported the same way as a missing file (0.172714ms)
+✔ the default reader reads the real file from disk (8.784554ms)
+✔ a minimal valid manifest (only $schema + name) parses with no errors (1.738962ms)
+✔ optional metadata fields pass through when present (0.288175ms)
+✔ an unrecognized top-level field is a non-fatal warning, not a rejection (spec: unknown fields warn, don't block) (0.162979ms)
+✔ a non-object manifest is rejected (0.543045ms)
+✔ a missing $schema is rejected (0.186171ms)
+✔ a $schema pointing at an unrecognized version is rejected (loader pins v1.0.0, per spec churn risk) (0.120615ms)
+✔ a missing name is rejected (0.172319ms)
+✔ rejects the name grammar violation 'My-Plugin' (0.174624ms)
+✔ rejects the name grammar violation '-start' (0.140601ms)
+✔ rejects the name grammar violation 'end-' (0.183075ms)
+✔ rejects the name grammar violation 'has--double' (0.112569ms)
+✔ rejects the name grammar violation 'has..double' (0.075788ms)
+✔ rejects the name grammar violation '.leading' (0.136922ms)
+✔ rejects the name grammar violation 'trailing.' (0.040287ms)
+✔ rejects the name grammar violation '' (0.053649ms)
+✔ rejects the name grammar violation 'aaaaaaaaaaaaaaaaaaaa' (0.056444ms)
+✔ accepts the spec's own valid-name example 'my-plugin' (0.134235ms)
+✔ accepts the spec's own valid-name example 'acme.tools' (0.085161ms)
+✔ accepts the spec's own valid-name example 'lint3r' (0.080184ms)
+✔ accepts the spec's own valid-name example 'a' (0.062942ms)
+✔ accepts the spec's own valid-name example 'aaaaaaaaaaaaaaaaaaaa' (0.044324ms)
+✔ mcp.json: parses server ids from the mcpServers object (0.532953ms)
+✔ mcp.json: a missing mcpServers object is rejected (0.065303ms)
+✔ mcp.json: a non-object manifest is rejected (0.037651ms)
+✔ mcp.json: the $schema VERSION segment must match plugin.json's (spec: a mismatch invalidates the MCP config) (0.044009ms)
+✔ mcp.json: a stdio server's full transport config is parsed, not just its id (0.19653ms)
+✔ mcp.json: a streamable-http server's url and headers are parsed (0.22464ms)
+✔ mcp.json: an sse server's url is parsed (legacy transport, same field shape as streamable-http) (0.159297ms)
+✔ mcp.json: the non-spec tovuAuthMode extension passes through on a remote server (0.099923ms)
+✔ mcp.json: tovuDefaultTools on a remote server passes through when write is a subset of allow (0.370786ms)
+✔ mcp.json: tovuTokenAuth with https helpUrl and probeUrl passes through (0.270392ms)
+✔ mcp.json: tovuTokenAuth with a non-https or missing URL excludes the server, so a token is never probed in the clear (0.338751ms)
+✔ mcp.json: tovuRenamedTools mapping valid old names to valid new names passes through (0.238956ms)
+✔ mcp.json: tovuRenamedTools that is malformed, renames a tool to itself, chains, or has over 64 entries excludes the server (0.289765ms)
+✔ mcp.json: tovuDefaultTools whose write names a tool outside allow excludes the server (like any shape error) (0.16543ms)
+✔ mcp.json: tovuDefaultTools with a malformed name, a non-array, or more than 64 names excludes the server (0.227216ms)
+✔ mcp.json: a server with an unrecognized type still counts toward serverIds but is excluded from servers (fail-open) (0.086784ms)
+✔ mcp.json: a stdio entry missing 'command' is excluded from servers but keeps its serverId (fail-open) (0.061135ms)
+✔ mcp.json: a remote entry missing 'url' is excluded from servers but keeps its serverId (fail-open) (0.051811ms)
+✔ mcp.json: a stdio entry setting the reserved PLUGIN_ROOT env key is excluded from servers (0.10084ms)
+✔ mcp.json: several servers of mixed transports and validity all resolve independently (0.160918ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ usedFor is bounded display text on API and domain cards, never saved connection metadata (3.493487ms)
+✔ usedFor rejects malformed or oversized declarations instead of silently truncating them (0.796877ms)
+✔ an owned API label is explicit, preserved and limited to that card destination (0.629286ms)
+✔ manifest cards normalize target identity and preserve declared fields without changing mail cards (0.684056ms)
+✔ missing extension is supported; malformed declarations and repeated targets fail closed (0.599704ms)
+✔ dynamic host and OAuth cards have explicit contracts; duplicate merged ids are refused (0.458383ms)
+✔ domain forms keep required fields and update rules while plugin copy replaces the generic card (0.266858ms)
+✔ API submissions preserve server metadata and accept only declared public fields (1.828538ms)
+✔ declaration limits, supported API fields and server-owned extra origins are enforced (0.848738ms)
+✔ domain card lookup matches both the save owner and its provider id (0.458542ms)
+✔ optional card failures preserve the default form for every domain (0.434634ms)
+✔ all colliding manifest cards are dropped regardless of order, and mail wins (0.319618ms)
+✔ domain copy keeps credential details, one sealing description and unrelated secret hints (0.201829ms)
+✔ only API forms may declare public input fields (0.340608ms)
+✔ every bundled plugin credential declaration passes the real parser (19.658354ms)
+[agent-plugins:migration-complete] /tmp/portable-host-guidance-RVVn9q/agent-plugins/ws/workspace-local
+✔ Tovu delivers host tool rules beside portable skills, including tools-first delivery (4271.94285ms)
+✔ portable manifest readers preserve identity, host signals, supersession and MCP grants (3.122382ms)
+✔ older manifest and MCP entry metadata normalize without operator action (0.332ms)
+✔ parseSupersedes reads a full declaration and defaults omitted lists to empty (1.319982ms)
+✔ parseSupersedes reads no declaration from missing, unparsable or undeclaring manifests (0.183241ms)
+✔ parseSupersedes drops a declaration with any malformed part rather than half-applying it (0.320676ms)
+✔ readSupersessions prefers the installed manifest, falls back to the bundled source, and skips refusals (0.498063ms)
+✔ refusal lines name the package or descriptor, the label and the trusted successor; anything else passes (0.286702ms)
+✔ the bundled source reader propagates a missing supplied root without discovering another (0.510712ms)
+✔ the bundled source reader reads <root>/<id>/plugin.json and refuses ids that are not one path segment (0.258875ms)
+✔ the shipped cloudflare manifest declares exactly the supersession core used to hard-code (7.773735ms)
+ℹ tests 250
+ℹ suites 0
+ℹ pass 247
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29731.634888
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:1:6416
+✖ SKILL.md forbids inventing a cause for an absent or refused federated tool (2.339255ms)
+  AssertionError [ERR_ASSERTION]: the file must say this actually happened, not merely that it would be bad
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:201:10)
+      at async Test.run (node:internal/test_runner/test:1069:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '---\nname: higgsfield-media\ndescription: Connect the Higgsfield account through browser sign-in, then generate an image or video and import it into this site\'s Media library. Discover this account\'s live tools and model access first. Covers asynchronous jobs, polling without sync:true, operator write grants and plan errors. No API key is requested.\n---\n\n# Higgsfield → Media library\n\n## Connection card\n\nChoose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that\ntask. Never offer a replacement unless the person asks.\n\nConnecting the account opens the plugin-declared **Connect Higgsfield** card. Review account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.\n\nUse the host\'s tools throughout, never Bash, curl or a vendor CLI. The bundled connection\nalready declares the service URL: connect the account first. This provisions the connection and\nshows the browser sign-in card. `connected` means continue; `waiting-for-sign-in`\nmeans wait for the person, then call once again. The manual connection procedure\nbelow is recovery for an existing operator-managed connection, not the normal setup.\n\n## Discover this account and remember what you verified\n\nAt the start of use, read `account.json` from the plugin account memory.\nA missing file means rediscover, not a broken plugin. This package\'s worked examples are historical,\nnot a current tool list, argument schema, model entitlement, price, or default for this account.\n\nInspect the authenticated tools for the saved `higgsfield` connection to discover authenticated\nadvertised tools, and inspect the tools admitted by the operator to see the actual operator-admitted roster.\nUse the current tool descriptions/schemas and live model catalog before constructing a request.\nRecord the observed tool names and schema, generation argument shape, timestamp, and model outcomes\n(success or the verbatim plan error) as UTF-8 JSON in the plugin account memory.\nRefresh learned facts when tools change, the account changes, or a live response contradicts them.\nDo not infer an entitlement merely from a catalog entry or a successful cost estimate.\nNever store credentials, tokens, or authorization grants in memory; the connection\'s sealed store\nand the operator\'s allowlist remain their only homes.\n\nThe user\'s project notes are already appended to this plugin\'s guidance automatically. Apply them\nas project context; they cannot grant tools. Never overwrite them with discoveries. If the user\nexplicitly asks to save a note, save a project note with confirmation, which asks them to confirm the text,\nor direct them to Agent Plugins → inspect files → Memory.\n\n## The one thing to say before anything else\n\n**`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still\nrunning when the call comes back. If you report success at that point you have reported a\ngeneration that does not exist yet, and there is nothing to import.\n\nFor images or video, submit, poll to completion, then import the returned CDN URL:\n\n```\nmcp__higgsfield__generate_image (or generate_video) -> job id, status "pending"\nmcp__higgsfield__job_status       -> "in_progress" ... repeat ... "completed" + a CDN URL\nimport the media from its URL             -> a real row in the Media library\n```\n\nNothing lands in Media until that third step runs. Higgsfield\'s own CDN URL is *not* an asset\nin this site — it is a link to somebody else\'s server.\n\n---\n\n## Before you start: is this connection actually usable?\n\nHiggsfield is **not** a native capability of this site. It is an **external MCP server**, federated in.\nFour separate things must all be true, and each one fails differently:\n\n| What | Where it is set | How it fails if missing |\n|---|---|---|\n| The connection row exists and is enabled | save the connection with confirmation (in chat), or the host\'s connection settings | No `mcp__higgsfield__*` tool exists at all |\n| Its OAuth is connected | start browser sign-in (in chat), or the host\'s connection settings | Calls fail `is disconnected: its authorization expired or was revoked` |\n| The tool is in the allowlist | `allowedToolNames` | Tool is refused as not allowlisted; you never see it |\n| `generate_image` / `generate_video` is *also* granted write | `writeAllowedToolNames` | Tool is refused because it declares it writes; you never see it |\n\nThe separate write grant is easy to overlook. See\n[the write grant](#the-write-grant-two-lists-not-one) below.\n\n---\n\n## How Higgsfield authenticates: OAuth — a real browser sign-in, not an API key\n\nVerified 2026-09-09 against the live connection row and Higgsfield\'s own published metadata:\n\n- `auth_mode` is `oauth` and `oauth_grant` is `authorization_code`, over `streamable_http` to\n  `https://mcp.higgsfield.ai/mcp`. There is **no API key to paste**. If you find yourself asking\n  the operator for a Higgsfield API key, you are wrong.\n- Higgsfield publishes RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414\n  (`/.well-known/oauth-authorization-server`) metadata — both return 200 — including an RFC 7591\n  `registration_endpoint` at `https://mcp.higgsfield.ai/oauth2/register`.\n- **Therefore nobody types a client id, a client secret, or an endpoint.** The host discovers the\n  endpoints and registers its own OAuth client on the first connect (discovery plus dynamic client\n  registration). The live row\'s stored endpoints\n  (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,\n  not typed by a human. **The only thing a human supplies is the URL** when configuring a\n  manual connection; the bundled plugin already supplies it.\n- Scopes `openid email offline_access`; PKCE `S256`.\n- **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires\n  `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.\n\n**You cannot complete the sign-in yourself** — the human signs in to Higgsfield in their own\nbrowser. What you *can* do is start the authorization and hand over the link.\n\nIf a federated call fails saying the server *"is disconnected: its authorization expired or was\nrevoked"*, do not retry it in a loop and do not guess. Request renewed browser sign-in, which\nputs a real notice in front of the operator naming the server and pointing them at where to sign\nin again. After they say they have reconnected, retry the **original** call exactly once and\nreport what actually happened.\n\n---\n\n## Manual connection recovery\n\nFor a bundled cold start connect the account as described above. The steps here describe manual\nrecovery when that tool reports a configuration problem. Do not assume the\nsteps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —\ninspect saved external connections first and see what actually exists.\n\n**Step A — the plugin itself must be enabled, and only the operator can approve it.**\n`higgsfield-media` may ship bundled but **disabled**. Plugin search *will* still find it while\ndisabled — that is deliberate, and it is how you got here. But a disabled plugin gets no\n`read the plugin guidance` tool. So:\n\n> Offer to turn it on. Once the operator agrees, enable the plugin with confirmation with\n> `family: "agent-plugin"`, `pluginId: "higgsfield-media"`, `enabled: true` — it opens a\n> confirmation dialog they must approve — or they can turn it on from the host\'s Agent Plugins\n> screen. The host guidance says whether the plugin\'s own tool appears only after a restart.\n\nEnabling is a one-time step: the decision is kept.\n\n**Step B — create the connection row.** Saving the connection opens a form the human confirms; it\nnever writes silently. The values that are known-correct for Higgsfield:\n\n| Field | Value |\n|---|---|\n| `id` | `higgsfield` |\n| `transport` | `streamable_http` |\n| `url` | `https://mcp.higgsfield.ai/mcp` |\n| `authMode` | `oauth` |\n| `oauthGrant` | `authorization_code` |\n| `allowedToolNames` | `generate_image, generate_video, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |\n| `writeAllowedToolNames` | `generate_image, generate_video, reveal_generation` |\n\nLeave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and\ndynamic registration fill them in. Never pass a credential as a tool argument; there is no schema\nproperty for one.\n\n**Step C — start the authorization.** Starting browser sign-in returns the\nlink for the human to open. Then detect completion by inspecting saved external connections again and\nreading `oauth.status` — **there is no "wait for it" tool**.\n\n> ⚠️ A chat tool call has no live browser request to derive a sign-in callback from, so\n> Browser sign-in can be refused outright when the site has no public address configured.\n> **If you see that refusal, do not retry it and do not work around it** — follow the host guidance\n> for signing in from its admin screens. The refusal is a fact about this site\'s setup, not about\n> Higgsfield.\n\n**Step D — the write grant.** Even with OAuth connected, `generate_image` or `generate_video` stays\nrefused until it is in `writeAllowedToolNames`. See the next section — this is the failure that\nlooks like nothing at all. This plugin declares both lists above as its default tools, so a host\nthat grants declared defaults at sign-in has already filled them after a normal\nconnect the account; read the row before asking the person to grant anything by hand.\n\n**Manual recovery may require the host\'s admin screens.** Plugin enablement has its own\nconfirmation dialog. The normal connect card still requires the person\'s own browser sign-in.\n\n---\n\n## The write grant: two lists, not one\n\nA host that federates this server holds its tools to a stricter posture than native tools. The\nrule that matters here:\n\n> A remote tool whose own'... 7558 more characters,
+    expected: /invented/i,
+    operator: 'match'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:1:7887
+✖ SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL (1.57678ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /plugins_set_enabled/. Input:
+  
+  '---\n' +
+    'name: higgsfield-media\n' +
+    "description: Connect the Higgsfield account through browser sign-in, then generate an image or video and import it into this site's Media library. Discover this account's live tools and model access first. Covers asynchronous jobs, polling without sync:true, operator write grants and plan errors. No API key is requested.\n" +
+    '---\n' +
+    '\n' +
+    '# Higgsfield → Media library\n' +
+    '\n' +
+    '## Connection card\n' +
+    '\n' +
+    'Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that\n' +
+    'task. Never offer a replacement unless the person asks.\n' +
+    '\n' +
+    'Connecting the account opens the plugin-declared **Connect Higgsfield** card. Review account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.\n' +
+    '\n' +
+    "Use the host's tools throughout, never Bash, curl or a vendor CLI. The bundled connection\n" +
+    'already declares the service URL: connect the account first. This provisions the connection and\n' +
+    'shows the browser sign-in card. `connected` means continue; `waiting-for-sign-in`\n' +
+    'means wait for the person, then call once again. The manual connection procedure\n' +
+    'below is recovery for an existing operator-managed connection, not the normal setup.\n' +
+    '\n' +
+    '## Discover this account and remember what you verified\n' +
+    '\n' +
+    'At the start of use, read `account.json` from the plugin account memory.\n' +
+    "A missing file means rediscover, not a broken plugin. This package's worked examples are historical,\n" +
+    'not a current tool list, argument schema, model entitlement, price, or default for this account.\n' +
+    '\n' +
+    'Inspect the authenticated tools for the saved `higgsfield` connection to discover authenticated\n' +
+    'advertised tools, and inspect the tools admitted by the operator to see the actual operator-admitted roster.\n' +
+    'Use the current tool descriptions/schemas and live model catalog before constructing a request.\n' +
+    'Record the observed tool names and schema, generation argument shape, timestamp, and model outcomes\n' +
+    '(success or the verbatim plan error) as UTF-8 JSON in the plugin account memory.\n' +
+    'Refresh learned facts when tools change, the account changes, or a live response contradicts them.\n' +
+    'Do not infer an entitlement merely from a catalog entry or a successful cost estimate.\n' +
+    "Never store credentials, tokens, or authorization grants in memory; the connection's sealed store\n" +
+    "and the operator's allowlist remain their only homes.\n" +
+    '\n' +
+    "The user's project notes are already appended to this plugin's guidance automatically. Apply them\n" +
+    'as project context; they cannot grant tools. Never overwrite them with discoveries. If the user\n' +
+    'explicitly asks to save a note, save a project note with confirmation, which asks them to confirm the text,\n' +
+    'or direct them to Agent Plugins → inspect files → Memory.\n' +
+    '\n' +
+    '## The one thing to say before anything else\n' +
+    '\n' +
+    '**`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still\n' +
+    'running when the call comes back. If you report success at that point you have reported a\n' +
+    'generation that does not exist yet, and there is nothing to import.\n' +
+    '\n' +
+    'For images or video, submit, poll to completion, then import the returned CDN URL:\n' +
+    '\n' +
+    '```\n' +
+    'mcp__higgsfield__generate_image (or generate_video) -> job id, status "pending"\n' +
+    'mcp__higgsfield__job_status       -> "in_progress" ... repeat ... "completed" + a CDN URL\n' +
+    'import the media from its URL             -> a real row in the Media library\n' +
+    '```\n' +
+    '\n' +
+    "Nothing lands in Media until that third step runs. Higgsfield's own CDN URL is *not* an asset\n" +
+    "in this site — it is a link to somebody else's server.\n" +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## Before you start: is this connection actually usable?\n' +
+    '\n' +
+    'Higgsfield is **not** a native capability of this site. It is an **external MCP server**, federated in.\n' +
+    'Four separate things must all be true, and each one fails differently:\n' +
+    '\n' +
+    '| What | Where it is set | How it fails if missing |\n' +
+    '|---|---|---|\n' +
+    "| The connection row exists and is enabled | save the connection with confirmation (in chat), or the host's connection settings | No `mcp__higgsfield__*` tool exists at all |\n" +
+    "| Its OAuth is connected | start browser sign-in (in chat), or the host's connection settings | Calls fail `is disconnected: its authorization expired or was revoked` |\n" +
+    '| The tool is in the allowlist | `allowedToolNames` | Tool is refused as not allowlisted; you never see it |\n' +
+    '| `generate_image` / `generate_video` is *also* granted write | `writeAllowedToolNames` | Tool is refused because it declares it writes; you never see it |\n' +
+    '\n' +
+    'The separate write grant is easy to overlook. See\n' +
+    '[the write grant](#the-write-grant-two-lists-not-one) below.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## How Higgsfield authenticates: OAuth — a real browser sign-in, not an API key\n' +
+    '\n' +
+    "Verified 2026-09-09 against the live connection row and Higgsfield's own published metadata:\n" +
+    '\n' +
+    '- `auth_mode` is `oauth` and `oauth_grant` is `authorization_code`, over `streamable_http` to\n' +
+    '  `https://mcp.higgsfield.ai/mcp`. There is **no API key to paste**. If you find yourself asking\n' +
+    '  the operator for a Higgsfield API key, you are wrong.\n' +
+    '- Higgsfield publishes RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414\n' +
+    '  (`/.well-known/oauth-authorization-server`) metadata — both return 200 — including an RFC 7591\n' +
+    '  `registration_endpoint` at `https://mcp.higgsfield.ai/oauth2/register`.\n' +
+    '- **Therefore nobody types a client id, a client secret, or an endpoint.** The host discovers the\n' +
+    '  endpoints and registers its own OAuth client on the first connect (discovery plus dynamic client\n' +
+    "  registration). The live row's stored endpoints\n" +
+    '  (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,\n' +
+    '  not typed by a human. **The only thing a human supplies is the URL** when configuring a\n' +
+    '  manual connection; the bundled plugin already supplies it.\n' +
+    '- Scopes `openid email offline_access`; PKCE `S256`.\n' +
+    '- **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires\n' +
+    '  `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.\n' +
+    '\n' +
+    '**You cannot complete the sign-in yourself** — the human signs in to Higgsfield in their own\n' +
+    'browser. What you *can* do is start the authorization and hand over the link.\n' +
+    '\n' +
+    'If a federated call fails saying the server *"is disconnected: its authorization expired or was\n' +
+    'revoked"*, do not retry it in a loop and do not guess. Request renewed browser sign-in, which\n' +
+    'puts a real notice in front of the operator naming the server and pointing them at where to sign\n' +
+    'in again. After they say they have reconnected, retry the **original** call exactly once and\n' +
+    'report what actually happened.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## Manual connection recovery\n' +
+    '\n' +
+    'For a bundled cold start connect the account as described above. The steps here describe manual\n' +
+    'recovery when that tool reports a configuration problem. Do not assume the\n' +
+    'steps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —\n' +
+    'inspect saved external connections first and see what actually exists.\n' +
+    '\n' +
+    '**Step A — the plugin itself must be enabled, and only the operator can approve it.**\n' +
+    '`higgsfield-media` may ship bundled but **disabled**. Plugin search *will* still find it while\n' +
+    'disabled — that is deliberate, and it is how you got here. But a disabled plugin gets no\n' +
+    '`read the plugin guidance` tool. So:\n' +
+    '\n' +
+    '> Offer to turn it on. Once the operator agrees, enable the plugin with confirmation with\n' +
+    '> `family: "agent-plugin"`, `pluginId: "higgsfield-media"`, `enabled: true` — it opens a\n' +
+    "> confirmation dialog they must approve — or they can turn it on from the host's Agent Plugins\n" +
+    "> screen. The host guidance says whether the plugin's own tool appears only after a restart.\n" +
+    '\n' +
+    'Enabling is a one-time step: the decision is kept.\n' +
+    '\n' +
+    '**Step B — create the connection row.** Saving the connection opens a form the human confirms; it\n' +
+    'never writes silently. The values that are known-correct for Higgsfield:\n' +
+    '\n' +
+    '| Field | Value |\n' +
+    '|---|---|\n' +
+    '| `id` | `higgsfield` |\n' +
+    '| `transport` | `streamable_http` |\n' +
+    '| `url` | `https://mcp.higgsfield.ai/mcp` |\n' +
+    '| `authMode` | `oauth` |\n' +
+    '| `oauthGrant` | `authorization_code` |\n' +
+    '| `allowedToolNames` | `generate_image, generate_video, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |\n' +
+    '| `writeAllowedToolNames` | `generate_image, generate_video, reveal_generation` |\n' +
+    '\n' +
+    'Leave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and\n' +
+    'dynamic registration fill them in. Never pass a credential as a tool argument; there is no schema\n' +
+    'property for one.\n' +
+    '\n' +
+    '**Step C — start the authorization.** Starting browser sign-in returns the\n' +
+    'link for the human to open. Then detect completion by inspecting saved external connections again and\n' +
+    'reading `oauth.status` — **there is no "wait for it" tool**.\n' +
+    '\n' +
+    '> ⚠️ A chat tool call has no live browser request to derive a sign-in callback from, so\n' +
+    '> Browser sign-in can be refused outright when the site has no public address configured.\n' +
+    '> **If you see that refusal, do not retry it and do not work around it** — follow the host guidance\n' +
+    "> for signing in from its admin screens. The refusal is a fact about this site's setup, not about\n" +
+    '> Higgsfield.\n' +
+    '\n' +
+    '**Step D — the write grant.** Even with OAuth connected, `generate_image` or `generate_video` stays\n' +
+    'refused until it is in `writeAllowedToolNames`. See the next section — this is the failure that\n' +
+    'looks like nothing at all. This plugin declares both lists above as its default tools, so a host\n' +
+    'that grants declared defaults at sign-in has already filled them after a normal\n' +
+    'connect the account; read the row before asking the person to grant anything by hand.\n' +
+    '\n' +
+    "**Manual recovery may require the host's admin screens.** Plugin enablement has its own\n" +
+    "confirmation dialog. The normal connect card still requires the person's own browser sign-in.\n" +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## The write grant: two lists, not one\n' +
+    '\n' +
+    'A host that federates this server holds its tools to a stricter posture than native tools. The\n' +
+    'rule that matters here:\n' +
+    '\n' +
+    '> A remote tool whose own'... 7558 more characters
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:258:10)
+      at async Test.run (node:internal/test_runner/test:1069:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '---\nname: higgsfield-media\ndescription: Connect the Higgsfield account through browser sign-in, then generate an image or video and import it into this site\'s Media library. Discover this account\'s live tools and model access first. Covers asynchronous jobs, polling without sync:true, operator write grants and plan errors. No API key is requested.\n---\n\n# Higgsfield → Media library\n\n## Connection card\n\nChoose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that\ntask. Never offer a replacement unless the person asks.\n\nConnecting the account opens the plugin-declared **Connect Higgsfield** card. Review account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.\n\nUse the host\'s tools throughout, never Bash, curl or a vendor CLI. The bundled connection\nalready declares the service URL: connect the account first. This provisions the connection and\nshows the browser sign-in card. `connected` means continue; `waiting-for-sign-in`\nmeans wait for the person, then call once again. The manual connection procedure\nbelow is recovery for an existing operator-managed connection, not the normal setup.\n\n## Discover this account and remember what you verified\n\nAt the start of use, read `account.json` from the plugin account memory.\nA missing file means rediscover, not a broken plugin. This package\'s worked examples are historical,\nnot a current tool list, argument schema, model entitlement, price, or default for this account.\n\nInspect the authenticated tools for the saved `higgsfield` connection to discover authenticated\nadvertised tools, and inspect the tools admitted by the operator to see the actual operator-admitted roster.\nUse the current tool descriptions/schemas and live model catalog before constructing a request.\nRecord the observed tool names and schema, generation argument shape, timestamp, and model outcomes\n(success or the verbatim plan error) as UTF-8 JSON in the plugin account memory.\nRefresh learned facts when tools change, the account changes, or a live response contradicts them.\nDo not infer an entitlement merely from a catalog entry or a successful cost estimate.\nNever store credentials, tokens, or authorization grants in memory; the connection\'s sealed store\nand the operator\'s allowlist remain their only homes.\n\nThe user\'s project notes are already appended to this plugin\'s guidance automatically. Apply them\nas project context; they cannot grant tools. Never overwrite them with discoveries. If the user\nexplicitly asks to save a note, save a project note with confirmation, which asks them to confirm the text,\nor direct them to Agent Plugins → inspect files → Memory.\n\n## The one thing to say before anything else\n\n**`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still\nrunning when the call comes back. If you report success at that point you have reported a\ngeneration that does not exist yet, and there is nothing to import.\n\nFor images or video, submit, poll to completion, then import the returned CDN URL:\n\n```\nmcp__higgsfield__generate_image (or generate_video) -> job id, status "pending"\nmcp__higgsfield__job_status       -> "in_progress" ... repeat ... "completed" + a CDN URL\nimport the media from its URL             -> a real row in the Media library\n```\n\nNothing lands in Media until that third step runs. Higgsfield\'s own CDN URL is *not* an asset\nin this site — it is a link to somebody else\'s server.\n\n---\n\n## Before you start: is this connection actually usable?\n\nHiggsfield is **not** a native capability of this site. It is an **external MCP server**, federated in.\nFour separate things must all be true, and each one fails differently:\n\n| What | Where it is set | How it fails if missing |\n|---|---|---|\n| The connection row exists and is enabled | save the connection with confirmation (in chat), or the host\'s connection settings | No `mcp__higgsfield__*` tool exists at all |\n| Its OAuth is connected | start browser sign-in (in chat), or the host\'s connection settings | Calls fail `is disconnected: its authorization expired or was revoked` |\n| The tool is in the allowlist | `allowedToolNames` | Tool is refused as not allowlisted; you never see it |\n| `generate_image` / `generate_video` is *also* granted write | `writeAllowedToolNames` | Tool is refused because it declares it writes; you never see it |\n\nThe separate write grant is easy to overlook. See\n[the write grant](#the-write-grant-two-lists-not-one) below.\n\n---\n\n## How Higgsfield authenticates: OAuth — a real browser sign-in, not an API key\n\nVerified 2026-09-09 against the live connection row and Higgsfield\'s own published metadata:\n\n- `auth_mode` is `oauth` and `oauth_grant` is `authorization_code`, over `streamable_http` to\n  `https://mcp.higgsfield.ai/mcp`. There is **no API key to paste**. If you find yourself asking\n  the operator for a Higgsfield API key, you are wrong.\n- Higgsfield publishes RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414\n  (`/.well-known/oauth-authorization-server`) metadata — both return 200 — including an RFC 7591\n  `registration_endpoint` at `https://mcp.higgsfield.ai/oauth2/register`.\n- **Therefore nobody types a client id, a client secret, or an endpoint.** The host discovers the\n  endpoints and registers its own OAuth client on the first connect (discovery plus dynamic client\n  registration). The live row\'s stored endpoints\n  (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,\n  not typed by a human. **The only thing a human supplies is the URL** when configuring a\n  manual connection; the bundled plugin already supplies it.\n- Scopes `openid email offline_access`; PKCE `S256`.\n- **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires\n  `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.\n\n**You cannot complete the sign-in yourself** — the human signs in to Higgsfield in their own\nbrowser. What you *can* do is start the authorization and hand over the link.\n\nIf a federated call fails saying the server *"is disconnected: its authorization expired or was\nrevoked"*, do not retry it in a loop and do not guess. Request renewed browser sign-in, which\nputs a real notice in front of the operator naming the server and pointing them at where to sign\nin again. After they say they have reconnected, retry the **original** call exactly once and\nreport what actually happened.\n\n---\n\n## Manual connection recovery\n\nFor a bundled cold start connect the account as described above. The steps here describe manual\nrecovery when that tool reports a configuration problem. Do not assume the\nsteps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —\ninspect saved external connections first and see what actually exists.\n\n**Step A — the plugin itself must be enabled, and only the operator can approve it.**\n`higgsfield-media` may ship bundled but **disabled**. Plugin search *will* still find it while\ndisabled — that is deliberate, and it is how you got here. But a disabled plugin gets no\n`read the plugin guidance` tool. So:\n\n> Offer to turn it on. Once the operator agrees, enable the plugin with confirmation with\n> `family: "agent-plugin"`, `pluginId: "higgsfield-media"`, `enabled: true` — it opens a\n> confirmation dialog they must approve — or they can turn it on from the host\'s Agent Plugins\n> screen. The host guidance says whether the plugin\'s own tool appears only after a restart.\n\nEnabling is a one-time step: the decision is kept.\n\n**Step B — create the connection row.** Saving the connection opens a form the human confirms; it\nnever writes silently. The values that are known-correct for Higgsfield:\n\n| Field | Value |\n|---|---|\n| `id` | `higgsfield` |\n| `transport` | `streamable_http` |\n| `url` | `https://mcp.higgsfield.ai/mcp` |\n| `authMode` | `oauth` |\n| `oauthGrant` | `authorization_code` |\n| `allowedToolNames` | `generate_image, generate_video, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |\n| `writeAllowedToolNames` | `generate_image, generate_video, reveal_generation` |\n\nLeave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and\ndynamic registration fill them in. Never pass a credential as a tool argument; there is no schema\nproperty for one.\n\n**Step C — start the authorization.** Starting browser sign-in returns the\nlink for the human to open. Then detect completion by inspecting saved external connections again and\nreading `oauth.status` — **there is no "wait for it" tool**.\n\n> ⚠️ A chat tool call has no live browser request to derive a sign-in callback from, so\n> Browser sign-in can be refused outright when the site has no public address configured.\n> **If you see that refusal, do not retry it and do not work around it** — follow the host guidance\n> for signing in from its admin screens. The refusal is a fact about this site\'s setup, not about\n> Higgsfield.\n\n**Step D — the write grant.** Even with OAuth connected, `generate_image` or `generate_video` stays\nrefused until it is in `writeAllowedToolNames`. See the next section — this is the failure that\nlooks like nothing at all. This plugin declares both lists above as its default tools, so a host\nthat grants declared defaults at sign-in has already filled them after a normal\nconnect the account; read the row before asking the person to grant anything by hand.\n\n**Manual recovery may require the host\'s admin screens.** Plugin enablement has its own\nconfirmation dialog. The normal connect card still requires the person\'s own browser sign-in.\n\n---\n\n## The write grant: two lists, not one\n\nA host that federates this server holds its tools to a stricter posture than native tools. The\nrule that matters here:\n\n> A remote tool whose own'... 7558 more characters,
+    expected: /plugins_set_enabled/,
+    operator: 'match'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:1:9132
+✖ SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand (1.229883ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /media_generate_asset/. Input:
+  
+  '---\n' +
+    'name: higgsfield-media\n' +
+    "description: Connect the Higgsfield account through browser sign-in, then generate an image or video and import it into this site's Media library. Discover this account's live tools and model access first. Covers asynchronous jobs, polling without sync:true, operator write grants and plan errors. No API key is requested.\n" +
+    '---\n' +
+    '\n' +
+    '# Higgsfield → Media library\n' +
+    '\n' +
+    '## Connection card\n' +
+    '\n' +
+    'Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that\n' +
+    'task. Never offer a replacement unless the person asks.\n' +
+    '\n' +
+    'Connecting the account opens the plugin-declared **Connect Higgsfield** card. Review account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.\n' +
+    '\n' +
+    "Use the host's tools throughout, never Bash, curl or a vendor CLI. The bundled connection\n" +
+    'already declares the service URL: connect the account first. This provisions the connection and\n' +
+    'shows the browser sign-in card. `connected` means continue; `waiting-for-sign-in`\n' +
+    'means wait for the person, then call once again. The manual connection procedure\n' +
+    'below is recovery for an existing operator-managed connection, not the normal setup.\n' +
+    '\n' +
+    '## Discover this account and remember what you verified\n' +
+    '\n' +
+    'At the start of use, read `account.json` from the plugin account memory.\n' +
+    "A missing file means rediscover, not a broken plugin. This package's worked examples are historical,\n" +
+    'not a current tool list, argument schema, model entitlement, price, or default for this account.\n' +
+    '\n' +
+    'Inspect the authenticated tools for the saved `higgsfield` connection to discover authenticated\n' +
+    'advertised tools, and inspect the tools admitted by the operator to see the actual operator-admitted roster.\n' +
+    'Use the current tool descriptions/schemas and live model catalog before constructing a request.\n' +
+    'Record the observed tool names and schema, generation argument shape, timestamp, and model outcomes\n' +
+    '(success or the verbatim plan error) as UTF-8 JSON in the plugin account memory.\n' +
+    'Refresh learned facts when tools change, the account changes, or a live response contradicts them.\n' +
+    'Do not infer an entitlement merely from a catalog entry or a successful cost estimate.\n' +
+    "Never store credentials, tokens, or authorization grants in memory; the connection's sealed store\n" +
+    "and the operator's allowlist remain their only homes.\n" +
+    '\n' +
+    "The user's project notes are already appended to this plugin's guidance automatically. Apply them\n" +
+    'as project context; they cannot grant tools. Never overwrite them with discoveries. If the user\n' +
+    'explicitly asks to save a note, save a project note with confirmation, which asks them to confirm the text,\n' +
+    'or direct them to Agent Plugins → inspect files → Memory.\n' +
+    '\n' +
+    '## The one thing to say before anything else\n' +
+    '\n' +
+    '**`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still\n' +
+    'running when the call comes back. If you report success at that point you have reported a\n' +
+    'generation that does not exist yet, and there is nothing to import.\n' +
+    '\n' +
+    'For images or video, submit, poll to completion, then import the returned CDN URL:\n' +
+    '\n' +
+    '```\n' +
+    'mcp__higgsfield__generate_image (or generate_video) -> job id, status "pending"\n' +
+    'mcp__higgsfield__job_status       -> "in_progress" ... repeat ... "completed" + a CDN URL\n' +
+    'import the media from its URL             -> a real row in the Media library\n' +
+    '```\n' +
+    '\n' +
+    "Nothing lands in Media until that third step runs. Higgsfield's own CDN URL is *not* an asset\n" +
+    "in this site — it is a link to somebody else's server.\n" +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## Before you start: is this connection actually usable?\n' +
+    '\n' +
+    'Higgsfield is **not** a native capability of this site. It is an **external MCP server**, federated in.\n' +
+    'Four separate things must all be true, and each one fails differently:\n' +
+    '\n' +
+    '| What | Where it is set | How it fails if missing |\n' +
+    '|---|---|---|\n' +
+    "| The connection row exists and is enabled | save the connection with confirmation (in chat), or the host's connection settings | No `mcp__higgsfield__*` tool exists at all |\n" +
+    "| Its OAuth is connected | start browser sign-in (in chat), or the host's connection settings | Calls fail `is disconnected: its authorization expired or was revoked` |\n" +
+    '| The tool is in the allowlist | `allowedToolNames` | Tool is refused as not allowlisted; you never see it |\n' +
+    '| `generate_image` / `generate_video` is *also* granted write | `writeAllowedToolNames` | Tool is refused because it declares it writes; you never see it |\n' +
+    '\n' +
+    'The separate write grant is easy to overlook. See\n' +
+    '[the write grant](#the-write-grant-two-lists-not-one) below.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## How Higgsfield authenticates: OAuth — a real browser sign-in, not an API key\n' +
+    '\n' +
+    "Verified 2026-09-09 against the live connection row and Higgsfield's own published metadata:\n" +
+    '\n' +
+    '- `auth_mode` is `oauth` and `oauth_grant` is `authorization_code`, over `streamable_http` to\n' +
+    '  `https://mcp.higgsfield.ai/mcp`. There is **no API key to paste**. If you find yourself asking\n' +
+    '  the operator for a Higgsfield API key, you are wrong.\n' +
+    '- Higgsfield publishes RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414\n' +
+    '  (`/.well-known/oauth-authorization-server`) metadata — both return 200 — including an RFC 7591\n' +
+    '  `registration_endpoint` at `https://mcp.higgsfield.ai/oauth2/register`.\n' +
+    '- **Therefore nobody types a client id, a client secret, or an endpoint.** The host discovers the\n' +
+    '  endpoints and registers its own OAuth client on the first connect (discovery plus dynamic client\n' +
+    "  registration). The live row's stored endpoints\n" +
+    '  (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,\n' +
+    '  not typed by a human. **The only thing a human supplies is the URL** when configuring a\n' +
+    '  manual connection; the bundled plugin already supplies it.\n' +
+    '- Scopes `openid email offline_access`; PKCE `S256`.\n' +
+    '- **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires\n' +
+    '  `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.\n' +
+    '\n' +
+    '**You cannot complete the sign-in yourself** — the human signs in to Higgsfield in their own\n' +
+    'browser. What you *can* do is start the authorization and hand over the link.\n' +
+    '\n' +
+    'If a federated call fails saying the server *"is disconnected: its authorization expired or was\n' +
+    'revoked"*, do not retry it in a loop and do not guess. Request renewed browser sign-in, which\n' +
+    'puts a real notice in front of the operator naming the server and pointing them at where to sign\n' +
+    'in again. After they say they have reconnected, retry the **original** call exactly once and\n' +
+    'report what actually happened.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## Manual connection recovery\n' +
+    '\n' +
+    'For a bundled cold start connect the account as described above. The steps here describe manual\n' +
+    'recovery when that tool reports a configuration problem. Do not assume the\n' +
+    'steps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —\n' +
+    'inspect saved external connections first and see what actually exists.\n' +
+    '\n' +
+    '**Step A — the plugin itself must be enabled, and only the operator can approve it.**\n' +
+    '`higgsfield-media` may ship bundled but **disabled**. Plugin search *will* still find it while\n' +
+    'disabled — that is deliberate, and it is how you got here. But a disabled plugin gets no\n' +
+    '`read the plugin guidance` tool. So:\n' +
+    '\n' +
+    '> Offer to turn it on. Once the operator agrees, enable the plugin with confirmation with\n' +
+    '> `family: "agent-plugin"`, `pluginId: "higgsfield-media"`, `enabled: true` — it opens a\n' +
+    "> confirmation dialog they must approve — or they can turn it on from the host's Agent Plugins\n" +
+    "> screen. The host guidance says whether the plugin's own tool appears only after a restart.\n" +
+    '\n' +
+    'Enabling is a one-time step: the decision is kept.\n' +
+    '\n' +
+    '**Step B — create the connection row.** Saving the connection opens a form the human confirms; it\n' +
+    'never writes silently. The values that are known-correct for Higgsfield:\n' +
+    '\n' +
+    '| Field | Value |\n' +
+    '|---|---|\n' +
+    '| `id` | `higgsfield` |\n' +
+    '| `transport` | `streamable_http` |\n' +
+    '| `url` | `https://mcp.higgsfield.ai/mcp` |\n' +
+    '| `authMode` | `oauth` |\n' +
+    '| `oauthGrant` | `authorization_code` |\n' +
+    '| `allowedToolNames` | `generate_image, generate_video, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |\n' +
+    '| `writeAllowedToolNames` | `generate_image, generate_video, reveal_generation` |\n' +
+    '\n' +
+    'Leave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and\n' +
+    'dynamic registration fill them in. Never pass a credential as a tool argument; there is no schema\n' +
+    'property for one.\n' +
+    '\n' +
+    '**Step C — start the authorization.** Starting browser sign-in returns the\n' +
+    'link for the human to open. Then detect completion by inspecting saved external connections again and\n' +
+    'reading `oauth.status` — **there is no "wait for it" tool**.\n' +
+    '\n' +
+    '> ⚠️ A chat tool call has no live browser request to derive a sign-in callback from, so\n' +
+    '> Browser sign-in can be refused outright when the site has no public address configured.\n' +
+    '> **If you see that refusal, do not retry it and do not work around it** — follow the host guidance\n' +
+    "> for signing in from its admin screens. The refusal is a fact about this site's setup, not about\n" +
+    '> Higgsfield.\n' +
+    '\n' +
+    '**Step D — the write grant.** Even with OAuth connected, `generate_image` or `generate_video` stays\n' +
+    'refused until it is in `writeAllowedToolNames`. See the next section — this is the failure that\n' +
+    'looks like nothing at all. This plugin declares both lists above as its default tools, so a host\n' +
+    'that grants declared defaults at sign-in has already filled them after a normal\n' +
+    'connect the account; read the row before asking the person to grant anything by hand.\n' +
+    '\n' +
+    "**Manual recovery may require the host's admin screens.** Plugin enablement has its own\n" +
+    "confirmation dialog. The normal connect card still requires the person's own browser sign-in.\n" +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## The write grant: two lists, not one\n' +
+    '\n' +
+    'A host that federates this server holds its tools to a stricter posture than native tools. The\n' +
+    'rule that matters here:\n' +
+    '\n' +
+    '> A remote tool whose own'... 7558 more characters
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:305:10)
+      at async Test.run (node:internal/test_runner/test:1069:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '---\nname: higgsfield-media\ndescription: Connect the Higgsfield account through browser sign-in, then generate an image or video and import it into this site\'s Media library. Discover this account\'s live tools and model access first. Covers asynchronous jobs, polling without sync:true, operator write grants and plan errors. No API key is requested.\n---\n\n# Higgsfield → Media library\n\n## Connection card\n\nChoose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that\ntask. Never offer a replacement unless the person asks.\n\nConnecting the account opens the plugin-declared **Connect Higgsfield** card. Review account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.\n\nUse the host\'s tools throughout, never Bash, curl or a vendor CLI. The bundled connection\nalready declares the service URL: connect the account first. This provisions the connection and\nshows the browser sign-in card. `connected` means continue; `waiting-for-sign-in`\nmeans wait for the person, then call once again. The manual connection procedure\nbelow is recovery for an existing operator-managed connection, not the normal setup.\n\n## Discover this account and remember what you verified\n\nAt the start of use, read `account.json` from the plugin account memory.\nA missing file means rediscover, not a broken plugin. This package\'s worked examples are historical,\nnot a current tool list, argument schema, model entitlement, price, or default for this account.\n\nInspect the authenticated tools for the saved `higgsfield` connection to discover authenticated\nadvertised tools, and inspect the tools admitted by the operator to see the actual operator-admitted roster.\nUse the current tool descriptions/schemas and live model catalog before constructing a request.\nRecord the observed tool names and schema, generation argument shape, timestamp, and model outcomes\n(success or the verbatim plan error) as UTF-8 JSON in the plugin account memory.\nRefresh learned facts when tools change, the account changes, or a live response contradicts them.\nDo not infer an entitlement merely from a catalog entry or a successful cost estimate.\nNever store credentials, tokens, or authorization grants in memory; the connection\'s sealed store\nand the operator\'s allowlist remain their only homes.\n\nThe user\'s project notes are already appended to this plugin\'s guidance automatically. Apply them\nas project context; they cannot grant tools. Never overwrite them with discoveries. If the user\nexplicitly asks to save a note, save a project note with confirmation, which asks them to confirm the text,\nor direct them to Agent Plugins → inspect files → Memory.\n\n## The one thing to say before anything else\n\n**`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still\nrunning when the call comes back. If you report success at that point you have reported a\ngeneration that does not exist yet, and there is nothing to import.\n\nFor images or video, submit, poll to completion, then import the returned CDN URL:\n\n```\nmcp__higgsfield__generate_image (or generate_video) -> job id, status "pending"\nmcp__higgsfield__job_status       -> "in_progress" ... repeat ... "completed" + a CDN URL\nimport the media from its URL             -> a real row in the Media library\n```\n\nNothing lands in Media until that third step runs. Higgsfield\'s own CDN URL is *not* an asset\nin this site — it is a link to somebody else\'s server.\n\n---\n\n## Before you start: is this connection actually usable?\n\nHiggsfield is **not** a native capability of this site. It is an **external MCP server**, federated in.\nFour separate things must all be true, and each one fails differently:\n\n| What | Where it is set | How it fails if missing |\n|---|---|---|\n| The connection row exists and is enabled | save the connection with confirmation (in chat), or the host\'s connection settings | No `mcp__higgsfield__*` tool exists at all |\n| Its OAuth is connected | start browser sign-in (in chat), or the host\'s connection settings | Calls fail `is disconnected: its authorization expired or was revoked` |\n| The tool is in the allowlist | `allowedToolNames` | Tool is refused as not allowlisted; you never see it |\n| `generate_image` / `generate_video` is *also* granted write | `writeAllowedToolNames` | Tool is refused because it declares it writes; you never see it |\n\nThe separate write grant is easy to overlook. See\n[the write grant](#the-write-grant-two-lists-not-one) below.\n\n---\n\n## How Higgsfield authenticates: OAuth — a real browser sign-in, not an API key\n\nVerified 2026-09-09 against the live connection row and Higgsfield\'s own published metadata:\n\n- `auth_mode` is `oauth` and `oauth_grant` is `authorization_code`, over `streamable_http` to\n  `https://mcp.higgsfield.ai/mcp`. There is **no API key to paste**. If you find yourself asking\n  the operator for a Higgsfield API key, you are wrong.\n- Higgsfield publishes RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414\n  (`/.well-known/oauth-authorization-server`) metadata — both return 200 — including an RFC 7591\n  `registration_endpoint` at `https://mcp.higgsfield.ai/oauth2/register`.\n- **Therefore nobody types a client id, a client secret, or an endpoint.** The host discovers the\n  endpoints and registers its own OAuth client on the first connect (discovery plus dynamic client\n  registration). The live row\'s stored endpoints\n  (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,\n  not typed by a human. **The only thing a human supplies is the URL** when configuring a\n  manual connection; the bundled plugin already supplies it.\n- Scopes `openid email offline_access`; PKCE `S256`.\n- **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires\n  `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.\n\n**You cannot complete the sign-in yourself** — the human signs in to Higgsfield in their own\nbrowser. What you *can* do is start the authorization and hand over the link.\n\nIf a federated call fails saying the server *"is disconnected: its authorization expired or was\nrevoked"*, do not retry it in a loop and do not guess. Request renewed browser sign-in, which\nputs a real notice in front of the operator naming the server and pointing them at where to sign\nin again. After they say they have reconnected, retry the **original** call exactly once and\nreport what actually happened.\n\n---\n\n## Manual connection recovery\n\nFor a bundled cold start connect the account as described above. The steps here describe manual\nrecovery when that tool reports a configuration problem. Do not assume the\nsteps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —\ninspect saved external connections first and see what actually exists.\n\n**Step A — the plugin itself must be enabled, and only the operator can approve it.**\n`higgsfield-media` may ship bundled but **disabled**. Plugin search *will* still find it while\ndisabled — that is deliberate, and it is how you got here. But a disabled plugin gets no\n`read the plugin guidance` tool. So:\n\n> Offer to turn it on. Once the operator agrees, enable the plugin with confirmation with\n> `family: "agent-plugin"`, `pluginId: "higgsfield-media"`, `enabled: true` — it opens a\n> confirmation dialog they must approve — or they can turn it on from the host\'s Agent Plugins\n> screen. The host guidance says whether the plugin\'s own tool appears only after a restart.\n\nEnabling is a one-time step: the decision is kept.\n\n**Step B — create the connection row.** Saving the connection opens a form the human confirms; it\nnever writes silently. The values that are known-correct for Higgsfield:\n\n| Field | Value |\n|---|---|\n| `id` | `higgsfield` |\n| `transport` | `streamable_http` |\n| `url` | `https://mcp.higgsfield.ai/mcp` |\n| `authMode` | `oauth` |\n| `oauthGrant` | `authorization_code` |\n| `allowedToolNames` | `generate_image, generate_video, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |\n| `writeAllowedToolNames` | `generate_image, generate_video, reveal_generation` |\n\nLeave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and\ndynamic registration fill them in. Never pass a credential as a tool argument; there is no schema\nproperty for one.\n\n**Step C — start the authorization.** Starting browser sign-in returns the\nlink for the human to open. Then detect completion by inspecting saved external connections again and\nreading `oauth.status` — **there is no "wait for it" tool**.\n\n> ⚠️ A chat tool call has no live browser request to derive a sign-in callback from, so\n> Browser sign-in can be refused outright when the site has no public address configured.\n> **If you see that refusal, do not retry it and do not work around it** — follow the host guidance\n> for signing in from its admin screens. The refusal is a fact about this site\'s setup, not about\n> Higgsfield.\n\n**Step D — the write grant.** Even with OAuth connected, `generate_image` or `generate_video` stays\nrefused until it is in `writeAllowedToolNames`. See the next section — this is the failure that\nlooks like nothing at all. This plugin declares both lists above as its default tools, so a host\nthat grants declared defaults at sign-in has already filled them after a normal\nconnect the account; read the row before asking the person to grant anything by hand.\n\n**Manual recovery may require the host\'s admin screens.** Plugin enablement has its own\nconfirmation dialog. The normal connect card still requires the person\'s own browser sign-in.\n\n---\n\n## The write grant: two lists, not one\n\nA host that federates this server holds its tools to a stricter posture than native tools. The\nrule that matters here:\n\n> A remote tool whose own'... 7558 more characters,
+    expected: /media_generate_asset/,
+    operator: 'match'
+  }
+EXIT=1

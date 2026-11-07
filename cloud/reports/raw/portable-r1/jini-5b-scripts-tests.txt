@@ -1,0 +1,59 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/check-package-layers.test.ts (73 tests) 120ms
+ ❯ scripts/__tests__/plugin-release-consistency.test.ts (9 tests | 1 failed) 1055ms
+   × imports the release preparation path in Node without running a release 133ms
+     → file:///home/user/Jini/[eval1]:1
+import { preparePluginRelease } from './scripts/publish-pending.ts'; console.log(typeof preparePluginRelease);
+         ^^^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module './scripts/publish-pending.ts' does not provide an export named 'preparePluginRelease'
+    at #_instantiate (node:internal/modules/esm/module_job:248:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:350:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:270:26)
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:267:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5)
+
+Node.js v24.2.0
+: expected 1 to be +0 // Object.is equality
+   ✓ compares two packed release sets and keeps same-version byte changes explicit 879ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/plugin-release-consistency.test.ts > imports the release preparation path in Node without running a release
+AssertionError: file:///home/user/Jini/[eval1]:1
+import { preparePluginRelease } from './scripts/publish-pending.ts'; console.log(typeof preparePluginRelease);
+         ^^^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module './scripts/publish-pending.ts' does not provide an export named 'preparePluginRelease'
+    at #_instantiate (node:internal/modules/esm/module_job:248:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:350:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:270:26)
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:267:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5)
+
+Node.js v24.2.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ scripts/__tests__/plugin-release-consistency.test.ts:117:40
+    115|     input: "import { preparePluginRelease } from './scripts/publish-pe…
+    116|   });
+    117|   expect(result.status, result.stderr).toBe(0);
+       |                                        ^
+    118|   expect(result.stdout.trim()).toBe('function');
+    119| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 81 passed (82)
+   Start at  02:34:04
+   Duration  1.95s (transform 405ms, setup 0ms, collect 1.04s, tests 1.18s, environment 0ms, prepare 95ms)
+
+EXIT=1

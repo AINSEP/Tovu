@@ -1,0 +1,7 @@
+Auto-merging apps/admin/src/features/plugins/AgentPluginRow.tsx
+Auto-merging apps/admin/src/lib/api.ts
+Auto-merging apps/website/src/features/agent-plugins/__tests__/manifest.default-tools-read.test.ts
+CONFLICT (content): Merge conflict in apps/website/src/features/agent-plugins/__tests__/manifest.default-tools-read.test.ts
+Auto-merging apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-video-docs.unit.test.ts
+CONFLICT (content): Merge conflict in apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-video-docs.unit.test.ts
+Automatic merge failed; fix conflicts and then commit the result.

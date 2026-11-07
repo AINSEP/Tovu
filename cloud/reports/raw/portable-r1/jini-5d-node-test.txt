@@ -1,0 +1,20 @@
+✔ the manifest keeps every frozen identifier hosts and saved sites already store (4.314031ms)
+✔ every contribution file names a module this plugin ships (5.083894ms)
+✔ the distribution carries its CMS evidence reader without installing CMS at runtime (3.648045ms)
+✔ form wire names stay frozen: live Workers and D1 databases already use them (0.375194ms)
+✔ the shipped text and runtime messages are host-neutral (7.006805ms)
+✔ the higgsfield-media package ships its skill and both references, each cited (8.137984ms)
+✔ browser sign-in and operator read trust are declared without a token (2.623044ms)
+✔ the one connection card is browser sign-in with its task purposes (0.878652ms)
+✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (0.91776ms)
+✔ the shipped text is host-neutral (1.967332ms)
+✔ polling and generation history remain available to read-only assistants after sign-in (0.626987ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.070951
+EXIT=0

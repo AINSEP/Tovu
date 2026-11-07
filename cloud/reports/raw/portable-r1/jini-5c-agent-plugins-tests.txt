@@ -1,0 +1,43 @@
+
+> @jini-ai/agent-plugins@0.6.24 test /home/user/Jini/packages/agent-plugins
+> vitest run src/lifecycle/__tests__/unit/portable-metadata.unit.test.ts src/lifecycle/__tests__/unit/manifest-extensions.unit.test.ts src/lifecycle/__tests__/unit/manifest-boundaries.unit.test.ts src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts --maxWorkers=2 --minWorkers=1
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/__tests__/unit/manifest-boundaries.unit.test.ts (35 tests) 13ms
+ ✓ src/lifecycle/__tests__/unit/manifest-extensions.unit.test.ts (11 tests) 8ms
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > indexes every regular file sorted and every skill sorted by name
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > skips an entry that is neither a directory nor a regular file
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > omits every optional manifest field the manifest does not declare
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > carries description, keywords, author and license through
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > carries validated exports and declared old identities without reading templates
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > trims and caps the host displayName and summary
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+
+stderr | src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts > indexInstalledRoot results > ignores a non-string or blank displayName and summary
+Plugin 'my-plugin' has no publisher-qualified id; using 'unknown/my-plugin'.
+Invalid agent-plugin displayName metadata was ignored.
+Invalid agent-plugin summary metadata was ignored.
+
+ ✓ src/lifecycle/__tests__/unit/installed-package-index.unit.test.ts (15 tests) 58ms
+ ✓ src/lifecycle/__tests__/unit/portable-metadata.unit.test.ts (6 tests) 7ms
+ ✓ src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts (34 tests) 216ms
+ ✓ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts (9 tests) 9ms
+
+ Test Files  6 passed (6)
+      Tests  110 passed (110)
+   Start at  02:34:07
+   Duration  1.46s (transform 505ms, setup 0ms, collect 1.06s, tests 311ms, environment 1ms, prepare 286ms)
+
+EXIT=0

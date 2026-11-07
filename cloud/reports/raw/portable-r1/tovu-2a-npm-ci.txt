@@ -1,0 +1,63 @@
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @jini-ai/db@0.6.19
+npm warn Found: better-sqlite3@13.0.3
+npm warn node_modules/better-sqlite3
+npm warn   better-sqlite3@"^13.0.0" from the root project
+npm warn   7 more (@jini-ai/capability-providers, @jini-ai/chat, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional better-sqlite3@"^13.0.0" from @jini-ai/db@0.6.19
+npm warn node_modules/@jini-ai/db
+npm warn   @jini-ai/db@"^0.6.19" from the root project
+npm warn   9 more (@jini-ai/chat, @jini-ai/cms, @jini-ai/commerce, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @jini-ai/db@0.6.19
+npm warn Found: pg@8.23.0
+npm warn node_modules/pg
+npm warn   pg@"^8.23.0" from the root project
+npm warn   4 more (@jini-ai/chat, @jini-ai/daemon, drizzle-orm, pg-pool)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional pg@"^8.23.0" from @jini-ai/db@0.6.19
+npm warn node_modules/@jini-ai/db
+npm warn   @jini-ai/db@"^0.6.19" from the root project
+npm warn   9 more (@jini-ai/chat, @jini-ai/cms, @jini-ai/commerce, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @jini-ai/ui@0.6.23
+npm warn Found: parse5@7.3.0
+npm warn node_modules/parse5
+npm warn   parse5@"^7.3.0" from the root project
+npm warn   7 more (@jini-ai/cms, @jini-ai/devops, @jini-ai/platform, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional parse5@"^7.3.0 || ^8.0.1" from @jini-ai/ui@0.6.23
+npm warn node_modules/@jini-ai/ui
+npm warn   @jini-ai/ui@"^0.6.23" from the root project
+npm warn   3 more (@jini-ai/chat, @jini-ai/commerce, @jini-ai/user-management)
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated @jini-ai/infra@0.6.19: Compatibility shim: use @jini-ai/db/core and @jini-ai/db/sqlite directly.
+
+> tovu@0.1.0 prepare
+> node development/scripts/prepare-desktop-hooks.mjs
+
+
+added 938 packages, and audited 941 packages in 42s
+
+261 packages are looking for funding
+  run `npm fund` for details
+
+51 vulnerabilities (18 moderate, 30 high, 3 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+EXIT=0

@@ -1,0 +1,40 @@
+
+> @jini-ai/plugin-catalog@0.6.24 test /home/user/Jini/packages/plugin-catalog
+> vitest run -- --maxWorkers=2
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-catalog
+
+npm warn Unknown env config "disallow-workspace-cycles". This will stop working in the next major version of npm.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm.
+npm warn Unknown env config "link-workspace-packages". This will stop working in the next major version of npm.
+npm warn Unknown env config "recursive". This will stop working in the next major version of npm.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.
+npm notice
+npm notice package: @jini-ai/plugin-catalog@0.6.24
+npm notice Tarball Contents
+npm notice 11.3kB LICENSE
+npm notice 256B NOTICE
+npm notice 2.6kB README.md
+npm notice 93.9kB catalog.json
+npm notice 845B package.json
+npm notice Tarball Details
+npm notice name: @jini-ai/plugin-catalog
+npm notice version: 0.6.24
+npm notice filename: jini-ai-plugin-catalog-0.6.24.tgz
+npm notice package size: 34.4 kB
+npm notice unpacked size: 108.9 kB
+npm notice shasum: 6fd409caaec57c2b0c7f68789c27e3e4aae016ee
+npm notice integrity: sha512-Qvs2Df59UwbPa[...]3Xqr0zovaKM+g==
+npm notice total files: 5
+npm notice
+ ✓ __tests__/catalog.test.ts (65 tests) 340ms
+
+ Test Files  1 passed (1)
+      Tests  65 passed (65)
+   Start at  02:33:53
+   Duration  665ms (transform 65ms, setup 0ms, collect 81ms, tests 340ms, environment 0ms, prepare 67ms)
+
+EXIT=0
