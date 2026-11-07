@@ -18,14 +18,15 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 
 | Batch | Tovu SHA | Jini SHA | Gate | Final context |
 |---|---|---|---|---|
-| P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | ~115k |
-| P1a | `6def6cdaa` | `fedca02d6`, `4ebd5d234` | **failed on one item**: `pnpm guard` exit 1 on `R2-deep-path` (`plugin-catalog/scripts/generate.ts`) and `R10-chatpane-public-surface` (`chat/.../ChatPane.tsx`), both files unchanged since the behavior baseline, so red at baseline, not from P1a. Not fixed (outside plan scope; no follow-up spent). Every other item passed: tests run with 44 `.todo`, layers unchanged 130/130, tsc exit 0, `guard:plugins` exit 0 | ~125k |
+| P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | 115k |
+| P1a | `6def6cdaa` | `fedca02d6`, `4ebd5d234` | **failed on one item**: `pnpm guard` exit 1 on `R2-deep-path` (`plugin-catalog/scripts/generate.ts`) and `R10-chatpane-public-surface` (`chat/.../ChatPane.tsx`), both files unchanged since the behavior baseline, so red at baseline, not from P1a. Not fixed (outside plan scope; no follow-up spent). Every other item passed: tests run with 44 `.todo`, layers unchanged 130/130, tsc exit 0, `guard:plugins` exit 0 | 225k |
 
 ## Progress (every 30 min)
 
 | UTC | Batch | Final-context tally | Reds |
 |---|---|---|---|
 | 17:10 | P0 merge done, P0 subagent next | coordinator only | none yet |
+| 17:33 | P0, P1a done; P1b next | ~400k (P0 115k + P1a 225k + coordinator ~60k) | `pnpm guard` red at baseline (R2-deep-path, R10-chatpane-public-surface); Jini `plugin-release-consistency` baseline |
 
 ## Bugs found
 
