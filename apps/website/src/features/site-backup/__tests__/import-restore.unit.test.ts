@@ -32,6 +32,8 @@ function databaseBytes(activeThemes: readonly string[], pages: readonly PageRow[
   try {
     db.exec("CREATE TABLE presentation_settings (workspace_id TEXT, active_theme_id TEXT)");
     db.exec("CREATE TABLE posts (id TEXT, title TEXT, body_format TEXT, body_html TEXT, status TEXT)");
+    db.exec("CREATE TABLE menus (id TEXT, title TEXT, doc_json TEXT, status TEXT)");
+    db.exec("CREATE TABLE form_definitions (id TEXT, name TEXT, fields_json TEXT, status TEXT)");
     for (const [index, theme] of activeThemes.entries()) db.prepare("INSERT INTO presentation_settings VALUES (?, ?)").run("ws-" + index, theme);
     for (const [index, page] of pages.entries()) db.prepare("INSERT INTO posts VALUES (?, ?, ?, ?, ?)").run("p" + index, page.title, page.body_format, page.body_html, page.status);
     return db.serialize();
@@ -257,6 +259,62 @@ test("a published HTML page that could run script lands as a draft with a notice
   for (const title of ["Inert", "Doc"]) assert.equal(statuses[title], "published", title);
   assert.equal(statuses["Already draft"], "draft");
   assert.deepEqual(stagedImportWarnings({ root: h.root }).filter(notice => notice.includes("Page")), ["Tag", "Handler", "Link", "Svg", "Frame", "Marker", "Escaped marker"].map(title => `Page '${title}' holds its own code, so it was imported as a draft. Publish it if you trust this file.`));
+});
+
+test("imported menus and forms follow the same keep-off rule as pages while markers stay published", async t => {
+  const ownHtml = "<script>example()</script>";
+  const menu = { type: "nav-menu", version: 1, items: [], mode: "html", html: ownHtml };
+  const form = { fields: [], mode: "html", html: ownHtml };
+  const inertMenu = { ...menu, html: '<nav><a href="/about">About</a></nav>' };
+  const inertForm = { ...form, html: '<label>Email<input name="email" type="email"></label>' };
+  const marker = `<div data-embed-config='{"type":"menu","id":"own"}'></div><div data-embed-config='{"type":"form","id":"own"}'></div>`;
+  const h = await restore(t, {}, { pages: [{ title: "Markers", body_format: "html", body_html: marker, status: "published" }], before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const [id, doc] of [["own", menu], ["inert", inertMenu]] as const) db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(id, id, JSON.stringify(doc));
+      for (const [id, doc] of [["own", form], ["inert", inertForm]] as const) db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(id, id, JSON.stringify(doc));
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    const menus = db.prepare("SELECT id, doc_json FROM menus ORDER BY id").all() as { id: string; doc_json: string }[];
+    assert.deepEqual(menus.map(row => JSON.parse(row.doc_json)), [inertMenu, { ...menu, mode: "items" }]);
+    assert.deepEqual(db.prepare("SELECT id, fields_json, status FROM form_definitions ORDER BY id").all(), [
+      { id: "inert", fields_json: JSON.stringify(inertForm), status: "active" },
+      { id: "own", fields_json: JSON.stringify(form), status: "disabled" },
+    ]);
+    assert.equal(pageStatuses(h.dbPath).Markers, "published");
+    assert.deepEqual(stagedImportWarnings({ root: h.root }), [
+      "Menu 'own' holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.",
+      "Form 'own' holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.",
+    ]);
+  } finally { db.close(); }
+});
+
+test("kept-off menu and form notices cap item counts and titles while preserving every original", async t => {
+  const title = "A".repeat(100);
+  const html = "<script>example()</script>";
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (let i = 0; i < 25; i++) {
+        db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(String(i), String(i) + title, JSON.stringify({ mode: "html", html, items: [] }));
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(String(i), String(i) + title, JSON.stringify({ mode: "html", html, fields: [] }));
+      }
+    } finally { db.close(); }
+  } });
+  const notices = stagedImportWarnings({ root: h.root });
+  assert.equal(notices.length, 42);
+  assert.equal(notices[20], "5 more menus hold their own code and their HTML was kept switched off.");
+  assert.equal(notices[41], "5 more forms hold their own code and were imported disabled.");
+  assert.ok(notices[0]!.includes(title.slice(0, 78)));
+  assert.ok(notices.every(notice => !notice.includes(title)));
+  const db = new Database(h.dbPath);
+  try {
+    assert.equal((db.prepare("SELECT count(*) AS n FROM form_definitions WHERE status='disabled'").get() as { n: number }).n, 25);
+    for (const row of db.prepare("SELECT doc_json FROM menus").all() as { doc_json: string }[]) assert.deepEqual(JSON.parse(row.doc_json), { mode: "items", html, items: [] });
+    for (const row of db.prepare("SELECT fields_json FROM form_definitions").all() as { fields_json: string }[]) assert.deepEqual(JSON.parse(row.fields_json), { mode: "html", html, fields: [] });
+  } finally { db.close(); }
 });
 
 test("many kept-off pages share a bounded notice", async t => {

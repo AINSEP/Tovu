@@ -109,6 +109,31 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
   try {
     const liveThemeIds = new Set([...required.liveThemes].flatMap(id => id.startsWith("__") ? [] : [id.split("/").at(-1)!]));
     const setAside = required.setAside ? [`The imported file's copy of '${required.fallback}' differs from this site's own, so the site kept its own and the imported copy was set aside.`] : [];
-    return [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
+    const notices = [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
+    const menuNotices: string[] = [];
+    const menus = await db.run(query => query.selectFrom("menus").select(["id", "title", "doc_json"]).where("status", "!=", "trash").execute());
+    for (const menu of menus) {
+      const doc = JSON.parse(menu.doc_json);
+      if (doc.mode !== "html" || !pageBodyMayRunScript({ html: doc.html ?? "" })) continue;
+      // Draft menus still resolve at markers; items mode keeps the original HTML without serving it.
+      await db.run(query => query.updateTable("menus").set({ doc_json: JSON.stringify({ ...doc, mode: "items" }) }).where("id", "=", menu.id).execute());
+      menuNotices.push(`Menu '${String(menu.title).slice(0, MAX_NOTICE_TITLE)}' holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`);
+    }
+    const moreMenus = menuNotices.length - MAX_PAGE_NOTICES;
+    notices.push(...menuNotices.slice(0, MAX_PAGE_NOTICES));
+    if (moreMenus > 0) notices.push(`${moreMenus} more menus hold their own code and their HTML was kept switched off.`);
+    const formNotices: string[] = [];
+    const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).where("status", "=", "active").execute());
+    for (const form of forms) {
+      const fields = JSON.parse(form.fields_json);
+      if (fields.mode !== "html" || !pageBodyMayRunScript({ html: fields.html ?? "" })) continue;
+      // Disabled forms do not resolve at markers; keep the authored envelope byte-for-byte.
+      await db.run(query => query.updateTable("form_definitions").set({ status: "disabled" }).where("id", "=", form.id).execute());
+      formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);
+    }
+    const moreForms = formNotices.length - MAX_PAGE_NOTICES;
+    notices.push(...formNotices.slice(0, MAX_PAGE_NOTICES));
+    if (moreForms > 0) notices.push(`${moreForms} more forms hold their own code and were imported disabled.`);
+    return notices;
   } finally { await db.close(); }
 }
