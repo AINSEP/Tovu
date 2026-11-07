@@ -375,3 +375,13 @@ Native form grouping and inert input hints are normalized only in the form check
 Command: `bash /workspace/work/run-tovu-file.sh --test-name-pattern='starter radio' apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts`. Red: 0/1; mutation allowing the handler attribute: 0/1; restored policy and whole changed file: 45/45 green. No-emit `tsc -p /workspace/work/tsconfig-item1.json --noEmit`: exit 0. Initial bare admin-package import was unavailable at the website root (`ERR_MODULE_NOT_FOUND`); the test uses the real module from the existing admin installation.
 
 Cost: one additional bounded form DOM normalization/serialization per imported HTML form, O(HTML bytes), no additional I/O.
+
+### 2 — done
+
+The existing guarded request now accepts `bodyAs: "bytes"`. Native transport omits decoded text and clears collected chunks immediately after concatenation. The client skips text capping/re-encoding. Share download requests bytes and returns the native Buffer unchanged; older Uint8Array adapters get a zero-copy Buffer view. Other callers retain their text behavior.
+
+Jini changed file command from `packages/platform`: `../../node_modules/.bin/vitest run src/http/guarded/__tests__/transport-request-port.test.ts --maxWorkers=2 --minWorkers=1`. Red 3/4, mutation restoring client re-encoding 3/4, green 4/4. Core and platform rebuild/no-emit checks exit 0. Tovu `import-download-limit.unit.test.ts`: missing request mode red 0/1; copy-restoring mutation red 0/1; full file green 3/3. Its no-emit dependency graph exits 0. The existing download request expectation now includes the mode. A root-relative edit from the package directory initially raised `FileNotFoundError`; no source mutation resulted from that attempt.
+
+Measured with `node --expose-gc --max-old-space-size=128 /workspace/work/review/memory.mjs`: 300 MiB of separately allocated non-ASCII chunks through the real guarded client/native transport effect seam. Peak RSS approximately 637 MiB; sampled peak heap under 8 MiB; text length zero. RSS uses the process high-water reading; heap is sampled, not an exact high-water instrument. Calculated buffer peak is two payload-sized byte allocations at concat, with no payload-sized V8 string or re-encoding buffer. The Tovu Buffer identity test proves its copy is removed.
+
+Cost: one download × at most 300 MiB network data; roughly two payload-sized external byte buffers transiently at concat, then one result buffer. No payload-sized text allocation or additional disk I/O. Jini commit `d469108bd`.

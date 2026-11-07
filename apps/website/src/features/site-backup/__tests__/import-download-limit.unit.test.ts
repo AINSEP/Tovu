@@ -11,7 +11,7 @@ import { SITE_IMPORT_EGRESS_POLICY } from "../../../platform/http/egress-policie
 import { downloadShareArchive } from "../import-backend-steps.js";
 
 test("share download retains a complete 101 MiB response under the existing 300 MiB policy", async () => {
-  const chunk = Buffer.alloc(1024 * 1024, 120);
+  const chunk = Buffer.alloc(1024 * 1024, 255);
   const transport = new FetchHttpTransportAdapter({}, { request: ({ onResponse }) => {
     const request = new EventEmitter() as ClientRequest;
     let stopped = false;
@@ -34,7 +34,7 @@ test("share download retains a complete 101 MiB response under the existing 300 
   }, { dns: { resolve: async () => ["93.184.216.34"] } });
   const archive = await downloadShareArchive({ http, url: "https://provider.example/archive.tovu.zip", signal: new AbortController().signal });
   assert.equal(archive.length, 101 * 1024 * 1024);
-  assert.equal(archive.at(-1), 120);
+  assert.equal(archive.at(-1), 255);
 });
 
 
@@ -45,4 +45,16 @@ test("share download timeout details in CLI output identify only the origin", ()
   assert.ok(!outcome.stderrLine!.includes("sample-share-code"));
   assert.ok(!outcome.stderrLine!.includes("sample-query"));
   assert.ok(!outcome.stderrLine!.includes("/share/"));
+});
+
+
+test("share download requests bytes and reuses the response buffer", async () => {
+  const body = Buffer.from([0xff, 0xfe, 0x80, 0]);
+  const archive = await downloadShareArchive({ url: "https://provider.example/archive.zip", signal: new AbortController().signal,
+    http: { send: async request => {
+      assert.equal(request.bodyAs, "bytes");
+      return { status: 200, headers: { "content-type": "application/zip" }, bodyText: "", bodyBytes: body, bodyBytesTruncated: false };
+    } },
+  });
+  assert.equal(archive, body);
 });
