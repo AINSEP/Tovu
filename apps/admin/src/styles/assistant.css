@@ -731,6 +731,8 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
   color: var(--muted);
   font-size: 0.9em;
 }
+/* The dashed record line was nearly invisible on the dark surface. */
+:root[data-theme="dark"] .mcpui-surface-card-closed { border-color: var(--border-strong); }
 
 /* The time left to answer a pending card, under its live frame (`McpUiSurfaceCard`'s countdown).
    Quiet like the closed line it turns into when the deadline passes. */

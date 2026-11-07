@@ -43,6 +43,10 @@ export interface HumanConfirmSpec {
   readonly details: readonly SurfaceDetail[];
   readonly detailDisclosure?: { readonly label: string; readonly details: readonly SurfaceDetail[] };
   readonly warning?: string;
+  /** Plain explanation in a neutral box; `warning` stays the red callout for real danger. */
+  readonly notice?: string;
+  /** Resource ids in `access` whose facts the card's own `details` already state: left out of the rows, never out of the approval. */
+  readonly accessRowsStatedInDetails?: readonly string[];
   readonly danger?: boolean;
   readonly confirmLabel: string;
   readonly cancelLabel?: string;
@@ -286,6 +290,7 @@ function renderHumanConfirmation(
     details: confirmationDetails({ spec }),
     ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
     ...(spec.warning ? { warning: spec.warning } : {}),
+    ...(spec.notice ? { notice: spec.notice } : {}),
     danger: spec.danger ?? false,
     confirm: { label: spec.confirmLabel, ...action("confirm") },
     ...(alternatives.length > 0
@@ -302,5 +307,5 @@ function renderHumanConfirmation(
 
 /** Keep access rows fixed while preserving the domain's existing warnings and context. */
 function confirmationDetails({ spec }: { spec: HumanConfirmSpec }, _optional = {}): readonly SurfaceDetail[] {
-  return spec.access ? [...accessApprovalDetails({ access: spec.access }), ...spec.details] : spec.details;
+  return spec.access ? [...accessApprovalDetails({ access: spec.access }, { omitIds: spec.accessRowsStatedInDetails ?? [] }), ...spec.details] : spec.details;
 }
