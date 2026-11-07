@@ -31,7 +31,7 @@ import {
 } from "./access-token-tool.js";
 import type { AgentPluginLayout } from "./layout.js";
 import type { ToolContributor } from "@jini-ai/core";
-import { AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
+import { AGENT_PLUGIN_HOST_TOOL_MESSAGES, AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 
 export type { AgentPluginSkillDetail, AgentPluginToolSource, AgentPluginToolIdentity, AgentPluginToolGate, IdentifiedAgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 export { agentPluginSearchDerivedRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
@@ -89,7 +89,7 @@ export interface AgentPluginSearchToolDeps {
 }
 
 /** `search_agent_plugin_local`'s one-entry catalog, for the contracts test and the static seam. */
-export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use });
+export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use }, { messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES });
 
 /** Every installed plugin of one workspace, enabled or not, as a search candidate. Also read by the
  *  admin installed-plugin listing. */

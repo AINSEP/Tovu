@@ -1,0 +1,14 @@
+# mutations: vercel consent schemaVersion 3; google-login pkce plain; cloudflare-d1 module pull renamed
+   × contribution contracts > consent: vercel parses through a public Jini export, and its modules pass that kind's contract 10ms
+   × contribution contracts > form-destinations: cloudflare parses through a public Jini export, and its modules pass that kind's contract 5ms
+   × contribution contracts > login-providers: google-login parses through a public Jini export, and its modules pass that kind's contract 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/contribution-contracts.test.ts > contribution contracts > consent: vercel parses through a public Jini export, and its modules pass that kind's contract
+ FAIL  src/contribution-contracts.test.ts > contribution contracts > form-destinations: cloudflare parses through a public Jini export, and its modules pass that kind's contract
+AssertionError: expected [ Array(1) ] to deeply equal []
++   "expected { \"schemaVersion\": 2, \"contributions\": [...] }",
+ FAIL  src/contribution-contracts.test.ts > contribution contracts > login-providers: google-login parses through a public Jini export, and its modules pass that kind's contract
+AssertionError: expected [ 'LOGIN_PROVIDER_INVALID' ] to deeply equal []
++   "LOGIN_PROVIDER_INVALID",
+      Tests  3 failed | 25 passed (28)
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/contribution-contracts.test.ts --maxWorkers=2 --minWorkers=1

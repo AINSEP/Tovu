@@ -4,7 +4,7 @@
  * permission names and text. The moved tools read only through these ports, so each answer, schema
  * and approval stays what it was before the move.
  */
-import type { AgentPluginHostToolPorts, HostToolsLifecyclePort } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import type { AgentPluginHostToolPorts, HostToolMessages, HostToolsLifecyclePort } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { toolMetadata } from "../../contracts/core/tool-metadata/agent-plugins.js";
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 import { agentPluginActivations } from "./activation-effects.js";
@@ -22,6 +22,16 @@ export const AGENT_PLUGIN_HOST_TOOL_PERMISSIONS = { use: "admin.assistant.use", 
 /** Ends each `agent_plugin_<id>` description: how the assistant reaches the plugin's admin screen. */
 export const AGENT_PLUGIN_TOOL_NAVIGATION =
   "For viewing this plugin's admin screen, use page.navigate with its entity target, then discover and click its details handle.";
+
+/** This product's host text for the moved tools: plugin-tool navigation and the search tool's host tool names. */
+export const AGENT_PLUGIN_HOST_TOOL_MESSAGES = {
+  pluginToolNavigation: AGENT_PLUGIN_TOOL_NAVIGATION,
+  searchHostTools: {
+    inventory: "content_read.plugin",
+    setEnabled: "plugins_set_enabled with family 'agent-plugin'",
+    loadGuidance: "load_agent_plugin({ pluginId })",
+  },
+} as const satisfies HostToolMessages;
 
 /** Today's positional lifecycle functions, called with the object arguments the port names. */
 const lifecycle: HostToolsLifecyclePort = {
@@ -55,6 +65,6 @@ export function agentPluginHostToolPorts(required: { readonly agentPluginLayout:
     permissions: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS,
     readFrontmatterField: ({ markdown, key }) => readFrontmatterField(markdown, key),
     metadata: toolMetadata,
-    messages: { pluginToolNavigation: AGENT_PLUGIN_TOOL_NAVIGATION },
+    messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES,
   };
 }
