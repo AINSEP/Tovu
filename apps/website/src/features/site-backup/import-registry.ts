@@ -44,7 +44,6 @@ export function withoutQuery(required: { source: SiteImportRecord["source"] }): 
 export function importSourceDigest(required: { source: SiteImportRecord["source"] }, _optional = {}): string | undefined {
   if (!("url" in required.source)) return undefined;
   const url = new URL(required.source.url);
-  url.search = "";
   return createHash("sha256").update(url.href).digest("hex");
 }
 /** The import id behind an `<id>.json` history record name; undefined for every other file. */

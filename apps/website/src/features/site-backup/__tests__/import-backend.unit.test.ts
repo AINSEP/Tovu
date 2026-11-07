@@ -307,7 +307,9 @@ test("request replay distinguishes corrected links on one origin while old recor
   assert.match(saved.sourceDigest!, /^[a-f0-9]{64}$/);
   assert.deepEqual(saved.source, { url: "https://files.example.com" });
   assert.equal(JSON.stringify(saved).includes("sample-first"), false);
-  assert.equal((await backend.importBackup({ ...input, source: { url: input.source.url.replace("download=one", "download=two") } })).importId, saved.importId);
+  assert.equal(JSON.stringify(saved).includes("download=one"), false);
+  assert.equal((await backend.importBackup(input)).importId, saved.importId);
+  await assert.rejects(backend.importBackup({ ...input, source: { url: input.source.url.replace("download=one", "download=two") } }), { code: "REQUEST_CONFLICT" });
   await assert.rejects(backend.importBackup({ ...input, source: { url: input.source.url.replace("sample-first", "sample-corrected") } }), { code: "REQUEST_CONFLICT" });
   assert.equal(downloads, 1);
   const { sourceDigest: _digest, ...legacy } = saved;

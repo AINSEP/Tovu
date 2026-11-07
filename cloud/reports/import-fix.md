@@ -599,3 +599,11 @@ Startup recognizes stages, uploads and database temp folders, without treating s
 From `apps/desktop`: `node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=2 --test-name-pattern='saved history alone' src/site-archive-import.test.ts`. Red 0/1; mutation recognizing one history filename 0/1; restored leftover-only condition and the whole changed file green 26/26. `../../node_modules/.bin/tsc -p /workspace/work/tsconfig-item6-desktop-source.json --noEmit`: exit 0 (config described above). The test closes its fake child even on assertion failure.
 
 Cost: existing directory listings only, O(directory-entry names) memory; zero tidy child launches when only saved history exists. No new I/O or recurring task.
+
+### 2 — done
+
+`sourceDigest` now hashes the full canonical link, including its query. An identical link replays; a query-only or path change with the same request ID gives `REQUEST_CONFLICT`. Finished records retain only origin plus the one-way digest, without the original path/query. Existing records without a digest retain origin fallback.
+
+From Tovu root: `bash /workspace/work/run-tovu-file.sh --test-name-pattern='distinguishes corrected' apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts`. Red 0/1; mutation removing only the selected query parameter 0/1; full-link hashing green. Replay group command uses `--test-name-pattern='replayed|distinguishes corrected|request id reused'` with the same file: 5/5 green. `node_modules/.bin/tsc -p /workspace/work/tsconfig-final-source.json --noEmit`: exit 0.
+
+Cost: one existing SHA-256 pass per creation/replay now also includes query bytes, O(full-link length), fixed 64-character digest storage. No additional I/O or saved fields.
