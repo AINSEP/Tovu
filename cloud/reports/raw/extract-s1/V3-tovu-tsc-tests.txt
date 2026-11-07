@@ -1,5 +1,6 @@
-# cwd /home/user/Tovu; NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit (exit 2: 12 errors, none in V3 files; all in files V3 did not touch)
-apps/website/src/assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts(42,27): error TS2551: Property 'tovuDefaultTools' does not exist on type 'RemoteMcpServerConfig'. Did you mean 'defaultTools'?
+# cwd /home/user/Tovu
+# NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit -> exit 2, 12 errors, 0 in V3 files (all 12 in files V3 did not touch; same 12 as the first V3 run)
+apps/website/src/assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts(42,27): error TS2551: Property 'tovuDefaultTools' does not exist on type 'RemoteMcpServerConfig'. Did you
 apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(27,16): error TS18047: 'result' is possibly 'null'.
 apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(28,32): error TS18047: 'result' is possibly 'null'.
 apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(30,40): error TS18047: 'result' is possibly 'null'.
@@ -8,6 +9,8 @@ apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(33,3
 apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,13): error TS18047: 'result' is possibly 'null'.
 apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,119): error TS18047: 'result' is possibly 'null'.
 apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(45,30): error TS18047: 'result' is possibly 'null'.
-apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts(41,266): error TS2353: Object literal may only specify known properties, and 'scope' does not exist in type 'Omit<AccessApprovalResource, "scope">'.
-apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(70,9): error TS2741: Property 'tidy' is missing in type '{ list: (input: { principalId: string; }) => Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; credentialWarnings: never[]; }[]>; get: (input: { ...; }) => { ...; }; upload: (input: { ...; })...' but required in type 'SiteImportBackend'.
-apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts(72,78): error TS2561: Object literal may only specify known properties, but 'tovuAuthMode' does not exist in type 'RemoteMcpServerConfig'. Did you mean to write 'authMode'?
+apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts(41,266): error TS2353: Object literal may only specify known properties, and 'scope' does not exist in 
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(70,9): error TS2741: Property 'tidy' is missing in type '{ list: (input: { principalId: string; }) => Promise<
+apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts(72,78): error TS2561: Object literal may only specify known properties, but 'tovuAuthMode' does not exist in t
+
+# npx tsc -p tsconfig.json --noEmit -> exit 0

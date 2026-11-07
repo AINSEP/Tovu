@@ -1,0 +1,25 @@
+# cwd /home/user/Jini/examples/neutral-host; pnpm exec vitest run src/neutral-host/neutral-host.test.ts --maxWorkers=2 --minWorkers=1
+## green (3 dispatcher .todo now real tests)
+ ✓ src/neutral-host/neutral-host.test.ts (28 tests | 13 skipped) 922ms
+      Tests  15 passed | 13 todo (28)
+## mutation M1: dispatcher never aborts on prompt
+ examples/neutral-host/src/neutral-host/support/dispatcher.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+   × test dispatcher, with moved tools as they arrive > cancels a call waiting on a person, with no effect left behind 5017ms
+     → Test timed out in 5000ms.
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+Error: Test timed out in 5000ms.
+      Tests  1 failed | 27 skipped (28)
+## mutation M2: onConfirm always confirms
+ examples/neutral-host/src/neutral-host/support/dispatcher.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+   × test dispatcher, with moved tools as they arrive > asks for ordinary write approval for a write tool, and runs it once approved 18ms
+     → expected 'completed' to be 'confirmation-denied' // Object.is equality
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 'completed' to be 'confirmation-denied' // Object.is equality
+      Tests  1 failed | 27 skipped (28)
+## restored
+dispatcher.ts unchanged vs HEAD
+      Tests  15 passed | 13 todo (28)
+## tsc
+tsc exit 0

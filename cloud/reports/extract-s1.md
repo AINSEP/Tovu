@@ -155,3 +155,45 @@ Cards contract and drift pin, Jini only. Raw output: `cloud/reports/raw/extract-
 - Consumer `tsc` with `skipLibCheck: false`: `TS2307` in packed `@jini-ai/agentic` `dist/core/gen-ui/encoder.d.ts`, `@jini-ai/protocol` not installed with ui's tarball. Packaging observation for the packed-proof batch; not V2.
 
 **Not done (by design):** no consumer wired to the port (connect, credentials, CMS are later batches). No Tovu change.
+
+## V3
+
+Tests only; no production line changed in either repo (moved lines: 0). Raw output: `cloud/reports/raw/extract-s1/V3-*.txt` (`V3-gate-mutation.txt`, `V3-p1b-access-token.txt`, `V3-counters.txt`, `V3-neutral-host.txt`, `V3-tovu-tsc-tests.txt`).
+
+**Gate: PASSED (mutate one pair: red, revert byte-exact: green).** New `apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts` builds the real SQLite composition once (`initSite` + `bootSiteDir` + `createSiteRouteDeps`, the same boot `sqlite-create-site-app-module-identity.integration.test.ts` uses) and `createApp` over it. Mutation: `app.ts` hands the answer route a second `createSurfaceExchangeStore(...)` instead of `byokAssistantModule.toolSurface.surfaceExchanges`; row 1 red (`503 !== 202`, the route no longer finds the card), the other five green; `app.ts` restored from a byte copy (`sha256sum -c` OK, `git diff --quiet`), 6/6 green.
+
+**§6 rows**
+| Row | Covered here | Behavior proof |
+|---|---|---|
+| 1 SurfaceExchangeStore | `===` (the route's `deliver` receiver is `toolSurface.surfaceExchanges`) | same test: an answer POSTed to the MCP-UI route wakes the call waiting on the card. The surface is built with the production factory and passed through `createApp`'s `assistantToolSurface` seam (the default path builds it where no test can read it) |
+| 2 one kernel | `deps.contentKernel === store.content === kernel of settingsRepo, entryRepo, menuRepo, formDeliveryStatus` (protected field read, test-only) | rollback of rows + outbox: waits for the `<domain>/sql` bindings (S lane) |
+| 3 repo identity in hook cache | not yet: `onWritten({ owner })` and the repo-keyed WeakMap do not exist in Tovu | S lane (S8) |
+| 4 external-mcp-vault | both import forms (`#src/...` and relative) are one module namespace; an envelope made by one is read by the other | P8g fixture and packed run: H0 / packed-proof batch |
+| 5 API connection host | `agentPluginTools.connections === apiConnections.host.toolConnections`, tool projection's surface host `=== deps.adminSurfaceHost`, host unchanged across two more `createApp` | existing `agent-plugin-connections.vertical-slice.test.ts` (callback completes a tool-started sign-in) |
+| 6 issuedTokens / frozen | tool side present and per site (unchanged across `createApp`); admin-surface side is inside `createAgentPluginAdminSurfaceHandlers`' closure, no public read (not exposed: no production change) | existing vertical-slice tests: "one token memory across seams" x2, "ONE frozen-account map" |
+| 7 activation queue | grep gate: no file outside the 11 baseline files builds a lifecycle owner or activation queue | finding below |
+| 8 error class identity | not yet (no shim exists) | H lane, packed |
+| 9-13 | not yet | goldens G-cred (C1), G-mail (P5m), connect goldens (A10-11), G-theme (T1), G-post/G-news (T2/T3) |
+
+**P1b gaps.** `agent_plugin_set_access_token` is no longer a tool id; it runs as `credential_save` kind `agent-plugin-token` (adapter `agentPluginToken`). New separate golden `assistant/__tests__/moved-tools.access-token.golden.test.ts` + `fixtures/moved-tools.access-token.golden.json`, recorded once from unmoved code, stable across two runs: five refusal texts (each with 0 cards, 0 probes, 0 open exchanges), the card the real tool emits from its form spec, outcome cards and results for saved / 401 / 503 / dismissed, and per-save counters (2 cards, 1 probe GET; dismissed: 1 card, 0 probes). `moved-tools.golden.json` and its test untouched. Real-tool renders of the other form-spec cards (`credential` via `pluginProvider`, `accessTokenWithCredentialCard`) are not added; listed.
+
+**Counter baseline** (`server/runtime/composition/__tests__/cost-counters.baseline.test.ts` + `fixtures/cost-counters.baseline.json`):
+- Skill tool call: overview = 2 file opens (`SKILL.md` and every supporting file, read to filter the file list), 4 directory listings, 236 bytes; one supporting file = 2 opens (the file twice), 4 listings, 172 bytes; other skill = 1 open, 3 listings, 105 bytes. Each read allocates a 256 KiB + 1 buffer. Not "one bounded file" per call: candidate for a later plan.
+- Token lookup (`getAccessToken`, connected acme fixture): 1 contribution load (`tovu-connections.json`) and 4 credential opens per call, same on repeat. Contribution loads are counted as parses of the file's exact text, because the loader's `readFile` is bound at lifecycle construction and no file-system spy sees it.
+- Mail send (resolver level): first and cached send = 1 settings read, 1 credential list of 2 rows, 0 catalog loads, 0 opens; after `invalidate` = 1 settings read, 3 lists (6 rows), 1 catalog load, 1 credential open; unconfigured lane = 1 settings read and 1 catalog load on every send. Per-recipient ledger calls (test-mode read, reserve/mark, suppression, activity) are not counted here: G-mail (P5m).
+
+**Neutral host (Jini `examples/neutral-host`).** The three dispatcher `.todo`s are real tests with test-only tools on public exports (`@jini-ai/core` registry, `@jini-ai/daemon/surface-exchanges` store and `askOnce`): one human card (1 card, answered, 1 effect, store empty), ordinary write approval (1 confirmation, runs once; deny leaves no effect), cancelling a call waiting on a person (`cancelled`, no effect, store empty). Each red under a dispatcher-support mutation (no abort on prompt: timeout; confirm always: `completed` not `confirmation-denied`), restored. 15 passed, 13 todo (was 12 / 16); `tsc` clean. Remaining `.todo`s, each for the moved class's batch: provider status (A1), mail (A2, P5m), credential save (C lane), connect (A10-11), access token (A4), provisioning (A8-9), API connection host (A lane), connect orchestration (A10-11), executable-tool host (A5-6), MCP store (H1b), MCP sign-in (H2), revocation (H lane), vault plugin-state writes (A5-6).
+
+**Changesets (Jini):** `.changeset/core-text-descriptor-i18n.md` (`@jini-ai/core` patch, `parseDescriptorI18n`) and `.changeset/devops-deploy-contribution-contracts.md` (`@jini-ai/devops` patch, deploy contracts from `52365d5b`). `changeset status` lists core and devops under major together with other packages; that comes from the repo's existing peer-bump config and earlier changesets, not from these patch entries. Observation only.
+
+**Commits.** Tovu `dc1169fa` (gate), `99554bf3` (P1b access-token golden), `76ce8f9e` (counters), plus this report commit. Jini `3a8ede8d` (neutral host), `8fe045ba` (changesets).
+
+**Type checks.** Tovu `tsc -p tsconfig.json`: exit 0. Tovu `tsc -p tsconfig.tests.json`: 12 errors, none in V3 files (pre-existing, files V3 did not touch: `external-mcp-connection-source.operator-read-only.test.ts` TS2551 `tovuDefaultTools`; `import-local.integration.test.ts` TS18047 x8; `set-enabled-confirmation-ui.unit.test.ts` TS2353 `scope`; `site-imports.integration.test.ts` TS2741 `tidy`; `agent-plugin-token-boot-order.unit.test.ts` TS2561 `tovuAuthMode`). Neutral host `tsc`: clean.
+
+**Findings, not bugs**
+- Row 7 premise: 11 Tovu files build an agent-plugin lifecycle owner, each with its own in-process activation queue (Jini keys the queue by the ports object). Writes from different owners in one process are serialized only by the activations file lock (`lockedActivationsWrite`), as for two processes. No lost write found; the gate stops the count from growing.
+- Token lookup opens 4 credentials per call, where the plan's §10 row expects one per BYO connection; recorded as the baseline, not changed.
+
+**Bugs:** none new.
+
+**Not done:** row 6 admin-side `===` (needs a production read); rows 3 and 8-13 (their code or goldens come later); real-tool renders of the `credential` form cards; per-recipient mail ledger counters (P5m).
