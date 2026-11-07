@@ -57,3 +57,39 @@ Undo of session 1's `server` work, neutral-host move and contract handlers, Comm
 - `neutral-host.test.ts` `.todo` headings still name `@jini-ai/server/agent-plugin-host` and `hosted-mcp` in comments (moved byte-exact; their home is a later batch's call).
 - `.changeset/agent-plugin-host-entries.md` still says the host-tools entries are empty; they no longer are.
 - Optional-peer reach of `agent-plugins/lifecycle/host-tools` and `search/contribution` (above).
+
+## V1
+
+Merge of `cloud/more-jini-1` onto the repaired V0 tree, both repos. Raw output: `cloud/reports/raw/extract-s1/V1-*.txt`.
+
+**Merge commits** (`git merge --no-ff origin/cloud/more-jini-1`, no rebase, no squash)
+- Jini `0609ee49`: merges `2364f89e7` (cms `core/commands`, db `data-modules`, two changesets). 21 paths.
+- Tovu `9bf77fe7`: merges `a0c60192c` (13 old paths become re-export shims, plus `cloud/reports/more-jini-1.md`). 14 paths.
+- Conflicts: none in either repo. The merge's paths and V0's paths do not overlap (checked with `git diff --name-only` against the merge base before merging). No lockfile change on either side, so no regeneration was needed.
+- V0's work stands: `git diff origin/cloud/combine -- packages/server scripts/check-package-layers.ts` is empty; `examples/neutral-host` present; Commerce keeps `cms` only as a dev dependency; search description fix untouched.
+- `data-modules` trap: comments (`features/comments/types.ts`) and newsletter (`features/newsletter/data-module-manifest.ts`) still declare `publisher: "tovu-core"`; no diff in either folder from the V0 tip.
+
+**Gate (§8)**
+- `cms`, `db` `tsc --noEmit`: pass. `cms`, `db` build: pass (`V1-tsc-build.txt`). Tovu `tsc --noEmit`: pass (`V1-tovu-tsc.txt`).
+- Jini targeted tests (`V1-jini-vitest.txt`): cms commands 3 files, 26/26; db `public-entry` 2/2 (SQLite, PGlite); db `public-entry.postgres` 1/1 on a disposable local Postgres 16.
+- 30 module files (`V1-tovu-modules30.txt`): 561/561 pass, 28 suites, 0 fail/skip. Same count as the more-jini-1 report.
+- 79 importer files (`V1-tovu-importers79.txt`): 920 tests, 919 pass, 1 fail: `plugin-host-bundled-identity` (below). Not caused by the merge: the same test fails the same way on the V0 tip (`V1-v0-tip-plugin-host.txt`, temporary worktree, removed). The more-jini-1 run passed it because its base (combine) predates Jini `291a2200`, which moved bundled manifests to `extensions.jini`.
+- Layers: 0 findings (V0: 0). Isolation: 0 failing; audit `SI-c` 9, `SI-d` 7 (V0: same). `guard:plugins`: clean (V0: clean).
+- `pnpm guard`: `R2-deep-path` (1), `R10-chatpane-public-surface` (1); HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, all 0 new. Equal to V0's record by name and count.
+- Reviewer's report: separate agent, after this batch.
+
+**Findings vs the more-jini-1 report**
+- `R10-chatpane-public-surface`: present there and here.
+- `R8-package-metadata` (6): did not arrive. Its six `packages/plugin-*` directories are not in either branch's tree; they were untracked leftovers on that machine.
+- `SI-resolution` (7): did not arrive. It names `cloudflare/lib/cms-forms.mjs` and `cloudflare/worker/portable-validation.mjs`, which are gitignored build products of `agent-plugins`; that run's `agent-plugins` build failed (missing `esbuild`), so they were absent there. Here they are built.
+- `R2-deep-path`: in V0's record, not in that report (its base is older); unchanged.
+- Its MF3 skips (codex, agy absent; pi, aider, opencode inapplicable): same here.
+
+**Errors by name:** `plugin-host-bundled-identity` (pre-existing on V0 tip, not repaired). Setup only: the first Postgres attempt in the scratch folder lost its data directory to a permission reset mid-run, failing the three Postgres files with connection refused; restarted under the `postgres` home and the full list was rerun green. No other error.
+
+**Bugs** (logged in `development/open-bugs.md`, not fixed): `L079-force-without-principal-kind`, `L079-partial-inverse-failure` (both pinned by L079 in `revert.unit.test.ts`), `snapshot-stale-header` (Jini `db/data-modules/snapshot.ts`, kept byte-exact), and `plugin-host-bundled-identity` (pre-existing failure). No new bug from the merge, so nothing was fixed.
+
+**Not done / listed only**
+- `plugin-host-bundled-identity` is not repaired: Tovu tests stay unedited, and whether the bundled Jini manifests or the test's namespace is right is a call for a later batch.
+- Node tests ran with `--test-concurrency=1` (the more-jini-1 report used 2), so durations differ from that report.
+- Integrated review (public entries, shims, persisted names) is the reviewer's job, not done here.
