@@ -21,6 +21,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 | P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | 115k |
 | P1a | `6def6cdaa` | `fedca02d6`, `4ebd5d234` | **failed on one item**: `pnpm guard` exit 1 on `R2-deep-path` (`plugin-catalog/scripts/generate.ts`) and `R10-chatpane-public-surface` (`chat/.../ChatPane.tsx`), both files unchanged since the behavior baseline, so red at baseline, not from P1a. Not fixed (outside plan scope; no follow-up spent). Every other item passed: tests run with 44 `.todo`, layers unchanged 130/130, tsc exit 0, `guard:plugins` exit 0 | 225k |
 | P1b | `682d34bac` | none | passed: golden green at baseline twice; description mutation and card-label mutation each red, reverted; metadata sha256 unchanged; tsc exit 0. Not captured by name: `agent_plugin_set_access_token` (not a registered tool at baseline; covered via `credential_save` kind `agent-plugin-token` and its card); credential and access-token cards rendered from form specs, not emitted live; §10 counters for skill reads, token lookup, trusted scans and mail not recorded | 205k |
+| P2a | `2671b5553` | `52365d5b0` | passed: 3 deploy kinds off `.todo` (JSON + modules, 12 files); Jini parser tests 18/18; listed Tovu tests 167/168 + golden green, the 1 red (`no-vendor-in-core.boundary` › "real core tree has only reviewed pattern exceptions") is identical at pre-P2a HEAD `52407d262`; tsc clean both repos; layers 73/73, guard only the 2 baseline violations. Departures: 5 moved comment lines reworded (guard `N1-consumer-identity` forbids the product name), 5 Jini type names `Plugin`-prefixed to avoid clashes (Tovu re-exports old names) | 207k |
 
 ## Progress (every 30 min)
 
@@ -28,6 +29,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 |---|---|---|---|
 | 17:10 | P0 merge done, P0 subagent next | coordinator only | none yet |
 | 17:33 | P0, P1a done; P1b next | ~400k (P0 115k + P1a 225k + coordinator ~60k) | `pnpm guard` red at baseline (R2-deep-path, R10-chatpane-public-surface); Jini `plugin-release-consistency` baseline |
+| 17:58 | P0-P2a done; P2b next | ~830k (subagents 752k + coordinator ~75k) | as above, plus Tovu `no-vendor-in-core.boundary` red before P2a |
 
 ## Bugs found
 
