@@ -20,6 +20,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 |---|---|---|---|---|
 | P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | 115k |
 | P1a | `6def6cdaa` | `fedca02d6`, `4ebd5d234` | **failed on one item**: `pnpm guard` exit 1 on `R2-deep-path` (`plugin-catalog/scripts/generate.ts`) and `R10-chatpane-public-surface` (`chat/.../ChatPane.tsx`), both files unchanged since the behavior baseline, so red at baseline, not from P1a. Not fixed (outside plan scope; no follow-up spent). Every other item passed: tests run with 44 `.todo`, layers unchanged 130/130, tsc exit 0, `guard:plugins` exit 0 | 225k |
+| P1b | `682d34bac` | none | passed: golden green at baseline twice; description mutation and card-label mutation each red, reverted; metadata sha256 unchanged; tsc exit 0. Not captured by name: `agent_plugin_set_access_token` (not a registered tool at baseline; covered via `credential_save` kind `agent-plugin-token` and its card); credential and access-token cards rendered from form specs, not emitted live; §10 counters for skill reads, token lookup, trusted scans and mail not recorded | 205k |
 
 ## Progress (every 30 min)
 
