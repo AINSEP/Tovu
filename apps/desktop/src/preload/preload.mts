@@ -125,6 +125,7 @@ contextBridge.exposeInMainWorld(
     addDroppedSite: (input: { folder: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite, input),
     /** .tovu.zip or share link to a new site. See `SITE_IPC_CHANNELS.importArchive`. */
     importSiteArchive: (input: import("../contracts/project.js").ImportArchiveInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.importArchive, input),
+    cancelSiteImport: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.cancelImport),
     planNewDir: (input: { name: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.planNewDir, input),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
     /** The services "+ Create website" can offer a token field for. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */

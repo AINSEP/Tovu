@@ -14,6 +14,7 @@ import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
 
 // Narrow route probes override only the exercised operation; unexpected backend calls must fail.
 const unexpectedBackend: SiteImportBackend = {
+  tidy: async () => assert.fail("unexpected tidy"),
   upload: async () => assert.fail("unexpected upload"),
   importBackup: async () => assert.fail("unexpected import"),
   completeOwner: async () => assert.fail("unexpected owner completion"),

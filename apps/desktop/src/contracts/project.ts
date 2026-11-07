@@ -224,9 +224,11 @@ export const SITE_IPC_CHANNELS = {
    * `{ pick: true }` (main's file dialog). Makes a NEW site through `tovu import-local`; a refused
    * archive rejects with the importer's own sentence and leaves nothing behind.
    *
-   * @returns the new `SiteRecord` plus the importer's notices, or `null` when the dialog was cancelled.
+   * @returns the new `SiteRecord` plus the importer's notices, or `null` when the dialog or the import was cancelled.
    */
   importArchive: 'runner:sites:import-archive',
+  /** Stops a running `importArchive`; a child that has already finished still returns its site. */
+  cancelImport: 'runner:sites:cancel-import',
   /**
    * Change a site's display name — `config.json`'s `name`, which is where `readSiteName`
    * (`main.ts`) gets every card's `displayName`. Real (`project-ipc.ts`'s `handleRename`).

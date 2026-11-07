@@ -64,6 +64,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   saveSettings: "runner:sites:settings:save",
   addSite: "runner:sites:add-site",
   importArchive: "runner:sites:import-archive",
+  cancelImport: "runner:sites:cancel-import",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
   locate: "runner:sites:locate",
@@ -779,7 +780,7 @@ function recordCreatedSite(
   const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
   const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
-  if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.");
+  if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Import to add the folder again.");
   return buildSiteRecord({ ...tracked, displayNameAlias }, deps);
 }
 
@@ -905,7 +906,7 @@ async function archiveSource(
 /**
  * A .tovu.zip or share link becomes a new tracked site: `importSiteArchive` makes it, or rolls it
  * back and rejects with the reason, and it then ends the way Create does.
- * @returns the new record and the importer's notices; `null` when the dialog was cancelled.
+ * @returns the new record and the importer's notices; `null` when the dialog or the import was cancelled.
  * @complexity One child process, then {@link recordCreatedSite}.
  */
 async function handleImportArchive(
@@ -915,6 +916,7 @@ async function handleImportArchive(
   const source = await archiveSource({ input }, deps);
   if (source === null) return null;
   const imported = await deps.importSiteArchive({ source, repoRoot: deps.repoRoot, cliMode: deps.cliMode });
+  if (imported === null) return null;
   const displayName = uniqueSiteName({ name: deps.readSiteName(imported.dir), names: otherSiteNames({ deps, siteDir: imported.dir }) });
   return { ...recordCreatedSite({ siteDir: imported.dir, displayName }, deps), warnings: imported.warnings };
 }
@@ -1817,6 +1819,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, (_event, input) => handleAddSite({ ...deps, siteRuntime: states }, input ?? {}));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.importArchive, (_event, input) => handleImportArchive(input, { ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.cancelImport, () => deps.stopRunningImports({}, { reason: "cancel" }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
@@ -1877,6 +1880,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   addSitePointer: AddSitePointerLike;
   /** `site-archive-import.ts`'s real runner. */
   importSiteArchive: typeof import("./site-archive-import.ts").importSiteArchive;
+  stopRunningImports: typeof import("./site-archive-import.ts").stopRunningImports;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its

@@ -8,6 +8,7 @@ import { readTemplate } from "#src/platform/site-dir/index";
 import type { VerifiedSiteImport } from "./import-verifier.js";
 import { restoreImportedPluginState, type ImportedExtensionState } from "./import-plugin-state.js";
 import { inspectThemeManifests, liveThemeTrees, restoreDestination, writeExclusive } from "./import-restore-placement.js";
+import { keepImportedCodeOff, unrecognisedThemes } from "./import-keep-off.js";
 
 /** Persist only verified, freshly projected data; the stage is private and never served. */
 export function stageVerifiedImport(required: { root: string; verified: VerifiedSiteImport }, _options: Record<string, never> = {}): void {
@@ -54,6 +55,11 @@ export async function restoreStagedImport(required: { root: string; dir: string;
   const findings = inspectThemeManifests({ root: required.root, files });
   const liveThemes = liveThemeTrees({ files, findings });
   for (const id of liveThemes) if (state.modified.includes("themes/" + id.split("/").at(-1))) liveThemes.delete(id);
+  const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
+  const unrecognised = unrecognisedThemes({ root: required.root, dir: required.dir, files, liveThemes });
+  // This site's own fallback theme is never replaced: the archive's copy is set aside and the site keeps rendering with a real theme.
+  const setAside = unrecognised.delete(fallback);
+  if (setAside) liveThemes.delete("static/" + fallback), liveThemes.delete("declarative/" + fallback);
   for (const id of liveThemes) fs.rmSync(path.join(required.dir, "themes", id), { recursive: true, force: true });
   // Copy the freshly rebuilt database, never the archived SQLite bytes. Exclusive creation and
   // init's DB-path resolver protect both in-site and app-data placement from overwriting a site.
@@ -64,7 +70,7 @@ export async function restoreStagedImport(required: { root: string; dir: string;
     const destination = restoreDestination({ file, liveThemes, compiledSources: findings.compiledSources });
     if (destination !== null) writeExclusive({ root: required.dir, relative: destination, bytes: fs.readFileSync(path.join(required.root, file)) });
   }
-  await resetUnplacedActiveThemes({ dbPath: required.dbPath, liveThemes, openContent: required.openContent });
+  addStagedWarnings({ root: required.root, notices: await keepImportedCodeOff({ dbPath: required.dbPath, fallback, liveThemes, unrecognised, setAside, openContent: required.openContent }) });
   await restoreOptionalSavedKeys(required, optional);
 }
 
@@ -78,21 +84,15 @@ async function restoreOptionalSavedKeys(required: { root: string; dir: string; d
   const notices = required.savedKeys && required.siteId
     ? (await required.savedKeys.restore({ encryptedKeys: fs.readFileSync(file), password: optional.savedKeysPassword, siteId: required.siteId, dir: required.dir, dbPath: required.dbPath }, { signal: optional.signal })).notices
     : ["Saved keys were left out because their restore service was unavailable."];
-  const stateFile = path.join(required.root, ".archive-state.json");
-  const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
-  fs.writeFileSync(stateFile, JSON.stringify({ ...state, warnings: [...new Set([...(state.warnings ?? []), ...notices])] }), { mode: 0o600 });
+  addStagedWarnings({ root: required.root, notices });
 }
 
-/** Keep the explicit no-theme choice; only unavailable themes fall back to the starter theme. */
-async function resetUnplacedActiveThemes(required: { dbPath: string; liveThemes: ReadonlySet<string>; openContent: (required: { filePath: string }) => StorageKernel<ContentDatabase> }): Promise<void> {
-  const db = required.openContent({ filePath: required.dbPath });
-  try {
-    const active = await db.run(query => query.selectFrom("presentation_settings").select("active_theme_id").execute());
-    const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
-    for (const row of active) if (row.active_theme_id !== "none" && !required.liveThemes.has(row.active_theme_id)) {
-      await db.run(query => query.updateTable("presentation_settings").set({ active_theme_id: fallback }).where("active_theme_id", "=", row.active_theme_id).execute());
-    }
-  } finally { await db.close(); }
+/** Merge notices into the private stage state that `stagedImportWarnings` reads. O(notices). */
+function addStagedWarnings(required: { root: string; notices: readonly string[] }): void {
+  if (!required.notices.length) return;
+  const stateFile = path.join(required.root, ".archive-state.json");
+  const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+  fs.writeFileSync(stateFile, JSON.stringify({ ...state, warnings: [...new Set([...(state.warnings ?? []), ...required.notices])] }), { mode: 0o600 });
 }
 
 /** Read bounded safe notices and extension warnings from the private functional stage. */

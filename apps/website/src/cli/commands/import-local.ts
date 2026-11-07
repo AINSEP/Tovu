@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { readPromptFromFlags } from "@jini-ai/cli";
+import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
 import { leaveSavedKeysOut } from "#src/features/site-backup/saved-keys";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import type { SiteImportBackend, SiteImportSource, SiteImportView } from "#src/features/site-backup/import-backend";
@@ -12,22 +12,31 @@ import { composeSiteImportBackend } from "#src/server/runtime/composition/site-i
 const LOCAL_PRINCIPAL = "local-operator";
 const LOCAL_WORKSPACE = "local";
 
+const IMPORT_BUSY = "Another import is still running. Wait for it to finish, then try again. No website was created.";
 const NOT_A_ZIP = "That file is not a usable .tovu.zip. It is damaged, cut short, or not a zip file. No website was created.";
 
 export interface ImportLocalResult { dir: string; name: string; siteId: string; warnings: readonly string[] }
-interface ImportLocalRequest { file?: string; url?: string; displayName?: string }
+interface ImportLocalRequest { file?: string; url?: string; tidy?: true }
+/** What this command needs of stdin. `unref` is absent when stdin is a file rather than a pipe. */
+type RequestStream = Pick<NodeJS.ReadableStream, "on" | "once"> & { unref?: () => unknown };
+
+const MAX_REQUEST_BYTES = 16 * 1024;
+const STOPPED = "The import was stopped. No website was created.";
 
 /**
  * `tovu import-local`: makes a NEW site from a .tovu.zip or share link with no running server, for
  * the desktop app. The same backend the admin routes serve does the verification, staging, restore
  * and rollback; this only supplies what those routes get from a session.
  *
- * The request arrives on bounded stdin, because a share link's token must not become argv.
+ * The request arrives as the first line of bounded stdin, because a share link's token must not
+ * become argv. The desktop keeps stdin open afterwards and closes it to stop the import: that works
+ * on every platform and also fires when the app crashes. `{"tidy":true}` only clears leftovers.
  *
  * Bytes: the verifier takes a whole buffered archive (300 MiB cap, refused before any read here),
  * so this runs in its own short-lived process rather than the app's. Peak memory is the archive
  * plus its expanded files, both capped by `SHARE_LIMITS`, and is gone when the process exits.
  *
+ * @returns the new site, or `null` for a tidy request.
  * @throws {ValidationError} for an unusable request or an archive the importer refuses, in its words.
  * @complexity O(archive bytes + expanded bytes); two reads of the archive and one private copy.
  */
@@ -42,18 +51,20 @@ export async function runImportLocalCommand(
     /** Aborts the import; the backend then removes its stage and any half-made site, as for any failure. */
     signal?: AbortSignal;
   } = {},
-): Promise<ImportLocalResult> {
-  const text = await readPromptFromFlags({ flags: { "prompt-file": "-" } }, { maxBytes: 16 * 1024, readStdin: optional.readRequest });
+): Promise<ImportLocalResult | null> {
+  const stop = new AbortController();
+  const text = await (optional.readRequest ?? (() => readRequestLine({ input: process.stdin, stop })))();
   const request = parseRequest({ text });
   const workspace = optional.workspace ?? createSitesWorkspace({});
   const backend = optional.backend ?? composeSiteImportBackend({ workspaceId: LOCAL_WORKSPACE, workspace, savedKeys: { restore: leaveSavedKeysOut },
-    // The desktop opens the new site's tab itself, which starts it.
+    // The desktop starts the new site itself once it has the result.
     startSite: async () => ({ adminUrl: null, status: "stopped" }),
   });
-  const signal = optional.signal ?? terminationSignal();
+  if (request.tidy) { await backend.tidy({}); return null; }
+  const signal = optional.signal ?? terminationSignal({ stop });
   const done = await inPlainWords(async () => {
     const source = await resolveSource({ request, backend });
-    const staged = await backend.importBackup({ principalId: LOCAL_PRINCIPAL, source, ...(request.displayName ? { displayName: request.displayName } : {}) }, { signal });
+    const staged = await backend.importBackup({ principalId: LOCAL_PRINCIPAL, source }, { signal });
     return backend.completeOwner({ principalId: LOCAL_PRINCIPAL, importId: staged.importId, adminPassword: (optional.mintOwnerPassword ?? mintOwnerPassword)() }, { signal });
   });
   const result = localResult({ view: done, home: workspace.home({}) });
@@ -62,14 +73,46 @@ export async function runImportLocalCommand(
 }
 
 /**
- * Aborts when the desktop app quits and asks this process to stop. The backend's own failure path
- * then discards the stage and the half-made site, so quitting leaves nothing behind. Without this
- * handler SIGTERM would end the process mid-write and leave that partial site on disk.
+ * Aborts on SIGTERM. The backend's own failure path then discards the stage and the half-made site.
+ * Without this handler SIGTERM would end the process mid-write and leave that partial site on disk.
+ * The desktop stops this process through stdin instead, see {@link readRequestLine}.
  */
-function terminationSignal(): AbortSignal {
-  const stop = new AbortController();
-  process.once("SIGTERM", () => stop.abort(new ValidationError("The import was stopped. No website was created.")));
+function terminationSignal({ stop }: { stop: AbortController }): AbortSignal {
+  process.once("SIGTERM", () => stop.abort(new ValidationError(STOPPED)));
   return stop.signal;
+}
+
+/**
+ * The first line of stdin, then keeps watching: stdin ending after that line aborts `stop`. Input
+ * that ends with no newline is still a request, with nothing left to watch. Later bytes are dropped.
+ * `unref` lets the process exit once its work is done, with the stream still open.
+ * @throws {ValidationError} when the request is over {@link MAX_REQUEST_BYTES}.
+ * @complexity O(request bytes); holds at most one chunk past the cap.
+ */
+export function readRequestLine({ input, stop }: { input: RequestStream; stop: AbortController }, _optional: Record<string, never> = {}): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let received: Buffer = Buffer.alloc(0), finishedReading = false, lineSeen = false;
+    input.on("data", (chunk: string | Buffer) => {
+      if (finishedReading) return;
+      received = Buffer.concat([received, Buffer.from(chunk)]);
+      const newline = received.indexOf(10);
+      if ((newline === -1 ? received.length : newline) > MAX_REQUEST_BYTES) {
+        finishedReading = true;
+        reject(new ValidationError("import-local: the request on stdin is too large."));
+      } else if (newline !== -1) {
+        finishedReading = lineSeen = true;
+        input.unref?.();
+        resolve(received.subarray(0, newline).toString("utf8"));
+      }
+    });
+    const ended = () => {
+      if (lineSeen) stop.abort(new ValidationError(STOPPED));
+      else resolve(received.toString("utf8"));
+    };
+    input.once("end", ended);
+    input.once("close", ended);
+    input.once("error", ended);
+  });
 }
 
 /**
@@ -82,14 +125,15 @@ function mintOwnerPassword(): string {
   return randomBytes(32).toString("base64url");
 }
 
-function parseRequest({ text }: { text: string | null }): ImportLocalRequest {
+function parseRequest({ text }: { text: string }): ImportLocalRequest {
   let raw: ImportLocalRequest & { [key: string]: unknown };
   try {
-    raw = JSON.parse(String(text)) as typeof raw;
+    raw = JSON.parse(text) as typeof raw;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("shape");
   } catch { throw new ValidationError("import-local: stdin must contain one JSON request object."); }
-  if (Object.keys(raw).some(key => !["file", "url", "displayName"].includes(key)) || (raw.file === undefined) === (raw.url === undefined)) {
-    throw new ValidationError("import-local: provide exactly one of file or url, and optionally displayName.");
+  if (raw.tidy === true && Object.keys(raw).length === 1) return { tidy: true };
+  if (Object.keys(raw).some(key => !["file", "url"].includes(key)) || (raw.file === undefined) === (raw.url === undefined)) {
+    throw new ValidationError("import-local: provide exactly one of file or url.");
   }
   if (raw.file !== undefined && (typeof raw.file !== "string" || !path.isAbsolute(raw.file))) throw new ValidationError("import-local: file must be an absolute path.");
   return raw;
@@ -120,6 +164,8 @@ async function inPlainWords<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); }
   catch (error) {
     if (error instanceof SiteShareRefusal) throw new ValidationError(error.message);
+    // A second app window importing at the same time waits on the first one's lock, then gives up.
+    if (error instanceof FileLockTimeoutError) throw new ValidationError(IMPORT_BUSY);
     // The zip reader's own sentence for a file that is not a zip; the person gets words they can act on.
     if (error instanceof Error && /end of central directory|not a zip file/i.test(error.message)) throw new ValidationError(NOT_A_ZIP);
     throw error;

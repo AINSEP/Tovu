@@ -2630,6 +2630,12 @@ test("handleImportArchive: a cancelled picker imports nothing", async () => {
   assert.deepEqual(readTrackedSites(deps.projectsPath), []);
 });
 
+test("handleImportArchive: an import the person cancelled records nothing", async () => {
+  const { deps } = addSiteDeps("/picked/a.tovu.zip", { importSiteArchive: async () => null } as never);
+  assert.equal(await handleImportArchive({ pick: true }, deps as Parameters<typeof handleImportArchive>[1]), null);
+  assert.deepEqual(readTrackedSites((deps as { projectsPath: string }).projectsPath), []);
+});
+
 test("handleImportArchive passes a share link through untouched and a dropped .zip by its path", async () => {
   const { deps, asked } = importDeps(null, { dir: siteFixture("linked") });
   await handleImportArchive({ url: "https://files.example.com/a.tovu.zip" }, deps);

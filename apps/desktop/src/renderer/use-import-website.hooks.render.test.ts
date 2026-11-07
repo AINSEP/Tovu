@@ -14,7 +14,7 @@ import type { SiteAdminPage } from './import-site-entry.js';
 
 function setup(t: { after: (fn: () => void) => void }, createSite: (input: { displayName: string }) => Promise<ReturnType<typeof site> | undefined>) {
   const opened: Array<{ id: string; adminPage: SiteAdminPage }> = [];
-  const hook = renderHook(t, () => useImportWebsite({ createSite, openSite: (input) => { opened.push(input); }, onArchiveImported: () => {} }));
+  const hook = renderHook(t, () => useImportWebsite({ createSite, openSite: (input) => { opened.push(input); }, onArchiveImported: () => {}, onFailureWhileClosed: () => {} }));
   return { hook, opened };
 }
 
@@ -53,6 +53,107 @@ test('useImportWebsite: a failed create keeps the address, speaks plainly and ke
   assert.doesNotMatch(hook.current().failure?.details ?? '', /\/Users\/jo/);
 });
 
+/** The archive source with a bridge the test settles by hand. */
+function archiveSetup(t: { after: (fn: () => void) => void }) {
+  const opened: string[] = [], toasts: Array<{ message: string; note?: string }> = [], cancels: number[] = [];
+  let finish!: (value: unknown) => void, fail!: (error: Error) => void;
+  const bridge = {
+    importSiteArchive: () => new Promise((resolve, reject) => { finish = resolve; fail = reject; }),
+    cancelSiteImport: async () => { cancels.push(1); },
+  };
+  const hook = renderHook(t, () => useImportWebsite(
+    { createSite: async () => undefined, openSite: () => {}, onArchiveImported: (made) => { opened.push(made.id); }, onFailureWhileClosed: (toast) => { toasts.push(toast); } },
+    { getBridge: () => bridge as never },
+  ));
+  return { hook, opened, toasts, cancels, finish: (value: unknown) => finish(value), fail: (error: Error) => fail(error) };
+}
+
+test('useImportWebsite: a failure with the page open shows on the page, not as a toast', async (t) => {
+  const h = archiveSetup(t);
+  const close = h.hook.current().pageOpened();
+  let run!: Promise<void>;
+  act(() => { run = h.hook.current().importArchive({ file: '/a.zip' }); });
+  assert.equal(h.hook.current().archiveRun, 'running');
+  await act(async () => { h.fail(new Error('That file is over the 300 MiB import limit. No website was created.')); await run; });
+  assert.match(h.hook.current().failure?.message ?? '', /over the 300 MiB/);
+  assert.deepEqual(h.toasts, []);
+  assert.equal(h.hook.current().archiveRun, 'none');
+  close();
+});
+
+test('useImportWebsite: a failure after leaving the page reaches the person as a toast with its details', async (t) => {
+  const h = archiveSetup(t);
+  const close = h.hook.current().pageOpened();
+  let run!: Promise<void>;
+  act(() => { run = h.hook.current().importArchive({ file: '/a.zip' }); });
+  close();
+  await act(async () => { h.fail(new Error("Error invoking remote method 'x': Error: Details: EACCES at /Users/jo/Sites/a")); await run; });
+  assert.equal(h.toasts.length, 1);
+  assert.equal(h.toasts[0]!.message, "Couldn't import that website. No website was created.");
+  assert.match(h.toasts[0]!.note ?? '', /EACCES at ~\/Sites\/a/);
+  assert.doesNotMatch(h.toasts[0]!.note ?? '', /\/Users\/jo/);
+  assert.equal(h.hook.current().failure, null, 'reopening the page starts clean');
+});
+
+test('useImportWebsite: a live-address failure after leaving the page is also a toast', async (t) => {
+  const toasts: Array<{ message: string }> = [];
+  let refuse!: (error: Error) => void;
+  const hook = renderHook(t, () => useImportWebsite({ createSite: () => new Promise((_resolve, reject) => { refuse = reject; }), openSite: () => {}, onArchiveImported: () => {}, onFailureWhileClosed: (toast) => { toasts.push(toast); } }));
+  act(() => hook.current().setAddress('example.com'));
+  const close = hook.current().pageOpened();
+  let run!: Promise<void>;
+  act(() => { run = hook.current().importLive(); });
+  close();
+  await act(async () => { refuse(new Error('EACCES at /Users/jo/Sites/a')); await run; });
+  assert.equal(toasts[0]?.message, "Couldn't create a website for that address.");
+});
+
+test('useImportWebsite: a bad address is said on the page: the person is looking at it', async (t) => {
+  const toasts: unknown[] = [];
+  const hook = renderHook(t, () => useImportWebsite({ createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {}, onFailureWhileClosed: (toast) => { toasts.push(toast); } }));
+  act(() => hook.current().setAddress('not an address'));
+  await act(async () => { await hook.current().importLive(); });
+  assert.match(hook.current().failure?.message ?? '', /full website address/);
+  assert.deepEqual(toasts, []);
+});
+
+test('useImportWebsite: Cancel asks main to stop, says it is stopping, and a stopped import ends quietly', async (t) => {
+  const h = archiveSetup(t);
+  const close = h.hook.current().pageOpened();
+  let run!: Promise<void>;
+  act(() => { run = h.hook.current().importArchive({ file: '/a.zip' }); });
+  await act(async () => { await h.hook.current().cancelArchive(); });
+  assert.deepEqual(h.cancels, [1]);
+  assert.equal(h.hook.current().archiveRun, 'cancelling');
+  assert.equal(h.hook.current().importing, true, 'still busy until the child has stopped');
+  await act(async () => { h.finish(null); await run; });
+  assert.equal(h.hook.current().archiveRun, 'none');
+  assert.equal(h.hook.current().importing, false);
+  assert.equal(h.hook.current().failure, null);
+  assert.deepEqual(h.opened, []);
+  close();
+});
+
+test('useImportWebsite: a site that finished as Cancel arrived still opens: it exists', async (t) => {
+  const h = archiveSetup(t);
+  let run!: Promise<void>;
+  act(() => { run = h.hook.current().importArchive({ file: '/a.zip' }); });
+  await act(async () => { await h.hook.current().cancelArchive(); });
+  await act(async () => { h.finish({ ...site('made'), warnings: [] }); await run; });
+  assert.deepEqual(h.opened, ['made']);
+});
+
+test('useImportWebsite: Cancel against a preload with no stop call leaves the import running', async (t) => {
+  let finish!: (value: unknown) => void;
+  const hook = renderHook(t, () => useImportWebsite({ createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {}, onFailureWhileClosed: () => {} },
+    { getBridge: () => ({ importSiteArchive: () => new Promise((resolve) => { finish = resolve; }) }) as never }));
+  let run!: Promise<void>;
+  act(() => { run = hook.current().importArchive({ file: '/a.zip' }); });
+  await act(async () => { await hook.current().cancelArchive(); });
+  assert.equal(hook.current().archiveRun, 'running');
+  await act(async () => { finish(null); await run; });
+});
+
 test('copyableDetails: strips the Electron prefix and user folders on every platform', () => {
   assert.equal(copyableDetails({ error: new Error("Error invoking remote method 'x': boom in /home/ann/a and C:\\Users\\Bo\\b") }), 'boom in ~/a and ~\\b');
 });
@@ -78,7 +179,7 @@ test('useCopyDetails: shows Copied only when the clipboard took the text', async
 
 test('useImportWebsite: a changed .tovu.zip says it looks damaged and offers a fresh export, with the importer\'s own words in the details', async (t) => {
   const hook = renderHook(t, () => useImportWebsite(
-    { createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {} },
+    { createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {}, onFailureWhileClosed: () => {} },
     { getBridge: () => ({ importSiteArchive: async () => { throw new Error("Error invoking remote method 'runner:sites:import-archive': Error: ZIP size or SHA-256 mismatch."); } }) as never },
   ));
   await act(async () => { await hook.current().importArchive({ file: '/Users/jo/x.tovu.zip' }); });

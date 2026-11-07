@@ -79,6 +79,7 @@ function fixture({ t }: { t: TestContext }) {
     recentSiteDirs: () => [],
     ctx: {},
     importSiteArchive: async () => { throw new Error("unused"); },
+    stopRunningImports: async () => { throw new Error("unused"); },
   };
   registerSiteIpcHandlers(deps);
   return {
@@ -456,7 +457,7 @@ test("deskfx2 NIT: create reports a missing tracked row clearly and preserves th
     return "Created site";
   };
   await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Created site" } }), {
-    message: "The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.",
+    message: "The website was created, but its desktop catalog entry is missing. Use Import to add the folder again.",
   });
   assert.equal(fs.existsSync(path.join(dir, "config.json")), true);
 });

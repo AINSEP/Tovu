@@ -140,6 +140,7 @@ export function App({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
     openSite: ({ id, adminPage }) => openImported(id, adminPage),
     onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
+    onFailureWhileClosed: siteToast.showToast,
   });
 
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
@@ -234,6 +235,9 @@ export function App({
           address={liveImport.address}
           onAddressChange={liveImport.setAddress}
           importing={liveImport.importing}
+          archiveRun={liveImport.archiveRun}
+          onCancelImport={() => void liveImport.cancelArchive()}
+          onPageOpen={liveImport.pageOpened}
           onImportAddress={liveImport.importLive}
           failure={liveImport.failure}
           addError={addError}

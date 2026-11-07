@@ -427,6 +427,40 @@ test('App: a refused archive says why in plain words, makes no tab and stays on 
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
 });
 
+/** The Create page stays mounted behind the Import page and has its own Cancel and back link, so look only inside the Import page. */
+const inImportPage = (app: Awaited<ReturnType<typeof renderApp>>, label: string) =>
+  [...app.container.querySelectorAll('section[aria-labelledby="import-website-title"] button')].find((el) => el.textContent?.trim() === label);
+
+test('App: Cancel during an archive import stops it, opens nothing and stays on the page', async (t) => {
+  let finish!: (value: unknown) => void;
+  let cancels = 0;
+  const app = await renderApp(t, {
+    importSiteArchive: () => new Promise((resolve) => { finish = resolve; }),
+    cancelSiteImport: async () => { cancels += 1; finish(null); },
+  } as never);
+  await app.click(app.byText('Import'));
+  await app.click(app.byText('Choose file…'));
+  await app.click(inImportPage(app, 'Cancel'));
+  assert.equal(cancels, 1);
+  assert.equal(app.all('[role="tab"]').length, 1);
+  assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
+  assert.equal(app.byText('Choose file…')?.hasAttribute('disabled'), false, 'ready to try again');
+});
+
+test('App: an import that fails after the person left the page reaches them as a toast', async (t) => {
+  let fail!: (error: Error) => void;
+  const app = await renderApp(t, { importSiteArchive: () => new Promise((_resolve, reject) => { fail = reject; }) } as never);
+  await app.click(app.byText('Import'));
+  await app.click(app.byText('Choose file…'));
+  await app.click(inImportPage(app, '← All websites'));
+  assert.notEqual(app.container.querySelector('.main__title')?.textContent, 'Import a website');
+  fail(new Error('The import took too long and was stopped. No website was created.'));
+  await settle();
+  assert.match(app.text(), /took too long and was stopped/);
+  await app.click(app.byText('Import'));
+  assert.equal(app.container.querySelector('.onboarding__error'), null, 'already told; the page opens clean');
+});
+
 test('App: a share link goes to the archive importer, a live address to Create', async (t) => {
   const asked: unknown[] = [];
   const created: string[] = [];

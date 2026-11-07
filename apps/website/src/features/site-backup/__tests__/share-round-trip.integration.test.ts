@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
+import { readTemplate } from "../../../platform/site-dir/read-template.js";
 import { importFixture, seedPluginShareData, OWNER_PASSWORD, HASH, STORAGE_KEY, reader } from "./import.fixture.js";
 import { loadTheme } from "../../theme/theme.js";
 import { requireShareSecretFree } from "../share-file-policy.js";
@@ -149,7 +150,9 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   const imported = openContentDb({ filePath: importedDbPath });
   try {
     const rows = (db: typeof imported, table: string) => (db.$client.prepare('SELECT * FROM "' + table + '" ORDER BY 1').all() as Record<string, unknown>[]).map(({ workspace_id, ...rest }) => rest);
-    for (const table of ["posts", "menus", "nav_location_bindings", "media", "presentation_settings"]) assert.deepEqual(rows(imported, table), rows(h.db, table), table);
+    for (const table of ["posts", "menus", "nav_location_bindings", "media"]) assert.deepEqual(rows(imported, table), rows(h.db, table), table);
+    // The archive's theme is installed (checked below) but a person turns it on: import-keep-off.ts.
+    assert.deepEqual(imported.$client.prepare("SELECT active_theme_id FROM presentation_settings").all(), [{ active_theme_id: readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId }], "the imported theme stays installed but off");
     // A v2 share fills a never-sniffed (null) content_type with the sniffed type, as share.integration pins.
     assert.deepEqual(rows(imported, "asset_blobs"), rows(h.db, "asset_blobs").map(row => ({ ...row, content_type: "application/octet-stream" })), "asset_blobs");
     for (const table of ["sessions", "api_keys", "secrets_vault", "external_mcp_servers"]) assert.equal((imported.$client.prepare('SELECT count(*) AS n FROM "' + table + '"').get() as { n: number }).n, 0);

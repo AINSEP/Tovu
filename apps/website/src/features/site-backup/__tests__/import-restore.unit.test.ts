@@ -26,11 +26,14 @@ function harness(t: TestContext): Harness {
   fs.mkdirSync(dir);
   return { root: path.join(base, "stage"), dir, dbPath: path.join(dir, "content.db") };
 }
-function databaseBytes(activeThemes: readonly string[]): Buffer {
+interface PageRow { title: string; body_format: string; body_html: string | null; status: string }
+function databaseBytes(activeThemes: readonly string[], pages: readonly PageRow[] = []): Buffer {
   const db = new Database(":memory:");
   try {
     db.exec("CREATE TABLE presentation_settings (workspace_id TEXT, active_theme_id TEXT)");
+    db.exec("CREATE TABLE posts (id TEXT, title TEXT, body_format TEXT, body_html TEXT, status TEXT)");
     for (const [index, theme] of activeThemes.entries()) db.prepare("INSERT INTO presentation_settings VALUES (?, ?)").run("ws-" + index, theme);
+    for (const [index, page] of pages.entries()) db.prepare("INSERT INTO posts VALUES (?, ?, ?, ?, ?)").run("p" + index, page.title, page.body_format, page.body_html, page.status);
     return db.serialize();
   } finally { db.close(); }
 }
@@ -39,9 +42,14 @@ function activeThemes(dbPath: string): string[] {
   try { return db.prepare("SELECT active_theme_id FROM presentation_settings ORDER BY workspace_id").all().map(row => (row as { active_theme_id: string }).active_theme_id); }
   finally { db.close(); }
 }
-async function restore(t: TestContext, files: Record<string, string>, options: { themes?: readonly string[]; before?: (h: Harness) => void } = {}): Promise<Harness> {
+function pageStatuses(dbPath: string): Record<string, string> {
+  const db = new Database(dbPath);
+  try { return Object.fromEntries(db.prepare("SELECT title, status FROM posts").all().map(row => [(row as { title: string }).title, (row as { status: string }).status])); }
+  finally { db.close(); }
+}
+async function restore(t: TestContext, files: Record<string, string>, options: { themes?: readonly string[]; pages?: readonly PageRow[]; before?: (h: Harness) => void } = {}): Promise<Harness> {
   const h = harness(t);
-  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes(options.themes ?? []), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
+  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes(options.themes ?? [], options.pages), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
   options.before?.(h);
   await restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath });
   return h;
@@ -176,9 +184,89 @@ test("a compiled source folder written with a trailing slash fails the share pat
 // Database ----------------------------------------------------------------------------------
 
 test("an active theme that was not placed live falls back to the starter theme", async t => {
-  const h = await restore(t, { "themes/static/safe/index.html": "html", "themes/static/bad/x.tsx": "tsx" }, { themes: ["static/safe", "static/bad", "static/absent"] });
-  assert.deepEqual(activeThemes(h.dbPath), ["static/safe", FALLBACK, FALLBACK]);
+  const h = await restore(t, { "themes/static/safe/index.html": "html", "themes/static/bad/x.tsx": "tsx" }, { themes: ["bad", "absent"] });
+  assert.deepEqual(activeThemes(h.dbPath), [FALLBACK, FALLBACK]);
 });
+// Imported code stays off until a person turns it on ---------------------------------------------
+
+const seedFallback = (body: string) => (h: Harness): void => {
+  fs.mkdirSync(path.join(h.dir, "themes/static", FALLBACK), { recursive: true });
+  fs.writeFileSync(path.join(h.dir, "themes/static", FALLBACK, "index.html"), body);
+};
+const themeFiles = (id: string, manifest: Record<string, unknown>, extra: Record<string, string> = {}): Record<string, string> => ({
+  [`themes/static/${id}/theme.json`]: JSON.stringify({ id, name: id, version: "1.0.0", tier: "static", ...manifest }), ...Object.fromEntries(Object.entries(extra).map(([file, text]) => [`themes/static/${id}/${file}`, text])),
+});
+
+for (const [name, files] of Object.entries({
+  "a declared remote script": themeFiles("shop", { scripts: [{ src: "https://scripts.invalid/x.js" }] }),
+  "a declared local script": themeFiles("shop", { scripts: [{ src: "./assets/site.js" }] }, { "assets/site.js": "window.x = 1" }),
+  "a script tag in a page": themeFiles("shop", {}, { "pages/index.html": "<script>window.x = 1</script>" }),
+  "an inline handler in a page": themeFiles("shop", {}, { "pages/index.html": "<body onload=\"x()\"></body>" }),
+  "plain markup": themeFiles("shop", {}, { "pages/index.html": "<main>hello</main>" }),
+})) {
+  test(`a theme from the archive with ${name} stays off, stays installable, and says so`, async t => {
+    const h = await restore(t, files, { themes: ["shop"], before: seedFallback("seed") });
+    assert.deepEqual(activeThemes(h.dbPath), [FALLBACK]);
+    assert.notEqual(live(h, "themes/static/shop/theme.json"), null, "a person can still turn it on from Themes");
+    assert.deepEqual(stagedImportWarnings({ root: h.root }), ["Theme 'shop' came from the imported file, so it was kept switched off. Turn it on from Themes if you trust this file."]);
+  });
+}
+
+const fallbackNotice = `The imported file's copy of '${FALLBACK}' differs from this site's own, so the site kept its own and the imported copy was set aside.`;
+for (const [name, files] of Object.entries({
+  "edited copy with a declared script": themeFiles(FALLBACK, { scripts: [{ src: "https://scripts.invalid/x.js" }] }),
+  "copy from another Tovu version": { [`themes/static/${FALLBACK}/index.html`]: "other version" },
+})) {
+  test(`an archive's ${name} of the fallback theme never replaces this site's own, which stays active`, async t => {
+    const h = await restore(t, files, { themes: [FALLBACK, "other"], before: seedFallback("seed") });
+    assert.deepEqual(activeThemes(h.dbPath), [FALLBACK, FALLBACK], "the site always renders with a real theme");
+    assert.equal(live(h, `themes/static/${FALLBACK}/index.html`), "seed");
+    assert.equal(live(h, `themes/static/${FALLBACK}/theme.json`), null, "nothing from the archive's copy is served");
+    assert.deepEqual(stagedImportWarnings({ root: h.root }), [fallbackNotice]);
+  });
+}
+
+test("an archive copy byte-identical to this site's own theme stays on with no notice", async t => {
+  const h = await restore(t, { [`themes/static/${FALLBACK}/index.html`]: "seed" }, { themes: [FALLBACK], before: seedFallback("seed") });
+  assert.deepEqual(activeThemes(h.dbPath), [FALLBACK]);
+  assert.deepEqual(stagedImportWarnings({ root: h.root }), []);
+});
+
+test("an explicit no-theme choice stays and is not reported", async t => {
+  const h = await restore(t, themeFiles("shop", {}), { themes: ["none"] });
+  assert.deepEqual(activeThemes(h.dbPath), ["none"]);
+  assert.deepEqual(stagedImportWarnings({ root: h.root }), []);
+});
+
+test("a published HTML page that could run script lands as a draft with a notice; inert pages and documents stay published", async t => {
+  const html = (title: string, body_html: string, status = "published"): PageRow => ({ title, body_format: "html", body_html, status });
+  const h = await restore(t, {}, { pages: [
+    html("Tag", "<p>a</p><script>x()</script>"),
+    html("Handler", "<img src=\"/a.png\" onerror=\"x()\">"),
+    html("Link", "<a href=\"javascript:x()\">a</a>"),
+    html("Svg", "<svg><script>x()</script></svg>"),
+    html("Frame", "<iframe srcdoc=\"<script>x()</script>\"></iframe>"),
+    html("Marker", "<div data-embed-config='{\"type\":\"media\",\"id\":\"m\"}' alt=\"<script>x()</script>\"></div>"),
+    html("Escaped marker", "<div data-embed-config='{\"type\":\"media\",\"alt\":\"\\u003cscript\\u003e\"}'></div>"),
+    html("Inert", "<h1 class=\"a\">Hello</h1><p><mark>note</mark> <a href=\"/x\">x</a></p><div data-embed-config='{\"type\":\"media\",\"id\":\"m\"}'></div>"),
+    html("Already draft", "<script>x()</script>", "draft"),
+    { title: "Doc", body_format: "doc", body_html: null, status: "published" },
+  ] });
+  const statuses = pageStatuses(h.dbPath);
+  for (const title of ["Tag", "Handler", "Link", "Svg", "Frame", "Marker", "Escaped marker"]) assert.equal(statuses[title], "draft", title);
+  for (const title of ["Inert", "Doc"]) assert.equal(statuses[title], "published", title);
+  assert.equal(statuses["Already draft"], "draft");
+  assert.deepEqual(stagedImportWarnings({ root: h.root }).filter(notice => notice.includes("Page")), ["Tag", "Handler", "Link", "Svg", "Frame", "Marker", "Escaped marker"].map(title => `Page '${title}' holds its own code, so it was imported as a draft. Publish it if you trust this file.`));
+});
+
+test("many kept-off pages share a bounded notice", async t => {
+  const pages = Array.from({ length: 25 }, (_, index): PageRow => ({ title: "P" + index, body_format: "html", body_html: "<script></script>", status: "published" }));
+  const h = await restore(t, {}, { pages });
+  const notices = stagedImportWarnings({ root: h.root });
+  assert.equal(notices.length, 21);
+  assert.equal(notices.at(-1), "5 more pages hold their own code and were imported as drafts.");
+});
+
 test("restore refuses to overwrite an existing database file", async t => {
   const h = harness(t);
   stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes([]), files: new Map() } });
