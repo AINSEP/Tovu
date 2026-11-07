@@ -9,6 +9,7 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | UTC | Batch | Token tally (k) | Reds |
 |---|---|---|---|
 | 19:52 | start, branches created | 0 | - |
+| 21:23 | Z2 done, follow-up for R1 starting | 1,091 (agents) + coordinator | none new |
 | 21:19 | V3 done, Z2 starting | 989 (agents) + coordinator | none new (Tovu `tsconfig.tests.json` 12 errors already there) |
 | 20:58 | V2 done, V3 starting | 680 (agents) + coordinator | `sign-in-card.unit.test.ts` 5x `AbortSignal.any` (already failing before V2) |
 | 20:43 | review done, V2 starting | 508 (agents) + coordinator | none new |
@@ -24,7 +25,8 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | V1 review | 158 by harness count (agent's own estimate 95) | Tovu `9ef0a65d` | done: 0 blockers, 1 should-fix (R1), 6 minor |
 | V2 | 172 by harness count (agent's own estimate 95) | Jini `bf3fbf58`, `39cf677f`; Tovu `f2888904` | passed: tripwire held (`SurfaceCardsPort<Resource>`, generic in the resource) |
 | V3 | 309 by harness count, over the 300k ceiling (agent's own estimate 185) | Tovu `dc1169fa`, `99554bf3`, `76ce8f9e`, `3273072a`; Jini `3a8ede8d`, `8fe045ba` | passed: mutating row 1 turns it red, restoring turns it green |
-| Z2 | | | not reached |
+| Z2 | 102 by harness count (agent's own estimate 45) | Jini `283af360`; Tovu `230acc77f` | passed: 558 lines removed (137 source, 421 tests) |
+| Follow-up (V1 review R1) | | | not reached |
 
 ## V0
 
