@@ -1,0 +1,68 @@
+# V3 gate: mutate one pair (row 1, SurfaceExchangeStore), red; revert byte-exact; green
+# cwd /home/user/Tovu; command: TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts
+
+## Mutation diff (app.ts: the answer route gets a SECOND store)
+diff --git a/apps/website/src/server/runtime/composition/app.ts b/apps/website/src/server/runtime/composition/app.ts
+index 3b59e360..d17d1d7f 100644
+--- a/apps/website/src/server/runtime/composition/app.ts
++++ b/apps/website/src/server/runtime/composition/app.ts
+@@ -1,3 +1,6 @@
++import { createSurfaceExchangeStore as V3_MUTATION_createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
++import { createTimeoutScheduler as V3_MUTATION_createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
++import { createSystemClock as V3_MUTATION_createSystemClock, createRandomUuidGenerator as V3_MUTATION_createRandomUuidGenerator } from "@jini-ai/core/primitives";
+ import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
+ import { startupSecretEnvironment } from "../boot/startup-secrets.js";
+ import { statfs } from "node:fs/promises";
+@@ -2362,7 +2365,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
+   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
+   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
+   if (adminAssistantEnabled) {
+-    mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
++    mountRoutes(app, createAssistantModule(routeDeps, V3_MUTATION_createSurfaceExchangeStore({ scheduler: V3_MUTATION_createTimeoutScheduler({}), clock: V3_MUTATION_createSystemClock(), idGenerator: V3_MUTATION_createRandomUuidGenerator(), defaultChannel: "mcp-ui" })));
+ 
+     // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
+     // module because nothing here is proxied: run execution belongs to the daemon (that is where run
+
+## Run under mutation
+exit 1
+✖ row 1: the MCP-UI answer route delivers into the SAME exchange store the BYOK tools open cards on, and the answer wakes the waiting call (1183.928364ms)
+✔ row 2: every reachable SQL repo and the boot modules share ONE content kernel (0.793365ms)
+✔ row 5: one API connection host per site, shared by the tool projection, the admin surfaces and every app over the composition (107.899566ms)
+✔ row 6: the tool projection carries one issued-token memory and one frozen-account map for the site (58.985828ms)
+✔ row 4: both import forms reach ONE external-mcp-vault module, so an envelope made through one is read through the other (0.58226ms)
+✔ row 7: no file outside the baseline builds an agent-plugin lifecycle owner or activation queue (81.125307ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7188.961064
+✖ failing tests:
+✖ row 1: the MCP-UI answer route delivers into the SAME exchange store the BYOK tools open cards on, and the answer wakes the waiting call (1183.928364ms)
+  AssertionError [ERR_ASSERTION]: the route must find the card in the tools' store: {"error":"The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.","code":"AGENT_DAEMON_UNAVAILABLE","detail":"the assistant daemon lifecycle is not configured"}
+  503 !== 202
+    actual: 503,
+    expected: 202,
+
+## Revert
+apps/website/src/server/runtime/composition/app.ts: OK
+git diff --quiet: app.ts unchanged vs HEAD
+
+## Run after revert
+exit 0
+✔ row 1: the MCP-UI answer route delivers into the SAME exchange store the BYOK tools open cards on, and the answer wakes the waiting call (1135.584596ms)
+✔ row 2: every reachable SQL repo and the boot modules share ONE content kernel (0.489685ms)
+✔ row 5: one API connection host per site, shared by the tool projection, the admin surfaces and every app over the composition (111.90838ms)
+✔ row 6: the tool projection carries one issued-token memory and one frozen-account map for the site (64.351148ms)
+✔ row 4: both import forms reach ONE external-mcp-vault module, so an envelope made through one is read through the other (0.510543ms)
+✔ row 7: no file outside the baseline builds an agent-plugin lifecycle owner or activation queue (77.70202ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6599.266213
