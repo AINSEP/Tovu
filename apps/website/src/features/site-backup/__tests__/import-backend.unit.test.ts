@@ -108,6 +108,14 @@ test("an already-aborted caller signal fails the import before anything is fetch
   assert.equal(fetched, false);
   assert.equal((await backend.list({ principalId: "owner" }))[0]?.error, "Archive verification failed. No site was created.");
 });
+test("a replayed requestId for a finished share-link import matches by address, not by query string", async t => {
+  const h = await importFixture(t), link = (query: string) => ({ url: "https://files.example.com/shop.tovu.zip" + query });
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => response({ bodyBytes: h.archive }) } });
+  const first = await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" });
+  await backend.completeOwner({ principalId: "owner", importId: first.importId, adminPassword: OWNER_PASSWORD });
+  assert.equal((await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" })).importId, first.importId);
+  await assert.rejects(backend.importBackup({ principalId: "owner", source: { url: "https://other.example.com/shop.tovu.zip?k=one" }, requestId: "again" }), { code: "REQUEST_CONFLICT" });
+});
 test("the download request is a bounded identity GET of the share URL", async t => {
   const h = await importFixture(t); const sent: unknown[] = [];
   const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async request => { sent.push({ ...request, signal: request.signal instanceof AbortSignal }); return response({ bodyBytes: h.archive }); } } });
