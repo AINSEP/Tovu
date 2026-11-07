@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CreatedSiteRecord, ImportedSiteRecord, SiteRecord } from '../contracts/project.js';
 
 /** `note` is one short line; `items` is the full list behind it, shown on request. */
-export interface SiteToast { message: string; note?: string; items?: string[] }
+export interface SiteToast { message: string; note?: string; items?: readonly string[] }
 
 const AUTO_HIDE_MS = 5000;
 /** Long enough to read what was kept off or left out. */
