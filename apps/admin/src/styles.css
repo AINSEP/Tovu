@@ -1365,6 +1365,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: min(22rem, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
 .login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
 .login-card p { margin: 0; color: var(--muted); }
+/* The recovery card is a <details>: its body does not take the card's flex gap, so the paragraph touched the first label. */
+details.login-card > p { margin-block: 0.9rem; }
+details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; }
 /* Unified onto `.field-label`'s metrics (uppercase/letterspaced/muted/11px) — was its own
    0.85rem/600/fg-2 value, one of four different label idioms MSG-02 asked to consolidate.
    Layout (flex/gap) stays, since that's this context's own, not shared with the primitive. */

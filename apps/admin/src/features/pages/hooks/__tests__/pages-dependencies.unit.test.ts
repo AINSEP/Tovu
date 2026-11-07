@@ -80,3 +80,15 @@ describe("createFakePagesPort — simulateConcurrentSave", () => {
     expect(() => port.simulateConcurrentSave("missing")).toThrow("fake page not found: missing");
   });
 });
+
+describe("defaultPagesPort.updatePost", () => {
+  it("saves through the shared route as a page, so a failure reads page and not post", async () => {
+    const { api } = await import("@/lib/api");
+    const { vi } = await import("vitest");
+    const spy = vi.spyOn(api, "updatePost").mockResolvedValue({} as never);
+    const { defaultPagesPort } = await import("../pages-dependencies.hooks");
+    await defaultPagesPort.updatePost({ id: "page-1" }, { title: "x" });
+    expect(spy).toHaveBeenCalledWith({ id: "page-1" }, { title: "x" }, { entry: "page" });
+    spy.mockRestore();
+  });
+});

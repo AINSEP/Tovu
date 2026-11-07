@@ -4,7 +4,7 @@ import test from 'node:test';
 import { startImportedSite } from './use-start-imported.hooks.js';
 import { site } from './app-render-harness.js';
 
-const imported = { id: 'new', displayName: 'Shop', status: 'stopped' as const };
+const imported = { ...site('new'), displayName: 'Shop', status: 'stopped' as const };
 
 test('a new import is started and main\'s refreshed record is applied, with no toast', async () => {
   const applied: string[] = [];
@@ -16,7 +16,7 @@ test('a new import is started and main\'s refreshed record is applied, with no t
   );
   assert.equal(toast, undefined);
   assert.deepEqual(started, ['new']);
-  assert.deepEqual(applied, ['running']);
+  assert.deepEqual(applied, ['starting', 'running'], 'the tab reads Starting from the first moment, never Stopped');
 });
 
 test('a failed start keeps the site, speaks plainly and puts the redacted error in the details', async () => {
@@ -25,7 +25,7 @@ test('a failed start keeps the site, speaks plainly and puts the redacted error 
     { site: imported, applyRecord: (record) => applied.push(record) },
     { getBridge: () => ({ startSite: async () => { throw new Error("Error invoking remote method 'x': Error: port busy in /Users/jo/Sites/shop"); } }) },
   );
-  assert.deepEqual(applied, []);
+  assert.deepEqual(applied.map((record) => (record as { status: string }).status), ['starting', 'stopped'], 'a failed start puts the old state back');
   assert.match(toast?.message ?? '', /Shop was added, but it didn't start.*press Start site/);
   assert.match(toast?.note ?? '', /^Details: /);
   assert.doesNotMatch(toast?.note ?? '', /\/Users\/jo/);

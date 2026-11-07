@@ -13,7 +13,7 @@ import { performSiteStart } from './use-site-start.hooks.js';
 import type { SiteToast } from './use-site-toast.hooks.js';
 
 /** Tracked folders already on the list (or already running) are left as they were. */
-type StartableSite = Pick<SiteRecord, 'id' | 'displayName' | 'status'> & { alreadyTracked?: boolean };
+type StartableSite = SiteRecord & { alreadyTracked?: boolean };
 
 /**
  * @returns the toast to show if the start failed, else nothing; never rejects.
@@ -25,12 +25,15 @@ export async function startImportedSite(
 ): Promise<SiteToast | undefined> {
   if (site.alreadyTracked || site.status === 'running') return undefined;
   const bridge = getBridge();
+  // The tab opens the moment the import lands; until main answers it must read Starting, not Stopped.
+  applyRecord({ ...site, status: 'starting' });
   // `performSiteStart` turns a rejection into a short sentence; the person's copy-able details want the real one.
   let raw: unknown;
   const result = await performSiteStart(site.id, bridge && {
     startSite: (id) => bridge.startSite(id).catch((error: unknown) => { raw = error; throw error; }),
   });
   if (result.error === undefined) { applyRecord(result.record); return undefined; }
+  applyRecord(site);
   return {
     message: `${site.displayName} was added, but it didn't start. Open its tab and press Start site to try again.`,
     note: `Details: ${copyableDetails({ error: raw ?? result.error })}`,

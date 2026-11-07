@@ -1058,24 +1058,36 @@ const FAMILY_COPY: Record<PluginFamily, { readonly noun: string; readonly warnin
  */
 export function describeEnableApproval({ subject, scope }: { subject: EnableConfirmationSubject; scope?: AccessApprovalResource['scope'] }, _optional = {}): HumanConfirmSpec {
   const copy = FAMILY_COPY[subject.family];
+  const explanation = copy.warning + " Only the listed access is turned on. A browser sign-in may still be needed to connect your account.";
+  // An Agent Plugin's sentence explains; only a site plugin's (full server access) is a real warning.
+  const explain = subject.family === "agent-plugin" ? { notice: explanation } : { warning: explanation };
   return {
     toolId: PLUGINS_SET_ENABLED_TOOL_ID, errorCode: "PLUGINS",
+    // The title names the plugin; nothing below repeats it unless its id differs from the name shown.
     title: `Enable ${subject.label ?? subject.pluginId}?`,
-    description: `This turns on the ${copy.noun} "${subject.pluginId}" for this workspace.`,
-    ...(scope ? { access: { resources: pluginEnableAccessResources({ subject, scope }) } } : {}),
-    details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
+    description: `This turns on this ${copy.noun} for this workspace.`,
+    ...(scope ? { access: { resources: pluginEnableAccessResources({ subject, scope }) },
+      // The plugin's own access rows (family, capabilities) restate Kind and Adds below; its other resources still show.
+      accessRowsStatedInDetails: [pluginResourceId(subject)] } : {}),
+    details: [
+      ...(subject.label !== undefined && subject.label !== subject.pluginId ? [{ label: "Plugin", value: subject.pluginId }] : []),
+      { label: "Kind", value: copy.noun },
       ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
       ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : []),
-],
-    warning: copy.warning + " Only the listed access is turned on. A browser sign-in may still be needed to connect your account.", confirmLabel: "Enable",
+    ],
+    ...explain, confirmLabel: "Enable",
     // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
     cancelLabel: "Cancel",
   };
 }
 
+function pluginResourceId(subject: EnableConfirmationSubject, _options = {}): string {
+  return `plugin:${subject.family}:${subject.pluginId}`;
+}
+
 /** Translate the frozen domain proposal into the common access disclosure. */
 function pluginEnableAccessResources({ subject, scope }: { subject: EnableConfirmationSubject; scope: AccessApprovalResource['scope'] }, _options = {}): readonly AccessApprovalResource[] {
-  return [{ id: `plugin:${subject.family}:${subject.pluginId}`, label: subject.label ?? subject.pluginId,
+  return [{ id: pluginResourceId(subject), label: subject.label ?? subject.pluginId,
     scope, previous: { enabled: subject.previousEnabled ?? null }, proposed: { enabled: true, family: subject.family, capabilities: subject.adds ?? [] }, revision: subject.revision ?? null },
     ...(subject.resources ?? []).map(resource => ({ ...resource, scope }))];
 }

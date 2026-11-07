@@ -8,6 +8,12 @@ export function SiteToast({ toast, onDismiss }: { toast: SiteToastValue | null; 
       <div>
         <p className="site-toast__message">{toast.message}</p>
         {toast.note && <p className="site-toast__note">{toast.note}</p>}
+        {toast.items && (
+          <details className="site-toast__items">
+            <summary>Show list</summary>
+            <ul>{toast.items.map((item) => <li key={item}>{item}</li>)}</ul>
+          </details>
+        )}
       </div>
       <button type="button" className="button button--quiet" aria-label="Dismiss" onClick={onDismiss}>×</button>
     </div>

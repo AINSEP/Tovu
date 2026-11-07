@@ -142,3 +142,22 @@ it("describes an implicit GET failure as a read without exposing legacy error te
   });
   expect(adminFailureChannel.getSnapshot()?.copyText).not.toMatch(/PRIVATE_BACKEND|SECRET_CANARY/);
 });
+
+it("a page saved through the shared posts route is called a page in the notice, with or without approved server wording", async () => {
+  const failure = formatUserFacingError({ message: "The post save could not be completed.", action: "Check whether your changes were saved before repeating the save.", step: "Save post", cause: "The error ID identifies the server report." }, { errorId: "incident-9" });
+  const body = { error: { code: "INTERNAL_ERROR", message: "boom", requestId: "request-9", details: { errorId: "incident-9", failure } } };
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 500 })));
+  await api.updatePost({ id: "p1" }, { title: "x" }, { entry: "page" }).catch(() => undefined);
+  const approved = adminFailureChannel.getSnapshot();
+  expect(approved?.message).toBe("The page save could not be completed.");
+  expect(approved?.copyText).toMatch(/Save page/);
+  expect(approved?.copyText).not.toMatch(/\bpost\b/i);
+  adminFailureChannel.reset();
+  setAdminDraftIdentity({ id: null });
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "x" }), { status: 500 })));
+  await api.updatePost({ id: "p1" }, { title: "x" }, { entry: "page" }).catch(() => undefined);
+  expect(adminFailureChannel.getSnapshot()?.message).toMatch(/page save/);
+  adminFailureChannel.reset();
+  await api.updatePost({ id: "p1" }, { title: "x" }).catch(() => undefined);
+  expect(adminFailureChannel.getSnapshot()?.message).toMatch(/post save/);
+});

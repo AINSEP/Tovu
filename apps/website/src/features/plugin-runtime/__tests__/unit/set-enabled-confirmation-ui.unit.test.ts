@@ -33,3 +33,24 @@ test("id-only enable surface names the id and omits an absent Version detail", a
   assert.ok(!html.includes("<dt>Version</dt>"));
   assert.equal(resource.resource.uri, "ui://tovu/plugins-set-enabled/bare-exchange");
 });
+
+const scope = { personId: "owner", siteId: "site-1" };
+const bodyText = (html: string) => html.slice(html.indexOf("<body")).replace(/<(script|style)[\s\S]*?<\/\1>/g, "").replace(/<[^>]+>/g, " ");
+
+test("an agent plugin card names the plugin once, hides the developer rows and explains in a neutral note", async () => {
+  const resource = await renderHumanApproval({ spec: describeEnableApproval({ subject: { family: "agent-plugin", pluginId: "composio", adds: ["mail.send"], resources: [{ id: "mcp:gmail", label: "Gmail", previous: null, proposed: { access: "send" }, revision: null, scope }] }, scope }), exchangeId: "e1" });
+  const html = resource.resource.text!;
+  const text = bodyText(html);
+  assert.equal(text.match(/composio/g)?.length, 1, "the plugin name is the title only");
+  assert.doesNotMatch(text, /Family|Capabilities|agent-plugin/);
+  assert.match(text, /Adds/);
+  assert.match(text, /mail\.send/, "what is turned on is still stated");
+  assert.match(text, /Gmail/, "another resource the plugin gets is still disclosed");
+  assert.match(html, /class="mcpui-notice"[^>]*>[^<]*guidance and tools/);
+  assert.doesNotMatch(html, /class="mcpui-warning"/);
+});
+
+test("a site plugin keeps its red warning for full server access", async () => {
+  const resource = await renderHumanApproval({ spec: describeEnableApproval({ subject: { family: "site-runtime", pluginId: "shop" } }), exchangeId: "e2" });
+  assert.match(resource.resource.text!, /class="mcpui-warning">[^<]*change its database/);
+});

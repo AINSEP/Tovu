@@ -379,6 +379,16 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     expect(targets).toEqual([page.id, page.id]);
   });
 
+  it("a server failure shows a short plain line, not the raw server string the failure notice already carries", async () => {
+    const port = createFakePageEditorPort({ page: DOC_PAGE });
+    const deps = { port: { ...port, updatePost: async () => { throw Object.assign(new Error("boom"), { status: 500 }); } }, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
+    const { result } = renderHook(() => usePageEditor(DOC_PAGE.slug, deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setSlug("other"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("Not saved. Your edits are still here.");
+  });
+
   it("keeps the old browser route when a slug rename is rejected", async () => {
     const port = createFakePageEditorPort({ page: DOC_PAGE });
     const navigate = vi.fn();
