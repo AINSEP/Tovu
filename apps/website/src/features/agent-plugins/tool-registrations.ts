@@ -1,21 +1,23 @@
-import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
-import { projectAgentPluginSearchPage, describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
-import { readInstalledAgentPluginIdentity, UNTESTED_PLUGIN_GUIDANCE, type PluginMaturity } from "./identity.js";
+/**
+ * @file Agent Plugin tool wiring for this product. The skill tool, its per-call gate, plugin search,
+ * plugin memory tools and the note tool live in `@jini-ai/agent-plugins/lifecycle/host-tools`, and
+ * that file carries their design notes. This file keeps the old names and signatures, binds the
+ * host-tools ports to this product (`host-tool-ports.ts`), adds this product's guidance overlays
+ * (`host-plugin-guidance.ts`), and wires the static connect domain.
+ */
+import {
+  agentPluginSearchDerivedRisk, agentPluginSearchToolCatalog, agentPluginToolDerivedRisk as hostAgentPluginToolDerivedRisk,
+  buildAgentPluginSearchRegistrations as buildHostAgentPluginSearchRegistrations, buildAgentPluginToolRegistrations as buildHostAgentPluginToolRegistrations,
+  createAgentPluginToolGate as createHostAgentPluginToolGate, loadAgentPluginSearchCandidates as loadHostAgentPluginSearchCandidates,
+  loadInstalledAgentPluginToolSources as loadHostAgentPluginToolSources, registerInstalledAgentPluginTools as registerHostAgentPluginTools,
+  type AgentPluginToolGate, type AgentPluginToolSource, type IdentifiedAgentPluginSearchCandidate,
+} from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
-import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps } from "../../contracts/headless/index.js";
-import { appendPluginNotes } from "./memory.js";
-import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOverlayOptional, type PluginToolGuidance } from "./host-plugin-guidance.js";
-
-// Jini owns activation lifecycle; this host binding owns its effects.
-import { agentPluginActivations } from "./activation-effects.js";
-const { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
-import { buildDomainRegistrations, indexCatalogById, optionalNumber, optionalString, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-
-import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
-
+import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOverlayOptional } from "./host-plugin-guidance.js";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import {
   AGENT_PLUGIN_CONNECT_TOOL_ID,
@@ -27,980 +29,88 @@ import {
   saveAgentPluginToken,
   type AgentPluginAccessTokenToolDeps,
 } from "./access-token-tool.js";
-
-import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import type { AgentPluginLayout } from "./layout.js";
-import type { SkillFileResult } from "@jini-ai/agent-plugins/lifecycle";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
-import { isInstalledDigestPresent, listInstalledPlugins, readInstalledSkillFile } from "./lifecycle.js";
-import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./lifecycle.js";
 import type { ToolContributor } from "@jini-ai/core";
+import { AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 
-/**
- * @file Registers each installed, active Agent Plugin as one real ToolRegistry tool.
- *
- * One tool per plugin, with optional skill and file arguments, matches the composer's plugin chip and
- * prevents one multi-skill plugin from crowding native tools out of search results. search_tools
- * is the indexed discovery surface; a parallel capability index would make the agent choose which
- * one to query. Combining skill descriptions dilutes per-term BM25 scores, but keeps result slots
- * available for other tools. Every skill's summary must remain in the combined description so
- * searches can find vocabulary absent from the plugin's top-level name.
- *
- * Tool id scheme: agent_plugin_<pluginId>, with hyphens folded to underscores. A plugin bundles
- * skills and MCP servers; it is not itself a skill. The catalog's first-underscore source splitter
- * labels these as "agent", which is display-only metadata and has no FTS effect. FTS treats
- * underscores as separators and weights id more heavily than description, so the agent/plugin
- * words affect ranking. The install digest stays out of the id to avoid diluting that signal.
- * Multiple installed digests for one id are refused rather than chosen silently. The bundled
- * digest ledger may select the running build's published package when that digest is present;
- * operator installs or a ledger pointing to absent bytes still reach the ambiguity refusal.
- *
- * The optional skill enum documents available skills; ToolRegistry does not enforce schemas.
- * Omitted skill returns the eponymous skill, or the alphabetically-first skill when none matches,
- * plus availableSkills. Concatenating every skill would waste the caller's context. Descriptions
- * and responses identify the default choice. An unknown skill returns the default with a note
- * naming the rejected value and valid choices, so a typo remains recoverable.
- *
- * SECURITY: no absolute host path belongs in ids, descriptions, schemas or handler outputs.
- * packageRoot/skillPath are only local read arguments captured by reader capabilities; AgentPluginToolSource never exposes them.
- * Outputs contain plugin/skill names, guidance markdown and availability, never the source path.
- * The real-install tests assert that the temporary package root is absent from every public field.
- *
- * Dynamic registration is async because installed plugin ids require disk reads. It runs at
- * daemon boot through registerInstalledAgentPluginTools, outside the synchronous ToolContributor
- * seam. Static tools such as search_agent_plugin_local use that seam and read disk in their handlers.
- */
+export type { AgentPluginSkillDetail, AgentPluginToolSource, AgentPluginToolIdentity, AgentPluginToolGate, IdentifiedAgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+export { agentPluginSearchDerivedRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 
-/** Local presentation helper; sibling formatting helpers have no shared contract to keep in sync. */
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-/** `agent_plugin_<pluginId>` — see this file's header, "Tool id scheme", for why `agent_plugin_` (an
- *  installed Agent Plugin, the packaging paradigm) is the correct prefix and not `skill_` (one thing
- *  a plugin bundles, not what this tool id names). */
-function toAgentPluginToolId(pluginId: string): string {
-  return `agent_plugin_${pluginId.replace(/-/g, "_")}`;
-}
-
-/** Falls back to the first real prose line when a skill has no (or no parseable) frontmatter — the
- *  reference plugin's own `web-compliance` skill is exactly this case: no frontmatter block at all,
- *  just an H1 followed by real prose. Skips every heading and blank line. */
-function extractFallbackSummary(markdown: string): string | undefined {
-  for (const raw of markdown.split("\n")) {
-    const line = raw.trim();
-    if (line.length > 0 && !line.startsWith("#")) return line;
-  }
-  return undefined;
-}
-
-/** One skill's summary, for folding into its plugin's combined description — reuses the same
- *  frontmatter/fallback parsing the prior per-skill pilot used, just no longer wrapped into a
- *  standalone tool description of its own. */
-function summarizeSkillMarkdown(skillName: string, markdown: string): string {
-  return (
-    readFrontmatterField(markdown, "description") ?? extractFallbackSummary(markdown) ?? `${humanize(skillName)} guidance and reference material.`
-  ).replace(/\s+/g, " ").trim();
-}
-
-/**
- * Builds this plugin tool's model-facing description — an operator SEARCH TARGET, not a card blurb.
- * Folds every skill's own summary in so the words an operator would plausibly type ("accessibility",
- * "shadcn component library", "review my UI for compliance") appear directly in indexed text, per
- * this file's header. Names the default skill (and, when there is no eponymous skill, why the
- * fallback was chosen) so a caller reading only the description already knows what a bare call
- * returns.
- *
- * Leads with a scoped "load guidance to use or apply..." clause rather than a bare noun phrase — a live test
- * found the model choosing a native verb-style tool (e.g. `theme_list`) over this plugin even when
- * this plugin's own tool ranked #1 in search for the same query, on prompts where both plausibly fit
- * ("make it look polished and professional"). The imperative opening is a controlled experiment
- * against that selection bias, not a search-ranking change — the skill-vocabulary tail below is
- * unchanged and still does the BM25 work.
- */
-function buildPluginToolDescription(
-  pluginId: string,
-  skills: readonly AgentPluginSkillDetail[],
-  defaultSkillName: string,
-  defaultSkillReason: string | undefined,
-): string {
-  const humanPlugin = humanize(pluginId);
-  const defaultNote = defaultSkillReason
-    ? `Called with no argument, returns the '${defaultSkillName}' skill (${defaultSkillReason}).`
-    : `Called with no argument, returns this plugin's own eponymous '${defaultSkillName}' skill.`;
-  const details = skills.map((skill) => `${humanize(skill.name)} (${skill.name}) — ${skill.summary}`).join(" | ");
-  return (
-    `Load guidance to use or apply this plugin before making any design/implementation decision in its domain — ` +
-    `${humanPlugin} guidance from the installed '${pluginId}' Agent Plugin, covering ${skills.length} ` +
-    `skill${skills.length === 1 ? "" : "s"}: ${details} ${defaultNote} Pass the optional 'skill' argument ` +
-    `to request a different one by name. Pass optional 'file' (for example 'references/foundations.md') ` +
-    `relative to the chosen skill folder to read supporting text instead of SKILL.md. Every response lists ` +
-    `readable supporting files and other skills with short descriptions; unknown or refused files return a recovery note. ` +
-    `For viewing this plugin's admin screen, use page.navigate with its entity target, then discover and click its details handle.`
-  );
-}
-
-/** One installed plugin's one skill, fully resolved for tool registration — no host paths, a deferred
- *  reader capability for supporting-file requests at call time. See this file's header, SECURITY. */
-export interface AgentPluginSkillDetail {
-  readonly name: string;
-  readonly summary: string;
-  readonly markdown: string;
-  /** Deferred shared-reader capability; its closed-over host paths never enter model output. */
-  readonly readFile?: (input: Record<string, never>, options?: { readonly file?: string }) => Promise<SkillFileResult>;
-}
-
-/** One installed Agent Plugin, fully resolved into a single tool-ready source. See this file's
- *  header, SECURITY. */
-export interface AgentPluginToolSource {
-  readonly maturity?: PluginMaturity;
-  readonly id: string;
-  readonly pluginId: string;
-  /** The archive digest whose extracted bytes this source's skills were read from — carried so the
-   *  per-call gate below can re-establish that THIS package is still installed, and so a
-   *  registration is pinned to the exact install it was built from rather than to whatever happens
-   *  to answer to the same plugin id later. A content hash, not a host path: it names no directory
-   *  a caller does not already have to know, and `AgentPluginUninstallPreview.archiveDigests`
-   *  already shows it to a human, so it does not weaken this file's SECURITY property above. */
-  readonly archiveDigest: string;
-  readonly description: string;
-  readonly skills: readonly AgentPluginSkillDetail[];
-  /** The skill name a no-argument (or unrecognized-argument) call returns — the plugin's own
-   *  eponymous skill when one exists, otherwise a documented fallback (see this file's header). */
-  readonly defaultSkillName: string;
-  /** Set only when {@link defaultSkillName} is NOT the plugin's eponymous skill — the human-readable
-   *  reason folded into both the description and every default-path handler response. */
-  readonly defaultSkillReason?: string;
-}
-
-/** One installed plugin's manifest identity, as `listInstalledPlugins` returns it — the narrow
- *  slice {@link assertSingleDigestPerPlugin} needs, named separately so that guard doesn't have to
- *  import the whole `InstalledAgentPlugin` shape. */
-interface InstalledPluginIdentity {
-  readonly pluginId: string;
-  readonly archiveDigest: string;
-}
-
-/**
- * Refuses loudly when the SAME plugin id is installed under two different archive digests —
- * mutates `digestByPluginId` as its record of "digest seen so far per plugin id". Split out of
- * {@link loadInstalledAgentPluginToolSources}'s loop so that loop is left with only the two things
- * it must do per plugin: check-and-record identity, then (if unique) resolve its tool source.
- *
- * @throws {Error} Caught per-plugin by {@link loadInstalledAgentPluginToolSources}'s own loop,
- * which logs it and skips only this one plugin — the throw itself stays the loud, correct signal
- * for this specific plugin's ambiguity; only where it is caught changed.
- */
-function assertSingleDigestPerPlugin(digestByPluginId: Map<string, string>, plugin: InstalledPluginIdentity): void {
-  const priorDigest = digestByPluginId.get(plugin.pluginId);
-  if (priorDigest !== undefined && priorDigest !== plugin.archiveDigest) {
-    throw new Error(
-      `agent-plugin tools: '${plugin.pluginId}' is installed under more than one digest ` +
-        `(${priorDigest} and ${plugin.archiveDigest}) — this module wires one tool id per installed plugin id ` +
-        `with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool`,
-    );
-  }
-  digestByPluginId.set(plugin.pluginId, plugin.archiveDigest);
-}
-
-/** Reads and summarizes every one of one installed plugin's skills — the only `await`-per-item
- *  work in the whole load, isolated so the caller's loop has no nested `for` of its own. */
-async function resolveSkillsForPlugin(plugin: {
-  readonly packageRoot: string;
-  readonly skills: readonly { readonly name: string; readonly skillPath: string }[];
-}): Promise<AgentPluginSkillDetail[]> {
-  const skills: AgentPluginSkillDetail[] = [];
-  for (const skill of plugin.skills) {
-    const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
-    skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown,
-      readFile: (_input, options = {}) => readInstalledSkillFile({ packageRoot: plugin.packageRoot, skillPath: skill.skillPath }, options),
-    });
-  }
-  return skills;
-}
-
-/**
- * Same per-skill work as {@link resolveSkillsForPlugin}, but tolerant of ONE skill's own read
- * failure — used only by the search loader below ({@link loadAgentPluginSearchCandidates}), which
- * must keep the plugin, and its OTHER skills, discoverable rather than losing the whole entry (and
- * every other installed plugin behind it in the same call, since one unhandled rejection here would
- * fail the entire `loadAgentPluginSearchCandidates` promise) to one skill file that is present in
- * the fresh directory walk but no longer actually readable (a permissions problem, disk corruption).
- * Logged and skipped, never fabricated.
- *
- * The dynamic-tool loader ({@link loadInstalledAgentPluginToolSources}) deliberately keeps
- * `resolveSkillsForPlugin`'s stricter, plugin-wide failure instead: a tool whose catalog description
- * silently dropped one of its skills is a worse failure mode there than refusing the whole plugin's
- * tool, so that loader's own per-plugin `catch` (below) is intentionally left alone.
- */
-async function resolveSkillsForSearchTolerant(plugin: {
-  readonly pluginId: string;
-  readonly packageRoot: string;
-  readonly skills: readonly { readonly name: string; readonly skillPath: string }[];
-}): Promise<AgentPluginSkillDetail[]> {
-  const skills: AgentPluginSkillDetail[] = [];
-  for (const skill of plugin.skills) {
-    try {
-      const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
-      skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown,
-        readFile: (_input, options = {}) => readInstalledSkillFile({ packageRoot: plugin.packageRoot, skillPath: skill.skillPath }, options),
-      });
-    } catch (error) {
-      console.warn(
-        `[agent-plugins] '${plugin.pluginId}': skill '${skill.name}' could not be read ` +
-          `(${error instanceof Error ? error.message : String(error)}) — skipped from search`,
-      );
-    }
-  }
-  return skills;
-}
-
-/** Which skill a no-argument (or unrecognized-argument) call to this plugin's tool returns —
- *  the plugin's own eponymous skill when one exists, otherwise its alphabetically-first skill (see
- *  this file's header, "The optional `skill` argument"). A pure defaulting decision, isolated from
- *  the source-object construction that consumes it.
- *
- *  @param skills Never empty — every caller only reaches this after the plugin's own
- *  `skills.length === 0` short-circuit. */
-function resolveDefaultSkill(
-  skills: readonly AgentPluginSkillDetail[],
-  pluginId: string,
-): { readonly defaultSkillName: string; readonly defaultSkillReason?: string } {
-  const eponymous = skills.find((skill) => skill.name === pluginId);
-  if (eponymous) return { defaultSkillName: eponymous.name };
-
-  // Guarded by every caller (`skills.length === 0` short-circuits first), so `skills[0]` is
-  // always defined here.
-  const fallbackSkill = skills[0] as AgentPluginSkillDetail;
-  return {
-    defaultSkillName: fallbackSkill.name,
-    defaultSkillReason:
-      `no eponymous skill folder ('skills/${pluginId}/SKILL.md') exists in this installed package — ` +
-      `defaulting to its alphabetically-first skill`,
-  };
-}
-
-/** Assembles one installed plugin's fully-resolved {@link AgentPluginToolSource} from its already
- *  fetched skills — pure construction, no I/O, so it's the composition {@link
- *  loadInstalledAgentPluginToolSources}'s loop reduces to a call. */
-function buildToolSource(plugin: AgentPluginToolIdentity, skills: readonly AgentPluginSkillDetail[]): AgentPluginToolSource {
-  const { pluginId, archiveDigest } = plugin;
-  const { defaultSkillName, defaultSkillReason } = resolveDefaultSkill(skills, pluginId);
-  return {
-    id: toAgentPluginToolId(pluginId),
-    pluginId,
-    archiveDigest,
-    maturity: plugin.maturity,
-    description: buildPluginToolDescription(pluginId, skills, defaultSkillName, defaultSkillReason) + (plugin.publisherId ? ` Plugin discovery: ${[plugin.publisherId, ...(plugin.keywords ?? []), ...(plugin.provides ?? [])].join(" ")}.` : ""),
-    skills,
-    defaultSkillName,
-    ...(defaultSkillReason !== undefined ? { defaultSkillReason } : {}),
-  };
-}
-
-/**
- * Loads every installed Agent Plugin for one workspace, resolved into one tool-ready source per
- * plugin. Per-plugin failures are isolated: a pluginId installed under more than one digest (a
- * genuine, actionable ambiguity — see this file's header for why the digest itself is not folded
- * into the id) — or any other per-plugin resolution failure, e.g. an unreadable SKILL.md — is
- * logged via `console.warn` and excluded from the returned array, but never aborts the whole load.
- * One bad plugin install must not take every other installed plugin's tool down with it.
- *
- * @complexity O(d * s) in installed-digest count times average skills-per-digest, dominated by
- * `listInstalledPlugins`'s own walk plus one `readInstalledSkillMarkdown` per skill.
- */
+/** Loads every installed, active Agent Plugin of one workspace as one tool-ready source. */
 export async function loadInstalledAgentPluginToolSources(ctx: {
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
 }, _optional = {}): Promise<readonly AgentPluginToolSource[]> {
-  const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
-  // Superseded installs of a BUNDLED plugin are dropped BEFORE the ambiguity guard below ever sees
-  // them, by the build's own recorded answer rather than by picking one — see `bundled-digests.ts`.
-  // An id that ledger has no authority over still reaches `assertSingleDigestPerPlugin` unchanged.
-  const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.root),
-    await readBundledAgentPluginDigests(workspaceLayout.root),
-  );
-
-  // Filter inactive plugins through the shared lifecycle owner
-  // BEFORE the ambiguity check below on purpose: two installed digests of a plugin nobody has
-  // enabled is not an operator-actionable error, and throwing on it would let a dormant, disabled
-  // package break tool registration for every OTHER plugin in the workspace.
-  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
-  const active = filterActiveAgentPlugins({ activations: activations, items: installed, pluginIdOf: ({ item: plugin }) => plugin.pluginId });
-
-  const digestByPluginId = new Map<string, string>();
-  // Keyed by pluginId (not a plain array) so a LATER conflicting digest can retract an EARLIER
-  // digest's already-resolved source for the same plugin — `assertSingleDigestPerPlugin` only
-  // throws on the second digest it sees for a given id, so a plain per-iteration push would let
-  // ambiguity silently keep whichever digest happened to resolve first, which is exactly the
-  // "silently picking one" outcome this file's header says the ambiguity guard must refuse.
-  const sourceByPluginId = new Map<string, AgentPluginToolSource>();
-  const poisonedPluginIds = new Set<string>();
-
-  for (const plugin of active) {
-    if (poisonedPluginIds.has(plugin.pluginId)) continue; // already ruled ambiguous; stays excluded
-
-    try {
-      assertSingleDigestPerPlugin(digestByPluginId, plugin);
-      // Empty skills leave nothing this plugin's tool could ever return.
-      if (plugin.skills.length > 0) {
-        const skills = await resolveSkillsForPlugin(plugin);
-        const identity = await readInstalledAgentPluginIdentity({ plugin });
-        sourceByPluginId.set(plugin.pluginId, buildToolSource({ ...plugin, maturity: identity.maturity, publisherId: identity.id, keywords: identity.keywords, provides: identity.provides }, skills));
-      }
-    } catch (error) {
-      // Isolated per plugin so one bad install (digest ambiguity, an unreadable SKILL.md, ...)
-      // cannot take every OTHER installed plugin's tool down with it — see this file's header,
-      // "The install DIGEST is deliberately NOT part of the id", for why the digest-ambiguity case
-      // itself is still a genuine, actionable refusal, just scoped to this one plugin now.
-      sourceByPluginId.delete(plugin.pluginId);
-      poisonedPluginIds.add(plugin.pluginId);
-      console.warn(`[agent-plugins] '${plugin.pluginId}': ${error instanceof Error ? error.message : String(error)} — skipped`);
-    }
-  }
-  return [...sourceByPluginId.values()];
+  return loadHostAgentPluginToolSources({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
 }
 
-/** This module's own risk classification: every plugin tool is a pure read of already-installed,
- *  already-validated local content — no domain call, no write path. */
+/** Every plugin tool is a pure read of already-installed content. */
 export function agentPluginToolDerivedRisk(sources: readonly AgentPluginToolSource[]): DerivedRiskByToolId {
-  return new Map<string, AgentToolSideEffect>(sources.map((source) => [source.id, "none"]));
+  return hostAgentPluginToolDerivedRisk({ sources });
 }
 
-/** `inputSchema` for one plugin's tool: optional `file` and `skill` strings, the skill `enum` documenting
- *  every valid value for THIS installed plugin. Documentation only — `@jini-ai/core`'s
- *  `ToolRegistry` never parses or validates `inputSchema`, so an unrecognized value can never be
- *  rejected before it reaches {@link readSkillArgument} / {@link buildPluginToolResult}, which
- *  handle it gracefully rather than relying on schema enforcement that does not exist. */
-function buildPluginInputSchema(source: AgentPluginToolSource): Record<string, unknown> {
-  const skillNames = source.skills.map((skill) => skill.name);
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: [],
-    properties: {
-      file: {
-        type: "string",
-        description: "Optional supporting text file relative to the chosen skill folder, e.g. references/foundations.md. Omit to read SKILL.md. Use paths from files in the previous result. Unknown, unsafe, binary or over-256-KiB files return a note and valid files.",
-      },
-      skill: {
-        type: "string",
-        enum: skillNames,
-        description:
-          `Optional. Request one specific skill's full guidance instead of the default overview. One of: ` +
-          `${skillNames.join(", ")}. Defaults to '${source.defaultSkillName}' when omitted; an unrecognized ` +
-          `value falls back to that same default and reports the valid values instead of failing.`,
-      },
-    },
-  };
-}
-
-/** Reads optional `skill` and `file` arguments off `ctx.input`, refusing any OTHER field (mirrors
- *  `requireNoInput`'s "reject a populated-but-wrong shape" discipline for the fields this tool
- *  does accept) but never rejecting a `skill` value merely because it does not name a real skill —
- *  see this file's header on why an unrecognized value is a graceful fallback, not a thrown error. */
-function readSkillArgument(rawInput: unknown): { skill?: string; file?: string } {
-  if (rawInput === undefined) return {};
-  const input = requireInputRecord({ input: rawInput });
-  const unexpectedKeys = Object.keys(input).filter((key) => key !== "skill" && key !== "file");
-  if (unexpectedKeys.length > 0) {
-    throw new Error(`this tool accepts only optional 'skill' and 'file' arguments — unexpected field(s): ${unexpectedKeys.join(", ")}`);
-  }
-  const skill = optionalString({ input, key: "skill" });
-  const file = optionalString({ input, key: "file" });
-  return { ...(skill !== undefined ? { skill } : {}), ...(file !== undefined ? { file } : {}) };
-}
-
-/**
- * Resolves one plugin tool's response for a given (possibly absent, possibly unrecognized)
- * requested skill name and optional supporting file. Disk access stays behind the shared-reader capability.
- *
- * - A recognized `requestedSkill` returns exactly that skill.
- * - `undefined` (argument omitted) returns {@link AgentPluginToolSource.defaultSkillName}.
- * - An unrecognized, non-empty `requestedSkill` ALSO returns the default skill, plus a `note`
- *   naming the value that was not recognized and listing every valid one — never a thrown error.
- *
- * Every response additionally carries `files` and `availableSkills`: every other skill name and description this plugin has, so
- * a model that got the default (or a specific skill) still knows what else it can ask for next.
- */
-async function buildPluginToolResult(source: AgentPluginToolSource, input: { skill?: string; file?: string }): Promise<Record<string, unknown>> {
-  const { selected, requestedSkill, match, fallback } = selectPluginSkill({ source, input });
-  const content = await readPluginSkillGuidance({ selected }, input);
-  const notes = [content.note];
-  if (requestedSkill !== undefined && !match) {
-    // Reflect only a simple name; a caller-supplied absolute path must never appear in a note.
-    const label = /^[a-z0-9-]+$/.test(requestedSkill) ? ` '${requestedSkill}'` : "";
-    notes.push(`Unrecognized skill${label} for the '${source.pluginId}' plugin — showing the default skill '${fallback.name}' instead. Valid values: ${source.skills.map(skill => skill.name).join(", ")}.`);
-  }
-  if (input.file !== undefined && !selected.readFile) notes.push("File request refused: no supporting-file reader is available. Valid supporting files: (none).");
-  return {
-    pluginId: source.pluginId,
-    ...(source.maturity ? { maturity: source.maturity } : {}),
-    skillName: selected.name,
-    // Any maturity flag ("untested" or "soon") means not tested end to end: caution before keys/actions.
-    guidance: source.maturity ? `${UNTESTED_PLUGIN_GUIDANCE}\n\n${content.guidance}` : content.guidance,
-    files: content.files,
-    // Keep the availability list short without removing vocabulary from the indexed description.
-    availableSkills: source.skills.filter(skill => skill.name !== selected.name).map(skill => ({ name: skill.name, description: skill.summary.slice(0, 320) })),
-    ...(notes.some(Boolean) ? { note: notes.filter(Boolean).join(" ") } : {}),
-  };
-}
-
-/**
- * ===========================================================================================
- * REVOCATION — the activation gate has to run AGAIN, per call, or a disable never lands
- * ===========================================================================================
- *
- * {@link loadInstalledAgentPluginToolSources}'s own ACTIVATION GATE runs exactly once, because
- * `registerInstalledAgentPluginTools` runs exactly once: inside `agent-daemon-server.ts`'s
- * `start()`. `@jini-ai/core`'s `ToolRegistry` is append-only BY DESIGN — its own header calls that
- * out ("unregister is not exposed; ... tools are registered once at composition time") — so nothing
- * anywhere can take a registration back out of a daemon that is already running.
- *
- * Boot-only activation checks would retain a disabled plugin's guidance until restart, even
- * while admin/tool responses report successful revocation. Invocation must re-read activation
- * just as run-start reference injection and discovery do.
- *
- * The gate therefore moves to where the capability is actually spent — the invocation itself. This
- * is not "a filter bolted onto the read path": `@jini-ai/core`'s `authorizeToolInvocation` consults
- * a registration's `ToolPolicy` BEFORE it will hand the handler back to `ToolExecutor`, and the
- * handler is unreachable by any other route, so a policy check here is the single sink for running
- * one of these tools, not one of several. A revoked plugin's call ends as `denied` without the
- * handler ever being entered, and the daemon's own audit record says so.
- *
- * ---------------------------------------------------------------------------
- * Activation and installation must both remain valid
- * ---------------------------------------------------------------------------
- * Gating on the activation record alone would re-admit an uninstalled plugin.
- * Uninstall deletes the record and isAgentPluginActive treats an absent record as active, so
- * disable-then-uninstall can otherwise flip deny back to allow. Absence means "nobody recorded
- * a decision", which is only consent while the operator's own install is still standing behind it.
- * Once the package is gone, there is no install left to imply anything.
- *
- * So the gate asks BOTH halves, and authorizes only when both answer positively:
- *
- * 1. **Still activated** — via `activation.ts`'s `resolveAgentPluginActivation`, the fail-CLOSED
- *    reader added for this call site. `absent record` still means active (that rule is untouched),
- *    but an activations file that cannot be read, parsed, or shape-checked — or that holds a
- *    malformed record for THIS plugin — is `undetermined` and denies, rather than being laundered
- *    into "nothing recorded, therefore permitted". This is the one place that diverges from the
- *    other two gate surfaces' fail-OPEN read, and only on FAULTS, never on what "active" means: a
- *    corrupt byte must not hide an operator's plugins from discovery, and equally must not hand out
- *    a capability nobody can confirm was granted. Here the divergence also buys the error surface
- *    `activation.ts`'s header says fail-closed lacks — a denied call is recorded as `denied` in the
- *    daemon's audit trail, and the gate logs the reason.
- * 2. **Still installed** — via `resolve-agent-plugin-refs.ts`'s `isInstalledDigestPresent`, one
- *    `stat` of the exact `archiveDigest` this registration's guidance was read from. Not
- *    `listInstalledPlugins` (which walks and re-indexes every digest directory, far too much per
- *    call) and not a stored `packageRoot` (a host path this file's SECURITY section keeps off
- *    `AgentPluginToolSource` entirely) — the digest is a content identifier, and the module that
- *    owns the `<packages>/<digest>` layout derives the path from it.
- *
- * Checked in that ORDER, deliberately, because it is what makes the pair safe against a concurrent
- * uninstall: `uninstall.ts` renames the package aside FIRST and deletes the record SECOND, so the
- * gate reads them in the opposite order. An interleaving that sees the record already deleted
- * ("active") therefore cannot also see the package still present — the rename strictly preceded the
- * delete it just observed. Reading installation first would leave exactly that window open.
- *
- * Pinning to the DIGEST rather than the plugin id has a second, deliberate effect: uninstalling a
- * plugin and reinstalling the same id from a different archive does not silently re-admit the boot
- * registration, whose handler still holds the OLD package's guidance in memory. It stays denied
- * until the restart `UNINSTALL_RESTART_NOTE` already tells the operator about.
- *
- * Consequences worth stating rather than discovering later:
- * - Revocation is immediate and reversible in BOTH directions for a tool that was registered at
- *   boot. It is NOT symmetric for one that was not: enabling a plugin that was disabled when the
- *   daemon started still needs a restart, because there is no registration to re-admit. That is the
- *   asymmetry `plugin-runtime/tool-registrations.ts`'s `restartNoteFor` reports to the model.
- * - The tool stays VISIBLE. `registry.list()` and `search_tools`' one-shot FTS snapshot
- *   (`agent-daemon-server.ts`) are both append-only too, so a revoked plugin's tool can still be
- *   found and attempted; it just cannot run. Hiding it needs a registry mutation API that does not
- *   exist, and a visible-but-refusing tool is the safe direction of that pair.
- * - Every failure mode of both halves denies: a missing package directory, a non-directory at that
- *   path, a digest that does not match the installed-directory grammar, an EACCES/EIO on either
- *   read, a torn or hand-edited activations file. There is no input to either check for which "I
- *   could not tell" comes back as `allow`.
- */
-
-/** The identity of the exact installed package ONE registration was built from. Both fields are
- *  content identifiers — a manifest-declared plugin name and an archive digest — never host paths,
- *  so this stays inside this file's SECURITY property above. */
-export interface AgentPluginToolIdentity {
-  readonly maturity?: PluginMaturity;
-  readonly publisherId?: string;
-  readonly keywords?: readonly string[];
-  readonly provides?: readonly string[];
-  readonly pluginId: string;
-  readonly archiveDigest: string;
-}
-
-export interface AgentPluginToolGate {
-  /** Whether this exact installed package may still run: re-reads the activation record AND
-   *  re-confirms the package is still on disk, answering `false` unless both say yes. */
-  isCallable(plugin: AgentPluginToolIdentity): Promise<boolean>;
-}
-
-/**
- * The production gate: one small `activations.json` read plus one `stat` per tool call, both against
- * the same `forWorkspace()` layout every other path in this feature goes through.
- *
- * Deliberately NOT cached. Both facts change when a human toggles or uninstalls a plugin, and the
- * whole point of this gate is that such an act is observed by the very next call; a cache would
- * reintroduce the staleness window the gate exists to close, to save two sub-millisecond reads on a
- * human-paced call.
- *
- * @param ctx.workspaceId - The tenant whose record and packages are consulted. Never an
- * instance-level path.
- * @returns A gate whose answer is established fresh per call, and which denies on any fault.
- * @complexity O(p) per call in the recorded plugin count, plus one small file read and one `stat`.
- */
+/** The per-call revocation gate: activation first, then installation, fresh on every call. */
 export function createAgentPluginToolGate(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): AgentPluginToolGate {
-  const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
-  return {
-    async isCallable(plugin: AgentPluginToolIdentity): Promise<boolean> {
-      // Activation FIRST, installation SECOND — the reverse of uninstall's own order. See the
-      // REVOCATION note above for why that ordering is what closes the concurrent-uninstall window.
-      const activation = await resolveAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: plugin.pluginId });
-      if (activation.verdict === "undetermined") {
-        // The error surface fail-CLOSED is supposed to lack: an operator whose activations file is
-        // damaged gets a denial they can see the cause of, next to the daemon's own `denied` record.
-        console.warn(
-          `[agent-plugins] '${plugin.pluginId}': tool call denied — activation could not be established (${activation.reason})`,
-        );
-        return false;
-      }
-      if (activation.verdict !== "active") return false;
-
-      return isInstalledDigestPresent(workspaceLayout.pluginPackagesDir({ pluginId: plugin.pluginId }), plugin.archiveDigest);
-    },
-  };
+  return createHostAgentPluginToolGate({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
 }
 
-/**
- * Wraps one registration's policy so the plugin's CURRENT activation AND installation are both
- * re-established before its handler can be reached, then defers to the policy
- * `buildDomainRegistrations` already attached.
- *
- * Deferring rather than replacing matters: the kit's policy is a deliberate pass-through today
- * (each tool's permission is evaluated at its own chokepoint), and a future kit that puts something
- * real there must not be silently dropped by this wrapper.
- *
- * @complexity O(1) plus the gate's own two reads.
- */
-function withToolGate(registration: ToolRegistration, gate: AgentPluginToolGate, plugin: AgentPluginToolIdentity): ToolRegistration {
-  const inner = registration.policy;
-  return {
-    ...registration,
-    policy: {
-      async authorize(authCtx) {
-        if (!(await gate.isCallable(plugin))) return "deny";
-        return inner.authorize(authCtx);
-      },
-    },
-  };
-}
-
-/**
- * Turns already-resolved plugin sources into real `ToolRegistration`s — pure and synchronous, unlike
- * {@link loadInstalledAgentPluginToolSources}, so this is the half a unit test exercises without
- * touching disk. Uses the SAME `buildDomainRegistrations` gate every other domain's
- * `tool-registrations.ts` uses (catalog/risk cross-check, `inputSchema` presence, drift tripwire) —
- * not a parallel mechanism.
- *
- * `gate` is required, not optional, and is applied HERE rather than by the caller for the
- * reason this file's REVOCATION note above gives: a gate a call site has to remember to attach is a
- * gate some future call site will register tools without. Every registration this function can
- * produce carries it. The build itself stays synchronous and touches no disk — the gate reads only
- * when a call is actually authorized.
- *
- * @param sources - Already-resolved, already-activation-filtered plugin sources.
- * @param gate - The per-call revocation gate (see {@link createAgentPluginToolGate}).
- * @complexity O(n) in source count; each source's gate reads are deferred to invocation.
- */
+/** Plugin sources as gated `ToolRegistration`s, with this product's metadata and permission names. */
 export function buildAgentPluginToolRegistrations(
   { sources, gate, withExtensionApprovalPolicy }: { sources: readonly AgentPluginToolSource[]; gate: AgentPluginToolGate; withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
   _optional: Record<string, never> = {},
 ): ToolRegistration[] {
-  const catalog: AgentToolDefinition[] = sources.map((source) => ({
-    name: source.id,
-    description: source.description,
-    sideEffects: "none",
-    authorization: { permission: "admin.assistant.use" },
-    inputSchema: buildPluginInputSchema(source),
-  }));
-
-  const handlers: Record<string, ToolHandler> = {};
-  const identityByToolId = new Map<string, AgentPluginToolIdentity>();
-  for (const source of sources) {
-    handlers[source.id] = async (ctx) => buildPluginToolResult(source, readSkillArgument(ctx.input));
-    identityByToolId.set(source.id, { pluginId: source.pluginId, archiveDigest: source.archiveDigest });
-  }
-
-  const registrations = buildDomainRegistrations({ metadata: toolMetadata,
-    domain: "agent-plugin-skill",
-    catalogModule: "features/agent-plugins/tool-registrations.ts",
-    catalog: indexCatalogById({ catalog: catalog }),
-    handlers,
-    derivedRisk: agentPluginToolDerivedRisk(sources),
-  });
-
-  return registrations.map((registration) => {
-    const identity = identityByToolId.get(registration.descriptor.id);
-    // Unreachable via this function — every registration comes from `handlers`, whose keys are the
-    // same `source.id`s the map was built from. Guarded rather than asserted with `!` so a future
-    // kit that synthesized an extra registration would be REFUSED rather than silently ungated.
-    if (identity === undefined) {
-      throw new Error(
-        `tool-registrations: '${registration.descriptor.id}' has no owning Agent Plugin, so its activation could not be gated`,
-      );
-    }
-    return withExtensionApprovalPolicy({ registration: withToolGate(registration, gate, identity), family: 'installed-guidance' });
-  });
+  return buildHostAgentPluginToolRegistrations({ sources, gate, withExtensionApprovalPolicy,
+    ports: { permissions: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, metadata: toolMetadata } });
 }
 
 /**
- * Composition-root entry point: loads every installed plugin for one workspace and registers each
- * as a real tool directly on `registry` — the same `registry.register(registration)` call
- * `agent-daemon-server.ts`'s own top-level loops make for `buildAssistantToolRegistrations`'s output,
- * just awaited first. See this file's header for why this is a standalone async function rather than
- * a `ToolContributor`, and why it is not (yet) called from that live boot sequence.
- *
- * Registers with the REAL gate, so every tool this puts into the daemon's registry stops answering
- * the moment its plugin is switched off OR uninstalled — see the REVOCATION note above
- * {@link createAgentPluginToolGate}.
- *
- * Each guidance answer carries Tovu's overlay for that plugin (`host-plugin-guidance.ts`): its
- * `GUIDANCE.md` after any maturity notice, and its `host/` files. `optional.overlaysDir` defaults to
- * the shipped overlays.
+ * Registers every installed plugin of one workspace on `registry`, with the real gate. Each guidance
+ * answer carries this product's overlay for that plugin (`host-plugin-guidance.ts`): its `GUIDANCE.md`
+ * after any maturity notice, and its `host/` files. `optional.overlaysDir` defaults to the shipped
+ * overlays.
  */
 export async function registerInstalledAgentPluginTools(
   registry: { register: (registration: ToolRegistration) => void },
   ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
   optional: HostPluginOverlayOptional = {},
 ): Promise<void> {
-  const sources = await loadInstalledAgentPluginToolSources(ctx);
-  const gate = createAgentPluginToolGate(ctx);
-  for (const registration of buildAgentPluginToolRegistrations({ sources, gate, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) {
-    const handler = registration.handler;
-    // Runs after the gate authorized the call, so a disabled plugin never reaches its overlay.
-    // A `host/` file is Tovu's, never the plugin's: the plugin answers its default, Tovu the file.
-    registry.register({ ...registration, handler: async (execution, executionOptional) => {
-      const hostFile = requestedHostPluginFile(execution.input);
-      const pluginExecution = hostFile === undefined ? execution : { ...execution, input: withoutFileArgument(execution.input) };
-      const result = await handler(pluginExecution, executionOptional) as PluginToolGuidance & { maturity?: PluginMaturity };
-      const delivered = await deliverHostPluginGuidance({ result, ...(hostFile !== undefined ? { file: hostFile } : {}) },
-        { ...optional, ...(result.maturity ? { notice: UNTESTED_PLUGIN_GUIDANCE } : {}) });
-      return { ...result, ...delivered, guidance: await appendPluginNotes({ contain: containAgentPluginStatePath,
-        workspaceRoot: ctx.agentPluginLayout.forWorkspace(ctx.workspaceId).root,
-        pluginId: result.pluginId, guidance: delivered.guidance,
-      }) };
-    } });
-  }
-  for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, agentPluginLayout: ctx.agentPluginLayout, gate, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) registry.register(registration);
+  await registerHostAgentPluginTools({ registry, workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx),
+    withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy }, { hostGuidance: {
+    isFileRequest: ({ file }) => isHostPluginFileRequest(file),
+    deliver: (required, notice) => deliverHostPluginGuidance(required, { ...optional, ...notice }),
+  } });
 }
 
-/** The `host/` file a plugin tool call names, if any; any other input is the handler's to validate. */
-function requestedHostPluginFile(input: unknown): string | undefined {
-  const file = typeof input === "object" && input !== null ? (input as { file?: unknown }).file : undefined;
-  return isHostPluginFileRequest(file) ? file : undefined;
-}
-
-/** The same input minus `file`, so the plugin's own skill/field validation still runs. */
-function withoutFileArgument(input: unknown): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(input as Record<string, unknown>).filter(([key]) => key !== "file"));
-}
-
-/**
- * ===========================================================================================
- * `search_agent_plugin_local` — a SEPARATE, STATIC tool, not another per-plugin dynamic one
- * ===========================================================================================
- *
- * Everything above this point (`agent_plugin_<pluginId>`, `registerInstalledAgentPluginTools`) is a
- * dynamic tool PER installed, ACTIVE plugin — its id, schema, and description cannot exist until an
- * async disk read has resolved which plugins are installed, which is why that half of this file is
- * wired directly onto the `ToolRegistry` from `agent-daemon-server.ts`'s boot sequence rather than
- * through the ordinary static `ToolContributor` seam (see this file's header, "Why this is NOT a
- * ToolContributor").
- *
- * `search_agent_plugin_local` is different in kind: ONE tool, whose id/schema/description are known
- * at module load with no disk access at all — the disk read happens inside the HANDLER, at call time,
- * the same way `plugins_list`'s handler reads `discoverPlugins()` fresh on every call. That is exactly
- * the shape every OTHER domain's `contribute<Domain>Tools()` already has, so this tool is wired through
- * the ordinary static seam (`tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`) rather
- * than joining the dynamic half above — it is part of the ~171-tool native catalog `search_tools`
- * indexes at boot, not something that only exists after a workspace-scoped async load has run.
- *
- * ---------------------------------------------------------------------------
- * The gap this closes
- * ---------------------------------------------------------------------------
- * The assistant can enable/disable a discovered `.tovu-plugin`-family plugin (`plugins_set_enabled`,
- * `features/plugin-runtime/tool-registrations.ts` — a DIFFERENT plugin system, see that file's own
- * 2026-08-23 header note) and can USE an already-active Agent Plugin's skills
- * (`agent_plugin_<pluginId>`, above) — but before this addition there was no way to FIND one. An
- * operator asking "is there a plugin for X" had no tool that could answer; the only paths in were
- * either already knowing the exact `agent_plugin_<pluginId>` id, or `search_tools` happening to
- * surface one of those dynamic per-plugin tools directly (which only works for plugins that are both
- * installed AND already enabled — `loadInstalledAgentPluginToolSources` filters to
- * `filterActiveAgentPlugins` before registering a single dynamic tool). A disabled-but-installed
- * plugin was invisible to every surface.
- *
- * ---------------------------------------------------------------------------
- * Local only — no marketplace/web search (by design, not by omission)
- * ---------------------------------------------------------------------------
- * This searches `listInstalledPlugins()` — packages already extracted under this workspace's own
- * `packages/sha256/*` (`layout.ts`). It does not reach a marketplace, a registry, or the web. That is
- * a deliberate scope line, not a missing follow-up bolted on later: the response shape below (a flat
- * `matches[]` of already-installed plugins) says nothing about install source, so a future marketplace
- * search can be added as a SECOND tool (or a second mode) without this one's contract having to grow a
- * "local vs remote" distinction it does not need today.
- *
- * ---------------------------------------------------------------------------
- * Ranking signal: why keywords, id, description, AND skills — not keywords alone
- * ---------------------------------------------------------------------------
- * `plugin.json`'s `keywords` array is the obvious signal — author-curated, exactly analogous to
- * `tool-search-keywords.ts`'s whole reason for existing (operators ask in words the artifact's own
- * prose does not contain). But keywords alone would under-serve this catalog for a concrete, measured
- * reason: the real bundled `ui-ux-design` package ships NO `keywords` field at all (verified —
- * `sites/tovu-com/agent-plugins/ws/workspace-local/packages/sha256/.../plugin.json` has only `name`
- * and `description`), so a keywords-only ranker would make that entire installed plugin unfindable by
- * search. `id` and `description` both matter for the same reason `search_components`'s own catalog
- * ranks on id+description+capabilities together rather than one field alone. See `search.ts`'s own
- * header for the full per-field weighting rationale and why skills are folded in too, at the lowest
- * weight.
- *
- * ---------------------------------------------------------------------------
- * SECURITY — same no-host-path discipline as the dynamic tools above
- * ---------------------------------------------------------------------------
- * `loadAgentPluginSearchCandidates` below reads `plugin.packageRoot` only to pass it to
- * `resolveSkillsForPlugin`/`readInstalledMcpServerIds` — neither value, nor any other absolute path,
- * is stored on `AgentPluginSearchCandidate` or reaches the handler's response. MCP servers are
- * reported as ids only (`readInstalledMcpServerIds`'s own doc: never transport config, which MAY
- * carry secrets).
- */
-
-const SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID = "search_agent_plugin_local";
-
-/** Mirrors `component-catalog-tool.ts`'s local limit constants — same
- *  reasoning: the values are the contract this schema states to the model, so restating them (rather
- *  than importing a value from an unrelated domain) keeps the enforced bound and the documented one
- *  from silently drifting apart. */
-const SEARCH_LIMIT_MAX = 50;
-const SEARCH_LIMIT_DEFAULT = 10;
-
-/** The narrow slice of the route-deps bag this tool's handler reads — only a workspace id, since
- *  everything else it needs (`listInstalledPlugins`, `readAgentPluginActivations`) is resolved from
- *  that id alone via `layout.ts`. Declared structurally, mirroring `PluginsToolDeps`'s own shape, so
- *  `assistant/tool-registrations.ts` can fold this into `AssistantToolRegistryDeps` without this
- *  domain importing that file's god type back. */
+/** The narrow slice of the route-deps bag `search_agent_plugin_local` reads. Declared structurally,
+ *  so `assistant/tool-registrations.ts` can fold this into `AssistantToolRegistryDeps`. */
 export interface AgentPluginSearchToolDeps {
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
 }
 
-const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
-  "Find an Agent Plugin by the task, capability, skill or MCP server you need. Searches local " +
-  "agent-plugins.org packages (plugin.json, skills and optional mcp.json) in this workspace, including " +
-  "inactive packages. For the full plugin inventory, use content_read.plugin. Empty, omitted or " +
-  "whitespace query returns every local Agent Plugin in plugin-id order, including enabled status. " +
-  "Nonblank queries return ranked matches. " +
-  "Results are byte-bounded: id, pluginId, enabled, maturity when declared, and a short description. " +
-  "plugins_set_enabled with family 'agent-plugin' changes enabled status. " +
-  "An installed, off result is only a catalog entry. Offer its enable card, then read its guidance before connecting or requesting credentials; never guess its sign-in method. " +
-  "Local packages only — never a marketplace or the web. Once you have the right id, call " +
-  "load_agent_plugin({ pluginId }) for that plugin's full guidance. Page with the returned nextOffset as offset, keeping query and limit unchanged.";
+/** `search_agent_plugin_local`'s one-entry catalog, for the contracts test and the static seam. */
+export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use });
 
-const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    query: {
-      type: "string",
-      description:
-        "What you're looking for, in plain language — e.g. 'a plugin for deploying a server app', " +
-        "'accessibility guidance', 'gdpr compliance checks'. Matched against each installed Agent " +
-        "Plugin's id, author-declared keywords, description, and bundled skills. Optional; empty, omitted or whitespace lists all installed plugins.",
-    },
-    offset: { type: "integer", minimum: 0, description: "Zero-based result offset. Start at 0; continue with nextOffset until null." },
-    limit: {
-      type: "integer",
-      minimum: 1,
-      maximum: SEARCH_LIMIT_MAX,
-      description: `Max results to return (1-${SEARCH_LIMIT_MAX}). Optional, defaults to ${SEARCH_LIMIT_DEFAULT}.`,
-    },
-  },
-} as const;
-
-/** This tool's one-entry catalog, exported (not inlined into {@link buildAgentPluginSearchRegistrations})
- *  so `assistant/__tests__/tool-registrations.contracts.test.ts`'s `CATALOGS_BY_DOMAIN` — which
- *  cross-checks every wired domain's published schema/risk/actor-class contract against this SAME
- *  source of truth — can import it the same way it imports every sibling domain's `<domain>AgentToolCatalog`. */
-export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
-  {
-    name: SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID,
-    description: SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION,
-    sideEffects: "none",
-    authorization: { permission: "admin.assistant.use" },
-    inputSchema: SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA,
-  },
-];
-
-/**
- * Resolves every installed plugin in one workspace into a search-ready {@link AgentPluginSearchCandidate}.
- *
- * UNLIKE {@link loadInstalledAgentPluginToolSources} (the dynamic per-plugin tool loader above), this
- * INCLUDES disabled plugins. Search exists so the assistant can find — and then a human can decide
- * whether to turn on — an installed-but-inactive plugin; filtering those out here would make a
- * disabled plugin permanently undiscoverable through the one tool that could report it exists.
- *
- * UNLIKE that same loader's {@link assertSingleDigestPerPlugin}, a plugin id installed under more than
- * one digest is NOT fatal here: this silently keeps the first-encountered digest for that id rather
- * than throwing, so every OTHER, unambiguous plugin in the workspace stays discoverable. The ambiguity
- * itself is still a loud, operator-actionable error the moment anything tries to actually USE the
- * plugin (`resolveOnePluginRef`/the dynamic-tool loader both refuse outright) — duplicating that
- * refusal in a read-only search tool would only make discovery unavailable too, for no safety benefit.
- *
- * @complexity O(p * s) in installed-plugin count times average skills-per-plugin — the same shape
- * {@link loadInstalledAgentPluginToolSources} already accepts for this identical catalog, plus one
- * `mcp.json` read per plugin.
- *
- * Also consumed by the admin installed-plugin listing:
- * `server/inbound/admin-http/routes/agent-plugins/list.ts` — the admin UI's read of the SAME
- * installed-plugin state this tool searches — reuses this loader rather than re-deriving it, so
- * "what plugins are installed" has one source of truth with two consumers (a tool and the admin
- * page), matching this file's own `listInstalledPlugins` precedent above.
- */
-/** A search candidate whose identity was read from the installed `plugin.json`: `readPluginIdentity`
- *  always yields an `id` and a `provides` list, so this loader's callers never need a fallback for
- *  either (the shared `AgentPluginSearchCandidate` type leaves both optional for other producers). */
-export type IdentifiedAgentPluginSearchCandidate = AgentPluginSearchCandidate & { readonly id: string; readonly provides: readonly string[]; readonly maturity?: PluginMaturity; readonly providerPlugin?: string };
-
+/** Every installed plugin of one workspace, enabled or not, as a search candidate. Also read by the
+ *  admin installed-plugin listing. */
 export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
-  const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
-  // The first-encountered-digest rule below is a fallback for an ambiguity nothing can resolve. An
-  // upgraded BUNDLED plugin is no longer one of those cases: its superseded package is dropped here,
-  // so this lists the version the running build ships (`bundled-digests.ts`).
-  const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.root),
-    await readBundledAgentPluginDigests(workspaceLayout.root),
-  );
-  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
-
-  const seenPluginIds = new Set<string>();
-  const candidates: IdentifiedAgentPluginSearchCandidate[] = [];
-
-  for (const plugin of installed) {
-    if (seenPluginIds.has(plugin.pluginId)) continue;
-    seenPluginIds.add(plugin.pluginId);
-
-    // Per-PLUGIN isolation: a failure here that is not one skill's own read must not take every
-    // OTHER installed plugin's search entry down with it — before this, one such failure threw out
-    // of `loadAgentPluginSearchCandidates` entirely, which is why `search_agent_plugin_local` (and the
-    // admin Agent Plugins page, the same loader's second caller) could fail outright over a single
-    // bad install. Per-SKILL isolation (one unreadable SKILL.md not costing its own plugin, let alone
-    // every other one) is `resolveSkillsForSearchTolerant`'s job, above. Defensive today: neither
-    // call below throws on any known input (`readInstalledMcpServerIds` already collapses a missing,
-    // unreadable, or invalid `mcp.json` to `[]`), so this guards a future throwing change there.
-    try {
-      candidates.push({ ...await buildSearchCandidate({ plugin, activations }),
-        archiveDigest: plugin.archiveDigest,
-        ...describeAgentPluginCompatibility({ plugin, installed, activations }),
-        requiredBy: agentPluginDependentWarnings({ plugin, installed, activations, nextProvides: [] }),
-      });
-    } catch (error) {
-      console.warn(`[agent-plugins] '${plugin.pluginId}': ${error instanceof Error ? error.message : String(error)} — excluded from search`);
-    }
-  }
-
-  return candidates;
+  return loadHostAgentPluginSearchCandidates({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
 }
 
-/** This tool's own risk classification: a pure read of already-installed, already-validated local
- *  content, same as every other read-only tool this domain and its siblings (`plugins_list`,
- *  `search_components`) already declare `"none"` for. */
-export const agentPluginSearchDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  [SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID, "none"],
-]);
-
-/** Validate the paging hint independently of catalog I/O; invalid offsets throw ToolInputError.
- * @complexity O(1) time and space. */
-function readAgentPluginSearchWindow({ input }: { input: Record<string, unknown> }, _optional = {}): { offset: number; limit: number } {
-  const rawLimit = optionalNumber({ input, key: "limit" });
-  const rawOffset = optionalNumber({ input, key: "offset" });
-  if (rawOffset !== undefined && (!Number.isSafeInteger(rawOffset) || rawOffset < 0)) {
-    throw new ToolInputError({ message: 'offset must be a non-negative safe integer' });
-  }
-  const offset = rawOffset ?? 0;
-  // Clamped, not rejected — an out-of-range limit is an optimization hint, not part of what the
-  // caller is actually asking for, mirroring `component-catalog-tool.ts`'s identical treatment of
-  // `search_components`' own `limit` argument.
-  const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
-
-  return { offset, limit };
-}
-
-type RankedAgentPluginSearchCandidate = IdentifiedAgentPluginSearchCandidate & { readonly score: number };
-
-/** List the existing catalog for blank input; otherwise delegate ranking to its Jini owner.
- * Does not mutate candidates. Listing assigns score zero because no query was scored.
- * @complexity Listing O(p log p) time and O(p) space in installed plugins; ranking retains Jini's cost. */
-function selectAgentPluginSearchCandidates(
-  { query, candidates }: { query: string; candidates: readonly IdentifiedAgentPluginSearchCandidate[] },
-  _optional = {},
-): readonly RankedAgentPluginSearchCandidate[] {
-  if (query.trim() === "") {
-    return [...candidates].sort((a, b) => a.pluginId.localeCompare(b.pluginId)).map(candidate => ({ ...candidate, score: 0 }));
-  }
-  // Rank the whole local catalog once, then page it; the response bound is not a discovery cap.
-  // The shared ranker spreads each candidate, preserving Tovu's host metadata.
-  return rankInstalledAgentPlugins(query, candidates, candidates.length) as readonly RankedAgentPluginSearchCandidate[];
-}
-
-/**
- * Builds the `search_agent_plugin_local` registration — pure catalog/schema construction plus one
- * handler closure; the actual disk read happens only when the handler is invoked, matching
- * `plugins_list`'s identical "read fresh on every call" shape.
- *
- * @param routeDeps Workspace and installed-plugin layout.
- * @returns One registration; its handler validates input and returns a page without host paths.
- * @example buildAgentPluginSearchRegistrations({ workspaceId, agentPluginLayout });
- * @complexity O(1) to build; see {@link loadAgentPluginSearchCandidates} and
- * {@link selectAgentPluginSearchCandidates} for the handler's per-call cost.
- */
+/** The `search_agent_plugin_local` registration; its handler reads the installed plugins per call. */
 export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
-    [SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const query = optionalString({ input, key: "query" }) ?? "";
-      const { offset, limit } = readAgentPluginSearchWindow({ input });
-      const candidates = await loadAgentPluginSearchCandidates(routeDeps);
-      const ranked = selectAgentPluginSearchCandidates({ query, candidates });
-      return projectAgentPluginSearchPage({ candidates: ranked, offset, limit, totalInstalled: candidates.length });
-    },
-  };
-
-  return buildDomainRegistrations({ metadata: toolMetadata,
-    domain: "agent-plugin-search",
-    catalogModule: "features/agent-plugins/tool-registrations.ts",
-    catalog: indexCatalogById({ catalog: agentPluginSearchAgentToolCatalog }),
-    handlers,
-    derivedRisk: agentPluginSearchDerivedRisk,
-  });
+  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps) });
 }
 
 /**
  * Contributes `search_agent_plugin_local` to the assistant's STATIC tool catalog — called once by
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, the ordinary seam every
- * other domain's `contribute<Domain>Tools()` uses. See this section's own header for why this tool
- * uses that seam while `registerInstalledAgentPluginTools` above deliberately does not.
+ * other domain's `contribute<Domain>Tools()` uses.
  */
 export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchToolDeps, unknown> {
   return { domain: "agent-plugin-search", build: buildAgentPluginSearchRegistrations, risk: agentPluginSearchDerivedRisk };
 }
+
 
 /**
  * Builds the `agent_plugin_connect` registration (`connect-tool.ts`, S-G1 of the 2026-09-27
@@ -1045,60 +155,4 @@ const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPlugi
  *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeAgentPluginConnectTools(): ToolContributor<AgentPluginAccessTokenToolDeps & OperatorLocaleDeps, AssistantSurfaceDeps> {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
-}
-
-function selectPluginSkill(
-  { source, input }: { source: AgentPluginToolSource; input: { skill?: string } },
-  _optional: Record<string, never> = {},
-) {
-  const requestedSkill = input.skill;
-  const match = source.skills.find(skill => skill.name === requestedSkill);
-  const fallback = source.skills.find(skill => skill.name === source.defaultSkillName);
-  if (!fallback) {
-    // Cannot happen in practice: `defaultSkillName` is always chosen FROM `source.skills` in
-    // `loadInstalledAgentPluginToolSources`. Guarded rather than asserted with `!` so a future bug
-    // here fails loudly with an actionable message instead of a null-dereference.
-    throw new Error(`agent-plugin tool '${source.id}': default skill '${source.defaultSkillName}' missing from its own skill list`);
-  }
-
-  return { selected: match ?? fallback, requestedSkill, match, fallback };
-}
-
-async function readPluginSkillGuidance(
-  { selected }: { selected: AgentPluginSkillDetail },
-  optional: { file?: string } = {},
-) {
-  const fileOptions = optional.file !== undefined ? { file: optional.file } : {};
-  const content = selected.readFile ? await selected.readFile({}, fileOptions) : undefined;
-  // An unknown/refused file keeps the skill's instructions available, like unknown-skill recovery.
-  return {
-    guidance: content && !(content.note && !content.text) ? content.text : selected.markdown,
-    files: content?.files ?? [],
-    note: content?.note,
-  };
-}
-
-async function buildSearchCandidate(
-  { plugin, activations }: { plugin: Awaited<ReturnType<typeof listInstalledPlugins>>[number]; activations: Awaited<ReturnType<typeof readAgentPluginActivations>> },
-  _optional: Record<string, never> = {},
-): Promise<IdentifiedAgentPluginSearchCandidate> {
-  const skills = await resolveSkillsForSearchTolerant(plugin);
-  const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
-  const identity = await readInstalledAgentPluginIdentity({ plugin });
-
-  return {
-    pluginId: plugin.pluginId,
-    ...(plugin.displayName !== undefined ? { displayName: plugin.displayName } : {}),
-    ...(plugin.summary !== undefined ? { summary: plugin.summary } : {}),
-    ...(plugin.version !== undefined ? { version: plugin.version } : {}),
-    ...(plugin.description !== undefined ? { description: plugin.description } : {}),
-    id: identity.id,
-    ...(identity.maturity ? { maturity: identity.maturity } : {}),
-    ...(identity.providerPlugin ? { providerPlugin: identity.providerPlugin } : {}),
-    provides: identity.provides,
-    keywords: identity.keywords,
-    enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),
-    skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
-    mcpServerIds,
-  };
 }

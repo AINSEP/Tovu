@@ -1,23 +1,16 @@
-import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
-import { DEFAULT_PLUGIN_MEMORY_LIMITS } from "@jini-ai/agent-plugins/persistent-state";
-import { normalizePackageEntryPath } from "./lifecycle.js";
+/** Moved to `@jini-ai/agent-plugins/lifecycle/host-tools`; this wrapper keeps the old names and
+ * signature, and supplies this product's permission check and names. */
+import { pluginNoteHandler as hostPluginNoteHandler, pluginNoteToolCatalog, type HostToolSurfaces } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler } from "@jini-ai/core";
-import { pluginMemory } from "./memory.js";
+import type { AgentToolDefinition, ToolHandler } from "@jini-ai/core";
 import type { AgentPluginLayout } from "./layout.js";
 import { type OperatorLocaleDeps } from "../../contracts/headless/index.js";
-import { listInstalledPlugins } from "./lifecycle.js";
 import type { AgentPluginAccessTokenToolDeps } from "./access-token-tool.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 
-export const WRITE_PLUGIN_NOTE = "agent_plugin_write_note";
-export const pluginNoteCatalog: AgentToolDefinition[] = [{ name: WRITE_PLUGIN_NOTE,
-  description: "Save the user's explicitly requested project note for an installed Agent Plugin. Writes the note directly; never call to store plugin-discovered facts (use that plugin's learned memory tool).",
-  sideEffects: "mutates-durable-state", authorization: { permission: "admin.plugins.enable" },
-  inputSchema: { type: "object", additionalProperties: false, required: ["pluginId", "entryPath", "text"],
-    properties: { pluginId: { type: "string" }, entryPath: { type: "string" }, text: { type: "string", maxLength: 16384 } } },
-}];
-export const pluginNoteRisk: DerivedRiskByToolId = new Map([[WRITE_PLUGIN_NOTE, "mutates-durable-state"]]);
+export { WRITE_PLUGIN_NOTE, pluginNoteRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+export const pluginNoteCatalog: AgentToolDefinition[] = pluginNoteToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.enable });
 /**
  * The note-saving handler. Notes are context, never a permission grant.
  * @param required.deps Workspace, authorization and the settings ledger the operator's locale is read from.
@@ -29,22 +22,7 @@ export function pluginNoteHandler(
   required: { deps: Pick<AgentPluginAccessTokenToolDeps, "workspaceId" | "authorize"> & OperatorLocaleDeps; surfaces: AssistantSurfaceDeps },
   options: { layout: AgentPluginLayout },
 ): ToolHandler {
-  return async (ctx) => {
-    ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
-    const input = requireInputRecord({ input: ctx.input });
-    if (Object.keys(input).some(key => !["pluginId", "entryPath", "text"].includes(key))) throw new Error("Unexpected note field");
-    const pluginId = requireString({ input, key: "pluginId" });
-    const entryPath = requireString({ input, key: "entryPath" });
-    const text = requireString({ input, key: "text" });
-    normalizePackageEntryPath(entryPath);
-    if (Buffer.byteLength(text, "utf8") > DEFAULT_PLUGIN_MEMORY_LIMITS.notes || text.includes("\0")) throw new Error("Note is not valid bounded UTF-8 text");
-    const workspaceId = required.deps.workspaceId;
-    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: required.deps.authorize }), workspaceId,
-      principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
-    const layout = options.layout;
-    const installed = async () => (await listInstalledPlugins(layout.forWorkspace(workspaceId).root)).some(plugin => plugin.pluginId === pluginId);
-    if (!(await installed())) throw new Error("Agent Plugin is not installed");
-    if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };
-    return { saved: true, ...await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout }).writeNote({ entryPath, text }) };
-  };
+  required.surfaces satisfies HostToolSurfaces;
+  return hostPluginNoteHandler({ workspaceId: required.deps.workspaceId, ports: agentPluginHostToolPorts({ agentPluginLayout: options.layout }),
+    requirePermission: (input, entity) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: required.deps.authorize }), ...input }, entity) });
 }

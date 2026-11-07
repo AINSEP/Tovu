@@ -1,0 +1,160 @@
+P3 listed Tovu tests (12 files), unedited:
+✔ every tool description and explicit prompt call names only declared input arguments
+✔ CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add
+✔ every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}
+✔ every content_read card preserves member inputs through published properties or canonical selector aliases
+✔ identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended
+✔ requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever
+✔ a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn
+✔ the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema
+✔ no rejection message echoes the offending value — a fields payload can carry operator content
+✔ a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion
+✔ tombstonedAt appears only when set, so an active type's payload carries no always-null key
+✔ content_read.collection_content_type returns every content type as the same model-facing view, regardless of status
+✔ content_read.collection_content_type returns an empty list rather than an error when the workspace has none
+✔ the returned fields array is a copy — a tool caller cannot mutate domain state through it
+✔ the real catalog and this layer's independent classification agree for every wired tool
+✔ a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build
+✔ an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'
+✔ the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree
+✔ a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler
+✔ the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat
+✔ collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired
+✔ an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules
+✔ deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array
+✔ both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it
+✔ deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable
+✔ search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it
+✔ both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them
+✔ search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through
+✔ describe_component executes through the REAL ToolExecutor and returns a known button's manifest
+✔ describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable
+✔ assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement
+✔ plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not
+✔ plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog
+✔ plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash
+✔ publish pull tools are wired with honest risk and the human-confirmed execute contract
+✔ root-added load_agent_plugin is discoverable and publishes the shared domain approval contract
+✔ search results carry host maturity untested
+✔ search results carry host maturity soon
+✔ search results carry host maturity (absent)
+✔ the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'
+✔ the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins
+✔ finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader
+✔ a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched'
+✔ an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw
+✔ a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation
+✔ MCP server ids stay on the detail path, while discovery omits transport config
+✔ a plugin with no mcp.json remains discoverable and has no servers on the detail path
+﹣ SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it # root bypasses chmod read permissions
+✔ two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal
+✔ limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50]
+✔ blank queries list the existing loader's enabled and disabled plugins
+✔ SECURITY: no absolute host path leaks into the response, even for a matched plugin
+✔ workspace isolation: a search in workspace A finds nothing installed only under a different workspace
+✔ L025b search projection preserves optional metadata and isolates invalid identities
+✔ offset pages the ranked catalog; a negative or fractional offset is an input error
+✔ a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart
+✔ revocation follows the activation RECORD, not the caller: a bare setAgentPluginActivation write revokes the live tool too
+✔ uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent
+✔ uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation
+✔ the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled
+✔ revocation is scoped to the plugin and workspace in an already-booted registry
+✔ withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result
+✔ withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking
+✔ a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated
+✔ appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does
+✔ readInstalledSkillMarkdown reads a real file through the containment check
+✔ readInstalledSkillMarkdown rejects a path escaping the package root
+✔ readInstalledSkillMarkdown rejects an existing file symlink outside the package
+✔ classifyAgentPluginMcpServerTrust: stdio requires confirmation, remote transports auto-admit
+✔ readInstalledMcpServerIds reads a real mcp.json and returns its server ids
+✔ readInstalledMcpServerIds returns an empty array when mcp.json does not exist — optional per spec, not an error
+✔ readInstalledMcpServerIds returns an empty array for malformed JSON — fail-open, matches search's own discovery-tool posture
+✔ readInstalledMcpServerIds returns an empty array for a wrong-schema mcp.json rather than throwing
+✔ readInstalledMcpServers reads a real mcp.json and returns each server's full validated transport config
+✔ readInstalledMcpServers excludes a server whose declared shape does not validate, without throwing
+✔ readInstalledMcpServers returns {} when mcp.json does not exist
+✔ readInstalledMcpServers returns {} for malformed JSON — fail-open, same posture as readInstalledMcpServerIds
+✔ installed legacy MCP metadata warns the host while keeping its working connection
+✔ a plugin without an overlay reads as no guidance and no host files, and delivery leaves the answer unchanged
+✔ guidance and sorted host files are read; names outside host/<lowercase>.md and non-files are not listed
+✔ a host file reads by name; traversal, absolute, unlisted and unknown-plugin requests return a note that never echoes the unsafe value
+✔ reads are bounded at 256 KiB: a host file over the cap is a note, at the cap it reads, and an oversized GUIDANCE.md throws
+✔ a GUIDANCE.md that is not a file is a broken overlay and throws rather than silently dropping host rules
+✔ the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to the product's content tree, and site-paths re-exports the same resolver
+✔ only file values starting with host/ are host requests
+✔ Bash leaves delivered frontmatter allowed-tools only; other tools, body text and fenced examples stay byte-identical
+✔ Markdown rules before another plugin do not hide its refused tool permissions
+✔ Markdown rules and fenced frontmatter examples leave body Bash lists unchanged
+✔ frontmatter with leading YAML comments or blank lines still removes refused tools
+✔ tool delivery: GUIDANCE goes before the plugin's text, a maturity notice stays first, and host names join the plugin's files
+✔ tool delivery of a host file answers with that file after the notice; a refused name keeps the default answer and adds a note
+✔ run-reference requests: the owner never sees a host file; pointer delivery with nothing selected adds no guidance
+✔ run-reference overlays keep pin order, frame a host file with its plugin, and refuse a missing host file like a missing plugin file
+✔ host maturity accepts both flags and leaves absent metadata normal
+✔ unknown host maturity is ignored with a warning, without reflecting arbitrary manifest values
+✔ the provider plugin link is read from Tovu's extension; a malformed one warns and links nothing
+✔ reads plugin.json from the package root and projects its publisher identity
+✔ a legacy manifest without a publisher id falls back to the lifecycle plugin id with a warning
+✔ an unreadable manifest is reported as one stable error, not the raw fs failure
+✔ malformed JSON is reported the same way as a missing file
+✔ the default reader reads the real file from disk
+✔ defaults to sites/<DEFAULT_SITE_NAME>/agent-plugins under the given cwd
+✔ the default root follows TOVU_SITE, so a second local site gets its own plugin tree
+✔ the default root follows TOVU_SITE_DIR — a site mounted outside the checkout keeps its plugins
+✔ TOVU_AGENT_PLUGINS_DIR overrides the default root
+✔ a relative TOVU_AGENT_PLUGINS_DIR is rejected
+✔ forWorkspace roots packages, data, and staging entirely under ws/<workspaceId> -- no shared path
+✔ two workspaces resolve to entirely disjoint trees -- neither path is a prefix of the other's sibling content
+✔ pluginDataDir joins the plugin id under this workspace's own data root
+✔ pluginDataDir rejects a plugin id that isn't a valid Agent Plugin name
+✔ forWorkspace rejects a workspace id that could escape its own path segment
+✔ forWorkspace accepts this instance's real, non-UUID workspace id
+✔ forWorkspace still normalizes an uppercase id to a lowercase path segment
+✔ forWorkspace rejects every shape that could escape or split the path segment
+✔ pluginRootDir, pluginPackagesDir and pluginMemoryDir refuse an id that could escape the workspace tree
+✔ pluginMemoryDir resolves only the learned/notes kinds and refuses any other kind
+✔ the supplied site root is retained while the override defaults to the process environment
+✔ L025b memory pairs pin scoped read/write schemas, validation and revocation
+✔ Tovu delivers host tool rules beside portable skills, including tools-first delivery
+✔ opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance
+✔ each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills
+✔ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain
+✔ the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has
+✔ calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names
+✔ when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so
+✔ an explicit, recognized 'skill' argument returns that skill's own guidance, not the default
+✔ an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error
+✔ a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful
+✔ the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub
+✔ SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output
+✔ two installed digests of the same plugin id refuse that plugin loudly, without aborting the load
+✔ a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source
+✔ a current upgrade exposes only the accepted replacement's guidance
+✔ workspace isolation: a load for workspace A sees nothing installed only under a different workspace
+✔ an empty (never-installed) workspace produces zero sources and an empty registration list, no throw
+✔ the executor denies cached guidance after disable
+✔ the executor denies cached guidance after uninstall
+✔ the executor denies cached guidance after unreadable-activation
+✔ the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay
+✔ a refused host file keeps the overlay and skill guidance with a recovery note
+✔ an untested plugin's caution stays ahead of its overlay guidance
+✔ a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged
+✔ the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access
+✔ plugin guidance carries maturity and warns before keys/actions for every maturity flag
+✔ L025b guidance pins selection guards, reader recovery and sanitized unknown names
+✔ ordinary note save runs directly, preserves bytes and opens no exchange
+✔ the handler uses the instance layout supplied at construction
+✔ an aborted note saves nothing
+✔ input refusals happen before any dialog
+✔ an operator without admin.plugins.enable is refused before the install check
+✔ an operator without admin.plugins.enable is refused before the install check (40.086761ms)
+ℹ tests 150
+ℹ suites 0
+ℹ pass 149
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 46475.882662
