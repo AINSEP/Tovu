@@ -443,3 +443,7 @@ Desktop's existing registry listing now recognizes JSON history as a reason to r
 `site-archive-import.test.ts`, pattern `saved history`: red 0/1; mutation recognizing a different JSON filename pattern 0/1; whole changed file green 26/26. Focused desktop main source no-emit exits 0. During the first whole-file run, the old clean-registry fixture still contained a JSON history file and its expected temp-listing assertion failed; changed that fixture to a plain readme and reran green. The initial red fixture also raised `SyntaxError` while parsing absent child input; it now first asserts the missing spawn explicitly.
 
 Cost: no extra listing or file reads in the startup trigger, O(existing listing entries); at most one existing short tidy child per launch when history is present.
+
+### 1 — final check correction
+
+A new grouped-option handler regression exposed that rewriting grouping to a div could discard attributes during reparse. Grouping now maps to an option for checking, and its inert label is ignored. Original stored HTML stays unchanged. Red 0/1; mutation mapping to span 0/1; the first option-mapping run also failed the innocent label case (46/47), then the complete changed restore file passed 47/47. Focused no-emit exits 0. This supersedes the initial normalization detail above; cost is unchanged.

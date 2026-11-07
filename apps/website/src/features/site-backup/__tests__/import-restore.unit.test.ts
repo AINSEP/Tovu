@@ -364,7 +364,7 @@ test("import keeps starter radio and URL form markup active while authored behav
   const h = await restore(t, {}, { before: h => {
     const db = new Database(path.join(h.root, "database/content.db"));
     try {
-      for (const [id, body] of [["starter", html], ["handler", starter.replace("<input", '<input onclick="example()"')], ["link", starter + '<a href="javascript:example()">More</a>']]) {
+      for (const [id, body] of [["starter", html], ["group", starter + '<select><optgroup label="Group" onclick="example()"><option>One</option></optgroup></select>'], ["handler", starter.replace("<input", '<input onclick="example()"')], ["link", starter + '<a href="javascript:example()">More</a>']]) {
         db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(id, id, JSON.stringify({ mode: "html", html: body, fields: [] }));
       }
     } finally { db.close(); }
@@ -372,10 +372,10 @@ test("import keeps starter radio and URL form markup active while authored behav
   const db = new Database(h.dbPath);
   try {
     assert.deepEqual(db.prepare("SELECT id, status FROM form_definitions ORDER BY id").all(), [
-      { id: "handler", status: "disabled" }, { id: "link", status: "disabled" }, { id: "starter", status: "active" },
+      { id: "group", status: "disabled" }, { id: "handler", status: "disabled" }, { id: "link", status: "disabled" }, { id: "starter", status: "active" },
     ]);
     assert.equal(JSON.parse((db.prepare("SELECT fields_json FROM form_definitions WHERE id='starter'").get() as { fields_json: string }).fields_json).html, html);
-    assert.equal(stagedImportWarnings({ root: h.root }).length, 2);
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 3);
   } finally { db.close(); }
 });
 

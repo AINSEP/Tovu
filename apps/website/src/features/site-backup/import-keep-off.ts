@@ -58,13 +58,14 @@ function formBodyMayRunScript(required: { html: string }, _optional = {}): boole
   const root = parseFragment(required.html);
   const pending = root.childNodes.map(node => ({ node, depth: 0 }));
   const tags = new Set(["fieldset", "legend", "optgroup"]);
-  const attrs = new Set(["maxlength", "pattern", "accept", "inputmode", "spellcheck", "autocapitalize", "readonly"]);
+  const attrs = new Set(["maxlength", "pattern", "accept", "inputmode", "spellcheck", "autocapitalize", "readonly", "label"]);
   while (pending.length) {
     const { node, depth } = pending.pop()!;
     if (!("tagName" in node)) continue;
     if (depth >= 128) return true;
     if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
-      if (tags.has(node.tagName)) node.tagName = node.nodeName = "div";
+      // Keep option grouping valid inside select so reparsing preserves its attributes.
+      if (tags.has(node.tagName)) node.tagName = node.nodeName = node.tagName === "optgroup" ? "option" : "div";
       node.attrs = node.attrs.filter(attr => attr.namespace || attr.prefix || !attrs.has(attr.name));
     }
     pending.push(...[...node.childNodes, ...("content" in node ? node.content.childNodes : [])].map(node => ({ node, depth: depth + 1 })));
