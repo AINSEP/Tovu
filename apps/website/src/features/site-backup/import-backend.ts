@@ -1,3 +1,4 @@
+import { tidyImportDatabases } from "./import-database.js";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import fs from "node:fs";
 import path from "node:path";
@@ -183,7 +184,7 @@ export function createSiteImportBackend(required: {
     },
     async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },
     get(input) { return view(registry.get(input)); },
-    async tidy() { await exclusive(async () => { registry.expire({}); }); },
+    async tidy() { await exclusive(async () => { registry.expire({}); await tidyImportDatabases({}); }); },
   };
   return backend;
 }

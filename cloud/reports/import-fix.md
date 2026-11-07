@@ -122,7 +122,35 @@ node --import tsx --import ./development/test-support/composed-bundle-env.ts --t
 - Production lines added: 3; test lines added: 38.
 - Cost per terminal save or request-ID comparison: existing URL parse, O(link length) transient memory; terminal JSON write is smaller by the removed path/query bytes. No new writes or scans; no new I/O pass. Legacy reads: none added.
 
-## Item 6 — pending
+## Item 6 — done
+
+Each database helper parent holds Jini's existing file lock beside its temporary root until normal cleanup finishes. Startup `tidy` scans only `tovu-import-db-*` directories and matching leftover lock files. Existing dead-owner and unknown-owner staleness rules determine cleanup; a proven live owner is never removed for age. A short contended acquisition is skipped. The parent recreates a still-empty directory under its lock if a cleanup pass claimed it before staging began. Temp paths use `tmpdir()`/`path.join()` and the lock stays beside the directory for Windows-compatible removal.
+
+The desktop startup trigger also checks the temp root when the import registry is clean or missing; previously it launched cleanup only for a leftover stage/upload, which misses an interruption during verification.
+
+Commands from Tovu root:
+
+```sh
+node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/platform/db/sqlite/__tests__/import-database.unit.test.ts apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts
+```
+
+From `apps/desktop`:
+
+```sh
+node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=2 src/site-archive-import.test.ts
+./node_modules/.bin/tsc -p tsconfig.main.json --noEmit
+```
+
+- Red: startup cleanup regression (`--test-name-pattern='startup removes'`) 0 passed, 1 failed (`AssertionError [ERR_ASSERTION]`: killed parent's folder remained).
+- Mutation: unguarded temp deletion: 0 passed, 1 failed (the other, still-running parent's folder was removed).
+- Additional red: an orphan sibling lock was left after its directory had gone; 0 passed, 1 failed. Cleanup now handles that existing lock entry too.
+- Desktop trigger red: 23 passed, 2 failed (clean/missing registry skipped temp cleanup).
+- Green: 12 worker/cleanup tests passed, including real parent-process termination, an aged live-owner lock, legacy folders, orphan lock files, unrelated entries, repeated cleanup and normal success/cancellation/timeout cleanup. Desktop startup 25 passed.
+- Website production no-emit: `./node_modules/.bin/tsc -p /workspace/work/tsconfig-item6.json --noEmit`, exit 0 after dependency output rebuild (includes `import-database.ts`, `import-backend.ts` and their dependencies). Desktop production no-emit: `./node_modules/.bin/tsc -p /workspace/work/tsconfig-item6-desktop-source.json --noEmit`, exit 0. The full desktop main check retains four base `TS2531` diagnostics in unchanged expressions of `site-archive-import.test.ts` (now lines 56, 171, 189, 206); final proof compares them to base.
+- Production lines added: 80 (includes indentation of the existing worker body inside the lock); test/fixture lines added: 102.
+- Cost per import: one small ownership lock write, ownership/liveness reads, release/unlink and a directory check; O(1) metadata memory beyond existing snapshot buffers. Cost per startup: up to two directory listings (registry and OS temp) and one cleanup child only if matching leftovers exist; O(entry names) memory. Cleanup attempts one existing small metadata lock per matching directory/lock entry, up to 100 ms wait per contended entry, and unlinks stale contents proportional to their bytes/file count. No database bytes are loaded by cleanup. No polling after startup.
+
+Setup follow-up: later dependency builds exposed missing `@simplewebauthn/browser`, `@simplewebauthn/server` and `otplib` (`TS2307`, consequent `TS2339`, and runtime `ERR_MODULE_NOT_FOUND`). Their manifest-pinned versions were installed only in `/workspace/work/import-deps` and linked into ignored local dependencies. The first npm cache access failed `EROFS`; using a workspace cache succeeded. No manifest/lockfile changed. Contracts, MCP, daemon, devops, server and user-management outputs were rebuilt. These removed stale-export diagnostics; the four desktop main diagnostics above remain base source errors.
 
 ## Base/setup findings (separate from regression reds)
 

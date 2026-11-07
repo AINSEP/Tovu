@@ -92,6 +92,7 @@ test("a successful helper's rebuilt database and manifests are returned and its 
   const result = await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork });
   assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [], notices: [], credentialWarnings: [{ path: "content.db:workspaces.name", kind: "provider key shape" }] });
   assert.equal(fs.existsSync(roots[0]!), false);
+  assert.equal(fs.existsSync(roots[0]! + ".lock"), false);
 });
 
 test("a rebuilt database over the cap is refused even when the helper succeeded", async () => {
@@ -99,6 +100,7 @@ test("a rebuilt database over the cap is refused even when the helper succeeded"
   await assert.rejects(rebuildImportDatabase({ snapshot: Buffer.from("input") }, { limits: { maxExpandedBytes: 32 }, statfs: plenty, fork }),
     { code: "LIMIT_EXCEEDED", message: "Rebuilt import database exceeds 300 MiB." });
   assert.equal(fs.existsSync(roots[0]!), false);
+  assert.equal(fs.existsSync(roots[0]! + ".lock"), false);
 });
 
 test("a helper that exits non-zero is an invalid database; a helper that fails to start surfaces its own error", async () => {
