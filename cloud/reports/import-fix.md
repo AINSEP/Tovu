@@ -3,6 +3,23 @@
 Started 2026-11-07 19:57:25 UTC (11:57:25 PST). Deadline 21:57:25 UTC.
 Branches: `cloud/import-fix` in both repositories. Bases: Tovu `b45d2ee759009b08d04268ef9ddcf2b6d0f60671`; Jini `32e9c9c2128805b20d1a562d6f0053d1c4604b52`.
 
+All six items are done. Final changed tests: **321 passed, 0 failed**. Every changed production graph and the changed website test graph passes no-emit checking. The full desktop main check has four unchanged base test diagnostics, listed below. No work stopped at the cap.
+
+## Branches and pushed revisions
+
+Both branches are `cloud/import-fix`. The implementation tip before this report commit is Tovu `d9979c16b34c4181a95cf25418dba842e38bfbd7`; Jini's tip is `5b8d747a710bcfb8f3df664b18784e1350bd70d9`. The report commit is the commit containing this final version of the file; its SHA is in the delivery message.
+
+| Item | Repository | Pushed implementation/test SHA(s) |
+| --- | --- | --- |
+| 1 | Tovu | `04236bde907e7fd1165f0d2a9e090d5c87443539`, `e401f890ef6691268029cc554969ba836a52e522` |
+| 2 | Tovu | `855144073e9c65ad6c56c35646ccbafe609c7093` |
+| 3 | Jini / Tovu | `e95e990921ab93635f9ff0466f946a380356d212` / `a03eb63354ab178903ad89d74222cc0e7ca89258` |
+| 4 | Jini / Tovu | `5b8d747a710bcfb8f3df664b18784e1350bd70d9` / `144c541b6e8809aa09ea7c484a640fbc22784c35` |
+| 5 | Tovu | `25339add0ba00283996156e85f0875b7adb1df61`, `d9979c16b34c4181a95cf25418dba842e38bfbd7` |
+| 6 | Tovu | `7158bfc66f1df9606d0fb22fcfad943ab1c68726` |
+
+Commits used explicit paths. Each item was pushed. Tovu alone used the owner's approved `--no-verify`; Jini commits/pushes used normal verification. Nothing was pushed to combine/main or the excluded branches. No publish, tag, deployment, manifest, lockfile or schema change.
+
 ## Item 1 — done
 
 Imported menus and forms follow the same keep-off rule as pages. Menus use existing `items` mode: draft menus still resolve, so draft status would not suffice. The stored HTML remains recoverable by choosing HTML mode. Item IDs distinguish notices for equal titles, so existing notice deduplication cannot merge different items. Forms use existing `disabled` status, preserving their authoring envelope unchanged. Innocent menus/forms and marker-only pages remain live. Existing trusted theme behavior remains covered by the restore tests. Notices use the existing 80-character title limit and 20-item cap per kind plus a summary.
@@ -13,7 +30,7 @@ Changed test command (Tovu root):
 node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts
 ```
 
-Node tests use `--test-concurrency=2`; Node does not accept Vitest worker flags. Vitest commands will use `--maxWorkers=2 --minWorkers=1`.
+Node tests use `--test-concurrency=2`; Node does not accept Vitest worker flags. Vitest commands use `--maxWorkers=2 --minWorkers=1`.
 
 - Red: 42 passed, 1 failed (`AssertionError [ERR_ASSERTION]`, menu remained in HTML mode).
 - Mutation: menu-only implementation: form remained active, caught by `AssertionError [ERR_ASSERTION]`; 41 passed, 2 failed (the second exposed changed missing-table error order; corrected before final validation).
@@ -39,7 +56,7 @@ node --import ./scripts/one-react.ts --import tsx --test --test-concurrency=2 sr
 - Mutation: passing a running site as stopped to the starter: both files 39 passed, 1 failed (duplicate start caught).
 - Green: both files 40 passed, 0 failed; renderer no-emit exit 0. Tests observe the Starting tab, then the exact admin Import URL carrying the encoded live address, and no second start for a running site.
 - Production lines added: 4; test lines added: 35.
-- Cost: once per newly created live import, one existing start request and two existing state updates (one site record each). No new scan, buffer, or recurring I/O. Already-running sites: none.
+- Cost: once per newly created live import, one existing start request and two existing inventory state updates (each replaces one site record and uses the existing inventory merge). Memory is O(inventory references + one site record) per update. No new recurring I/O. Already-running sites: none.
 
 ## Item 3 — done
 
@@ -98,7 +115,7 @@ npm run build
 
 All 7 passed; no-emit and rebuild exit 0. This package has only expectation updates, with the complete timeout sentence replacing the former full-address property assertion.
 
-After rebuilding and relinking Jini, the two changed website test files passed 46/46; the two changed desktop files passed 41/41 using the commands recorded above. Renderer no-emit passed. The new CLI-output test's no-emit dependency graph reports one existing `TS2353` in `features/site-export/site-exporter.ts:589` (`assetUrls` absent from `ExportSiteArgs`), also present in the base diagnostic capture; no diagnostic is in changed code. This dependency error is retained as a limitation, not suppressed.
+After rebuilding and relinking Jini, the two changed website test files passed 46/46; the two changed desktop files passed 41/41 using the commands recorded above. Renderer no-emit passed. The CLI-output test initially reached `TS2353` in `features/site-export/site-exporter.ts:589` while devops output was stale. Rebuilding the declared dependency resolved it. The final website source and changed-test graph checks both pass; no diagnostic was suppressed.
 
 - Production lines added: 2 (Jini); test lines added: 46 (27 Jini, 19 Tovu).
 - Cost per timed-out request: one URL parse, O(address length) transient memory; retain only O(origin length + duration) error text. No added I/O. Removing the full-address field reduces retained error memory. Successful requests: none.
@@ -116,7 +133,7 @@ node --import tsx --import ./development/test-support/composed-bundle-env.ts --t
 - Base: 97 passed, 0 failed.
 - Red: 94 passed, 6 failed (`AssertionError [ERR_ASSERTION]`: retained paths in ready/failed history, legacy normalization and replay views).
 - Mutation: sanitize only ready rows, with `--test-name-pattern='row keeps only|legacy.*history|replayed.*share import'` before those two paths: 3 passed, 3 failed (failed-state handling caught).
-- Green: 100 passed, 0 failed, 68.51 s.
+- Green: 100 passed, 0 failed, 68.51 s. Final review also checks legacy expiry: red 0/2, ready-only mutation 1/2, then the full registry file 40/40 green after both terminal states were handled.
 - Source no-emit: `./node_modules/.bin/tsc -p /workspace/work/tsconfig-item5.json --noEmit`, exit 0; config extends Tovu settings and includes `import-registry.ts` plus dependencies, with repository typeRoots.
 - Readers checked: admin history source label and tooltip display the saved value; backend `siteImportView` forwards it; request-ID replay normalizes both existing and incoming sources and returns the recorded result, without downloading again. Success/failure replay tests verify one download only and different-origin `REQUEST_CONFLICT`. Source comparison now operates at origin granularity, so reusing the same request ID on the same origin returns that prior result; a different import needs a new request ID. No retry downloads the saved origin.
 - Production lines added: 5; test lines added: 38.
@@ -150,35 +167,199 @@ node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --tes
 - Production lines added: 80 (includes indentation of the existing worker body inside the lock); test/fixture lines added: 102.
 - Cost per import: one small ownership lock write, ownership/liveness reads, release/unlink and a directory check; O(1) metadata memory beyond existing snapshot buffers. Cost per startup: up to two directory listings (registry and OS temp) and one cleanup child only if matching leftovers exist; O(entry names) memory. Cleanup attempts one existing small metadata lock per matching directory/lock entry, up to 100 ms wait per contended entry, and unlinks stale contents proportional to their bytes/file count. No database bytes are loaded by cleanup. No polling after startup.
 
-Setup follow-up: later dependency builds exposed missing `@simplewebauthn/browser`, `@simplewebauthn/server` and `otplib` (`TS2307`, consequent `TS2339`, and runtime `ERR_MODULE_NOT_FOUND`). Their manifest-pinned versions were installed only in `/workspace/work/import-deps` and linked into ignored local dependencies. The first npm cache access failed `EROFS`; using a workspace cache succeeded. No manifest/lockfile changed. Contracts, MCP, daemon, devops, server and user-management outputs were rebuilt. These removed stale-export diagnostics; the four desktop main diagnostics above remain base source errors.
+Setup follow-up: later dependency builds exposed missing `@simplewebauthn/browser`, `@simplewebauthn/server` and `otplib` (`TS2307`, consequent `TS2339`, and runtime `ERR_MODULE_NOT_FOUND`). Their manifest-pinned versions were installed only in `/workspace/work/import-deps` and linked into ignored local dependencies. The first npm cache access failed `EROFS`; using a workspace cache succeeded. No manifest/lockfile changed. Contracts, MCP, daemon, devops, server and user-management outputs were rebuilt. These removed stale-export diagnostics. Chat was also rebuilt after restoring its already-declared local ui-kit link. The four desktop main diagnostics above are the only remaining base source errors.
 
-## Base/setup findings (separate from regression reds)
+## Final proof
 
-- Tovu's referenced `AI-Dev-Shop/AGENTS.md` is absent; the sibling Jini toolkit was read. No framework files changed.
-- Initial restore discovery failed with `SyntaxError` for stale Jini exports: `fileDigest`, then `validateScripts`, `mediaFileReplacementRecord`, and `accessApprovalDetails` while local output was being rebuilt.
-- Initial broad Tovu no-emit check reported pre-existing/dependency-output diagnostics; final report will separate their names/counts from changed-code checks.
-- Host pnpm 11.25.0 failed with `ERR_PNPM_UNSUPPORTED_ENGINE`; `corepack pnpm@10.33.2` meets the repository requirement.
-- Setup recursive build stopped with `ERR_MODULE_NOT_FOUND` (`esbuild` in agent-plugins' Cloudflare build) and `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL`. Required platform/CMS outputs built; restore tests subsequently ran normally. No unrelated source fixes made.
-- First log redirection failed because the scratch directory did not yet exist; created `/workspace/work`.
-- First external scratch tsconfig reported `TS2688` (node types); setting the repository typeRoots corrected the check.
+Only changed test files ran; the helper fixture is counted with test code. No full suite ran. Vitest used `--maxWorkers=2 --minWorkers=1`; Node used its corresponding `--test-concurrency=2`. Final process inventory found no live test/helper process.
+
+| Final run | Result |
+| --- | --- |
+| Jini platform: five changed files | 90 passed, exit 0 |
+| Jini integrations: one changed file | 7 passed, exit 0 |
+| Tovu website: six changed files | 158 passed, exit 0 (79.59 s) |
+| Tovu desktop main: one changed file | 25 passed, exit 0 |
+| Tovu desktop renderer: two changed files | 41 passed, exit 0 |
+| Total | **321 passed, 0 failed** |
+
+Exact final commands, in execution order by repository:
+
+```sh
+# /workspace/Jini/packages/platform
+npm run build
+npm run typecheck
+../../node_modules/.bin/vitest run src/http/guarded/__tests__/transport-request-port.test.ts src/__tests__/fetch-with-timeout.test.ts src/__tests__/fetch-text-guards.test.ts src/http/guarded/__tests__/timeouts.test.ts src/http/guarded/__tests__/client-boundaries.test.ts --maxWorkers=2 --minWorkers=1
+# /workspace/Jini/packages/integrations
+npm run build
+npm run typecheck
+../../node_modules/.bin/vitest run src/media-providers/dispatch/__tests__/node.integration.test.ts --maxWorkers=2 --minWorkers=1
+# /workspace/Tovu
+JINI_PACKAGES_DIR=/workspace/Jini/packages node development/scripts/link-jini.mjs
+node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts apps/website/src/platform/db/sqlite/__tests__/import-database.unit.test.ts apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts
+# /workspace/Tovu/apps/desktop
+node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=2 src/site-archive-import.test.ts
+node --import ./scripts/one-react.ts --import tsx --test --test-concurrency=2 src/renderer/App.render.test.ts src/renderer/use-import-website.hooks.render.test.ts
+```
+
+All package build/no-emit commands above exited 0 (`typecheck` is `tsc -p tsconfig.json --noEmit`). The order of the independent package test/build groups does not affect their results; both touched packages were rebuilt before Tovu was relinked and its dependent tests reran.
+
+Final Tovu no-emit commands:
+
+```sh
+# /workspace/Tovu
+./node_modules/.bin/tsc -p tsconfig.json --noEmit
+./node_modules/.bin/tsc -p /workspace/work/tsconfig-final-source.json --noEmit
+./node_modules/.bin/tsc -p /workspace/work/tsconfig-final-tests.json --noEmit
+./node_modules/.bin/tsc -p /workspace/work/tsconfig-item6-desktop-source.json --noEmit
+# /workspace/Tovu/apps/desktop
+./node_modules/.bin/tsc -p tsconfig.renderer.json --noEmit
+./node_modules/.bin/tsc -p tsconfig.main.json --noEmit
+```
+
+All exit 0 except the full main check, which exits 2 with the same four base diagnostics. Scratch configs are reproduced here; they change no repository compiler settings and suppress no diagnostic.
+
+`/workspace/work/tsconfig-final-source.json`:
+
+```json
+{
+  "extends": "/workspace/Tovu/tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": [
+      "/workspace/Tovu/node_modules/@types"
+    ]
+  },
+  "include": [
+    "/workspace/Tovu/apps/website/src/features/site-backup/import-keep-off.ts",
+    "/workspace/Tovu/apps/website/src/features/site-backup/import-registry.ts",
+    "/workspace/Tovu/apps/website/src/features/site-backup/import-database.ts",
+    "/workspace/Tovu/apps/website/src/features/site-backup/import-backend.ts"
+  ],
+  "exclude": []
+}
+```
+
+`/workspace/work/tsconfig-final-tests.json`:
+
+```json
+{
+  "extends": "/workspace/Tovu/tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": [
+      "/workspace/Tovu/node_modules/@types"
+    ]
+  },
+  "include": [
+    "/workspace/Tovu/apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts",
+    "/workspace/Tovu/apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts",
+    "/workspace/Tovu/apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts",
+    "/workspace/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts",
+    "/workspace/Tovu/apps/website/src/platform/db/sqlite/__tests__/import-database.unit.test.ts",
+    "/workspace/Tovu/apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts",
+    "/workspace/Tovu/apps/website/src/platform/db/sqlite/__tests__/import-database-parent.fixture.ts"
+  ],
+  "exclude": []
+}
+```
+
+`/workspace/work/tsconfig-item6-desktop-source.json`:
+
+```json
+{
+  "extends": "/workspace/Tovu/apps/desktop/tsconfig.main.json",
+  "compilerOptions": {
+    "typeRoots": [
+      "/workspace/Tovu/apps/desktop/node_modules/@types",
+      "/workspace/Tovu/node_modules/@types"
+    ]
+  },
+  "include": [
+    "/workspace/Tovu/apps/desktop/src/site-archive-import.ts"
+  ],
+  "exclude": []
+}
+```
+
+## Red at base, separate from regression reds
+
+With the same rebuilt dependencies, the exact Tovu base was checked again: full website exit 0, renderer exit 0, changed website test graph exit 0, full desktop main exit 2. Tracked source/test files were temporarily restored to their exact base contents for those checks and restored afterward. The changed-test graph check retained the two newly added fixture/test files against the base APIs; ordinary base website/main/renderer project checks do not include new files in their test program. Final and base main diagnostics match exactly after normalizing line/column offsets.
+
+| Error name | Base location | Final location | Message |
+| --- | --- | --- | --- |
+| TS2531 | `src/site-archive-import.test.ts:55:20` | `:56:20` | Object is possibly null |
+| TS2531 | `src/site-archive-import.test.ts:170:16` | `:171:16` | Object is possibly null |
+| TS2531 | `src/site-archive-import.test.ts:188:16` | `:189:16` | Object is possibly null |
+| TS2531 | `src/site-archive-import.test.ts:205:16` | `:206:16` | Object is possibly null |
+
+These existing test expressions were left unchanged. Changed production source, the full renderer, all website source and the changed website test graph pass their checks.
+
+## Named errors and setup findings
+
+This lists failures of commands, regression/mutation runs and baseline checks. Expected negative-case errors in already-green tests are not additional failed checks.
+
+- `AssertionError` / `AssertionError [ERR_ASSERTION]`: intended regression/mutation failures described per item; all final test runs green.
+- `SiteShareRefusal` / `DOWNLOAD_FAILED`: the item 3 reproduction with the old response clamp; final complete download passes.
+- `FetchTimeoutError`: timeout classification retained; its full-address field removed. Messages, JSON and inspected errors have no path/query.
+- `FileLockTimeoutError`: expected contention during cleanup; live/unknown fresh owners are skipped, using existing lock behavior.
+- `TypeError`: two existing null-record expiry bugs reproduced by existing assertions; listed individually below and left unchanged.
+- `SyntaxError`: stale dependency exports `fileDigest`, `validateScripts`, `mediaFileReplacementRecord`, `accessApprovalDetails`; resolved by rebuilding output.
+- `ERR_MODULE_NOT_FOUND`: missing setup packages `esbuild` during the unrelated agent-plugins Cloudflare build and `otplib` after user-management output rebuilt. The Cloudflare build was not needed for this task; manifest-pinned auth dependencies were installed in scratch and local ignored links restored. No dependency manifests changed.
+- `ERR_PNPM_UNSUPPORTED_ENGINE`: host pnpm 11 versus required pnpm 10; used `corepack pnpm@10.33.2`.
+- `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL`: recursive setup stopped at missing esbuild/auth dependencies; required package outputs were rebuilt directly.
+- `EROFS`: npm's default home cache was read-only; installation succeeded with `/workspace/work/npm-cache`.
+- `FileNotFoundError`, `ENOENT` / “No such file or directory”, shell exit 127: initial scratch-log directory and root-relative/package-local edit/bin paths; corrected to workspace/absolute paths. Read probes also established that Tovu's `AI-Dev-Shop/AGENTS.md` is absent; the sibling Jini toolkit was read and framework files were untouched.
+- Git missing/ambiguous `origin/cloud/combine`: resolved by fetching the named refs and verifying both exact base SHAs. Git “couldn't find remote ref cloud/import-fix”: the new remote branch did not yet exist on first pull; the first push created it. Later pulls/rebases and all pushes succeeded.
+- Initial diagnostic formatting of a 101 MiB resolved response was terminated; the test now compares a bounded outcome string. No live test process remains.
+
+All observed TypeScript error names are recorded below. Except the four `TS2531` baseline diagnostics, these were setup/stale-output diagnostics or scratch-config resolution errors and are absent in final checks. The remaining missing local ui-kit link was restored before the final chat rebuild.
+
+| Error name | Meaning |
+| --- | --- |
+| TS18046 | Value is unknown |
+| TS18047 | Value is possibly null |
+| TS2305 | Missing module export |
+| TS2307 | Missing module or declarations |
+| TS2322 | Incompatible assignment |
+| TS2339 | Missing property |
+| TS2344 | Generic constraint mismatch |
+| TS2345 | Argument type mismatch |
+| TS2353 | Unknown object property |
+| TS2531 | Object is possibly null (four base diagnostics remain) |
+| TS2551 | Missing property with suggested member |
+| TS2554 | Argument count mismatch |
+| TS2559 | Types have no properties in common |
+| TS2561 | Unknown object property with suggestion |
+| TS2688 | Missing node type definition in the initial external scratch config |
+| TS2694 | Missing namespace member |
+| TS2724 | Missing named export with suggestion |
+| TS2739 | Required properties missing |
+| TS2741 | Required property missing |
+| TS7006 | Implicit-any parameter |
+| TS7031 | Implicit-any binding |
+| TS7053 | Invalid typed indexing |
+
+## Lines added
+
+Raw `git diff --numstat` against the exact bases; report text, dependency output and local links are excluded. Test counts include the parent-process fixture. Existing worker-body indentation inside its ownership lock is included in raw production additions.
+
+| Item | Production lines added | Test/fixture lines added |
+| --- | ---: | ---: |
+| 1 | 26 | 58 |
+| 2 | 4 | 35 |
+| 3 | 4 | 72 |
+| 4 | 2 | 46 |
+| 5 | 5 | 38 |
+| 6 | 80 | 102 |
+| Total | **121** | **351** |
+
+By repository: Tovu 115 production / 288 test lines; Jini 6 production / 63 test lines. Item 1 IDs add normally 36 characters per notice; stored caps remain unchanged. Memory and I/O frequency × size are recorded under every item above; no new work runs on each public-page view.
 
 ## Other observed bugs
-
-None confirmed beyond the requested six. Base/setup failures are listed above.
-
-Work continues in item order. Final proof, SHAs and elapsed time will replace this progress footer.
-
-Progress: item 1 pushed as `04236bde9` on Tovu `cloud/import-fix`. First pre-push pull returned `fatal: couldn’t find remote ref cloud/import-fix` because the new branch did not exist yet; the first push created it. A test-edit attempt used the desktop working directory with a root-relative path and raised `FileNotFoundError`; retried with the correct directory.
-
-Progress: item 2 pushed as Tovu `855144073`; item 3 Jini commit `e95e99092`. Two package-local command attempts used unavailable `./node_modules/.bin` paths (`exit 127`), corrected to the workspace bin. One test append used a root-relative path from the package directory (`No such file or directory`); corrected to the absolute path. The first Jini push creates its previously absent remote branch.
-
-Progress: item 3 Tovu commit `a03eb6335`; item 4 Jini commit `5b8d747a7`.
-
-Other observed bugs (existing, reproduced by the unchanged assertions in the changed registry test file):
 
 - Expiry throws `TypeError` for JSON `null` upload metadata (`createdAt` access).
 - Expiry throws `TypeError` for a JSON `null` import record (`status` access).
 
-Item 1 review correction: two additional string replacements identify menu/form notices by item ID; no extra runtime read/write or helper was added. IDs add at most one existing ID per notice (normally 36 characters); caps remain unchanged. Item 6 pushed as `7158bfc66`.
+Both are existing behavior explicitly reproduced in the unchanged registry test assertions. No unrelated source fix was made. Jini's local untracked `packages/plugin-ui-ux-design/` was left untouched and uncommitted.
 
-Item 5 review correction: old ready/failed records are normalized in the existing expiry pass. Legacy-specific red 0/2; ready-only mutation 1/2; full registry file green 35/35 (see final counts if changed). No-emit source check passed.
+Verification and report completed 2026-11-07 12:51:02 PST (20:51:02 UTC). Time used: **53 min 37 s**, below the two-hour cap. All six items are done; final delivery follows the report push.
+
+IMPORT-FIX DONE
