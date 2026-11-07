@@ -285,8 +285,8 @@ test("imported menus and forms follow the same keep-off rule as pages while mark
     ]);
     assert.equal(pageStatuses(h.dbPath).Markers, "published");
     assert.deepEqual(stagedImportWarnings({ root: h.root }), [
-      "Menu 'own' holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.",
-      "Form 'own' holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.",
+      "Menu 'own' (ID own) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.",
+      "Form 'own' (ID own) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.",
     ]);
   } finally { db.close(); }
 });
@@ -298,8 +298,8 @@ test("kept-off menu and form notices cap item counts and titles while preserving
     const db = new Database(path.join(h.root, "database/content.db"));
     try {
       for (let i = 0; i < 25; i++) {
-        db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(String(i), String(i) + title, JSON.stringify({ mode: "html", html, items: [] }));
-        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(String(i), String(i) + title, JSON.stringify({ mode: "html", html, fields: [] }));
+        db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(String(i), title, JSON.stringify({ mode: "html", html, items: [] }));
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(String(i), title, JSON.stringify({ mode: "html", html, fields: [] }));
       }
     } finally { db.close(); }
   } });

@@ -117,7 +117,7 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
       if (doc.mode !== "html" || !pageBodyMayRunScript({ html: doc.html ?? "" })) continue;
       // Draft menus still resolve at markers; items mode keeps the original HTML without serving it.
       await db.run(query => query.updateTable("menus").set({ doc_json: JSON.stringify({ ...doc, mode: "items" }) }).where("id", "=", menu.id).execute());
-      menuNotices.push(`Menu '${String(menu.title).slice(0, MAX_NOTICE_TITLE)}' holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`);
+      menuNotices.push(`Menu '${String(menu.title).slice(0, MAX_NOTICE_TITLE)}' (ID ${menu.id}) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`);
     }
     const moreMenus = menuNotices.length - MAX_PAGE_NOTICES;
     notices.push(...menuNotices.slice(0, MAX_PAGE_NOTICES));
@@ -129,7 +129,7 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
       if (fields.mode !== "html" || !pageBodyMayRunScript({ html: fields.html ?? "" })) continue;
       // Disabled forms do not resolve at markers; keep the authored envelope byte-for-byte.
       await db.run(query => query.updateTable("form_definitions").set({ status: "disabled" }).where("id", "=", form.id).execute());
-      formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);
+      formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' (ID ${form.id}) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);
     }
     const moreForms = formNotices.length - MAX_PAGE_NOTICES;
     notices.push(...formNotices.slice(0, MAX_PAGE_NOTICES));

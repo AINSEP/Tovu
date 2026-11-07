@@ -5,7 +5,7 @@ Branches: `cloud/import-fix` in both repositories. Bases: Tovu `b45d2ee759009b08
 
 ## Item 1 — done
 
-Imported menus and forms follow the same keep-off rule as pages. Menus use existing `items` mode: draft menus still resolve, so draft status would not suffice. The stored HTML remains recoverable by choosing HTML mode. Forms use existing `disabled` status, preserving their authoring envelope unchanged. Innocent menus/forms and marker-only pages remain live. Existing trusted theme behavior remains covered by the restore tests. Notices use the existing 80-character title limit and 20-item cap per kind plus a summary.
+Imported menus and forms follow the same keep-off rule as pages. Menus use existing `items` mode: draft menus still resolve, so draft status would not suffice. The stored HTML remains recoverable by choosing HTML mode. Item IDs distinguish notices for equal titles, so existing notice deduplication cannot merge different items. Forms use existing `disabled` status, preserving their authoring envelope unchanged. Innocent menus/forms and marker-only pages remain live. Existing trusted theme behavior remains covered by the restore tests. Notices use the existing 80-character title limit and 20-item cap per kind plus a summary.
 
 Changed test command (Tovu root):
 
@@ -18,7 +18,7 @@ Node tests use `--test-concurrency=2`; Node does not accept Vitest worker flags.
 - Red: 42 passed, 1 failed (`AssertionError [ERR_ASSERTION]`, menu remained in HTML mode).
 - Mutation: menu-only implementation: form remained active, caught by `AssertionError [ERR_ASSERTION]`; 41 passed, 2 failed (the second exposed changed missing-table error order; corrected before final validation).
 - Mutation: bypass menu keep-off: 42 passed, 2 failed (menu state and notice-cap checks).
-- Green: 44 passed, 0 failed. An initial cap fixture used identical titles and encountered existing notice deduplication; unique titles now exercise the intended cap.
+- Green: 44 passed, 0 failed. Final review restored identical-title coverage: 0/2 red, then a menu-only ID mutation remained 0/2, then 44/44 green after both notices included item IDs. This verifies the one-notice-per-item rule through the existing deduplicating list.
 - No-emit check: `./node_modules/.bin/tsc -p /workspace/work/tsconfig-item1.json --noEmit`, exit 0. Config extends Tovu's tsconfig and includes the changed production file and its dependency graph, with the repository's typeRoots.
 - Production lines added: 26; test lines added: 58.
 - Cost once per import: two table reads of eligible menu/form JSON; O(total selected JSON + HTML bytes) memory/parsing and one update per kept-off row (menu document bytes or form status). Notices add O(item count × bounded title/message size) transient memory; stored notices cap at 42 strings for these two kinds. No per-page runtime cost.
@@ -178,3 +178,5 @@ Other observed bugs (existing, reproduced by the unchanged assertions in the cha
 
 - Expiry throws `TypeError` for JSON `null` upload metadata (`createdAt` access).
 - Expiry throws `TypeError` for a JSON `null` import record (`status` access).
+
+Item 1 review correction: two additional string replacements identify menu/form notices by item ID; no extra runtime read/write or helper was added. IDs add at most one existing ID per notice (normally 36 characters); caps remain unchanged. Item 6 pushed as `7158bfc66`.
