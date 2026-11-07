@@ -403,3 +403,9 @@ New URL imports retain a SHA-256 `sourceDigest` of the canonical link without it
 Each menu/form JSON parse is guarded independently. Null and non-string HTML shapes are skipped without changing the stored row; other valid rows still get checked and notices. No shared parser layer was added.
 
 `import-restore.unit.test.ts`, pattern `unreadable menu and form`: red 0/1 (`SyntaxError`); menu-only guard mutation 0/1 on the form parse; whole file green 47/47. Focused source no-emit exits 0. Cost: one existing JSON parse per selected row, with per-row exception/shape handling; no additional I/O or stored fields.
+
+### 6 — done
+
+Per-entry cleanup continues on `EBUSY`, `EPERM` and `EACCES`; the affected folder remains for a later launch. Other unexpected errors still propagate to the caller's warning handling.
+
+`import-database-cleanup.integration.test.ts`, pattern `cleanup continues`: red 0/3; mutation handling only `EBUSY` 1/3; whole changed file green 6/6. Focused website production no-emit exits 0. Cost: O(1) error classification per unavailable entry; no new scans or memory buffers.

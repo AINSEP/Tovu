@@ -121,7 +121,7 @@ export async function tidyImportDatabases(_required: Record<string, never>, _opt
     try {
       await withFileLock({ lockPath: root + ".lock", run: () => rm(root, { recursive: true, force: true }) }, { timeoutMs: 100 });
     } catch (error) {
-      if (!(error instanceof FileLockTimeoutError)) throw error;
+      if (!(error instanceof FileLockTimeoutError) && !["EBUSY", "EPERM", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
     }
   }
 }

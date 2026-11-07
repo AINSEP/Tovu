@@ -1,3 +1,6 @@
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
+import { tidyImportDatabases } from "#src/features/site-backup/import-database";
 /** Review B-1 RED: projection temp dirs escaped the disposable root and survived SIGKILL. */
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
@@ -98,4 +101,30 @@ test("startup removes a killed parent's database folders and keeps another activ
     for (const child of parents) child.kill("SIGKILL");
     await Promise.all(closed.values());
   }
+});
+
+
+for (const code of ["EBUSY", "EPERM", "EACCES"]) test(`cleanup continues after a temporary folder reports ${code}`, async t => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cleanup-errors-"));
+  const originalEnv = { TMPDIR: process.env.TMPDIR, TMP: process.env.TMP, TEMP: process.env.TEMP };
+  for (const name of Object.keys(originalEnv)) process.env[name] = temp;
+  const blocked = path.join(temp, "tovu-import-db-a-busy");
+  const later = path.join(temp, "tovu-import-db-z-ready");
+  fs.mkdirSync(blocked); fs.mkdirSync(later);
+  const originalRm = fsPromises.rm;
+  const mock = t.mock.method(fsPromises, "rm", async (...args: Parameters<typeof fsPromises.rm>) => {
+    if (String(args[0]) === blocked) throw Object.assign(new Error("Temporary folder is unavailable."), { code });
+    return originalRm(...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    mock.mock.restore(); syncBuiltinESMExports();
+    for (const [name, value] of Object.entries(originalEnv)) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+    fs.rmSync(temp, { recursive: true, force: true });
+  });
+  await tidyImportDatabases({});
+  assert.equal(fs.existsSync(blocked), true);
+  assert.equal(fs.existsSync(later), false);
 });
