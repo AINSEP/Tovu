@@ -421,3 +421,9 @@ Cost: one asynchronous OS-temp directory listing per server boot, then small met
 ### 8 — done
 
 Tidy now passes `staleMs: 86_400_000`. The real-parent regression changes a held lock's hostname and sets a one-minute-old timestamp: red with the default interval, still red with a 30-second mutation, then the full cleanup file passes 6/6 with the one-day interval. Known dead owners still reclaim immediately. Focused no-emit exits 0. Cost: none beyond the existing stale comparison; unknown-owner leftovers can remain for a day.
+
+### 9 — done
+
+The parent chooses a random root name, takes its sibling lock, then creates the directory with `mkdir({ mode: 0o700 })`. There is no unlocked staging folder, recursive recreate step or redundant `assertHeld`.
+
+`import-database.unit.test.ts`, pattern `private root only`: red 0/1 (directory already existed before owned creation); mutation retaining recursive mkdir 0/1; both changed worker/cleanup files green 16/16. Focused production no-emit exits 0. Cost: replaces mkdtemp/recreate/ownership reread with one random ID and one private mkdir; lock metadata I/O remains the same.

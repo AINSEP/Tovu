@@ -1,5 +1,6 @@
 import childProcess from "node:child_process";
-import { mkdtemp, writeFile, readFile, rm, statfs, readdir, mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { writeFile, readFile, rm, statfs, readdir, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -53,11 +54,10 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
   const { limits = SHARE_LIMITS, statfs: readSpace = statfs, fork = childProcess.fork } = optional;
   optional.signal?.throwIfAborted();
   if (required.snapshot.length > limits.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Import database exceeds 300 MiB." });
-  const root = await mkdtemp(path.join(tmpdir(), "tovu-import-db-"));
-  return withFileLock({ lockPath: root + ".lock", run: async lock => {
-    await lock.assertHeld({});
-    // Cleanup may have claimed the empty directory before this parent acquired its sibling lock.
-    await mkdir(root, { recursive: true, mode: 0o700 });
+  const root = path.join(tmpdir(), "tovu-import-db-" + randomUUID());
+  return withFileLock({ lockPath: root + ".lock", run: async () => {
+    // No staging directory exists until this parent owns its sibling lock.
+    await mkdir(root, { mode: 0o700 });
     try {
       const space = await readSpace(root);
       if (space.bavail * space.bsize < required.snapshot.length * 3 + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Not enough private staging space to verify this database." });

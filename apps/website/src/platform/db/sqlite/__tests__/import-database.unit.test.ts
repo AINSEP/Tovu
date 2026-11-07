@@ -1,3 +1,5 @@
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
@@ -118,4 +120,25 @@ test("a cancellation that lands while staging kills the helper as soon as it sta
   const statfs = async () => { controller.abort(); return plenty(); };
   await assert.rejects(rebuildImportDatabase({ snapshot: Buffer.from("input") }, { signal: controller.signal, statfs, fork }), { code: "CANCELLED" });
   assert.deepEqual(children[0]!.kills, ["SIGKILL"]);
+});
+
+
+test("database staging creates its private root only after taking ownership", async t => {
+  const originalMkdir = fsPromises.mkdir;
+  const roots: string[] = [];
+  const mock = t.mock.method(fsPromises, "mkdir", async (...args: Parameters<typeof fsPromises.mkdir>) => {
+    const root = String(args[0]);
+    if (path.basename(root).startsWith("tovu-import-db-")) {
+      roots.push(root);
+      assert.equal(fs.existsSync(root), false);
+      assert.equal(fs.existsSync(root + ".lock"), true);
+      assert.deepEqual(args[1], { mode: 0o700 });
+    }
+    return originalMkdir(...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); for (const root of roots) fs.rmSync(root, { recursive: true, force: true }); });
+  const helper = forkThat(({ root, child }) => { writeOutputs(root); child.emit("close", 0); });
+  await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork: helper.fork });
+  assert.equal(roots.length, 1);
 });
