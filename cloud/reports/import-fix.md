@@ -610,7 +610,7 @@ Cost: one existing SHA-256 pass per creation/replay now also includes query byte
 
 ### 3 — done
 
-Share download now gets 240 seconds inside the existing five-minute import budget, leaving at least one minute for verification and restore. Known HTTP timeouts become `DOWNLOAD_TIMEOUT` with a specific share-download message, elapsed seconds, origin only, and a ZIP-import next step. Caller cancellation and unrelated errors retain their existing behavior.
+Share download now gets 240 seconds inside the existing five-minute import budget, leaving at least one minute for verification and restore. Total-deadline HTTP timeouts become `DOWNLOAD_TIMEOUT` with a specific share-download message, elapsed seconds, origin only, and a ZIP-import next step. Caller cancellation and unrelated errors retain their existing behavior.
 
 From Tovu root: `bash /workspace/work/run-tovu-file.sh apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts`. Red 2/5; deadline mutation at 240,001 ms remains red 2/5; final deadline and message green 5/5. The injected guarded clock checks success at 239,999 ms and timeout at 240,000 ms without waiting four minutes. The latter also checks specific CLI output with no resource path/query. `node_modules/.bin/tsc -p /workspace/work/tsconfig-item3-tovu.json --noEmit`: exit 0. The backend's existing exact request expectation is updated to 240,000 ms.
 
@@ -623,3 +623,54 @@ The real starter test resolves the public `@jini-ai/admin/forms` export, as admi
 Existing real-starter regression command from Tovu root: `bash /workspace/work/run-tovu-file.sh --test-name-pattern='starter radio' apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts`. With the installed admin package temporarily hoisted to root (the app-local link absent), the original import is red (`ERR_MODULE_NOT_FOUND`); a package-resolution mutation requesting its private dist subpath is red (`ERR_PACKAGE_PATH_NOT_EXPORTED`). Public export resolution is green 1/1 in the hoisted layout; normal layout whole changed restore file green 47/47. Original dependency links were restored in `finally`. This tests resolution layout rather than claiming a full fresh-clone install. Changed website test graph no-emit exits 0.
 
 Cost: production none. Test module startup performs one existing-package export resolution and module load; no payload buffers or product I/O changes.
+
+### Re-check delivery and final proof
+
+All three requested fixes and the low-priority import correction are done. Tovu changes were committed by explicit paths and pushed per item on `cloud/import-fix`:
+
+| Item | Commit |
+| --- | --- |
+| 1 | `e80fe81a595c413877f3a7c94f43e632dcd64dd6` |
+| 2 | `895b81fca2bcaa644ab3719a387edb599d7daed1` |
+| 3 | `4c9bc3e1cb8e92bfe01bee93ecb180cb2e78557f` |
+| Low | `ce28673aac4c6a302569b1ea300266b1c4e646ea` |
+
+Tovu implementation head is `ce28673aac4c6a302569b1ea300266b1c4e646ea`; the next report-only commit is the final branch head. Jini remains unchanged at `513ac05851772ff6b4c107e2052f2c6cb7ccae8c` on `cloud/import-fix`; pull/push confirmed up to date. No Jini package was touched, so no Jini rebuild or dependency relink was required in this re-check. The pre-existing untracked Jini `packages/plugin-ui-ux-design/` remains untouched.
+
+Final changed website tests, from Tovu root:
+
+```sh
+node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts
+```
+
+Result: 113/113 green, exit 0 (61 backend, 5 download, 47 restore). Desktop command recorded under item 1: 26/26 green. Only changed test files were executed. These files use Node's test runner, so concurrency is set with `--test-concurrency=2`; no Vitest process was needed. No test/import worker is left running.
+
+Final no-emit checks:
+
+```sh
+cd /workspace/Tovu
+node_modules/.bin/tsc --noEmit
+node_modules/.bin/tsc -p /workspace/work/review/tsconfig-tests.json --noEmit
+cd /workspace/Tovu/apps/desktop
+../../node_modules/.bin/tsc -p /workspace/work/tsconfig-item6-desktop-source.json --noEmit
+../../node_modules/.bin/tsc -p tsconfig.main.json --noEmit
+```
+
+Website production, website test graph and desktop source graph exit 0. Scratch config definitions are recorded in the prior review proof. Full desktop main exits 2 solely on the same four base `TS2531` errors, shown separately below. No schema, secret, protected branch, publish, deploy or excluded work was changed. Tovu commits/pushes use the owner's branch-specific `--no-verify` approval; no broad hook suite ran in this re-check.
+
+Line counts against re-check base Tovu `b634d5e656b2a71f20180932a5573564d85df696` (report excluded): production +9/-5; tests +41/-6. Jini: production +0/-0; tests +0/-0. Payload memory/network caps remain unchanged; per-change frequency and size costs are recorded above. No new peak-memory measurement was needed for these changes.
+
+### Re-check base reds and errors
+
+Base-only diagnostics remain `TS2531: Object is possibly null` in `apps/desktop/src/site-archive-import.test.ts` at 56:20, 171:16, 189:16 and 206:16. These expressions are unchanged by the re-check; their original-base comparison appears earlier in this report. No new type error remains.
+
+- `AssertionError` / `ERR_ASSERTION`: expected red and mutation failures for items 1–3; final changed files are green.
+- `ERR_MODULE_NOT_FOUND`: expected original starter-test failure with a hoisted dependency layout.
+- `ERR_PACKAGE_PATH_NOT_EXPORTED`: expected mutation requesting a private package filename; public export resolution is green.
+- `REQUEST_CONFLICT`: expected typed refusal for query-only/path changes; legacy records without a digest still replay by origin.
+- `FetchTimeoutError` is translated to the specific `SiteShareRefusal` code `DOWNLOAD_TIMEOUT` at the download boundary; the controlled-clock test verifies CLI copy without the resource path or query.
+- `TS2531`: only the four base diagnostics listed above. No other failed final command or new unresolved error.
+
+No further bug was found within this narrow re-check. Paths and package resolution use Node's cross-platform path/URL/module APIs; Windows execution was not performed. Total verification time at 14:46:47 PST was 7 minutes 10 seconds; report delivery is approximately eight minutes, within the 30-minute cap.
+
+IMPORT-FIX-3 DONE
