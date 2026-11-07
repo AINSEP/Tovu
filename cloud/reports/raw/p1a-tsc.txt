@@ -1,0 +1,4 @@
+tsc server exit=0
+tsc agent-plugins exit=0
+tsc user-management exit=0
+tsc server neutral-host (nodenext) exit=0

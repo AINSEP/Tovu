@@ -1,0 +1,8 @@
+   ✓ agent-runtime default source entry never reaches an opt-in peer 558ms
+   ✓ all real default entries keep runtime libraries required and classify opt-in subpaths 8236ms
+
+ Test Files  2 passed (2)
+      Tests  130 passed (130)
+   Start at  17:28:57
+   Duration  10.14s (transform 207ms, setup 0ms, collect 1.18s, tests 9.21s, environment 0ms, prepare 146ms)
+

@@ -38,11 +38,23 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   moved to the overlay on purpose. Tovu `37e3feadb` retargets only those two assertions to
   `readHostGuidance()`. Mutating each name out of `GUIDANCE.md` turns its test red.
 
+- **P1a:** no product bug found. Harness mutations (not bugs): pointing a search provider at a
+  non-module turns `contribution-contracts` red; a support file importing `../../../index.js` turns
+  `support-imports` red. Both reverted.
+
 ## Errors by name
 
 - P0: `AssertionError [ERR_ASSERTION]` x3 in `bundled-higgsfield-media-package` (before fix; fixed).
 - P0 baseline, left alone: Jini `plugin-release-consistency` > "imports the release preparation path
   in Node without running a release": `SyntaxError: The requested module './scripts/publish-pending.ts'
   does not provide an export named 'preparePluginRelease'`.
+- P1a: `pnpm guard` exits 1 with 2 violations, both in files untouched since the baseline
+  (`git diff df9e0c83a -- packages/plugin-catalog packages/chat` is empty), so they came in with the
+  P0 merge: `R2-deep-path` (`packages/plugin-catalog/scripts/generate.ts` imports
+  `../../agent-plugins/src/core/identity-namespace.js`) and `R10-chatpane-public-surface`
+  (`packages/chat/src/react/features/chat-pane/components/ChatPane.tsx` imports `Icon` outside the
+  public barrel). Not fixed (outside P1a). `raw/p1a-guard.txt`.
+- P1a: `TS5097` (`.ts` import paths) in server's build tsconfig for the neutral-host folder, fixed
+  by excluding the folder there and type-checking it with `tsconfig.neutral-host.json` (nodenext).
 
 ## Not done
