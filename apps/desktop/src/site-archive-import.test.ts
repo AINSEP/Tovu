@@ -207,7 +207,8 @@ test("a grandchild that holds stdout open cannot keep the import pending after t
 });
 
 for (const [name, files, spawns] of [
-  ["a clean launch starts no child", ["0.json", "readme.txt"], 0],
+  ["a clean launch starts no child", ["readme.txt"], 0],
+  ["saved history starts one tidy request", ["0.json", "readme.txt"], 1],
   ["a missing folder starts no child", null, 0],
   ["a leftover stage starts one tidy request", ["0.stage"], 1],
   ["a leftover upload starts one tidy request", ["0.upload.zip", "1.upload.zip"], 1],
@@ -220,6 +221,7 @@ for (const [name, files, spawns] of [
     baseEnv: { PATH: "/usr/bin" },
   });
   await tick(1);
+  assert.equal(spawned.length, spawns);
   if (spawns) {
     assert.deepEqual(JSON.parse(fake.stdinText.join("")), { tidy: true });
     fake.child.exit(0);
@@ -246,7 +248,7 @@ for (const missing of [false, true]) test(`startup tidy checks database temp fol
       reads.push(dir);
       if (dir === tmpdir()) return ["tovu-import-db-example"];
       if (missing) throw new Error("ENOENT");
-      return ["0.json"];
+      return ["readme.txt"];
     },
     spawnFn: () => { spawns++; return fake.child as never; },
     baseEnv: { PATH: "/usr/bin" },

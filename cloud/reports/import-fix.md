@@ -435,3 +435,11 @@ The share transfer deadline is 295 seconds, inside the existing five-minute oute
 ### 11 — done
 
 Deployment timeout messages now identify only the origin, with a plain fallback for an unparseable URL. Caller cancellation still propagates unchanged. The resource-path/query regression is red 0/1; mutation retaining only the path is red 0/1; whole `host-kit.unit.test.ts` green 14/14. Full website no-emit exits 0. Cost: one small URL parse only when a request times out; no additional I/O.
+
+### 12 — done
+
+Desktop's existing registry listing now recognizes JSON history as a reason to run tidy. This lets finished records be scrubbed even without interrupted-import leftovers. Any history record triggers the existing one-child cleanup; distinguishing finished status would require reading files, so the trigger conservatively includes all history.
+
+`site-archive-import.test.ts`, pattern `saved history`: red 0/1; mutation recognizing a different JSON filename pattern 0/1; whole changed file green 26/26. Focused desktop main source no-emit exits 0. During the first whole-file run, the old clean-registry fixture still contained a JSON history file and its expected temp-listing assertion failed; changed that fixture to a plain readme and reran green. The initial red fixture also raised `SyntaxError` while parsing absent child input; it now first asserts the missing spawn explicitly.
+
+Cost: no extra listing or file reads in the startup trigger, O(existing listing entries); at most one existing short tidy child per launch when history is present.
