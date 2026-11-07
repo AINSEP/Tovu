@@ -138,7 +138,7 @@ test("the download request is a bounded identity GET of the share URL", async t 
   const h = await importFixture(t); const sent: unknown[] = [];
   const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async request => { sent.push({ ...request, signal: request.signal instanceof AbortSignal }); return response({ bodyBytes: h.archive }); } } });
   await backend.importBackup({ principalId: "owner", source: URL_SOURCE });
-  assert.deepEqual(sent, [{ method: "GET", url: URL_SOURCE.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 295_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, bodyAs: "bytes", signal: true }]);
+  assert.deepEqual(sent, [{ method: "GET", url: URL_SOURCE.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 240_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, bodyAs: "bytes", signal: true }]);
 });
 for (const [label, overrides] of [["a non-200 status", { status: 206 }], ["no body", { bodyBytes: undefined }], ["a truncated body", { bodyBytesTruncated: true }]] as const) {
   test(`a download with ${label} is refused as a failed download`, async t => {

@@ -607,3 +607,11 @@ Cost: existing directory listings only, O(directory-entry names) memory; zero ti
 From Tovu root: `bash /workspace/work/run-tovu-file.sh --test-name-pattern='distinguishes corrected' apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts`. Red 0/1; mutation removing only the selected query parameter 0/1; full-link hashing green. Replay group command uses `--test-name-pattern='replayed|distinguishes corrected|request id reused'` with the same file: 5/5 green. `node_modules/.bin/tsc -p /workspace/work/tsconfig-final-source.json --noEmit`: exit 0.
 
 Cost: one existing SHA-256 pass per creation/replay now also includes query bytes, O(full-link length), fixed 64-character digest storage. No additional I/O or saved fields.
+
+### 3 — done
+
+Share download now gets 240 seconds inside the existing five-minute import budget, leaving at least one minute for verification and restore. Known HTTP timeouts become `DOWNLOAD_TIMEOUT` with a specific share-download message, elapsed seconds, origin only, and a ZIP-import next step. Caller cancellation and unrelated errors retain their existing behavior.
+
+From Tovu root: `bash /workspace/work/run-tovu-file.sh apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts`. Red 2/5; deadline mutation at 240,001 ms remains red 2/5; final deadline and message green 5/5. The injected guarded clock checks success at 239,999 ms and timeout at 240,000 ms without waiting four minutes. The latter also checks specific CLI output with no resource path/query. `node_modules/.bin/tsc -p /workspace/work/tsconfig-item3-tovu.json --noEmit`: exit 0. The backend's existing exact request expectation is updated to 240,000 ms.
+
+Cost: existing download allocation/network caps are unchanged; one small error classification and origin parse only on timeout, no extra I/O. The allowed network wait is reduced by 55 seconds per slow transfer.

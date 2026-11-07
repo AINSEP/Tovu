@@ -53,9 +53,37 @@ test("share download requests bytes and reuses the response buffer", async () =>
   const archive = await downloadShareArchive({ url: "https://provider.example/archive.zip", signal: new AbortController().signal,
     http: { send: async request => {
       assert.equal(request.bodyAs, "bytes");
-      assert.ok(request.totalDeadlineMs! >= 290000 && request.totalDeadlineMs! < 300000);
+      assert.equal(request.totalDeadlineMs, 240_000);
       return { status: 200, headers: { "content-type": "application/zip" }, bodyText: "", bodyBytes: body, bodyBytesTruncated: false };
     } },
   });
   assert.equal(archive, body);
+});
+
+
+for (const elapsedMs of [239_999, 240_000]) test(`share download at ${elapsedMs} ms preserves the verification budget and names a slow download`, async () => {
+  const deadline = new AbortController();
+  let deadlineMs = 0;
+  const body = Buffer.from([255]);
+  const http = createHttpClient({ policy: SITE_IMPORT_EGRESS_POLICY, transport: { requestPinned: async request => {
+    if (elapsedMs >= deadlineMs) deadline.abort(new Error("Download clock elapsed."));
+    request.signal?.throwIfAborted();
+    return { status: 200, headers: { "content-type": "application/zip" }, bodyText: "", bodyBytes: body, bodyBytesTruncated: false };
+  } } }, { dns: { resolve: async () => ["93.184.216.34"] }, clock: {
+    nowMs: () => elapsedMs,
+    timeoutSignal: ({ timeoutMs }) => { deadlineMs = timeoutMs; return deadline.signal; },
+  } });
+  const download = downloadShareArchive({ http, url: "https://provider.example/share/sample-file.zip?id=sample-query", signal: new AbortController().signal });
+  if (elapsedMs < 240_000) assert.equal(await download, body);
+  else await assert.rejects(download, error => {
+    assert.equal((error as { code: string }).code, "DOWNLOAD_TIMEOUT");
+    assert.equal((error as Error).message, "The share download from https://provider.example timed out after 240 seconds. Download the ZIP file and import it.");
+    const output = mapErrorToCliOutcome(error).stderrLine!;
+    assert.match(output, /share download.*240 seconds/);
+    assert.equal(output.includes("sample-file"), false);
+    assert.equal(output.includes("sample-query"), false);
+    return true;
+  });
+  assert.equal(deadlineMs, 240_000);
+  assert.ok(5 * 60_000 - deadlineMs >= 60_000);
 });
