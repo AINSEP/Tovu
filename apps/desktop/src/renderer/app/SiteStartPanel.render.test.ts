@@ -121,3 +121,11 @@ test('SiteStartPanel: only failed sites expose crash details', t => {
   const view = renderPanel(t, { project: site('a', { status: 'failed', statusDetail: null }) });
   assert.equal(view.container.querySelector('pre'), null);
 });
+
+test('SiteStartPanel: a site another path is starting reads Starting, never Stopped, and cannot be started twice', (t) => {
+  const view = renderPanel(t, { project: site('a', { status: 'starting' }) });
+  assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Starting the server. This can take up to a minute.');
+  assert.equal(view.button()?.textContent, 'Starting…');
+  assert.equal(view.button()?.hasAttribute('disabled'), true);
+  assert.ok(view.container.querySelector('.spinner'));
+});
