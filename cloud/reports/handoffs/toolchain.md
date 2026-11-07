@@ -11,3 +11,6 @@ Set up in P0, 2026-11-07. Reuse; do not redo.
 - P1a: Jini lockfile edited once (`pnpm install --no-frozen-lockfile`); frozen install works again after it.
   The neutral-host folder (`J server/src/__tests__/neutral-host/support/`) runs outside the repo with
   `node self-check.ts` (Node 24 type stripping) once `@jini-ai/{agent-plugins,core,daemon}` resolve.
+- P3: the neutral host resolves `@jini-ai/agent-plugins/lifecycle/host-tools` from `dist`, so run
+  `pnpm --filter @jini-ai/agent-plugins run build` after any host-tools edit; Tovu sees it through the
+  existing symlink (no re-link needed). Neutral host: `pnpm --filter @jini-ai/server exec vitest run src/__tests__/neutral-host`.

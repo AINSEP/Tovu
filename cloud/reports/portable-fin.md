@@ -58,6 +58,8 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 - **P2b:** no product bug found.
 - **P2c:** no product bug found.
 
+- **P3:** no product bug found. Moved code runs unchanged in Tovu (golden and 12 listed test files green, unedited).
+
 ## Errors by name
 
 - P0: `AssertionError [ERR_ASSERTION]` x3 in `bundled-higgsfield-media-package` (before fix; fixed).
@@ -98,6 +100,13 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   (`ERR_MODULE_NOT_FOUND`); adding them needs a lockfile edit. Left `.todo`; parsers did move.
   Baseline red seen: Tovu `vendor-neutrality.test.ts` › "no generic seam file names the first provider" (hits in
   files P2c did not touch; those files and the test have no diff since `efabd36b7`).
+
+- P3 (authoring, all fixed before the gate): `TS1109` (search-tool header comment lost its opening
+  lines in the cut); `TS2375`/`TS2379` (Jini `exactOptionalPropertyTypes`: `maturity?: PluginMaturity`
+  widened to `| undefined`, type only); guard `HW3-module-state` on the moved `agentPluginSearchDerivedRisk`
+  and `pluginNoteRisk` (`new Map` must be annotated `ReadonlyMap`; fixed in Jini `a48ae059c`).
+- P3 (seen, not mine): install-time warning `Plugin '<id>' has no publisher-qualified id` in Tovu test
+  output, emitted by the lifecycle's install path for fixtures, not by the moved tools.
 
 ## Coordinator decisions
 
