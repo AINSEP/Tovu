@@ -431,3 +431,7 @@ The parent chooses a random root name, takes its sibling lock, then creates the 
 ### 10 — done
 
 The share transfer deadline is 295 seconds, inside the existing five-minute outer import deadline. Request regression red 0/1 at 120 seconds, boundary mutation red 0/1 at 300 seconds, whole download file green 3/3. Focused download/test no-emit exits 0. Cost: none unless a slow transfer uses the additional allowed time; byte cap stays unchanged.
+
+### 11 — done
+
+Deployment timeout messages now identify only the origin, with a plain fallback for an unparseable URL. Caller cancellation still propagates unchanged. The resource-path/query regression is red 0/1; mutation retaining only the path is red 0/1; whole `host-kit.unit.test.ts` green 14/14. Full website no-emit exits 0. Cost: one small URL parse only when a request times out; no additional I/O.
