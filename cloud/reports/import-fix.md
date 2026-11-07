@@ -409,3 +409,11 @@ Each menu/form JSON parse is guarded independently. Null and non-string HTML sha
 Per-entry cleanup continues on `EBUSY`, `EPERM` and `EACCES`; the affected folder remains for a later launch. Other unexpected errors still propagate to the caller's warning handling.
 
 `import-database-cleanup.integration.test.ts`, pattern `cleanup continues`: red 0/3; mutation handling only `EBUSY` 1/3; whole changed file green 6/6. Focused website production no-emit exits 0. Cost: O(1) error classification per unavailable entry; no new scans or memory buffers.
+
+### 7 — done
+
+Server boot schedules `tidyImportDatabases` once without awaiting it. A rejected cleanup emits a specific retry warning and does not affect boot. The runtime test stops before site initialization and proves boot continues while cleanup remains pending, as well as the warning on failure.
+
+New changed test command: `node --experimental-test-module-mocks --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/cli/__tests__/unit/serve-import-cleanup.unit.test.ts`. Red 0/1 (missing call), mutation suppressing the warning 0/1, green 1/1. Full website no-emit exits 0.
+
+Cost: one asynchronous OS-temp directory listing per server boot, then small metadata lock attempts for matching entries and unlink work for stale contents. It loads no database bytes, adds no recurring timer, and never awaits the sweep on the serving path.
