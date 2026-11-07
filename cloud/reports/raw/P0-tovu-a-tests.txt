@@ -1,0 +1,9 @@
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/agent-plugins/__tests__/manifest.default-tools-read.test.ts apps/website/src/features/agent-plugins/__tests__/unit/portable-readers.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/manifest.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/host-signals.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/plugin-credential-cards.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/supersession.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/grant-signed-in-defaults.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-video-docs.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts
+ℹ tests 250
+ℹ suites 0
+ℹ pass 250
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49378.320257

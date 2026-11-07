@@ -1,0 +1,9 @@
+## git diff --stat 40d14a972 HEAD -- plugin.json mcp.json
+(end)
+## git diff --stat 8e9065e6d HEAD -- plugin.json mcp.json
+(end)
+## sha256 JSON.stringify(extensions.jini.mcpServers.higgsfield)
+40d14a972 fb6f317370753d94e47f0b51ebdf4b5a09f7a06518cf29c994b7bbf4808adc30
+HEAD fb6f317370753d94e47f0b51ebdf4b5a09f7a06518cf29c994b7bbf4808adc30
+## sha256 of plugin.json read by Tovu through the link
+deefabf2df17c0db58bee19e473086ce5d9f57995a1f0ba4b2ff6cffbecc6899  /home/user/Jini/packages/agent-plugins/higgsfield-media/plugin.json
