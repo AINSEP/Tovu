@@ -1,0 +1,16 @@
+## Z2 dead-code evidence (pre-deletion, at 8fe045ba)
+Import-specifier search (packages/ examples/ scripts/, *.ts/tsx/mts/cts/js/mjs) for /lifecycle, boot-lifecycle, readiness-state: every hit resolves to another module (agent-plugins/lifecycle, cms content-types/lifecycle.js, capability-providers visitor-auth/lifecycle.js, daemon run-lifecycle.js); none to packages/server/src/lifecycle.
+Exported symbol search (runBootLifecycle|createReadinessStore|BootModuleResult|LifecycleReporter|ModuleLifecycleStatus|BootCriticality) outside the directory: 0 hits in Jini.
+packages/server/src barrel: no import/export of ./lifecycle.
+packages/server/package.json exports: . ./storage ./storage/legacy/sqlite ./store/projects/sqlite ./owner-store (none reaches lifecycle); jini.isolation.entries: ./store/projects/sqlite only.
+Tovu: runBootLifecycle imports all resolve to apps/website/src/server/runtime/lifecycle/boot-lifecycle.js (Tovu's own); only @jini-ai/server specifier used is @jini-ai/server/owner-store (4).
+Non-import references left in place (docs, not code): packages/server/docs/decisions/DR-001-partial-boot-rollback.md evidence links; packages/daemon/docs/call-shape-sweep.tsv rows 20302-20339 (historical sweep data).
+
+## git diff --stat origin/cloud/combine -- packages/server (after deletion)
+ .../boot-lifecycle.characterization.unit.test.ts   | 158 ---------------
+ .../src/lifecycle/__tests__/boot-lifecycle.test.ts | 222 ---------------------
+ .../lifecycle/__tests__/readiness-state.test.ts    |  41 ----
+ packages/server/src/lifecycle/boot-lifecycle.ts    | 116 -----------
+ packages/server/src/lifecycle/index.ts             |   2 -
+ packages/server/src/lifecycle/readiness-state.ts   |  19 --
+ 6 files changed, 558 deletions(-)

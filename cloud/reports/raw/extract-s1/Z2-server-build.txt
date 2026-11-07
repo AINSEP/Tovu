@@ -1,0 +1,14 @@
+## server build
+
+> @jini-ai/server@0.6.19 build /home/user/Jini/packages/server
+> tsc -p tsconfig.tests.json && tsc -p tsconfig.json
+
+build exit=0
+## server typecheck (tsconfig.tests.json + tsconfig.json --noEmit)
+
+> @jini-ai/server@0.6.19 typecheck /home/user/Jini/packages/server
+> tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+
+typecheck exit=0
+## dist/lifecycle after build
+ls: cannot access 'dist/lifecycle': No such file or directory

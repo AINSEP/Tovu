@@ -198,3 +198,30 @@ Tests only; no production line changed in either repo (moved lines: 0). Raw outp
 **Bugs:** none new.
 
 **Not done:** row 6 admin-side `===` (needs a production read); rows 3 and 8-13 (their code or goldens come later); real-tool renders of the `credential` form cards; per-recipient mail ledger counters (P5m).
+
+## Z2
+
+Delete Jini's unused `packages/server/src/lifecycle` copy. Raw output: `cloud/reports/raw/extract-s1/Z2-*.txt`.
+
+**Dead-code evidence (`Z2-dead-code-evidence.txt`, checked before deletion)**
+- No importer in Jini `packages/`, `examples/`, `scripts/`: every import specifier matching `lifecycle`, `boot-lifecycle` or `readiness-state` resolves to a different module (`@jini-ai/agent-plugins/lifecycle`, cms `content-types/lifecycle.js`, capability-providers `visitor-auth/lifecycle.js`, daemon `run-lifecycle.js`). The directory's exported names (`runBootLifecycle`, `createReadinessStore`, `BootModuleResult`, `LifecycleReporter`, `ModuleLifecycleStatus`, `BootCriticality`) have 0 uses outside it.
+- Not public: the server root barrel does not re-export it; `exports` are `.`, `./storage`, `./storage/legacy/sqlite`, `./store/projects/sqlite`, `./owner-store`; `jini.isolation.entries` names only `./store/projects/sqlite`. So no changeset.
+- No Tovu import: every `runBootLifecycle` import in Tovu points at Tovu's own `apps/website/src/server/runtime/lifecycle/boot-lifecycle.js` (untouched); the only `@jini-ai/server` specifier Tovu uses is `@jini-ai/server/owner-store`.
+- Its three tests tested only it and went with it.
+
+**Lines removed: 558** (6 files: 137 source lines in `boot-lifecycle.ts` 116, `index.ts` 2, `readiness-state.ts` 19; 421 test lines). `git diff origin/cloud/combine -- packages/server` is now exactly this deletion. Stale `dist/lifecycle` (gitignored build output) removed locally so the linked package does not serve it.
+
+**Checks (all pass, equal to the V2 record by name)**
+- `@jini-ai/server` `build` exit 0; `typecheck` (`tsc -p tsconfig.tests.json` and `tsc -p tsconfig.json --noEmit`) exit 0 (`Z2-server-build.txt`).
+- `pnpm guard`: `R2-deep-path` (1), `R10-chatpane-public-surface` (1), informational `R13-model-fallback-freshness`; HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, all 0 new. Identical to `V2-final-guard.txt` apart from timings.
+- Layers: 0. Isolation: 0 failing; audit `SI-c` 9, `SI-d` 7. `guard:plugins`: clean.
+- Tovu `tsc -p tsconfig.json --noEmit` on re-linked Jini: exit 0 (`Z2-tovu-tsc.txt`).
+- Tests: no file outside the directory referenced it, so none to run.
+
+**Commits.** Jini `283af360` (deletion). Tovu: this report commit.
+
+**Findings (docs, not code; left as is, no scope growth)**
+- `packages/server/docs/decisions/DR-001-partial-boot-rollback.md` cites the deleted files as evidence; its two links now dangle. Candidate: point the record at the host lifecycle or mark it historical.
+- `packages/daemon/docs/call-shape-sweep.tsv` rows for `server/src/lifecycle/*` are historical sweep data.
+
+**Errors:** none. **Not done:** nothing in scope. Tovu's own lifecycle untouched.

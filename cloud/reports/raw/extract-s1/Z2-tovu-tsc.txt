@@ -1,0 +1,10 @@
+## link:jini
+Linked @jini-ai/* from /home/user/Jini/packages (0 link(s) changed).
+Builds are blocked while linked (check-no-linked-jini.mjs) — run `npm run unlink:jini` before building for real.
+
+link exit=0
+## tsc -p tsconfig.json --noEmit
+tsc exit=0
+## linked server has no lifecycle
+lrwxrwxrwx 1 root root 29 Nov  7 20:02 node_modules/@jini-ai/server -> ../../../Jini/packages/server
+ls: cannot access 'node_modules/@jini-ai/server/dist/lifecycle': No such file or directory
