@@ -22,6 +22,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 | P1a | `6def6cdaa` | `fedca02d6`, `4ebd5d234` | **failed on one item**: `pnpm guard` exit 1 on `R2-deep-path` (`plugin-catalog/scripts/generate.ts`) and `R10-chatpane-public-surface` (`chat/.../ChatPane.tsx`), both files unchanged since the behavior baseline, so red at baseline, not from P1a. Not fixed (outside plan scope; no follow-up spent). Every other item passed: tests run with 44 `.todo`, layers unchanged 130/130, tsc exit 0, `guard:plugins` exit 0 | 225k |
 | P1b | `682d34bac` | none | passed: golden green at baseline twice; description mutation and card-label mutation each red, reverted; metadata sha256 unchanged; tsc exit 0. Not captured by name: `agent_plugin_set_access_token` (not a registered tool at baseline; covered via `credential_save` kind `agent-plugin-token` and its card); credential and access-token cards rendered from form specs, not emitted live; §10 counters for skill reads, token lookup, trusted scans and mail not recorded | 205k |
 | P2a | `2671b5553` | `52365d5b0` | passed: 3 deploy kinds off `.todo` (JSON + modules, 12 files); Jini parser tests 18/18; listed Tovu tests 167/168 + golden green, the 1 red (`no-vendor-in-core.boundary` › "real core tree has only reviewed pattern exceptions") is identical at pre-P2a HEAD `52407d262`; tsc clean both repos; layers 73/73, guard only the 2 baseline violations. Departures: 5 moved comment lines reworded (guard `N1-consumer-identity` forbids the product name), 5 Jini type names `Plugin`-prefixed to avoid clashes (Tovu re-exports old names) | 207k |
+| P2b | `753b27fcb` | `e35cf6d2d` | **failed on one item**: `mail-adapters` and `object-stores` green (JSON + modules); `form-destinations` stays `.todo` because the contract test in `@jini-ai/server` cannot resolve `@jini-ai/cms/forms` (server has no cms dependency; adding it needs a lockfile edit, which only P1a and P10b may make, so the step was stopped, not worked around; no follow-up spent). Parser and module validator did move to `J cms/src/forms/`. Rest passed: listed Tovu tests 90/90 + golden; tsc clean; layers 73/73; guard only the 2 baseline violations | 185k |
 
 ## Progress (every 30 min)
 
@@ -89,5 +90,6 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 ## Coordinator decisions
 
 - `pnpm guard` is red at the behavior baseline (2 violations above). Later batches' guard gates are reported as failed-at-baseline with the list of violations, so any new violation is visible by name. Fixing the two is left to the owner.
+- P2b: the `form-destinations` contract check needs a `@jini-ai/cms` dev dependency on `@jini-ai/server` (a lockfile edit). The plan lets only P1a and P10b edit the lockfile, so it is left for P10b or the owner. P2c's "no `.todo` left" gate item therefore cannot pass in session 1.
 
 ## Not done
