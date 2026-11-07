@@ -11,7 +11,7 @@ import type { PagesPort } from "./pages-port.hooks";
 export const defaultPagesPort: PagesPort = {
   listPages: () => api.listPages(),
   createPage: (title) => api.createPage(title),
-  updatePost: (target, patch) => api.updatePost(target, patch),
+  updatePost: (target, patch) => api.updatePost(target, patch, { entry: "page" }),
   deletePage: (id) => api.deletePage(id),
 };
 
