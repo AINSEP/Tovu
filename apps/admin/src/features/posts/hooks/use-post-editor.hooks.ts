@@ -18,6 +18,7 @@ import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
+import { isUnexpectedServerFailure } from "@/lib/server-failure";
 import { type Translate, useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { MediaImage } from "@/lib/media-image-extension";
@@ -485,12 +486,6 @@ function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: Adm
  */
 function formatOutsideChangeMessage(version: number, t: Translate): string {
   return interpolate({ template: t("Changed outside the editor · version {version}"), vars: { version } });
-}
-
-/** Mirrors the request layer's rule for raising the shared failure notice: status 0 or 5xx. @complexity O(1). */
-function isUnexpectedServerFailure(error: unknown, _options = {}): boolean {
-  const status = (error as { status?: unknown } | null)?.status;
-  return typeof status === "number" && (status === 0 || status >= 500);
 }
 
 /**

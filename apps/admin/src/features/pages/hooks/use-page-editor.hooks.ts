@@ -10,6 +10,7 @@ import {
   type DevicePreviewDevice,
 } from "@/components/DevicePreview/DevicePreview.hooks";
 import { navigate as defaultNavigate } from "@/lib/router";
+import { isUnexpectedServerFailure } from "@/lib/server-failure";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
 import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
@@ -613,6 +614,8 @@ function applySaveFailure(
     setters.setSaveConflict(conflict);
     return;
   }
+  // A server or network failure already raised the shared failure notice (plain words, copyable details); repeating its raw message here would show it twice.
+  if (isUnexpectedServerFailure(e)) { setters.setError(t(locale, "Not saved. Your edits are still here.")); return; }
   setters.setError(e instanceof Error ? e.message : refusalMessage({ base: t(locale, "failed to save page"), e }));
 }
 
