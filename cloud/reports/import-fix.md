@@ -71,7 +71,39 @@ node --import tsx --import ./development/test-support/composed-bundle-env.ts --t
 - Production lines added: 4 (Jini); test lines added: 72 (36 Jini, 36 Tovu).
 - Cost per download: O(1) limit selection; existing buffering/copies now permit up to 300 MiB instead of 100 MiB. Network reads: one × up to 300 MiB; memory O(response bytes), approximately 4–5 × payload bytes at the Tovu download boundary (chunks, concatenated bytes, decoded text and returned archive copy), with unchanged copy passes. No added disk I/O.
 
-## Items 4–6 — pending
+## Item 4 — done
+
+Timeout messages retain the timeout duration and only the server origin (including a non-default port). Relative/unparseable input uses “the requested server” without retaining input. The full `url` property was removed: no production consumer reads `FetchTimeoutError.url` in either repository, while raw Error objects are passed to logs (for example public page/search/member handlers). CLI `mapErrorToCliOutcome` and desktop `copyableDetails` use `error.message`. Tests cover message, inspection, JSON, both user-visible surfaces, and media-provider deadline behavior. Existing saved import data is unaffected.
+
+Jini commands from `packages/platform`:
+
+```sh
+../../node_modules/.bin/vitest run src/__tests__/fetch-with-timeout.test.ts src/__tests__/fetch-text-guards.test.ts src/http/guarded/__tests__/timeouts.test.ts src/http/guarded/__tests__/client-boundaries.test.ts src/http/guarded/__tests__/transport-request-port.test.ts --maxWorkers=2 --minWorkers=1
+npm run build
+npm run typecheck
+```
+
+- Base: four timeout test files 82 passed; integrations file 7 passed and package no-emit exit 0.
+- Red: four changed timeout files 79 passed, 8 failed (`AssertionError`, full addresses retained). CLI test 1 passed/1 failed, desktop hook file 14 passed/1 failed (`AssertionError [ERR_ASSERTION]`).
+- Mutation: change only the message while retaining the full address property: 81 passed, 6 failed (the retained property is observed).
+- Green: five changed platform test files 90 passed; platform build/no-emit exit 0.
+
+From `packages/integrations`:
+
+```sh
+../../node_modules/.bin/vitest run src/media-providers/dispatch/__tests__/node.integration.test.ts --maxWorkers=2 --minWorkers=1
+npm run typecheck
+npm run build
+```
+
+All 7 passed; no-emit and rebuild exit 0. This package has only expectation updates, with the complete timeout sentence replacing the former full-address property assertion.
+
+After rebuilding and relinking Jini, the two changed website test files passed 46/46; the two changed desktop files passed 41/41 using the commands recorded above. Renderer no-emit passed. The new CLI-output test's no-emit dependency graph reports one existing `TS2353` in `features/site-export/site-exporter.ts:589` (`assetUrls` absent from `ExportSiteArgs`), also present in the base diagnostic capture; no diagnostic is in changed code. This dependency error is retained as a limitation, not suppressed.
+
+- Production lines added: 2 (Jini); test lines added: 46 (27 Jini, 19 Tovu).
+- Cost per timed-out request: one URL parse, O(address length) transient memory; retain only O(origin length + duration) error text. No added I/O. Removing the full-address field reduces retained error memory. Successful requests: none.
+
+## Items 5–6 — pending
 
 ## Base/setup findings (separate from regression reds)
 
@@ -92,3 +124,5 @@ Work continues in item order. Final proof, SHAs and elapsed time will replace th
 Progress: item 1 pushed as `04236bde9` on Tovu `cloud/import-fix`. First pre-push pull returned `fatal: couldn’t find remote ref cloud/import-fix` because the new branch did not exist yet; the first push created it. A test-edit attempt used the desktop working directory with a root-relative path and raised `FileNotFoundError`; retried with the correct directory.
 
 Progress: item 2 pushed as Tovu `855144073`; item 3 Jini commit `e95e99092`. Two package-local command attempts used unavailable `./node_modules/.bin` paths (`exit 127`), corrected to the workspace bin. One test append used a root-relative path from the package directory (`No such file or directory`); corrected to the absolute path. The first Jini push creates its previously absent remote branch.
+
+Progress: item 3 Tovu commit `a03eb6335`; item 4 Jini commit `5b8d747a7`.

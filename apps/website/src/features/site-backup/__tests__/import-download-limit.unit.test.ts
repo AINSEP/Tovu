@@ -3,6 +3,8 @@ import { EventEmitter } from "node:events";
 import type { ClientRequest, IncomingMessage } from "node:http";
 import { PassThrough } from "node:stream";
 import test from "node:test";
+import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
+import { mapErrorToCliOutcome } from "../../../cli/errors.js";
 import { FetchHttpTransportAdapter } from "@jini-ai/platform/http/guarded";
 import { createHttpClient } from "../../../platform/http/client.js";
 import { SITE_IMPORT_EGRESS_POLICY } from "../../../platform/http/egress-policies.js";
@@ -33,4 +35,14 @@ test("share download retains a complete 101 MiB response under the existing 300 
   const archive = await downloadShareArchive({ http, url: "https://provider.example/archive.tovu.zip", signal: new AbortController().signal });
   assert.equal(archive.length, 101 * 1024 * 1024);
   assert.equal(archive.at(-1), 120);
+});
+
+
+test("share download timeout details in CLI output identify only the origin", () => {
+  const error = new FetchTimeoutError("https://provider.example/share/sample-share-code/site.tovu.zip?download=sample-query", 120000);
+  const outcome = mapErrorToCliOutcome(error);
+  assert.match(outcome.stderrLine!, /fetch timed out after 120000ms: https:\/\/provider\.example/);
+  assert.ok(!outcome.stderrLine!.includes("sample-share-code"));
+  assert.ok(!outcome.stderrLine!.includes("sample-query"));
+  assert.ok(!outcome.stderrLine!.includes("/share/"));
 });
