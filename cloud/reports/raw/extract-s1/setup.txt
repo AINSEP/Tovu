@@ -1,0 +1,19 @@
+# extract-s1 toolchain setup (V0, measured working 2026-11-07, cloud image ships Node 22)
+mkdir -p ~/.local && cd ~/.local
+curl -sSfL -o node24.tar.xz https://nodejs.org/dist/v24.2.0/node-v24.2.0-linux-x64.tar.xz
+tar xJf node24.tar.xz && mv node-v24.2.0-linux-x64 node24 && rm node24.tar.xz
+export PATH=~/.local/node24/bin:$PATH          # every shell call: put this first
+corepack enable --install-directory ~/.local/node24/bin
+cd /home/user/Jini && corepack prepare pnpm@10.33.2 --activate   # pnpm -v -> 10.33.2; npm -v -> 11.3.0 (bundled)
+
+# Jini
+cd /home/user/Jini
+CI=true pnpm install --frozen-lockfile
+pnpm --filter @jini-ai/core run build && pnpm --no-bail -r build
+
+# Tovu (order matters)
+cd /home/user/Tovu
+npm ci
+npm run build --workspace @tovu/sdk
+JINI_PACKAGES_DIR=/home/user/Jini/packages npm run link:jini
+npm --prefix packages/contracts run build
