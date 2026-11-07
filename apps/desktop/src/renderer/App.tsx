@@ -138,7 +138,7 @@ export function App({
   });
   const liveImport = useImportWebsite({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
-    openSite: ({ id, adminPage }) => openImported(id, adminPage),
+    openSite: ({ site, adminPage }) => { openImported(site.id, adminPage); startImported(site); },
     onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });

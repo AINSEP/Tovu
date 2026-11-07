@@ -5,7 +5,7 @@
  *
  * A live website is imported by the site's own assistant plugin, which works inside a site. So the
  * address makes a NEW site first (the same call as Create website) and the page then opens that
- * site's tab on its Import tab with the address typed in. Nothing else is opened or started.
+ * site's tab on its Import tab with the address typed in. The host starts the new site.
  * An archive (share link or .tovu.zip) is finished by main with no site involved, so it just
  * resolves with the new site.
  */
@@ -54,7 +54,7 @@ function importFailure({ error, fallback }: { error: unknown; fallback: string }
 export function useImportWebsite(
   { createSite, openSite, onArchiveImported, onFailureWhileClosed }: {
     createSite: (input: { displayName: string }) => Promise<SiteRecord | undefined>;
-    openSite: (input: { id: string; adminPage: SiteAdminPage }) => void;
+    openSite: (input: { site: SiteRecord; adminPage: SiteAdminPage }) => void;
     /** A .tovu.zip or share link became this site. */
     onArchiveImported: (site: ImportedSiteRecord) => void;
     onFailureWhileClosed: (toast: { message: string; note?: string }) => void;
@@ -133,7 +133,7 @@ export function useImportWebsite(
       const created = await createSite({ displayName: siteNameFromAddress({ address: liveAddress }) });
       if (created === undefined) return;
       setAddressState('');
-      openSite({ id: created.id, adminPage: { page: 'import', liveAddress } });
+      openSite({ site: created, adminPage: { page: 'import', liveAddress } });
     } catch (error) {
       reportRunFailure(importFailure({ error, fallback: CREATE_FAILED }));
     } finally {

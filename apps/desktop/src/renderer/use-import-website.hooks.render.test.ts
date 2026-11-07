@@ -13,7 +13,7 @@ import { site } from './app-render-harness.js';
 import type { SiteAdminPage } from './import-site-entry.js';
 
 function setup(t: { after: (fn: () => void) => void }, createSite: (input: { displayName: string }) => Promise<ReturnType<typeof site> | undefined>) {
-  const opened: Array<{ id: string; adminPage: SiteAdminPage }> = [];
+  const opened: Array<{ site: ReturnType<typeof site>; adminPage: SiteAdminPage }> = [];
   const hook = renderHook(t, () => useImportWebsite({ createSite, openSite: (input) => { opened.push(input); }, onArchiveImported: () => {}, onFailureWhileClosed: () => {} }));
   return { hook, opened };
 }
@@ -24,7 +24,7 @@ test('useImportWebsite: a good address makes the site named for the host, then o
   act(() => hook.current().setAddress('www.example.com/shop'));
   await act(async () => { await hook.current().importLive(); });
   assert.deepEqual(made, ['example.com']);
-  assert.deepEqual(opened, [{ id: 'new', adminPage: { page: 'import', liveAddress: 'https://www.example.com/shop' } }]);
+  assert.deepEqual(opened, [{ site: site('new'), adminPage: { page: 'import', liveAddress: 'https://www.example.com/shop' } }]);
   assert.equal(hook.current().address, '', 'the field empties once the site exists');
   assert.equal(hook.current().importing, false);
 });

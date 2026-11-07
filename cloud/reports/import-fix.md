@@ -23,7 +23,25 @@ Node tests use `--test-concurrency=2`; Node does not accept Vitest worker flags.
 - Production lines added: 26; test lines added: 58.
 - Cost once per import: two table reads of eligible menu/form JSON; O(total selected JSON + HTML bytes) memory/parsing and one update per kept-off row (menu document bytes or form status). Notices add O(item count × bounded title/message size) transient memory; stored notices cap at 42 strings for these two kinds. No per-page runtime cost.
 
-## Items 2–6 — pending
+## Item 2 — done
+
+The existing live-import open callback receives the created record, opens its tab at the admin Import page and calls the existing imported-site starter. Its existing running-site guard prevents a duplicate start. No new callback option or startup layer was added.
+
+From `apps/desktop`:
+
+```sh
+node --import ./scripts/one-react.ts --import tsx --test --test-concurrency=2 src/renderer/App.render.test.ts src/renderer/use-import-website.hooks.render.test.ts
+./node_modules/.bin/tsc -p tsconfig.renderer.json --noEmit
+```
+
+- Base: App file 24 passed; renderer no-emit exit 0.
+- Red: App file 25 passed, 1 failed (`AssertionError [ERR_ASSERTION]`: start call missing).
+- Mutation: passing a running site as stopped to the starter: both files 39 passed, 1 failed (duplicate start caught).
+- Green: both files 40 passed, 0 failed; renderer no-emit exit 0. Tests observe the Starting tab, then the exact admin Import URL carrying the encoded live address, and no second start for a running site.
+- Production lines added: 4; test lines added: 35.
+- Cost: once per newly created live import, one existing start request and two existing state updates (one site record each). No new scan, buffer, or recurring I/O. Already-running sites: none.
+
+## Items 3–6 — pending
 
 ## Base/setup findings (separate from regression reds)
 
@@ -40,3 +58,5 @@ Node tests use `--test-concurrency=2`; Node does not accept Vitest worker flags.
 None confirmed beyond the requested six. Base/setup failures are listed above.
 
 Work continues in item order. Final proof, SHAs and elapsed time will replace this progress footer.
+
+Progress: item 1 pushed as `04236bde9` on Tovu `cloud/import-fix`. First pre-push pull returned `fatal: couldn’t find remote ref cloud/import-fix` because the new branch did not exist yet; the first push created it. A test-edit attempt used the desktop working directory with a root-relative path and raised `FileNotFoundError`; retried with the correct directory.
