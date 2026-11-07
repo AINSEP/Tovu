@@ -24,6 +24,8 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 | P2a | `2671b5553` | `52365d5b0` | passed: 3 deploy kinds off `.todo` (JSON + modules, 12 files); Jini parser tests 18/18; listed Tovu tests 167/168 + golden green, the 1 red (`no-vendor-in-core.boundary` › "real core tree has only reviewed pattern exceptions") is identical at pre-P2a HEAD `52407d262`; tsc clean both repos; layers 73/73, guard only the 2 baseline violations. Departures: 5 moved comment lines reworded (guard `N1-consumer-identity` forbids the product name), 5 Jini type names `Plugin`-prefixed to avoid clashes (Tovu re-exports old names) | 207k |
 | P2b | `753b27fcb` | `e35cf6d2d` | **failed on one item**: `mail-adapters` and `object-stores` green (JSON + modules); `form-destinations` stays `.todo` because the contract test in `@jini-ai/server` cannot resolve `@jini-ai/cms/forms` (server has no cms dependency; adding it needs a lockfile edit, which only P1a and P10b may make, so the step was stopped, not worked around; no follow-up spent). Parser and module validator did move to `J cms/src/forms/`. Rest passed: listed Tovu tests 90/90 + golden; tsc clean; layers 73/73; guard only the 2 baseline violations | 185k |
 | P2c | `c51b5a0fa` | `d611333fa`, `1c97de159` | **failed on one item**: `connections` green (JSON + module); `login-providers` and `consent` parsers moved with their own Jini tests (21/21) but their contract checks stay `.todo`: `ERR_MODULE_NOT_FOUND` for `@jini-ai/user-management/server` and `@jini-ai/cookie-consent/plugins` from `packages/server` (same lockfile blocker as P2b). Contract test 22 pass, 6 todo (3 blocked kinds + 3 other entries). Rest passed: listed Tovu tests 69/70 + golden, the 1 red `vendor-neutrality` › "no generic seam file names the first provider" is in files untouched since baseline; tsc clean; layers 73/73; guard only the 2 baseline violations | 188k |
+| P3 | `15a3def4c`, `de9e877f0` | `893d58e80`, `8b47b75fa`, `a48ae059c`, `d3efaed69` | passed: neutral host reads a skill from every skills-only plugin (16 match the rule today, not 15; all pass) through the real registrar, public exports only; dispatcher proofs shown: denied before I/O, revoked plugin denied before skill read, malformed input refused, cancelled note leaves nothing; every shim kept name and signature; golden green unedited; 12 listed Tovu test files 149 pass 0 fail; tsc clean both repos; layers 73/73; guard only the 2 baseline violations; catalog 328 names / 751,493 bytes equal to P1b; trusted scans per tool call 0 | 289k |
+| P-C1 | | | **not reached** (token cap, see below) | 0 |
 
 ## Progress (every 30 min)
 
@@ -33,6 +35,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 | 17:33 | P0, P1a done; P1b next | ~400k (P0 115k + P1a 225k + coordinator ~60k) | `pnpm guard` red at baseline (R2-deep-path, R10-chatpane-public-surface); Jini `plugin-release-consistency` baseline |
 | 17:58 | P0-P2a done; P2b next | ~830k (subagents 752k + coordinator ~75k) | as above, plus Tovu `no-vendor-in-core.boundary` red before P2a |
 | 18:21 | P0-P2c done; P3 next | ~1.21M (subagents 1,125k + coordinator ~85k) | P2b and P2c contract `.todo`s blocked by lockfile rule; Tovu `vendor-neutrality` baseline red |
+| 18:47 | P3 done; session stopped before P-C1 | ~1.51M (subagents 1,414k + coordinator ~95k) | no new reds |
 
 ## Bugs found
 
@@ -113,4 +116,64 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 - `pnpm guard` is red at the behavior baseline (2 violations above). Later batches' guard gates are reported as failed-at-baseline with the list of violations, so any new violation is visible by name. Fixing the two is left to the owner.
 - P2b: the `form-destinations` contract check needs a `@jini-ai/cms` dev dependency on `@jini-ai/server` (a lockfile edit). The plan lets only P1a and P10b edit the lockfile, so it is left for P10b or the owner. P2c's "no `.todo` left" gate item therefore cannot pass in session 1. P2c hit the same blocker for `@jini-ai/user-management` and `@jini-ai/cookie-consent`: three server dev dependencies (cms, user-management, cookie-consent) are needed for the contract test to reach 14 of 14.
 
-## Not done
+## Session 1 outcome: stopped at the token cap before P-C1
+
+After P3 the final-context total was about 1.51M of the 1.6M cap (subagents 1,414k measured, coordinator about 95k). Measured batches ran 1.6x to 2.3x their plan estimates (P-C1 is estimated at 50k), and subagent self-estimates ran well under the measured sizes, so P-C1 could not be started with confidence that it would finish under the cap. Per the caps, the session stopped at a committed point. Wall clock used: 17:02 to 18:48 UTC, about 1 h 46 min of 6 h. No follow-up batch was spent.
+
+### Gates
+
+| Batch | Gate |
+|---|---|
+| P0 | passed |
+| P1a | failed on one item (`pnpm guard` red at baseline: `R2-deep-path`, `R10-chatpane-public-surface`); rest passed |
+| P1b | passed |
+| P2a | passed |
+| P2b | failed on one item (`form-destinations` contract check blocked by the lockfile rule); rest passed |
+| P2c | failed on one item (`login-providers`, `consent` contract checks blocked by the lockfile rule; "14 of 14, no `.todo`" not met); rest passed |
+| P3 | passed (move pattern held; no session stop) |
+| P-C1 | not reached |
+
+Milestone 1 is **not** fully met: all 14 kinds have a Jini parser (11 proven through the contract test, 3 parsers moved with their own Jini tests but not reachable from the server contract test), skills plugins run in the fake host, and no packed checkpoint ran.
+
+### Final-context table (measured where the harness reported it)
+
+| Agent | Plan estimate | Measured final context |
+|---|---|---|
+| P0 | 110k | 115k |
+| P1a | 130k | 225k |
+| P1b | 90k | 205k |
+| P2a | 185k | 207k |
+| P2b | 130k | 185k |
+| P2c | 150k | 188k |
+| P3 | 160k | 289k |
+| P-C1 | 50k | not run |
+| Coordinator | 170k | about 95k (estimate) |
+| **Total** | 1.18M | **about 1.51M** (1.28x the session estimate; P3 ended close to its 300k ceiling) |
+
+### Pushed SHAs (branch `cloud/portable-fin`)
+
+- Tovu: merge `91e347f9c`; `9ca6e9648` (report start); P0 `37e3feadb`, `efabd36b7`; `d753dde05`, `60cff9fb6`, `b767e75e0`; P1a `6def6cdaa`; P1b `682d34bac`; `52407d262`; P2a `2671b5553`; `7f28a5abf`; P2b `753b27fcb`; `d7d7b1673`; P2c `c51b5a0fa`; `26d2a2857`; P3 `15a3def4c`, `de9e877f0`; plus this report commit.
+- Jini: merge `8e9065e6d`; P0 `df9e0c83a`; P1a `fedca02d6`, `4ebd5d234`; P2a `52365d5b0`; P2b `e35cf6d2d`; P2c `d611333fa`, `1c97de159`; P3 `893d58e80`, `8b47b75fa`, `a48ae059c`, `d3efaed69`.
+
+### Not done
+
+1. P-C1 checkpoint (build and tsc of changed Jini packages, pack, throwaway consumer, plain-node import of each new entry, neutral-host folder run from outside the repo under strict nodenext, Tovu tsc and listed groups on linked Jini, Tovu-on-tarballs trial for one group, counters). Next session should run it first.
+2. Contract checks for `form-destinations`, `login-providers` and `consent`: need `@jini-ai/cms`, `@jini-ai/user-management` and `@jini-ai/cookie-consent` as dev dependencies of `@jini-ai/server` (one lockfile edit). Owner decision, or P10b.
+3. `pnpm guard` baseline violations `R2-deep-path` and `R10-chatpane-public-surface` (arrived with the cloud/combine merge). Not fixed.
+4. Neutral-host dispatcher `.todo`s left: one human card, write approval, cancel a call waiting on a person (no P3 tool raises a card); provider status (P5).
+5. §10 counters not baselined in P1b: skill reads per call (P3 measured 1 SKILL.md read plus one per listed supporting file), token lookup, mail rows.
+6. No changeset for the new `@jini-ai/core/text` and `@jini-ai/devops` deploy exports (only P1a and P10b may add changesets).
+7. §9 fat-file script not run (P10a item).
+8. Sessions 2 to 4 not started (not approved).
+
+### Findings listed, not fixed
+
+- `development/open-bugs.md` does not exist in either repo, though the plan cites it.
+- The plan says 15 skills-only plugins; the rule (skills, no contribution file, no MCP server) matches 16 today.
+- The plan says 2 kinds declare no module; `tovu-credential-schemes.json` declares none either, so 3.
+- `search_agent_plugin_local`'s description (now Jini text) still names host tools (`content_read.plugin`, `plugins_set_enabled`, `load_agent_plugin`).
+- Moved why-comments in Jini still name Tovu-only paths and symbols; where guard `N1-consumer-identity` refused the product name, only those lines were reworded (P2a 5 lines, P2b, P2c, P3 lines listed in their rows). This departs from "byte-exact" comments as the guard requires.
+- P2a prefixed 5 clashing Jini type names with `Plugin`; Tovu re-exports the old names.
+- In the packed consumer, the neutral-host support folder will also need agent-plugins' optional peers (`semver`, `@jini-ai/platform`).
+- Baseline reds outside scope: Jini `plugin-release-consistency`; Tovu `no-vendor-in-core.boundary` › "real core tree has only reviewed pattern exceptions"; Tovu `vendor-neutrality` › "no generic seam file names the first provider".
+
