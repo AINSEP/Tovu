@@ -8,7 +8,9 @@ Session 1 only: P0, P1a, P1b, P2a, P2b, P2c, P3, P-C1. Start: 2026-11-07 17:02:1
 | Point | Tovu | Jini |
 |---|---|---|
 | Last integrated combine SHA | `b45d2ee75` | `32e9c9c21` |
-| Behavior baseline | (end of P0) | (end of P0) |
+| Behavior baseline | `efabd36b72fc1e1b667ebb3062e90f4f0a360e52` | `df9e0c83adc290612e1f0faf6f05a3d908dcda1c` |
+
+`tool-metadata.baseline.json` sha256 at baseline: `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`.
 
 P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 files (merge `91e347f9c`); Jini 5 commits, 19 files (merge `8e9065e6d`; the plan measured 3 commits, 8 files before Jini moved).
 
@@ -16,6 +18,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 
 | Batch | Tovu SHA | Jini SHA | Gate | Final context |
 |---|---|---|---|---|
+| P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | ~60k |
 
 ## Progress (every 30 min)
 
