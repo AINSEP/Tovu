@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
 import { leaveSavedKeysOut } from "#src/features/site-backup/saved-keys";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import type { SiteImportBackend, SiteImportSource, SiteImportView } from "#src/features/site-backup/import-backend";
@@ -11,6 +12,7 @@ import { composeSiteImportBackend } from "#src/server/runtime/composition/site-i
 const LOCAL_PRINCIPAL = "local-operator";
 const LOCAL_WORKSPACE = "local";
 
+const IMPORT_BUSY = "Another import is still running. Wait for it to finish, then try again. No website was created.";
 const NOT_A_ZIP = "That file is not a usable .tovu.zip. It is damaged, cut short, or not a zip file. No website was created.";
 
 export interface ImportLocalResult { dir: string; name: string; siteId: string; warnings: readonly string[] }
@@ -162,6 +164,8 @@ async function inPlainWords<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); }
   catch (error) {
     if (error instanceof SiteShareRefusal) throw new ValidationError(error.message);
+    // A second app window importing at the same time waits on the first one's lock, then gives up.
+    if (error instanceof FileLockTimeoutError) throw new ValidationError(IMPORT_BUSY);
     // The zip reader's own sentence for a file that is not a zip; the person gets words they can act on.
     if (error instanceof Error && /end of central directory|not a zip file/i.test(error.message)) throw new ValidationError(NOT_A_ZIP);
     throw error;

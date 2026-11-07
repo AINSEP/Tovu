@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
+import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
 import { importFixture, OWNER_PASSWORD } from "../../../features/site-backup/__tests__/import.fixture.js";
 import { leaveSavedKeysOut } from "../../../features/site-backup/saved-keys.js";
 import type { SiteImportBackend } from "../../../features/site-backup/import-backend.js";
@@ -54,6 +55,16 @@ test("a damaged archive makes no site, keeps no staged copy, and says so", async
   assert.deepEqual(h.workspace.registry({}).list({}), []);
   assert.deepEqual(fs.readdirSync(path.join(h.root, "sites")).filter(name => !name.startsWith(".")), []);
   assert.deepEqual(stagedLeftovers(h.root), []);
+});
+
+test("a second import waiting on the first says so in plain words", async t => {
+  const h = await importFixture(t);
+  const file = path.join(h.root, "ok.tovu.zip");
+  fs.writeFileSync(file, h.archive);
+  const busy = async (): Promise<never> => { throw new FileLockTimeoutError({ lockPath: "/private/lock", holder: undefined, waitedMs: 15_000 }); };
+  const backend = { upload: busy, importBackup: busy } as unknown as SiteImportBackend;
+  await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, backend, readRequest: async () => JSON.stringify({ file }), writeStdout: () => {} }),
+    { name: "ValidationError", message: "Another import is still running. Wait for it to finish, then try again. No website was created." });
 });
 
 test("a tampered archive is refused in the importer's own words", async t => {
