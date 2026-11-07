@@ -780,7 +780,7 @@ function recordCreatedSite(
   const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
   const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
-  if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.");
+  if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Import to add the folder again.");
   return buildSiteRecord({ ...tracked, displayNameAlias }, deps);
 }
 
