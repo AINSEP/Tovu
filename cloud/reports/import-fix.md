@@ -586,3 +586,16 @@ All change costs are stated per item above. Server sweep adds one temp listing p
 Verification finished 2026-11-07 21:38:05 UTC: 28 minutes 51 seconds after the follow-up start. Report delivery is approximately 30 minutes total, within the one-hour cap.
 
 IMPORT-FIX-2 DONE
+
+
+## Re-check fixes
+
+Started 2026-11-07 14:39:37 PST (22:39:37 UTC); 30-minute cap 15:09:37 PST. Same `cloud/import-fix` branches. This section supersedes the prior review's history trigger, digest scope and download budget.
+
+### 1 — done
+
+Startup recognizes stages, uploads and database temp folders, without treating saved JSON history as a leftover. A registry containing only history starts no tidy child. Old finished records are scrubbed only when tidy runs for another reason or history is opened.
+
+From `apps/desktop`: `node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=2 --test-name-pattern='saved history alone' src/site-archive-import.test.ts`. Red 0/1; mutation recognizing one history filename 0/1; restored leftover-only condition and the whole changed file green 26/26. `../../node_modules/.bin/tsc -p /workspace/work/tsconfig-item6-desktop-source.json --noEmit`: exit 0 (config described above). The test closes its fake child even on assertion failure.
+
+Cost: existing directory listings only, O(directory-entry names) memory; zero tidy child launches when only saved history exists. No new I/O or recurring task.

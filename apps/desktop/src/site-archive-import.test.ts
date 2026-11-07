@@ -208,11 +208,11 @@ test("a grandchild that holds stdout open cannot keep the import pending after t
 
 for (const [name, files, spawns] of [
   ["a clean launch starts no child", ["readme.txt"], 0],
-  ["saved history starts one tidy request", ["0.json", "readme.txt"], 1],
+  ["saved history alone starts no child", ["0.json"], 0],
   ["a missing folder starts no child", null, 0],
   ["a leftover stage starts one tidy request", ["0.stage"], 1],
   ["a leftover upload starts one tidy request", ["0.upload.zip", "1.upload.zip"], 1],
-] as const) test(`startup tidy: ${name}`, async () => {
+] as const) test(`startup tidy: ${name}`, async t => {
   const fake = fakeChild();
   const spawned: string[][] = [];
   const done = tidyInterruptedImports({ appData: "/profile", repoRoot: REPO_ROOT, cliMode: "source" }, {
@@ -220,6 +220,7 @@ for (const [name, files, spawns] of [
     spawnFn: (_command, args) => { spawned.push(args); return fake.child as never; },
     baseEnv: { PATH: "/usr/bin" },
   });
+  t.after(async () => { fake.child.exit(0); await done; });
   await tick(1);
   assert.equal(spawned.length, spawns);
   if (spawns) {
