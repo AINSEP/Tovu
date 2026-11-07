@@ -1,0 +1,9 @@
+## final tsc --noEmit at 39cf677f
+core exit=0
+ui exit=0
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 3 passed (4)
+      Tests  5 failed | 71 passed (76)
+## the 5 failures: all in sign-in-card.unit.test.ts, "TypeError: AbortSignal.any is not a function" under the ui
+## package's jsdom test environment. sign-in-card.ts, its test and ui vitest config are unchanged since 0609ee49
+## (git diff empty), so pre-existing, not V2. cards.unit 1/1, integration-exports 1/1, secret-card.unit all pass.

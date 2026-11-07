@@ -1,0 +1,29 @@
+## green: core + ui tsc --noEmit at 0609ee49 + V2 working tree
+core exit=0
+ui exit=0
+## RED M1 port: SurfaceCardSecretForm.submitLabel optional (ui requires it)
+ui exit=1
+src/features/mcp-ui/cards.ts(10,3): error TS2322: Type '<Prep, Saved, Result>(required: SecretCardSpec<Prep, Saved, Result>, options?: SecretCardOptions) => SecretCardTool<Prep, Result>' is not assignable to type '<Prep, Saved, Result>(required: SurfaceCardSec
+src/features/mcp-ui/cards.ts(10,60): error TS2322: Type '(spec: FormSurfaceSpec & { uri: `ui://${string}`; preferredFrameSize?: readonly [string, string]; }) => UIResource' is not assignable to type '(spec: SurfaceCardFormSpec) => UIResource'.
+## RED M2 port: extra field kind 'tags' the ui cannot render
+ui exit=1
+src/features/mcp-ui/cards.ts(10,3): error TS2322: Type '<Prep, Saved, Result>(required: SecretCardSpec<Prep, Saved, Result>, options?: SecretCardOptions) => SecretCardTool<Prep, Result>' is not assignable to type '<Prep, Saved, Result>(required: SurfaceCardSec
+src/features/mcp-ui/cards.ts(10,60): error TS2322: Type '(spec: FormSurfaceSpec & { uri: `ui://${string}`; preferredFrameSize?: readonly [string, string]; }) => UIResource' is not assignable to type '(spec: SurfaceCardFormSpec) => UIResource'.
+## RED M3 port: waitAtSignInCard generic loses 'extends { status: string }'
+ui exit=1
+src/features/mcp-ui/cards.ts(10,42): error TS2322: Type '<Result extends { status: string; }>(required: { surfaceExchanges: Pick<SurfaceExchangeStore, "open">; ctx: ToolExecutionContext; toolId: string; card: (state: SignInCardState) => UIResource; missingEmit
+1
+## RED M4 ui builder: SignInCardSpec gains required 'region' (port callers do not pass it)
+ui exit=1
+src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts(6,7): error TS2741: Property 'region' is missing in type '{ uri: "ui://neutral/account"; toolId: string; app: { appName: string; appVersion: string; }; waiting: { title: string; description: string; messa
+src/features/mcp-ui/cards.ts(10,25): error TS2322: Type '(required: SignInCardSpec & SignInCardState, _optional?: {}) => UIResource' is not assignable to type '(required: SurfaceCardSignInSpec & SurfaceCardSignInState, optional?: Record<string, never> | undefi
+## RED M5 ui builder: waitAtSignInCard narrows Result constraint
+ui exit=1
+src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts(53,60): error TS2322: Type '({ signal, showSignIn }: { signal: AbortSignal; showSignIn: (input: { signInUrl: string; }) => Promise<void>; }) => Promise<{ status: "waiting"; }>' is not assignable to type '
+src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts(63,35): error TS2345: Argument of type '{ connect: ({ showSignIn }: { signal: AbortSignal; showSignIn: (input: { signInUrl: string; }) => Promise<void>; }) => Promise<{ status: "connected"; }>; surfaceExc
+src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts(68,52): error TS2322: Type '({ showSignIn }: { signal: AbortSignal; showSignIn: (input: { signInUrl: string; }) => Promise<void>; }) => Promise<{ status: "timeout"; }>' is not assignable to type '(input: 
+src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts(73,35): error TS2345: Argument of type '{ connect: ({ showSignIn }: { signal: AbortSignal; showSignIn: (input: { signInUrl: string; }) => Promise<void>; }) => Promise<{ status: "connected"; }>; surfaceExc
+M5 pin line (from same run): src/features/mcp-ui/cards.ts(10,42): error TS2322: Type '<Result extends { status: "connected"; }>(required: { surfaceExchanges: Pick<SurfaceExchangeStore, "open">; ctx: ToolExecutionContext; toolId: string; card: (state: SignInCardState) => UIResource; missin
+## restored
+port and ui builder byte-identical to pre-mutation
+ui exit=0

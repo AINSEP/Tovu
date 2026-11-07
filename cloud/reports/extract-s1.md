@@ -124,3 +124,33 @@ Reviewer: separate agent, read-only. Reviewed `git diff 0609ee49^1 0609ee49` (Ji
 - Related latent item: `plugin-host.ts:67` (the test-only `readAgentManifest` option) also reads agent manifests with `namespace: 'tovu'` only, so any host that supplies that option would see `unknown/…` for Jini-published plugins. Fixing the test is a later batch's call: a Tovu test edit is involved, and the cause is outside V1.
 
 **Recommended for this session's follow-up fix agent:** R1 only. It is the one should-fix, and it is in scope because V1 introduced these public contracts. There are no blockers. R2-R7 are listed and not for fixing this session.
+
+## V2
+
+Cards contract and drift pin, Jini only. Raw output: `cloud/reports/raw/extract-s1/V2-*.txt`.
+
+**Result: TRIPWIRE HELD.** `satisfies` holds over the generics with no builder signature changed, no `any`, no cast, no `core → ui` import.
+
+**Commits (Jini, `cloud/extract`)**
+- `bf3fbf58` feat(core,ui): `packages/core/src/surface-cards.ts` (types only), `export type *` in core's root barrel (the established pattern: `surface-exchanges.js` sits there too, no subpath), `packages/ui/src/features/mcp-ui/cards.ts`, new subpath `@jini-ai/ui/mcp-ui/cards` (`jini.entries` `universal`, same as `secret-card`/`sign-in-card`), `integration-exports.test.ts` universal list updated.
+- `39cf677f` docs: root `README.md` `@agent-note` section (the §3 sentence verbatim), changesets `surface-cards-port.md` (core) and `mcp-ui-cards-entry.md` (ui), `cards.unit.test.ts`.
+- No lockfile change. No Tovu code change.
+
+**Design point to review: the resource is a type parameter.** The port is `SurfaceCardsPort<Resource = unknown>` and the pin is `satisfies SurfaceCardsPort<UIResource>`. Reason: `waitAtSignInCard` takes `card: (state) => UIResource`, a resource in a parameter position, so under strict variance a fixed opaque core type would have to be assignable to `UIResource`, which an opaque type cannot be. A type parameter keeps it opaque to callers and exact for the pin. Consequence for later batches: a consumer that calls `waitAtSignInCard` is generic in `Resource`; one that only builds can take `Omit<SurfaceCardsPort, 'waitAtSignInCard'>` (proved assignable from packed types). Members are property-typed, not method-typed, so parameters are checked contravariantly (method syntax would be bivariant and miss an added required input).
+
+**Tripwire evidence (`V2-tripwire.txt`)**: green (core and ui `tsc --noEmit` exit 0), then five independent mutations, each restored from a byte copy before the next, each red at the pin `cards.ts(10,…)` with TS2322:
+- M1 port `submitLabel` optional; M2 port extra field kind `tags`; M3 port drops `Result extends { status: string }`;
+- M4 ui `SignInCardSpec` gains required `region`; M5 ui `waitAtSignInCard` narrows its `Result` constraint.
+- After restore: files byte-identical (`diff` + `git diff --quiet`), ui `tsc` exit 0.
+
+**Packed `.d.ts` (`V2-pack.txt`)**: no `removeComments` in `tsconfig.base.json` or any `packages/*/tsconfig*.json`. Packed `@jini-ai/core` `dist/surface-cards.d.ts` keeps all four `@agent-note` comments; packed root `index.d.ts` has `export type * from './surface-cards.js'`; packed ui has `./mcp-ui/cards`, no `workspace:` specifiers. Plain `node` import in a throwaway consumer: `mcpUiCards` has the five functions, `buildOutcomeSurface` returns a `resource`. Consumer strict `nodenext` `tsc` assigning `mcpUiCards` to `SurfaceCardsPort<UIResource>` and to the `Omit<…, 'waitAtSignInCard'>` form: exit 0. Throwaway dirs deleted.
+
+**Guard (`V2-final-*.txt`)**: `@agent-note` accepted, no `scripts/check-*` rejects it (none mentions the tag). `pnpm guard`: `R2-deep-path` (1), `R10-chatpane-public-surface` (1), plus the informational `R13-model-fallback-freshness` lines (6, same as V0 and V1 raw); HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, all 0 new. Output identical to `V1-final-guard.txt` apart from timings. Layers: 0. Isolation: 0 failing; audit `SI-c` 9, `SI-d` 7. `guard:plugins`: clean. Equal to the V0/V1 record by name.
+
+**Tests (`V2-final-tsc-tests.txt`)**: core and ui `tsc --noEmit` pass at `39cf677f`. `cards.unit` 1/1, `integration-exports` 1/1, `secret-card.unit` pass.
+
+**Errors by name, not V2's**
+- `sign-in-card.unit.test.ts`, 5 failing: `TypeError: AbortSignal.any is not a function` under ui's `jsdom` test environment. Source, test and vitest config unchanged since `0609ee49`; pre-existing. Not fixed (out of scope).
+- Consumer `tsc` with `skipLibCheck: false`: `TS2307` in packed `@jini-ai/agentic` `dist/core/gen-ui/encoder.d.ts`, `@jini-ai/protocol` not installed with ui's tarball. Packaging observation for the packed-proof batch; not V2.
+
+**Not done (by design):** no consumer wired to the port (connect, credentials, CMS are later batches). No Tovu change.

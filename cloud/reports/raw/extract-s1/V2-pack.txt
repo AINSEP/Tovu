@@ -1,0 +1,56 @@
+## build core, ui
+core-built
+npm warn Unknown env config "disallow-workspace-cycles". This will stop working in the next major version of npm.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm.
+npm warn Unknown env config "link-workspace-packages". This will stop working in the next major version of npm.
+npm warn Unknown env config "recursive". This will stop working in the next major version of npm.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.
+≈ tailwindcss v4.3.3
+
+Done in 86ms
+ui-built
+## removeComments grep (tsconfig.base.json, packages/*/tsconfig*.json)
+none
+## pack
+/root/jini-tgz-v2/jini-ai-core-0.6.23.tgz
+/root/jini-tgz-v2/jini-ai-ui-0.6.23.tgz
+jini-ai-core-0.6.23.tgz
+jini-ai-ui-0.6.23.tgz
+## @agent-note in packed core dist/surface-cards.d.ts
+127: * @agent-note `save` receives the exact submitted bytes and must keep them in the host's sealed
+166:/** @agent-note Both members come from the daemon the tool runs in: `surfaceExchanges` is the same
+205:/** @agent-note `card` must render every state under one URI: the last emission replaces the
+223: * @agent-note Fulfilled by `mcpUiCards` from `@jini-ai/ui/mcp-ui/cards`, which the UI package pins
+## packed core dist/index.d.ts re-export
+16:export type * from './surface-cards.js';
+## packed ui cards.d.ts
+import { defineSecretCardTool } from './secret-card.js';
+import { buildSignInCard, waitAtSignInCard } from './sign-in-card.js';
+import { buildFormSurface } from './surfaces/form.js';
+import { buildOutcomeSurface } from './surfaces/outcome.js';
+export declare const mcpUiCards: {
+    defineSecretCardTool: typeof defineSecretCardTool;
+    buildSignInCard: typeof buildSignInCard;
+    waitAtSignInCard: typeof waitAtSignInCard;
+    buildFormSurface: typeof buildFormSurface;
+    buildOutcomeSurface: typeof buildOutcomeSurface;
+};
+//# sourceMappingURL=cards.d.ts.map## packed ui exports ./mcp-ui/cards
+{"types":"./dist/features/mcp-ui/cards.d.ts","import":"./dist/features/mcp-ui/cards.js","default":"./dist/features/mcp-ui/cards.js"} universal
+jini-ai-core-0.6.23/package.json:0
+jini-ai-ui-0.6.23/package.json:0
+## consumer install
+
+added 46 packages in 5s
+## plain node import
+core keys 145 SurfaceCardsPort is type-only: true
+mcpUiCards defineSecretCardTool:function, buildSignInCard:function, waitAtSignInCard:function, buildFormSurface:function, buildOutcomeSurface:function
+resource.type resource uri ui://neutral/x
+node exit=0
+## consumer strict nodenext tsc over packed types (assign mcpUiCards to SurfaceCardsPort<UIResource> and to Omit<SurfaceCardsPort,'waitAtSignInCard'>)
+node_modules/@jini-ai/agentic/dist/core/gen-ui/encoder.d.ts(19,39): error TS2307: Cannot find module '@jini-ai/protocol' or its corresponding type declarations.
+tsc exit=2
+## same with skipLibCheck true (the skipLibCheck=false red above is in @jini-ai/agentic's packed gen-ui/encoder.d.ts: optional @jini-ai/protocol not installed; unrelated to V2)
+tsc exit=0
+## throwaway dirs deleted
