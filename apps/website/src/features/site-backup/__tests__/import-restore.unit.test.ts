@@ -396,3 +396,27 @@ test("restorable menus and disabled forms retain off states and individual notic
     assert.equal(JSON.parse((db.prepare("SELECT doc_json FROM menus WHERE id='trash'").get() as { doc_json: string }).doc_json).mode, "items");
   } finally { db.close(); }
 });
+
+test("unreadable menu and form rows do not stop other imported content", async t => {
+  const stored = ["{", "null", "[]", '"text"', '{"mode":"html","html":{}}'];
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const [index, json] of stored.entries()) {
+        db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(String(index), String(index), json);
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(String(index), String(index), json);
+      }
+      const json = JSON.stringify({ mode: "html", html: '<button onclick="example()">Choose</button>' });
+      db.prepare("INSERT INTO menus VALUES ('valid', 'Valid', ?, 'published')").run(json);
+      db.prepare("INSERT INTO form_definitions VALUES ('valid', 'Valid', ?, 'active')").run(json);
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    for (const [index, json] of stored.entries()) {
+      assert.equal((db.prepare("SELECT doc_json FROM menus WHERE id=?").get(String(index)) as { doc_json: string }).doc_json, json);
+      assert.equal((db.prepare("SELECT fields_json FROM form_definitions WHERE id=?").get(String(index)) as { fields_json: string }).fields_json, json);
+    }
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 2);
+  } finally { db.close(); }
+});

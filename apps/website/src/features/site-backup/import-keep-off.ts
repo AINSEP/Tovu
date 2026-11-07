@@ -132,8 +132,9 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
     const menuNotices: string[] = [];
     const menus = await db.run(query => query.selectFrom("menus").select(["id", "title", "doc_json"]).execute());
     for (const menu of menus) {
-      const doc = JSON.parse(menu.doc_json);
-      if (doc.mode !== "html" || !pageBodyMayRunScript({ html: doc.html ?? "" })) continue;
+      let doc: { mode?: unknown; html?: unknown } | null;
+      try { doc = JSON.parse(menu.doc_json); } catch { continue; }
+      if (!doc || doc.mode !== "html" || typeof doc.html !== "string" || !pageBodyMayRunScript({ html: doc.html })) continue;
       // Draft menus still resolve at markers; items mode keeps the original HTML without serving it.
       await db.run(query => query.updateTable("menus").set({ doc_json: JSON.stringify({ ...doc, mode: "items" }) }).where("id", "=", menu.id).execute());
       menuNotices.push(`Menu '${String(menu.title).slice(0, MAX_NOTICE_TITLE)}' (ID ${menu.id}) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`);
@@ -144,8 +145,9 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
     const formNotices: string[] = [];
     const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).execute());
     for (const form of forms) {
-      const fields = JSON.parse(form.fields_json);
-      if (fields.mode !== "html" || !formBodyMayRunScript({ html: fields.html ?? "" })) continue;
+      let fields: { mode?: unknown; html?: unknown } | null;
+      try { fields = JSON.parse(form.fields_json); } catch { continue; }
+      if (!fields || fields.mode !== "html" || typeof fields.html !== "string" || !formBodyMayRunScript({ html: fields.html })) continue;
       // Disabled forms do not resolve at markers; keep the authored envelope byte-for-byte.
       await db.run(query => query.updateTable("form_definitions").set({ status: "disabled" }).where("id", "=", form.id).execute());
       formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' (ID ${form.id}) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);

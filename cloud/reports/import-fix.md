@@ -397,3 +397,9 @@ All imported menus, including trash, have their HTML checked. Restoring a menu l
 New URL imports retain a SHA-256 `sourceDigest` of the canonical link without its query. Request replay compares that digest when present; old records without it keep the approved origin fallback. Paths are not retained in finished history. Query-only changes replay; a corrected path with the same ID/origin gives `REQUEST_CONFLICT` without another download.
 
 `import-backend.unit.test.ts`, pattern `distinguishes corrected`: red 0/1; mutation saving the digest but still comparing origins 0/1; replay regression group green 4/4. Website production no-emit exits 0. Cost: one SHA-256 pass over at most the accepted URL length at creation/replay, 64 hexadecimal characters per new URL record, no new I/O pass.
+
+### 5 — done
+
+Each menu/form JSON parse is guarded independently. Null and non-string HTML shapes are skipped without changing the stored row; other valid rows still get checked and notices. No shared parser layer was added.
+
+`import-restore.unit.test.ts`, pattern `unreadable menu and form`: red 0/1 (`SyntaxError`); menu-only guard mutation 0/1 on the form parse; whole file green 47/47. Focused source no-emit exits 0. Cost: one existing JSON parse per selected row, with per-row exception/shape handling; no additional I/O or stored fields.
