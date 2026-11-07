@@ -378,3 +378,21 @@ test("import keeps starter radio and URL form markup active while authored behav
     assert.equal(stagedImportWarnings({ root: h.root }).length, 2);
   } finally { db.close(); }
 });
+
+test("restorable menus and disabled forms retain off states and individual notices", async t => {
+  const html = '<button onclick="example()">Choose</button>';
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const status of ["published", "draft", "trash"]) db.prepare("INSERT INTO menus VALUES (?, ?, ?, ?)").run(status, status, JSON.stringify({ mode: "html", html, items: [] }), status);
+      for (const status of ["active", "disabled"]) db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, ?)").run(status, status, JSON.stringify({ mode: "html", html, fields: [] }), status);
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    for (const row of db.prepare("SELECT doc_json FROM menus").all() as { doc_json: string }[]) assert.deepEqual(JSON.parse(row.doc_json), { mode: "items", html, items: [] });
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 5);
+    db.prepare("UPDATE menus SET status='published' WHERE id='trash'").run();
+    assert.equal(JSON.parse((db.prepare("SELECT doc_json FROM menus WHERE id='trash'").get() as { doc_json: string }).doc_json).mode, "items");
+  } finally { db.close(); }
+});

@@ -385,3 +385,9 @@ Jini changed file command from `packages/platform`: `../../node_modules/.bin/vit
 Measured with `node --expose-gc --max-old-space-size=128 /workspace/work/review/memory.mjs`: 300 MiB of separately allocated non-ASCII chunks through the real guarded client/native transport effect seam. Peak RSS approximately 637 MiB; sampled peak heap under 8 MiB; text length zero. RSS uses the process high-water reading; heap is sampled, not an exact high-water instrument. Calculated buffer peak is two payload-sized byte allocations at concat, with no payload-sized V8 string or re-encoding buffer. The Tovu Buffer identity test proves its copy is removed.
 
 Cost: one download × at most 300 MiB network data; roughly two payload-sized external byte buffers transiently at concat, then one result buffer. No payload-sized text allocation or additional disk I/O. Jini commit `d469108bd`.
+
+### 3 — done
+
+All imported menus, including trash, have their HTML checked. Restoring a menu leaves its HTML mode off. Forms are checked in every status too: disabled/restorable forms retain HTML but receive the same individual notice before someone can enable them. The prior active-only filter gave no notice for those forms.
+
+`import-restore.unit.test.ts`, pattern `restorable menus`: red 0/1; menu-only mutation still 0/1 because the disabled form's notice was missing; full file green 46/46. Focused source no-emit exits 0. Cost: the same once-per-import table reads now include non-live rows; one status/mode update and bounded notice per applicable item.

@@ -130,7 +130,7 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
     const setAside = required.setAside ? [`The imported file's copy of '${required.fallback}' differs from this site's own, so the site kept its own and the imported copy was set aside.`] : [];
     const notices = [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
     const menuNotices: string[] = [];
-    const menus = await db.run(query => query.selectFrom("menus").select(["id", "title", "doc_json"]).where("status", "!=", "trash").execute());
+    const menus = await db.run(query => query.selectFrom("menus").select(["id", "title", "doc_json"]).execute());
     for (const menu of menus) {
       const doc = JSON.parse(menu.doc_json);
       if (doc.mode !== "html" || !pageBodyMayRunScript({ html: doc.html ?? "" })) continue;
@@ -142,7 +142,7 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
     notices.push(...menuNotices.slice(0, MAX_PAGE_NOTICES));
     if (moreMenus > 0) notices.push(`${moreMenus} more menus hold their own code and their HTML was kept switched off.`);
     const formNotices: string[] = [];
-    const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).where("status", "=", "active").execute());
+    const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).execute());
     for (const form of forms) {
       const fields = JSON.parse(form.fields_json);
       if (fields.mode !== "html" || !formBodyMayRunScript({ html: fields.html ?? "" })) continue;
