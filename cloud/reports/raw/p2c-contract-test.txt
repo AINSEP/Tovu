@@ -1,0 +1,3 @@
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > connections: google-workspace parses through a public Jini export, and its modules pass that kind's contract
+      Tests  22 passed | 6 todo (28)
+todo kinds: consent (3 files), login-providers, form-destinations: @jini-ai/server cannot resolve @jini-ai/user-management/server or @jini-ai/cookie-consent/plugins (ERR_MODULE_NOT_FOUND from packages/server); adding the dev dependencies needs a lockfile edit

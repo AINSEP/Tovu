@@ -54,6 +54,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 
 - **P2a:** no product bug found.
 - **P2b:** no product bug found.
+- **P2c:** no product bug found.
 
 ## Errors by name
 
@@ -86,6 +87,15 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   Jini `tsc` TS2322 (`exactOptionalPropertyTypes`) on the moved object-store `descriptorMetadata` cast; fixed type-only
   (`NonNullable<...>`), no runtime change. Contract check for `form-destinations` blocked: `@jini-ai/cms` is not a
   dependency of `@jini-ai/server` (module not resolvable); adding it needs a lockfile edit. Left `.todo`.
+
+- **P2c:** `pnpm guard` shows only the two baseline violations (`R2-deep-path`, `R10-chatpane-public-surface`).
+  Tovu `tsc` TS2322 on the budget limiter port (`RateLimitResult` is a union; the port said `allowed: boolean`
+  plus `retryAfterSeconds`); fixed in Jini by typing the port as the same union, no runtime change.
+  Contract checks for `login-providers` and `consent` blocked the same way as `form-destinations`:
+  `@jini-ai/server` cannot resolve `@jini-ai/user-management/server` or `@jini-ai/cookie-consent/plugins`
+  (`ERR_MODULE_NOT_FOUND`); adding them needs a lockfile edit. Left `.todo`; parsers did move.
+  Baseline red seen: Tovu `vendor-neutrality.test.ts` › "no generic seam file names the first provider" (hits in
+  files P2c did not touch; those files and the test have no diff since `efabd36b7`).
 
 ## Coordinator decisions
 

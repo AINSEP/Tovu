@@ -1,0 +1,6 @@
+files (all unedited): member-login providers, consent region-plugins.unit, api-connections api-connection-budgets, contribution.fault.unit, contribution.unit, vendor-neutrality; assistant moved-tools.golden
+ℹ tests 70
+ℹ pass 69
+ℹ fail 1
+✔ moved tools, cards, approvals and counters match the golden recorded before any move (426.854058ms)
+the 1 fail: vendor-neutrality › no generic seam file names the first provider; hits are in portable-host-guidance.unit.test.ts:15,17,23,31, bundled-catalog.ts:43,44, shared-owner.ts:81; none touched by P2c, git diff efabd36b7 on those files and the test is empty (baseline red)
