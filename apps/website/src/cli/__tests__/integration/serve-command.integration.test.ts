@@ -674,7 +674,13 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
   db.close();
   const port = await getFreePort();
   const collector = await startFakeOtlpCollector();
-  const childEnv = { TOVU_ADMIN_USER: "admin", TOVU_ADMIN_PASSWORD: "tovu-dev", TOVU_PLUGIN_LOCAL_INSTALL: "1" };
+  // Checkout/test launches intentionally keep telemetry local. This collector-only integration
+  // explicitly opts into the existing diagnostic override; provider installation is still required.
+  const childEnv = {
+    TOVU_ADMIN_USER: "admin", TOVU_ADMIN_PASSWORD: "tovu-dev", TOVU_PLUGIN_LOCAL_INSTALL: "1", TOVU_TELEMETRY_FORCE_ENABLE: "1",
+    // Do not activate a developer's separate product telemetry destinations with this override.
+    TOVU_PRODUCT_TELEMETRY_CONFIG: undefined, TOVU_PRODUCT_TELEMETRY_PREFS: undefined,
+  };
   let child = spawnServe([dir, "--port", String(port)], childEnv);
   try {
     await waitForHttpReady(port, child);

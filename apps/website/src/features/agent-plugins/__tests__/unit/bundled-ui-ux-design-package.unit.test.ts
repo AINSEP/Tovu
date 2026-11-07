@@ -34,7 +34,7 @@ test("bundled ui-ux-design has a valid manifest and is on the seeded-enabled lis
   const parsed = parseAgentPluginManifest({ value: JSON.parse(await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8")) });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, PLUGIN_ID);
-  assert.equal(parsed.ok && parsed.manifest.version, "0.6.1");
+  assert.equal(parsed.ok && parsed.manifest.version, "0.6.2");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(PLUGIN_ID), true);
 });
@@ -59,7 +59,7 @@ for (const initial of ["new site", "untouched disabled seed", "operator disabled
     assert.ok(outcome && outcome.status === "seeded");
     assert.equal(seeded.ledgerFailure, undefined);
     const installed = (await lifecycle.listInstalledPlugins(workspaceRoot)).filter((plugin) => plugin.pluginId === PLUGIN_ID);
-    assert.deepEqual(installed.map((plugin) => plugin.version), ["0.6.1"]);
+    assert.deepEqual(installed.map((plugin) => plugin.version), ["0.6.2"]);
     const enabled = initial !== "operator disabled";
     const record = (await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID];
     assert.equal(record?.enabled, enabled);

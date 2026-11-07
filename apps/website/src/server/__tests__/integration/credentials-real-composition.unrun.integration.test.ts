@@ -29,6 +29,17 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
 
 const SITE_KEY_HEX = "a1".repeat(32);
 const SITE_KEY_VARS = ["TOVU_SITE_KEY"] as const;
+const NAMED_PROVIDER_ID = "fixture-git";
+
+/** Named source-control vault CRUD remains generic. GitHub itself now uses its shared API-key
+ * binding, so reuse its actual provider operations under a non-canonical fixture declaration. */
+async function namedProviderFromSource(workspaceId: string) {
+  const registry = await githubFromSource(workspaceId);
+  const source = registry.get("github");
+  assert.ok(source, "the real bundled provider module must load for this fixture");
+  const provider = { ...source, descriptor: { ...source.descriptor, id: NAMED_PROVIDER_ID } };
+  return { ...registry, list: () => [provider], get: (id: string) => id === NAMED_PROVIDER_ID ? provider : undefined };
+}
 
 function useSiteKey(t: TestContext): void {
   const saved = SITE_KEY_VARS.map((name) => [name, process.env[name]] as const);
@@ -109,32 +120,34 @@ for (const dialect of SITE_DIALECTS) {
   test(`[unrun] source-control credentials [${dialect}]: create → rename keeps the sealed token → a duplicate label is 409 → delete`, async (t) => {
     useSiteKey(t);
     // 4d8a35a03 moved providers to plugins; load the real bundled module at its existing port.
-    const site = await bootSite(t, dialect, { configureDeps: (deps) => { deps.loadSourceControlProviders = githubFromSource; } });
-    captureProviderCalls(t, site);
+    // This case targets named vault entries, rather than GitHub's canonical shared-key owner.
+    const site = await bootSite(t, dialect, { configureDeps: (deps) => { deps.loadSourceControlProviders = namedProviderFromSource; } });
+    const calls = captureProviderCalls(t, site);
     const base = `${site.ws}/system/source-control/credentials`;
-    const resolveGithub = () =>
+    const resolveNamedProvider = () =>
       resolveDefaultForSourceControl(
         { repo: site.deps.sourceControlCredentialSetRepo, sealer: site.deps.siteAssistantSecretSealer },
-        { workspaceId: site.deps.workspaceId, providerId: "github" }
+        { workspaceId: site.deps.workspaceId, providerId: NAMED_PROVIDER_ID }
       );
 
     const created = await expectJson<{ credential: Record<string, unknown> & { id: string } }>(
-      await send(site, "POST", base, { scope: "site", label: "default", connection: { providerId: "github", token: "ghp_unrun_secret" } }),
+      await send(site, "POST", base, { scope: "site", label: "default", connection: { providerId: NAMED_PROVIDER_ID, token: "ghp_unrun_secret" } }),
       201
     );
     assert.deepEqual(
       { providerId: created.credential.providerId, label: created.credential.label, isDefault: created.credential.isDefault, configured: created.credential.configured },
-      { providerId: "github", label: "default", isDefault: true, configured: true }
+      { providerId: NAMED_PROVIDER_ID, label: "default", isDefault: true, configured: true }
     );
     assert.equal(JSON.stringify(created).includes("ghp_unrun_secret"), false);
-    assert.deepEqual((await resolveGithub())?.connection, { providerId: "github", token: "ghp_unrun_secret" });
+    assert.deepEqual(calls, [{ url: "https://api.github.com/user", authorization: "Bearer ghp_unrun_secret" }], "the real module probes only through the captured HTTP edge");
+    assert.deepEqual((await resolveNamedProvider())?.connection, { providerId: NAMED_PROVIDER_ID, token: "ghp_unrun_secret" });
 
     const renamed = await expectJson<{ credential: { id: string; label: string } }>(await send(site, "PUT", `${base}/${created.credential.id}`, { label: "renamed" }), 200);
     assert.deepEqual(renamed.credential.label, "renamed");
-    assert.deepEqual((await resolveGithub())?.connection, { providerId: "github", token: "ghp_unrun_secret" }, "a label-only PUT never touches the sealed token");
+    assert.deepEqual((await resolveNamedProvider())?.connection, { providerId: NAMED_PROVIDER_ID, token: "ghp_unrun_secret" }, "a label-only PUT never touches the sealed token");
 
-    await expectJson(await send(site, "POST", base, { scope: "site", label: "second", connection: { providerId: "github", token: "ghp_other" } }), 201);
-    const duplicate = await send(site, "POST", base, { scope: "site", label: "renamed", connection: { providerId: "github", token: "ghp_third" } });
+    await expectJson(await send(site, "POST", base, { scope: "site", label: "second", connection: { providerId: NAMED_PROVIDER_ID, token: "ghp_other" } }), 201);
+    const duplicate = await send(site, "POST", base, { scope: "site", label: "renamed", connection: { providerId: NAMED_PROVIDER_ID, token: "ghp_third" } });
     assert.equal(duplicate.status, 409, await duplicate.clone().text());
     assert.equal(((await duplicate.json()) as { error: string }).error, "DUPLICATE_LABEL");
 

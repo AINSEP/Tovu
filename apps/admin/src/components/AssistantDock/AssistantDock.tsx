@@ -330,7 +330,7 @@ export function AssistantDock({
   useRuntimeAccess: useRuntimeAccessOverride,
   onFolderDropCaptureReady,
   useExecutionPolicy,
-  useChatDisplayPreferences: useChatDisplayPreferencesOverride = useChatDisplayPreferences,
+  useChatDisplayPreferences: useChatDisplayPreferencesOverride,
   useChatAgentPlugins = useChatAgentPluginsPreference,
   useAssistantRuntimePreferences = useAssistantRuntimePreferencesPreference,
 }: AssistantDockProps) {
@@ -344,7 +344,7 @@ export function AssistantDock({
   const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
   const conversationDelete = useConfirmRequest({});
   // Gear menu: per-operator transcript display, applied to the pane at once.
-  const chatDisplay = useChatDisplayPreferencesOverride();
+  const chatDisplay = useDockDisplayPreferences(useChatDisplayPreferencesOverride);
   // Gear menu: per-person Agent plugins mode; Off hides the pane's "Using" chip at once.
   const agentPlugins = useChatAgentPlugins();
   // Gear menu: per-person runtime switches; the server reads them when it starts the next run.
@@ -655,4 +655,10 @@ export function AssistantDock({
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>
   );
+}
+
+/** Resolve the injectable preference owner with the same unconditional hook call as the dock. */
+function useDockDisplayPreferences(override: AssistantDockProps["useChatDisplayPreferences"]) {
+  const usePreferences = override ?? useChatDisplayPreferences;
+  return usePreferences();
 }

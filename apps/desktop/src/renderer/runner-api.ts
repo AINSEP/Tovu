@@ -5,6 +5,8 @@ import type {
   SiteFolders,
   CreateSiteInput,
   CreatedSiteRecord,
+  ImportArchiveInput,
+  ImportedSiteRecord,
   TokenSignInPlugin,
   OpenSiteSurfaceInput,
   RenameSiteInput,
@@ -71,6 +73,12 @@ export interface RunnerInventoryBridge {
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
   addSite: () => Promise<(SiteRecord & { alreadyTracked?: boolean }) | null>;
+  /** The same verb for a dropped folder. Optional for an older preload. */
+  addDroppedSite?: (input: { folder: string }) => Promise<(SiteRecord & { alreadyTracked?: boolean }) | null>;
+  /** .tovu.zip or share link to a new site; `null` when the dialog or the import was cancelled. Optional for an older preload. */
+  importSiteArchive?: (input: ImportArchiveInput) => Promise<ImportedSiteRecord | null>;
+  /** Stops a running archive import; its `importSiteArchive` call then resolves `null`. Optional for an older preload. */
+  cancelSiteImport?: () => Promise<void>;
   /** Read-only new-site destination, with the user home for display shortening. */
   planNewDir?: (input: { name: string }) => Promise<{ path: string; homeDir: string }>;
   createSite: (input: CreateSiteInput) => Promise<CreatedSiteRecord | null>;

@@ -55,6 +55,7 @@ export function toHeadlessPost(record: PostRecord): AdminPost {
 
 /**
  * Maps a post/page record into the narrower public content DTO shape.
+ * `bodyHtml` is trusted author HTML with unresolved embed markers; public renderers resolve them.
  * @throws PostNotFoundError for storage-only kinds such as email templates.
  */
 export function toHeadlessContentPost(record: PostRecord): ContentPost {

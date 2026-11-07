@@ -901,8 +901,13 @@ export async function finishStaticTierDocument(
       featuredImage,
       postAuthor,
     }) ?? "",
-    (await deps.documentAssets?.({ scripts: [], static: true }))?.head
+    (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
   );
+}
+
+/** Static pages and diagnostic templates share the theme's declared-script defaults. */
+function staticThemeScripts({ theme }: { theme: DiscoveredTheme }): readonly import('@jini-ai/cookie-consent').DeclaredScript[] {
+  return theme.manifest.scripts ?? [];
 }
 
 /**
@@ -1587,7 +1592,7 @@ export async function renderViaTemplate(
         htmlOverride: buildMissingTemplateHtml(theme.manifest.apiVersion),
         menus: staticMenus,
       }) ?? "",
-      (await deps.documentAssets?.({ scripts: [], static: true }))?.head
+      (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
     );
   }
   const { pageId, html: rawTemplate } = resolution;
@@ -2939,7 +2944,7 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
-  deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
+  deps = withListingBatch(deps, req);
   const [activeThemeId, siteAssistantEnabled] = await Promise.all([
     resolveRenderThemeId(res, deps),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),

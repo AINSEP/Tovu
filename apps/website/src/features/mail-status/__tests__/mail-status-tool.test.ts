@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
@@ -85,7 +86,8 @@ function controls(overrides: Partial<MailStatusToolDeps> = {}, grants: string[] 
     mailSenderIdentity: { resolve: async () => ({ email: "news@example.com", name: "Site" }) },
     ...overrides,
   };
-  const registrations = buildMailStatusRegistrations(deps, { surfaceExchanges: x.store, assertAccessApprover: async () => {} });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: x.store, assertAccessApprover: async () => {} };
+  const registrations = buildMailStatusRegistrations(deps, surfaces);
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) =>
     registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { ...x, deps, call, selected, sent, revoke: (name: string) => allowed.delete(name), registrations };
@@ -181,14 +183,17 @@ test("mail_send_test without a composed sender resolver falls back to the mailer
 test("mail_set_provider discloses fixed scoped lanes and verifies the human before and after approval", async () => {
   const f = controls();
   const checks: string[] = [];
-  const registrations = buildMailStatusRegistrations(f.deps, { surfaceExchanges: f.store,
-    assertAccessApprover: async ({ principalId }) => { checks.push(principalId); } });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: f.store,
+    assertAccessApprover: async ({ principalId }) => { checks.push(principalId); } };
+  const registrations = buildMailStatusRegistrations(f.deps, surfaces);
   const registration = registrations.find(r => r.descriptor.id === "mail_set_provider")!;
   await registration.handler({ ...ctx, input: { providerId: "smtp" } }, { emitSurface: async emission => {
     assert.deepEqual(checks, ["owner"]);
     assert.equal(f.selected.length, 0);
     const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
-    for (const text of ["core.mail.provider", "before", "smtp", "owner", "ws", "revision", "7"]) assert.ok(html.includes(text), text);
+    for (const text of ["Mail provider", "before", "smtp", "Transactional and bulk mail"]) assert.ok(html.includes(text), text);
+    // The card names the resource; the exact principal and revision remain bound to the write below.
+    assert.doesNotMatch(html, /core\.mail\.provider|"(?:personId|siteId|revision)"\s*:/);
     await f.answer("mail_set_provider").emitSurface!(emission);
   } });
   assert.deepEqual(checks, ["owner", "owner"]);

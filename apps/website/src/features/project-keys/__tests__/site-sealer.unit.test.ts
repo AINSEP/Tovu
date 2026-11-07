@@ -41,3 +41,13 @@ test('a revoke committed during asynchronous crypto prevents returning plaintext
   await assert.rejects(sealer.open({ sealed: { keyId: 'v1', alg: 'fixture', nonce: 'fixture', ciphertext: 'fixture' } },
     { aad: buildVaultAad(vaultRow()) }), /no longer has access/);
 });
+
+test('human saves forward plaintext, key handle and exact row AAD unchanged', async () => {
+  const input = { plaintext: 'fixture-token', key: { keyId: 'v1' }, aad: buildVaultAad(vaultRow()) };
+  const sealed = { keyId: 'v1', alg: 'aes-256-gcm', ciphertext: 'fixture', nonce: 'fixture' };
+  const calls: unknown[] = [];
+  const sealer = siteGrantedSealer({ allowed: async () => assert.fail('human saves do not read site grants'),
+    sealer: { seal: async value => { calls.push(value); return sealed; }, open: async () => assert.fail('must not open') } });
+  assert.equal(await sealer.seal(input), sealed);
+  assert.deepEqual(calls, [input]);
+});

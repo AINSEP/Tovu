@@ -176,8 +176,8 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
   assert.equal(decoded.height, 630);
   assert.equal(
     crawlerFetch.headers.get("cache-control"),
-    "public, max-age=3600",
-    "og:image is now emitted slug-keyed (readable-slugs S4), so an ungated 200 gets the SLUG_KEYED_PUBLIC TTL, not the id-keyed immutable one (S2b)"
+    "public, max-age=60",
+    "live-source OG URLs use the REVALIDATING_PUBLIC TTL so replacement bytes are revalidated within sixty seconds"
   );
 });
 
@@ -228,7 +228,7 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
   assert.equal(decoded.height, 630);
   assert.equal(
     crawlerFetch.headers.get("cache-control"),
-    "public, max-age=3600",
-    "og:image is now emitted slug-keyed (readable-slugs S4), so an ungated 200 gets the SLUG_KEYED_PUBLIC TTL, not the id-keyed immutable one (S2b)"
+    "public, max-age=60",
+    "live-source OG URLs use the REVALIDATING_PUBLIC TTL so replacement bytes are revalidated within sixty seconds"
   );
 });

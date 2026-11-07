@@ -14,6 +14,11 @@ const allowedCalls = new Map([
   ['buildConfirmationSurface', new Set(['contracts/core/human-confirm.ts', 'assistant/external-mcp-reauth-tool.ts'])],
   ['classifyConfirmationAnswer', new Set(['contracts/core/human-confirm.ts'])],
 ]);
+// Automatic plugin access is a named transport for the shared approval lifecycle. Its checklist
+// deliberately uses the common human-only dwell controls; other choice helpers cannot ask approvals.
+const namedTransportCalls = new Set([
+  'assistant/ask-choice-tool.ts#buildAutomaticPluginAccessSurface: buildConfirmationSurface',
+]);
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -24,19 +29,45 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-test('human approval asking stays in the shared owner and its named host transports', () => {
-  const violations: string[] = [];
-  for (const file of sourceFiles(sourceRoot)) {
-    const relative = path.relative(sourceRoot, file).replaceAll(path.sep, '/');
-    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-    const inspect = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-        const allowed = allowedCalls.get(node.expression.text);
-        if (allowed && !allowed.has(relative)) violations.push(`${relative}: ${node.expression.text}`);
-      }
-      ts.forEachChild(node, inspect);
-    };
-    inspect(source);
+function enclosingFunction(node: ts.Node): string | undefined {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isFunctionLike(parent)) return ts.isFunctionDeclaration(parent) ? parent.name?.text : undefined;
   }
+  return undefined;
+}
+
+function sourceViolations(relative: string, text: string): string[] {
+  const violations: string[] = [];
+  const source = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true);
+  const inspect = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      const called = node.expression.text;
+      const allowed = allowedCalls.get(called);
+      const namedTransport = namedTransportCalls.has(`${relative}#${enclosingFunction(node)}: ${called}`);
+      if (allowed && !allowed.has(relative) && !namedTransport) violations.push(`${relative}: ${called}`);
+    }
+    ts.forEachChild(node, inspect);
+  };
+  inspect(source);
+  return violations;
+}
+
+test('human approval asking stays in the shared owner and its named host transports', () => {
+  const violations = sourceFiles(sourceRoot).flatMap(file => sourceViolations(
+    path.relative(sourceRoot, file).replaceAll(path.sep, '/'), readFileSync(file, 'utf8'),
+  ));
   assert.deepEqual(violations, []);
+});
+
+test('the automatic plugin renderer exception does not permit other choice approval calls', () => {
+  const relative = 'assistant/ask-choice-tool.ts';
+  assert.deepEqual(sourceViolations(relative, 'function buildAutomaticPluginAccessSurface() { return buildConfirmationSurface({}); }'), []);
+  for (const source of [
+    'function anotherChoice() { return buildConfirmationSurface({}); }',
+    'function buildAutomaticPluginAccessSurface() { return requireHumanConfirm({}); }',
+    'function buildAutomaticPluginAccessSurface() { return classifyConfirmationAnswer({}); }',
+  ]) {
+    assert.equal(sourceViolations(relative, source).length, 1);
+  }
+  assert.equal(sourceViolations('assistant/another-tool.ts', 'function buildAutomaticPluginAccessSurface() { return buildConfirmationSurface({}); }').length, 1);
 });

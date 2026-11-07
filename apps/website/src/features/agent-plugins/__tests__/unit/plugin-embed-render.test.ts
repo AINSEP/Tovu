@@ -29,7 +29,8 @@ test("T1: two occurrences preserve classes/attributes and canonical host stamps,
   assert.match(result.html, /data-plugin="tovu\/demo"/);
   assert.match(result.html, /data-component="button"/);
   assert.match(result.html, /data-embed-v="1"/);
-  assert.match(result.html, /data-consent-category="functional"/);
+  // Validated fragments cannot contain scripts/iframes; the host strips authored consent stamps.
+  assert.doesNotMatch(result.html, /data-consent-category/);
   assert.doesNotMatch(result.html, /forged|data-embed-config|Authored fallback/);
   assert.match(result.html, /O'Brien &lt;\/div&gt; {{host.secret}}/);
   assert.match(result.html, />Second<\/span>/);
@@ -95,9 +96,10 @@ test("T1: export discovery projects contracts and ready snippets without host pa
   assert.doesNotMatch(JSON.stringify([...rows]), /not-exposed|packageRoot|button.html/);
 });
 
-test("T1: canonical consent stamp stays metadata while script-free plugin content remains visible", async () => {
+test("T1: script-free plugin content remains visible without an obsolete consent stamp", async () => {
   const rendered = await render(marker());
   assert.match(rendered.html, /data-plugin="tovu\/demo"/);
-  assert.match(rendered.html, /data-consent-category="functional"/);
+  assert.doesNotMatch(rendered.html, /data-consent-category/);
+  assert.match(rendered.html, /<span>Continue<\/span>/);
   assert.doesNotMatch(rendered.html, /<template data-jini-consent-resource/);
 });

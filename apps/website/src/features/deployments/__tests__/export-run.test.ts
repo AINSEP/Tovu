@@ -10,7 +10,7 @@ function deps() {
 }
 const report = (): ExportRunReportLike => ({ routes: { succeeded: ["/", "/about"], failed: [] }, assets: { succeeded: ["logo"], failed: [{ url: "/missing.png", reason: "404" }] }, skippedManifestEntries: [{ reason: "unsupported", detail: "private" }], unreferencedThemeFiles: ["unused.css"], droppedReferences: [{ page: "/", url: "/missing", attribute: "href", reason: "not-exported" }], basePath: "/docs", basePathRewriteWarning: "absolute URL retained" });
 
-test("a held export exposes running state, forwards exact options and reports asset failures without failing route completeness", async () => {
+test("a held export exposes running state, forwards exact options and reports an incomplete copy for asset failures", async () => {
   const d = deps();
   let resolve!: (value: ExportRunReportLike) => void;
   const held = new Promise<ExportRunReportLike>((done) => { resolve = done; });
@@ -22,7 +22,7 @@ test("a held export exposes running state, forwards exact options and reports as
     assert.deepEqual(calls, [{ routeDeps: d, outputDir: "/tmp/b08-export", clean: false, basePath: "/docs" }]);
   } finally { resolve(report()); await setImmediate(); }
   assert.deepEqual(getExportRunSnapshot(), {
-    status: "completed", startedAtIso: "2026-10-01T10:00:00.000Z", finishedAtIso: "2026-10-01T10:01:00.000Z", outputDir: "/tmp/b08-export", basePath: "/docs", ok: true,
+    status: "completed", startedAtIso: "2026-10-01T10:00:00.000Z", finishedAtIso: "2026-10-01T10:01:00.000Z", outputDir: "/tmp/b08-export", basePath: "/docs", ok: false,
     counts: { routesSucceeded: 2, routesFailed: 0, assetsSucceeded: 1, assetsFailed: 1 },
     failedRoutes: [], failedAssets: [{ url: "/missing.png", reason: "404" }], skippedManifestEntries: [{ reason: "unsupported", detail: "private" }], unreferencedThemeFiles: ["unused.css"], droppedReferences: [{ page: "/", url: "/missing", attribute: "href", reason: "not-exported" }], basePathRewriteWarning: "absolute URL retained",
   });
@@ -36,6 +36,17 @@ test("failed routes make a completed export incomplete and retain every failure 
   assert.equal(snapshot.ok, false);
   assert.deepEqual(snapshot.failedRoutes, [{ path: "/article", kind: "post", reason: "render failed" }]);
   assert.deepEqual(snapshot.counts, { routesSucceeded: 0, routesFailed: 1, assetsSucceeded: 1, assetsFailed: 1 });
+});
+
+test("a failed consent loader makes a download export incomplete and retains its actionable failure", async () => {
+  startExportRun({ routeDeps: deps(), runExportSite: async () => ({ ...report(), assets: {
+    succeeded: [], failed: [{ url: '/_consent/load.js', reason: 'GET /_consent/load.js -> 503' }],
+  } }), clean: true });
+  await setImmediate();
+  const snapshot = getExportRunSnapshot();
+  assert.equal(snapshot.status, 'completed');
+  assert.equal(snapshot.ok, false, 'a page referencing an unavailable loader must not report a complete export');
+  assert.deepEqual(snapshot.failedAssets, [{ url: '/_consent/load.js', reason: 'GET /_consent/load.js -> 503' }]);
 });
 
 for (const failure of [new Error("disk full"), "export refused"]) {

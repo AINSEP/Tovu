@@ -18,6 +18,11 @@ export interface CredentialGate {
   error: string | null;
 }
 
+/** A refusal with warnings takes precedence; an empty refusal still uses the saved share snapshot. */
+function credentialGateWarnings({ refusal, share }: { refusal: ShareDownloadRefusal | undefined; share: SiteShare }): readonly CredentialWarning[] {
+  return refusal?.credentialWarnings.length ? refusal.credentialWarnings : share.credentialWarnings ?? [];
+}
+
 function withoutKey<T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> {
   const next = { ...record };
   delete next[key];
@@ -49,7 +54,7 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
     const refusal = refusals[share.shareId];
     if (!refusal && (!share.needsAcknowledgement || acknowledged.has(share.shareId))) return null;
     return {
-      warnings: refusal?.credentialWarnings.length ? refusal.credentialWarnings : share.credentialWarnings ?? [],
+      warnings: credentialGateWarnings({ refusal, share }),
       message: refusal?.message ?? null,
       acknowledging: acknowledgingId === share.shareId,
       error: failure?.shareId === share.shareId ? failure.message : null,

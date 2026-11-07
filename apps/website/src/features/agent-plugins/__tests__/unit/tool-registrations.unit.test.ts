@@ -26,6 +26,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
+import { grantDeclaredToolsToSignedInRows } from "../../grant-signed-in-defaults.js";
+import { previewAgentPluginEnableAccess } from "../../enable-access.js";
 import { defaultResolveInstalledAgentPlugin } from "../../connect-tool.js";
 import { createToolExecutor } from "@jini-ai/daemon";
 
@@ -639,9 +641,12 @@ test("a disabled plugin's call is denied before the overlay is read, and no over
   });
 });
 
-test("the registered connect handler resolves a real installed plugin and recognizes its saved sign-in", async () => {
+test("the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access", async () => {
   await withAgentPluginsDir(async () => {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_A, sourceRoot: bundledSource.root });
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_A, sourceRoot: bundledSource.root });
+    // Installation does not grant activation; the saved-sign-in fixture explicitly enables it.
+    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_A).root, pluginId: "supabase", enabled: true, actor: "test" });
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);
@@ -652,6 +657,15 @@ test("the registered connect handler resolves a real installed plugin and recogn
     await provisionAgentPluginMcpServers(mcp, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "supabase" }))!;
     await repo.upsert({ ...row, oauthStatus: "connected" });
+    // A retained sign-in is not consent to grant new tools. Seed the prior, explicitly approved
+    // access through the existing grant owner so this case really is a no-new-access reconnect.
+    const access = await previewAgentPluginEnableAccess({ workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, repo });
+    assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: {
+      workspaceId: WORKSPACE_A, agentPluginLayout: layout, repo, applyAccess: mcp.applyAccess, clock, notifyRosterChanged: async () => {},
+    }, pluginId: "supabase", servers: plugin.servers }, { approvedEnable: { principalId: "principal-1", accessKey: access.key } }), ["supabase"]);
+    const approved = (await repo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "supabase" }))!;
+    assert.equal(approved.enabled, true);
+    assert.equal(approved.writeGrantsUpdatedByPrincipalId, "principal-1");
     const registrations = buildAgentPluginConnectRegistrations(testSiteLayoutContext({
       workspaceId: WORKSPACE_A, mcp, clock,
       credentials: credentialTestPort({ httpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") } }),
@@ -661,7 +675,12 @@ test("the registered connect handler resolves a real installed plugin and recogn
     }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
     assert.ok(connect);
-    assert.deepEqual(await invokeFixtureHandler(connect, fakeCtx({ pluginId: "supabase" })), { status: "connected" });
+    assert.deepEqual(await invokeFixtureHandler(connect, { ...fakeCtx({ pluginId: "supabase" }),
+      emitSurface: async () => assert.fail("saved sign-in and approved access must not open another card"),
+    }), { status: "connected" });
+    const after = (await repo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "supabase" }))!;
+    assert.deepEqual([after.enabled, after.allowedToolNames, after.writeAllowedToolNames, after.writeGrantsUpdatedByPrincipalId],
+      [approved.enabled, approved.allowedToolNames, approved.writeAllowedToolNames, approved.writeGrantsUpdatedByPrincipalId]);
   });
 });
 

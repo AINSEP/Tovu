@@ -1883,6 +1883,21 @@ webview { display: flex; }
 .onboarding__actions > footer > p { max-width: 32rem; margin: 0; color: var(--faint); font-size: 0.75rem; }
 .onboarding__actions > footer > .onboarding__error { color: var(--warning); font-weight: 500; }
 .onboarding__actions > div { display: flex; flex: none; gap: 0.625rem; margin-left: auto; }
+/* Import page: the button group sits right under its own input or heading, left-aligned and only
+   as wide as its label; a failure's Copy details sits under the message it belongs to. */
+.import-actions { display: flex; justify-content: flex-start; gap: 0.625rem; }
+.onboarding__actions > footer { display: grid; justify-items: start; gap: 0.5rem; }
+/* The whole page takes the drop; this section is where it shows. Inset, so the section's size never shifts. */
+.import-drop.is-dragging { outline: 2px dashed var(--primary); outline-offset: -0.5rem; border-radius: 1rem; }
+
+.site-toast {
+  position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 1000;
+  display: flex; align-items: flex-start; gap: 0.75rem; max-width: min(32rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.75rem 0.75rem 1rem; border-radius: 0.75rem;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--border-strong); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.site-toast__message { margin: 0; font-weight: 600; }
+.site-toast__note { margin: 0.25rem 0 0; font-size: 0.8125rem; color: var(--muted); }
 
 /* ---------- Jini fleet chat ---------- */
 

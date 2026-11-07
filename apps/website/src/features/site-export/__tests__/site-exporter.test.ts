@@ -172,6 +172,8 @@ function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
 function assertConstructedConsent({ html, loader, enabled }: { html: string; loader: string; enabled: boolean }): void {
   const dom = new JSDOM(html, { runScripts: "outside-only" });
   try {
+    if (enabled) assert.ok(dom.window.document.querySelector('script[data-jini-consent-loader][src="/_consent/load.js"], #jini-consent'),
+      'the page itself must reference the consent loader or carry the managed banner');
     dom.window.eval(loader);
     assert.equal(dom.window.document.querySelectorAll("#jini-consent").length, enabled ? 1 : 0,
       "the authored loader honors the owner's banner choice");

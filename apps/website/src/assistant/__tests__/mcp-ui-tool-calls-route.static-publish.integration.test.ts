@@ -74,20 +74,19 @@ const CONFIGURED_CREDENTIAL_SOURCE: PublishCredentialSource = {
 /** Builds the real tool surface for the static-publish domain: one registry, one
  *  production-shaped executor (no `delegate`, matching `agent-daemon-server.ts`'s own
  *  construction), over the real hermetic `createRouteDeps()` fixture. */
-function buildRealStaticPublishToolExecutor(
+async function buildRealStaticPublishToolExecutor(
   surfaceExchanges: SurfaceExchangeStore,
   options: { credentialSource?: PublishCredentialSource; captured?: { value: DeployFile[] | null } } = {},
 ) {
   const captured = options.captured ?? { value: null };
   const baseRouteDeps = createRouteDeps();
-  // createSiteApp captures this original object. Mount the production consent routes before
-  // copying the fixture's other dependencies, so authored loader assets export through them.
+  // createSiteApp captures this original object. Mount the production consent routes and turn
+  // consent on before copying dependencies, so the server adds the shipped loader reference.
   baseRouteDeps.cookieConsent = { regionResolvers: async () => [] };
-  // These file-export assertions exercise a legacy authored loader asset. Shipped static themes
-  // now omit the tag, so the fixture explicitly supplies the authored reference it is testing.
-  baseRouteDeps.themes = baseRouteDeps.themes.map(theme => ({ ...theme, pages: Object.fromEntries(
-    Object.entries(theme.pages).map(([id, html]) => [id, html.replace('</head>', '<script src="/_consent/load.js" defer data-jini-consent-loader></script></head>')]),
-  ) }));
+  await baseRouteDeps.siteConsentReady;
+  await baseRouteDeps.set({ deps: { repo: baseRouteDeps.settingsRepo, clock: baseRouteDeps.clock, ids: baseRouteDeps.idGen,
+    principals: baseRouteDeps.principalRepo, authorize: baseRouteDeps.authorize }, input: { namespace: 'core.consent', key: 'enabled',
+    value: true, scope: 'workspace', workspaceId: baseRouteDeps.workspaceId, callerPrincipalId: await baseRouteDeps.ownerPrincipalId } });
   const routeDeps = { ...baseRouteDeps, authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
   const deps: StaticPublishToolDeps = {
     ...routeDeps,
@@ -119,7 +118,7 @@ const PUBLISH_INPUT = { target: "vercel", projectName: "demo-site" };
 
 test("deployment_execute_static_publish waits for one human approval over HTTP before publishing", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor, captured } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   let routeExecutions = 0;
   const app = express();
@@ -168,12 +167,16 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   assert.equal(output.target, "vercel");
   assert.equal(output.url, "https://example.test/published");
   assert.ok(captured.value && captured.value.length > 0, "the real hermetic fixture must have actually exported files for the fake deploy target to receive");
-  assert.ok(captured.value.some(({ file }) => file === '_consent/load.js'), 'the authored consent loader must export through the mounted routes');
+  assert.ok(captured.value.some(({ file }) => file === '_consent/load.js'), 'the server-added consent loader must export through the mounted routes');
+  const home = captured.value.find(({ file }) => file === 'index.html');
+  assert.ok(home);
+  assert.match(typeof home.data === 'string' ? home.data : Buffer.from(home.data).toString('utf8'), /data-jini-consent-loader/,
+    'the exported page itself must reference the server-added loader');
 });
 
 test("SECURITY: a surface callback cannot run deployment_execute_static_publish — the route refuses it with 403 and never reaches the executor", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor, captured } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   let routeExecutions = 0;
   const countingExecutor = {
@@ -203,7 +206,7 @@ test("SECURITY: a surface callback cannot run deployment_execute_static_publish 
 
 test("SECURITY: deployment_get_static_publish_capabilities is refused by this same route — it is a read tool with nothing to confirm, and must not become reachable through the confirmation channel", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   const app = express();
   app.use(express.json());
@@ -226,7 +229,7 @@ test("SECURITY: deployment_get_static_publish_capabilities is refused by this sa
 
 test("deployment_get_static_publish_capabilities still runs fine through the ordinary (non-MCP-UI) executor path — being excluded from the confirmation allowlist does not mean it is broken or unreachable", async () => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   const result = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_get_static_publish_capabilities", input: {} });
 

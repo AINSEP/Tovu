@@ -89,11 +89,23 @@ for (const [kind, secret] of secrets) {
 }
 
 for (const file of ["agent-plugins/unknown/package/locales/es.json", "agent-plugins/github/memory/notes/note.md", "plugins/github/package/locales/es.json", "themes/site/labels.json"]) {
-  test(`credential labels still get strict import scanning in ${file}`, { timeout }, async () => {
-    const h = await fixture(new Map([[file, Buffer.from('{"API token":"Token de API"}')]]));
+  test(`translated labels stay public but credential values still get strict import scanning in ${file}`, { timeout }, async () => {
+    const importedPath = file.startsWith("themes/site/") ? file.replace("themes/site/", "themes/untrusted/site/") : file;
+    const labels = { "API token": "Token de API" };
+    const publicBytes = Buffer.from(JSON.stringify(labels));
+    const publicFile = await fixture(new Map([[file, publicBytes]]));
+    const publicImport = await publicFile.verify();
+    assert.deepEqual(publicImport.files.get(importedPath), publicBytes);
+    assert.deepEqual(publicImport.credentialWarnings.filter(warning => warning.path === file), []);
+    // Change only the content at this same path: harmless translated copy must not hide an
+    // actual credential assignment, even without a bundled package identity or file hash.
+    const value = ["fixture", "credential", "value", "12"].join("-");
+    const bytes = Buffer.from(JSON.stringify({ ...labels, token: value }));
+    const h = await fixture(new Map([[file, bytes]]));
     const imported = await h.verify();
-    assert.ok(imported.files.has(file.startsWith("themes/site/") ? file.replace("themes/site/", "themes/untrusted/site/") : file));
-    assert.ok(imported.credentialWarnings!.some(warning => warning.path === file));
+    assert.deepEqual(imported.files.get(importedPath), bytes);
+    assert.deepEqual(imported.credentialWarnings.filter(warning => warning.path === file), [{ path: file, kind: "labeled secret" }]);
+    assert.equal(JSON.stringify(imported.credentialWarnings).includes(value), false, "warnings must never contain the credential value");
     assert.equal(h.wasSanitized(), true);
   });
 }

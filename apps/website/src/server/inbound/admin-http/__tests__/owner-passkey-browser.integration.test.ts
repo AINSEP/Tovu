@@ -6,12 +6,14 @@ import { test } from 'node:test';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { createSimpleWebAuthnPasskeys, type PasskeyCredential, type PasskeyOptions } from '@jini-ai/user-management/server';
-test('browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes', { timeout: 30000 }, async () => {
+test('browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes', { timeout: 30000 }, async t => {
 const adapter = createSimpleWebAuthnPasskeys({});
 const scope = { workspaceId: 'synthetic-site', principalId: 'synthetic-owner' };
 const identityRequire = createRequire(import.meta.resolve('@jini-ai/user-management/server'));
 const bundle = await readFile(resolve(dirname(identityRequire.resolve('@simplewebauthn/browser')), '../dist/bundle/index.umd.min.js'));
 const server = createServer((req,res) => {res.setHeader('content-type', req.url === '/browser.js' ? 'text/javascript' : 'text/html');res.end(req.url === '/browser.js' ? bundle : '<!doctype html><title>Passkey verification</title><script src="/browser.js"></script>');});
+// Register before browser launch so its failure cannot leave the HTTP fixture listening.
+t.after(() => new Promise<void>((resolve,reject)=>server.close(error=>error ? reject(error) : resolve())));
 await new Promise<void>(resolve=>server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address !== 'string');
 const port = address.port;
@@ -79,6 +81,6 @@ try {
   assert.ok(await adapter.authenticate({site:changedSite,response,challenge:changed.challenge,credential})>0);
   console.log('PASS: new localhost port, stable RP, existing passkey accepted');
  } finally {await new Promise<void>((resolve,reject)=>second.close(error=>error ? reject(error) : resolve()));}
-} finally {await browser.close();await new Promise<void>((resolve,reject)=>server.close(error=>error ? reject(error) : resolve()));}
+} finally {await browser.close();}
 
 });

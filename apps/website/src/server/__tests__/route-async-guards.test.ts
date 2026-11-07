@@ -14,6 +14,7 @@ import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
 import type { ResolvedEndpoint, WebhookReceiver } from "@jini-ai/commerce/payments/kernel";
 import { requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminCommerceStatusRoute } from "../inbound/admin-http/routes/commerce/status.js";
+import { assertAnalyticsFailure } from "./helpers/assert-analytics-failure.js";
 
 /**
  * F3437: a 500 must be opaque. Every failure this file injects carries the word "simulated" (and the
@@ -409,10 +410,7 @@ test("analytics/recent-hits: GET responds 500 (not a hang) when deps.authorize t
   });
   assert.equal(res.status, 500);
   const raw = await res.text();
-  const { error } = JSON.parse(raw);
-  assert.equal(error.code, "INTERNAL_ERROR");
-  assert.equal(error.message, "internal error");
-  assert.equal(error.requestId, res.headers.get("x-request-id"));
+  assertAnalyticsFailure({ body: JSON.parse(raw), requestId: res.headers.get("x-request-id") });
   assert.equal(/simulated|stack|at \S+ \(/i.test(raw), false, `a 500 body leaked the raw error: ${raw}`);
 });
 

@@ -95,9 +95,17 @@ test("assistant create/update schemas advertise common native fields and builder
     for (const prop of ["name", "placeholder", "helpText", "default", "options", "min", "max", "step", "minLength", "pattern", "accept", "maxFileSize"]) assert.ok(field.properties[prop], prop);
   }
   const html = renderWidgetIr({ componentId: "contact-form", props: { slug: "contact", fields: [{ id: "topic", label: "Topic", type: "select", required: true, options: [{ value: "sales", label: "Sales" }], helpText: "Pick a topic" }, { id: "upload", label: "Upload", type: "file", required: false }] } });
-  assert.match(html, /enctype="multipart\/form-data"/); assert.match(html, /<select id="widget-contact-topic"/); assert.match(html, /<option value="sales">Sales/); assert.match(html, /aria-describedby="widget-contact-topic-help widget-contact-topic-error"/);
+  assert.match(html, /enctype="multipart\/form-data"/);
+  // Repeated form occurrences receive unique namespaces; references within this occurrence
+  // must still bind the select, label, help and validation error to exactly the same field.
+  const topicId = /<select id="(widget-contact-[0-9a-f-]{36}-topic)"/.exec(html)?.[1];
+  assert.ok(topicId);
+  assert.ok(html.includes(`<label for="${topicId}">Topic *</label>`));
+  assert.match(html, /<option value="sales">Sales/);
+  assert.ok(html.includes(`aria-describedby="${topicId}-help ${topicId}-error"`));
+  assert.ok(html.includes(`<div id="${topicId}-help" class="widget-form-field-help">Pick a topic</div>`));
   const invalid = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [{ field: "topic", reason: "invalid_option" }] });
-  assert.match(invalid, /class="widget-form-field-error" data-field="topic" id="widget-contact-topic-error">/);
+  assert.ok(invalid.includes(`class="widget-form-field-error" data-field="topic" id="${topicId}-error">`));
   assert.equal((html.match(/<button type="submit"/g) ?? []).length, 1);
 });
 

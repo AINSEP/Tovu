@@ -67,7 +67,7 @@ test("POST .../bundles with no principal (requireAdminSession did not run) is th
   const server = await startTestServer(routeApp(registerPublishContentBundleCreateRoute, routeDeps()), t);
   const response = await fetch(`${server}${BUNDLES}`, { method: "POST", headers: { "content-type": "application/json", "x-principal": "none" }, body: JSON.stringify(envelope()) });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The publishing operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation","discloseDetails":false} });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The publishing operation could not be completed.","action":"Check the result before repeating this operation. Report this error ID.","step":"publishing operation","discloseDetails":false} });
 });
 
 /** A bundle repo whose save fails, as a full disk would. */

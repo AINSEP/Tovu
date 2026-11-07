@@ -43,9 +43,15 @@ function getSkillsAvailability(
   };
 }
 
+/** Writes take presentation precedence over a read error without losing their original cause. */
+function skillsFailureState({ actionError, actionCause, queryError, t }: { actionError: string | null; actionCause: unknown; queryError: Error | null; t: Translate }) {
+  const error = actionError ?? queryError?.message ?? null;
+  return { error, failure: error ? skillFailure({ error: actionError ? actionCause : queryError, message: error, t }) : null };
+}
+
 /** Keeps the existing API, refresh event and stale-load guard behind a render-only view.
  * The injected port lets action tests exercise retry/refetch ordering without module mocks. */
-export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?: typeof defaultSkillsPort; t?: Translate } = {}, _optional = {}) {
+export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?: typeof defaultSkillsPort; t?: Translate } = {}, _optional?: Record<string, never>) {
   const tabs = useSkillsTabs();
   const queryFetch = useCallback(async () => {
     try { return await port.listSkills(); }
@@ -61,8 +67,7 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() });
   const [actionError, setError] = useState<string | null>(null);
   const [actionCause, setActionCause] = useState<unknown>(null);
-  const error = actionError ?? query.error?.message ?? null;
-  const failure = error ? skillFailure({ error: actionError ? actionCause : query.error, message: error, t }) : null;
+  const { error, failure } = skillsFailureState({ actionError, actionCause, queryError: query.error, t });
   const [githubUrl, setGithubUrl] = useState("");
   const [removing, setRemoving] = useState<InstalledSkill | null>(null);
   const [inspecting, setInspecting] = useState<InstalledSkill | null>(null);

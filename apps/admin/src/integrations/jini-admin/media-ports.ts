@@ -13,6 +13,11 @@ export const mediaTransport = { request: authenticatedAdminRequest, url: authent
 const httpMediaApi = createHttpMediaApi({ transport: mediaTransport, basePath: mediaBasePath }, {
   replacePath: ({ id }) => `${mediaBasePath}/${encodeURIComponent(id)}/replace`,
 });
+/** A successful batch HTTP response still needs this asset's authoritative per-item outcome. */
+function mediaRestoreOutcome({ result, id }: { result: { results?: readonly { entityType: string; entityId: string; outcome: string }[] }; id: string }): string | undefined {
+  return Array.isArray(result?.results) ? result.results.find(row => row.entityType === 'media' && row.entityId === id)?.outcome : undefined;
+}
+
 export const mediaApi: MediaApiPort = {
   ...httpMediaApi,
   restoreSupported: true,
@@ -24,7 +29,7 @@ export const mediaApi: MediaApiPort = {
       path: `/workspaces/${WORKSPACE_ID}/trash/restore`, method: 'POST',
       body: { items: [{ entityType: 'media', entityId: id }] },
     }, { signal });
-    const outcome = Array.isArray(result?.results) ? result.results.find(row => row.entityType === 'media' && row.entityId === id)?.outcome : undefined;
+    const outcome = mediaRestoreOutcome({ result, id });
     if (outcome !== 'restored') throw new Error(`Media restore failed: ${outcome ?? 'missing item result'}`);
     // Return only the authoritative asset, preserving all CMS metadata and identity.
     const restored = (await httpMediaApi.list({}, { signal })).find(row => row.id === id);

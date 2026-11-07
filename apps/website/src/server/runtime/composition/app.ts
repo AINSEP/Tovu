@@ -871,10 +871,17 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   for (const entityType of ["form", "form_submission"] as const) {
     const adapter = trashAdapters.get(entityType)!;
     trashAdapters.set(entityType, withFollowUps({ adapter }, createFormAttachmentPurgeHooks({
-      readSubmissions: async ({ workspaceId, entityId, limit }) => {
+      readSubmissions: async ({ workspaceId, entityId, after, limit }) => {
         const rows = entityType === "form" ? await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: entityId })
           : [await formSubmissionRepo.findAnyById({ workspaceId, id: entityId })];
-        return rows.filter(row => row !== null).slice(0, limit).map(row => ({ id: row.id, dataJson: JSON.stringify(row.data) }));
+        // Match the SQL host's keyset pages, including the terminal empty page for one submission.
+        return rows.filter(row => row !== null)
+          .filter(row => after === undefined || row.id > after)
+          .sort((left, right) => {
+            if (left.id < right.id) return -1;
+            return left.id > right.id ? 1 : 0;
+          })
+          .slice(0, limit).map(row => ({ id: row.id, dataJson: JSON.stringify(row.data) }));
       },
       remove: async ({ workspaceId, mediaId }) => {
         const asset = await mediaRepo.findById({ workspaceId, id: mediaId });

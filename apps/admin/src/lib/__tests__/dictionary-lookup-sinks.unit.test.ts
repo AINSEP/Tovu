@@ -30,11 +30,12 @@ const ALLOWED: Record<string, string> = {
   "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
 };
 
-/** Forms and Email own their assembled translators; fragments are initialization inputs only. */
+/** Each registered owner assembles its translator; fragments are initialization inputs only. */
 const ASSEMBLED: Record<string, string> = {
   "features/forms/forms-i18n.ts:FORMS_FIELD_SETTINGS_I18N": "FORMS_DICT",
   "features/forms/forms-i18n.ts:FORMS_LEAVE_GUARD_I18N": "FORMS_DICT",
   "features/email/email-i18n.ts:EMAIL_TABS_DICT": "EMAIL_DICT",
+  "features/skills/skills-i18n.ts:SKILLS_PAGE_DICT": "dictionary",
 };
 
 const DECLARATION = /\bconst\s+([A-Z][A-Z0-9_]*_(?:DICT|I18N|DICTIONARY))\s*:\s*Record<\s*string\s*,\s*Record<\s*string\s*,\s*string\s*>\s*>/g;
@@ -51,16 +52,19 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Email dc0445924 assembles its fragment in a map at initialization, not during translation.
+/** Email and Skills assemble fragments in maps at initialization, not during translation.
  * Match the owning initializer exactly so registering the fragment cannot permit runtime reads. */
-function isEmailAssembly({ node, source, target }: { node: ts.Identifier; source: ts.SourceFile; target: string }, _options = {}): boolean {
-  if (target !== "EMAIL_DICT") return false;
+function isMappedAssembly({ node, source, target }: { node: ts.Identifier; source: ts.SourceFile; target: string }, _options = {}): boolean {
+  const initializers: Record<string, string> = {
+    EMAIL_DICT: "Object.fromEntries(Object.entries(BASE_EMAIL_DICT).map(([locale,dictionary])=>[locale,{...dictionary,...EMAIL_TABS_DICT[locale]}]),)",
+    dictionary: "Object.fromEntries(Object.entries(SKILLS_DICT).map(([locale,confirmation])=>[locale,{...SKILLS_PAGE_DICT[locale],...confirmation}]))",
+  };
+  if (!initializers[target]) return false;
   let statement: ts.Node = node;
   while (statement.parent && statement.parent !== source) statement = statement.parent;
   if (!ts.isVariableStatement(statement)) return false;
   const declaration = statement.declarationList.declarations.find(item => item.name.getText(source) === target);
-  return declaration?.initializer?.getText(source).replace(/\s+/g, "") ===
-    "Object.fromEntries(Object.entries(BASE_EMAIL_DICT).map(([locale,dictionary])=>[locale,{...dictionary,...EMAIL_TABS_DICT[locale]}]),)";
+  return declaration?.initializer?.getText(source).replace(/\s+/g, "") === initializers[target];
 }
 
 /** Registered fragments are accepted only by their owning module's assembly expression. */
@@ -70,7 +74,7 @@ function isImportedAssembly({ node, source, target }: { node: ts.Identifier; sou
   const merge = ts.isCallExpression(call) && call.expression.getText(source) === "mergeDictionaryTranslations" &&
     call.arguments[1] === node && call.arguments[0]?.getText(source) === target &&
     ts.isExpressionStatement(call.parent) && call.parent.parent === source;
-  return merge || isEmailAssembly({ node, source, target });
+  return merge || isMappedAssembly({ node, source, target });
 }
 
 /**
@@ -287,6 +291,23 @@ describe("findInlineDictionaryLookups: the detector", () => {
     const runtime = owner.source.replace(`= ${initializer};`, `= () => ${initializer};`);
     expect(findInlineDictionaryLookups([fragment, { ...owner, source: runtime }]))
       .toEqual(["features/email/email-i18n.ts: indexes EMAIL_TABS_DICT", "features/email/email-i18n.ts: references BASE_EMAIL_DICT"]);
+  });
+
+  it("allows Skills' initialization map while rejecting later and runtime fragment lookups", () => {
+    const fragment = { path: "features/skills/skills-page-dictionary.ts", source: "export const SKILLS_PAGE_DICT: Record<string, Record<string, string>> = { es: {} };" };
+    const initializer = "Object.fromEntries(Object.entries(SKILLS_DICT).map(([locale, confirmation]) => [locale, { ...SKILLS_PAGE_DICT[locale], ...confirmation }]))";
+    const owner = { path: "features/skills/skills-i18n.ts", source: [
+      'import { SKILLS_PAGE_DICT } from "./skills-page-dictionary";',
+      "const SKILLS_DICT: Record<string, Record<string, string>> = { es: {} };",
+      `const dictionary = ${initializer};`,
+      "export const t = createDictionaryTranslator({ featureDictionary: dictionary });",
+    ].join("\n") };
+    expect(findInlineDictionaryLookups([fragment, owner])).toEqual([]);
+    expect(findInlineDictionaryLookups([fragment, { ...owner, source: owner.source + "\nconst bypass = SKILLS_PAGE_DICT.es[key];" }]))
+      .toEqual(["features/skills/skills-i18n.ts: references SKILLS_PAGE_DICT"]);
+    const runtime = owner.source.replace(`= ${initializer};`, `= () => ${initializer};`);
+    expect(findInlineDictionaryLookups([fragment, { ...owner, source: runtime }]))
+      .toEqual(["features/skills/skills-i18n.ts: indexes SKILLS_PAGE_DICT", "features/skills/skills-i18n.ts: references SKILLS_DICT"]);
   });
 
   it("still flags an owner translator that aliases the raw dictionary", () => {

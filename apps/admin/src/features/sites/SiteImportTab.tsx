@@ -181,8 +181,13 @@ function ImportProgress({ controller, t }: { controller: SiteImportController; t
   return <div className="notice" role="status">{t("Checking the archive…")}</div>;
 }
 
+/** Confirmation must match a nonempty password before the owner setup can be submitted. */
+function importOwnerPasswordReady({ password, confirm }: Pick<SiteImportController, "password" | "confirm">): boolean {
+  return password.length > 0 && confirm === password;
+}
+
 function OwnerStep({ controller, name, t }: { controller: SiteImportController; name: string; t: Translate }) {
-  const ready = controller.password.length > 0 && controller.confirm === controller.password;
+  const ready = importOwnerPasswordReady(controller);
   return (
     <form
       className="onboarding-card site-transfer-owner"

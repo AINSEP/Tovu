@@ -76,6 +76,8 @@ test("anonymous HTTP failures disclose only safe wording and an incident referen
   assert.equal(body.details, undefined);
   assert.equal(body.privateFact, undefined);
   assert.match(body.error, /sign-in/);
+  assert.match(body.error, /Report this error ID/);
+  assert.doesNotMatch(body.error, /copy details/i);
   assert.match(body.error, new RegExp(body.errorId));
   for (const canary of ["PRIVATE_BACKEND", "PRIVATE_MESSAGE", "PRIVATE_ACTION", "PRIVATE_STEP", "PRIVATE_CAUSE", "PRIVATE_TIME", "PRIVATE_ID", "SECRET_CANARY"])
     assert.equal(JSON.stringify(body).includes(canary), false);

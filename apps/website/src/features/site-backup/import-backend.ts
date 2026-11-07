@@ -7,7 +7,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import type { CreateSitePort, CreateSiteResult } from "#src/platform/site-dir/index";
 import { resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
-import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
+import { withoutQuery, type SiteImportRegistry, type SiteImportRecord } from "./import-registry.js";
 import { SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { verifySiteImport } from "./import-verifier.js";
 import { stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
@@ -24,6 +24,8 @@ export interface SiteImportBackend {
   completeOwner(required: { principalId: string; importId: string; adminPassword: unknown; savedKeysPassword?: unknown }, optional?: { signal?: AbortSignal }): Promise<SiteImportView>;
   list(required: { principalId: string }, optional?: Record<string, never>): Promise<SiteImportView[]>;
   get(required: { principalId: string; importId: string }, optional?: Record<string, never>): SiteImportView;
+  /** Settles interrupted imports and removes expired or orphaned payloads, with no import to start. */
+  tidy(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
 }
 
 
@@ -65,9 +67,10 @@ export function createSiteImportBackend(required: {
   /** Reads or downloads the archive; records the consumed upload before reading so it is always removed. */
   const fetchArchive = async (input: { parsed: ParsedSiteImportInput; principalId: string; importId: string; signal: AbortSignal; consumed: (uploadId: string) => void }): Promise<Buffer> => {
     const { source } = input.parsed;
-    if ("url" in source) return downloadShareArchive({ http: required.http, url: source.url, signal: input.signal });
+    if ("url" in source) { input.signal.throwIfAborted(); return downloadShareArchive({ http: required.http, url: source.url, signal: input.signal }); }
     const uploadId = consumeUpload({ registry, uploadId: source.uploadId, principalId: input.principalId, importId: input.importId });
     input.consumed(uploadId);
+    input.signal.throwIfAborted();
     return fs.readFileSync(registry.uploadPath({ uploadId }));
   };
 
@@ -76,7 +79,6 @@ export function createSiteImportBackend(required: {
     let consumedUpload: string | undefined;
     let row = input.row;
     try {
-      input.signal.throwIfAborted();
       const archive = await fetchArchive({ parsed: input.parsed, principalId: input.row.principalId, importId: input.row.importId, signal: input.signal, consumed: uploadId => { consumedUpload = uploadId; } });
       const verified = await verifySiteImport({ archive, reader: required.reader, sanitize: required.sanitize, schema: required.schema }, { signal: input.signal });
       input.signal.throwIfAborted();
@@ -139,7 +141,7 @@ export function createSiteImportBackend(required: {
         registry.expire({});
         const existing = parsed.requestId ? registry.list(input).find(row => row.requestId === parsed.requestId) : undefined;
         if (existing) {
-          if (JSON.stringify(existing.source) !== JSON.stringify(parsed.source)) refusal("REQUEST_CONFLICT", "requestId already belongs to another source.");
+          if (JSON.stringify(withoutQuery({ source: existing.source })) !== JSON.stringify(withoutQuery({ source: parsed.source }))) refusal("REQUEST_CONFLICT", "requestId already belongs to another source.");
           return view(existing);
         }
         if ("url" in parsed.source) requireStagingBudget({ registry });
@@ -158,8 +160,15 @@ export function createSiteImportBackend(required: {
         const adminPassword = resolveNewSiteAdminPassword({ adminPassword: input.adminPassword });
         if (input.savedKeysPassword !== undefined && (typeof input.savedKeysPassword !== "string" || input.savedKeysPassword.length > 1024)) refusal("INVALID_INPUT", "Saved keys password must be text of at most 1024 characters.");
         const home = workspace.home({});
-        requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
-        signal.throwIfAborted();
+        try {
+          requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
+          signal.throwIfAborted();
+        } catch (error) {
+          // No site exists yet (low space, or the desktop app quitting): the verified copy must not wait out its hour.
+          fs.rmSync(registry.stagePath(pending), { recursive: true, force: true });
+          put({ ...pending, status: "failed", error: signal.aborted ? "The import was stopped. No site was created. Import the archive again." : "There is not enough free disk space. No site was created. Free up space and import the archive again." });
+          throw error;
+        }
         const creating: SiteImportRecord = { ...pending, status: "creating" }; put(creating);
         const { row: allocated, created } = await createImportedSite({ row: creating, adminPassword, savedKeysPassword: input.savedKeysPassword as string | undefined, signal });
         // Owner and restore are committed. A supervisor failure must not repeat site creation.
@@ -174,6 +183,7 @@ export function createSiteImportBackend(required: {
     },
     async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },
     get(input) { return view(registry.get(input)); },
+    async tidy() { await exclusive(async () => { registry.expire({}); }); },
   };
   return backend;
 }

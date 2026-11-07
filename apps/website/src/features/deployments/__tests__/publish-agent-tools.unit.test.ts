@@ -1940,24 +1940,26 @@ function fixturePublishEmitter({ registration, principalId, emitSurface }: {
 
 /** Supplies the fixture emitter through the canonical handler options, including headless calls. */
 /** Existing outcome assertions now follow the public job-status contract. The Job C test below
- * calls the raw handler to prove enqueue returns while export is blocked. No real sleeps. */
+ * calls the raw handler to prove enqueue returns while export is blocked. The final surface is
+ * the real job completion signal; a real export has no fixed number of event-loop turns. */
 async function invokeFixtureHandler(
   registration: import("@jini-ai/core").ToolRegistration,
   context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
 ) {
   const { emitSurface, ...required } = context;
-  const effectEmitter = fixturePublishEmitter({ registration, principalId: required.principal.id, emitSurface });
+  const completed = Promise.withResolvers<void>();
+  const effectEmitter = fixturePublishEmitter({ registration, principalId: required.principal.id,
+    emitSurface: emitSurface ? async surface => { completed.resolve(); await emitSurface(surface); } : undefined });
   const result = await registration.handler(required, effectEmitter ? { emitSurface: effectEmitter } : {});
   const accepted = result as { accepted?: boolean; jobId?: string } | undefined;
   if (!accepted?.accepted || !accepted.jobId) return result;
   const status = fixtureStatusTools.get(registration);
   assert.ok(status, "accepted jobs have a registered status tool");
-  for (let turn = 0; turn < 1000; turn++) {
-    const snapshot = await status.handler({ ...required, input: { jobId: accepted.jobId }, signal: new AbortController().signal }, emitSurface ? { emitSurface } : {}) as { status: string; result?: unknown; error?: string };
-    if (snapshot.status !== "running") return snapshot.result ?? { published: false, message: snapshot.error };
-    await new Promise<void>(resolve => setImmediate(resolve));
-  }
-  assert.fail("publish fixture did not settle after 1000 event-loop turns");
+  assert.ok(effectEmitter, "accepted publishes have a completion surface channel");
+  await completed.promise;
+  const snapshot = await status.handler({ ...required, input: { jobId: accepted.jobId }, signal: new AbortController().signal }, emitSurface ? { emitSurface } : {}) as { status: string; result?: unknown; error?: string };
+  assert.notEqual(snapshot.status, "running", "the final surface is emitted only after the job settles");
+  return snapshot.result ?? { published: false, message: snapshot.error };
 }
 
 // Cancellation during an async seal must still refuse the eventual repository write.

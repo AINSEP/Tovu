@@ -18,39 +18,32 @@ import {
 import { useTabCloseAsk } from './use-tab-close-ask.hooks.js';
 import { TabCloseAsk } from './app/TabCloseAsk.js';
 import { chromeVisibility } from './expanded-mode.js';
-import { useAddSite } from './use-add-site.hooks.js';
-import { resolveImportSiteTarget } from './import-site-entry.js';
+import { mergeAddedSite, useAddSite } from './use-add-site.hooks.js';
+import { useSiteToast } from './use-site-toast.hooks.js';
+import { SiteToast } from './SiteToast.js';
+import { useStartImported } from './use-start-imported.hooks.js';
+import { useImportWebsite } from './use-import-website.hooks.js';
 import { useFindInPage } from './use-find-in-page.hooks.js';
 import { useZoom } from './use-zoom.hooks.js';
 import { ResourcesMonitor } from './ResourcesPanel.js';
 import type { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import type { useSiteFolders } from './use-site-folders.hooks.js';
-import type { SiteRecord } from '../contracts/project.js';
+import type { SiteAdminPage } from './import-site-entry.js';
 import { FindBar } from './app/FindBar.js';
 import { TopNav } from './app/TopNav.js';
 import { TabStrip } from './app/TabStrip.js';
 import { MainArea } from './app/MainArea.js';
 import { CreateWebsiteHost } from './app/CreateWebsiteHost.js';
+import { ImportWebsite } from './ImportWebsite.js';
 import { SiteWorkspaces } from './app/SiteWorkspace.js';
 
-function appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }: {
-  appearanceOpen: boolean; showSitesHome: boolean; isCreating: boolean; activeId: RunnerSectionId;
+function appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }: {
+  appearanceOpen: boolean; showSitesHome: boolean; isCreating: boolean; isImporting: boolean; activeId: RunnerSectionId;
 }, _options = {}) {
   if (appearanceOpen) return 'appearance';
   if (!showSitesHome) return null;
+  if (isImporting) return 'import_website';
   return isCreating ? 'create_website' : activeId;
-}
-
-// "Import site" opens a site's own admin on its Import & Export > Import tab; hidden when there is no site.
-function createImportSiteAction(
-  { projects, openProjectTab }: {
-    projects: readonly SiteRecord[];
-    openProjectTab: ReturnType<typeof useProjectTabs>['openProjectTab'];
-  },
-  _options = {},
-): (() => void) | undefined {
-  const importTarget = resolveImportSiteTarget({ projects });
-  return importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
 }
 
 /** The sites-settings hooks `App` threads down; see `App`'s own doc. Each one left out falls back to
@@ -111,21 +104,45 @@ export function App({
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
   const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab, adminPages } = useTabs();
-  const { adding, addError, addNotice, addSite } = useAddSite({ setProjects }, { onAlreadyTracked: openProjectTab });
-  const importSite = createImportSiteAction({ projects, openProjectTab });
   const {
     activeId,
     setActiveId,
     appearanceOpen,
     isCreating,
+    isImporting,
     selectSection,
     openAppearance,
     closeAppearance,
     startCreating,
     stopCreating,
+    startImporting,
+    stopImporting,
   } = useNav(setActiveTab);
-  const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
-    deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
+  const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm, showImportPage } =
+    deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
+  const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
+    useProjectMutations({
+      projects,
+      setProjects,
+      closeProjectTab,
+      startCreating,
+      stopCreating,
+    });
+
+  const siteToast = useSiteToast({ lastCreated });
+  // The Import page's sources. All end the same way: the new site's tab opens and the page closes.
+  const openImported = (id: string, adminPage?: SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
+  const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
+  const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
+    onAdded: (added) => { siteToast.announceAdded(added); openImported(added.id); startImported(added); },
+  });
+  const liveImport = useImportWebsite({
+    createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
+    openSite: ({ id, adminPage }) => openImported(id, adminPage),
+    onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
+    onFailureWhileClosed: siteToast.showToast,
+  });
+
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
   const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
     showSiteTab, showSitesHome, appearanceOpen, activeTab, visibleWorkspaceId, addNotice,
@@ -139,19 +156,10 @@ export function App({
   // rather than three conditions inlined into the JSX below.
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
   useRunnerNavigation(setActiveId, setActiveTab);
-  const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
-    useProjectMutations({
-      projects,
-      setProjects,
-      closeProjectTab,
-      startCreating,
-      stopCreating,
-    });
-
   const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
   const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
-  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }) });
+  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
 
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
@@ -192,6 +200,7 @@ export function App({
           showSitesHome={showSitesHome}
           activeId={activeId}
           isCreating={isCreating}
+          isImporting={isImporting}
           active={active}
           lastCreated={lastCreated}
           projectsLoading={projectsLoading}
@@ -204,10 +213,7 @@ export function App({
           onRescan={rescan}
           rescanning={rescanning}
           rescanError={rescanError}
-          onAddSite={addSite}
-          adding={adding}
-          addError={addError}
-          onImportSite={importSite}
+          onImport={() => { clearAddError(); liveImport.clearFailure(); startImporting(); }}
           useFolders={sitesSettings.useFolders}
         />
 
@@ -215,7 +221,27 @@ export function App({
           key={createFormKey}
           hidden={!showCreateForm}
           onBack={cancelCreate}
-          onCreate={handleCreate}
+          onCreate={async (input) => { await handleCreate(input); }}
+        />
+
+        <ImportWebsite
+          shown={showImportPage}
+          onBack={stopImporting}
+          adding={adding}
+          onChooseFolder={() => { liveImport.clearFailure(); return addSite(); }}
+          onDropFolder={(folder) => { liveImport.clearFailure(); return addDroppedFolder(folder); }}
+          onImportArchive={liveImport.importArchive}
+          onRefuse={liveImport.refuse}
+          address={liveImport.address}
+          onAddressChange={liveImport.setAddress}
+          importing={liveImport.importing}
+          archiveRun={liveImport.archiveRun}
+          onCancelImport={() => void liveImport.cancelArchive()}
+          onPageOpen={liveImport.pageOpened}
+          onImportAddress={liveImport.importLive}
+          failure={liveImport.failure}
+          addError={addError}
+          addDetails={addDetails}
         />
 
         <SiteWorkspaces
@@ -234,6 +260,8 @@ export function App({
           adminPages={adminPages}
         />
       </main>
+
+      <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} />
 
       {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
 

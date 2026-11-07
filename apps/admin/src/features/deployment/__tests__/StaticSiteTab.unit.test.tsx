@@ -1067,15 +1067,25 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
   // provider's tags exist at any one render — this now switches the target per provider and checks
   // that provider's own tags each time, which still proves every provider's row carries the right
   // tag, just one render per provider instead of one render for all four.
-  it("tags the selected provider's own row/token/save elements, per provider", () => {
+  // SecretInput deliberately strips agent addressing from tokens and reveal controls (2026-11-05).
+  // The surrounding row and Save action remain addressable; tokens stay private after reveal.
+  it("tags each provider's row/save elements while keeping its token private", () => {
     for (const providerId of CREDENTIAL_TARGET_IDS) {
       const { unmount } = renderTab({ publishController: { target: providerId } });
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${providerId}"]`)).toBeInTheDocument();
-      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${providerId}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${providerId}"]`)).toBeInTheDocument();
       const target = publishTargetById(PUBLISH_TARGETS, providerId)!;
       const tokenField = target.credential!.fields.find((field) => field.name === target.credential!.tokenField)!;
-      expect(screen.getByLabelText(tokenField.label)).toHaveAttribute("data-agent-element", `deployment-static-site-credentials-token-${providerId}`);
+      const token = screen.getByLabelText(tokenField.label, { selector: `#deployment-static-site-credentials-token-${providerId}` });
+      const reveal = screen.getByRole("button", { name: `Show ${tokenField.label}` });
+      for (const control of [token, reveal]) {
+        expect(control).not.toHaveAttribute("data-agent-element");
+        expect(control).toHaveAttribute("data-agent-private", "");
+      }
+      fireEvent.click(reveal);
+      expect(token).toHaveAttribute("type", "text");
+      expect(token).not.toHaveAttribute("data-agent-element");
+      expect(token).toHaveAttribute("data-agent-private", "");
       expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("data-agent-element", `deployment-static-site-credentials-save-${providerId}`);
       unmount();
     }

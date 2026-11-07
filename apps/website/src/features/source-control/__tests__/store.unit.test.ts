@@ -52,7 +52,7 @@ const WORKSPACE = "ws-1";
 const NOW = "2026-08-15T00:00:00.000Z";
 
 /** Empty provider registry, distinct from a loaded provider whose identity probe returns null. */
-const noProviders: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [] });
+const noProviders: LoadSourceControlProviders = async (_workspaceId) => ({ list: () => [], get: () => undefined, refusals: [] });
 
 /** Reject rather than allowing a fixture token onto the real network. */
 function neverCallRealNetwork(): typeof fetch {

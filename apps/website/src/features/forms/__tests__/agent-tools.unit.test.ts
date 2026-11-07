@@ -20,7 +20,8 @@ function providerFixture({ allow = true }: { allow?: boolean } = {}) {
   const providers = createFormCollectionRegistry({});
   for (const id of ['example_one', 'example_two', 'fourth_provider']) providers.contribute({ pluginId: id, definition: { id, provider: {
     describe: () => ({ label: id, fields: [{ key: 'public_url', label: 'Public URL', type: 'url' as const }], answers: 'Remote inbox', validation: 'Remote validation', frameOrigins: [] }),
-    plan: () => ({ kind: 'unavailable' as const, code: 'provider_unavailable' as const, message: 'Fixture only' }),
+    plan: ({ config }) => ({ kind: 'post' as const, action: config.public_url!, external: true,
+      capabilities: { answers: 'Remote inbox', validation: 'Remote validation', spamProtection: 'Remote spam protection' } }),
   } } });
   let id = 0;
   const deps: FormsToolDeps = {
@@ -54,8 +55,9 @@ test('assistant discovers a fourth provider and saves its public configuration w
   assert.equal(created.ok, true, JSON.stringify(created));
   const definition = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;
   assert.deepEqual((definition as typeof definition & FormAuthoring).provider, selected);
-  const rejected = await call('forms_update_definition', { formId: definition.id, provider: { id: 'fourth_provider', config: { apiKey: 'private' } } });
-  assert.equal(rejected.ok, false);
+  const rejected = await call('forms_update_definition', { formId: definition.id, provider: { id: 'fourth_provider', config: { ...selected.config, apiKey: 'private' } } });
+  assert.ok(!rejected.ok, JSON.stringify(rejected));
+  assert.match(rejected.error.message, /Form provider configuration contains a secret or a non-text value/);
   const unchanged = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;
   assert.deepEqual((unchanged as typeof unchanged & FormAuthoring).provider, selected);
 });

@@ -289,6 +289,11 @@ function ThemeExploreModifiedMarker({ file, t }: { file: ThemeExploreFile; t: Tr
   );
 }
 
+/** Copy progress belongs only to the file whose bytes are being duplicated. */
+function themeFileCopyLabel({ copyingPath, path, t }: { copyingPath: string | null; path: string; t: Translate }): string {
+  return copyingPath === path ? t("Copying…") : t("Copy");
+}
+
 /**
  * One file chip in the picker tray (a sidebar row until 2026-10-11): the filename control (or its
  * inline-rename replacement) plus the ⋮ overflow menu — 2026-08-11 owner ask (Copy/Rename).
@@ -389,7 +394,7 @@ function ThemeExploreFileRow({
         items={[
           {
             key: "copy",
-            label: copyingPath === file.path ? t("Copying…") : t("Copy"),
+            label: themeFileCopyLabel({ copyingPath, path: file.path, t }),
             onSelect: () => void copyFile(file.path),
           },
           {

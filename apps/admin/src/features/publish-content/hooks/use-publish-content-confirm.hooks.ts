@@ -514,6 +514,11 @@ function canConfirmSelection(
   return canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending;
 }
 
+/** A sole target is unambiguous; multiple targets still require the operator's selection. */
+function singlePublishPeerId(peers: readonly PublishContentPeerSummary[]): string | null {
+  return peers.length === 1 ? peers[0].id : null;
+}
+
 export function usePublishContentConfirm(props: {
   onCancel: () => void;
   t: Translate;
@@ -585,7 +590,7 @@ export function usePublishContentConfirm(props: {
         // Auto-select when there is exactly one target: the overwhelmingly common case is a single
         // production peer, and making the operator pick it from a list of one is friction with no
         // decision behind it. With two or more, the dialog asks.
-        setSelectedPeerId(loaded.length === 1 ? loaded[0].id : null);
+        setSelectedPeerId(singlePublishPeerId(loaded));
         // Nothing to publish to yet — check whether this install can offer a one-click connect
         // instead of failing shut. Sequenced after `listPeers` rather than fired in parallel: the
         // common case (already connected) never needs this second call at all.

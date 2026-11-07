@@ -291,3 +291,15 @@ test("expiry crashes on a null import record (reported, not fixed)", t => {
   raw(registry, `${ID_A}.json`, "null");
   assert.throws(() => registry.expire({}), { name: "TypeError", message: /Cannot read properties of null \(reading 'status'\)/ });
 });
+
+for (const status of ["ready", "failed"] as const) {
+  test(`a ${status} row keeps its share link without the query string, a verifying one keeps it whole`, t => {
+    const registry = registryIn(t), url = "https://files.example.com/shop.tovu.zip";
+    registry.put({ row: record({ source: { url: url + "?k=secret" }, status: "verifying" }) });
+    assert.equal(JSON.stringify(registry.get({ importId: ID_A, principalId: "owner" })).includes("secret"), true, "still needed while the download runs");
+    registry.put({ row: record({ source: { url: url + "?k=secret" }, status }) });
+    const stored = registry.get({ importId: ID_A, principalId: "owner" });
+    assert.deepEqual(stored.source, { url });
+    assert.equal(fs.readFileSync(path.join(registry.directory, ID_A + ".json"), "utf8").includes("secret"), false);
+  });
+}

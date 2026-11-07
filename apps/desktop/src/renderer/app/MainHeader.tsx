@@ -5,34 +5,40 @@ import { SharedKeysLauncher } from '../SharedKeys.js';
 import { SitesFolders } from '../SitesFolders.js';
 import type { useSiteFolders } from '../use-site-folders.hooks.js';
 
+function headerTitle(
+  { isCreating, isImporting, activeLabel }: { isCreating: boolean; isImporting: boolean; activeLabel: string }, _optional = {},
+): string {
+  if (isCreating) return 'Create a website';
+  return isImporting ? 'Import a website' : activeLabel;
+}
+
 export function MainHeader({
   activeId,
   isCreating,
+  isImporting = false,
   activeLabel,
   onCreateWebsite,
   onRescan,
   rescanning,
-  onAddSite,
-  adding,
-  onImportSite,
+  onImport,
   useFolders,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
+  /** The Import page is open: it swaps the title and takes the tools away, like the create form. */
+  isImporting?: boolean;
   activeLabel: string;
   onCreateWebsite: () => void;
   onRescan: () => Promise<void>;
   rescanning: boolean;
-  onAddSite: () => Promise<void>;
-  adding: boolean;
-  onImportSite?: () => void;
+  onImport: () => void;
   useFolders?: typeof useSiteFolders;
 }) {
   return (
     <header className="main__head">
-      <h1 className="main__title">{isCreating ? 'Create a website' : activeLabel}</h1>
+      <h1 className="main__title">{headerTitle({ isCreating, isImporting, activeLabel })}</h1>
       <div className="main__spacer" />
-      {activeId === 'projects' && !isCreating && (
+      {activeId === 'projects' && !isCreating && !isImporting && (
         <div className="main__tools">
           {/* Ahead of "Create website" and styled quiet: this one only ever ADDS cards for sites
               that already exist, so it must not compete with the primary action. */}
@@ -43,23 +49,17 @@ export function MainHeader({
           </button>
           <SitesFolders useSettings={useFolders} />
           <SharedKeysLauncher />
-          {/* Two groups (owner, 2026-10-30): manage the sites you have, then the three ways to get
+          {/* Two groups (owner, 2026-10-30): manage the sites you have, then the two ways to get
               a site in — so no icon sits wedged between two text buttons. */}
           <span className="main__tools-gap" aria-hidden="true" />
-          {/* Quiet like Rescan: it opens a site's own Import & Export > Import tab, where the import lives. */}
-          {onImportSite && (
-            <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
-              data-tooltip="Import a site from a Tovu export or a live website" aria-label="Import site" onClick={onImportSite}>
-              <ToolIcon kind="import" />
-            </button>
-          )}
-          {/* Like Rescan it only ever adds cards for websites that already exist; the difference is
-              who chooses: Rescan looks under the scan roots automatically, this one asks the
-              operator for one folder. Solid black on the owner's call (restated 2026-10-30 after a
-              brief outlined try): it stays distinct from "Create website", the only button here
-              that makes a NEW site, by wearing the neutral contrast fill rather than `--primary`. */}
-          <button type="button" className="button button--contrast" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'add_existing_website' } }); void onAddSite(); }} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
-            {adding ? 'Adding…' : 'Add Tovu Website'}
+          {/* One Import (owner, 2026-11-06) in place of the old icon + "Add Tovu Website": it opens the
+              Import page, which makes or adds a site. It never touches an existing site. Solid black on
+              the owner's call (restated 2026-10-30): it stays distinct from "Create website", the
+              only other button that brings a site in, by wearing the neutral contrast fill rather
+              than `--primary`. */}
+          <button type="button" className="button button--contrast"
+            onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'import_website' } }); onImport(); }}>
+            Import
           </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
             <span aria-hidden="true">+</span>

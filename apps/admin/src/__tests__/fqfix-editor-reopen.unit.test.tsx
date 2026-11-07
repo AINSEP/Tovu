@@ -1,7 +1,6 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from './fetch-query-provider.test-helper';
-import { FetchQueryProvider as BuiltinProvider } from '@jini-ai/ui/fetch-query';
 import type { ReactNode } from 'react';
 import type { AdminMenu, AdminPost, AdminWorkspace } from '@/lib/api';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
@@ -26,7 +25,7 @@ const t = (key: string) => key;
 
 describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', adapter => {
   function Scope({ children }: { children?: ReactNode }) {
-    return adapter === 'builtin' ? <BuiltinProvider>{children}</BuiltinProvider> : <FetchQueryProvider>{children}</FetchQueryProvider>;
+    return <FetchQueryProvider adapter={adapter}>{children}</FetchQueryProvider>;
   }
   it('reopens a page at the fresh version and preserves subsequent local edits', async () => {
     const page: AdminPost = { id: 'p1', workspaceId: 'ws1', kind: 'page', slug: 'landing', title: 'Cached page',

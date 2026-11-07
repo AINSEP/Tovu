@@ -290,11 +290,13 @@ for (const boot of ['https-dev', 'desktop-serve'] as const) {
     const { parent, dir } = initFixture();
     const port = await getFreePort();
     const reportPath = path.join(parent, 'daemon-origin.json');
+    const nativeSpawnPath = path.join(parent, 'native-daemon-spawned');
     const observerPath = path.join(parent, 'daemon-origin-observer.mjs');
     const preloadPath = path.join(parent, 'observe-native-spawn.mjs');
     const depsUrl = new URL('../../../server/runtime/composition/app.ts', import.meta.url).href;
     const delegatedFixtureUrl = new URL('../../../assistant/__tests__/fixtures/execute-registered-tool.ts', import.meta.url).href;
     const guideUrl = new URL('../../../server/runtime/composition/site-guide-tools.ts', import.meta.url).href;
+    const lifecycleUrl = new URL('../../../server/runtime/lifecycle/daemon-supervisor.ts', import.meta.url).href;
     // The observer uses the child's actual inherited environment and real composition; only
     // unrelated guide topic loading is supplied by a small engine fixture.
     fs.writeFileSync(observerPath, `
@@ -336,11 +338,19 @@ for (const boot of ['https-dev', 'desktop-serve'] as const) {
       const nativeSpawn = cp.spawn;
       cp.spawn = (command, args, options) => {
         if (args?.some(arg => /agent-daemon-server\.(?:ts|js)$/.test(String(arg)))) {
+          fs.writeFileSync(${JSON.stringify(nativeSpawnPath)}, 'spawned');
           return nativeSpawn(process.execPath, ['--import', ${JSON.stringify(TSX_LOADER)}, ${JSON.stringify(observerPath)}], { ...options, env: { ...options.env, NODE_OPTIONS: '' } });
         }
         return nativeSpawn(command, args, options);
       };
       syncBuiltinESMExports();
+      // Boot deliberately registers cold. The fixture requests the existing demand lifecycle
+      // only after its real listener is ready, without changing production startup behavior.
+      process.stdin.once('data', async () => {
+        const { ensureAssistantDaemonStarted } = await import(${JSON.stringify(lifecycleUrl)});
+        const result = ensureAssistantDaemonStarted();
+        if (!result.ok) throw new Error(result.reason);
+      });
     `);
     const env: NodeJS.ProcessEnv = {
       TOVU_SITE_DIR: dir, TOVU_ADMIN_ASSISTANT: 'on', TOVU_HOST: '127.0.0.1',
@@ -353,15 +363,24 @@ for (const boot of ['https-dev', 'desktop-serve'] as const) {
         env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
       }) as ChildProcessWithoutNullStreams;
     let stderr = '';
+    let stdout = '';
     child.stderr.on('data', chunk => { stderr += chunk.toString(); });
-    child.stdout.resume();
+    child.stdout.on('data', chunk => { stdout += chunk.toString(); });
     try {
       const deadline = Date.now() + 60_000 * loadFactor();
+      let demanded = false;
       while (!fs.existsSync(reportPath) && Date.now() < deadline) {
         assert.equal(child.exitCode, null, stderr);
+        if (!demanded && /tovu server running on|tovu serve: dir=/.test(stdout)) {
+          assert.equal(fs.existsSync(nativeSpawnPath), false, 'cold registration must not request a native daemon spawn before demand');
+          child.stdin.write('demand\n');
+          demanded = true;
+        }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      assert.equal(demanded, true, `the listener must become ready before explicit daemon demand: ${stderr}`);
       assert.ok(fs.existsSync(reportPath), `daemon did not receive the boot origin: ${stderr}`);
+      assert.equal(fs.existsSync(nativeSpawnPath), true, 'demand must pass through the native daemon spawn adapter');
       const expected = `${boot === 'https-dev' ? 'https' : 'http'}://127.0.0.1:${port}`;
       const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
       assert.equal(report.inherited, expected);

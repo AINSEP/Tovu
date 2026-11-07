@@ -17,7 +17,7 @@ import type { RefObject } from 'react';
 
 /** The ⓘ beside a heading: the explanation is a tooltip (Jini's TooltipLayer, mounted in main.tsx)
  *  and the button's accessible name, not a loose sentence under the heading (owner 2026-10-11). */
-function InfoTip({ text }: { text: string }) {
+export function InfoTip({ text }: { text: string }) {
   return <button type="button" className="info-tip jini-tooltip" aria-label={text} data-tooltip={text} />;
 }
 

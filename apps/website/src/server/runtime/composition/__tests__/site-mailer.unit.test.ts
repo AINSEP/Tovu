@@ -1,3 +1,7 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -267,10 +271,11 @@ test("mail provider access card refuses an intervening selection at the real set
   await mailer.selectProvider({ id: "old", principalId: "owner" });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} }, clock: { nowMs: () => 1 },
     idGenerator: { newId: () => "mail-card" }, defaultChannel: "mcp-ui" });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges, assertAccessApprover: async () => {} };
   const registration = buildMailStatusRegistrations({ workspaceId: WS, mailer: mailer.mailer,
     authorize: async () => ({ allowed: true, reason: "fixture" }),
     mailProviderControl: { check: async () => ({ ok: true, label: "Requested" }), select: mailer.selectProvider, readSelection: mailer.readProviderSelection },
-  }, { surfaceExchanges, assertAccessApprover: async () => {} }).find(r => r.descriptor.id === "mail_set_provider")!;
+  }, surfaces).find(r => r.descriptor.id === "mail_set_provider")!;
   await assert.rejects(registration.handler({ executionId: "mail-test", principal: { id: "owner" }, run: { id: "run" }, input: { providerId: "requested" }, signal: new AbortController().signal }, {
     emitSurface: async () => {
       assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "old", bulk: "old" });
@@ -283,7 +288,7 @@ test("mail provider access card refuses an intervening selection at the real set
 });
 
 
-test("disable cleanup refuses a concurrent provider selection rather than overwriting its lanes", async () => {
+test("disable cleanup preserves a concurrent provider selection without overwriting its lanes", async () => {
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
   const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
   await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
@@ -298,7 +303,79 @@ test("disable cleanup refuses a concurrent provider selection rather than overwr
     }
     return { allowed: true, reason: "test" };
   };
-  await assert.rejects(site.setAgentPluginEnabled(PLUGIN_TOGGLE), /Setting revision changed/);
+  assert.deepEqual(await site.setAgentPluginEnabled(PLUGIN_TOGGLE), { pluginId: "mail-package", enabled: false, warnings: [] });
   assert.equal(changed, true, "the other writer runs after the cleanup snapshot");
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "new_provider", bulk: "new_provider" });
+});
+
+for (const takeover of [false, true]) test(`disable retries selective cleanup and preserves ${takeover ? "a new owner of the same provider id" : "the other writer's lane"}`, async () => {
+  const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
+  const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
+  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
+  let active = true;
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => active ? mailAdapters() : [] });
+  const site = createSiteMailer(required, { setAgentPluginEnabled: async input => {
+    active = input.enabled;
+    return { pluginId: input.pluginId, enabled: active, warnings: [] };
+  } });
+  await site.ready;
+  let changed = false;
+  required.settings.authorize = async () => {
+    if (!changed) {
+      changed = true;
+      if (takeover) required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => adapter.pluginId === 'other-package').map(adapter => ({ ...adapter, descriptor: { ...adapter.descriptor, id: 'first_adapter' } })) });
+      await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "new_provider" } });
+    }
+    return { allowed: true, reason: "test" };
+  };
+  assert.deepEqual(await site.setAgentPluginEnabled(PLUGIN_TOGGLE), { pluginId: "mail-package", enabled: false, warnings: [] });
+  assert.equal(active, false);
+  assert.equal(changed, true);
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: takeover ? "first_adapter" : null, bulk: "new_provider" });
+});
+
+test("a disable retry clears missing owned adapters and preserves a newer live provider with the same id", async () => {
+  const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
+  const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
+  const before = { transactional: "first_adapter", bulk: "second_adapter" };
+  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: before });
+  let active = true;
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => active ? mailAdapters() : [] });
+  const site = createSiteMailer(required, { setAgentPluginEnabled: async input => {
+    active = input.enabled;
+    return { pluginId: input.pluginId, enabled: active, warnings: [] };
+  } });
+  await site.ready;
+  let conflict = true;
+  required.settings.authorize = async () => {
+    if (conflict) await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: before });
+    return { allowed: true, reason: "test" };
+  };
+  await assert.rejects(site.setAgentPluginEnabled(PLUGIN_TOGGLE), /Setting revision changed/);
+  assert.equal(active, false);
+  conflict = false;
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => adapter.pluginId === 'other-package').map(adapter => ({ ...adapter, descriptor: { ...adapter.descriptor, id: 'first_adapter' } })) });
+  await site.setAgentPluginEnabled(PLUGIN_TOGGLE);
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "first_adapter", bulk: null });
+});
+
+
+test("disable cleanup recovers an inactive plugin's provider ownership after a fresh mailer boot and preserves a newer active owner", async t => {
+  const fixture = createTempSiteLayoutFixture({}); t.after(fixture.cleanup);
+  const layout = fixture.deps.agentPluginLayout;
+  const workspace = layout.forWorkspace(WS);
+  const digest = 'a'.repeat(64);
+  const pluginDir = path.join(workspace.pluginPackagesDir({ pluginId: PLUGIN_TOGGLE.pluginId }), digest);
+  await mkdir(pluginDir, { recursive: true });
+  await writeFile(path.join(pluginDir, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: PLUGIN_TOGGLE.pluginId, version: '1.0.0', extensions: { tovu: { id: 'test/mail-package' } } }));
+  await writeFile(path.join(pluginDir, 'tovu-mail-adapters.json'), JSON.stringify({ schemaVersion: 1, adapters: [{ id: 'firstadapter', label: 'Mail', module: 'mail.mjs', credentialLabel: 'Mail key' }, { id: 'sharedid', label: 'Shared', module: 'mail.mjs', credentialLabel: 'Shared key' }] }));
+  await writeFile(path.join(workspace.root, 'bundled-digests.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { archiveDigest: digest } } }));
+  await writeFile(path.join(workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { enabled: false, origin: 'bundled', updatedAt: '2026-10-21T00:00:00Z', updatedBy: 'owner' } } }));
+  const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
+  await writeMailProviderSetting({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: 'owner', value: { transactional: 'firstadapter', bulk: 'sharedid' } });
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => adapter.pluginId === 'other-package').map(adapter => ({ ...adapter, descriptor: { ...adapter.descriptor, id: 'sharedid' } })) });
+  const site = createSiteMailer(required, { setAgentPluginEnabled: async input => ({ pluginId: input.pluginId, enabled: input.enabled, warnings: [] }) });
+  await site.ready;
+  await site.setAgentPluginEnabled({ ...PLUGIN_TOGGLE, agentPluginLayout: layout });
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: null, bulk: 'sharedid' });
 });

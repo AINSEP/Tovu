@@ -323,6 +323,7 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   let html = "";
   let status = 200;
   const res = {
+    locals: {},
     status(code: number) { status = code; return res; },
     set() { return res; }, type() { return res; },
     send(body: string) { html = body; return res; },
@@ -334,29 +335,45 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   assert.doesNotMatch(html, /class="product-card"|href="\/products\/[^" ]+"/);
 });
 
-test("GET /products and /products/:id cache only with consent off; the static-export marker always prevents storage", async (t) => {
+test("GET /products and /products/:id cache visitor-independent HTML for both consent modes; context and static exports stay private", async (t) => {
   const product: Product = { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, stock: 5, version: 1 };
-  // Owner-ON consent is visitor-specific; ad8a49c74 gates this opt-in adapter too. Consent is off by
-  // default (owner, 2026-11-02), so both arms save an explicit owner choice.
-  // Owner-OFF still proves the export marker itself prevents caching, independently of consent.
+  // Document assets use a site-wide publication; visitor consent stays in the private context.
+  // Both owner choices must keep HTML identical across visitor cookies and GPC headers.
   for (const consentEnabled of [true, false]) {
     const deps = createRouteDeps();
     await deps.siteConsentReady;
     await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
       principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
       value: consentEnabled, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
+    deps.cookieConsent = { regionResolvers: async () => [] };
     const { server, baseUrl } = await startServer({ ...deps, commerceCatalog: fakeStore({ products: [product] }) });
     t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+    const visitorHeaders: Record<string, string>[] = [{ cookie: "jini_consent=private-visitor-choice" }, { "sec-gpc": "1" }];
 
     for (const path of ["/products", "/products/prod-1"]) {
       const plain = await fetch(`${baseUrl}${path}`);
       assert.equal(plain.status, 200, path);
-      assert.equal(plain.headers.get("cache-control"), consentEnabled ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300", path);
-      if (consentEnabled) assert.equal(plain.headers.get("vary"), "Cookie, Sec-GPC", path);
+      assert.equal(plain.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300", path);
+      assert.equal(plain.headers.get("set-cookie"), null, path);
+      assert.doesNotMatch(plain.headers.get("vary") ?? "", /Cookie|Sec-GPC/i, path);
+      const html = await plain.text();
+      for (const headers of visitorHeaders) {
+        const visitor = await fetch(`${baseUrl}${path}`, { headers });
+        assert.equal(visitor.status, 200, path);
+        assert.equal(visitor.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300", path);
+        assert.equal(visitor.headers.get("set-cookie"), null, path);
+        assert.doesNotMatch(visitor.headers.get("vary") ?? "", /Cookie|Sec-GPC/i, path);
+        assert.equal(await visitor.text(), html, "visitor state must not enter shared HTML");
+      }
       const exported = await fetch(`${baseUrl}${path}`, { headers: { "x-tovu-static-export": "1" } });
       assert.equal(exported.status, 200, path);
       assert.equal(exported.headers.get("cache-control"), "private, no-store", path);
+      await exported.text();
     }
+    const context = await fetch(`${baseUrl}/_consent/context`);
+    assert.equal(context.status, 200);
+    assert.equal(context.headers.get("cache-control"), "private, no-store");
+    assert.equal((await context.json() as { enabled: boolean }).enabled, consentEnabled);
   }
 });
 

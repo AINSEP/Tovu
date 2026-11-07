@@ -8,12 +8,18 @@ import { startTestServer } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import type { RouteDeps } from "../routes/types.js";
+import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
+
+const SIGN_IN_FAILURE = {
+  code: "INTERNAL_ERROR",
+  error: "The sign-in operation could not be completed. Check the result before repeating this operation. Report this error ID.",
+};
 
 /**
  * @file Route-level failure-path tests for `POST /api/admin/v1/auth/logout`. Express 4 does not
  * catch a rejected async handler, so a logout whose identity bootstrap or session store fails used
- * to leave the request hanging until the client gave up. These pin the same flat 500 body the
- * sibling login route returns. Every fetch carries a timeout so a regression fails fast instead of
+ * to leave the request hanging until the client gave up. These pin the anonymous incident envelope
+ * shared with sign-in. Every fetch carries a timeout so a regression fails fast instead of
  * stalling the suite.
  */
 
@@ -43,7 +49,8 @@ test("logout: an identity bootstrap that rejects answers 500 instead of hanging"
   const res = await postLogout(baseUrl, "tovu_session=abc");
 
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: SIGN_IN_FAILURE });
+  assert.equal(res.headers.has("set-cookie"), false);
 });
 
 test("logout: a session store that rejects answers 500 instead of hanging", async (t) => {
@@ -59,7 +66,8 @@ test("logout: a session store that rejects answers 500 instead of hanging", asyn
   const res = await postLogout(baseUrl, "tovu_session=abc");
 
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: SIGN_IN_FAILURE });
+  assert.equal(res.headers.has("set-cookie"), false);
 });
 
 test("logout: without a cookie it clears the cookie and answers ok", async (t) => {

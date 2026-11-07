@@ -45,7 +45,7 @@ for (const scenario of readinessCases) {
     registerAdminAssistantTestAgentRoute(app, dependencies({ overrides: {
       detectAgents: async (input, options) => {
         calls++;
-        assert.deepEqual(input, {});
+        assert.deepEqual(input, { agentIds: ["fixture-cli"] });
         assert.deepEqual(options, { force: true });
         return scenario.agents;
       },

@@ -3,6 +3,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { it, expect, vi } from 'vitest';
 import { OwnerRecoverySignIn } from '../OwnerRecoverySignIn';
 
+it('keeps saved login passwords out of the recovery code, hidden and revealed', () => {
+  render(<OwnerRecoverySignIn />);
+  fireEvent.click(screen.getByText('Lost your owner password?'));
+  const code = screen.getByLabelText('Recovery code');
+  expect(code).toHaveAttribute('type', 'password');
+  expect(code).toHaveAttribute('autocomplete', 'new-password');
+  fireEvent.click(screen.getByRole('button', { name: 'Show Recovery code' }));
+  expect(code).toHaveAttribute('type', 'text');
+  expect(code).toHaveAttribute('autocomplete', 'new-password');
+});
+
 it('recovers using the code and new password without keeping either after success', async () => {
   const recover = vi.fn(async () => {});
   render(<OwnerRecoverySignIn recover={recover} />);

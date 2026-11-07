@@ -41,11 +41,9 @@ import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
-import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
-import { rebuildImportDatabase, restoreStagedImport, composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
-import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
+import { composeSiteImportBackend } from "./site-import-backend.js";
+import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
-import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/unpdf";
 import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";
@@ -147,7 +145,6 @@ import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origi
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
   SITE_BACKUP_EGRESS_POLICY,
-  SITE_IMPORT_EGRESS_POLICY,
   MEDIA_IMPORT_EGRESS_POLICY,
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
 } from "#src/platform/http/egress-policies";
@@ -3004,14 +3001,12 @@ async function composeSiteRouteDeps(
     if (importBase !== null) {
       const importSupervisor = localSiteSupervisorForHost({ binding: resolvedSiteBinding, workspaceId });
       const workspace = createSitesWorkspace({}, { cwd: importBase });
-      // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
-      const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
-      const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
-      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, createSite, restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options), reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+      routeDeps.siteImportBackend = composeSiteImportBackend({ workspaceId, workspace, savedKeys,
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
         startSite: async input => importSupervisor ? startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }) : { adminUrl: null, status: "stopped" },
+      }, { tracker, observability,
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
-      }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
+        report: ({ importId, status }) => console.info("[site-import]", importId, status) });
     }
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });

@@ -19,11 +19,11 @@ after(closeHost);
 interface Props {
   activeId?: RunnerSectionId;
   isCreating?: boolean;
+  isImporting?: boolean;
   lastCreated?: CreatedSiteRecord | null;
   projectsLoading?: boolean;
   loadError?: string | null;
   rescanError?: string | null;
-  addError?: string | null;
   projects?: readonly SiteRecord[];
   onSiteUpdated?: (record: SiteRecord, previousId?: string) => void;
 }
@@ -32,8 +32,8 @@ async function renderContent(t: TestContext, props: Props = {}, bridge: Partial<
   installBridge({ t, bridge: { getSitePreview: async () => null, ...bridge } });
   const opened: string[] = [];
   const view = mount({ t, element: createElement(MainContent, {
-    activeId: 'projects', isCreating: false, lastCreated: null, projectsLoading: false, loadError: null,
-    rescanError: null, addError: null, projects: [], activeLabel: 'Marketplace', activeDescription: 'Find plugins for your sites.',
+    activeId: 'projects', isCreating: false, isImporting: false, lastCreated: null, projectsLoading: false, loadError: null,
+    rescanError: null, projects: [], activeLabel: 'Marketplace', activeDescription: 'Find plugins for your sites.',
     onCreateWebsite: () => {}, onOpenProject: (id) => { opened.push(id); }, onDeleteProject: async () => {}, onSiteUpdated: () => {},
     ...props,
   }) });
@@ -75,12 +75,9 @@ test('ProjectsBody: loading, then a failed list, each replace the body with thei
   assert.equal(failed.grid(), null);
 });
 
-test('ProjectsBody: a failed rescan and a refused add are reported alongside the grid, never in place of it', async (t) => {
-  const view = await renderContent(t, { rescanError: 'scan root unreadable', addError: 'That folder is not a Tovu site.', projects: [site('a')] });
+test('ProjectsBody: a failed rescan is reported alongside the grid, never in place of it', async (t) => {
+  const view = await renderContent(t, { rescanError: 'scan root unreadable', projects: [site('a')] });
   assert.equal(view.container.querySelector('p.empty__body')?.textContent, 'scan root unreadable');
-  const feedback = view.container.querySelector('.projects-feedback');
-  assert.equal(feedback?.textContent, 'That folder is not a Tovu site.');
-  assert.equal(feedback?.getAttribute('role'), 'status');
   assert.ok(view.grid(), 'the websites already on screen stay');
   await view.click(view.grid());
   assert.deepEqual(view.opened, ['a'], 'and stay openable');
@@ -92,11 +89,11 @@ test('ProjectsBody: with no errors there is no error line', async (t) => {
   assert.equal(view.container.querySelector('.projects-feedback'), null);
 });
 
-test('NoWebsitesYet: no websites names the three header actions instead of duplicating them', async (t) => {
+test('NoWebsitesYet: no websites names the header actions instead of duplicating them', async (t) => {
   const view = await renderContent(t);
   const empty = view.container.querySelector('.empty__body');
-  assert.equal(empty?.textContent, 'No websites yet. Use Create website to start a new one, Add Tovu Website to point at a site you already have, or Rescan to look for sites on this computer.');
-  assert.deepEqual([...empty!.querySelectorAll('strong')].map((strong) => strong.textContent), ['Create website', 'Add Tovu Website', 'Rescan']);
+  assert.equal(empty?.textContent, 'No websites yet. Use Create website to start a new one, Import to bring in a site you already have, or Rescan to look for sites on this computer.');
+  assert.deepEqual([...empty!.querySelectorAll('strong')].map((strong) => strong.textContent), ['Create website', 'Import', 'Rescan']);
   assert.equal(view.container.querySelector('button'), null, 'no second control for an action the header owns');
   assert.equal(view.grid(), null);
 });
@@ -115,4 +112,10 @@ test('ProjectsBody: a rename updates the Websites grid at once through the same 
   await view.click(view.byText('Save'));
   assert.deepEqual(sent, [{ id: 'a', name: 'Harbor Florist' }]);
   assert.deepEqual(updated, [renamed], 'main\'s record reaches the grid\'s setter without waiting for a poll');
+});
+
+test('MainContent: while the Import page is open the grid stays out of its way', async (t) => {
+  const view = await renderContent(t, { isImporting: true, projects: [site('a')] });
+  assert.equal(view.grid(), null);
+  assert.equal(view.container.textContent, '');
 });

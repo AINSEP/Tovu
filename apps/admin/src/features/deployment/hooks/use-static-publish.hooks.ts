@@ -158,7 +158,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   const targets = useMemo(() => localizePublishTargets(targetsQuery.data, locale), [targetsQuery.data, locale]);
   const targetsError = targetsQuery.error ? publishLoadErrorMessage(locale, describeApiError(targetsQuery.error, UNKNOWN_ERROR)) : null;
   const [chosenTarget, setChosenTarget] = useState<AdminStaticPublishTargetId | null>(null);
-  const target = chosenTarget ?? targets?.[0]?.id ?? "";
+  const target = selectedPublishTargetId({ chosenTarget, targets });
   const selectedTarget = publishTargetById(targets, target);
   const [valuesByTarget, setValuesByTarget] = useState<Record<AdminStaticPublishTargetId, Record<string, string>>>({});
   const configValues = valuesByTarget[target] ?? {};
@@ -403,4 +403,12 @@ export function useWiredStaticPublish(): StaticPublishController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useStaticPublish(defaultStaticPublishPort, t, locale);
+}
+
+/** A chosen target wins; the initial target follows the provider's published ordering. */
+function selectedPublishTargetId({ chosenTarget, targets }: {
+  chosenTarget: AdminStaticPublishTargetId | null;
+  targets: Parameters<typeof publishTargetById>[0];
+}): AdminStaticPublishTargetId {
+  return chosenTarget ?? targets?.[0]?.id ?? "";
 }

@@ -6,7 +6,7 @@ import test from "node:test";
 
 import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
 type Product = SiteProduct & { version?: number };
-type StoreApi = { listProducts(): Promise<Product[]> };
+type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -20,6 +20,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 function fakeStore(required: { products: Product[] }, _optional: Record<string, never> = {}): StoreApi {
   return {
     listProducts: async () => required.products,
+    findProduct: async ({ idOrSlug }) => required.products.find(product => product.id === idOrSlug) ?? required.products.find(product => product.slug === idOrSlug) ?? null,
   };
 }
 
@@ -157,17 +158,18 @@ test("products: 'No themes installed' 500s when no theme is discovered (both rou
   assert.match(await detail.text(), /No themes installed/);
 });
 
-test("products: an unexpected exception 500s with 'Site error' (both routes)", async (t) => {
+test("products: unexpected catalog and detail exceptions return specific safe errors (both routes)", async (t) => {
   const app = createApp(testDeps({ commerceCatalog: {
     listProducts: async () => { throw new Error("boom"); },
+    findProduct: async () => { throw new Error("boom"); },
   } }));
   const baseUrl = await startTestServer(app, t);
 
   const list = await fetch(`${baseUrl}/products`);
   assert.equal(list.status, 500);
-  assert.match(await list.text(), /Site error/);
+  assert.equal(await list.text(), "<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
 
   const detail = await fetch(`${baseUrl}/products/anything`);
   assert.equal(detail.status, 500);
-  assert.match(await detail.text(), /Site error/);
+  assert.equal(await detail.text(), "<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
 });

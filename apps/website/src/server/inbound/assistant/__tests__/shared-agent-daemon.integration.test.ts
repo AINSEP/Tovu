@@ -39,8 +39,15 @@ async function harness() {
     if (db === "sqlite") {
       await writeFile(join(dir, "content.db"), ""); await writeFile(join(dir, "chat.db"), "");
     }
+    const bin = join(dir, "bin");
+    if (options.prepare) {
+      await mkdir(bin, { recursive: true });
+      // Inventory sees a real controlled executable; withdrawal must fence its launch.
+      await writeFile(join(bin, "aider"), '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "aider fixture\\n"; exit 0; fi\nprintf "unexpected fixture launch\\n" > "$HOME/fixture-launched"\nexit 98\n', { mode: 0o755 });
+    }
+    let holdReplyPreferences = false;
     const token = `proxy-${instance}-${siteLabel}-${scopes.length}`;
-    const env = { PATH: "", HOME: dir, TOVU_SITE_DIR: dir, TOVU_DB: db,
+    const env = { PATH: options.prepare ? bin : "", HOME: dir, TOVU_SITE_DIR: dir, TOVU_DB: db,
       TOVU_WORKSPACE: "workspace-local", TOVU_SITE_LISTENER_ORIGIN: options.prepare ? url : "http://127.0.0.1:1",
       TOVU_AGENT_DAEMON_TOKEN: token, TOVU_AGENT_PERMISSION_MODE: instance ? "restricted" : "bypass",
       JINI_AGENT_DAEMON_URL: `${url}/s/${instance}-${siteLabel}` };
@@ -50,7 +57,7 @@ async function harness() {
         fetch: async (_input, init) => {
           assert.equal(new Headers(init?.headers).get("authorization"), `Bearer rpc-${instance}-${siteLabel}`);
           const request = JSON.parse(String(init?.body)) as { operation: string; input?: { namespace?: string } };
-          if (request.operation === 'getEffective' && request.input?.namespace === 'core.interface' && options.prepare) {
+          if (request.operation === 'getEffective' && request.input?.namespace === 'core.interface' && options.prepare && holdReplyPreferences) {
             options.prepare.entered();
             await options.prepare.resume;
           }
@@ -64,6 +71,8 @@ async function harness() {
     });
     scopes.push(scope);
     mounted.set(`${instance}-${siteLabel}`, scope);
+    // Boot reads the same namespace; only reply preparation belongs behind this gate.
+    holdReplyPreferences = true;
     return { scope, env, token, base: `${url}/s/${instance}-${siteLabel}` };
   }
   return { site, close: async () => {
@@ -134,7 +143,7 @@ test("disposing one site leaves another run streaming and refuses late callbacks
   } finally { await h.close(); }
 });
 
-test("withdrawing a site while its reply prepares finishes disposal and leaves another site streaming", { timeout: 10_000 }, async () => {
+test("withdrawing a site while its reply prepares finishes disposal and leaves another site streaming", { timeout: 10_000 }, async t => {
   const h = await harness();
   let resume!: () => void;
   const held = new Promise<void>(resolve => { resume = resolve; });
@@ -154,7 +163,12 @@ test("withdrawing a site while its reply prepares finishes disposal and leaves a
     });
     assert.equal(response.status, 201);
     runId = ((await response.json()) as { run: { id: string } }).run.id;
-    await preparing;
+    await Promise.race([
+      preparing,
+      a.scope.lifecycle.waitForTerminal({ runId }, { signal: t.signal }).then(terminal => {
+        assert.fail(`reply finished before preference gate: ${terminal.state}`);
+      }),
+    ]);
     closing = a.scope.dispose({}, {});
     // Let withdrawal fence launch and deliver cancellation while preference I/O is held.
     await new Promise<void>(resolve => setImmediate(resolve));
@@ -162,6 +176,7 @@ test("withdrawing a site while its reply prepares finishes disposal and leaves a
     const terminal = await a.scope.lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(2_000) });
     assert.equal(terminal.state, 'cancelled');
     await closing;
+    await assert.rejects(readFile(join(a.env.HOME, 'fixture-launched')), { code: 'ENOENT' }, 'withdrawal fences the prepared CLI before spawn');
     const replacement = await h.site(0, 'a');
     const ready = await fetch(`${replacement.base}/api/runs`, { headers: { authorization: `Bearer ${replacement.token}`, 'x-tovu-principal-id': 'owner' } });
     assert.equal(ready.status, 200); await ready.body?.cancel();

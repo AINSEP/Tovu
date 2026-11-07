@@ -5,7 +5,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { tabAfterClose } from './site-shell-policy.js';
-import type { SiteAdminPage } from './import-site-entry.js';
+import { sameAdminPage, type SiteAdminPage } from './import-site-entry.js';
 
 export interface ProjectTabsState {
   // Project ids with an open tab, in the order they were opened.
@@ -52,7 +52,7 @@ export function useProjectTabs(
     setOpenTabs((current) => (current.includes(id) ? current : [...current, id]));
     setActiveTab(id);
     const { adminPage } = options;
-    if (adminPage) setAdminPages((current) => (current[id] === adminPage ? current : { ...current, [id]: adminPage }));
+    if (adminPage) setAdminPages((current) => (sameAdminPage({ a: current[id], b: adminPage }) ? current : { ...current, [id]: adminPage }));
   };
 
   const closeProjectTab = (id: string) => {

@@ -246,7 +246,7 @@ async function briefPendingRead({ state }: { state: DocumentState }): Promise<vo
 export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
-  if (staticDocument) return staticDocumentAssets({ config, request });
+  if (staticDocument) return staticDocumentAssets({ config, request, scripts, consent });
   const allScripts = [...scripts, ...await documentDeclarations({ consent })];
   if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
@@ -254,9 +254,16 @@ export async function siteConsentDocumentAssets({ deps, request, scripts, static
   return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
 }
 
-/** Static documents receive only the loader, using the same cached publication as managed shells. */
-function staticDocumentAssets({ config, request }: { config: ConsentConfig | null; request: Request }): DocumentAssets {
-  if (!config || siteBannerMode({ config }) === 'off' || request.res?.locals.tovuRenderThemeIdOverride) return { head: '', body: '' };
+/** Static documents share managed shells' cached publication; off-mode declarations need no consent runtime.
+ * @complexity O(declared scripts) time/space when off; reuses the cached declaration Promise without I/O. */
+async function staticDocumentAssets({ config, request, scripts, consent }: {
+  config: ConsentConfig | null; request: Request; scripts: readonly DeclaredScript[]; consent?: SiteCookieConsentDeps;
+}): Promise<DocumentAssets> {
+  if (!config || request.res?.locals.tovuRenderThemeIdOverride) return { head: '', body: '' };
+  if (siteBannerMode({ config }) === 'off') {
+    const allScripts = [...scripts, ...await documentDeclarations({ consent })];
+    return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
+  }
   return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
 }
 

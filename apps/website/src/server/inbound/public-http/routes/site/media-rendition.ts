@@ -282,7 +282,6 @@ async function cachedReferenceIndex(deps: MediaRenditionRouteDeps): Promise<Asse
   const now = deps.clock.nowMs();
   const cached = cache.get(key);
   if (cached && cached.expiresAt > now) return cached.value;
-  if (cache.size >= 256) cache.delete(cache.keys().next().value!);
   const value = buildAssetReferenceIndex(deps);
   cache.set(key, { expiresAt: now + 60_000, value });
   try { return await value; }

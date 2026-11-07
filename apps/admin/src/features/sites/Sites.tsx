@@ -340,6 +340,14 @@ function goToSiteList() {
   navigate("/sites?tab=all", { replace: true });
 }
 
+/** Lifecycle and list writes retain separate visible failure messages. */
+function SitesWriteNotices({ writeError, localError }: { writeError: string | null; localError: string | null | undefined }) {
+  return <>
+    {writeError ? <div className="notice error">{writeError}</div> : null}
+    {localError ? <div className="notice error">{localError}</div> : null}
+  </>;
+}
+
 export function Sites(props: SitesProps = {}) {
   const controller = resolveSitesHook(props.useSitesHook)();
   const { snapshot, listStatus, listError, writeError, switchingEnabled, outlook, restartInstructions, createdName, sites, t } = controller;
@@ -368,8 +376,7 @@ export function Sites(props: SitesProps = {}) {
         </div>
       </div>
 
-      {writeError ? <div className="notice error">{writeError}</div> : null}
-      {controller.localSites?.error ? <div className="notice error">{controller.localSites.error}</div> : null}
+      <SitesWriteNotices writeError={writeError} localError={controller.localSites?.error} />
       {switchingEnabled ? null : <SwitchingDisabledNotice t={t} />}
 
       <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />

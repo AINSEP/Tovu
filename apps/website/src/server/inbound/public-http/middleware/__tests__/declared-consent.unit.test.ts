@@ -33,7 +33,7 @@ async function fixture(enabled: boolean, scriptDeclarations?: import('#src/contr
   await once(server, 'listening');
   const address = server.address() as { port: number };
   reads = regionReads = 0;
-  return { deps, page, url: `http://127.0.0.1:${address.port}`, counts: () => ({ reads, regionReads, draftReads }), close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) };
+  return { app, deps, page, url: `http://127.0.0.1:${address.port}`, counts: () => ({ reads, regionReads, draftReads }), close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) };
 }
 
 test('consent middleware leaves page bytes and shared-cache response untouched', async () => {
@@ -524,5 +524,60 @@ test('a failed active-theme read returns plain words from the loader without lea
     const body = await response.text();
     assert.match(body, /Cookie preferences could not be loaded/);
     assert.doesNotMatch(body, /private-theme-path/);
+  } finally { await f.close(); }
+});
+
+
+test('an older authored consent loader remains harmless when consent is disabled', async () => {
+  const f = await fixture(false);
+  const page = '<html><head><script src="/_consent/load.js" defer data-jini-consent-loader></script></head><body>Older theme</body></html>';
+  f.app.get('/older-theme', (_req, res) => res.type('html').send(page));
+  try {
+    assert.equal(await (await fetch(`${f.url}/older-theme`)).text(), page, 'authored documents are not rewritten');
+    const context = await (await fetch(`${f.url}/_consent/context`)).json() as { enabled: boolean };
+    assert.equal(context.enabled, false);
+    const response = await fetch(`${f.url}/_consent/load.js`);
+    assert.equal(response.status, 200);
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(page, { url: f.url, runScripts: 'outside-only' });
+    try {
+      dom.window.eval(await response.text());
+      assert.equal(dom.window.document.getElementById('jini-consent'), null);
+      assert.equal(dom.window.document.getElementById('jini-consent-config'), null);
+      assert.equal(dom.window.document.querySelectorAll('script').length, 1, 'the old tag loads no consent runtime');
+    } finally { dom.window.close(); }
+  } finally { await f.close(); }
+});
+
+
+test('static documents with consent off deliver declared scripts directly and export their local assets', async () => {
+  const f = await fixture(false, async () => ({ scripts: [
+    { src: '/plugin-menu.js' }, { src: '/plugin-optional.js', consent: ['analytics'] },
+    { src: 'https://example.com/plugin.js' },
+  ], problems: [] }));
+  f.app.get('/static-assets', async (req, res) => res.json(await siteConsentDocumentAssets({
+    deps: f.deps, request: req, static: true,
+    scripts: [{ src: '/theme-menu.js' }, { src: '/theme-optional.js', consent: ['functional'] }],
+  })));
+  try {
+    const assets = await (await fetch(`${f.url}/static-assets`)).json() as { head: string; body: string };
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(`<html><head>${assets.head}</head><body>${assets.body}</body></html>`);
+    try {
+      assert.deepEqual([...dom.window.document.querySelectorAll('script')].map(script => script.getAttribute('src')),
+        ['/theme-menu.js', '/theme-optional.js', '/plugin-menu.js', '/plugin-optional.js', 'https://example.com/plugin.js']);
+      assert.equal(assets.body, '');
+      assert.doesNotMatch(assets.head, /_consent|jini-consent/);
+      assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), ['/plugin-menu.js', '/plugin-optional.js']);
+    } finally { dom.window.close(); }
+  } finally { await f.close(); }
+});
+
+test('a static document with consent off and no declared scripts adds nothing', async () => {
+  const f = await fixture(false);
+  f.app.get('/static-assets', async (req, res) => res.json(await siteConsentDocumentAssets({ deps: f.deps, request: req, static: true, scripts: [] })));
+  try {
+    assert.deepEqual(await (await fetch(`${f.url}/static-assets`)).json(), { head: '', body: '' });
+    assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), []);
   } finally { await f.close(); }
 });

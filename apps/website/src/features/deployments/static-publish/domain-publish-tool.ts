@@ -12,6 +12,7 @@ import { inspectStaticPublish, type StaticPublishInspection } from './inspection
 import { getPublishRunSnapshot, startPublishRun, type PublishRunSnapshot } from './publish-run.js';
 import { domainPublishRows } from './domain-publish-rows.js';
 import type { PublishHistoryStore } from './publish-history.js';
+import { checkToolPublishConsent } from './publish-consent.js';
 
 interface DomainPublishDetails extends StaticPublishInspection {
   readonly workspaceId: string;
@@ -51,6 +52,11 @@ export function domainPublishTool(required: {
       danger: true, confirmLabel: 'Publish and apply these changes',
     }),
     run: async (ctx, { hooks, planned }, confirmer) => {
+      const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
+      if (consent) {
+        deps.tracker?.capture({ name: 'site_publish_blocked', userId: ctx.principal.id }, { properties: { target: config.target, reasonClass: 'consent', source: 'assistant' } });
+        return { published: false, cancelled: false, ...consent };
+      }
       const token = await confirm({ deps: gateway, principalId: confirmer.id, principalKind: confirmer.kind, hooks, planId: planned.planId, planHash: planned.planHash });
       const result = await executeDomainPublish({ gateway, principalId: ctx.principal.id, hooks, confirmationToken: token.confirmationToken });
       return { accepted: true, published: false, jobId: result.jobId, status: result.status, progress: result.progress,

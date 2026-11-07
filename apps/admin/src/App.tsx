@@ -636,7 +636,8 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
 
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
-  useListTableCellLabels(contentEl ?? null);
+  const contentNode = contentEl ?? null;
+  useListTableCellLabels(contentNode);
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
@@ -782,21 +783,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
         <div className="admin-main-col">
           {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
               `.admin-topbar` in styles.css. */}
-          <div className="admin-topbar">
-            <button
-              type="button"
-              className="admin-topbar-toggle"
-              aria-expanded={sidebarOpen}
-              aria-controls="admin-sidebar"
-              aria-label={tApp({ locale: navLocale, key: sidebarOpen ? "Close navigation" : "Open navigation" })}
-              onClick={() => setSidebarOpen((current) => !current)}
-            >
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
-              </svg>
-            </button>
-            <span className="admin-topbar-title">Tovu</span>
-          </div>
+          <AdminTopbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} navLocale={navLocale} />
           {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
               every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
               back to say which page it left and which it landed on. `agentPageId`, not
@@ -820,7 +807,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
           {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` places it
               beside the assistant FAB. */}
           <ScrollJumpButtons
-            container={contentEl ?? null}
+            container={contentNode}
             labels={{ toTop: tApp({ locale: navLocale, key: "Scroll to top" }), toBottom: tApp({ locale: navLocale, key: "Scroll to bottom" }) }}
           />
         </div>
@@ -875,5 +862,28 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
     </ConfirmDialogDefaultsProvider>
     </ChartRegistryProvider>
     </AdminModulesProvider>
+  );
+}
+
+/** Mobile shell chrome follows the same drawer state as the sidebar and backdrop. */
+function AdminTopbar({ sidebarOpen, setSidebarOpen, navLocale }: {
+  sidebarOpen: boolean; setSidebarOpen: (value: boolean | ((current: boolean) => boolean)) => void; navLocale: string;
+}) {
+  return (
+    <div className="admin-topbar">
+      <button
+        type="button"
+        className="admin-topbar-toggle"
+        aria-expanded={sidebarOpen}
+        aria-controls="admin-sidebar"
+        aria-label={tApp({ locale: navLocale, key: sidebarOpen ? "Close navigation" : "Open navigation" })}
+        onClick={() => setSidebarOpen((current) => !current)}
+      >
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+          <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
+        </svg>
+      </button>
+      <span className="admin-topbar-title">Tovu</span>
+    </div>
   );
 }

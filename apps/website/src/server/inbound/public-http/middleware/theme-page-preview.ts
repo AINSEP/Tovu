@@ -16,6 +16,8 @@ import {
 } from "../routes/site/pages.js";
 
 const PLAIN_TEXT = "text/plain";
+/** Previews render apart from the site's own origin. Theme fonts already allow any origin, so they still look right. */
+const PREVIEW_SANDBOX = "sandbox allow-scripts allow-forms";
 
 /**
  * @file Serves any static theme's page, fully rendered, at `/theme-explore/{themeId}/{pageId}` — the
@@ -161,7 +163,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
 
     // Never cached: the Explore screen re-requests this immediately after every save, and a cached
     // response would show the operator their pre-save markup and read as "the save did not work".
-    res.set("Cache-Control", "no-store").type("text/html").send(html);
+    res.set("Cache-Control", "no-store").set("Content-Security-Policy", PREVIEW_SANDBOX).type("text/html").send(html);
   });
 
   // Partials (`nav`, `footer`, `sidebar`, …) previewed standalone — see this file's header for why
@@ -179,7 +181,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
       return;
     }
 
-    res.set("Cache-Control", "no-store").type("text/html").send(html);
+    res.set("Cache-Control", "no-store").set("Content-Security-Policy", PREVIEW_SANDBOX).type("text/html").send(html);
   });
 
   // Templated (`.liquid`) theme preview — see this file's header for why this route, unlike its two

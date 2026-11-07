@@ -113,7 +113,7 @@ test("security: an attempt row naming another workspace is answered like an unkn
 
 test("state: an attempt whose connection is no longer declared is answered like an unknown state, with no exchange", async () => {
   let declared = true;
-  const loader: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
+  const loader: LoadPluginContributions = (input, _options) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
   const host = harness.makeHost({ loadContributions: async (input, options) => (declared ? loader(input, options) : { items: [], refusals: [] }) });
   const start = await startHosted(host);
   declared = false;
@@ -158,7 +158,7 @@ test("failures: the person declining at the provider renders provider_denied, an
 test("failures: a fault that is not an API-connection error renders exchange_failed and logs its name only", async () => {
   const logs: string[] = [];
   let failNext: unknown;
-  const loader: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
+  const loader: LoadPluginContributions = (input, _options) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
   const host = harness.makeHost({ logs, loadContributions: async (input, options) => {
     const fault = failNext;
     failNext = undefined;
@@ -270,7 +270,7 @@ test("failures: switching to the account that is already connected renders accou
 test("failures: an API-connection error with any other code still renders exchange_failed, logging only its code", async () => {
   const logs: string[] = [];
   let fail = false;
-  const loader: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
+  const loader: LoadPluginContributions = (input, _options) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
   const host = harness.makeHost({ logs, loadContributions: async (input, options) => {
     if (fail) { fail = false; throw new ApiConnectionError({ code: "configuration-invalid", message: "provider text that must not be logged" }); }
     return loader(input, options);

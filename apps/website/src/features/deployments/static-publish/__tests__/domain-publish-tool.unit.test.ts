@@ -386,3 +386,23 @@ test('ordinary publish rechecks consent readiness when it resumes after the huma
   assert.deepEqual(executed.output, { published: false, cancelled: false, ...refusal });
   assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
 });
+
+test('domain publish rechecks consent before minting approval or starting a job', async t => {
+  const f = await setup();
+  t.after(() => f.cleanup());
+  let blocked = false;
+  const refusal = deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Consent changed while the domain card was open.' }] });
+  const deps: StaticPublishToolDeps = { ...f.deps, siteConsent: { deploymentCheck: async input => blocked ? refusal : f.deps.siteConsent!.deploymentCheck(input) } };
+  const registration = buildStaticPublishRegistrations(deps, { surfaceExchanges: f.surfaceExchanges })
+    .find(item => item.descriptor.id === 'deployment_execute_static_publish');
+  assert.ok(registration);
+  const result = await registration.handler({ ...f.ctx, input: { target: 'fixture', projectName: 'demo', credentialId: 'chosen', customDomain: 'example.com' } }, {
+    emitSurface: async surface => {
+      blocked = true;
+      await confirmAs(f).emitSurface(surface);
+    },
+  });
+  assert.deepEqual(result, { published: false, cancelled: false, ...refusal });
+  assert.equal(await deps.gatedMutations!.gatewayDeps.tokens.count(), 0, 'stale readiness must refuse before confirm creates a token');
+  assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
+});

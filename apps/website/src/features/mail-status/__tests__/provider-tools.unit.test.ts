@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
@@ -121,7 +122,8 @@ function statusTools(control: MailProviderControl, mailStatus?: (optional?: { re
     before?.();
     store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision: "confirm" } }, { toolId });
   } });
-  const registrations = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailProviderControl: control, ...(mailStatus ? { mailStatus } : {}) }, { surfaceExchanges: store, assertAccessApprover: async () => {} });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: store, assertAccessApprover: async () => {} };
+  const registrations = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailProviderControl: control, ...(mailStatus ? { mailStatus } : {}) }, surfaces);
   const call = (name: string, input: unknown, options: ToolExecutionOptions = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { call, confirm, cards };
 }

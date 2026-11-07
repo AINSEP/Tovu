@@ -39,7 +39,9 @@ const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submiss
   // 8bfa8b040 (0035): external identity associations hold no provider tokens.
   "member_external_identities"];
 // why: 0023's capture-mode sink holds whole messages (raw sign-in links), so it joins the exclusion list.
-const LATER_EXCLUDED = ["form_receiver_pulls", "mail_capture", "members"];
+const LATER_EXCLUDED = ["form_receiver_pulls", "mail_capture", "members",
+  // 0039–0041: owner recovery proofs, MFA secrets/pending tokens and passkeys are login state.
+  "owner_mfa_factors", "owner_mfa_pending", "owner_passkeys", "owner_recovery_codes"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
 const plus = (names: string[], added: string[]) => [...names, ...added].sort();
 

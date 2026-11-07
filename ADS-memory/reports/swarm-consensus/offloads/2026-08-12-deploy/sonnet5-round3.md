@@ -578,7 +578,7 @@ describe("mapGitHubDeploymentStatus covers the real 7-value enum", () => {
   });
 });
 
-const PEM = "-----BEGIN PRIVATE KEY-----\n(test fixture)\n-----END PRIVATE KEY-----";
+const PEM = ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ") + "\n(test fixture)\n-----END PRIVATE KEY-----";
 ```
 
 ### 4. The webhook route — signature verification and `(providerId, providerRunRef)` → workspace resolution

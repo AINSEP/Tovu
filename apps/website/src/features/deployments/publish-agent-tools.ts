@@ -7,12 +7,11 @@ import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
-import { humanConfirmedToolHandler, type HumanConfirmSpec } from '../../contracts/core/human-confirm.js';
-import { approvalText } from '../../contracts/core/approval-i18n.js';
+import { humanConfirmedToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';
+import { checkToolPublishConsent } from './static-publish/publish-consent.js';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
@@ -42,7 +41,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import { buildOutcomeSurface, toolApprovalPresentation, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 // Type-only ExportReport avoids a runtime export/server cycle. ExportSiteBoundFn names the narrow
 // operation contract locally instead of importing the composition root's RouteDeps type.
@@ -867,29 +866,6 @@ function trackBlockedToolPublish({ deps, principalId, target, reasonClass }: { d
   deps.tracker?.capture({ name: "site_publish_blocked", userId: principalId }, { properties: { target, reasonClass, source: "assistant" } });
 }
 
-/** Reuse the shared presentation for the ordinary branch; domain plans supply their exact rows. */
-function staticPublishConfirmation({ input, locale }: { input: Record<string, unknown>; locale: string }, _options = {}): HumanConfirmSpec {
-  const toolId = 'deployment_execute_static_publish';
-  const presentation = toolApprovalPresentation({ descriptor: { id: toolId, metadata: toolMetadata[toolId], inputSchema: EXECUTE_STATIC_PUBLISH_SCHEMA } }, {
-    text: ({ key }) => approvalText({ locale, key }),
-  });
-  return {
-    toolId, errorCode: 'TOOL_APPROVAL', title: presentation.title, ...(presentation.summary ? { description: presentation.summary } : {}),
-    details: [], confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
-    detailDisclosure: { label: approvalText({ locale, key: 'Details' }), details: [{ label: approvalText({ locale, key: 'Input' }), value: input, labels: presentation.labels,
-      description: `${approvalText({ locale, key: 'Technical name' })}: ${toolId}` }] },
-  };
-}
-
-/** Consent remains a fail-closed preflight before credential reads or publishing. */
-async function checkToolPublishConsent({ deps, principalId }: {
-  deps: StaticPublishToolDeps; principalId: string;
-}, _options = {}) {
-  return deps.siteConsent
-    ? await deps.siteConsent.deploymentCheck({ principalId, permission: 'deployments.publish' })
-    : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
-}
-
 /**
  * Builds this domain's `ToolRegistration[]` — the same shape every other domain's
  * `build<Domain>Registrations` produces (see e.g. `recovery/tool-registrations.ts`'s
@@ -1134,7 +1110,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // card below. A second registration wrapper would ask twice for a domain publication.
       return humanConfirmedToolHandler(surfaces, {
         flag: 'published',
-        prepare: async () => staticPublishConfirmation({ input: raw, locale: await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id }) }),
+        prepare: async () => toolApprovalConfirmation({ descriptor: { id: 'deployment_execute_static_publish', metadata: toolMetadata.deployment_execute_static_publish, inputSchema: EXECUTE_STATIC_PUBLISH_SCHEMA },
+          input: raw, locale: await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id }) }),
         dialog: spec => spec,
         run: async (approvedCtx) => {
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: approvedCtx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });

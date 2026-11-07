@@ -66,6 +66,12 @@ export function createProgram(): Command {
     .action(async (options: { server: string; workspace: string }) => {
       console.log(JSON.stringify(await runImportSiteCommand({ server: options.server, workspaceId: options.workspace })));
     });
+  program.command("import-local").description("make a NEW site from a .tovu.zip or share link with no running server; reads one {file|url} JSON line from stdin and stops if stdin then closes; prints {dir,name,siteId,warnings}")
+    .action(async () => {
+      // Loaded here, as `sites move-home` does: the importer's wiring is not worth paying for on every command.
+      const { runImportLocalCommand } = await import("./commands/import-local.js");
+      await runImportLocalCommand();
+    });
 
   program.command("sites").description("manage shared local sites")
     .command("move-home").argument("<dir>", "stopped site inside the former default sites/ folder")

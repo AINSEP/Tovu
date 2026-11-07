@@ -15,9 +15,10 @@ import type { AdminExecutionCredentialController } from "../../hooks/use-admin-e
  *
  * Each component here is otherwise covered by its own existing suite (behavior, ARIA, hook
  * injection) — this file only pins the one property that makes this whole workstream safe to land
- * alongside other in-flight screen work: omitting `agentHandle` emits zero `data-agent-*` markup
- * (byte-identical to before this prop existed), and supplying it publishes the handle on the real
- * interactive element — never a wrapper — with the caller's own name, not a hardcoded one.
+ * alongside other in-flight screen work: supplying a handle publishes it on the real interactive
+ * element — never a wrapper — with the caller's own name. Shared Jini controls now generate handles
+ * when omitted; explicit `false` preserves the original zero-markup opt-out. Product controls below
+ * still omit addressing when their optional handle is absent.
  */
 
 const AGENT_ELEMENT = "data-agent-element";
@@ -44,9 +45,14 @@ function controller(overrides: Partial<AdminExecutionCredentialController> = {})
 }
 
 describe("InfoTip agentHandle", () => {
-  it("omits all data-agent-* markup when agentHandle is not passed", () => {
-    render(<InfoTip label="Explain this" />);
+  it("omits all data-agent-* markup when agentHandle is false", () => {
+    render(<InfoTip label="Explain this" agentHandle={false} />);
     expect(screen.getByLabelText("Explain this")).not.toHaveAttribute(AGENT_ELEMENT);
+  });
+
+  it("publishes an automatic handle when none is supplied", () => {
+    render(<InfoTip label="Explain this" />);
+    expect(screen.getByLabelText("Explain this").getAttribute(AGENT_ELEMENT)).toMatch(/^ui-[a-z0-9-]+$/);
   });
 
   it("publishes the icon itself, using the caller's own handle and label", () => {
@@ -74,9 +80,14 @@ describe("SeeMore agentHandle", () => {
     lineCount: 2,
   });
 
-  it("omits data-agent-* on the toggle when agentHandle is not passed", () => {
-    render(<SeeMore useClamp={overflowingClamp}>Some long text.</SeeMore>);
+  it("omits data-agent-* on the toggle when agentHandle is false", () => {
+    render(<SeeMore useClamp={overflowingClamp} agentHandle={false}>Some long text.</SeeMore>);
     expect(screen.getByRole("button")).not.toHaveAttribute(AGENT_ELEMENT);
+  });
+
+  it("publishes an automatic toggle handle when none is supplied", () => {
+    render(<SeeMore useClamp={overflowingClamp}>Some long text.</SeeMore>);
+    expect(screen.getByRole("button").getAttribute(AGENT_ELEMENT)).toMatch(/^ui-[a-z0-9-]+$/);
   });
 
   it("publishes the toggle button under the caller's own handle", () => {
@@ -97,10 +108,10 @@ const SELECT_OPTIONS: SelectOption[] = [
 ];
 
 describe("Select agentHandle", () => {
-  it("omits data-agent-* everywhere (trigger, search, options) when agentHandle is not passed", async () => {
+  it("omits data-agent-* everywhere (trigger, search, options) when agentHandle is false", async () => {
     const user = userEvent.setup();
     const searchableOptions = Array.from({ length: 8 }, (_, i) => ({ value: `option-${i}`, label: `Option ${i}` }));
-    render(<Select value="" onChange={() => {}} options={searchableOptions} aria-label="Pick one" />);
+    render(<Select value="" onChange={() => {}} options={searchableOptions} aria-label="Pick one" agentHandle={false} />);
     const trigger = screen.getByRole("combobox", { name: "Pick one" });
     expect(trigger).not.toHaveAttribute(AGENT_ELEMENT);
 
@@ -138,9 +149,14 @@ describe("Select agentHandle", () => {
 });
 
 describe("ImagePreviewModal agentHandle", () => {
-  it("omits data-agent-* on the close button when agentHandle is not passed", () => {
-    render(<ImagePreviewModal open={true} src="/x.png" alt="x" onClose={vi.fn()} />);
+  it("omits data-agent-* on the close button when agentHandle is false", () => {
+    render(<ImagePreviewModal open={true} src="/x.png" alt="x" onClose={vi.fn()} agentHandle={false} />);
     expect(screen.getByRole("button", { name: "Close preview" })).not.toHaveAttribute(AGENT_ELEMENT);
+  });
+
+  it("publishes an automatic close handle when none is supplied", () => {
+    render(<ImagePreviewModal open={true} src="/x.png" alt="x" onClose={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Close preview" }).getAttribute(AGENT_ELEMENT)).toMatch(/^ui-[a-z0-9-]+$/);
   });
 
   it("publishes the close button under the caller's own handle", () => {

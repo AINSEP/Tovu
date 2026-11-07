@@ -186,12 +186,17 @@ function DetailChips({ label, values, ownId }: { label: string; values: readonly
   );
 }
 
+/** Prefer the package's owner-facing summary while preserving its descriptor fallback. */
+function agentPluginBlurb(plugin: AgentPluginRowProps["plugin"]): string | null {
+  return plugin.summary?.trim() || plugin.description;
+}
+
 export function AgentPluginRow(props: AgentPluginRowProps) {
   const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, manage, uninstallNoteId, agentHandleBase } = props;
   const displayName = agentPluginDisplayName(plugin);
   // The owner-facing explainer (`extensions.jini.summary`) when the package wrote one; else the
   // spec `description`, which is written for the assistant and can be dense with tool ids.
-  const blurb = plugin.summary?.trim() || plugin.description;
+  const blurb = agentPluginBlurb(plugin);
   const Glyph = AGENT_PLUGIN_GLYPHS[agentPluginGlyphKind(plugin)];
   const detailId = useId();
   const headingId = useId();

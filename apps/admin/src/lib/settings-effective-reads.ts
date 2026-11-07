@@ -48,7 +48,7 @@ let refreshAllDispatching = false;
  */
 export function dropInFlightSettingsReads(
   { namespaces }: { namespaces: readonly string[] | null },
-  _optional: Record<string, never> = {},
+  _optional?: Record<string, never>,
 ): void {
   if (refreshAllDispatching) return;
   const affected = namespaces?.filter((namespace) => !refreshDispatching.has(namespace)) ?? null;

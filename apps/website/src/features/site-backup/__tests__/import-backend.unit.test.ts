@@ -95,12 +95,26 @@ test("a consumed upload is refused and recorded on the failed row", async t => {
   await assert.rejects(h.backend.importBackup({ principalId: "owner", source: upload }), { code: "UPLOAD_USED", message });
   assert.deepEqual((await h.backend.list({ principalId: "owner" })).filter(row => row.state === "failed").map(row => row.error), [message]);
 });
+test("an import stopped before its uploaded file was read still removes that file", async t => {
+  const h = await importFixture(t), upload = await h.backend.upload({ principalId: "owner", archive: h.archive });
+  assert.ok(fs.existsSync(h.registry.uploadPath(upload)), "the upload is on disk first");
+  await assert.rejects(h.backend.importBackup({ principalId: "owner", source: upload }, { signal: AbortSignal.abort(new Error("app quitting")) }), { message: "app quitting" });
+  assert.equal(fs.existsSync(h.registry.uploadPath(upload)), false);
+});
 test("an already-aborted caller signal fails the import before anything is fetched", async t => {
   const h = await importFixture(t); let fetched = false;
   const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => { fetched = true; return response({}); } } });
   await assert.rejects(backend.importBackup({ principalId: "owner", source: URL_SOURCE }, { signal: AbortSignal.abort(new Error("caller cancelled")) }), { message: "caller cancelled" });
   assert.equal(fetched, false);
   assert.equal((await backend.list({ principalId: "owner" }))[0]?.error, "Archive verification failed. No site was created.");
+});
+test("a replayed requestId for a finished share-link import matches by address, not by query string", async t => {
+  const h = await importFixture(t), link = (query: string) => ({ url: "https://files.example.com/shop.tovu.zip" + query });
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => response({ bodyBytes: h.archive }) } });
+  const first = await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" });
+  await backend.completeOwner({ principalId: "owner", importId: first.importId, adminPassword: OWNER_PASSWORD });
+  assert.equal((await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" })).importId, first.importId);
+  await assert.rejects(backend.importBackup({ principalId: "owner", source: { url: "https://other.example.com/shop.tovu.zip?k=one" }, requestId: "again" }), { code: "REQUEST_CONFLICT" });
 });
 test("the download request is a bounded identity GET of the share URL", async t => {
   const h = await importFixture(t); const sent: unknown[] = [];
@@ -189,11 +203,16 @@ test("low sites-home space is refused with the sites-home message", async t => {
   const { h, pending } = await pendingImport(t), space = fs.statfsSync(h.registry.directory);
   t.mock.method(fs, "statfsSync", () => ({ ...space, bavail: 0 }));
   await assert.rejects(h.backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }), { code: "INSUFFICIENT_STORAGE", message: "Import requires 900 MiB of free space on the sites-home volume." });
+  assert.equal(h.backend.get({ principalId: "owner", importId: pending.importId }).state, "failed", "the verified copy does not sit on a full disk for an hour");
+  assert.equal(fs.existsSync(h.registry.stagePath(pending)), false);
 });
-test("an already-aborted owner setup is refused before the row is marked creating", async t => {
+test("an already-aborted owner setup is refused before the row is marked creating, and the verified copy is removed", async t => {
   const { h, pending } = await pendingImport(t);
   await assert.rejects(h.backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }, { signal: AbortSignal.abort(new Error("owner cancelled")) }), { message: "owner cancelled" });
-  assert.equal(h.backend.get({ principalId: "owner", importId: pending.importId }).state, "needs-owner");
+  const after = h.backend.get({ principalId: "owner", importId: pending.importId });
+  assert.equal(after.state, "failed");
+  assert.equal(after.error, "The import was stopped. No site was created. Import the archive again.");
+  assert.equal(fs.existsSync(h.registry.stagePath(pending)), false);
 });
 test("a failed site creation is rolled back and recorded", async t => {
   const { h, pending } = await pendingImport(t), failure = new Error("create failed");

@@ -132,6 +132,11 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
             approvedPreferenceRevisionSeq = preference.revisionSeq;
           }
           return answer;
+        } catch (error) {
+          // Preflight callers keep the turn running after a failed choice. Preserve the domain's
+          // person-facing refusal in the transcript; raw provider/filesystem errors stay private.
+          if (error instanceof ToolInputError) await entry.context.emitSurface({ channel: 'text_delta', payload: { delta: `\n\n${error.message}\n\n` } });
+          throw error;
         } finally { entry.pending = false; }
       },
       saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),

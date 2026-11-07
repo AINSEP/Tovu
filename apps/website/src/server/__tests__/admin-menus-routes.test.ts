@@ -884,8 +884,8 @@ test("update-tree logs the original error with or without a stack and returns an
 
   // Assert the ORIGINAL error text reached the log. Asserting only that console.error fired would
   // pass under a log that printed "internal error" and threw the real cause away -- which is the
-  // exact defect being fixed. The stackless case logs exactly the message.
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/menus/update-tree]", diagnostics: [/boom: repo exploded/, /^boom: repo exploded$/] });
+  // exact defect being fixed. The stackless case retains the error's name and message.
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/menus/update-tree]", diagnostics: [/^Error: boom: repo exploded\n\s+at /, /^Error: boom: repo exploded$/] });
   assert.deepEqual(logged.map((call) => (call[1] as { errorId: string }).errorId), errorIds);
 });
 

@@ -16,19 +16,17 @@ interface Props {
   activeId?: RunnerSectionId;
   activeLabel?: string;
   isCreating?: boolean;
+  isImporting?: boolean;
   rescanning?: boolean;
-  adding?: boolean;
-  withImport?: boolean;
 }
 
-function renderHeader(t: TestContext, { withImport = true, ...props }: Props = {}) {
+function renderHeader(t: TestContext, props: Props = {}) {
   const calls: string[] = [];
   const view = mount({ t, element: createElement(MainHeader, {
-    activeId: 'projects', isCreating: false, activeLabel: 'Websites', rescanning: false, adding: false,
+    activeId: 'projects', isCreating: false, activeLabel: 'Websites', rescanning: false,
     onCreateWebsite: () => { calls.push('create'); },
     onRescan: async () => { calls.push('rescan'); },
-    onAddSite: async () => { calls.push('add'); },
-    onImportSite: withImport ? () => { calls.push('import'); } : undefined,
+    onImport: () => { calls.push('import'); },
     useFolders: useFakeFolders,
     ...props,
   }) });
@@ -40,41 +38,39 @@ test('MainHeader: on Websites the title is the section label and every tool reac
   const view = renderHeader(t);
   assert.equal(view.title(), 'Websites');
   await view.click(view.byLabel('Rescan'));
-  await view.click(view.byLabel('Import site'));
-  await view.click(view.byText('Add Tovu Website'));
+  await view.click(view.byText('Import'));
   await view.click(view.all('button').find((button) => button.textContent?.includes('Create website')));
-  assert.deepEqual(view.calls, ['rescan', 'import', 'add', 'create']);
-  assert.deepEqual(payloads, [{ kind: 'action', id: 'add_existing_website' }]);
+  assert.deepEqual(view.calls, ['rescan', 'import', 'create']);
+  assert.deepEqual(payloads, [{ kind: 'action', id: 'import_website' }]);
 });
 
-test('MainHeader: manage tools, a gap, then the ways to get a site in, Create last', (t) => {
+test('MainHeader: one Import button replaces the old icon and Add Tovu Website, between the manage group and Create', (t) => {
   const view = renderHeader(t);
   const order = [...view.tools()!.children].map((child) =>
     child.getAttribute('aria-label') ?? (child.classList.contains('main__tools-gap') ? 'gap' : (child.textContent ?? '').trim()));
   const at = (name: string) => order.indexOf(name);
   assert.ok(at('Rescan') < at('Shared keys'), 'Rescan leads the manage group');
-  assert.ok(at('Shared keys') < at('gap') && at('gap') < at('Import site'), 'a gap separates the groups');
-  assert.ok(at('Import site') < at('Add Tovu Website') && at('Add Tovu Website') < order.findIndex((label) => label?.includes('Create website')));
-  assert.ok(view.byText('Add Tovu Website')?.classList.contains('button--contrast'), 'Add stays the black contrast button');
+  assert.ok(at('Shared keys') < at('gap') && at('gap') < at('Import'), 'a gap separates the groups');
+  assert.ok(at('Import') < order.findIndex((label) => label?.includes('Create website')));
+  assert.equal(view.byLabel('Import site'), null, 'the down-arrow icon is gone');
+  assert.ok(!view.byText('Add Tovu Website'), 'and so is Add Tovu Website');
+  assert.ok(view.byText('Import')?.classList.contains('button--contrast'), 'Import stays the black contrast button');
 });
 
-test('MainHeader: with no site to import into there is no Import button', (t) => {
-  const view = renderHeader(t, { withImport: false });
-  assert.equal(view.byLabel('Import site'), null);
-  assert.ok(view.byLabel('Rescan'), 'the rest of the tools stay');
-});
-
-test('MainHeader: a running rescan and a running add each disable their own button', (t) => {
-  const view = renderHeader(t, { rescanning: true, adding: true });
+test('MainHeader: Import is there with no site at all, and a running rescan disables only Rescan', (t) => {
+  const view = renderHeader(t, { rescanning: true });
   const rescan = view.byLabel('Scanning…');
   assert.ok(rescan);
   assert.equal(rescan.getAttribute('aria-busy'), 'true');
   assert.equal(rescan.hasAttribute('disabled'), true);
-  const add = view.byText('Adding…');
-  assert.equal(add?.hasAttribute('disabled'), true);
-  const idle = renderHeader(t);
-  assert.equal(idle.byLabel('Rescan')?.getAttribute('aria-busy'), 'false');
-  assert.equal(idle.byText('Add Tovu Website')?.hasAttribute('disabled'), false);
+  assert.equal(view.byText('Import')?.hasAttribute('disabled'), false);
+  assert.equal(renderHeader(t).byLabel('Rescan')?.getAttribute('aria-busy'), 'false');
+});
+
+test('MainHeader: the import page swaps the title and takes the tools away', (t) => {
+  const view = renderHeader(t, { isImporting: true });
+  assert.equal(view.title(), 'Import a website');
+  assert.equal(view.tools(), null);
 });
 
 test('MainHeader: the create form swaps the title and takes the tools away', (t) => {

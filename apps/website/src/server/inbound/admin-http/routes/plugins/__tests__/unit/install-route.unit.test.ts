@@ -173,7 +173,7 @@ test("each install route asks authorize() for admin.plugins.enable on this works
 
 test("a route reached without a signed-in principal answers the opaque 500 and never inspects the source", async t => {
   const h = await boot(t, { principal: "none" });
-  assertAdminResponse({ actual: await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"plugin operation","discloseDetails":false} });
+  assertAdminResponse({ actual: await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The plugin operation could not be completed.","action":"Check the result before repeating this operation. Report this error ID.","step":"plugin operation","discloseDetails":false} });
   assert.deepEqual(h.authorizations, []);
   assert.deepEqual(h.calls, []);
 });

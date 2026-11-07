@@ -42,6 +42,11 @@ function localActionErrorMessage(failure: unknown, t: Translate): string {
   return describeApiError(failure instanceof Error ? failure : new Error("Request failed"), t("That request failed."));
 }
 
+/** Only an enabled local host with an unfinished start needs startup polling. */
+function localSiteIsStarting({ enabled, snapshot }: { enabled: boolean; snapshot: AdminSitesSnapshot | undefined }): boolean {
+  return enabled && snapshot?.localSites?.some(site => site.status === "starting") === true;
+}
+
 /** DI confirms allow cancellation and double-click tests without mocking browser modules.
  * Restart refreshes use the live binding, stop after 60 seconds, and release on unmount.
  * @complexity O(1) state and work per tick; invalidation reuses the cached Sites read.
@@ -66,7 +71,7 @@ export function useLocalSites(
   const canSwitchNow = snapshot?.canSwitchNow === true;
   const activeSiteName = snapshot?.currentSite.name;
   const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  const starting = enabled && snapshot?.localSites?.some((site) => site.status === "starting") === true;
+  const starting = localSiteIsStarting({ enabled, snapshot });
   // Idle hosts need no timer. Refresh only an unfinished start or accepted restart; broad
   // idle invalidation used to refetch shares and publish permissions every three seconds.
   useEffect(() => {
@@ -81,6 +86,12 @@ export function useLocalSites(
       refresh();
     }, switchTarget ? 300 : 3000, visibility, timers);
   }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
+  function handleSwitchResult(name: string, result: unknown) {
+    const url = (result as { url?: unknown } | undefined)?.url;
+    if (typeof url === "string") port.openSite?.(url);
+    else if (restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
+    else setError(t("This host could not switch now. The default is saved for the next launch."));
+  }
   const run = useCallback(async (name: string, action: AdminLocalSiteAction) => {
     if (busy.current || !port.manageLocalSite) return;
     if (!localActionAllowed({ action, canSwitchNow, enabled, deleteChecked: checked[name] === true })) return;
@@ -89,12 +100,7 @@ export function useLocalSites(
     try {
       if (isConfirmable(action) && !(await confirm(t(LOCAL_SITE_CONFIRM_KEYS[action]), { action }))) return;
       const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
-      if (action === "switch") {
-        const url = (result as { url?: unknown } | undefined)?.url;
-        if (typeof url === "string") port.openSite?.(url);
-        else if (restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
-        else setError(t("This host could not switch now. The default is saved for the next launch."));
-      }
+      if (action === "switch") handleSwitchResult(name, result);
       refresh();
     } catch (failure) {
       setError(localActionErrorMessage(failure, t));

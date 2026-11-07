@@ -964,6 +964,9 @@ test("POST /forms/:slug/submit: a DB failure in the flash-cookie's own second fi
   assert.equal(location.searchParams.get("form_status"), "validation");
   assert.equal(res.headers.get("set-cookie"), null, "the flash cookie itself could not be built, so none should be set");
   assert.deepEqual(unhandled, [], "the repo rejection must be caught, not leak out as a process-wide unhandled rejection");
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0]?.[0], "[site/forms-submit] failed to set validation flash cookie (slug=contact)");
+  assert.match(String(logged[0]?.[1]), /Error: simulated repo failure in findBySlug/);
 });
 
 test("POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely", async (t) => {
