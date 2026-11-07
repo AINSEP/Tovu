@@ -52,6 +52,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   turns it red on `cards`. Both reverted. `raw/P1b-mutations.txt`.
 
 - **P2a:** no product bug found.
+- **P2b:** no product bug found.
 
 ## Errors by name
 
@@ -79,6 +80,11 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 - P2a: Tovu `no-vendor-in-core.boundary.test.ts` test "real core tree has only reviewed pattern
   exceptions" `AssertionError [ERR_ASSERTION]` (60 unreviewed vendor counts outside the deploy
   files). Red before this batch: the same 60-line list on pre-P2a HEAD `52407d262`. Not fixed.
+
+- **P2b:** `pnpm guard` shows only the two baseline violations (`R2-deep-path`, `R10-chatpane-public-surface`).
+  Jini `tsc` TS2322 (`exactOptionalPropertyTypes`) on the moved object-store `descriptorMetadata` cast; fixed type-only
+  (`NonNullable<...>`), no runtime change. Contract check for `form-destinations` blocked: `@jini-ai/cms` is not a
+  dependency of `@jini-ai/server` (module not resolvable); adding it needs a lockfile edit. Left `.todo`.
 
 ## Coordinator decisions
 

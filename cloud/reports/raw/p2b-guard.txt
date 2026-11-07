@@ -1,0 +1,2 @@
+pnpm guard (Jini e35cf6d2d): 2 guard violation(s), both baseline:
+R2-deep-path packages/plugin-catalog/scripts/generate.ts; R10-chatpane-public-surface packages/chat/.../ChatPane.tsx

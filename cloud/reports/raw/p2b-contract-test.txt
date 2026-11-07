@@ -1,0 +1,7 @@
+Jini e35cf6d2d, pnpm --filter @jini-ai/server exec vitest run src/__tests__/contribution-contracts.test.ts
+ ✓ src/__tests__/contribution-contracts.test.ts (28 tests | 7 skipped)
+      Tests  21 passed | 7 todo (28)
+New green kinds this batch: mail-adapters, object-stores. form-destinations stays todo: the check needs
+@jini-ai/cms, which @jini-ai/server does not declare (adding it is a lockfile edit, reserved to P1a/P10b).
+Jini parser tests: cms destination-descriptors 4/4, platform object-store descriptors + mail provider-setup 5/5,
+agent-plugins lifecycle/mail adapter-descriptors 4/4. Layers test 73/73, check-package-layers.ts no diff.

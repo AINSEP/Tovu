@@ -1,0 +1,5 @@
+ℹ tests 90
+ℹ pass 90
+ℹ fail 0
+files: form-destinations registry.unit, object-storage registry.unit + env-declarations.contract, mail-adapter-registry, mail-provider-setup, mail-provider-contribution, bundled-mail-credential-cards (all unedited), moved-tools.golden (unedited)
+passing lines: 90
