@@ -307,13 +307,13 @@ for (const status of ["ready", "failed"] as const) {
 
 
 for (const status of ["ready", "failed"] as const) {
-  test(`legacy ${status} history loads unchanged and an ordinary save retains only its origin`, t => {
+  test(`legacy ${status} history still loads and existing expiry removes its link details`, t => {
     const registry = registryIn(t);
     const legacy = record({ status, source: { url: "https://files.example.com:8443/_share/sample-path-token/shop.tovu.zip" } });
     raw(registry, `${ID_A}.json`, JSON.stringify(legacy));
     const loaded = registry.get({ importId: ID_A, principalId: "owner" });
     assert.deepEqual(loaded, legacy);
-    registry.put({ row: loaded });
+    registry.expire({});
     assert.deepEqual(registry.list({ principalId: "owner" }), [{ ...legacy, source: { url: "https://files.example.com:8443" } }]);
   });
 }

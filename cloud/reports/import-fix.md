@@ -105,7 +105,7 @@ After rebuilding and relinking Jini, the two changed website test files passed 4
 
 ## Item 5 — done
 
-The existing link-normalization function now returns `URL.origin`. Ready and failed saves therefore retain scheme, host and port only. Verifying/pending rows keep their original link, and upload IDs are unchanged. No schema migration or new record field was added. Legacy records still load with their existing shape; an ordinary terminal save normalizes them. Existing historical files are not scanned or rewritten merely by loading them.
+The existing link-normalization function now returns `URL.origin`. Ready and failed saves therefore retain scheme, host and port only. Verifying/pending rows keep their original link, and upload IDs are unchanged. No schema migration or new record field was added. Legacy records still load with their existing shape. The existing expiry/history pass normalizes older finished links once, so startup tidy and history refresh clear their stored details too; no schema change or extra directory scan is needed. Plain reads do not write records.
 
 Command from Tovu root:
 
@@ -114,13 +114,13 @@ node --import tsx --import ./development/test-support/composed-bundle-env.ts --t
 ```
 
 - Base: 97 passed, 0 failed.
-- Red: 94 passed, 6 failed (`AssertionError [ERR_ASSERTION]`: retained paths in ready/failed history, legacy resaves and replay views).
+- Red: 94 passed, 6 failed (`AssertionError [ERR_ASSERTION]`: retained paths in ready/failed history, legacy normalization and replay views).
 - Mutation: sanitize only ready rows, with `--test-name-pattern='row keeps only|legacy.*history|replayed.*share import'` before those two paths: 3 passed, 3 failed (failed-state handling caught).
 - Green: 100 passed, 0 failed, 68.51 s.
 - Source no-emit: `./node_modules/.bin/tsc -p /workspace/work/tsconfig-item5.json --noEmit`, exit 0; config extends Tovu settings and includes `import-registry.ts` plus dependencies, with repository typeRoots.
 - Readers checked: admin history source label and tooltip display the saved value; backend `siteImportView` forwards it; request-ID replay normalizes both existing and incoming sources and returns the recorded result, without downloading again. Success/failure replay tests verify one download only and different-origin `REQUEST_CONFLICT`. Source comparison now operates at origin granularity, so reusing the same request ID on the same origin returns that prior result; a different import needs a new request ID. No retry downloads the saved origin.
-- Production lines added: 3; test lines added: 38.
-- Cost per terminal save or request-ID comparison: existing URL parse, O(link length) transient memory; terminal JSON write is smaller by the removed path/query bytes. No new writes or scans; no new I/O pass. Legacy reads: none added.
+- Production lines added: 5; test lines added: 38.
+- Cost per terminal save or request-ID comparison: existing URL parse, O(link length) transient memory; terminal JSON write is smaller by the removed path/query bytes. Each existing expiry pass adds one URL parse per finished URL record; each old detailed URL causes one record-sized rewrite, once. No extra directory scan; ordinary reads add no I/O.
 
 ## Item 6 — done
 
@@ -180,3 +180,5 @@ Other observed bugs (existing, reproduced by the unchanged assertions in the cha
 - Expiry throws `TypeError` for a JSON `null` import record (`status` access).
 
 Item 1 review correction: two additional string replacements identify menu/form notices by item ID; no extra runtime read/write or helper was added. IDs add at most one existing ID per notice (normally 36 characters); caps remain unchanged. Item 6 pushed as `7158bfc66`.
+
+Item 5 review correction: old ready/failed records are normalized in the existing expiry pass. Legacy-specific red 0/2; ready-only mutation 1/2; full registry file green 35/35 (see final counts if changed). No-emit source check passed.

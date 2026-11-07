@@ -114,6 +114,8 @@ export class SiteImportRegistry {
       fs.rmSync(this.stagePath(row), { recursive: true, force: true });
       this.put({ row: { ...row, status: "failed", error: "Owner setup expired. Import the archive again." } });
     }
+    // Reuse the existing history pass to remove link details from older finished records too.
+    if ((row.status === "ready" || row.status === "failed") && "url" in row.source && row.source.url !== new URL(row.source.url).origin) this.put({ row });
   }
   /** Removes a ZIP whose metadata is missing or unreadable: a crash between the two writes. */
   private removeOrphanUpload(required: { id: string }): void {
