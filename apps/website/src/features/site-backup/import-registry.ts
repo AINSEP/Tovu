@@ -31,13 +31,12 @@ const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const UPLOAD_TTL_MS = 3600_000;
 /** The statuses whose import may still own a `<id>.stage` directory. */
 const STAGED_STATUSES: ReadonlySet<SiteImportRecord["status"]> = new Set(["verifying", "needs-owner", "creating"]);
-/** A share link without its query string, which can hold a private key. Other sources are unchanged. @complexity O(url length). */
+/** Only the share origin remains in finished history. Upload sources are unchanged. @complexity O(url length). */
 export function withoutQuery(required: { source: SiteImportRecord["source"] }): SiteImportRecord["source"] {
   const { source } = required;
   if (!("url" in source)) return source;
   const url = new URL(source.url);
-  url.search = "";
-  return { url: url.href };
+  return { url: url.origin };
 }
 /** The import id behind an `<id>.json` history record name; undefined for every other file. */
 function recordIdOf(name: string): string | undefined {
@@ -74,7 +73,7 @@ export class SiteImportRegistry {
     return row;
   }
   put(required: { row: SiteImportRecord }, _options: Record<string, never> = {}): void {
-    // History is kept for good; once the download is over the link's query string has no use left.
+    // History is kept for good; a finished import no longer needs the share link's path or query.
     const row = required.row.status === "ready" || required.row.status === "failed" ? { ...required.row, source: withoutQuery({ source: required.row.source }) } : required.row;
     this.store(required.row.importId, ".json").write({ value: row });
     fs.chmodSync(this.file(required.row.importId, ".json"), 0o600);

@@ -103,7 +103,26 @@ After rebuilding and relinking Jini, the two changed website test files passed 4
 - Production lines added: 2 (Jini); test lines added: 46 (27 Jini, 19 Tovu).
 - Cost per timed-out request: one URL parse, O(address length) transient memory; retain only O(origin length + duration) error text. No added I/O. Removing the full-address field reduces retained error memory. Successful requests: none.
 
-## Items 5–6 — pending
+## Item 5 — done
+
+The existing link-normalization function now returns `URL.origin`. Ready and failed saves therefore retain scheme, host and port only. Verifying/pending rows keep their original link, and upload IDs are unchanged. No schema migration or new record field was added. Legacy records still load with their existing shape; an ordinary terminal save normalizes them. Existing historical files are not scanned or rewritten merely by loading them.
+
+Command from Tovu root:
+
+```sh
+node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts
+```
+
+- Base: 97 passed, 0 failed.
+- Red: 94 passed, 6 failed (`AssertionError [ERR_ASSERTION]`: retained paths in ready/failed history, legacy resaves and replay views).
+- Mutation: sanitize only ready rows, with `--test-name-pattern='row keeps only|legacy.*history|replayed.*share import'` before those two paths: 3 passed, 3 failed (failed-state handling caught).
+- Green: 100 passed, 0 failed, 68.51 s.
+- Source no-emit: `./node_modules/.bin/tsc -p /workspace/work/tsconfig-item5.json --noEmit`, exit 0; config extends Tovu settings and includes `import-registry.ts` plus dependencies, with repository typeRoots.
+- Readers checked: admin history source label and tooltip display the saved value; backend `siteImportView` forwards it; request-ID replay normalizes both existing and incoming sources and returns the recorded result, without downloading again. Success/failure replay tests verify one download only and different-origin `REQUEST_CONFLICT`. Source comparison now operates at origin granularity, so reusing the same request ID on the same origin returns that prior result; a different import needs a new request ID. No retry downloads the saved origin.
+- Production lines added: 3; test lines added: 38.
+- Cost per terminal save or request-ID comparison: existing URL parse, O(link length) transient memory; terminal JSON write is smaller by the removed path/query bytes. No new writes or scans; no new I/O pass. Legacy reads: none added.
+
+## Item 6 — pending
 
 ## Base/setup findings (separate from regression reds)
 
@@ -126,3 +145,8 @@ Progress: item 1 pushed as `04236bde9` on Tovu `cloud/import-fix`. First pre-pus
 Progress: item 2 pushed as Tovu `855144073`; item 3 Jini commit `e95e99092`. Two package-local command attempts used unavailable `./node_modules/.bin` paths (`exit 127`), corrected to the workspace bin. One test append used a root-relative path from the package directory (`No such file or directory`); corrected to the absolute path. The first Jini push creates its previously absent remote branch.
 
 Progress: item 3 Tovu commit `a03eb6335`; item 4 Jini commit `5b8d747a7`.
+
+Other observed bugs (existing, reproduced by the unchanged assertions in the changed registry test file):
+
+- Expiry throws `TypeError` for JSON `null` upload metadata (`createdAt` access).
+- Expiry throws `TypeError` for a JSON `null` import record (`status` access).

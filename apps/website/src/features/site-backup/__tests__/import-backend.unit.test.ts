@@ -108,14 +108,32 @@ test("an already-aborted caller signal fails the import before anything is fetch
   assert.equal(fetched, false);
   assert.equal((await backend.list({ principalId: "owner" }))[0]?.error, "Archive verification failed. No site was created.");
 });
-test("a replayed requestId for a finished share-link import matches by address, not by query string", async t => {
-  const h = await importFixture(t), link = (query: string) => ({ url: "https://files.example.com/shop.tovu.zip" + query });
-  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => response({ bodyBytes: h.archive }) } });
+test("a replayed requestId for a finished share import returns its recorded result without another download", async t => {
+  const h = await importFixture(t), link = (query: string) => ({ url: "https://files.example.com/_share/sample-path-token/shop.tovu.zip" + query });
+  const fetched: string[] = [];
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async request => { fetched.push(request.url); return response({ bodyBytes: h.archive }); } } });
   const first = await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" });
   await backend.completeOwner({ principalId: "owner", importId: first.importId, adminPassword: OWNER_PASSWORD });
   assert.equal((await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" })).importId, first.importId);
+  assert.deepEqual(fetched, [link("?k=one").url]);
+  assert.deepEqual(backend.get({ principalId: "owner", importId: first.importId }).source, { url: "https://files.example.com" });
   await assert.rejects(backend.importBackup({ principalId: "owner", source: { url: "https://other.example.com/shop.tovu.zip?k=one" }, requestId: "again" }), { code: "REQUEST_CONFLICT" });
 });
+test("a replayed failed share import keeps the origin and returns its failure without another download", async t => {
+  const h = await importFixture(t);
+  let fetched = 0;
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => { fetched++; return response({ status: 503 }); } } });
+  const input = { principalId: "owner", source: { url: "https://files.example.com/_share/sample-path-token/shop.tovu.zip?k=one" }, requestId: "failed-retry" };
+  await assert.rejects(backend.importBackup(input), { code: "DOWNLOAD_FAILED" });
+  const history = await backend.list({ principalId: "owner" });
+  assert.equal(history.length, 1);
+  assert.deepEqual(history[0]!.source, { url: "https://files.example.com" });
+  const replay = await backend.importBackup(input);
+  assert.equal(replay.importId, history[0]!.importId);
+  assert.equal(replay.status, "failed");
+  assert.equal(fetched, 1);
+});
+
 test("the download request is a bounded identity GET of the share URL", async t => {
   const h = await importFixture(t); const sent: unknown[] = [];
   const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async request => { sent.push({ ...request, signal: request.signal instanceof AbortSignal }); return response({ bodyBytes: h.archive }); } } });
