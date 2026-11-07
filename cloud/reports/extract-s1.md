@@ -20,3 +20,39 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | V2 | | | not reached |
 | V3 | | | not reached |
 | Z2 | | | not reached |
+
+## V0
+
+Undo of session 1's `server` work, neutral-host move and contract handlers, Commerce's `cms` peer, the search-tool description, and checkpoint P-C1. Raw output: `cloud/reports/raw/extract-s1/` (`setup.txt`, `V0-baseline-*.txt`, `V0-final-*.txt`, `V0-pc1-*.txt`, `V0-contract-mutations.txt`, `V0-search-description-tovu.txt`).
+
+**Baseline by finding name** (unmodified Jini `d3efaed6`):
+- `pnpm guard`: `R2-deep-path` (1: `plugin-catalog/scripts/generate.ts`), `R10-chatpane-public-surface` (1: `ChatPane.tsx` `Icon`). Hardwiring HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, all 0 new. R13 MF3 skipped for codex/agy (CLIs absent).
+- Package layers: 0 findings. Subpath isolation: 0 failing (non-failing audit: `SI-c` 9, `SI-d` 7). `guard:plugins`: clean.
+- The more-jini-1 names (`R8-package-metadata`, `SI-resolution`) are not on this branch; they arrive with V1.
+
+**Commits**
+- Jini `5309a136`: `server` undo (entries, six optional peers, `peerDependenciesMeta`, `optionalPeers` text, eight dev deps, `tsconfig.neutral-host.json`, tsconfig exclusion; `typecheck` restored). Contract test and `neutral-host/**` moved by `git mv` to private workspace `examples/neutral-host` (`@jini-example/neutral-host`). Three handlers added (`consent`, `form-destinations` with `formDestinationMissingMethods`, `login-providers`); `.todo` branch deleted; `pluginsDir` rebased. Changeset drops the server entries. Lockfile: Server and the new workspace.
+- Jini `7dd0dbbf`: Commerce, one commit: `tools.ts` and `catalog-tools.ts` import from `@jini-ai/core` (`LegacyToolAuthorizeFn as AuthorizeFn`), `cms` peer, meta and `optionalPeers` text removed, changeset. Lockfile has no delta (pnpm does not lock workspace peers; the `cms` dev dep stays for two tests).
+- Jini `11ce1742`: `search_agent_plugin_local` description takes host tool names from `messages.searchHostTools`; neutral without them. New unit test, red before and under mutation.
+- Tovu `4d3548a5`: Tovu passes today's exact names through `AGENT_PLUGIN_HOST_TOOL_MESSAGES` (ports and catalog). Golden file unchanged and passing; a one-character mutation of the names turns it red.
+- Tovu `8495cabf`: setup and baseline raw files.
+
+**Gate**
+- Contract test: no `.todo`; 28/28 files check. The three new checks pass, and each goes red under a mutation (consent schema, login `pkce`, form receiver without `pull`).
+- `git diff origin/cloud/combine -- packages/server`: empty.
+- Guard after V0 equals the baseline by name; layers 0, no `L3-undeclared-edge`; isolation unchanged; `guard:plugins` clean; `check-package-layers.test.ts` 73/73.
+- Type checks: `server` typecheck, `agent-plugins`, `commerce`, `examples/neutral-host` `tsc` clean; Tovu `tsc --noEmit` clean.
+
+**P-C1**
+- Packed 15 packages (the closure of the neutral host's imports). Installed in a throwaway consumer; every session-1 entry imports with plain `node`. Four entries need `agent-plugins`' optional peers first: `agent-plugins/lifecycle`, `lifecycle/host-tools` and `lifecycle/tools` (`semver`, `@cfworker/json-schema`), and `search/contribution` (reaches `semver` through `agent-plugins`). Listed, not repaired.
+- Neutral-host folder copied and run in the consumer: 16 passed, 16 todo. Strict `nodenext` `tsc`: clean with `skipLibCheck`; without it the only errors are in `vite`'s own types.
+- Tovu on tarballs for one group (moved-tools golden + agent-plugin search integration): 19 pass, 1 skip (existing root-only skip). It first failed: Tovu's linked install never installs a linked package's own dependencies, so `user-management`'s `otplib` and `@simplewebauthn/*` were missing. Installed nested under that package for the run. Links restored after; consumer and tarballs deleted.
+
+**Errors by name:** none new. Pre-existing: `R2-deep-path`, `R10-chatpane-public-surface`.
+
+**Bugs:** `search_agent_plugin_local` named host tools in Jini (fixed, test first). No other.
+
+**Not done / listed only**
+- `neutral-host.test.ts` `.todo` headings still name `@jini-ai/server/agent-plugin-host` and `hosted-mcp` in comments (moved byte-exact; their home is a later batch's call).
+- `.changeset/agent-plugin-host-entries.md` still says the host-tools entries are empty; they no longer are.
+- Optional-peer reach of `agent-plugins/lifecycle/host-tools` and `search/contribution` (above).

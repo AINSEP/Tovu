@@ -1,0 +1,36 @@
+OK   @jini-ai/agent-plugins/admin-surfaces (25 exports)
+FAIL @jini-ai/agent-plugins/lifecycle: Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'semver' imported from /root/consumer/node_modules/@jini-ai/agent-plugins/dist/lifecycle/update-plan.js
+FAIL @jini-ai/agent-plugins/lifecycle/host-tools: Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'semver' imported from /root/consumer/node_modules/@jini-ai/agent-plugins/dist/lifecycle/compatibility.js
+OK   @jini-ai/agent-plugins/lifecycle/mail (3 exports)
+OK   @jini-ai/agent-plugins/lifecycle/node (1 exports)
+FAIL @jini-ai/agent-plugins/lifecycle/tools: Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@cfworker/json-schema' imported from /root/consumer/node_modules/@jini-ai/agent-plugins/dist/lifecycle/tools/projection.js
+FAIL @jini-ai/agent-plugins/src/lifecycle/layout.js: Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './src/lifecycle/layout.js' is not defined by "exports" in /root/consumer/node_modules/@jini-ai/agent-plugins/package.json imported from /root/consumer/[eval1]
+OK   @jini-ai/cms/forms (101 exports)
+OK   @jini-ai/cookie-consent/plugins (5 exports)
+OK   @jini-ai/core (145 exports)
+OK   @jini-ai/core/object-store (5 exports)
+OK   @jini-ai/core/text (9 exports)
+OK   @jini-ai/daemon (147 exports)
+OK   @jini-ai/devops/deploy (24 exports)
+OK   @jini-ai/devops/source-control (22 exports)
+OK   @jini-ai/integrations/api-connections (21 exports)
+OK   @jini-ai/integrations/credentialed-http (12 exports)
+OK   @jini-ai/platform/mail (42 exports)
+OK   @jini-ai/platform/object-store (3 exports)
+FAIL @jini-ai/search/contribution: Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'semver' imported from /root/consumer/node_modules/@jini-ai/agent-plugins/dist/lifecycle/update-plan.js
+OK   @jini-ai/user-management/server (82 exports)
+--- after installing agent-plugins' optional peers (semver, @cfworker/json-schema, yauzl)
+OK   @jini-ai/agent-plugins/lifecycle (59 exports, with optional peers)
+OK   @jini-ai/agent-plugins/lifecycle/host-tools (18 exports, with optional peers)
+OK   @jini-ai/agent-plugins/lifecycle/tools (5 exports, with optional peers)
+OK   @jini-ai/search/contribution (5 exports, with optional peers)
+--- neutral-host folder run in consumer (vitest 2.1.9)
+ ✓ neutral-host/support-imports.test.ts (4 tests) 70ms
+ ✓ neutral-host/neutral-host.test.ts (28 tests | 16 skipped) 1078ms
+   ✓ moved classes in a neutral host > skill tool: returns a plugin skill by reading one bounded file, for every skills-only plugin 625ms
+ Test Files  2 passed (2)
+      Tests  16 passed | 16 todo (32)
+--- strict nodenext tsc, skipLibCheck false: errors only in
+      1 node_modules/vite/dist/node/index.d.ts
+      1 node_modules/vite/types/importGlob.d.ts
+--- same, skipLibCheck true: exit 0, no output

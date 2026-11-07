@@ -1,0 +1,32 @@
+tarball @jini-ai/agent-plugins -> node_modules/@jini-ai/agent-plugins
+tarball @jini-ai/agent-runtime -> node_modules/@jini-ai/agent-runtime
+tarball @jini-ai/cms -> node_modules/@jini-ai/cms
+tarball @jini-ai/cookie-consent -> node_modules/@jini-ai/cookie-consent
+tarball @jini-ai/core -> node_modules/@jini-ai/core
+tarball @jini-ai/daemon -> node_modules/@jini-ai/daemon
+tarball @jini-ai/db -> node_modules/@jini-ai/db
+tarball @jini-ai/devops -> node_modules/@jini-ai/devops
+tarball @jini-ai/http-kit -> node_modules/@jini-ai/http-kit
+tarball @jini-ai/integrations -> node_modules/@jini-ai/integrations
+tarball @jini-ai/oauth -> node_modules/@jini-ai/oauth
+tarball @jini-ai/platform -> node_modules/@jini-ai/platform
+tarball @jini-ai/protocol -> node_modules/@jini-ai/protocol
+tarball @jini-ai/search -> node_modules/@jini-ai/search
+tarball @jini-ai/user-management -> node_modules/@jini-ai/user-management
+--- group: moved-tools golden + agent-plugin search integration, on tarballs
+exit 1
+✖ apps/website/src/assistant/__tests__/moved-tools.golden.test.ts (3441.576559ms)
+✖ apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-search-tool.integration.test.ts (671.428683ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+ℹ skipped 0
+✖ failing tests:
+✖ apps/website/src/assistant/__tests__/moved-tools.golden.test.ts (3441.576559ms)
+✖ apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-search-tool.integration.test.ts (671.428683ms)
+--- after adding user-management's three runtime deps (otplib, @simplewebauthn/server, @simplewebauthn/browser) nested under it: Tovu's linked install never installs a linked package's own dependencies
+exit 0
+ℹ tests 20
+ℹ pass 19
+ℹ fail 0
+ℹ skipped 1
