@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
 import type { SiteCreationAllocation } from "#src/platform/site-dir/index";
@@ -10,6 +11,7 @@ export interface SiteImportRecord {
   importId: string;
   principalId: string;
   requestId?: string;
+  sourceDigest?: string;
   source: { url: string } | { uploadId: string };
   newSiteId: string | null;
   newSiteName: string | null;
@@ -37,6 +39,13 @@ export function withoutQuery(required: { source: SiteImportRecord["source"] }): 
   if (!("url" in source)) return source;
   const url = new URL(source.url);
   return { url: url.origin };
+}
+/** Request replay can compare a link without retaining its path in finished history. */
+export function importSourceDigest(required: { source: SiteImportRecord["source"] }, _optional = {}): string | undefined {
+  if (!("url" in required.source)) return undefined;
+  const url = new URL(required.source.url);
+  url.search = "";
+  return createHash("sha256").update(url.href).digest("hex");
 }
 /** The import id behind an `<id>.json` history record name; undefined for every other file. */
 function recordIdOf(name: string): string | undefined {

@@ -391,3 +391,9 @@ Cost: one download × at most 300 MiB network data; roughly two payload-sized ex
 All imported menus, including trash, have their HTML checked. Restoring a menu leaves its HTML mode off. Forms are checked in every status too: disabled/restorable forms retain HTML but receive the same individual notice before someone can enable them. The prior active-only filter gave no notice for those forms.
 
 `import-restore.unit.test.ts`, pattern `restorable menus`: red 0/1; menu-only mutation still 0/1 because the disabled form's notice was missing; full file green 46/46. Focused source no-emit exits 0. Cost: the same once-per-import table reads now include non-live rows; one status/mode update and bounded notice per applicable item.
+
+### 4 — done
+
+New URL imports retain a SHA-256 `sourceDigest` of the canonical link without its query. Request replay compares that digest when present; old records without it keep the approved origin fallback. Paths are not retained in finished history. Query-only changes replay; a corrected path with the same ID/origin gives `REQUEST_CONFLICT` without another download.
+
+`import-backend.unit.test.ts`, pattern `distinguishes corrected`: red 0/1; mutation saving the digest but still comparing origins 0/1; replay regression group green 4/4. Website production no-emit exits 0. Cost: one SHA-256 pass over at most the accepted URL length at creation/replay, 64 hexadecimal characters per new URL record, no new I/O pass.

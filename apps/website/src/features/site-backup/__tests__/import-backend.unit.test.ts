@@ -296,3 +296,22 @@ test("import credential warnings remain visible after owner setup removes the pr
   assert.deepEqual(reopened.get({ principalId: "recipient", importId: pending.importId }).credentialWarnings, pending.credentialWarnings);
   assert.equal(JSON.stringify(ready.credentialWarnings).includes(token), false);
 });
+
+test("request replay distinguishes corrected links on one origin while old records keep loading", async t => {
+  const h = await importFixture(t);
+  let downloads = 0;
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => { downloads++; return response({ status: 503 }); } } });
+  const input = { principalId: "owner", source: { url: "https://files.example.com/_share/sample-first/site.zip?download=one" }, requestId: "corrected-link" };
+  await assert.rejects(backend.importBackup(input), { code: "DOWNLOAD_FAILED" });
+  const saved = h.registry.list({ principalId: "owner" })[0]!;
+  assert.match(saved.sourceDigest!, /^[a-f0-9]{64}$/);
+  assert.deepEqual(saved.source, { url: "https://files.example.com" });
+  assert.equal(JSON.stringify(saved).includes("sample-first"), false);
+  assert.equal((await backend.importBackup({ ...input, source: { url: input.source.url.replace("download=one", "download=two") } })).importId, saved.importId);
+  await assert.rejects(backend.importBackup({ ...input, source: { url: input.source.url.replace("sample-first", "sample-corrected") } }), { code: "REQUEST_CONFLICT" });
+  assert.equal(downloads, 1);
+  const { sourceDigest: _digest, ...legacy } = saved;
+  h.registry.put({ row: legacy });
+  assert.equal((await backend.importBackup({ ...input, source: { url: "https://files.example.com/older.zip" } })).importId, saved.importId);
+  assert.equal(downloads, 1);
+});
