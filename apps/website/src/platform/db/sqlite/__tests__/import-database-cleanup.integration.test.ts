@@ -82,6 +82,10 @@ test("startup removes a killed parent's database folders and keeps another activ
     const unrelated = fs.mkdtempSync(path.join(temp, "other-import-"));
     const plainFile = path.join(temp, "tovu-import-db-file");
     fs.writeFileSync(plainFile, "unrelated file");
+    const held = fs.readFileSync(active.root + ".lock", "utf8");
+    fs.writeFileSync(active.root + ".lock", JSON.stringify({ ...JSON.parse(held), hostname: "changed-host-name" }));
+    const recent = new Date(Date.now() - 60_000);
+    fs.utimesSync(active.root + ".lock", recent, recent);
     const h = await importFixture(t);
     await h.backend.tidy({});
     assert.equal(fs.existsSync(interrupted.root), false);
@@ -89,6 +93,7 @@ test("startup removes a killed parent's database folders and keeps another activ
     assert.equal(fs.existsSync(orphanLock), false);
     assert.equal(fs.existsSync(active.root), true);
     assert.equal(fs.readFileSync(path.join(active.root, "input.db"), "utf8"), "staged database");
+    fs.writeFileSync(active.root + ".lock", held);
     assert.equal(fs.existsSync(unrelated), true);
     assert.equal(fs.readFileSync(plainFile, "utf8"), "unrelated file");
     await h.backend.tidy({});

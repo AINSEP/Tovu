@@ -417,3 +417,7 @@ Server boot schedules `tidyImportDatabases` once without awaiting it. A rejected
 New changed test command: `node --experimental-test-module-mocks --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/cli/__tests__/unit/serve-import-cleanup.unit.test.ts`. Red 0/1 (missing call), mutation suppressing the warning 0/1, green 1/1. Full website no-emit exits 0.
 
 Cost: one asynchronous OS-temp directory listing per server boot, then small metadata lock attempts for matching entries and unlink work for stale contents. It loads no database bytes, adds no recurring timer, and never awaits the sweep on the serving path.
+
+### 8 — done
+
+Tidy now passes `staleMs: 86_400_000`. The real-parent regression changes a held lock's hostname and sets a one-minute-old timestamp: red with the default interval, still red with a 30-second mutation, then the full cleanup file passes 6/6 with the one-day interval. Known dead owners still reclaim immediately. Focused no-emit exits 0. Cost: none beyond the existing stale comparison; unknown-owner leftovers can remain for a day.

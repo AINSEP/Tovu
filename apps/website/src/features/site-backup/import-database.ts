@@ -119,7 +119,7 @@ export async function tidyImportDatabases(_required: Record<string, never>, _opt
     if (!entry.name.startsWith("tovu-import-db-") || (!entry.isDirectory() && !(entry.isFile() && entry.name.endsWith(".lock")))) continue;
     const root = path.join(temp, entry.isDirectory() ? entry.name : entry.name.slice(0, -5));
     try {
-      await withFileLock({ lockPath: root + ".lock", run: () => rm(root, { recursive: true, force: true }) }, { timeoutMs: 100 });
+      await withFileLock({ lockPath: root + ".lock", run: () => rm(root, { recursive: true, force: true }) }, { timeoutMs: 100, staleMs: 86_400_000 });
     } catch (error) {
       if (!(error instanceof FileLockTimeoutError) && !["EBUSY", "EPERM", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
     }
