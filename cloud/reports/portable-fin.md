@@ -44,6 +44,10 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   non-module turns `contribution-contracts` red; a support file importing `../../../index.js` turns
   `support-imports` red. Both reverted.
 
+- **P1b:** no product bug found. Golden mutations (not bugs): provider_status description
+  "status" -> "state" turns `moved-tools.golden` red on `tools`; sign-in card "Skip" -> "Skip for now"
+  turns it red on `cards`. Both reverted. `raw/P1b-mutations.txt`.
+
 ## Errors by name
 
 - P0: `AssertionError [ERR_ASSERTION]` x3 in `bundled-higgsfield-media-package` (before fix; fixed).
@@ -58,6 +62,11 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   public barrel). Not fixed (outside P1a). `raw/p1a-guard.txt`.
 - P1a: `TS5097` (`.ts` import paths) in server's build tsconfig for the neutral-host folder, fixed
   by excluding the folder there and type-checking it with `tsconfig.neutral-host.json` (nodenext).
+
+- P1b, while writing the golden (test authoring, none in product code): esbuild `TransformError`
+  (a paren slip in the new test); `VaultError` code `context` (fake sealed envelopes are refused by the
+  in-memory MCP repo, so the counter now seals with the real AES-GCM sealer); `AssertionError
+  [ERR_ASSERTION]` on symbol-keyed batch markers in input schemas (compared as serialized JSON now).
 
 ## Coordinator decisions
 

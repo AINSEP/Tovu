@@ -1,0 +1,829 @@
+{
+  "tools": {
+    "search_agent_plugin_local": {
+      "description": "Find an Agent Plugin by the task, capability, skill or MCP server you need. Searches local agent-plugins.org packages (plugin.json, skills and optional mcp.json) in this workspace, including inactive packages. For the full plugin inventory, use content_read.plugin. Empty, omitted or whitespace query returns every local Agent Plugin in plugin-id order, including enabled status. Nonblank queries return ranked matches. Results are byte-bounded: id, pluginId, enabled, maturity when declared, and a short description. plugins_set_enabled with family 'agent-plugin' changes enabled status. An installed, off result is only a catalog entry. Offer its enable card, then read its guidance before connecting or requesting credentials; never guess its sign-in method. Local packages only — never a marketplace or the web. Once you have the right id, call load_agent_plugin({ pluginId }) for that plugin's full guidance. Page with the returned nextOffset as offset, keeping query and limit unchanged. Batch: to do several at once, pass items: [{...}, ...] (up to 25) in ONE call instead of one call per item. Canonical shape: {items:[{...}, ...]} only. Legacy shared top-level fields are normalized into each item; item values win. Returns { batch: true, outcome: completed | partial_failure | error, total, succeeded, failed, results: [{ index, ok, result | error }] }; one item's failure does not stop the others.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What you're looking for, in plain language — e.g. 'a plugin for deploying a server app', 'accessibility guidance', 'gdpr compliance checks'. Matched against each installed Agent Plugin's id, author-declared keywords, description, and bundled skills. Optional; empty, omitted or whitespace lists all installed plugins."
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Zero-based result offset. Start at 0; continue with nextOffset until null."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Max results to return (1-50). Optional, defaults to 10."
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 25,
+            "description": "Batch: up to 25 inputs run in ONE call, in order. Each item takes the same fields as a single call; Canonical shape: {items:[{...}, ...]} only. Legacy shared top-level fields are normalized into each item before execution; an item's own value wins.",
+            "items": {
+              "type": "object",
+              "description": "One item: the same fields as a single call of this tool."
+            }
+          }
+        }
+      },
+      "sideEffects": "none",
+      "readOnly": true,
+      "timeoutMs": null,
+      "metadata": {
+        "search": {
+          "keywords": "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
+          "queries": [
+            "Is there a plugin for deploying to my hosting provider?",
+            "What agent plugins do I have installed?",
+            "Do we already have something installed that handles GDPR or cookie consent?",
+            "Find a plugin that can help with accessibility review.",
+            "Is there an installed plugin that declares an MCP server, and what does it cover?"
+          ]
+        },
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": {
+        "class": "read",
+        "confirmation": "direct"
+      },
+      "nativeMetadata": {
+        "search": {
+          "keywords": "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
+          "queries": [
+            "Is there a plugin for deploying to my hosting provider?",
+            "What agent plugins do I have installed?",
+            "Do we already have something installed that handles GDPR or cookie consent?",
+            "Find a plugin that can help with accessibility review.",
+            "Is there an installed plugin that declares an MCP server, and what does it cover?"
+          ]
+        },
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      }
+    },
+    "agent_plugin_write_note": {
+      "description": "Save the user's explicitly requested project note for an installed Agent Plugin. Writes the note directly; never call to store plugin-discovered facts (use that plugin's learned memory tool). Batch: to do several at once, pass items: [{...}, ...] (up to 25) in ONE call instead of one call per item. Canonical shape: {items:[{...}, ...]} only. Legacy shared top-level fields are normalized into each item; item values win. Single call requires: pluginId, entryPath, text. Returns { batch: true, outcome: completed | partial_failure | error, total, succeeded, failed, results: [{ index, ok, result | error }] }; one item's failure does not stop the others.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pluginId": {
+            "type": "string",
+            "description": "Required for a single call (or set it in each item). "
+          },
+          "entryPath": {
+            "type": "string",
+            "description": "Required for a single call (or set it in each item). "
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 16384,
+            "description": "Required for a single call (or set it in each item). "
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 25,
+            "description": "Batch: up to 25 inputs run in ONE call, in order. Each item takes the same fields as a single call; Canonical shape: {items:[{...}, ...]} only. Legacy shared top-level fields are normalized into each item before execution; an item's own value wins. Each item needs pluginId, entryPath, text (inside each item).",
+            "items": {
+              "type": "object",
+              "description": "One item: the same fields as a single call of this tool."
+            }
+          }
+        }
+      },
+      "sideEffects": "mutates-durable-state",
+      "readOnly": false,
+      "timeoutMs": null,
+      "metadata": {
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": {
+        "class": "edit",
+        "confirmation": "direct"
+      },
+      "nativeMetadata": {
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct"
+        }
+      }
+    },
+    "provider_status": {
+      "description": "Read-only status of provider plugins (product analytics, error tracking, observability/tracing): for each, pluginId, enabled, configured (every required setting has a value), missing (labels of required settings without one), store (site = this site's own key; project = a key saved in your project), usedByThisSite (false = saved but not used here; ask before project_key_use), keyId, usedBy, appliesAt (now; restart when the provider cannot re-start live; failed when it could not start with the saved settings), unreadable (saved but cannot be opened on this machine; enter it again) and quarantine (the host's reason, when it switched the plugin off). Returns fields from the manifest with required, requiredUnless, requiredWhen, options, defaults and hints; use these declarations to explain requirements. Never returns a saved setting value or secret. Pass pluginId for one plugin. When asked to show or open settings, call the returned settingsCard tool and input to open the human card. Requires admin.plugins.read. Batch: to do several at once, pass items: [{...}, ...] (up to 25) in ONE call instead of one call per item. Canonical shape: {items:[{...}, ...]} only. Legacy shared top-level fields are normalized into each item; item values win. Returns { batch: true, outcome: completed | partial_failure | error, total, succeeded, failed, results: [{ index, ok, result | error }] }; one item's failure does not stop the others.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pluginId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional provider plugin id, e.g. from content_read.plugin."
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 25,
+            "description": "Batch: up to 25 inputs run in ONE call, in order. Each item takes the same fields as a single call; Canonical shape: {items:[{...}, ...]} only. Legacy shared top-level fields are normalized into each item before execution; an item's own value wins.",
+            "items": {
+              "type": "object",
+              "description": "One item: the same fields as a single call of this tool."
+            }
+          }
+        }
+      },
+      "sideEffects": "none",
+      "readOnly": true,
+      "timeoutMs": null,
+      "metadata": {
+        "search": {
+          "keywords": "provider plugin status configured set up analytics product analytics error tracking errors observability tracing traces telemetry monitoring connected key saved",
+          "queries": [
+            "Is analytics set up on my site?",
+            "Is error tracking configured?",
+            "Did my observability settings save?"
+          ]
+        },
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": {
+        "class": "read",
+        "confirmation": "direct"
+      },
+      "nativeMetadata": {
+        "search": {
+          "keywords": "provider plugin status configured set up analytics product analytics error tracking errors observability tracing traces telemetry monitoring connected key saved",
+          "queries": [
+            "Is analytics set up on my site?",
+            "Is error tracking configured?",
+            "Did my observability settings save?"
+          ]
+        },
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      }
+    },
+    "credential_save": {
+      "description": "Save, add, connect or rotate a credential through a secure human form. The person types the API key, token or password in a masked card; it is sealed server-side and never enters chat or model input. This one call waits for submit, cancel, expiry or abandonment. Choose kind: api for any third-party API, such as a payments or email API, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for git repository commit and backup tokens; publish-host for static site hosting or object storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in; provider-settings to show a provider plugin’s manifest settings card (target is the pluginId from provider_status); plugin-provider for a provider whose installed plugin ships its own key card, which asks for the key and required public connection fields and saves through that domain’s existing owner. Prefer a plugin-declared card whenever one covers the task. Examples: create an API credential with {kind:\"api\",label:\"payments\",baseUrl:\"https://api.example.test\",category:\"general\"}; rotate a saved API token with {kind:\"api\",target:\"hosting-prod\"} (target is the exact saved label, username is preserved); save an image generation key with {kind:\"media-provider\",target:\"image-provider\"}; connect repository backups with {kind:\"source-control\",target:\"<repository provider id>\",label:\"default\"}; save a hosting connection with {kind:\"publish-host\",target:\"<storage provider id>\",prefill:{bucket:\"my-site\",region:\"us-east-1\"}}; use a plugin token with {kind:\"agent-plugin-token\",target:\"<plugin id>\"}; open a plugin’s own key card with {kind:\"plugin-provider\",target:\"<provider id>\"}. Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. Choose the card or saved key whose usedFor covers the task; do not ask the person. usedFor is display text, not permission or verification. API creation accepts optional label/baseUrl/category/worksFor prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. Before opening any key card, explain which service and purpose it is for. Refuse to open a replacement-token card for a saved working credential unless the person explicitly asked to replace that key. When explicitly asked to show provider settings, open kind provider-settings; opening the card does not save anything until the person submits. Never open secret-entry cards during a read-only request or to answer what a token is. Read saved metadata and answer in words first. Account-management access may require a separate plugin connection; do not overwrite a working sending key to obtain broader access. Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write, admin.plugins.enable (provider-settings). Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. Saving a project key on a card attaches it to this site. After success retry the original request once.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "api",
+              "media-provider",
+              "source-control",
+              "publish-host",
+              "agent-plugin-token",
+              "plugin-provider",
+              "provider-settings"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Existing API credential label to rotate, media/source-control/publish/plugin provider id, or installed plugin id."
+          },
+          "label": {
+            "type": "string",
+            "description": "Optional new API or source-control credential label; never a secret."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "API creation only: non-secret base URL prefill."
+          },
+          "worksFor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "API creation only: explicit host or vendor IDs to preselect in the secure form."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "source-control",
+              "hosting",
+              "media",
+              "ai",
+              "ops",
+              "general"
+            ],
+            "description": "API creation only: category prefill."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Media only: non-secret reason shown on the form."
+          },
+          "prefill": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Publish only: provider-declared non-secret credential fields. Never tokens, keys or passwords."
+          }
+        }
+      },
+      "sideEffects": "mutates-durable-state",
+      "readOnly": false,
+      "timeoutMs": null,
+      "metadata": {
+        "search": {
+          "keywords": "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form image generation video media provider openai repository backup git source control commits static publish hosting storage bucket registrar dns third-party plugin personal access token pat fallback",
+          "queries": [
+            "Save a new API credential through a secure human form.",
+            "Set up my hosting account with a hosting API token before deploying an app.",
+            "Add a provider token so this site can use my hosting account.",
+            "Rotate the token on an existing saved account without changing the username.",
+            "Connect an image or video generation provider with an API key.",
+            "Save a source control credential for a repository host for commits and site backups.",
+            "Save a repository host source control credential.",
+            "Set up repository backup credentials.",
+            "Connect a static publishing host or object storage account.",
+            "Use personal access token sign-in when a plugin OAuth connection cannot start."
+          ]
+        },
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct",
+          "input": "human-form"
+        },
+        "mcpUi": {
+          "secretField": {
+            "secret": true
+          }
+        }
+      },
+      "toolApprovalPolicy": {
+        "class": "edit",
+        "confirmation": "direct",
+        "input": "human-form"
+      },
+      "nativeMetadata": {
+        "search": {
+          "keywords": "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form image generation video media provider openai repository backup git source control commits static publish hosting storage bucket registrar dns third-party plugin personal access token pat fallback",
+          "queries": [
+            "Save a new API credential through a secure human form.",
+            "Set up my hosting account with a hosting API token before deploying an app.",
+            "Add a provider token so this site can use my hosting account.",
+            "Rotate the token on an existing saved account without changing the username.",
+            "Connect an image or video generation provider with an API key.",
+            "Save a source control credential for a repository host for commits and site backups.",
+            "Save a repository host source control credential.",
+            "Set up repository backup credentials.",
+            "Connect a static publishing host or object storage account.",
+            "Use personal access token sign-in when a plugin OAuth connection cannot start."
+          ]
+        },
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct",
+          "input": "human-form"
+        },
+        "mcpUi": {
+          "secretField": {
+            "secret": true
+          }
+        }
+      }
+    },
+    "agent_plugin_connect": {
+      "description": "Connects an installed Agent Plugin's account by walking the human through its sign-in, then waits until it is done. Call this once you know which plugin needs connecting (e.g. from search_agent_plugin_local, whose result names a MCP server that is not yet connected) — it needs no prior setup, this provisions the connection itself the first time it is called for a given plugin. Token-only plugins reuse a saved credential or show their secure key card. They return connected only after a save succeeds; cancelled, expired or failed cards return not-connected with reason. OAuth plugins attempt sign-in first; only a successful start shows the human a card with a sign-in link and parks until they finish. Do not promise a card before it is emitted. If sign-in fails, explain that no card opened and use the plugin's declared credential_save key card when available. Never ask the person to restart Tovu. Returns { status: 'connected' } once the sign-in completes, or { status: 'waiting-for-sign-in' } if nobody finished within a few minutes — call this again with the same pluginId once the human says they're back; never loop on your own. For a plugin that declares its own API connection, the result also carries connectionRef: pass it unchanged as connectionRef to that plugin's tools (it is an opaque reference, not a secret, and works only for that plugin). Never returns a token, a URL, or any row id — only safe status, outcome guidance and that connectionRef. Refused with a plain error if the plugin has no supported connection, more than one token server, or more than one still-unconnected OAuth server (connect those one at a time).",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pluginId"
+        ],
+        "properties": {
+          "pluginId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "An installed Agent Plugin's id, e.g. from search_agent_plugin_local."
+          }
+        }
+      },
+      "sideEffects": "mutates-durable-state",
+      "readOnly": false,
+      "timeoutMs": null,
+      "metadata": {
+        "search": {
+          "keywords": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin"
+        },
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct",
+          "input": "human-form"
+        },
+        "mcpUi": {
+          "redeemable": true
+        }
+      },
+      "toolApprovalPolicy": {
+        "class": "edit",
+        "confirmation": "direct",
+        "input": "human-form"
+      },
+      "nativeMetadata": {
+        "search": {
+          "keywords": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin"
+        },
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct",
+          "input": "human-form"
+        },
+        "mcpUi": {
+          "redeemable": true
+        }
+      }
+    },
+    "agent_plugin_ui_ux_design": {
+      "description": "Load guidance to use or apply this plugin before making any design/implementation decision in its domain — Ui Ux Design guidance from the installed 'ui-ux-design' Agent Plugin, covering 2 skills: Frontend Accessibility (frontend-accessibility) — Use when checking accessible controls. | Ui Ux Design (ui-ux-design) — Use when defining visual foundations. Called with no argument, returns this plugin's own eponymous 'ui-ux-design' skill. Pass the optional 'skill' argument to request a different one by name. Pass optional 'file' (for example 'references/foundations.md') relative to the chosen skill folder to read supporting text instead of SKILL.md. Every response lists readable supporting files and other skills with short descriptions; unknown or refused files return a recovery note. For viewing this plugin's admin screen, use page.navigate with its entity target, then discover and click its details handle. Plugin discovery: unknown/ui-ux-design.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Optional supporting text file relative to the chosen skill folder, e.g. references/foundations.md. Omit to read SKILL.md. Use paths from files in the previous result. Unknown, unsafe, binary or over-256-KiB files return a note and valid files."
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "frontend-accessibility",
+              "ui-ux-design"
+            ],
+            "description": "Optional. Request one specific skill's full guidance instead of the default overview. One of: frontend-accessibility, ui-ux-design. Defaults to 'ui-ux-design' when omitted; an unrecognized value falls back to that same default and reports the valid values instead of failing."
+          }
+        }
+      },
+      "sideEffects": "none",
+      "readOnly": true,
+      "timeoutMs": null,
+      "metadata": {
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": null,
+      "nativeMetadata": null
+    },
+    "agent_plugin_ui_ux_design__memory_read": {
+      "description": "Read ui-ux-design's learned account knowledge. UTF-8 text only. Never credentials or permissions. Omit entryPath to list learned entries. A missing entry returns exists:false.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "entryPath": {
+            "type": "string"
+          }
+        }
+      },
+      "sideEffects": "none",
+      "readOnly": true,
+      "timeoutMs": null,
+      "metadata": {
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": null,
+      "nativeMetadata": null
+    },
+    "agent_plugin_ui_ux_design__memory_write": {
+      "description": "Refresh ui-ux-design's learned account knowledge. UTF-8 text only. Never credentials or permissions.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entryPath",
+          "text"
+        ],
+        "properties": {
+          "entryPath": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "sideEffects": "mutates-durable-state",
+      "readOnly": false,
+      "timeoutMs": null,
+      "metadata": {
+        "approval": {
+          "class": "edit",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": null,
+      "nativeMetadata": null
+    },
+    "p_acme_office__append_rows": {
+      "description": "Append rows to a table.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "connectionRef",
+          "table"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "object"
+          }
+        }
+      },
+      "sideEffects": "mutates-durable-state",
+      "readOnly": false,
+      "timeoutMs": null,
+      "metadata": {
+        "approval": {
+          "class": "publish",
+          "confirmation": "policy"
+        }
+      },
+      "toolApprovalPolicy": null,
+      "nativeMetadata": null
+    },
+    "p_acme_office__read_rows": {
+      "description": "Read rows from a table.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "connectionRef",
+          "table"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "object"
+          }
+        }
+      },
+      "sideEffects": "none",
+      "readOnly": true,
+      "timeoutMs": 30000,
+      "metadata": {
+        "approval": {
+          "class": "read",
+          "confirmation": "direct"
+        }
+      },
+      "toolApprovalPolicy": null,
+      "nativeMetadata": null
+    }
+  },
+  "catalog": {
+    "names": 328,
+    "bytes": 751493
+  },
+  "staticDenied": {
+    "status": "failed",
+    "error": "principal 'nobody' is not authorized for 'admin.plugins.read' (principal_disabled)",
+    "errorKind": "internal"
+  },
+  "cards": {
+    "connect": {
+      "card": {
+        "uri": "ui://tovu/sign-in-destination/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "463c2b5eb3d96d2b6d46f6f8152d7b9d045046db228942382c3464b6ea9a9403",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme Office</h1>\n<p class=\"mcpui-description\">Keep this sign-in on this site, or save a shared connection on this Mac. Other sites need your separate approval to use it. Existing local connections stay independent.</p>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-destination\">Save this connection<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<select class=\"mcpui-select\" id=\"mcpui-field-destination\" name=\"destination\" required>\n  <option value=\"\" selected disabled>—</option>\n  <option value=\"site\">Use only on this site</option>\n  <option value=\"shared\">Save this connection on this Mac</option>\n</select>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Continue to sign in\">Continue to sign in</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      },
+      "dismissedResult": null
+    },
+    "signInWaiting": {
+      "uri": "ui://tovu/agent-plugins-connect/acme-office",
+      "mimeType": "text/html;profile=mcp-app",
+      "sha256": "57232aa3f52b525dfe0220a0e3b16576b46b2245668f7493ff50f1a574d56e80",
+      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Let&#39;s connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Let&#39;s connect Acme Office</h1>\n<p class=\"mcpui-description\">It&#39;s free and takes about two minutes.</p>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"partial\">Waiting for you to sign in...</p>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"open-link\" data-agent-element=\"mcpui-action-open-link\" data-agent-role=\"button\" data-agent-label=\"Sign in to Acme Office\">Sign in to Acme Office</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Skip\">Skip</button>\n</div>\n</main>\n</body>\n</html>"
+    },
+    "signInWaitingWithCredentialCard": {
+      "uri": "ui://tovu/agent-plugins-connect/acme-office",
+      "mimeType": "text/html;profile=mcp-app",
+      "sha256": "4f0d5bcb6eb0dab2607e2f824794c520c31d223d7722f1d6df9d1cc89075d79e",
+      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme Office</h1>\n<p class=\"mcpui-description\">Acme Office needs a key. Use a read-write key.</p>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"partial\">Waiting for you to sign in...</p>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"open-link\" data-agent-element=\"mcpui-action-open-link\" data-agent-role=\"button\" data-agent-label=\"Sign in to Acme Office\">Sign in to Acme Office</button>\n</div>\n</main>\n</body>\n</html>"
+    },
+    "signInConnected": {
+      "uri": "ui://tovu/agent-plugins-connect/acme-office",
+      "mimeType": "text/html;profile=mcp-app",
+      "sha256": "05957cab4b39e60f6aa5f6998f57af49103d5f9047889ac21542189e9369f505",
+      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Acme Office connected</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Acme Office connected</h1>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"done\">Connected ✓</p>\n</main>\n</body>\n</html>"
+    },
+    "signInSkipped": {
+      "uri": "ui://tovu/agent-plugins-connect/acme-office",
+      "mimeType": "text/html;profile=mcp-app",
+      "sha256": "e56e052d34979c1794145f0bd1664f84e958ee131245cb78537273d7662a8756",
+      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Sign-in skipped</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Sign-in skipped</h1>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"partial\">Skipped connecting Acme Office. The assistant can continue without this plugin.</p>\n</main>\n</body>\n</html>"
+    },
+    "credential": {
+      "spec": {
+        "title": "Connect Acme Office",
+        "description": "Acme Office needs a key. The key is sealed on the server the moment you submit — the assistant never sees it.",
+        "details": [
+          {
+            "label": "Get a key",
+            "value": "https://acme.test/keys"
+          },
+          {
+            "label": "Used for",
+            "value": "Reading tables"
+          },
+          {
+            "label": "Saved as",
+            "value": "Acme Office"
+          }
+        ],
+        "submitLabel": "Save key",
+        "fields": [
+          {
+            "kind": "string",
+            "name": "region",
+            "label": "Region",
+            "required": true
+          },
+          {
+            "kind": "string",
+            "name": "token",
+            "label": "API key",
+            "hint": "Use a read-write key.",
+            "required": true,
+            "secret": true
+          }
+        ],
+        "app": {
+          "appName": "tovu-plugin-credential-card",
+          "appVersion": "1"
+        },
+        "preferredFrameSize": [
+          "100%",
+          "360px"
+        ]
+      },
+      "rendered": {
+        "uri": "ui://golden/credential_save",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "bbe9f4462615e2dc08e1c4a8ab894f6a5d4482a71b61af4aa49aa51242ff095a",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme Office</h1>\n<p class=\"mcpui-description\">Acme Office needs a key. The key is sealed on the server the moment you submit — the assistant never sees it.</p>\n<dl class=\"mcpui-details\">\n  <dt>Get a key</dt><dd>https://acme.test/keys</dd>\n  <dt>Used for</dt><dd>Reading tables</dd>\n  <dt>Saved as</dt><dd>Acme Office</dd>\n</dl>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-region\">Region<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<input class=\"mcpui-input\" type=\"text\" id=\"mcpui-field-region\" name=\"region\" required>\n</div>\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">API key<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Use a read-write key.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show API key\" data-mcpui-hide-secret=\"Hide API key\" aria-label=\"Show API key\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save key\">Save key</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      }
+    },
+    "accessToken": {
+      "spec": {
+        "title": "Connect Acme Office with an access token",
+        "description": "Create a personal access token at https://acme.test/tokens, then paste it below. Tovu checks it with Acme Office and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.",
+        "submitLabel": "Save token",
+        "fields": [
+          {
+            "kind": "string",
+            "name": "token",
+            "label": "Acme Office access token",
+            "hint": "Pasted here only. Never shown to the assistant.",
+            "required": true,
+            "secret": true
+          }
+        ],
+        "cancelLabel": "Cancel",
+        "app": {
+          "appName": "tovu-agent-plugins-access-token",
+          "appVersion": "1"
+        }
+      },
+      "rendered": {
+        "uri": "ui://golden/credential_save",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "d307e1fa9344f38d7201f1284c607189553413fbe72d64562db9deb054d49daa",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme Office with an access token</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme Office with an access token</h1>\n<p class=\"mcpui-description\">Create a personal access token at https://acme.test/tokens, then paste it below. Tovu checks it with Acme Office and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.</p>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">Acme Office access token<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Pasted here only. Never shown to the assistant.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show Acme Office access token\" data-mcpui-hide-secret=\"Hide Acme Office access token\" aria-label=\"Show Acme Office access token\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save token\">Save token</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      }
+    },
+    "accessTokenWithCredentialCard": {
+      "spec": {
+        "title": "Connect Acme Office",
+        "description": "Acme Office needs a key. Create a personal access token at https://acme.test/tokens, then paste it below. Tovu checks it with Acme Office and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.",
+        "submitLabel": "Save token",
+        "fields": [
+          {
+            "kind": "string",
+            "name": "token",
+            "label": "Acme Office access token",
+            "hint": "Use a read-write key.",
+            "required": true,
+            "secret": true
+          }
+        ],
+        "cancelLabel": "Cancel",
+        "app": {
+          "appName": "tovu-agent-plugins-access-token",
+          "appVersion": "1"
+        },
+        "details": [
+          {
+            "label": "Get a key",
+            "value": "https://acme.test/keys"
+          },
+          {
+            "label": "Used for",
+            "value": "Reading tables"
+          },
+          {
+            "label": "Saved as",
+            "value": "Acme Office"
+          }
+        ]
+      },
+      "rendered": {
+        "uri": "ui://golden/credential_save",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "23abc28aaf1d6b0d8254ea133253c13fcf213f20896d5a063632a5ac48026374",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme Office</h1>\n<p class=\"mcpui-description\">Acme Office needs a key. Create a personal access token at https://acme.test/tokens, then paste it below. Tovu checks it with Acme Office and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.</p>\n<dl class=\"mcpui-details\">\n  <dt>Get a key</dt><dd>https://acme.test/keys</dd>\n  <dt>Used for</dt><dd>Reading tables</dd>\n  <dt>Saved as</dt><dd>Acme Office</dd>\n</dl>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">Acme Office access token<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Use a read-write key.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show Acme Office access token\" data-mcpui-hide-secret=\"Hide Acme Office access token\" aria-label=\"Show Acme Office access token\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save token\">Save token</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      }
+    },
+    "accessTokenOutcome": {
+      "title": "Acme Office connected",
+      "details": [
+        {
+          "label": "Connection",
+          "value": "Acme Office"
+        }
+      ],
+      "state": "success",
+      "message": "The token was saved.",
+      "app": {
+        "appName": "tovu-agent-plugins-access-token-outcome",
+        "appVersion": "1"
+      }
+    }
+  },
+  "approvals": {
+    "familyByEffect": {
+      "read": "agent-plugin-read",
+      "write": "agent-plugin-write",
+      "destructive": "agent-plugin-destructive"
+    },
+    "families": {
+      "agent-plugin-read": {
+        "class": "read",
+        "confirmation": "direct"
+      },
+      "agent-plugin-write": {
+        "class": "publish",
+        "confirmation": "policy"
+      },
+      "agent-plugin-destructive": {
+        "class": "delete",
+        "confirmation": "policy"
+      },
+      "installed-guidance": {
+        "class": "read",
+        "confirmation": "direct"
+      },
+      "plugin-memory-read": {
+        "class": "read",
+        "confirmation": "direct"
+      },
+      "plugin-memory-write": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "read": {
+      "prompted": false,
+      "result": {
+        "status": "completed",
+        "output": {
+          "rows": []
+        },
+        "truncated": false
+      }
+    },
+    "write": {
+      "prompted": true,
+      "rows": [
+        [
+          "Account",
+          "alice@acme.test"
+        ],
+        [
+          "Affects",
+          "table leads"
+        ],
+        [
+          "Connection ref",
+          "conn-1"
+        ],
+        [
+          "Table",
+          "leads"
+        ],
+        [
+          "Values",
+          "a"
+        ]
+      ],
+      "card": {
+        "uri": "ui://approval",
+        "mimeType": "text/html",
+        "sha256": "051b74ee63ee23c122af8e121fd59057fba7bc35183e88da565c76aed628266f",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>P acme office append rows?</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">P acme office append rows?</h1>\n<dl class=\"mcpui-details\">\n  <dt>Account</dt><dd>alice@acme.test</dd>\n  <dt>Affects</dt><dd>table leads</dd>\n</dl>\n<details class=\"mcpui-detail-disclosure mcpui-technical-details\"><summary aria-expanded=\"false\">Details</summary><dl class=\"mcpui-details\">\n  <dt>Input<span class=\"mcpui-hint\">Technical name: p_acme_office__append_rows</span></dt><dd><dl class=\"mcpui-detail-group\"><div class=\"mcpui-detail-row\"><dt>Connection ref</dt><dd>conn-1</dd></div><div class=\"mcpui-detail-row\"><dt>Table</dt><dd>leads</dd></div><div class=\"mcpui-detail-row\"><dt>Values</dt><dd>a</dd></div></dl><details class=\"mcpui-detail-disclosure mcpui-detail-raw\"><summary aria-expanded=\"false\">View raw</summary><pre class=\"mcpui-code\">{\n  &quot;connectionRef&quot;: &quot;conn-1&quot;,\n  &quot;table&quot;: &quot;leads&quot;,\n  &quot;values&quot;: [\n    &quot;a&quot;\n  ]\n}</pre></details></dd>\n</dl></details>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"confirm\" data-agent-private disabled>Confirm</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-private>Cancel</button>\n</div>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      },
+      "cancelled": {
+        "status": "completed",
+        "output": {
+          "executed": false,
+          "cancelled": true,
+          "note": "The user cancelled. Nothing was changed."
+        },
+        "truncated": false
+      },
+      "confirmed": {
+        "status": "completed",
+        "output": {
+          "appended": 1,
+          "status": 200
+        },
+        "truncated": false
+      },
+      "pluginCalls": 2
+    },
+    "deniedPrincipal": {
+      "read": {
+        "status": "failed",
+        "error": "authorization failed"
+      },
+      "write": {
+        "status": "failed",
+        "error": "authorization failed"
+      },
+      "pluginCalls": 0
+    }
+  },
+  "counters": {
+    "mcpList": {
+      "rows": 2,
+      "sealerOpens": 2,
+      "sealerOpenBytes": 140
+    },
+    "pluginStateWrite": {
+      "vaultListCalls": 1,
+      "vaultListRows": 3,
+      "vaultListBytes": 99,
+      "vaultPuts": 1
+    }
+  }
+}

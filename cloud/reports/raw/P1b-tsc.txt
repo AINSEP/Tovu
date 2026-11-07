@@ -1,0 +1,2 @@
+npx tsc -p tsconfig.json --noEmit: exit 0 (root config excludes tests)
+tsc on the new test (temp config extending tsconfig.tests.json, files=[moved-tools.golden.test.ts], typeRoots set): exit 0, 0 errors

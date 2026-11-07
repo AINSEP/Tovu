@@ -1,0 +1,16 @@
+== mutation 1: provider_status description 'Read-only status of provider plugins' -> 'Read-only state of provider plugins'
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (457.385106ms)
+ℹ pass 0
+ℹ fail 1
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (457.385106ms)
+  AssertionError [ERR_ASSERTION]: tools
+== mutation 2: sign-in card cancel label 'Skip' -> 'Skip for now'
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (442.792956ms)
+ℹ pass 0
+ℹ fail 1
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (442.792956ms)
+  AssertionError [ERR_ASSERTION]: cards
+== reverted (git diff --stat on both files below must be empty), rerun:
+✔ moved tools, cards, approvals and counters match the golden recorded before any move (389.840759ms)
+ℹ pass 1
+ℹ fail 0

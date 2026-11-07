@@ -1,0 +1,10 @@
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/assistant/__tests__/moved-tools.golden.test.ts  (run twice, compare mode, identical)
+✔ moved tools, cards, approvals and counters match the golden recorded before any move (443.500816ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5732.099046
