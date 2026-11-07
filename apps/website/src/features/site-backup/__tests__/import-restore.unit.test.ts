@@ -1,4 +1,3 @@
-import { formHtmlStarter } from "../../../../../admin/node_modules/@jini-ai/admin/dist/forms/html-rules.js";
 /**
  * Pins the staged-import restore: which files reach the live site, which go to the unserved
  * `.import-quarantine/` tree, and the active-theme fallback. Real temp folders and a real SQLite
@@ -8,6 +7,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
@@ -15,6 +16,9 @@ import { readTemplate } from "../../../platform/site-dir/read-template.js";
 import { stageVerifiedImport, stagedImportWarnings } from "../import-restore.js";
 import { restoreStagedImport } from "#src/server/runtime/composition/site-portability";
 import { writeExclusive } from "../import-restore-placement.js";
+
+// Resolve the admin dependency from its package so hoisted installs use its public export.
+const { formHtmlStarter } = await import(pathToFileURL(createRequire(new URL("../../../../../admin/package.json", import.meta.url)).resolve("@jini-ai/admin/forms")).href);
 
 const FALLBACK = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
 const sha = (text: string): string => createHash("sha256").update(text).digest("hex");

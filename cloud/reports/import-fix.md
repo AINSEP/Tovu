@@ -615,3 +615,11 @@ Share download now gets 240 seconds inside the existing five-minute import budge
 From Tovu root: `bash /workspace/work/run-tovu-file.sh apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts`. Red 2/5; deadline mutation at 240,001 ms remains red 2/5; final deadline and message green 5/5. The injected guarded clock checks success at 239,999 ms and timeout at 240,000 ms without waiting four minutes. The latter also checks specific CLI output with no resource path/query. `node_modules/.bin/tsc -p /workspace/work/tsconfig-item3-tovu.json --noEmit`: exit 0. The backend's existing exact request expectation is updated to 240,000 ms.
 
 Cost: existing download allocation/network caps are unchanged; one small error classification and origin parse only on timeout, no extra I/O. The allowed network wait is reduced by 55 seconds per slow transfer.
+
+### Low — done
+
+The real starter test resolves the public `@jini-ai/admin/forms` export, as admin form tests do, from the admin package's declared dependency context. It no longer imports an internal `node_modules/.../dist` filename. Native Node package resolution supports both local and hoisted installs; no new dependency or helper was added.
+
+Existing real-starter regression command from Tovu root: `bash /workspace/work/run-tovu-file.sh --test-name-pattern='starter radio' apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts`. With the installed admin package temporarily hoisted to root (the app-local link absent), the original import is red (`ERR_MODULE_NOT_FOUND`); a package-resolution mutation requesting its private dist subpath is red (`ERR_PACKAGE_PATH_NOT_EXPORTED`). Public export resolution is green 1/1 in the hoisted layout; normal layout whole changed restore file green 47/47. Original dependency links were restored in `finally`. This tests resolution layout rather than claiming a full fresh-clone install. Changed website test graph no-emit exits 0.
+
+Cost: production none. Test module startup performs one existing-package export resolution and module load; no payload buffers or product I/O changes.
