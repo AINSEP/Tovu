@@ -55,7 +55,11 @@ export async function restoreStagedImport(required: { root: string; dir: string;
   const findings = inspectThemeManifests({ root: required.root, files });
   const liveThemes = liveThemeTrees({ files, findings });
   for (const id of liveThemes) if (state.modified.includes("themes/" + id.split("/").at(-1))) liveThemes.delete(id);
+  const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
   const unrecognised = unrecognisedThemes({ root: required.root, dir: required.dir, files, liveThemes });
+  // This site's own fallback theme is never replaced: the archive's copy is set aside and the site keeps rendering with a real theme.
+  const setAside = unrecognised.delete(fallback);
+  if (setAside) liveThemes.delete("static/" + fallback), liveThemes.delete("declarative/" + fallback);
   for (const id of liveThemes) fs.rmSync(path.join(required.dir, "themes", id), { recursive: true, force: true });
   // Copy the freshly rebuilt database, never the archived SQLite bytes. Exclusive creation and
   // init's DB-path resolver protect both in-site and app-data placement from overwriting a site.
@@ -66,8 +70,7 @@ export async function restoreStagedImport(required: { root: string; dir: string;
     const destination = restoreDestination({ file, liveThemes, compiledSources: findings.compiledSources });
     if (destination !== null) writeExclusive({ root: required.dir, relative: destination, bytes: fs.readFileSync(path.join(required.root, file)) });
   }
-  const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
-  addStagedWarnings({ root: required.root, notices: await keepImportedCodeOff({ dbPath: required.dbPath, fallback, liveThemes, unrecognised, openContent: required.openContent }) });
+  addStagedWarnings({ root: required.root, notices: await keepImportedCodeOff({ dbPath: required.dbPath, fallback, liveThemes, unrecognised, setAside, openContent: required.openContent }) });
   await restoreOptionalSavedKeys(required, optional);
 }
 

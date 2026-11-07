@@ -67,20 +67,19 @@ function attributeHoldsMarkup(root: DefaultTreeAdapterMap["documentFragment"]): 
 
 /**
  * Leaves an active theme on only when it is this site's own, and moves every other one to the
- * fallback, or to no theme when the archive replaced the fallback too.
+ * fallback, which the archive can never replace.
  * @returns One notice per imported theme that was active.
  * @complexity O(workspaces), one update per changed row.
  */
 async function keepThemesOff(required: { db: Kernel; fallback: string; liveThemeIds: ReadonlySet<string>; unrecognised: ReadonlySet<string> }): Promise<string[]> {
   const { db, fallback, liveThemeIds, unrecognised } = required;
-  const target = unrecognised.has(fallback) ? NO_THEME_ID : fallback;
   const rows = await db.run(query => query.selectFrom("presentation_settings").select("active_theme_id").execute());
   const notices = new Set<string>();
   for (const { active_theme_id: active } of rows) {
     const own = active === fallback || liveThemeIds.has(active);
     if (active === NO_THEME_ID || (own && !unrecognised.has(active))) continue;
     if (unrecognised.has(active)) notices.add(`Theme '${active}' came from the imported file, so it was kept switched off. Turn it on from Themes if you trust this file.`);
-    await db.run(query => query.updateTable("presentation_settings").set({ active_theme_id: target }).where("active_theme_id", "=", active).execute());
+    await db.run(query => query.updateTable("presentation_settings").set({ active_theme_id: fallback }).where("active_theme_id", "=", active).execute());
   }
   return [...notices];
 }
@@ -105,10 +104,11 @@ async function keepPagesOff(required: { db: Kernel }): Promise<string[]> {
  * @returns Notices for the person importing, in plain words.
  * @throws Whatever the database throws; the caller's restore then fails and cleans up.
  */
-export async function keepImportedCodeOff(required: { dbPath: string; fallback: string; liveThemes: ReadonlySet<string>; unrecognised: ReadonlySet<string>; openContent: (required: { filePath: string }) => Kernel }): Promise<string[]> {
+export async function keepImportedCodeOff(required: { dbPath: string; fallback: string; liveThemes: ReadonlySet<string>; unrecognised: ReadonlySet<string>; setAside: boolean; openContent: (required: { filePath: string }) => Kernel }): Promise<string[]> {
   const db = required.openContent({ filePath: required.dbPath });
   try {
     const liveThemeIds = new Set([...required.liveThemes].flatMap(id => id.startsWith("__") ? [] : [id.split("/").at(-1)!]));
-    return [...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
+    const setAside = required.setAside ? [`The imported file's copy of '${required.fallback}' differs from this site's own, so the site kept its own and the imported copy was set aside.`] : [];
+    return [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
   } finally { await db.close(); }
 }

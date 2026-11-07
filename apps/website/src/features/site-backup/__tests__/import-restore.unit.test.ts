@@ -212,12 +212,19 @@ for (const [name, files] of Object.entries({
   });
 }
 
-test("an archive copy of the fallback theme that differs from this site's own never goes active", async t => {
-  const h = await restore(t, themeFiles(FALLBACK, { scripts: [{ src: "https://scripts.invalid/x.js" }] }), { themes: [FALLBACK, "other"], before: seedFallback("seed") });
-  assert.deepEqual(activeThemes(h.dbPath), ["none", "none"], "the fallback itself is the archive's copy, so nothing themed runs");
-  assert.notEqual(live(h, `themes/static/${FALLBACK}/theme.json`), null, "a person can still turn it on from Themes");
-  assert.deepEqual(stagedImportWarnings({ root: h.root }), [`Theme '${FALLBACK}' came from the imported file, so it was kept switched off. Turn it on from Themes if you trust this file.`]);
-});
+const fallbackNotice = `The imported file's copy of '${FALLBACK}' differs from this site's own, so the site kept its own and the imported copy was set aside.`;
+for (const [name, files] of Object.entries({
+  "edited copy with a declared script": themeFiles(FALLBACK, { scripts: [{ src: "https://scripts.invalid/x.js" }] }),
+  "copy from another Tovu version": { [`themes/static/${FALLBACK}/index.html`]: "other version" },
+})) {
+  test(`an archive's ${name} of the fallback theme never replaces this site's own, which stays active`, async t => {
+    const h = await restore(t, files, { themes: [FALLBACK, "other"], before: seedFallback("seed") });
+    assert.deepEqual(activeThemes(h.dbPath), [FALLBACK, FALLBACK], "the site always renders with a real theme");
+    assert.equal(live(h, `themes/static/${FALLBACK}/index.html`), "seed");
+    assert.equal(live(h, `themes/static/${FALLBACK}/theme.json`), null, "nothing from the archive's copy is served");
+    assert.deepEqual(stagedImportWarnings({ root: h.root }), [fallbackNotice]);
+  });
+}
 
 test("an archive copy byte-identical to this site's own theme stays on with no notice", async t => {
   const h = await restore(t, { [`themes/static/${FALLBACK}/index.html`]: "seed" }, { themes: [FALLBACK], before: seedFallback("seed") });
