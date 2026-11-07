@@ -23,6 +23,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 | P1b | `682d34bac` | none | passed: golden green at baseline twice; description mutation and card-label mutation each red, reverted; metadata sha256 unchanged; tsc exit 0. Not captured by name: `agent_plugin_set_access_token` (not a registered tool at baseline; covered via `credential_save` kind `agent-plugin-token` and its card); credential and access-token cards rendered from form specs, not emitted live; §10 counters for skill reads, token lookup, trusted scans and mail not recorded | 205k |
 | P2a | `2671b5553` | `52365d5b0` | passed: 3 deploy kinds off `.todo` (JSON + modules, 12 files); Jini parser tests 18/18; listed Tovu tests 167/168 + golden green, the 1 red (`no-vendor-in-core.boundary` › "real core tree has only reviewed pattern exceptions") is identical at pre-P2a HEAD `52407d262`; tsc clean both repos; layers 73/73, guard only the 2 baseline violations. Departures: 5 moved comment lines reworded (guard `N1-consumer-identity` forbids the product name), 5 Jini type names `Plugin`-prefixed to avoid clashes (Tovu re-exports old names) | 207k |
 | P2b | `753b27fcb` | `e35cf6d2d` | **failed on one item**: `mail-adapters` and `object-stores` green (JSON + modules); `form-destinations` stays `.todo` because the contract test in `@jini-ai/server` cannot resolve `@jini-ai/cms/forms` (server has no cms dependency; adding it needs a lockfile edit, which only P1a and P10b may make, so the step was stopped, not worked around; no follow-up spent). Parser and module validator did move to `J cms/src/forms/`. Rest passed: listed Tovu tests 90/90 + golden; tsc clean; layers 73/73; guard only the 2 baseline violations | 185k |
+| P2c | `c51b5a0fa` | `d611333fa`, `1c97de159` | **failed on one item**: `connections` green (JSON + module); `login-providers` and `consent` parsers moved with their own Jini tests (21/21) but their contract checks stay `.todo`: `ERR_MODULE_NOT_FOUND` for `@jini-ai/user-management/server` and `@jini-ai/cookie-consent/plugins` from `packages/server` (same lockfile blocker as P2b). Contract test 22 pass, 6 todo (3 blocked kinds + 3 other entries). Rest passed: listed Tovu tests 69/70 + golden, the 1 red `vendor-neutrality` › "no generic seam file names the first provider" is in files untouched since baseline; tsc clean; layers 73/73; guard only the 2 baseline violations | 188k |
 
 ## Progress (every 30 min)
 
@@ -31,6 +32,7 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 | 17:10 | P0 merge done, P0 subagent next | coordinator only | none yet |
 | 17:33 | P0, P1a done; P1b next | ~400k (P0 115k + P1a 225k + coordinator ~60k) | `pnpm guard` red at baseline (R2-deep-path, R10-chatpane-public-surface); Jini `plugin-release-consistency` baseline |
 | 17:58 | P0-P2a done; P2b next | ~830k (subagents 752k + coordinator ~75k) | as above, plus Tovu `no-vendor-in-core.boundary` red before P2a |
+| 18:21 | P0-P2c done; P3 next | ~1.21M (subagents 1,125k + coordinator ~85k) | P2b and P2c contract `.todo`s blocked by lockfile rule; Tovu `vendor-neutrality` baseline red |
 
 ## Bugs found
 
@@ -100,6 +102,6 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 ## Coordinator decisions
 
 - `pnpm guard` is red at the behavior baseline (2 violations above). Later batches' guard gates are reported as failed-at-baseline with the list of violations, so any new violation is visible by name. Fixing the two is left to the owner.
-- P2b: the `form-destinations` contract check needs a `@jini-ai/cms` dev dependency on `@jini-ai/server` (a lockfile edit). The plan lets only P1a and P10b edit the lockfile, so it is left for P10b or the owner. P2c's "no `.todo` left" gate item therefore cannot pass in session 1.
+- P2b: the `form-destinations` contract check needs a `@jini-ai/cms` dev dependency on `@jini-ai/server` (a lockfile edit). The plan lets only P1a and P10b edit the lockfile, so it is left for P10b or the owner. P2c's "no `.todo` left" gate item therefore cannot pass in session 1. P2c hit the same blocker for `@jini-ai/user-management` and `@jini-ai/cookie-consent`: three server dev dependencies (cms, user-management, cookie-consent) are needed for the contract test to reach 14 of 14.
 
 ## Not done
