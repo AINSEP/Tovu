@@ -53,6 +53,7 @@ test("share download requests bytes and reuses the response buffer", async () =>
   const archive = await downloadShareArchive({ url: "https://provider.example/archive.zip", signal: new AbortController().signal,
     http: { send: async request => {
       assert.equal(request.bodyAs, "bytes");
+      assert.ok(request.totalDeadlineMs! >= 290000 && request.totalDeadlineMs! < 300000);
       return { status: 200, headers: { "content-type": "application/zip" }, bodyText: "", bodyBytes: body, bodyBytesTruncated: false };
     } },
   });

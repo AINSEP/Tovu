@@ -427,3 +427,7 @@ Tidy now passes `staleMs: 86_400_000`. The real-parent regression changes a held
 The parent chooses a random root name, takes its sibling lock, then creates the directory with `mkdir({ mode: 0o700 })`. There is no unlocked staging folder, recursive recreate step or redundant `assertHeld`.
 
 `import-database.unit.test.ts`, pattern `private root only`: red 0/1 (directory already existed before owned creation); mutation retaining recursive mkdir 0/1; both changed worker/cleanup files green 16/16. Focused production no-emit exits 0. Cost: replaces mkdtemp/recreate/ownership reread with one random ID and one private mkdir; lock metadata I/O remains the same.
+
+### 10 — done
+
+The share transfer deadline is 295 seconds, inside the existing five-minute outer import deadline. Request regression red 0/1 at 120 seconds, boundary mutation red 0/1 at 300 seconds, whole download file green 3/3. Focused download/test no-emit exits 0. Cost: none unless a slow transfer uses the additional allowed time; byte cap stays unchanged.
