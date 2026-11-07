@@ -18,7 +18,8 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
 
 | Batch | Tovu SHA | Jini SHA | Gate | Final context |
 |---|---|---|---|---|
-| P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | ~60k |
+| P0 | `37e3feadb`, `efabd36b7` | `df9e0c83a` | passed (Round 1 groups green except baseline `plugin-release-consistency`; Higgsfield grants byte-identical) | ~115k |
+| P1a | `6def6cdaa` | `fedca02d6`, `4ebd5d234` | **failed on one item**: `pnpm guard` exit 1 on `R2-deep-path` (`plugin-catalog/scripts/generate.ts`) and `R10-chatpane-public-surface` (`chat/.../ChatPane.tsx`), both files unchanged since the behavior baseline, so red at baseline, not from P1a. Not fixed (outside plan scope; no follow-up spent). Every other item passed: tests run with 44 `.todo`, layers unchanged 130/130, tsc exit 0, `guard:plugins` exit 0 | ~125k |
 
 ## Progress (every 30 min)
 
@@ -56,5 +57,9 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   public barrel). Not fixed (outside P1a). `raw/p1a-guard.txt`.
 - P1a: `TS5097` (`.ts` import paths) in server's build tsconfig for the neutral-host folder, fixed
   by excluding the folder there and type-checking it with `tsconfig.neutral-host.json` (nodenext).
+
+## Coordinator decisions
+
+- `pnpm guard` is red at the behavior baseline (2 violations above). Later batches' guard gates are reported as failed-at-baseline with the list of violations, so any new violation is visible by name. Fixing the two is left to the owner.
 
 ## Not done
