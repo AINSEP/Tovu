@@ -1,0 +1,112 @@
+# cwd /home/user/Tovu; TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts (baseline written once with COST_COUNTERS_BASELINE_WRITE=1 from unmoved code; then run twice without it)
+✔ counter: skill tool call (file reads, bytes) per call (75.662361ms)
+✔ counter: token lookup (contribution reload, credential opens) per getAccessToken (72.555068ms)
+✔ counter: mail send per lane, provider cached and not cached (17.952059ms)
+✔ cost counters equal the baseline recorded before any move (1.082673ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3090.568872
+✔ counter: skill tool call (file reads, bytes) per call (89.696749ms)
+✔ counter: token lookup (contribution reload, credential opens) per getAccessToken (79.455282ms)
+✔ counter: mail send per lane, provider cached and not cached (16.43299ms)
+✔ cost counters equal the baseline recorded before any move (0.988306ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3320.933751
+## baseline
+{
+  "skillToolCall": {
+    "overview": {
+      "opened": [
+        "<package>/skills/ui-ux-design/references/foundations.md",
+        "<package>/skills/ui-ux-design/SKILL.md"
+      ],
+      "readWhole": [],
+      "listed": 4,
+      "bytes": 236
+    },
+    "supportingFile": {
+      "opened": [
+        "<package>/skills/ui-ux-design/references/foundations.md",
+        "<package>/skills/ui-ux-design/references/foundations.md"
+      ],
+      "readWhole": [],
+      "listed": 4,
+      "bytes": 172
+    },
+    "otherSkill": {
+      "opened": [
+        "<package>/skills/frontend-accessibility/SKILL.md"
+      ],
+      "readWhole": [],
+      "listed": 3,
+      "bytes": 105
+    }
+  },
+  "tokenLookup": {
+    "first": {
+      "contributionLoads": [
+        "tovu-connections.json"
+      ],
+      "credentialOpens": 4
+    },
+    "second": {
+      "contributionLoads": [
+        "tovu-connections.json"
+      ],
+      "credentialOpens": 4
+    }
+  },
+  "mailSend": {
+    "firstSend": {
+      "settingReads": 1,
+      "credentialLists": 1,
+      "credentialRows": 2,
+      "catalogLoads": 0,
+      "credentialOpens": 0,
+      "providerCalls": 1
+    },
+    "cachedSend": {
+      "settingReads": 1,
+      "credentialLists": 1,
+      "credentialRows": 2,
+      "catalogLoads": 0,
+      "credentialOpens": 0,
+      "providerCalls": 1
+    },
+    "afterInvalidate": {
+      "settingReads": 1,
+      "credentialLists": 3,
+      "credentialRows": 6,
+      "catalogLoads": 1,
+      "credentialOpens": 1,
+      "providerCalls": 1
+    },
+    "unconfiguredFirst": {
+      "settingReads": 1,
+      "credentialLists": 0,
+      "credentialRows": 0,
+      "catalogLoads": 1,
+      "credentialOpens": 0,
+      "providerCalls": 0
+    },
+    "unconfiguredSecond": {
+      "settingReads": 1,
+      "credentialLists": 0,
+      "credentialRows": 0,
+      "catalogLoads": 1,
+      "credentialOpens": 0,
+      "providerCalls": 0
+    }
+  }
+}

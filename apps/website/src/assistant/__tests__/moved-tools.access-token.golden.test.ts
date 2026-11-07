@@ -102,7 +102,7 @@ async function refusal(env: Env, input?: unknown) {
 /** Raises the real form, answers it with `params`, and records every emitted card and the result. */
 async function answered(env: Env, params: Record<string, unknown>) {
   const emitted: UIResource[] = [];
-  const pending = call(env, { emitSurface: async (s) => void emitted.push((s as { payload: { resource: UIResource } }).payload.resource) });
+  const pending = call(env, { emitSurface: async (s) => void emitted.push((s as unknown as { payload: { resource: UIResource } }).payload.resource) });
   while (emitted.length === 0) await new Promise((resolve) => setImmediate(resolve));
   env.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: PRINCIPAL, params }, { toolId: TOOL });
   const result = await pending;

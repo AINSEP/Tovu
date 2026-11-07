@@ -1,0 +1,86 @@
+{
+  "skillToolCall": {
+    "overview": {
+      "opened": [
+        "<package>/skills/ui-ux-design/references/foundations.md",
+        "<package>/skills/ui-ux-design/SKILL.md"
+      ],
+      "readWhole": [],
+      "listed": 4,
+      "bytes": 236
+    },
+    "supportingFile": {
+      "opened": [
+        "<package>/skills/ui-ux-design/references/foundations.md",
+        "<package>/skills/ui-ux-design/references/foundations.md"
+      ],
+      "readWhole": [],
+      "listed": 4,
+      "bytes": 172
+    },
+    "otherSkill": {
+      "opened": [
+        "<package>/skills/frontend-accessibility/SKILL.md"
+      ],
+      "readWhole": [],
+      "listed": 3,
+      "bytes": 105
+    }
+  },
+  "tokenLookup": {
+    "first": {
+      "contributionLoads": [
+        "tovu-connections.json"
+      ],
+      "credentialOpens": 4
+    },
+    "second": {
+      "contributionLoads": [
+        "tovu-connections.json"
+      ],
+      "credentialOpens": 4
+    }
+  },
+  "mailSend": {
+    "firstSend": {
+      "settingReads": 1,
+      "credentialLists": 1,
+      "credentialRows": 2,
+      "catalogLoads": 0,
+      "credentialOpens": 0,
+      "providerCalls": 1
+    },
+    "cachedSend": {
+      "settingReads": 1,
+      "credentialLists": 1,
+      "credentialRows": 2,
+      "catalogLoads": 0,
+      "credentialOpens": 0,
+      "providerCalls": 1
+    },
+    "afterInvalidate": {
+      "settingReads": 1,
+      "credentialLists": 3,
+      "credentialRows": 6,
+      "catalogLoads": 1,
+      "credentialOpens": 1,
+      "providerCalls": 1
+    },
+    "unconfiguredFirst": {
+      "settingReads": 1,
+      "credentialLists": 0,
+      "credentialRows": 0,
+      "catalogLoads": 1,
+      "credentialOpens": 0,
+      "providerCalls": 0
+    },
+    "unconfiguredSecond": {
+      "settingReads": 1,
+      "credentialLists": 0,
+      "credentialRows": 0,
+      "catalogLoads": 1,
+      "credentialOpens": 0,
+      "providerCalls": 0
+    }
+  }
+}
