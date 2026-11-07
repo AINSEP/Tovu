@@ -1,0 +1,4 @@
+isolation (failing) findings: 0
+all audit findings (incl. non-failing) by rule[kind]:
+  SI-c[c]: 9
+  SI-d[d]: 7

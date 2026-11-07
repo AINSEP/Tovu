@@ -1,0 +1,16 @@
+### pnpm --filter @jini-ai/cms exec tsc --noEmit
+exit 0
+### pnpm --filter @jini-ai/cms run build
+
+> @jini-ai/cms@0.6.22 build /home/user/Jini/packages/cms
+> tsc -p tsconfig.json
+
+exit 0
+### pnpm --filter @jini-ai/db exec tsc --noEmit
+exit 0
+### pnpm --filter @jini-ai/db run build
+
+> @jini-ai/db@0.6.19 build /home/user/Jini/packages/db
+> tsc -p tsconfig.build.json
+
+exit 0

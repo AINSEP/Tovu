@@ -1,0 +1,32 @@
+# Same single test on the V0 tip (Tovu 0cb8cf2f, temporary detached worktree, same linked Jini), proving the failure predates the merge
+# --test-name-pattern='distinct publisher identity' apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts
+# exit 1
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (367.452193ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2873.119304
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:1:13560
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (367.452193ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'unknown/charts-recharts'
+  - 'jini/charts-recharts-agent'
+  
+      at TestContext.<anonymous> (/tmp/claude-0/-home-user/911e35c4-1f59-573a-a4e8-716e9933b32a/scratchpad/tovu-v0/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:202:12)
+      at async Test.run (node:internal/test_runner/test:1069:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unknown/charts-recharts',
+    expected: 'jini/charts-recharts-agent',
+    operator: 'strictEqual'
+  }

@@ -1,0 +1,39 @@
+### cms
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ✓ src/core/commands/__tests__/command-post-mutation-rollback.test.ts (9 tests) 6ms
+ ✓ src/core/commands/__tests__/command.test.ts (16 tests) 14ms
+ ✓ src/core/commands/__tests__/public-entry.test.ts (1 test) 6ms
+
+ Test Files  3 passed (3)
+      Tests  26 passed (26)
+   Start at  20:21:36
+   Duration  1.00s (transform 358ms, setup 0ms, collect 880ms, tests 26ms, environment 1ms, prepare 215ms)
+
+exit 0
+### db
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ✓ src/data-modules/__tests__/public-entry.test.ts (2 tests) 2582ms
+   ✓ public data-modules entry preserves persisted names and provenance on PGlite 2544ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  20:21:38
+   Duration  3.37s (transform 212ms, setup 0ms, collect 483ms, tests 2.58s, environment 0ms, prepare 82ms)
+
+exit 0
+### db postgres (disposable local Postgres 16, PGHOST=<local socket dir> PGUSER=postgres)
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ✓ src/data-modules/__tests__/public-entry.postgres.test.ts (1 test) 299ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  20:34:30
+   Duration  1.24s (transform 387ms, setup 0ms, collect 713ms, tests 299ms, environment 0ms, prepare 82ms)
+
+exit 0
