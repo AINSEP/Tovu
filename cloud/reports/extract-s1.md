@@ -9,6 +9,7 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | UTC | Batch | Token tally (k) | Reds |
 |---|---|---|---|
 | 19:52 | start, branches created | 0 | - |
+| 20:37 | V1 done, review starting | 350 (agents) + coordinator | `plugin-host-bundled-identity` (already failing on the V0 tip) |
 | 20:20 | V0 done, V1 starting | 206 (V0) + coordinator | none new (baseline: R2-deep-path, R10-chatpane-public-surface) |
 
 ## Batches
@@ -16,7 +17,7 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | Batch | Agent final context (k) | SHA(s) | Gate |
 |---|---|---|---|
 | V0 | 206 by harness count (agent's own estimate 125) | Jini `5309a136`, `7dd0dbbf`, `11ce1742`; Tovu `8495cabf`, `4d3548a5`, `49a7cee9` | passed |
-| V1 | | | not reached |
+| V1 | 144 by harness count (agent's own estimate 75) | Jini `0609ee49`; Tovu `9bf77fe7`, `ebcca09a`, `d4d9f85b` | passed except the review part (separate batch); 1 failing test, `plugin-host-bundled-identity`, fails the same way on the V0 tip |
 | V1 review | | | not reached |
 | V2 | | | not reached |
 | V3 | | | not reached |
