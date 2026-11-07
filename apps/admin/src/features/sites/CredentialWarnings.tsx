@@ -57,6 +57,8 @@ export function TransferNoticeTip({ notices, t }: { notices: readonly string[]; 
   if (!notices.length) return null;
   return (
     <span className="site-transfer-notice-tip">
+      {/* The triangle alone read as an unexplained mark; the word is decoration for the eye (the button already carries the name). */}
+      <span className="site-transfer-notice-word" aria-hidden="true">{t("Warning")}</span>
       <InfoTip icon={<SiteFlagIcon size={16} />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
     </span>
   );
