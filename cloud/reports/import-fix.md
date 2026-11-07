@@ -447,3 +447,142 @@ Cost: no extra listing or file reads in the startup trigger, O(existing listing 
 ### 1 — final check correction
 
 A new grouped-option handler regression exposed that rewriting grouping to a div could discard attributes during reparse. Grouping now maps to an option for checking, and its inert label is ignored. Original stored HTML stays unchanged. Red 0/1; mutation mapping to span 0/1; the first option-mapping run also failed the innocent label case (46/47), then the complete changed restore file passed 47/47. Focused no-emit exits 0. This supersedes the initial normalization detail above; cost is unchanged.
+
+### Review verification and delivery
+
+All items 1–12 are done. No schema migration, publish, deploy or protected-branch change was made. The review section supersedes earlier implementation details where they differ.
+
+Implementation heads on `cloud/import-fix`:
+
+- Tovu: `81feb2e4f1235b0503487360b6ed533d8e52337b` (the following report-only commit is the final branch head).
+- Jini: `513ac05851772ff6b4c107e2052f2c6cb7ccae8c`.
+
+Each item was committed by explicit paths and pushed. Jini's final private capping call uses one required object to follow the requested function convention. Tovu pushes use the owner's approved `--no-verify` bypass on this branch only.
+
+Production/test additions from the follow-up bases (`7464bb5351974aa9a8ad1f083adca1658ebe5a55`, `5b8d747a710bcfb8f3df664b18784e1350bd70d9`), excluding this report:
+
+| Repo | Production added | Production removed | Test added | Test removed |
+| --- | ---: | ---: | ---: | ---: |
+| Tovu | 61 | 25 | 209 | 6 |
+| Jini | 9 | 5 | 26 | 1 |
+
+Exact final changed-file commands:
+
+```sh
+cd /workspace/Jini
+npm --prefix packages/core run build
+npm --prefix packages/core run typecheck
+npm --prefix packages/platform run build
+npm --prefix packages/platform run typecheck
+cd /workspace/Jini/packages/platform
+../../node_modules/.bin/vitest run src/http/guarded/__tests__/transport-request-port.test.ts --maxWorkers=2 --minWorkers=1
+```
+
+Both packages' build and no-emit typecheck commands exit 0; the changed Vitest file is 4/4 green. Package tsconfigs include their tests.
+
+```sh
+cd /workspace/Tovu
+JINI_PACKAGES_DIR=/workspace/Jini/packages node development/scripts/link-jini.mjs
+node --experimental-test-module-mocks --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 \
+  apps/website/src/cli/__tests__/unit/serve-import-cleanup.unit.test.ts \
+  apps/website/src/features/deployments/deploy-targets/__tests__/host-kit.unit.test.ts \
+  apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts \
+  apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts \
+  apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts \
+  apps/website/src/platform/db/sqlite/__tests__/import-database.unit.test.ts \
+  apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts
+node_modules/.bin/tsc --noEmit
+node_modules/.bin/tsc -p /workspace/work/review/tsconfig-tests.json --noEmit
+```
+
+Relink exits 0. Changed website files: 142/142 green (61 backend, 3 download, 47 restore, 10 worker, 6 cleanup, 14 host-kit, 1 serve). Website production and changed-test no-emit graphs exit 0. The scratch test config extends `/workspace/Tovu/tsconfig.json`, uses the root node_modules/@types, includes those seven test files plus the existing database-parent fixture, and sets `exclude: []`.
+
+After the final Jini calling-convention adjustment, platform was rebuilt/typechecked again, Tovu relinked again, and the two changed HTTP-dependent files were rerun:
+
+```sh
+cd /workspace/Tovu
+node --experimental-test-module-mocks --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts
+```
+
+Both changed HTTP-dependent files are green again: 64/64, exit 0. Website production and changed-test no-emit checks were repeated after this final rebuild and exit 0.
+
+```sh
+cd /workspace/Tovu/apps/desktop
+node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=2 src/site-archive-import.test.ts
+../../node_modules/.bin/tsc -p /workspace/work/tsconfig-item6-desktop-source.json --noEmit
+../../node_modules/.bin/tsc -p tsconfig.main.json --noEmit
+```
+
+Changed desktop file: 26/26 green. Source graph exits 0. The source scratch config extends desktop `tsconfig.main.json`, includes only `src/site-archive-import.ts` (and its imports), sets `exclude: []` and uses desktop/root @types. Full main no-emit exits 2 solely for the four base diagnostics below. Node's runner uses `--test-concurrency=2`; Vitest uses the requested max/min worker flags.
+
+The per-item red/mutation commands use the same runners and these exact filters/files, with the red and mutation outcomes recorded in the individual sections above:
+
+| Item | Test file (relative to website src, unless specified) | `--test-name-pattern` |
+| --- | --- | --- |
+| 1, including final grouping correction | features/site-backup/__tests__/import-restore.unit.test.ts | `starter radio` |
+| 2, Jini | platform/src/http/guarded/__tests__/transport-request-port.test.ts (relative to Jini packages) | whole changed file, Vitest command above |
+| 2, Tovu | features/site-backup/__tests__/import-download-limit.unit.test.ts | `requests bytes` |
+| 3 | features/site-backup/__tests__/import-restore.unit.test.ts | `restorable menus` |
+| 4 | features/site-backup/__tests__/import-backend.unit.test.ts | `distinguishes corrected` |
+| 5 | features/site-backup/__tests__/import-restore.unit.test.ts | `unreadable menu and form` |
+| 6 | platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts | `cleanup continues` |
+| 7 | cli/__tests__/unit/serve-import-cleanup.unit.test.ts | whole new file, command above |
+| 8 | platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts | `startup removes` |
+| 9 | platform/db/sqlite/__tests__/import-database.unit.test.ts | `private root only` |
+| 10 | features/site-backup/__tests__/import-download-limit.unit.test.ts | `requests bytes` |
+| 11 | features/deployments/deploy-targets/__tests__/host-kit.unit.test.ts | `deployment timeout details` |
+| 12 | desktop src/site-archive-import.test.ts | `saved history` |
+
+### Memory proof
+
+The 300 MiB check is **measured through the real guarded client/native transport with an injected response stream**, not a network or whole-import benchmark. It emits 300 separately allocated 1 MiB buffers filled with non-ASCII byte 255. Run: `node --expose-gc --max-old-space-size=128 /workspace/work/review/memory.mjs`. The final repeat measured:
+
+| Measurement | Bytes |
+| --- | ---: |
+| Payload | 314,572,800 |
+| Decoded text length | 0 |
+| Baseline RSS | 39,276,544 |
+| Process peak RSS | 667,652,096 (about 637 MiB) |
+| Sampled peak heap used | 7,809,624 |
+| RSS after two event-loop turns and two explicit GCs | 351,875,072 |
+| Array-buffer bytes after GC | 314,719,379 |
+
+RSS peak is the process high-water value; heap is sampled and is not an exact peak measurement. **Calculated** transient payload storage is about 600 MiB at concatenation (chunks plus result), then about 300 MiB for the returned bytes. Tovu's native-Buffer identity assertion verifies no additional archive copy there. Other verification/ZIP/database allocations are outside this isolated download measurement. No memory claim is made for the entire import.
+
+### Main-process start check and other findings
+
+Source inspection: `project-ipc.ts:1297` serializes `handleStart` per site, including calls after `manualStart` resets intent. `main/boot/site-backend.ts:263` reuses the existing server after the preceding start completes. A second Start while the first is starting queues and reuses that server; if the first fails, a later start can retry. No duplicate concurrent start bug was found; no extra code was changed. This conclusion is from source inspection, not an unmodified test-suite run.
+
+Windows: new production paths use `node:path`, `tmpdir`, random IDs and Node filesystem APIs. No shell-specific production cleanup or path concatenation was added. POSIX private-mode requests are retained; Windows runtime execution was not available here.
+
+Other finding: the pre-existing untracked Jini `packages/plugin-ui-ux-design/` folder remains untouched. No additional product bug was found beyond the grouping normalization corrected under item 1.
+
+### Base reds, separately
+
+The four full desktop main diagnostics remain in unchanged expressions. The original base comparison (`/workspace/work/base-final-main.log`, also recorded earlier in this report) contains the same diagnostics one line earlier. Follow-up changes do not alter those expressions:
+
+| Name | Original base line | Current line | Message |
+| --- | ---: | ---: | --- |
+| TS2531 | 55:20 | 56:20 | Object is possibly null |
+| TS2531 | 170:16 | 171:16 | Object is possibly null |
+| TS2531 | 188:16 | 189:16 | Object is possibly null |
+| TS2531 | 205:16 | 206:16 | Object is possibly null |
+
+### Errors and workflow deviations
+
+- `AssertionError` / `ERR_ASSERTION`: expected red/mutation results for items 1–4 and 7–12; also the intermediate grouped-option label failure and the old clean-registry fixture expectation described above. Final changed tests are green.
+- `SyntaxError`: expected corrupt-row red/mutation in item 5; an initial item-12 fixture parsed absent child input before its missing-spawn assertion was made explicit.
+- `EBUSY`, `EPERM`, `EACCES`: injected per-entry cleanup failures in item 6; all are now retained for later retry while the sweep continues.
+- `ERR_MODULE_NOT_FOUND`: initial root-level admin test import; corrected to the real starter module in the existing admin installation.
+- `FileNotFoundError`: a scratch edit used the package cwd for a repository-relative Tovu path; corrected to an absolute path.
+- npm `No workspaces found`: an attempted npm workspace command was incompatible with this pnpm repository; reran successfully with `npm --prefix`. npm also could not write its default log directory; no dependency/source change resulted.
+- Git RPC `HTTP 503` / `expected flush after ref listing`: one Jini remote-head read failed transiently; retry succeeded and confirms the pushed SHA.
+- `TS2531`: only the four base diagnostics above remain. No new type diagnostic remains.
+- `ExperimentalWarning` and the Node module-mock `namedExports` deprecation warning are runner notices, not failed checks.
+- Two Tovu pushes inadvertently entered the desktop pre-push broad gates. Those hooks started tests outside the changed-file list and coverage; they were stopped with `SIGTERM` as soon as discovered. Their partial results are not credited. This was a deviation from the requested changed-file-only rule. Retried the two commits in order with the approved `git push --no-verify`, then confirmed the remote head. No hook/test process is left running. All credited commands above target changed test files only.
+
+All change costs are stated per item above. Server sweep adds one temp listing per boot (memory proportional to directory-entry names), at most one 100 ms lock attempt per matching entry per listing occurrence, and filesystem removal work for stale entries; serving does not await it. Desktop history triggering uses its existing listing and at most one cleanup child per launch. No recurring background scan was added.
+
+Verification finished 2026-11-07 21:38:05 UTC: 28 minutes 51 seconds after the follow-up start. Report delivery is approximately 30 minutes total, within the one-hour cap.
+
+IMPORT-FIX-2 DONE
