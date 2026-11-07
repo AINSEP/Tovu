@@ -51,6 +51,7 @@
 /* Notices (owner, 2026-11-05): a small yellow warning sign beside the status, the words in InfoTip. */
 .site-transfer-status { display: inline-flex; align-items: center; gap: var(--space-1); }
 .site-transfer-notice-tip .info-tip { margin-inline-start: 0; }
+.site-transfer-notice-word { margin-inline: 0.5rem 0.15rem; font-size: 0.8125rem; font-weight: 600; color: oklch(from var(--warning) 40% c h); }
 /* A yellow road sign, drawn from the theme's warning hue: `--warning` alone is a dark amber made for
    text on white, and its dark-theme value is too pale for the "!" on yellow. */
 .site-transfer-notice-tip .info-tip-icon--custom,

@@ -10,7 +10,7 @@ const created = (displayName: string) => ({ ...site('c', { displayName }), creat
 const imported = (displayName: string, warnings: string[]) => ({ ...site('i', { displayName }), warnings }) as never;
 const wait = (ms: number) => act(async () => { await new Promise((resolve) => setTimeout(resolve, ms)); });
 
-test('useSiteToast: a created site announces itself; an import carries its notices as one note', (t) => {
+test('useSiteToast: a created site announces itself; an import says how many notices it has and keeps each one', (t) => {
   let lastCreated: ReturnType<typeof created> | null = null;
   const hook = renderHook(t, () => useSiteToast({ lastCreated }));
   assert.equal(hook.current().toast, null);
@@ -18,7 +18,9 @@ test('useSiteToast: a created site announces itself; an import carries its notic
   hook.rerender();
   assert.deepEqual(hook.current().toast, { message: 'New website created: Bakery' });
   act(() => hook.current().announceImported(imported('Shop', ['A kept off.', 'B left out.'])));
-  assert.deepEqual(hook.current().toast, { message: 'New website created: Shop', note: 'A kept off. B left out.' });
+  assert.deepEqual(hook.current().toast, { message: 'New website created: Shop', note: '2 items were kept off or set aside.', items: ['A kept off.', 'B left out.'] });
+  act(() => hook.current().announceImported(imported('One', ['Only one.'])));
+  assert.equal(hook.current().toast?.note, '1 item was kept off or set aside.');
   act(() => hook.current().announceImported(imported('Plain', [])));
   assert.deepEqual(hook.current().toast, { message: 'New website created: Plain' }, 'no notices, no note, and only one toast');
 });

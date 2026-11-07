@@ -1898,6 +1898,9 @@ webview { display: flex; }
 }
 .site-toast__message { margin: 0; font-weight: 600; }
 .site-toast__note { margin: 0.25rem 0 0; font-size: 0.8125rem; color: var(--muted); }
+.site-toast__items { margin-top: 0.25rem; font-size: 0.8125rem; color: var(--muted); }
+.site-toast__items summary { cursor: pointer; color: var(--fg); }
+.site-toast__items ul { margin: 0.375rem 0 0; padding-left: 1.1rem; max-height: 40vh; overflow-y: auto; display: grid; gap: 0.375rem; }
 
 /* ---------- Jini fleet chat ---------- */
 

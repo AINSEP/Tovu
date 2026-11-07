@@ -35,7 +35,9 @@ export function SiteStartPanel({
   /** Only the visible workspace wakes automatically; hidden tabs still report presence. */
   wakeOnOpen?: boolean;
 }) {
-  const { starting, error, start } = useSiteStart(project, onSiteUpdated);
+  const { starting: ownStart, error, start } = useSiteStart(project, onSiteUpdated);
+  // Also true while another path (an import's own start) has the site booting.
+  const starting = ownStart || project.status === 'starting';
 
   const handleStart = startThenNotify(start, onStarted);
   const wakeAttempted = useRef(false);

@@ -792,6 +792,18 @@ describe("usePostEditor — save", () => {
     expect(result.current.message).toMatch(/^Published/);
   });
 
+  it("a server failure shows a short plain line, not the raw server string the failure notice already carries", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    port.updatePost = async () => { throw Object.assign(new Error("boom"), { status: 500 }); };
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    act(() => result.current.setSlug("new-slug"));
+    await waitFor(() => expect(result.current.dirty).toBe(true));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("Not saved. Your edits are still here.");
+    expect(result.current.dirty).toBe(true);
+  });
+
   it("a failed save surfaces the port's error message and leaves dirty state untouched", async () => {
     const port = createFakePostEditorPort({ post: POST, updatePostError: "save failed on the server" });
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));

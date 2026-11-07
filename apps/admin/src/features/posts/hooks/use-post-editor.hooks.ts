@@ -18,6 +18,7 @@ import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
+import { isUnexpectedServerFailure } from "@/lib/server-failure";
 import { type Translate, useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { MediaImage } from "@/lib/media-image-extension";
@@ -498,6 +499,9 @@ function formatSaveErrorMessage(
   statusOverride: SaveStatusOverride,
   t: Translate,
 ): string {
+  // A server or network failure already raised the shared failure notice with plain words and
+  // copyable details; repeating its raw message here would show the same string twice.
+  if (isUnexpectedServerFailure(error)) return t(statusOverride === "published" ? "Not published. Your edits are still here." : "Not saved. Your edits are still here.");
   if (error instanceof Error) return error.message;
   return t(statusOverride === "published" ? "publish failed" : "save failed");
 }

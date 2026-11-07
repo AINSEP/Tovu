@@ -27,7 +27,8 @@ export const defaultPageEditorPort: PageEditorPort = {
     };
   },
   updatePageHtml: (id, html) => api.updatePageHtml(id, html),
-  updatePost: (target, patch) => api.updatePost(target, patch),
+  // The shared posts route saves pages too; `entry` makes a failure notice say "page".
+  updatePost: (target, patch) => api.updatePost(target, patch, { entry: "page" }),
   deletePage: (id) => api.deletePage(id),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
   putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
