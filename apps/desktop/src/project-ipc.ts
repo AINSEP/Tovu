@@ -905,7 +905,7 @@ async function archiveSource(
 /**
  * A .tovu.zip or share link becomes a new tracked site: `importSiteArchive` makes it, or rolls it
  * back and rejects with the reason, and it then ends the way Create does.
- * @returns the new record and the importer's notices; `null` when the dialog was cancelled.
+ * @returns the new record and the importer's notices; `null` when the dialog or the import was cancelled.
  * @complexity One child process, then {@link recordCreatedSite}.
  */
 async function handleImportArchive(
@@ -915,6 +915,7 @@ async function handleImportArchive(
   const source = await archiveSource({ input }, deps);
   if (source === null) return null;
   const imported = await deps.importSiteArchive({ source, repoRoot: deps.repoRoot, cliMode: deps.cliMode });
+  if (imported === null) return null;
   const displayName = uniqueSiteName({ name: deps.readSiteName(imported.dir), names: otherSiteNames({ deps, siteDir: imported.dir }) });
   return { ...recordCreatedSite({ siteDir: imported.dir, displayName }, deps), warnings: imported.warnings };
 }

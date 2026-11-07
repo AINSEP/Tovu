@@ -155,7 +155,7 @@ import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from 
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
-import { importSiteArchive, stopRunningImports } from "../site-archive-import.ts";
+import { importSiteArchive, stopRunningImports, tidyInterruptedImports } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
@@ -728,6 +728,9 @@ function applyDockIcon(): void { applyDockIconWith({ dock: app.dock, iconPath: A
 /** Reap every `tovu serve` a PREVIOUS launch left running, above the boot-mode split — see
  *  `own-server-boot.ts`'s `reconcileOrphansOnBoot` for why every mode runs it. */
 function reconcileOrphansOnBoot(): Promise<void> {
+  // Not awaited: a killed import's leftovers are no reason to hold up the launch.
+  void Promise.resolve().then(() => tidyInterruptedImports({ appData: sharedSites.config({}).appData, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode() }))
+    .catch((error: unknown) => console.warn("tovu desktop: could not check for interrupted imports:", error));
   return reconcileOrphansOnBootIn({ registryPath: registryDirPath(app.getPath("userData")), reconcileOrphans: (registryPath) => reconcileOrphans(registryPath), log: (message) => console.log(message) });
 }
 

@@ -24,6 +24,8 @@ export interface SiteImportBackend {
   completeOwner(required: { principalId: string; importId: string; adminPassword: unknown; savedKeysPassword?: unknown }, optional?: { signal?: AbortSignal }): Promise<SiteImportView>;
   list(required: { principalId: string }, optional?: Record<string, never>): Promise<SiteImportView[]>;
   get(required: { principalId: string; importId: string }, optional?: Record<string, never>): SiteImportView;
+  /** Settles interrupted imports and removes expired or orphaned payloads, with no import to start. */
+  tidy(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
 }
 
 
@@ -179,6 +181,7 @@ export function createSiteImportBackend(required: {
     },
     async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },
     get(input) { return view(registry.get(input)); },
+    async tidy() { await exclusive(async () => { registry.expire({}); }); },
   };
   return backend;
 }
