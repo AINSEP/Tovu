@@ -24,8 +24,9 @@ Tool metadata starting SHA256: `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560
 | Setup/baseline | starting pins above | PASS: full Jini build, recorded guard names/counts, plugins; Tovu SDK, link, contracts, tsc | Metadata above | 00:06 | Q1, Q2, G-card, A1, A2, F2 |
 | Q1 | Jini `80a7ea2df06b20b26eadb8c7abe4462d0b55bebf`; Tovu `da81249eb75695b9ff3c73cf21634053dd2b7649` (report-only changes afterward) | PASS: 41/41 tests, script tsc, complexity, checker, identical guard record, plugins, verified pushes | Test SHA256 below | 00:13 | Q2, G-card, A1, A2, F2 |
 | Q2 | Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`; Tovu `008eb932360b0e896aa2a726e66c019cd533b252` (report-only changes afterward) | PASS: 6 tsc, full build, 40 files / 727 tests, checker, guard record, plugins, Tovu tsc, verified pushes | Independent UI pin below | 00:27 | G-card, A1, A2, F2 |
+| G-card | Last green pair below; no production changes | FAILED reachability: required creation + apply-card path is not covered; cited line is rotation | No new fixture or recording commit | 00:29 | G-card, A1, A2, F2 |
 
-Last verified green paired batch: Q2 at the SHAs in its row. Q2 inventory and type pin are recorded below. No golden fixtures, existing-test changes or application bug fixes.
+Last verified green paired batch: Q2 at the paired SHAs in the stop record below. Q2 inventory and type pin are recorded. G-card failed its reachability condition; no golden fixture was recorded. Existing tests are unedited; no application bug fix.
 
 ## Progress
 
@@ -353,3 +354,38 @@ Unchanged-test/fixture inspection against both starting pins: no existing test/f
 All recorded Q2 test runner PIDs have exited; recorded process groups have no executing test process (only already-exited, defunct esbuild helpers awaiting environment reaping). No test was left running.
 
 Additional verified pushes: Tovu `008eb932360b0e896aa2a726e66c019cd533b252`; Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`, branch `cloud/extract-s2`, immediate pull/rebase before each. No conflicts or failed pushes.
+
+## G-card stop: required path is not covered
+
+The brief requests a distinct **creating a credential with a plugin card** path at `custom-credentials/tool-registrations.ts:985`, using `applyPluginCredentialCard`. At the pinned Tovu source, and unchanged now:
+- `credential-save-tool.ts:119-122`: API input without `target` dispatches to `apiCreate`; with `target` dispatches to `apiRotate`.
+- `tool-registrations.ts:955-1017`: `rotate` resolves an existing saved credential, loads its plugin card, and line 985 applies the card to `setTokenForm`. This is rotation, not creation.
+- `tool-registrations.ts:1023-1038`: `create` calls `buildCreateForm({ prefill, providers })` at line 1035. It never loads or applies a plugin card.
+- `tool-registrations.ts:1042-1056`: `pluginProvider` creates a credential through `buildPluginCredentialForm` at line 1050. This is already G-card's first requested path and does not exercise `applyPluginCredentialCard`.
+
+The creation + apply-card path is **not covered**: it cannot be reached through its real tool without changing production. Substituting rotation would not meet the literal creation requirement. No production change, new G-card test, fixture, recording commit or hash was made. No existing golden or fixture was changed. Per the explicit G-card stop rule, the session stops before A1. This is a brief/source mismatch, not an application bug; no open-bugs entry or fix is claimed.
+
+G-card test status: its fixture recording, repeatability checks, text mutation, and the two existing moved-tools golden reruns were not started after the reachability stop. No G-card gate is claimed green. A1, A2 and F2 were not started. Q1 and Q2 remain green at their verified tips; F2 has not approved the accumulated work.
+
+## Stop record and remaining work
+
+Last verified paired green SHAs (Q2, both checked again with `git ls-remote` during shutdown):
+- Tovu: `d19f27330f33978d82b267659d12b6434d8b4db6`, `cloud/extract-s2` (report publication on the tested source state).
+- Jini: `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`, `cloud/extract-s2`.
+
+Jini's final repository/remote tip is the SHA above. Tovu's final tip is the report-only shutdown commit containing this stop record; its full pushed SHA is supplied in the final task response after push verification. The last verified full Tovu tip before this report commit is `d19f27330f33978d82b267659d12b6434d8b4db6`. This distinction avoids claiming the report's own commit hash before it exists.
+
+Remaining batches, requiring a later separately approved task and the specified owner/Claude checkpoint process:
+1. G-card: resolve the creation-versus-rotation mismatch, then record all five real-handler card paths and their saved/dismissed outcomes, frame sizes and counters; run repeatability and restored mutation gates. No automatic substitution was made.
+2. A1: card builders, credential-save router/loaders and provider-status extraction; not started.
+3. A2: mail golden, ABI bug demonstration/fix and remaining mail glue; not started.
+4. F2: accumulated final gate on both final tips; not started.
+
+Process shutdown: all 54 recorded root PIDs were checked individually through `/proc` and `ps` at 04:41:42 UTC and had exited, including installs, builds, type-checks, tests, guards and mutations. Recorded test process groups contain no executing process; defunct esbuild helper children are already exited and awaiting environment reaping. No test process remains running and no active child needed termination. Root PID/status records are retained outside tracked source in `shutdown-process-status.json`.
+
+No migration, server, prohibited checker, existing-test, existing-fixture or metadata-baseline change. No main merge, force push or publication. The brief and implementation scratch files remain outside tracked paths. No rebase conflict or failed push occurred. Both branch tips are verified again after the report-only push; final full SHAs appear in the task response.
+
+UTC stop/report prepared: 2026-11-08 04:42:27 UTC. Elapsed 00:29:32; deadline 08:12:55 UTC, cap not reached.
+
+Actual early failure: G-card creation + apply-card path is not covered; the cited production handler is rotation-only.
+EXTRACT-S2 STOPPED AT CAP
