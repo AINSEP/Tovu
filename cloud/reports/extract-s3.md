@@ -1468,4 +1468,14 @@ No historical S2 certification. H0/H1 canonical hosted-MCP vocabulary extraction
 
 Final shutdown verification will record completed task PIDs and exact paired remote tips. Source work is complete and tested at the last green pair above.
 
+### Final shutdown and paired push verification
+
+C-a handoff report-only commit **3ca83fef9583e7d1e9ada7ad5a14149650fd2dcb** was pushed after immediate pull --rebase and verified with ls-remote. Paired remote tips at verification: Tovu cloud/extract-s3 **3ca83fef9583e7d1e9ada7ad5a14149650fd2dcb** (report-only after tested source **e597d245efc33c203e389d72ca70382b7b8eb661**); Jini cloud/extract-s3 **4044fe3c0fa34b1f903c5d20a6b4de7714cde573** (tested source). Source diff after the last green Tovu tip contains only cloud/reports/extract-s3.md. Both worktrees were clean before this final report-only verification update. Its exact final SHA is returned in the task response after another pull/rebase/push/ls-remote check; it changes no tested source.
+
+All **179/179** recorded commands have exit records, all179 unique recorded PIDs are absent, unresolved PIDs0. Targeted process inspection finds no Node/npm/pnpm/test/build process in either repository; manual development sessions also completed. No broad kill, other user's process or background test remains. No source work or further batch starts after the green gate; shutdown is complete.
+
+Own-batch repair exits are explicit: complexity ESLint1→0 (small helpers, tests retained); exact-optional destination/host port type builds2→0; A5 missing type/import compiles2→0; N1 development guards raw1 with extra findings→raw1 with only allowed R2/R10 and strict verifier0; A7 new canonical identity regression1→0; A7 interface compile2→0; scratch typeRoots compile2→required new-fixture arguments compile2→final0. Existing tests/assertions were never changed to clear these errors. The first guard verifier's effective0 was invalid and is marked as such in the command ledger; corrected A5 and final A7 pass against the unchanged real guard.
+
+Final report verification prepared **2026-11-08 17:45:45 UTC**; elapsed **2.1934h**, remaining **2.5566h** of the original4.75h; deadline20:19:09 UTC unchanged. Remaining numbered session3 batches: **none**. Independent C-a review remains outside this build, with no verdict claimed.
+
 EXTRACT-S3 DONE
