@@ -196,8 +196,7 @@ test("resolveAgentPluginPromptPrefix resolves a run that pinned the retired 'dep
 
 
 for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carries plugin guidance exactly once through its declared carrier`, async () => {
-  const context = new AsyncLocalStorage<string>();
-  const capabilities = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>['capabilities']>();
+    const capabilities = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>['capabilities']>();
   const native = new AsyncLocalStorage<boolean>();
   const runtime = new AsyncLocalStorage();
   const prefix = 'BEGIN_PRIMARY\n' + 'complete guidance '.repeat(600) + '\nEND_PRIMARY';
@@ -205,16 +204,17 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   const augmenter = evaluateDaemonExpression<PromptAugmenter>(daemonInitializer('assistantPromptAugmenter'), {
     getAgentDef, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, buildAssistantRuntimeGuidance,
     buildAssistantFilesystemNotices, assistantCliPermissions, bashProhibitionEnabled: false,
-    assistantPluginGuidanceContext: context, assistantCliCapabilitiesContext: capabilities,
+    assistantCliCapabilitiesContext: capabilities,
     assistantNativeToolsContext: native, assistantRuntimeGuidanceContext: runtime,
     customInstructionsCache: { readOverlay: () => custom },
   });
   let system = '';
   let captured!: { prompt: string };
   await captureDaemonRun({ prompt: 'USER_REQUEST' }, { request: { agentId }, bindings: {
-    assistantPluginGuidanceContext: context, assistantCliCapabilitiesContext: capabilities,
+    assistantCliCapabilitiesContext: capabilities,
     assistantNativeToolsContext: native, assistantRuntimeGuidanceContext: runtime,
-    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '' }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+    getAgentDef: ({ id }: { id: string }) => ({ ...getAgentDef({ id })!, automaticPluginGuidance: undefined, mcpIsolation: { perRun: 'fixture@2026-11-05' } }),
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: ['ui-ux-design'] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     agentExecutor: { run: async (input: { prompt: string }) => {
       captured = input;
       system = augmenter.systemOverlay!({ agentId, turnIndex: 0 }) ?? "";
@@ -224,8 +224,26 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   assert.ok(captured);
   assert.equal((system + captured.prompt).split(prefix).length - 1, 1);
   assert.equal(system.split(custom).length - 1, 1);
+  assert.match(buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true }).capabilities }), /plugins loaded after preflight/);
   assert.equal(system.split(buildBaseSystemOverlay(false, { nativeToolAccess: false, messageRelayEnabled: agentId === 'codex' })).length - 1, 1);
-  assert.equal(system.includes(prefix), agentId === 'claude');
-  assert.equal(captured.prompt.includes(prefix), agentId !== 'claude');
-  assert.equal(context.getStore(), undefined, 'plugin snapshot must not escape the launch scope');
+  assert.equal(system.includes(prefix), false);
+  assert.equal(captured.prompt.includes(prefix), true);
+});
+
+
+test('an argv-budgeted adapter launches with plugin pointers alongside its overlay and request', async () => {
+  const def = { ...getAgentDef({ id: 'codex' })!, maxPromptArgBytes: 30000, automaticPluginGuidance: undefined, mcpIsolation: { perRun: 'fixture@2026-11-05' } };
+  const prefix = 'THEME_BEGIN\n' + 'x'.repeat(61309) + '\nTHEME_END';
+  const request = 'r'.repeat(10000);
+  const overlay = 'o'.repeat(8000);
+  const captured = await captureDaemonRun({ prompt: request }, { request: { agentId: def.id }, bindings: {
+    getAgentDef: () => def,
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: ['tovu-theme'] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+  } });
+  assert.ok(Buffer.byteLength(captured.prompt + overlay) < def.maxPromptArgBytes);
+  assert.match(captured.prompt, /load_agent_plugin.*tovu-theme/);
+  assert.ok(captured.prompt.includes(request));
+  assert.doesNotMatch(captured.prompt, /THEME_BEGIN|THEME_END/);
+  assert.deepEqual(captured.subagentStartContext?.ids, ['tovu-theme']);
+  assert.match(captured.subagentStartContext?.instructions ?? '', /load_agent_plugin/);
 });

@@ -237,7 +237,7 @@ test("Don't ask again writes Auto only for the answering principal through the r
   f.runs.forget({ runId: 'ask-auto' });
 });
 
-test('CLI onStarted keeps complete automatic guidance in the existing Codex prompt carrier', async t => {
+test('CLI onStarted uses the Codex pointer carrier and explicit reads stay complete', async t => {
   const f = await fixture(t);
   // The daemon now asks the site's sole controller through its actual authenticated RPC.
   const siteTools = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' },
@@ -253,7 +253,8 @@ test('CLI onStarted keeps complete automatic guidance in the existing Codex prom
       waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     },
   });
-  assert.match(input.prompt, /Use holographic layout discipline/);
+  assert.match(input.prompt, /load_agent_plugin/);
+  assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
   assert.match(input.prompt, /Design holography/);
   const loaded = await siteTools.remote.execute({ principal: { id: 'alice' }, run: { id: 'daemon-test-run' },
     toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
@@ -414,7 +415,7 @@ test('50 relevant ids are discoverable by paging the existing search tool and al
   const note = await f.runs.start({ runId: 'paged', context: { ...f.context, pinned: ['pinned'] } });
   assert.ok(new TextEncoder().encode(note).length <= 600);
   assert.match(note, /\+\d+ more relevant: search_agent_plugin_local.*offset: 0.*nextOffset/);
-  assert.equal(f.published.length, 0);
+  assert.deepEqual(f.published.at(-1)?.plugins, []);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
   for (const registration of buildAgentPluginSearchRegistrations({ workspaceId: f.workspaceId, agentPluginLayout: f.layout })) registry.register(registration);
@@ -642,7 +643,7 @@ test('a real Auto CAS failure after the post-card read retains no consent on the
 
 for (const delivery of ['pinned', 'explicit'] as const) test(`fresh child reads complete guidance after parent ${delivery} delivery`, async t => {
   const f = await fixture(t);
-  const guidance = 'BEGIN_CHILD_SENTINEL\n' + 'é'.repeat(5000) + '\nEND_CHILD_SENTINEL';
+  const guidance = 'BEGIN_CHILD_SENTINEL\n' + 'x'.repeat(61309 - Buffer.byteLength('BEGIN_CHILD_SENTINEL\n\nEND_CHILD_SENTINEL')) + '\nEND_CHILD_SENTINEL';
   await writeFile(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'), guidance);
   await f.runs.start({ runId: 'parent-child', context: { ...f.context, query: '', pinned: delivery === 'pinned' ? [f.pluginId] : [] } });
   const registry = createToolRegistry({});
@@ -687,4 +688,20 @@ test('a rejected preflight promise is cleared so the same turn can retry', async
   } };
   assert.match(await f.runs.start({ runId: 'retry', messageId: 'retry-answer', context }), /Use holographic layout discipline/);
   for (const runId of ['reject', 'retry']) f.runs.forget({ runId });
+});
+
+
+for (const pinned of [false, true]) test(`pointer preflight carries approved plugin ids through real RPC (pinned=${pinned})`, async t => {
+  const f = await fixture(t);
+  const host = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', pluginRefIds: pinned ? [f.pluginId] : [] },
+    plugins: { controller: f.runs, pinnedPrefix: async () => '', emit: async () => {}, refusalPrefix: () => '' }, tools: [f.runs.loadRegistration] });
+  await host.start({ runId: 'daemon-test-run', principalId: 'alice' });
+  const result = await host.preflight({ runId: 'daemon-test-run', pointerOnly: true });
+  assert.deepEqual(result.pluginIds, [f.pluginId]);
+  assert.doesNotMatch(result.prefix ?? '', /Use holographic layout discipline/);
+  assert.deepEqual(await host.preflight({ runId: 'daemon-test-run', pointerOnly: true }), result);
+  const load = await host.remote.execute({ principal: f.context.principal, run: { id: 'daemon-test-run' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
+  assert.equal(load.status, 'completed');
+  assert.match((load.output as { guidance: string }).guidance, /Use holographic layout discipline/);
+  f.runs.forget({ runId: 'daemon-test-run' });
 });

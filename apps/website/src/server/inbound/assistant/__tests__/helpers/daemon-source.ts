@@ -100,7 +100,6 @@ export async function captureDaemonRun(
     readAssistantCliPermissions: async (_required?: unknown, _optional?: unknown) => assistantCliPermissions({ enabled: true }),
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
-    assistantPluginGuidanceContext: new AsyncLocalStorage<string>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
     resolveAssistantRuntimeLaunch,
     // These wiring fixtures exercise already-consented run assembly, not live isolation claims.
@@ -131,7 +130,7 @@ export async function captureDaemonRun(
     },
     requestAssistantToolConsent: async () => { reject(new Error("Tool access requires owner consent before launch (ASK).")); return { status: "cancelled" as const }; },
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
-    siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "" }),
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "", pluginIds: [] }),
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),

@@ -34,7 +34,7 @@ export const agentPluginGuidanceCatalog = [{
 export const agentPluginGuidanceRisk = new Map<string, AgentToolSideEffect>([['load_agent_plugin', 'none']]);
 
 export interface AutomaticPluginRun {
-  principal: Principal; conversationId: string; state: ChatAgentPluginState; query: string; pinned: readonly string[];
+  principal: Principal; conversationId: string; state: ChatAgentPluginState; query: string; pinned: readonly string[]; pointerOnly?: boolean;
   signal: AbortSignal; emitSurface: SurfaceEmitter;
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
@@ -89,7 +89,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
   }
   /** Keep the successful turn snapshot across attempts; failed preparation remains retryable. */
   function preflight({ entry }: { entry: Entry }, _options = {}): Promise<string> {
-    return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned })
+    return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned, pointerOnly: entry.context.pointerOnly })
       .catch(error => { entry.preflight = undefined; throw error; });
   }
   /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
@@ -184,7 +184,6 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
         excluded: 'This plugin is excluded from this chat. No guidance was loaded.',
         untrusted: 'This plugin failed the installed-package trust check. No guidance was loaded.',
         missing: 'This plugin was not found in this workspace’s installed catalog. No guidance was loaded.',
-        'already-loaded': 'This plugin’s guidance is already loaded for this chat.',
         off: 'Agent Plugins are off for this chat. No guidance was loaded.',
         cancelled: 'The plugin load was cancelled. No guidance was loaded.',
         unavailable: 'This plugin’s guidance could not be resolved. No guidance was loaded.',
@@ -205,5 +204,5 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     entry.abort.abort();
     if (turns.get(entry.turnId) === entry) turns.delete(entry.turnId);
   }
-  return { start, prepareGuidance, loadRegistration, forget };
+  return { start, prepareGuidance, loadRegistration, forget, guidanceIds: ({ runId }: { runId: string }, _options = {}) => runs.get(runId)?.controller.guidanceIds({}) ?? [] };
 }

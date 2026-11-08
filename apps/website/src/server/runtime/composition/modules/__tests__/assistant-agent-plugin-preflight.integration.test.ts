@@ -10,7 +10,7 @@ import type { AutomaticPluginRun } from "#src/features/agent-plugins/automatic-a
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
-import { resolveAgentPluginGuidance } from "#src/features/agent-plugins/lifecycle";
+import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { createAssistantByokModule } from "../assistant-byok.js";
 
 test("plugin preflight uses the site's live run identity and releases terminal consent", async t => {
@@ -42,7 +42,7 @@ test("plugin preflight uses the site's live run identity and releases terminal c
   const response = await post({ runId: "plugin-run" });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await response.json(), { prefix: "pinned guidance\n\nautomatic guidance", refusalPrefix: "withheld tools" });
+  assert.deepEqual(await response.json(), { prefix: "pinned guidance\n\nautomatic guidance", refusalPrefix: "withheld tools", pluginIds: [] });
   assert.equal(contexts[0]?.principal.id, "member");
   assert.equal(contexts[0]?.conversationId, conversationId);
   assert.equal(contexts[0]?.query, "the user's own words");
@@ -81,7 +81,7 @@ test("a stopped run cannot publish late plugin consent or receive a prepared pre
   assert.ok(forgotten.includes("stopped-run"));
 });
 
-test("pinned preflight injects complete guidance when pointer delivery is selected", async t => {
+test("pinned preflight retains the selected pointer delivery policy and carries its identity", async t => {
   const previous = process.env.TOVU_AGENT_PLUGIN_DELIVERY;
   process.env.TOVU_AGENT_PLUGIN_DELIVERY = "pointer";
   t.after(() => { if (previous === undefined) delete process.env.TOVU_AGENT_PLUGIN_DELIVERY; else process.env.TOVU_AGENT_PLUGIN_DELIVERY = previous; });
@@ -98,10 +98,10 @@ test("pinned preflight injects complete guidance when pointer delivery is select
   await writeFile(path.join(packageDir, "skills", pluginId, "SKILL.md"), guidance);
   await writeFile(path.join(workspace.root, "activations.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { enabled: true, origin: "bundled", updatedAt: "2026-10-18T00:00:00.000Z", updatedBy: "fixture" } } }));
   await writeFile(path.join(workspace.root, "bundled-digests.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { archiveDigest: digest } } }));
-  const expected = await resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: "inject" });
+  const expected = await resolveAgentPluginRefs([pluginId], workspace);
   assert.equal(expected.ok, true);
   if (!expected.ok) throw new Error("fixture guidance unavailable");
-  assert.ok(expected.promptPrefix.includes(guidance));
+  assert.ok(!expected.promptPrefix.includes(guidance));
   const principalId = await deps.ownerPrincipalId, conversationId = "pinned-pointer-chat", runId = "pinned-pointer-run";
   await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: principalId }).create({ id: conversationId });
   await deps.chatRunLedger.durable!.accept({ conversationId, messageId: "pinned-pointer-answer", runId, principalId, workspaceId: deps.workspaceId,
@@ -111,5 +111,5 @@ test("pinned preflight injects complete guidance when pointer delivery is select
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId }) });
   assert.equal(response.status, 200);
-  assert.equal(((await response.json()) as { prefix: string }).prefix, expected.promptPrefix);
+  assert.deepEqual(await response.json(), { prefix: expected.promptPrefix, refusalPrefix: "", pluginIds: [pluginId] });
 });
