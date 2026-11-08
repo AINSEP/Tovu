@@ -1,3 +1,4 @@
+import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
 /**
  * @file The Import page's live-address source and its helpers, from the real module under jsdom:
  * the new site is made first and opened on the Import tab with the address; a bad address or a
@@ -13,7 +14,7 @@ import { site } from './app-render-harness.js';
 import type { SiteAdminPage } from './import-site-entry.js';
 
 function setup(t: { after: (fn: () => void) => void }, createSite: (input: { displayName: string }) => Promise<ReturnType<typeof site> | undefined>) {
-  const opened: Array<{ id: string; adminPage: SiteAdminPage }> = [];
+  const opened: Array<{ site: ReturnType<typeof site>; adminPage: SiteAdminPage }> = [];
   const hook = renderHook(t, () => useImportWebsite({ createSite, openSite: (input) => { opened.push(input); }, onArchiveImported: () => {}, onFailureWhileClosed: () => {} }));
   return { hook, opened };
 }
@@ -24,7 +25,7 @@ test('useImportWebsite: a good address makes the site named for the host, then o
   act(() => hook.current().setAddress('www.example.com/shop'));
   await act(async () => { await hook.current().importLive(); });
   assert.deepEqual(made, ['example.com']);
-  assert.deepEqual(opened, [{ id: 'new', adminPage: { page: 'import', liveAddress: 'https://www.example.com/shop' } }]);
+  assert.deepEqual(opened, [{ site: site('new'), adminPage: { page: 'import', liveAddress: 'https://www.example.com/shop' } }]);
   assert.equal(hook.current().address, '', 'the field empties once the site exists');
   assert.equal(hook.current().importing, false);
 });
@@ -188,4 +189,10 @@ test('useImportWebsite: a changed .tovu.zip says it looks damaged and offers a f
   assert.match(failure?.message ?? '', /Export it again/);
   assert.doesNotMatch(failure?.message ?? '', /SHA-256/);
   assert.match(failure?.details ?? '', /ZIP size or SHA-256 mismatch\./);
+});
+
+
+test('copyableDetails: a share timeout identifies only the origin and elapsed wait', () => {
+  const error = new FetchTimeoutError('https://provider.example/share/sample-share-code/site.tovu.zip?download=sample-query', 120000);
+  assert.equal(copyableDetails({ error }), 'fetch timed out after 120000ms: https://provider.example');
 });
