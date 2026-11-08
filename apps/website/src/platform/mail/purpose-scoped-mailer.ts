@@ -16,25 +16,8 @@ export interface WrapMailerWithPurposeGateOptions {
   durableOutboxReady: (capabilityName: string) => boolean;
 }
 
-/** Adapts Jini's required delivery fields and optional controls to a Tovu mailer. */
-export function toJiniMailer({ mailer }: { mailer: MailerPort }): JiniMailerPort {
-  return {
-    capabilities: () => mailer.capabilities(),
-    send: ({ message, ...required }, optional = {}) => mailer.send(message, { ...required, ...optional }),
-    sendBatch: ({ messages, ...required }, optional = {}) => mailer.sendBatch(messages, { ...required, ...optional }),
-  };
-}
-
-/** Adapts a Jini mailer for current Tovu consumers, preserving all delivery controls. */
-export function toTovuMailer({ mailer }: { mailer: JiniMailerPort }): MailerPort {
-  return {
-    capabilities: () => mailer.capabilities({}),
-    send: (message, { idempotencyKey, workspaceId, sourceContext, ...optional }) =>
-      mailer.send({ message, idempotencyKey, workspaceId, sourceContext }, optional),
-    sendBatch: (messages, { idempotencyKey, workspaceId, sourceContext, ...optional }) =>
-      mailer.sendBatch({ messages, idempotencyKey, workspaceId, sourceContext }, optional),
-  };
-}
+export { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
+import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 
 /** Injects Tovu's durable-outbox readiness into Jini's fail-closed purpose gate.
  * @example wrapMailerWithPurposeGate({ inner, mode, durableOutboxReady })

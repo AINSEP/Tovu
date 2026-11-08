@@ -53,3 +53,14 @@ fails when the original hint mapping is restored (`hint: undefined`); the mutati
 The fix keeps absent hints absent, narrows always-present detail/description return types, and
 explicitly permits already-supported undefined inputs in consumer-local loader/router types.
 Card copy and submitted/saved data are unchanged. The corrected G-card fixture pins rendered parity.
+
+## Incomplete at extract session 2 Continuation 2 stop
+
+### `A2-resend-positional-http-abi`
+
+The real bundled plugin calls positional `httpClient.send(request)` while the core port expects
+`send({ request })`. New neutral-host `mail-port-regression.test.ts` demonstrated red with the
+object-request fake (result.ok false). A draft `toPluginHttpClient` adapter makes that regression
+green without editing the plugin. Mutation confirmation and the complete A2 gate were not run:
+the required `parseSetup` change exposed a separate existing neutral-host test that needs wiring,
+which triggers the brief's explicit stop rule. This entry is not a completed fix claim.

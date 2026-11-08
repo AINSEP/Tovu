@@ -1,3 +1,5 @@
+import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
+import { createProviderMailer as createEngineProviderMailer } from "@jini-ai/platform/mail";
 import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/index";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
@@ -74,74 +76,16 @@ export interface MailProviderCatalogDeps {
   log?: (line: string) => void;
 }
 
-export interface MailProviderCatalog {
-  readonly registry: MailProviderRegistry;
-  /** Plugin provider ids in registry order (plugin id, then declaration order). */
-  readonly pluginIds: readonly string[];
-  /** Saved-credential label per provider; undefined for a provider that needs none (console, or a
-   *  plugin declaring no credential keys) and for an id that is not registered. */
-  credentialLabelFor(required: { id: string }): string | undefined;
-  /** Plugin adapters/providers that were not loaded, and why (log-safe). */
-  readonly refusals: readonly string[];
-  /** The provider's declarative setup form; no fields for one that needs no saved key. */
-  setupFor(required: { id: string }): MailProviderSetup;
-}
-
-function builtins(deps: MailProviderCatalogDeps): MailProviderModule[] {
-  const clock = { nowMs: () => Date.now() };
-  const createTransport = deps.createSmtpTransport ?? createNodemailerSmtpTransport;
-  // Tovu's transport takes the payload positionally; Jini's SMTP adapter calls it with `{mail}`.
-  const smtp = createSmtpMailProvider({ clock, createTransport: (config) => {
-    const transport = createTransport(config);
-    return { sendMail: ({ mail }) => transport.sendMail(mail) };
-  } });
-  return [smtp, createConsoleMailProvider({ clock }, deps.log ? { log: deps.log } : {})];
-}
-
-/** Plugin registry, or an empty one plus the reason it could not be read. */
-async function loadAdapters(deps: Pick<MailProviderCatalogDeps, "loadMailAdapters">): Promise<MailAdapterRegistry> {
-  try {
-    return await deps.loadMailAdapters();
-  } catch (err) {
-    return { list: () => [], refusals: [`the plugin mail adapters could not be listed (${err instanceof Error ? err.message : String(err)})`] };
-  }
-}
-
-/**
- * Builds the catalog fresh (plugins can be installed after boot). Never throws for a plugin fault.
- * @complexity O(a) plugin adapters.
- */
-export async function loadMailProviderCatalog(deps: MailProviderCatalogDeps, _optional: Record<string, never> = {}): Promise<MailProviderCatalog> {
-  const registry = createMailProviderRegistry({}, { builtins: builtins(deps) });
-  const adapters = await loadAdapters(deps);
-  const { accepted, refusals } = contributeMailProviders({ registry, adapters });
-  const labels = new Map<string, string>([["smtp", MAIL_SMTP_CREDENTIAL_LABEL]]);
-  const setups = new Map<string, MailProviderSetup>([["smtp", SMTP_PROVIDER_SETUP]]);
-  for (const adapter of adapters.list()) {
-    // Only providers that read a credential get a label; label presence is "needs a saved key".
-    const keys = adapter.descriptor.credentialKeys ?? ["token"];
-    if (!accepted.includes(adapter.descriptor.id) || keys.length === 0) continue;
-    labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
-    setups.set(adapter.descriptor.id, adapter.descriptor.setup ?? defaultMailProviderSetup({ credentialKeys: keys }));
-  }
-  return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id), setupFor: ({ id }) => setups.get(id) ?? { fields: [] } };
-}
-
-/**
- * The key cards mail plugins declare (`credentialCard` in their descriptor), each filed under the
- * adapter's own credential label and the mail category, so `credential_save` `{kind:"plugin-provider"}`
- * saves the key exactly where the adapter reads it. Never throws: an unreadable list has no cards.
- * @complexity O(a) plugin adapters.
- */
-export async function loadMailCredentialCards(
-  required: Pick<MailProviderCatalogDeps, "loadMailAdapters">,
-  _optional: Record<string, never> = {}
-): Promise<readonly PluginCredentialCard[]> {
-  return (await loadAdapters(required)).list().flatMap(({ descriptor, pluginId }) => descriptor.credentialCard
-    ? [{ pluginId, providerId: descriptor.id, label: descriptor.credentialLabel, category: MAIL_CREDENTIAL_CATEGORY, ...descriptor.credentialCard }]
-    : []);
-}
-
+export type { MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
+const catalogOperations = createMailCatalog({
+ mailEngine: { createRegistry: createMailProviderRegistry, builtins: { console: createConsoleMailProvider, smtp: createSmtpMailProvider } },
+ mailHostText: { smtpCredentialLabel: MAIL_SMTP_CREDENTIAL_LABEL, smtpSetup: SMTP_PROVIDER_SETUP, credentialCategory: MAIL_CREDENTIAL_CATEGORY },
+ defaultSetup: defaultMailProviderSetup, contributeMailProviders,
+});
+function catalogDeps(deps: MailProviderCatalogDeps) { return { ...deps, createSmtpTransport: deps.createSmtpTransport ?? createNodemailerSmtpTransport }; }
+export const loadMailProviderCatalog = (deps: MailProviderCatalogDeps, _optional: Record<string,never> = {}) => catalogOperations.loadMailProviderCatalog(catalogDeps(deps));
+export const loadMailCredentialCards = (required: Pick<MailProviderCatalogDeps,"loadMailAdapters">, _optional: Record<string,never> = {}) => catalogOperations.loadMailCredentialCards(required);
+export const resolveMailDomainReadCredential = (required: { deps: MailProviderCatalogDeps; id: string }, _optional: Record<string,never> = {}) => catalogOperations.resolveMailDomainReadCredential({ ...required, deps: catalogDeps(required.deps) });
 /**
  * The saved credential for one provider; `null` = not configured. SMTP without a username is not
  * configured: this store cannot represent unauthenticated relay (`token` is required).
@@ -162,24 +106,6 @@ export async function resolveMailCredential(
   return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
 }
 
-/** Resolve a trusted plugin's domain-read key without changing its sending credential.
- * @complexity O(a) loaded adapters, one account lookup and at most one decrypt. */
-export async function resolveMailDomainReadCredential(
-  required: { deps: MailProviderCatalogDeps; id: string },
-  _options: Record<string, never> = {},
-): Promise<MailAdapterCredential | null> {
-  const { deps, id } = required;
-  const owner = (await loadMailProviderCatalog(deps)).registry.get({ id })?.pluginId;
-  if (!owner) return null;
-  const adapter = (await loadAdapters(deps)).list().find(item => item.descriptor.id === id && item.pluginId === owner);
-  const connection = adapter?.module.domainReadConnection;
-  if (!adapter || !connection || !deps.resolvePluginAccountToken) return null;
-  // The account key goes only to the plugin-declared API, never a sending key's custom base URL.
-  if (new URL(connection.baseUrl).protocol !== "https:") return null;
-  const token = await deps.resolvePluginAccountToken({ pluginId: adapter.pluginId, serverId: connection.serverId });
-  return token ? { token, baseUrl: connection.baseUrl } : null;
-}
-
 /** Caller-safe credential refusal. Raw store/decrypt error text must never leave this boundary. */
 export function credentialFailureReason(required: { label: string; err: unknown }, optional: { log?: (line: string, error: unknown) => void } = {}): string {
   const { label, err } = required;
@@ -189,33 +115,8 @@ export function credentialFailureReason(required: { label: string; err: unknown 
     : `the "${label}" credential could not be read`;
 }
 
-/**
- * Builds a provider's mailer in Tovu's call shape. Plugin modules keep Tovu's positional HTTP ABI,
- * so the kit carries Tovu's client (the Jini type is only the registry's declared shape).
- * @complexity O(1).
- */
-export function createProviderMailer(
-  required: { deps: MailProviderCatalogDeps; provider: MailProviderModule; credential: MailAdapterCredential },
-  _optional: Record<string, never> = {}
-): MailerPort {
-  const { deps, provider, credential } = required;
-  const httpClient = deps.httpClient as unknown as JiniHttpClientPort;
-  const mailer = toTovuMailer({ mailer: provider.create({ credential, kit: { httpClient } }) });
-  const secrets = credentialSecrets({ credential });
-  const safeResult = (result: Awaited<ReturnType<MailerPort["send"]>>) => result.ok ? result : {
-    ...result,
-    errorCode: safeMailProviderText({ text: result.errorCode }, { secrets }),
-    message: safeMailProviderText({ text: result.message }, { secrets }),
-  };
-  // Policy turns throws into unknown outcomes; scrub here while the actual credential is in scope.
-  const safeCall = async <T>(call: () => Promise<T>): Promise<T> => {
-    try { return await call(); } catch (error) {
-      throw new Error(safeMailProviderText({ text: error instanceof Error ? error.message : String(error) }, { secrets }));
-    }
-  };
-  return {
-    capabilities: () => mailer.capabilities(),
-    send: async (message, options) => safeResult(await safeCall(() => mailer.send(message, options))),
-    sendBatch: async (messages, options) => (await safeCall(() => mailer.sendBatch(messages, options))).map(safeResult),
-  };
+/** Bind the guarded host HTTP port and preserve the existing positional mailer API. */
+export function createProviderMailer(required: { deps: MailProviderCatalogDeps; provider: MailProviderModule; credential: MailAdapterCredential }, _optional: Record<string, never> = {}): MailerPort {
+  return toTovuMailer({ mailer: createEngineProviderMailer({ provider: required.provider, credential: required.credential,
+    httpClient: { send: ({ request }, optional) => required.deps.httpClient.send(request, optional) } }) });
 }

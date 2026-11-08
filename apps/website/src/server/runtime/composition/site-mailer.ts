@@ -1,3 +1,4 @@
+import { createHostMailer } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
 import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-probe";
 import { createMailTestSendLimiter, type MailTestSendDeps } from "#src/features/mail-status/test-send";
@@ -67,76 +68,6 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   const { resolve, settings, delivery } = required;
   const workspaceId = resolve.workspaceId;
   const ready = async () => { await required.settingsReady; };
-  /** Clear only this plugin's selected lanes through the settings owner; failures propagate.
-   * Re-read live ownership too: a conflict retry cannot clear a newly enabled plugin's same id.
-   * @complexity O(a + p) active adapters and provider ids, two lane checks and at most one settings write. */
-  const clearPluginSelectionSnapshot = async ({ providerIds, principalId, pluginId }: { providerIds: ReadonlySet<string>; principalId: string; pluginId: string }): Promise<void> => {
-    await ready();
-    const catalog = await loadMailProviderCatalog(resolve);
-    const owned = new Set([...providerIds].filter(id => {
-      const provider = catalog.registry.get({ id });
-      return !provider || provider.pluginId === pluginId;
-    }));
-    const { setting, revisionSeq } = await readMailProviderSelection({ settingsRepo: settings.repo, workspaceId });
-    const value = {
-      transactional: owned.has(setting.transactional ?? "") ? null : setting.transactional,
-      bulk: owned.has(setting.bulk ?? "") ? null : setting.bulk,
-    };
-    if (value.transactional === setting.transactional && value.bulk === setting.bulk) return;
-    // A provider chosen after this snapshot belongs to the newer writer, even in the other lane.
-    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value }, { expectedRevisionSeq: revisionSeq });
-  };
-  /** Re-read after contention so a newer unrelated lane is never overwritten. Three guarded
-   * attempts bound work; failed ownership stays available to a subsequent disable retry.
-   * @complexity At most three catalog/snapshot/write attempts; O(a + p) ownership checks each. */
-  const clearPluginSelection = async (input: { providerIds: ReadonlySet<string>; principalId: string; pluginId: string }): Promise<void> => {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try { await clearPluginSelectionSnapshot(input); return; }
-      catch (error) { if (!(error instanceof SettingsRevisionConflictError) || attempt === 2) throw error; }
-    }
-  };
-  // Only failed cleanup retains ownership: executable contributions disappear after OFF.
-  const pendingPluginSelections = new Map<string, ReadonlySet<string>>();
-  /** Retain active ownership across an interrupted cleanup; after a restart, read only the
-   * trusted inactive declaration when a selected provider no longer exists in the live catalog.
-   * @complexity O(a) active adapters plus the conditional installed-declaration lookup. */
-  const disabledProviderIds = async (input: Parameters<typeof setAgentPluginEnabled>[0]): Promise<ReadonlySet<string>> => {
-    const catalog = await loadMailProviderCatalog(resolve);
-    const providers = catalog.registry.list();
-    const pending = [...pendingPluginSelections.get(input.pluginId) ?? []].filter(id => {
-      const owner = catalog.registry.get({ id });
-      return !owner || owner.pluginId === input.pluginId;
-    });
-    const ids = new Set([...pending, ...providers.filter(provider => provider.pluginId === input.pluginId).map(provider => provider.id)]);
-    if (ids.size) return ids;
-    await ready();
-    const { setting } = await readMailProviderSelection({ settingsRepo: settings.repo, workspaceId });
-    const missing = Object.values(setting).some(id => id !== null && !catalog.registry.get({ id }));
-    return missing ? new Set((await installedMailProviderIds(input)).filter(id => !catalog.registry.get({ id }))) : ids;
-  };
-  /** Bind the plugin toggle to this site's mail settings, using plugin ownership rather than ids.
-   * @complexity O(a) loaded adapters; one lifecycle write and at most three guarded settings writes. */
-  const setPluginEnabled: typeof setAgentPluginEnabled = async (input, _optional = {}) => {
-    // MOVE: Capture ownership while the plugin is active; disabling removes its executable adapters.
-    const providerIds = input.enabled ? new Set<string>() : await disabledProviderIds(input);
-    const written = await (options.setAgentPluginEnabled ?? setAgentPluginEnabled)(input);
-    try {
-      if (!written.enabled && providerIds.size > 0) {
-        pendingPluginSelections.set(input.pluginId, providerIds);
-        await clearPluginSelection({ providerIds, principalId: input.actor, pluginId: input.pluginId });
-      }
-      pendingPluginSelections.delete(input.pluginId);
-    } finally { resolved.invalidate(); }
-    return written;
-  };
-  const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId, expectedRevisionSeq }) => {
-    await ready();
-    // Finish the first-boot unconfigured write before persisting the owner's selection.
-    await resolved.ready;
-    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } }, { expectedRevisionSeq });
-    // Only after the write succeeded: a switch must reach the very next send and status read.
-    resolved.invalidate();
-  };
   const resolved = createResolvedMailer({
     ...resolve,
     providerSetting: {
@@ -169,5 +100,11 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     }),
     mailPurposeGate: createMailPurposeGateProbe({ mode: resolve.mode, durableOutboxReady: options.durableOutboxReady ?? (() => false) }),
   };
-  return { ...resolved, setAgentPluginEnabled: setPluginEnabled, selectProvider, readProviderSelection, operations };
+  return { ...createHostMailer({ resolved, operations, selection: {
+    ready, loadCatalog: () => loadMailProviderCatalog(resolve),
+    readSelection: () => readMailProviderSelection({ settingsRepo: settings.repo, workspaceId }),
+    writeSelection: ({ value, principalId, expectedRevisionSeq }) => writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value }, { expectedRevisionSeq }),
+    installedProviderIds: installedMailProviderIds, toggle: options.setAgentPluginEnabled ?? setAgentPluginEnabled,
+    isRevisionConflict: (error) => error instanceof SettingsRevisionConflictError,
+  } }), readProviderSelection };
 }
