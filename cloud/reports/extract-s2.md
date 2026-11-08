@@ -1,5 +1,7 @@
 # Plugin extraction session 2
 
+Latest continuation status: corrected G-card GREEN; A1 RED at the unchanged guard record. A2 and F2 were not started. Active continuation deadline: 07:44:33 UTC. See the Continuation stop record at the end.
+
 Start: 2026-11-08 04:12:55 UTC. Deadline: 08:12:55 UTC. Shutdown reserve: 07:52:55 UTC. One serial task; no helper agents. No main merge or publication.
 
 ## Bases and branches
@@ -477,3 +479,83 @@ G-card is green and both paired tips are pushed. Cross-repository source transpo
 | buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, tool types | dependency | core runtime/types | core root |
 
 No unresolved row. All domain save handlers/stores stay in the host. The neutral-host provider-status placeholder receives actual coverage in a new test file, preserving the frozen existing file and every existing assertion as F2 requires. The new test will use only public exports, show a provider settings card and save through memory ports. No connect/executable or connect/plugin-host entry is added.
+
+### A1 implementation, validation and failed gate
+
+Moved the inventoried implementations using the recorded cross-repository transport, then retained Tovu shims with their old names/signatures. UI's new `mcp-ui/credential-card` takes canonical core card/credential types and required host app identity. The `connect` factory takes required host metadata, tool id and categories; the card operations take the host's validation-error and free-field ports. Provider status takes host metadata and `authorization.permission`, with a consumer-local `ProviderSettingFieldProjection`. No moved/new production file imports another Jini package except core; no new dependency or lockfile change. `connect` is mapped to lifecycle isolation; no executable/plugin-host entry was added.
+
+Strict optional-property adoption was completed before the formal gate: new loader/router types explicitly accept undefined values already passed by the old host; always-present description/details get precise return types; absent field hints remain absent. Bug `A1-explicit-undefined-credential-metadata` is logged in Tovu `development/open-bugs.md`. The new UI regression test failed under the original hint mapping (1 failed / 1 passed), then passed after restoration (2/2). Card text remains byte-identical in all three goldens; saved data and metadata baseline were not changed.
+
+Two moved comment lines were neutralized for the source rule: router `Tovu credential kinds delegate...` became `Host credential kinds delegate...`; credential-cards `Jini owns declaration parsing; Tovu binds...` became `Declaration parsing stays here; the host binds...`. Other why comments moved intact. Required new agent notes explain host app identity, shared error/field policy and metadata-only provider projections.
+
+Existing Jini test change allowed by R6.5: `packages/ui/src/__tests__/integration-exports.test.ts` gains only `'./mcp-ui/credential-card'` in the universal list. Every assertion is preserved. All other pre-existing Jini/Tovu tests and fixtures are unedited. Provider-status behavior is implemented in a new neutral-host test, leaving the original placeholder file frozen as the unchanged-test rule requires.
+
+A1 commands/results:
+- `pnpm --filter @jini-ai/ui run build && pnpm --filter @jini-ai/agent-plugins run build`: PASS.
+- `pnpm --filter @jini-ai/ui exec tsc --noEmit`, `pnpm --filter @jini-ai/agent-plugins exec tsc --noEmit`, `pnpm --filter @jini-example/neutral-host exec tsc --noEmit`: PASS.
+- Tovu `JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini && npx tsc -p tsconfig.json --noEmit`: PASS.
+- Tovu `npx tsc -p tsconfig.tests.json --noEmit`: exactly the same 12 named baseline errors; no new error. The new independent old/core credential type compatibility checks compile.
+- UI strict complexity check (maximum 10 for both rules): no errors; two pre-existing-style unused destructuring warnings in moved router (`_kind`, `_target`). No lint disable was added.
+- Post-build `JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s2/declaration-baseline pnpm check:cross-package`: PASS.
+- `pnpm guard:plugins`: PASS.
+- `pnpm guard`: **FAILED the required record**, with one new `HW8-provider-url` at `packages/agent-plugins/src/connect/credential-save-tool.ts`. HW8 is **50 total, 1 new**, required **49 total, 0 new**. The finding comes from the unchanged catalogue example `https://api.example.test` at line 40. Other hardwiring counts remain HW1 17, HW2 16, HW3 135, HW4 1; the two allowed R2/R10 findings and informational R13 remain. No guard/baseline suppression or post-failure fix was attempted. A2 was not started.
+
+A1 Tovu tests, all through the brief's Node runner, 10 files / **146 tests PASS**, no skips/todos:
+- `apps/website/src/features/custom-credentials/__tests__/credential-save-tool.unit.test.ts`
+- `apps/website/src/features/custom-credentials/__tests__/credential-save-probe.test.ts`
+- `apps/website/src/features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts`
+- `apps/website/src/features/agent-plugins/__tests__/unit/plugin-credential-cards.unit.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/plugin-credential-cards.unit.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts`
+- `apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts`
+- `apps/website/src/assistant/__tests__/moved-tools.golden.test.ts`
+- `apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts`
+- `apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts`
+
+A1 UI command `pnpm --filter @jini-ai/ui exec vitest run <files> --maxWorkers=2 --minWorkers=1`, 4 files / **71 tests PASS**:
+- `src/features/mcp-ui/__tests__/cards.unit.test.ts`
+- `src/__tests__/integration-exports.test.ts`
+- `src/features/mcp-ui/__tests__/secret-card.unit.test.ts`
+- new `src/features/mcp-ui/__tests__/credential-card.unit.test.ts`
+
+Neutral host command `pnpm --filter @jini-example/neutral-host exec vitest run src/provider-status.test.ts --maxWorkers=2 --minWorkers=1`: **1/1 PASS**. Named test: `provider status: reports configured providers with no product names, shows the host settings card and saves through memory`. It uses public package exports and a host-supplied card adapter, exercises the actual moved router/status tools and daemon exchange, saves the human answer in memory, then reports configured without exposing the secret. No cross-domain package is selected implicitly.
+
+| Continuation batch | Paired source tips | Gate result | Fixture hashes | Elapsed | Remaining |
+|---|---|---|---|---|---|
+| A1 | Tovu `34d29ac914650710c856b2ea9fe1444b00264348`; Jini `9066f7eaebf431503cb86d92989adfab1b1d373b` | RED: new HW8-provider-url; all listed runtime/type/checker checks above pass | G-card hashes unchanged | 00:20 at failure | finish A1 guard, A2, F2 |
+
+### Continuation push ledger
+
+All pushes use `cloud/extract-s2`, after immediate pull/rebase, and are verified with `git ls-remote`. A1 includes these pushed tips/commits:
+- Tovu `a86385e655181407c9ebf1da2416aab7dba9e171`.
+- Tovu `d3f8cf2d8c3f3e675ac791cfef6929c623ed87dc`.
+- Tovu `34d29ac914650710c856b2ea9fe1444b00264348`.
+- Jini `1cf03063dfaf7b53f02f2c7d331c7c1caf7c82ec`.
+- Jini `828437d42ee34b3c66d5090da2da63b4097919ad`.
+- Jini `9066f7eaebf431503cb86d92989adfab1b1d373b`.
+
+Jini test commit `9585ccd66` is included in those pushed tips. Earlier continuation/G-card pushes and recording SHAs are listed above. No rebase conflict, force push or publication occurred.
+
+### Continuation stop record
+
+Actual stop: A1's first formal gate failed the unchanged guard record (`HW8-provider-url`, 50 versus required 49). The first-failed-gate instruction stops this continuation before A2. No fix or waiver was made after this finding. A1 is not green despite its passing tests. F2 was not run; the accumulated session is not approved as complete.
+
+Last verified paired green SHAs, **corrected G-card**:
+- Tovu `5fbf8fec2733f58dfc48bce305347fefe9524cab` (report publication on tested source tip `fa9041368fdc1385c0c641474edfa426e0c422de`).
+- Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`.
+
+Final Jini repository/remote tip: `9066f7eaebf431503cb86d92989adfab1b1d373b`. Final Tovu source tip before this report-only shutdown commit: `34d29ac914650710c856b2ea9fe1444b00264348`. Tovu's final tip is the shutdown report commit containing this record; its full verified pushed SHA is supplied in the final task response after it exists.
+
+Remaining batches, numbered:
+1. A1: resolve the new HW8 finding without changing pinned tool/card text or weakening the guard; rerun its complete gate and verify both pushed tips in a separately approved continuation.
+2. A2: mail golden, real resend ABI failure/mutation/fix, parser port and remaining glue; not started.
+3. F2: accumulated final gate on final tips; not started.
+
+Shutdown checks: all **80 recorded root PIDs** across the run and continuation were checked individually via `/proc` and `ps`; all exited. No active test/child root required termination. Recorded test process groups have no executing test process; any defunct esbuild helpers already exited. PID/status evidence remains outside tracked source in `continuation-shutdown-process-status.json`. No test process remains running.
+
+Hashes at stop: G-card test `54c1f9c3c98780a882eca0dc94c5c1b7a0d8cd50aa28053b7be20b783c6aa76c`; G-card fixture `3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01`; Q2 independent UI pin `bf2f29fa8dffca5bc5317dbb6e2ed91f7cd23d55d475165dc823a42c04fb77dd`; tool metadata baseline `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`. All equal their recording values. No migration diff; no server or prohibited layer-checker diff. No existing Tovu test/fixture edit; only the precise additive UI export-list change in existing Jini tests. No main merge or publication.
+
+Continuation progress/stop: 2026-11-08 05:07:22 UTC; elapsed 00:22:49. Deadline 07:44:33 UTC; the cap was not reached.
+
+Actual early failure: A1 adds one HW8-provider-url finding, changing the required guard count from 49 to 50.
+EXTRACT-S2 STOPPED AT CAP
