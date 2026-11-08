@@ -2,6 +2,8 @@ import { VaultError, type SecretsVaultService } from '@jini-ai/platform/secrets/
 import type { AdminSurfacePluginStatePersistence } from '@jini-ai/agent-plugins/admin-surfaces';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from './vault-stores.js';
 
+export const PLUGIN_STATE_UNAVAILABLE_MESSAGE = "These plugin settings are not available here. Reopen the plugin from this site's admin and retry.";
+
 export interface PluginStateHostInput { readonly vault: SecretsVaultService; readonly workspaceId: string }
 
 /** Reuses the exact vault instance and saved host scope/format; no store is constructed here. */
