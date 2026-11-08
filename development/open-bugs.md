@@ -40,3 +40,16 @@ is terminal; the snapshot file itself is kept. The comment moved byte-exact and 
 fails with `unknown/charts-recharts` where `jini/charts-recharts-agent` is expected. The bundled Jini
 manifests now declare their id under `extensions.jini`; the test reads identities with namespace `tovu`.
 Seen in V1; it fails the same way on the V0 tip (before the merge), so the merge did not cause it.
+
+## Resolved during extract session 2 continuation
+
+### `A1-explicit-undefined-credential-metadata`
+
+Moving the existing credential card builders and router into Jini exposed explicit `undefined`
+properties accepted by Tovu's compiler but rejected by Jini's exact optional-property settings.
+The development UI/agent-plugins builds demonstrated the type errors. The new UI test
+`uses the host app identity and complete plugin metadata without introducing absent hints`
+fails when the original hint mapping is restored (`hint: undefined`); the mutation was red.
+The fix keeps absent hints absent, narrows always-present detail/description return types, and
+explicitly permits already-supported undefined inputs in consumer-local loader/router types.
+Card copy and submitted/saved data are unchanged. The corrected G-card fixture pins rendered parity.
