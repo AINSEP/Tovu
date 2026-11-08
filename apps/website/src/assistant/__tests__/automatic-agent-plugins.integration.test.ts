@@ -22,7 +22,7 @@ import { createSettingsPrincipalLookup, set } from '../../features/settings/inde
 import { pluginPreflightFixture } from "#src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.fixture";
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
-import { resolveAgentPluginRefs } from '../../features/agent-plugins/lifecycle.js';
+import { resolveAgentPluginRefs, resolveAgentPluginGuidance } from '../../features/agent-plugins/lifecycle.js';
 import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.js';
 import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../../features/agent-plugins/automatic-agent-plugins.js';
 
@@ -62,16 +62,14 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   return { runs, context, published, workspaceId, workspace, layout, pluginId, principalRepo, settingsRepo, clock, idGen, surfaceExchanges, preferences };
 }
 
-test('Auto preflight suggests metadata only; the first guarded write still loads real guidance once', async t => {
+test('Auto preflight delivers full primary guidance once before guarded writes', async t => {
   const { runs, context, published, pluginId } = await fixture(t);
   const note = await runs.start({ runId: 'preflight', context });
-  assert.match(note, /Relevant agent plugins for this request:/);
-  assert.match(note, /Synthetic Author/);
-  assert.match(note, /load_agent_plugin/);
-  assert.doesNotMatch(note, /Use holographic layout discipline/);
-  assert.equal(published.length, 0, 'suggestion must not mark guidance as loaded');
+  assert.match(note, /AGENT_PLUGIN pluginId="synthetic-author"/);
+  assert.match(note, /Use holographic layout discipline/);
+  assert.equal(published.length, 1, 'complete preflight guidance marks the primary loaded');
   const gate = { principal: context.principal, run: { id: 'preflight' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: context.signal };
-  assert.match(await runs.prepareGuidance(gate), /Use holographic layout discipline/);
+  assert.equal(await runs.prepareGuidance(gate), '');
   assert.deepEqual(published.at(-1)?.plugins, [{ id: pluginId, name: 'Synthetic Author' }]);
   assert.equal(await runs.prepareGuidance(gate), '', 'backstop must load only once');
   await runs.start({ runId: 'backstop', context: { ...context, query: 'hello' } });
@@ -190,17 +188,17 @@ for (const action of ['use', 'skip'] as const) {
 
 test('controller identity binds principal and conversation; disposal removes every attempt alias', async t => {
   const f = await fixture(t);
-  await f.runs.start({ runId: 'one', messageId: 'answer', context: f.context });
+  await f.runs.start({ runId: 'one', messageId: 'answer', context: { ...f.context, query: 'hello' } });
   await assert.rejects(f.runs.start({ runId: 'one', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat' } }), /unavailable/);
   await assert.rejects(f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat' } }), /unavailable/);
   await assert.rejects(f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, principal: { id: 'bob' } } }), /unavailable/);
-  await f.runs.start({ runId: 'two', messageId: 'answer', context: f.context });
+  await f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, query: 'hello' } });
   f.runs.forget({ runId: 'one' });
   assert.match(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
   f.runs.forget({ runId: 'two' });
   assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
   // Reusing both identities after disposal constructs a clean, independently bound controller.
-  await f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat', principal: { id: 'bob' } } });
+  await f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat', principal: { id: 'bob' }, query: 'hello' } });
   assert.match(await f.runs.prepareGuidance({ principal: { id: 'bob' }, run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
   f.runs.forget({ runId: 'two' });
 });
@@ -231,21 +229,22 @@ test("Don't ask again writes Auto only for the answering principal through the r
     assert.ok(exchangeId);
     assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'bob', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, false);
     assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
-  } } }), /Relevant agent plugins for this request:/);
-  assert.deepEqual(f.published.at(-1)?.plugins, [], 'consent is not a guidance load');
+  } } }), /Use holographic layout discipline/);
+  assert.deepEqual(f.published.at(-1)?.plugins, [{ id: f.pluginId, name: 'Synthetic Author' }]);
   assert.equal((await read('alice')).value, 'auto');
   assert.equal((await read('bob')).value, 'ask');
   assert.equal(f.surfaceExchanges.size(), 0);
   f.runs.forget({ runId: 'ask-auto' });
 });
 
-test('CLI onStarted places the relevance note, without guidance bodies, into the executor prompt', async t => {
+test('CLI onStarted keeps complete automatic guidance in the existing Codex prompt carrier', async t => {
   const f = await fixture(t);
   // The daemon now asks the site's sole controller through its actual authenticated RPC.
   const siteTools = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' },
     plugins: { controller: f.runs, pinnedPrefix: async () => '', emit: async () => {}, refusalPrefix: () => '' },
     tools: [f.runs.loadRegistration], prepareGuidance: f.runs.prepareGuidance });
   const input = await captureDaemonRun({ principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' }, {
+    request: { agentId: 'codex' },
     lifecycle: { waitForTerminal: () => new Promise(() => {}), onCancelRequested: () => () => {}, stream: async () => {}, emit: async () => {} },
     bindings: {
       siteTools,
@@ -254,8 +253,7 @@ test('CLI onStarted places the relevance note, without guidance bodies, into the
       waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     },
   });
-  assert.match(input.prompt, /Relevant agent plugins for this request:/);
-  assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
+  assert.match(input.prompt, /Use holographic layout discipline/);
   assert.match(input.prompt, /Design holography/);
   const loaded = await siteTools.remote.execute({ principal: { id: 'alice' }, run: { id: 'daemon-test-run' },
     toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
@@ -310,7 +308,7 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
 test('automatic tool guidance warns before actions for an untested plugin', async t => {
   const f = await fixture(t, { maturity: 'untested' });
   t.after(() => f.runs.forget({ runId: 'maturity-auto' }));
-  await f.runs.start({ runId: 'maturity-auto', context: f.context });
+  await f.runs.start({ runId: 'maturity-auto', context: { ...f.context, query: 'hello' } });
   const guidance = await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'maturity-auto' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal });
   assert.match(guidance, /Before saving keys or acting with this plugin/);
   assert.match(guidance, /Use holographic layout discipline/);
@@ -356,9 +354,9 @@ test('inactive plugin returns setup guidance and the activation call while tools
   assert.doesNotMatch(output.note, /agent_plugin_higgsfield_media/);
   assert.equal(f.published.length, 0);
   const stillInactive = await executor.execute(input);
-  assert.equal((stillInactive.output as { status: string }).status, 'already-loaded');
-  assert.equal((stillInactive.output as { guidance: string }).guidance, '');
-  assert.equal(f.published.length, 0, 'deduplicating off guidance must not publish active plugin usage');
+  assert.equal((stillInactive.output as { status: string }).status, 'installed-but-inactive');
+  assert.equal((stillInactive.output as { guidance: string }).guidance, output.guidance);
+  assert.equal(f.published.length, 0, 'repeated off guidance must not publish active plugin usage');
   const stillOff = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
   assert.equal(stillOff.ok, false);
   if (!stillOff.ok) assert.match(stillOff.reason, /is not enabled/);
@@ -367,14 +365,14 @@ test('inactive plugin returns setup guidance and the activation call while tools
   assert.equal((retry.output as { status: string }).status, 'loaded');
   assert.match((retry.output as { guidance: string }).guidance, /Use holographic layout discipline/);
   const again = await executor.execute(input);
-  assert.equal((again.output as { status: string }).status, 'already-loaded');
-  assert.doesNotMatch((again.output as { note: string }).note, /plugins_set_enabled|enabled:true/);
+  assert.equal((again.output as { status: string }).status, 'loaded');
+  assert.equal((again.output as { guidance: string }).guidance, (retry.output as { guidance: string }).guidance);
   f.runs.forget({ runId: 'inactive' });
 });
 
 test('the first theme write loads installed tovu-theme after a note-only preflight', async t => {
   const f = await fixture(t, { pluginId: 'tovu-theme' });
-  assert.doesNotMatch(await f.runs.start({ runId: 'theme', context: f.context }), /Use holographic layout discipline/);
+  assert.doesNotMatch(await f.runs.start({ runId: 'theme', context: { ...f.context, query: 'hello' } }), /Use holographic layout discipline/);
   assert.equal(f.published.length, 0);
   const gate = { principal: f.context.principal, run: { id: 'theme' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal };
   assert.match(await f.runs.prepareGuidance(gate), /AGENT_PLUGIN pluginId="tovu-theme"/);
@@ -388,7 +386,7 @@ test('the loader refuses another principal and exclusions, and reads revoked plu
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
   const executor = createToolExecutor({ registry });
-  await f.runs.start({ runId: 'owner', context: f.context });
+  await f.runs.start({ runId: 'owner', context: { ...f.context, query: 'hello' } });
   const stolen = await executor.execute({ principal: { id: 'bob' }, run: { id: 'owner' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(stolen.status, 'failed');
   assert.equal(f.published.length, 0);
@@ -413,7 +411,7 @@ test('the loader refuses another principal and exclusions, and reads revoked plu
 // Discover identities exclusively from the model-facing search response before attempting loads.
 test('50 relevant ids are discoverable by paging the existing search tool and all load through the executor', async t => {
   const f = await fixture(t, { count: 50 });
-  const note = await f.runs.start({ runId: 'paged', context: f.context });
+  const note = await f.runs.start({ runId: 'paged', context: { ...f.context, pinned: ['pinned'] } });
   assert.ok(new TextEncoder().encode(note).length <= 600);
   assert.match(note, /\+\d+ more relevant: search_agent_plugin_local.*offset: 0.*nextOffset/);
   assert.equal(f.published.length, 0);
@@ -498,7 +496,7 @@ test('a turn whose signal is already aborted registers no controller and returns
 
 test('a tool without guidance capabilities loads no plugin guidance', async t => {
   const f = await fixture(t);
-  await f.runs.start({ runId: 'plain', context: f.context });
+  await f.runs.start({ runId: 'plain', context: { ...f.context, query: 'hello' } });
   assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'plain' }, tool: { id: 'plain_tool' }, signal: f.context.signal }), '');
   assert.equal(f.published.length, 0);
   f.runs.forget({ runId: 'plain' });
@@ -639,4 +637,54 @@ test('a real Auto CAS failure after the post-card read retains no consent on the
   assert.equal(cards, 1, 'Off does not reopen a card');
   assert.equal(f.published.length, 0, 'rejected access is never published as used');
   f.runs.forget({ runId: 'cas-retry' });
+});
+
+
+for (const delivery of ['pinned', 'explicit'] as const) test(`fresh child reads complete guidance after parent ${delivery} delivery`, async t => {
+  const f = await fixture(t);
+  const guidance = 'BEGIN_CHILD_SENTINEL\n' + 'é'.repeat(5000) + '\nEND_CHILD_SENTINEL';
+  await writeFile(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'), guidance);
+  await f.runs.start({ runId: 'parent-child', context: { ...f.context, query: '', pinned: delivery === 'pinned' ? [f.pluginId] : [] } });
+  const registry = createToolRegistry({});
+  registry.register(f.runs.loadRegistration);
+  const request = { principal: f.context.principal, run: { id: 'parent-child' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } };
+  const parent = delivery === 'pinned'
+    ? await resolveAgentPluginGuidance({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' })
+    : await createToolExecutor({ registry }).execute(request);
+  const expected = await resolveAgentPluginGuidance({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
+  assert.ok(expected.ok);
+  assert.ok(expected.promptPrefix.includes(guidance));
+  assert.ok(delivery === 'pinned' ? 'ok' in parent && parent.ok : 'status' in parent && parent.status === 'completed');
+  // A fresh executor represents the child; the bridge retains exactly the same principal/run.
+  const child = await createToolExecutor({ registry }).execute(request);
+  assert.equal(child.status, 'completed');
+  assert.deepEqual(child.output, { pluginId: f.pluginId, status: 'loaded', guidance: expected.promptPrefix });
+  f.runs.forget({ runId: 'parent-child' });
+});
+
+test('replacement preflight retains the exact prepared bytes without another resolution', async t => {
+  const f = await fixture(t);
+  const first = await f.runs.start({ runId: 'first', messageId: 'retained-answer', context: f.context });
+  assert.match(first, /Use holographic layout discipline/);
+  await unlink(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'));
+  const next = await f.runs.start({ runId: 'replacement', messageId: 'retained-answer', context: { ...f.context, query: 'different query', emitSurface: async () => assert.fail('replacement must not ask again') } });
+  assert.equal(next, first);
+  assert.equal(f.published.length, 1);
+  for (const runId of ['first', 'replacement']) f.runs.forget({ runId });
+});
+
+test('a rejected preflight promise is cleared so the same turn can retry', async t => {
+  const f = await fixture(t);
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen, principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) }, input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value: 'ask' } });
+  await assert.rejects(f.runs.start({ runId: 'reject', messageId: 'retry-answer', context: { ...f.context, emitSurface: async () => { throw new Error('closed fixture surface'); } } }), /closed fixture surface/);
+  const context = { ...f.context, emitSurface: async (emission: Parameters<AutomaticPluginRun['emitSurface']>[0]) => {
+    if (emission.channel !== 'mcp-ui') return;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'use', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID });
+  } };
+  assert.match(await f.runs.start({ runId: 'retry', messageId: 'retry-answer', context }), /Use holographic layout discipline/);
+  for (const runId of ['reject', 'retry']) f.runs.forget({ runId });
 });

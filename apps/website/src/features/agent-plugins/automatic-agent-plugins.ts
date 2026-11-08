@@ -44,7 +44,7 @@ export interface AutomaticPluginRun {
  * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
  */
 export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: ChatDeleteSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
-  type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
+  type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; preflight?: Promise<string> | undefined; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
   const turns = new Map<string, Entry>();
   const runs = new Map<string, Entry>();
   // A terminal attempt cannot publish its late answer. Hand it to the next turn in this chat.
@@ -75,7 +75,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     runs.set(runId, entry);
     // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
     if (mode === 'off') await current.publish({ conversationId: current.conversationId, state: current.state, plugins: [] });
-    try { return await entry.controller.prepare({ query: current.query, loaded: current.pinned }); }
+    try { return await preflight({ entry }); }
     finally { releaseDetached(entry); }
   }
   /** Attach a restarted attempt to its live turn's controller; refuses another principal, chat or turn.
@@ -85,7 +85,12 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     existing.context = context;
     existing.attempts.add(runId);
     runs.set(runId, existing);
-    return existing.controller.prepare({ query: context.query, loaded: context.pinned }).finally(() => releaseDetached(existing));
+    return preflight({ entry: existing }).finally(() => releaseDetached(existing));
+  }
+  /** Keep the successful turn snapshot across attempts; failed preparation remains retryable. */
+  function preflight({ entry }: { entry: Entry }, _options = {}): Promise<string> {
+    return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned })
+      .catch(error => { entry.preflight = undefined; throw error; });
   }
   /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
   function withLateAnswer({ context }: { context: AutomaticPluginRun }): AutomaticPluginRun {
