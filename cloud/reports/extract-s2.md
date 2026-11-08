@@ -389,3 +389,12 @@ UTC stop/report prepared: 2026-11-08 04:42:27 UTC. Elapsed 00:29:32; deadline 08
 
 Actual early failure: G-card creation + apply-card path is not covered; the cited production handler is rotation-only.
 EXTRACT-S2 STOPPED AT CAP
+
+
+## Continuation
+
+Owner-approved continuation started 2026-11-08 04:44:33 UTC. Continuation cap: 3 hours, deadline 07:44:33 UTC, shutdown reserve starts 07:24:33 UTC. This continues the same session and branches; no new approval lane, helpers or task reset. Starting verified tips: Tovu `a1ce51994e1e057352eea2f0f699a96b099cb998` (Q2 report `d19f27330f33978d82b267659d12b6434d8b4db6` plus stop report), Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`. Both local trees clean and remote tips verified. Runtime status refreshed; existing exact tool versions and fixed XP3 declaration snapshot retained.
+
+Coordinator/owner correction supersedes the earlier G-card reachability stop: cover six real-handler paths without production changes: existing-credential rotation applying its plugin card to `setTokenForm`; pluginProvider creation using `buildPluginCredentialForm`; plain creation using `buildCreateForm` without a plugin card; publish-host; source-control; and agent-plugin-token with a credential card. Each must pin saved/dismissed outcomes, resource, frame size and per-path counters, then pass repeatability and mutation gates. The former creation + apply-card wording is withdrawn. A1, A2 and F2 follow only after green paired gates.
+
+Continuation progress: 04:45 UTC, corrected G-card fixture work started. No production symbols move in G-card; the new test and its own fixture are the only planned non-report changes.
