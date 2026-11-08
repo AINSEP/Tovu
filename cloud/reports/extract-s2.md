@@ -724,3 +724,10 @@ The last verified green pair remains A1: Tovu `2731bdf05a2f1cf2011022081deafd660
 
 Early stop: A2 requires wiring an additional existing neutral-host test, explicitly forbidden by the brief's stop rule. A2 is incomplete and F2 was not started; the clock did not expire.
 EXTRACT-S2 STOPPED AT CAP
+
+
+## Continuation 3
+
+Owner-approved resumption at 2026-11-08 07:18:57 UTC. Deadline unchanged: 07:44:33 UTC; final reserve starts 07:24:33 UTC. Continuing A2; no new extraction batch. The coordinator authorizes exactly one additional existing-test wiring exception: `examples/neutral-host/src/contribution-contracts.test.ts` imports the real `parseMailProviderSetupProperty` and supplies `parseSetup` to its sole existing mail parser call. Every assertion and all other inputs remain unchanged. F2's exact-diff allow-list includes this exception alongside the original nine-call parser exception and additive exports. Any further existing-test wiring remains a stop.
+
+Suppression investigation: original Jini pin `35c4961af` `platform/src/mail/policy.ts:106` returns `MAIL_RECIPIENT_SUPPRESSED`; the pre-move mail golden recorded at `0506f0df5` also contains this exact code. The new integration scaffold expected the wrong code (`MAIL_SUPPRESSED`). Only the new test expectation is corrected; production behavior is unchanged.
