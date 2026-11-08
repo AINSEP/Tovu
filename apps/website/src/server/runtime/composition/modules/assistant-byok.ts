@@ -5,7 +5,7 @@ import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
-import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
+import { resolveAgentPluginRefs, resolveAgentPluginGuidance } from "#src/features/agent-plugins/lifecycle";
 import { translateRetiredPluginRefs } from "#src/features/agent-plugins/bundled-catalog";
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
@@ -611,7 +611,8 @@ export function createAssistantByokModule(
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {
           await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
-          const result = await resolveAgentPluginRefs(translateRetiredPluginRefs(pluginRefIds), routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId));
+          const result = await resolveAgentPluginGuidance({ pluginRefIds: translateRetiredPluginRefs(pluginRefIds),
+            workspaceLayout: routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId) }, { deliveryMode: 'inject' });
           return result.ok ? result.promptPrefix : null;
         },
         refusalPrefix: () => resolvedToolSurface.federation?.refusalPrefix() ?? "",
