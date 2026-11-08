@@ -357,3 +357,15 @@ A3 format pin SHA256 at first commit: **57a312280c8e890a00683ab3ce7419bc245e9aeb
 - host.ts: 4118751966b1f03a784fd400e009f85d1d1994c582944baad052c518b8bd6aa4
 - byo-client.ts: 270b9c002f8298d0c8afde524a3effbc09fb830721494b4e8962cbc3745f3f8a
 - hook-http.ts: d732b4f281a34e82e83296fa613b76d00686f1e54cf574eddeb86ae8f08926a2
+
+### A3 GREEN
+
+Full A3 gate: integrations build/tsc, **57** tests over keys/service/hosted-sign-in/account-actions/vertical-slice/new host-seams, **92** admin capability/action/token-memory tests, and **84** Tovu tests over the six API files, new format pin, saved-key round trip and composition trio. All **233/233** tests passed without skipped cases. Tovu relink/main tsc, original immutable-baseline checker, exact guard/HW record, plugin guard and custody passed. Standalone audit: layers 0, isolation 0, SI-c 9/SI-d 7. Strict complexity passed. Token lookup still 1 contribution load/4 credential opens, wiring rows preserved.
+
+Green pair: Jini **46039c5d444bf36c7d9a281c071c43d00a2f4e95**, Tovu **e06f9eddca52895670f3459e5abd54dd9799eab6**, both cloud/extract-s3 pushed/verified. The first A3 pin/inventory commit is **08d0bef97** (full hash in git ledger). No browser-binding, vault-stores, plugin-state production, connect, routes or inbox diff. Both service app identities and BYO host refusals are injected; original credential read/origins projection and limiter adapter remain Tovu.
+
+Transport custody: each small whole file first passed through git mv to a temporary transport path inside Tovu, then filesystem transport to Jini. Initial destination bytes matched source hashes (a3-transport-initial-hashes.json) before import/port edits. Temporary index entries were removed; the final cross-repo commits show Jini additions and Tovu thin-shim modifications, not a fictitious cross-repo rename. Why-comments were transported intact, with ByoClientCredentials and its comment retained in the host adapter. No temporary transport file was committed.
+
+Recorded A3 hashes (fixed for later tips):
+- /workspace/Tovu/apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts: 57a312280c8e890a00683ab3ce7419bc245e9aebe82821c18a6715698f96e902 at 08d0bef9747244a6b8f9dec1ba984cd3d0468942
+- /workspace/Jini/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts: c22bc908e911221113f93bac3f02158abdcd78598513228a380ff414ae804232 at 46039c5d444bf36c7d9a281c071c43d00a2f4e95
