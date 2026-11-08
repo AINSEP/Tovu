@@ -11,6 +11,8 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
+import { getAgentDef } from '@jini-ai/agent-runtime';
+import { assistantCliPermissions } from '../assistant-subagents-policy.js';
 import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';
@@ -692,6 +694,41 @@ test('a rejected preflight promise is cleared so the same turn can retry', async
 
 
 
+for (const { agentId, pinned } of [{ agentId: 'deepseek', pinned: false }, { agentId: 'claude', pinned: false }, { agentId: 'deepseek', pinned: true }]) test(`accepted adapter prompt budget preserves preflight delivery (${agentId}, pinned=${pinned})`, async t => {
+  const f = await fixture(t);
+  const body = `ARGV_BEGIN\n${'x'.repeat(15_920)}\nARGV_END`;
+  await writeFile(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'), body);
+  const full = await resolveAgentPluginGuidance({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
+  assert.ok(full.ok);
+  assert.ok(Buffer.byteLength(full.promptPrefix) >= 16_300 && Buffer.byteLength(full.promptPrefix) <= 16_384, `fixture bytes: ${Buffer.byteLength(full.promptPrefix)}`);
+  const context = { principalId: 'alice', conversationId: 'chat', prompt: `Design holography\n${'Tovu overlay and user request\n'.repeat(500)}`, pluginRefIds: pinned ? [f.pluginId] : [] };
+  const host = await pluginPreflightFixture({ t, context, agentId,
+    plugins: { controller: f.runs, pinnedPrefix: async () => pinned ? full.promptPrefix : '', emit: async () => {}, refusalPrefix: () => '' } });
+  await host.start({ runId: 'daemon-test-run', principalId: 'alice' });
+  const result = await host.preflight({ runId: 'daemon-test-run' });
+  if (agentId === 'deepseek' && !pinned) {
+    assert.equal(getAgentDef({ id: agentId })?.maxPromptArgBytes, 30_000);
+    assert.match(result.prefix ?? '', /load_agent_plugin/);
+    assert.doesNotMatch(result.prefix ?? '', /ARGV_BEGIN|ARGV_END/);
+    assert.deepEqual(result.pluginIds, []);
+    const input = await captureDaemonRun(context, { request: { agentId },
+      bindings: { siteTools: host,
+        env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
+        routeDeps: { workspaceId: f.workspaceId, ownerPrincipalId: Promise.resolve('alice'), agentSessions: { getSessionId: async () => null, setSessionId: async () => {} } },
+        liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
+        waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
+      } });
+    assert.equal(input.agentId, agentId);
+    assert.doesNotMatch(input.prompt, /ARGV_BEGIN|ARGV_END/);
+    assert.ok(Buffer.byteLength(input.prompt) < 30_000);
+    assert.ok(Buffer.byteLength(`${input.prompt}\n${full.promptPrefix}`) > 30_000);
+  } else {
+    assert.equal(result.prefix, full.promptPrefix);
+    assert.deepEqual(result.pluginIds, [f.pluginId]);
+  }
+  f.runs.forget({ runId: 'daemon-test-run' });
+});
+
 for (const kind of ['automatic', 'pinned', 'pinned-off']) test(`preflight carries only delivered plugin ids through real RPC (${kind})`, async t => {
   const f = await fixture(t);
   const pinned = kind !== 'automatic';
@@ -708,8 +745,8 @@ for (const kind of ['automatic', 'pinned', 'pinned-off']) test(`preflight carrie
   assert.deepEqual(await host.preflight({ runId: 'daemon-test-run' }), result);
   const load = await host.remote.execute({ principal: f.context.principal, run: { id: 'daemon-test-run' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(load.status, 'completed');
-  if (kind === 'pinned-off') assert.equal((load.output as { status: string }).status, 'off');
-  else assert.match((load.output as { guidance: string }).guidance, /Use holographic layout discipline/);
+  assert.equal((load.output as { status: string }).status, 'loaded');
+  assert.match((load.output as { guidance: string }).guidance, /Use holographic layout discipline/);
   f.runs.forget({ runId: 'daemon-test-run' });
 });
 

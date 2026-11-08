@@ -36,6 +36,7 @@ export const agentPluginGuidanceRisk = new Map<string, AgentToolSideEffect>([['l
 export interface AutomaticPluginRun {
   principal: Principal; conversationId: string; state: ChatAgentPluginState; query: string; pinned: readonly string[];
   signal: AbortSignal; emitSurface: SurfaceEmitter;
+  maxPromptArgBytes?: number | undefined;
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
 
@@ -89,7 +90,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
   }
   /** Keep the successful turn snapshot across attempts; failed preparation remains retryable. */
   function preflight({ entry }: { entry: Entry }, _options = {}): Promise<string> {
-    return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned })
+    return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned, maxPromptArgBytes: entry.context.maxPromptArgBytes })
       .catch(error => { entry.preflight = undefined; throw error; });
   }
   /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
