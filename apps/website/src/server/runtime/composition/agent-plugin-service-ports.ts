@@ -14,13 +14,14 @@ import { probeCredentialConnection } from '#src/features/custom-credentials/cred
 import { resolveOperatorLocale } from '#src/features/settings/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
-import type { AgentPluginApiConnectionsPort, AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
+import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
+import { agentPluginMcpProjections, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/service-ports';
 
 /** Preserve persistence and error identity over the site's bound sealing capability. O(1). */
-export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpPort {
+export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpServicesPort {
   return {
-    repo: required.repo,
+    repo: required.repo, projections: agentPluginMcpProjections,
     applyAccess: (input, _options = {}) => applyExternalMcpAccess({ ...input, repo: required.repo, clock: required.clock }),
     saveServer: (input, _options = {}) => saveExternalMcpServer(required, input),
     classifyError: ({ error }, _options = {}) => {
@@ -79,13 +80,14 @@ export function composeAgentPluginConnectServices(required: {
   httpClient: HttpClientPort; loadCards?: LoadPluginCredentialCards;
   externalMcpOAuth?: Pick<ExternalMcpOAuthService, 'beginConnect'>;
   apiConnections?: { host: ApiConnectionHost };
-}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: AgentPluginOAuthPort | undefined; apiConnections: AgentPluginApiConnectionsPort | undefined } {
+}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: (AgentPluginOAuthPort & AgentPluginSignInPort) | undefined; apiConnections: AgentPluginApiConnectionsPort | undefined } {
   const { externalMcpOAuth, apiConnections } = required;
   return {
     credentials: composePluginCredentials(required),
     externalMcpOAuth: externalMcpOAuth && {
       beginConnect: (input, _options = {}) => externalMcpOAuth.beginConnect(input),
       isValidationError: ({ error }, _options = {}) => error instanceof ExternalMcpValidationError,
+      isSignInRefusal: isAgentPluginSignInRefusal,
     },
     apiConnections: apiConnections && {
       sharingAvailable: apiConnections.host.sharingAvailable,

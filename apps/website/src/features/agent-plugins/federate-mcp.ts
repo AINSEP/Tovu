@@ -1,6 +1,6 @@
 import type { AgentPluginMcpPort } from "./service-ports.js";
-import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
-import { externalMcpRecordHasStaticAccessToken } from "../../contracts/core/external-mcp-auth.js";
+import type { AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from "./service-ports.js";
+import { resolveAgentPluginMcpPorts } from "./mcp-host-bindings.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import type { AgentPluginLayout } from "./layout.js";
@@ -417,7 +417,7 @@ function buildProvisioningSaveInput(
  *  most, a registered OAuth client minted for the OLD endpoint, which must not carry over to the new
  *  one. It is re-provisioned from the current declaration (rule 1b in this file's header).
  *  @complexity O(1) plus two short JSON parses. */
-function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned: PlannedAgentPluginMcpUpsert): boolean {
+function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned: PlannedAgentPluginMcpUpsert, projections: AgentPluginMcpProjections): boolean {
   // Saved tokens (OAuth or a pasted access token) mean someone signed in: the row may differ from
   // the declaration because an operator edited its URL or auth mode, and deleting it would throw
   // away those edits and the sign-in (Gemini triage T15).
@@ -425,7 +425,7 @@ function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned
   // A saved access token on a server that declares token sign-in is that declaration in use, not a
   // changed auth mode: treating it as stale deleted the token whenever the row was still disabled
   // (e.g. saved while an operator keeps the plugin off) — Codex review 2026-09-29.
-  const authModeMatches = existing.authMode === planned.authMode || (planned.acceptsAccessToken && externalMcpRecordHasStaticAccessToken(existing));
+  const authModeMatches = existing.authMode === planned.authMode || (planned.acceptsAccessToken && projections.hasStaticAccessToken(existing));
   const declarationChanged = existing.url !== planned.url || !authModeMatches;
   return declarationChanged && !existing.enabled && isEmptyJsonList(existing.allowedToolNames) && isEmptyJsonList(existing.writeAllowedToolNames);
 }
@@ -451,7 +451,7 @@ export function isEmptyJsonList(raw: string | null): boolean {
  *  try/catch inline.
  *  @complexity O(1) plus at most one `repo.upsert` for the adoption case. */
 async function adoptOrRecognizeExistingAgentPluginMcpServer(
-  deps: Pick<AgentPluginMcpPort, "repo">,
+  deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo">,
   existing: ExternalMcpServerRecord,
   planned: PlannedAgentPluginMcpUpsert,
   pluginId: string,
@@ -462,7 +462,7 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
   | { readonly kind: "failed"; readonly reason: string }
 > {
   if (existing.provisionedByPluginId === pluginId) {
-    return { kind: isStaleUntouchedProvisioning(existing, planned) ? "stale" : "alreadyProvisioned" };
+    return { kind: isStaleUntouchedProvisioning(existing, planned, resolveAgentPluginMcpPorts(deps).projections) ? "stale" : "alreadyProvisioned" };
   }
   // The connection id is unnamespaced and normalized, so a row already owned by a DIFFERENT plugin
   // may belong to a different server whose key merely sanitized to the same id. Adopting it would
@@ -513,7 +513,7 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
  * one create or adopt.
  */
 export async function provisionAgentPluginMcpServers(
-  deps: Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
+  deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<AgentPluginMcpContext & Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
   const plan = planAgentPluginMcpFederation(input);
@@ -539,7 +539,7 @@ export async function provisionAgentPluginMcpServers(
 /** Execute one planned write, keeping lookup, adoption and replacement failures isolated. */
 async function provisionPlannedServer(
   required: {
-    readonly deps: Pick<AgentPluginMcpPort, "repo" | "saveServer">;
+    readonly deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer">;
     readonly input: ProvisionAgentPluginMcpServersInput;
     readonly planned: PlannedAgentPluginMcpUpsert;
   },

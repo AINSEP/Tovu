@@ -1,6 +1,6 @@
 import { ToolInputError } from '@jini-ai/core';
-import { externalMcpAccessSnapshot } from '../../contracts/core/external-mcp-access.js';
-import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord } from '../external-mcp/contracts.js';
+import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
+import type { AgentPluginMcpAccessSnapshot as ExternalMcpAccessSnapshot, AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext } from './service-ports.js';
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `defaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
@@ -73,7 +73,7 @@ export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: stri
   return result.enabled;
 }
 
-export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo" | "applyAccess"> {
+export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo" | "applyAccess">, AgentPluginMcpContext {
   readonly clock: ClockPort;
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
@@ -100,7 +100,7 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
   const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
   // A read-only declaration is classification, not permission to change sign-in grants.
   if (!defaults?.allow) return null;
-  const grant = validatedAgentPluginToolGrant({ current: storedAgentPluginGrants({ row }), declared: defaults }, { reason: approvedEnable ? 'owner-enable' : 'sign-in' });
+  const grant = validatedAgentPluginToolGrant({ current: storedAgentPluginGrants({ row }, resolveAgentPluginMcpPorts(deps)), declared: defaults }, { reason: approvedEnable ? 'owner-enable' : 'sign-in', ports: resolveAgentPluginMcpPorts(deps) });
   return grant ? { row, pluginId, grant } : null;
 }
 
@@ -129,7 +129,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     if (!prepared) return;
     const { row, pluginId, grant } = prepared;
     const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId, pluginId });
-    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }), url: row.url, expected: externalMcpAccessSnapshot({ record: row }) });
+    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }, resolveAgentPluginMcpPorts(deps)), url: row.url, expected: resolveAgentPluginMcpPorts(deps).projections.accessSnapshot({ record: row }) });
     // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
     // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
     if (await isOff(pluginId)) return;
@@ -138,7 +138,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     // write is the step that makes a retry a no-op, so it goes last. The check above is only a cheap
     // early exit: an operator's "off" landing after it is caught again under the activations lock.
     if (await enablePlugin({ workspaceId: deps.workspaceId, pluginId, actor: CONNECT_DEFAULTS_ACTOR }) === false) return;
-    const expected = approved?.expected ?? externalMcpAccessSnapshot({ record: row });
+    const expected = approved?.expected ?? resolveAgentPluginMcpPorts(deps).projections.accessSnapshot({ record: row });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
     await deps.applyAccess({ workspaceId: deps.workspaceId, serverId,

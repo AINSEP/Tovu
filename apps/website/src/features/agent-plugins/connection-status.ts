@@ -1,5 +1,5 @@
-import { resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '../../contracts/core/external-mcp-auth.js';
-import type { ExternalMcpServerRecord } from '../external-mcp/contracts.js';
+import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
+import type { AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from './service-ports.js';
 import type { LoadPluginCredentialCards } from '../custom-credentials/plugin-credential-card.js';
 import type { ApiConnectionHost } from '../api-connections/host.js';
 
@@ -10,7 +10,7 @@ export type AgentPluginConnectionStatus = 'connected' | 'disconnected' | 'pendin
  * disabled plugins retain their saved sign-in. One MCP roster read, one card catalog read and one
  * API catalog read; API status reads are per declared connection, with no provider HTTP calls.
  * @complexity O(m + c + a) time/space in MCP rows, credential cards and declared API connections. */
-export async function loadAgentPluginConnectionStatuses(required: {
+export async function loadAgentPluginConnectionStatuses(required: AgentPluginMcpContext & {
   workspaceId: string;
   mcp: { listByWorkspaceId: (workspaceId: string) => Promise<readonly ConnectionRow[]> };
   loadCards?: LoadPluginCredentialCards;
@@ -21,7 +21,7 @@ export async function loadAgentPluginConnectionStatuses(required: {
     required.apiConnections?.listConnections({}) ?? [],
   ]);
   const states = new Map<string, AgentPluginConnectionStatus[]>();
-  addMcpStatuses({ rows, states });
+  addMcpStatuses({ rows, states, projections: resolveAgentPluginMcpPorts(required).projections });
   await addApiStatuses({ connections, host: required.apiConnections, states });
   // A never-provisioned sign-in is still visibly absent. Plugins with no account declaration
   // (skills/local tools) get no badge; an unrelated manual MCP server cannot sign them in.
@@ -30,10 +30,10 @@ export async function loadAgentPluginConnectionStatuses(required: {
 }
 
 /** Existing auth readers own credential classification; this projection never opens a token. */
-function mcpSignInStatus({ row }: { row: ConnectionRow }, _optional = {}): AgentPluginConnectionStatus | undefined {
-  if (externalMcpRecordHasStaticAccessToken(row)) return 'connected';
+function mcpSignInStatus({ row, projections }: { row: ConnectionRow; projections: AgentPluginMcpProjections }, _optional = {}): AgentPluginConnectionStatus | undefined {
+  if (projections.hasStaticAccessToken(row)) return 'connected';
   if (row.authMode !== 'oauth') return undefined;
-  return resolveExternalMcpOAuthStatus(row);
+  return projections.oauthStatus(row);
 }
 
 /** A partial sign-in must not claim that every connection needed by a plugin is ready. */
@@ -51,12 +51,12 @@ function appendStatus({ states, pluginId, status }: {
   states.set(pluginId, group);
 }
 
-function addMcpStatuses({ rows, states }: {
-  rows: readonly ConnectionRow[]; states: Map<string, AgentPluginConnectionStatus[]>;
+function addMcpStatuses({ rows, states, projections }: {
+  rows: readonly ConnectionRow[]; states: Map<string, AgentPluginConnectionStatus[]>; projections: AgentPluginMcpProjections;
 }, _optional = {}): void {
   for (const row of rows) {
     if (!row.provisionedByPluginId) continue;
-    const status = mcpSignInStatus({ row });
+    const status = mcpSignInStatus({ row, projections });
     if (status) appendStatus({ states, pluginId: row.provisionedByPluginId, status });
   }
 }

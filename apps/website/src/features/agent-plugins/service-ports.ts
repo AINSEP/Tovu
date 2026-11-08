@@ -1,17 +1,19 @@
 /** Consumer-owned service boundaries. Composition binds concrete services and secret stores. */
 import type { ChatAgentPlugins } from "@jini-ai/agent-plugins/lifecycle";
-import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SurfaceCardsPort, SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { ExternalMcpConnectStart, ExternalMcpServerRepoPort, ExternalMcpServerView, SaveExternalMcpServerInput } from "../external-mcp/contracts.js";
-import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
+import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 
 /** Roster persistence and safe classification; sealing/keyring dependencies stay in composition. */
 export interface AgentPluginMcpPort {
-  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId" | "upsert" | "deleteByServerId" | "updateAccessIfCurrent">;
+  readonly repo: AgentPluginMcpRepo;
+  /** Old Tovu hosts may omit projections; composition and new seams supply all six. */
+  readonly projections?: AgentPluginMcpProjections;
   /** Atomically save exactly the approved source and previous grants through the store owner. */
   applyAccess(input: import("../../contracts/core/external-mcp-access.js").ExternalMcpApprovedAccess, options?: Record<string, never>): Promise<void>;
-  saveServer(input: SaveExternalMcpServerInput, options?: Record<string, never>): Promise<ExternalMcpServerView>;
+  saveServer(input: AgentPluginMcpSave, options?: Record<string, never>): Promise<AgentPluginMcpView>;
   classifyError(input: { error: unknown }, options?: Record<string, never>): "validation" | "unconfigured" | "other";
   notifyRosterChanged(input: { readonly lowered?: import("@jini-ai/daemon").ToolAccessChange }, options?: Record<string, never>): Promise<void>;
 }
@@ -19,7 +21,9 @@ export interface AgentPluginMcpPort {
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */
 export interface AgentPluginOAuthPort {
   beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted" }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
+  /** Compatibility entry for existing Tovu hosts; new consumers use isSignInRefusal. */
   isValidationError(input: { error: unknown }, options?: Record<string, never>): boolean;
+  isSignInRefusal?(input: { error: unknown }, options?: Record<string, never>): boolean;
 }
 
 /** Plugin-declared credential cards and the guarded, read-only token probe. */
@@ -52,3 +56,33 @@ export interface AgentPluginPathsPort {
   readonly siteDir: string;
   readonly bundledSourceRoot: string;
 }
+
+/** @agent-note These aliases stay in Tovu until the H0/H1 vocabulary lane. Never copy the record,
+ * access snapshot or repository: adoption must retain the canonical store's whole saved row. */
+export type AgentPluginMcpRecord = import('../external-mcp/contracts.js').ExternalMcpServerRecord;
+export type AgentPluginMcpSave = SaveExternalMcpServerInput;
+export type AgentPluginMcpView = ExternalMcpServerView;
+export type AgentPluginMcpRepo = Pick<ExternalMcpServerRepoPort, 'findByServerId' | 'upsert' | 'deleteByServerId' | 'updateAccessIfCurrent'>;
+export type AgentPluginMcpAccessSnapshot = import('../../contracts/core/external-mcp-access.js').ExternalMcpAccessSnapshot;
+export interface AgentPluginMcpProjections {
+  readonly accessSnapshot: typeof import('../../contracts/core/external-mcp-access.js').externalMcpAccessSnapshot;
+  readonly admissionRevision: typeof import('../../contracts/core/external-mcp-access.js').externalMcpAdmissionRevision;
+  readonly readToolGrants: typeof import('../../contracts/core/external-mcp-access.js').readExternalMcpToolGrants;
+  readonly validateToolNames: typeof import('../../contracts/core/external-mcp-access.js').validateExternalMcpToolNames;
+  readonly oauthStatus: typeof import('../../contracts/core/external-mcp-auth.js').resolveExternalMcpOAuthStatus;
+  readonly hasStaticAccessToken: typeof import('../../contracts/core/external-mcp-auth.js').externalMcpRecordHasStaticAccessToken;
+}
+export interface AgentPluginMcpProjectionPorts {
+  readonly projections: AgentPluginMcpProjections;
+  readonly classifyError: AgentPluginMcpPort['classifyError'];
+}
+export type AgentPluginMcpContext = Partial<AgentPluginMcpProjectionPorts>;
+/** New composition must fulfill the full contract; optional projection defaults exist only for old Tovu entry signatures. */
+export interface AgentPluginMcpServicesPort extends Omit<AgentPluginMcpPort, 'projections' | 'classifyError'>, AgentPluginMcpProjectionPorts {}
+export interface AgentPluginSignInPort {
+  readonly beginConnect: AgentPluginOAuthPort['beginConnect'];
+  isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
+}
+/** Resource stays concrete through waitAtSignInCard's card callback. */
+export type AgentPluginCardsPort<Resource> = SurfaceCardsPort<Resource>;
+export type AgentPluginCardBuilders<Resource> = Omit<AgentPluginCardsPort<Resource>, 'waitAtSignInCard'>;

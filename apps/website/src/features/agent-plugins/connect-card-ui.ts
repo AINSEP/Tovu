@@ -1,8 +1,8 @@
-import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
-import type { PluginCredentialsPort } from "./service-ports.js";
-import { type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
-import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
-import { buildSignInCard } from "@jini-ai/ui/mcp-ui/sign-in-card";
+import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
+import type { PluginCredentialsPort, AgentPluginCardBuilders } from "./service-ports.js";
+import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardUri as UIResourceUri, SurfaceCardApp } from "@jini-ai/core/contracts/cards";
+import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
+import { agentPluginCardHost } from "./card-host-bindings.js";
 
 /**
  * @file The card `agent_plugin_connect` shows while it parks on a human's sign-in (`connect-tool.ts`).
@@ -23,8 +23,8 @@ import { buildSignInCard } from "@jini-ai/ui/mcp-ui/sign-in-card";
  * plugin.json has no display-name field; uninstall-confirmation-ui.ts makes the identical choice.
  */
 
-function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
-  return `ui://tovu/agent-plugins-connect/${encodeURIComponent(pluginId)}` as UIResourceUri;
+function agentPluginConnectSurfaceUri({ pluginId, uriNamespace }: { pluginId: string; uriNamespace: string }): UIResourceUri {
+  return `ui://${uriNamespace}/${encodeURIComponent(pluginId)}`;
 }
 
 export type AgentPluginConnectCardSpec =
@@ -39,11 +39,12 @@ export type AgentPluginConnectCardSpec =
  *
  * @complexity O(1).
  */
-export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec, _optional = {}): UIResource {
+export function buildAgentPluginConnectCardWithPorts<Resource>(required: { spec: AgentPluginConnectCardSpec; cards: AgentPluginCardBuilders<Resource>; identity: { uriNamespace: string; toolId: string; app: SurfaceCardApp } }, _optional: Record<string, never> = {}): Resource {
+  const { spec, cards, identity } = required;
   const credentialCard = spec.state === "waiting" ? spec.credentialCard : undefined;
-  return buildSignInCard({
-    uri: agentPluginConnectSurfaceUri(spec.pluginId), toolId: "agent_plugin_connect",
-    app: { appName: "tovu-agent-plugins-connect", appVersion: "1" },
+  return cards.buildSignInCard({
+    uri: agentPluginConnectSurfaceUri({ pluginId: spec.pluginId, uriNamespace: identity.uriNamespace }), toolId: identity.toolId,
+    app: identity.app,
     waiting: {
       title: credentialCard?.title ?? `Let's connect ${spec.pluginDisplayName}`,
       description: credentialCard ? `${credentialCard.intro ?? ""} ${credentialCard.permissions ?? credentialCard.keyHint ?? ""}`.trim() : "It's free and takes about two minutes.",
@@ -68,12 +69,13 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec, _o
  * @example buildAgentPluginAccessTokenForm({ credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" });
  * @complexity O(1).
  */
-export function buildAgentPluginAccessTokenForm(spec: {
+export function buildAgentPluginAccessTokenFormWithPorts(required: { readonly app: SurfaceCardApp; readonly spec: {
   readonly credentials: Pick<PluginCredentialsPort, "apply">;
   readonly pluginDisplayName: string;
   readonly helpUrl: string;
   readonly credentialCard?: PluginCredentialCard;
-}, _optional = {}): SecretCardForm {
+} }, _optional: Record<string, never> = {}): SecretCardForm {
+  const { spec } = required;
   const { pluginDisplayName, helpUrl } = spec;
   return spec.credentials.apply({ card: spec.credentialCard, form: {
     title: `Connect ${pluginDisplayName} with an access token`,
@@ -92,7 +94,7 @@ export function buildAgentPluginAccessTokenForm(spec: {
       },
     ],
     cancelLabel: "Cancel",
-    app: { appName: "tovu-agent-plugins-access-token", appVersion: "1" },
+    app: required.app,
   } });
 }
 
@@ -103,17 +105,29 @@ export function buildAgentPluginAccessTokenForm(spec: {
  * @returns Outcome copy; the engine supplies the form's URI when rendering it.
  * @complexity O(1).
  */
-export function buildAgentPluginAccessTokenOutcome(spec: {
+export function buildAgentPluginAccessTokenOutcomeWithPorts(required: { readonly app: SurfaceCardApp; readonly spec: {
   readonly pluginDisplayName: string;
   readonly state: "success" | "failure";
   readonly title: string;
   readonly message: string;
-}, _optional = {}): SurfaceOutcomeSpec {
+} }, _optional: Record<string, never> = {}): SurfaceOutcomeSpec {
+  const { spec } = required;
   return {
     title: spec.title,
     details: [{ label: "Connection", value: spec.pluginDisplayName }],
     state: spec.state,
     message: spec.message,
-    app: { appName: "tovu-agent-plugins-access-token-outcome", appVersion: "1" },
+    app: required.app,
   };
+}
+
+/** Same host card signatures and bytes; new seams receive builders and identities explicitly. */
+export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec, optional: Record<string, never> = {}) {
+  return buildAgentPluginConnectCardWithPorts({ spec, cards: agentPluginCardHost.cards, identity: agentPluginCardHost.connect }, optional);
+}
+export function buildAgentPluginAccessTokenForm(spec: Parameters<typeof buildAgentPluginAccessTokenFormWithPorts>[0]['spec'], optional: Record<string, never> = {}): SecretCardForm {
+  return buildAgentPluginAccessTokenFormWithPorts({ spec, app: agentPluginCardHost.token.formApp }, optional);
+}
+export function buildAgentPluginAccessTokenOutcome(spec: Parameters<typeof buildAgentPluginAccessTokenOutcomeWithPorts>[0]['spec'], optional: Record<string, never> = {}): SurfaceOutcomeSpec {
+  return buildAgentPluginAccessTokenOutcomeWithPorts({ spec, app: agentPluginCardHost.token.outcomeApp }, optional);
 }
