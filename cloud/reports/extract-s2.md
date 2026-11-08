@@ -398,3 +398,25 @@ Owner-approved continuation started 2026-11-08 04:44:33 UTC. Continuation cap: 3
 Coordinator/owner correction supersedes the earlier G-card reachability stop: cover six real-handler paths without production changes: existing-credential rotation applying its plugin card to `setTokenForm`; pluginProvider creation using `buildPluginCredentialForm`; plain creation using `buildCreateForm` without a plugin card; publish-host; source-control; and agent-plugin-token with a credential card. Each must pin saved/dismissed outcomes, resource, frame size and per-path counters, then pass repeatability and mutation gates. The former creation + apply-card wording is withdrawn. A1, A2 and F2 follow only after green paired gates.
 
 Continuation progress: 04:45 UTC, corrected G-card fixture work started. No production symbols move in G-card; the new test and its own fixture are the only planned non-report changes.
+
+### Continuation G-card recording and tests
+
+Six paths each invoke the production `credential_save` router and real domain handler, using sealed in-memory stores, fake vendor HTTP, and actual human surface-exchange delivery. No builder is called directly by the new test. All six saved cases assert success; all six dismissed cases assert no save. Forms/outcomes pin visible markup, whole-resource text SHA256 (including scripts/styles), app identity, complete resource metadata and explicit frame size, result, card/lookup/probe counts, and exchanges before/after. Submitted secrets are asserted absent from result/surface output.
+
+The initial capture was made once on unmoved production runtime code. Before freezing the recording hashes, its explicit frame projection was corrected from the metadata already captured in that same fixture; resource text/hash/markup were not re-recorded. The new test's source-control fixture was completed with required unused export ports; test type-check verification follows. Existing test files/fixtures are untouched.
+
+Recording commit: Tovu `fa9041368fdc1385c0c641474edfa426e0c422de`. Test `apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts` SHA256 `54c1f9c3c98780a882eca0dc94c5c1b7a0d8cd50aa28053b7be20b783c6aa76c`; fixture `apps/website/src/assistant/__tests__/fixtures/moved-tools.credential-cards.golden.json` SHA256 `3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01`.
+
+Commands use the brief's runner: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 <files>`.
+- New golden: `six real credential_save card paths retain saved/dismissed resources, frames and counters`; two unfiltered repeat runs pass against the frozen fixture.
+- Mutation: changed `submitLabel: "Save key"` to `"Save keZ"` in Tovu `contracts/core/plugin-credential-card.ts`. New golden failed (expected red); original source restored and verified byte-exact using `cmp`.
+- Restored gate: new test plus unchanged `moved-tools.golden.test.ts` and `moved-tools.access-token.golden.test.ts`, 3/3 PASS, no skips/todos. `pnpm check:cross-package` PASS against the retained Q2 build and pinned declaration baseline. Jini code unchanged in this batch.
+- Development test type-check initially showed the 12 named baseline errors plus the new fixture's missing unused source-control export ports; those ports were supplied in the new test. Existing baseline errors were not fixed or counted.
+
+Verified pushes in this batch: Tovu `e4d808998059d4a1f9ad08f2ce42813fe5563fa6`, `53706c02b5fbeceebf6dd6e46d0eb7cdcf75c2dc`, then `fa9041368fdc1385c0c641474edfa426e0c422de` (includes frame projection commit `8d123149967aaad0132cf92e959f8564fdf4f843`); all branch `cloud/extract-s2`, immediate pull/rebase before push, remote tips verified. One pull/rebase was refused locally while the intentional mutation was present; no push occurred in that attempt. Restored mutation before the successful retry; no stash or force push.
+
+Continuation G-card final gate: GREEN. Guard finding/hardwiring lines equal the original record exactly; `guard:plugins` PASS. New test type-check has no errors; the full test-config check reports exactly the 12 named baseline errors and no additions. No G-card work remains after the approved correction. Paired verified green tips: Tovu `fa9041368fdc1385c0c641474edfa426e0c422de`, Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`. Next batch A1.
+
+| Continuation batch | Paired tested SHAs | Commands/test names and result | Fixture hashes | Elapsed from continuation | Remaining |
+|---|---|---|---|---|---|
+| G-card | Tovu `fa9041368fdc1385c0c641474edfa426e0c422de`; Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da` | PASS: new golden twice, restored mutation, moved-tools.golden, moved-tools.access-token.golden, cross-package checker and guard record/plugins | Recorded above | 00:09 | A1, A2, F2 |
