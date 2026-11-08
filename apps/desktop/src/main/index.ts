@@ -131,7 +131,8 @@ import { createSiteTransitions } from "../site-transitions.ts";
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
-import { isShellPageUrl } from "../window-navigation-policy.ts";
+import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
+import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "../../../website/src/contracts/core/hosted-sign-in-links.ts";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "../runner-ipc-stubs.ts";
@@ -659,11 +660,25 @@ function isShellPage(raw: string): boolean {
   });
 }
 
+const signInWindows = new WeakSet<WebContents>();
+
 /** Every project tab's `<webview>` guest: same-origin navigation stays, the rest is denied or handed to
  *  the OS browser — see `guest-navigation.ts`. Registered once, globally, from the sites-home branch. */
 function registerGuestNavigationPolicy(): void {
   app.on("web-contents-created", (_event, contents) =>
-    installWebviewGuestPolicy({ contents, isSupervisedGuestUrl, openExternal: (url) => void shell.openExternal(url) }));
+    installWebviewGuestPolicy({ contents, isSupervisedGuestUrl, openExternal: (url) => {
+      const target = new URL(url);
+      if (!isSupervisedGuestUrl(url) || !isSameOrigin(url, contents.getURL()) ||
+          !(isHostedMcpSignInLinkPath({ pathname: target.pathname }) || isHostedSignInLinkPath({ pathname: target.pathname }))) return void shell.openExternal(url);
+      const popup = new BrowserWindow({ webPreferences: { session: contents.session, sandbox: true, contextIsolation: true, nodeIntegration: false } });
+      signInWindows.add(popup.webContents);
+      contents.session.setPermissionRequestHandler((wc, _permission, callback) => callback(!signInWindows.has(wc)));
+      contents.session.setPermissionCheckHandler((wc) => !wc || !signInWindows.has(wc));
+      installGuestWindowOpenPolicy(popup.webContents, { isSupervisedGuestUrl, openExternal: (next) => void shell.openExternal(next) });
+      popup.webContents.on("will-navigate", (event, next) => { if (!isExternalBrowserUrl(next)) event.preventDefault(); });
+      popup.webContents.on("will-redirect", (event) => { if (event.isMainFrame && !isExternalBrowserUrl(event.url)) event.preventDefault(); });
+      void popup.loadURL(url);
+    } }));
 }
 
 /** "Open Site…" / "Open Recent" effects, bound to one launch's `ctx` — see `site-open-actions.ts`. */

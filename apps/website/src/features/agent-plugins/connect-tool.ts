@@ -175,7 +175,7 @@ async function beginSignIn(
   if (start.kind !== "redirect_required") {
     throw new Error(`agent_plugin_connect: '${start.kind}' sign-in is not supported by the connect card yet.`);
   }
-  return start.authorizationUrl;
+  return new URL(start.authorizationUrl).pathname;
 }
 
 function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
