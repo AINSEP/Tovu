@@ -1,0 +1,798 @@
+{
+  "transport": {
+    "sender": {
+      "email": "news@example.test",
+      "name": "Configured Sender"
+    },
+    "result": {
+      "ok": true,
+      "providerMessageId": "mail-1",
+      "acceptedAt": "2026-11-07T00:00:00.000Z"
+    },
+    "requests": [
+      {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "headers": {
+          "Authorization": "Bearer golden-resend-key-1234",
+          "content-type": "application/json",
+          "Idempotency-Key": "configured"
+        },
+        "body": "{\"from\":\"Configured Sender <news@example.test>\",\"to\":\"Reader <reader@example.test>\",\"subject\":\"Golden delivery\",\"reply_to\":\"Reply <reply@example.test>\",\"html\":\"<p>HTML body</p>\",\"text\":\"Plain body\",\"headers\":{\"X-Golden\":\"unchanged\"},\"attachments\":[{\"filename\":\"note.txt\",\"content\":\"SGVsbG8=\",\"content_type\":\"text/plain\"}]}",
+        "timeoutMs": 2345
+      },
+      {
+        "request": {
+          "method": "GET",
+          "url": "https://api.resend.com/domains",
+          "headers": {
+            "Authorization": "Bearer golden-resend-key-1234"
+          },
+          "timeoutMs": 10000
+        },
+        "method": "GET",
+        "url": "https://api.resend.com/domains",
+        "headers": {
+          "Authorization": "Bearer golden-resend-key-1234"
+        },
+        "timeoutMs": 10000
+      }
+    ],
+    "ledger": [
+      {
+        "kind": "reserve",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "configured",
+          "recipient": "reader@example.test",
+          "payloadHash": "62cf6a3f841fe06b513f3f2f25c94fcff9025d6ec4ab2a26ebf356146f7801d4",
+          "lane": "transactional",
+          "providerId": "resend"
+        }
+      },
+      {
+        "kind": "mark",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "configured",
+          "recipient": "reader@example.test",
+          "outcome": "sent",
+          "providerMessageId": "mail-1"
+        }
+      }
+    ],
+    "counters": {
+      "reserves": 1,
+      "marks": 1,
+      "perRecipient": {
+        "reader@example.test": {
+          "reserves": 1,
+          "marks": 1
+        }
+      }
+    },
+    "status": {
+      "state": "ready",
+      "lanes": [
+        {
+          "lane": "transactional",
+          "providerId": "resend",
+          "state": "ready"
+        },
+        {
+          "lane": "bulk",
+          "providerId": "resend",
+          "state": "ready"
+        }
+      ],
+      "warnings": [
+        "sender_unverified"
+      ],
+      "providers": [
+        {
+          "id": "smtp",
+          "label": "SMTP server",
+          "origin": "core",
+          "hosted": true,
+          "lanes": [],
+          "capabilities": {
+            "feedback": false,
+            "domainVerification": false
+          },
+          "credential": {
+            "required": true,
+            "saved": false,
+            "label": "Tovu Mail — SMTP Server"
+          },
+          "selectable": false,
+          "refusal": "has no complete saved credential \"Tovu Mail — SMTP Server\" under Access Tokens (category \"ops\")",
+          "setup": {
+            "fields": [
+              {
+                "key": "baseUrl",
+                "label": "SMTP server",
+                "type": "url",
+                "required": true,
+                "placeholder": "https://smtp.example.com:465",
+                "help": "Host and port after https://. Ports 465 and 443 use implicit TLS; any other port uses STARTTLS."
+              },
+              {
+                "key": "username",
+                "label": "Username",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "token",
+                "label": "Password",
+                "type": "secret",
+                "required": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "console",
+          "label": "Console (local development, sends nothing)",
+          "origin": "core",
+          "hosted": false,
+          "lanes": [],
+          "capabilities": {
+            "feedback": false,
+            "domainVerification": false
+          },
+          "credential": {
+            "required": false,
+            "saved": false
+          },
+          "selectable": false,
+          "refusal": "only prints mail locally and never delivers it",
+          "setup": {
+            "fields": []
+          }
+        },
+        {
+          "id": "resend",
+          "label": "Resend",
+          "origin": "plugin",
+          "hosted": true,
+          "lanes": [
+            "transactional",
+            "bulk"
+          ],
+          "pluginId": "resend",
+          "capabilities": {
+            "feedback": true,
+            "domainVerification": true,
+            "rateLimit": {
+              "perSecond": 2,
+              "burst": 2
+            }
+          },
+          "credential": {
+            "required": true,
+            "saved": true,
+            "label": "Tovu Mail — Resend API",
+            "credentialId": "id-3",
+            "updatedAt": "2026-11-07T00:00:00.000Z"
+          },
+          "selectable": true,
+          "setup": {
+            "fields": [
+              {
+                "key": "token",
+                "label": "API key",
+                "type": "secret",
+                "required": true
+              },
+              {
+                "key": "baseUrl",
+                "label": "API base URL",
+                "type": "url",
+                "required": true
+              }
+            ]
+          }
+        }
+      ],
+      "refusals": [],
+      "checkedAt": "2026-11-07T00:00:00.000Z",
+      "senderDomainVerification": {
+        "state": "not_found",
+        "domain": "example.test",
+        "providerId": "resend"
+      }
+    },
+    "providers": {
+      "setting": {
+        "transactional": "resend",
+        "bulk": "resend"
+      },
+      "providers": [
+        {
+          "id": "smtp",
+          "label": "SMTP server",
+          "origin": "core",
+          "hosted": true,
+          "lanes": [],
+          "capabilities": {
+            "feedback": false,
+            "domainVerification": false
+          },
+          "credential": {
+            "required": true,
+            "saved": false,
+            "label": "Tovu Mail — SMTP Server"
+          },
+          "selectable": false,
+          "refusal": "has no complete saved credential \"Tovu Mail — SMTP Server\" under Access Tokens (category \"ops\")",
+          "setup": {
+            "fields": [
+              {
+                "key": "baseUrl",
+                "label": "SMTP server",
+                "type": "url",
+                "required": true,
+                "placeholder": "https://smtp.example.com:465",
+                "help": "Host and port after https://. Ports 465 and 443 use implicit TLS; any other port uses STARTTLS."
+              },
+              {
+                "key": "username",
+                "label": "Username",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "token",
+                "label": "Password",
+                "type": "secret",
+                "required": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "console",
+          "label": "Console (local development, sends nothing)",
+          "origin": "core",
+          "hosted": false,
+          "lanes": [],
+          "capabilities": {
+            "feedback": false,
+            "domainVerification": false
+          },
+          "credential": {
+            "required": false,
+            "saved": false
+          },
+          "selectable": false,
+          "refusal": "only prints mail locally and never delivers it",
+          "setup": {
+            "fields": []
+          }
+        },
+        {
+          "id": "resend",
+          "label": "Resend",
+          "origin": "plugin",
+          "hosted": true,
+          "lanes": [
+            "transactional",
+            "bulk"
+          ],
+          "pluginId": "resend",
+          "capabilities": {
+            "feedback": true,
+            "domainVerification": true,
+            "rateLimit": {
+              "perSecond": 2,
+              "burst": 2
+            }
+          },
+          "credential": {
+            "required": true,
+            "saved": true,
+            "label": "Tovu Mail — Resend API",
+            "credentialId": "id-3",
+            "updatedAt": "2026-11-07T00:00:00.000Z"
+          },
+          "selectable": true,
+          "setup": {
+            "fields": [
+              {
+                "key": "token",
+                "label": "API key",
+                "type": "secret",
+                "required": true
+              },
+              {
+                "key": "baseUrl",
+                "label": "API base URL",
+                "type": "url",
+                "required": true
+              }
+            ]
+          }
+        }
+      ],
+      "refusals": []
+    },
+    "checkProvider": {
+      "ok": true,
+      "label": "Resend"
+    }
+  },
+  "smtp": {
+    "sender": {
+      "email": "smtp@example.test",
+      "name": "Fallback Sender"
+    },
+    "result": {
+      "ok": true,
+      "providerMessageId": "smtp-1",
+      "acceptedAt": "2026-11-07T00:00:00.000Z"
+    },
+    "smtp": [
+      {
+        "config": {
+          "host": "smtp.example.test",
+          "port": 465,
+          "secure": true,
+          "auth": {
+            "user": "smtp-user",
+            "pass": "golden-resend-key-1234"
+          }
+        },
+        "mail": {
+          "from": {
+            "name": "Fallback Sender",
+            "address": "smtp@example.test"
+          },
+          "to": {
+            "name": "Reader",
+            "address": "reader@example.test"
+          },
+          "replyTo": {
+            "name": "Reply",
+            "address": "reply@example.test"
+          },
+          "subject": "Golden delivery",
+          "html": "<p>HTML body</p>",
+          "text": "Plain body",
+          "headers": {
+            "X-Golden": "unchanged"
+          },
+          "attachments": [
+            {
+              "filename": "note.txt",
+              "content": "SGVsbG8=",
+              "encoding": "base64",
+              "contentType": "text/plain"
+            }
+          ]
+        }
+      }
+    ],
+    "ledger": [
+      {
+        "kind": "reserve",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "smtp",
+          "recipient": "reader@example.test",
+          "payloadHash": "a669774a14e7d5ce434db40d2fc9940e0aad4a56a4e84fdc18bc7b33e90d9190",
+          "lane": "transactional",
+          "providerId": "smtp"
+        }
+      },
+      {
+        "kind": "mark",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "smtp",
+          "recipient": "reader@example.test",
+          "outcome": "sent",
+          "providerMessageId": "smtp-1"
+        }
+      }
+    ],
+    "counters": {
+      "reserves": 1,
+      "marks": 1,
+      "perRecipient": {
+        "reader@example.test": {
+          "reserves": 1,
+          "marks": 1
+        }
+      }
+    }
+  },
+  "policies": {
+    "suppressed": {
+      "result": {
+        "ok": false,
+        "retryable": false,
+        "errorCode": "MAIL_RECIPIENT_SUPPRESSED",
+        "message": "recipient is suppressed for transactional mail"
+      },
+      "ledger": [],
+      "counters": {
+        "reserves": 0,
+        "marks": 0,
+        "perRecipient": {}
+      }
+    },
+    "redirect": {
+      "result": {
+        "ok": true,
+        "providerMessageId": "mail-1",
+        "acceptedAt": "2026-11-07T00:00:00.000Z"
+      },
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://api.resend.com/emails",
+          "headers": {
+            "Authorization": "Bearer golden-resend-key-1234",
+            "content-type": "application/json",
+            "Idempotency-Key": "redirect"
+          },
+          "body": "{\"from\":\"Configured Sender <news@example.test>\",\"to\":\"audit@example.test\",\"subject\":\"Golden delivery\",\"reply_to\":\"Reply <reply@example.test>\",\"html\":\"<p>HTML body</p>\",\"text\":\"Plain body\",\"headers\":{\"X-Golden\":\"unchanged\",\"X-Original-To\":\"reader@example.test\"},\"attachments\":[{\"filename\":\"note.txt\",\"content\":\"SGVsbG8=\",\"content_type\":\"text/plain\"}]}",
+          "timeoutMs": 2345
+        }
+      ],
+      "ledger": [
+        {
+          "kind": "reserve",
+          "input": {
+            "workspaceId": "mail-golden",
+            "idempotencyKey": "redirect",
+            "recipient": "reader@example.test",
+            "payloadHash": "62cf6a3f841fe06b513f3f2f25c94fcff9025d6ec4ab2a26ebf356146f7801d4",
+            "lane": "transactional",
+            "providerId": "resend"
+          }
+        },
+        {
+          "kind": "mark",
+          "input": {
+            "workspaceId": "mail-golden",
+            "idempotencyKey": "redirect",
+            "recipient": "reader@example.test",
+            "outcome": "sent",
+            "providerMessageId": "mail-1"
+          }
+        }
+      ],
+      "counters": {
+        "reserves": 1,
+        "marks": 1,
+        "perRecipient": {
+          "reader@example.test": {
+            "reserves": 1,
+            "marks": 1
+          }
+        }
+      }
+    },
+    "capture": {
+      "result": {
+        "ok": true,
+        "providerMessageId": "captured:capture-1",
+        "acceptedAt": "2026-11-07T00:00:00.000Z"
+      },
+      "captured": [
+        {
+          "message": {
+            "workspaceId": "mail-golden",
+            "from": {
+              "email": "news@example.test",
+              "name": "Configured Sender"
+            },
+            "to": {
+              "email": "reader@example.test",
+              "name": "Reader"
+            },
+            "replyTo": {
+              "email": "reply@example.test",
+              "name": "Reply"
+            },
+            "subject": "Golden delivery",
+            "text": "Plain body",
+            "html": "<p>HTML body</p>",
+            "headers": {
+              "X-Golden": "unchanged"
+            },
+            "attachments": [
+              {
+                "filename": "note.txt",
+                "contentType": "text/plain",
+                "contentBase64": "SGVsbG8="
+              }
+            ]
+          },
+          "lane": "transactional",
+          "idempotencyKey": "capture"
+        }
+      ],
+      "ledger": [],
+      "counters": {
+        "reserves": 0,
+        "marks": 0,
+        "perRecipient": {}
+      }
+    },
+    "rate": {
+      "results": [
+        {
+          "ok": true,
+          "providerMessageId": "mail-1",
+          "acceptedAt": "2026-11-07T00:00:00.000Z"
+        },
+        {
+          "ok": true,
+          "providerMessageId": "mail-2",
+          "acceptedAt": "2026-11-07T00:00:00.000Z"
+        },
+        {
+          "ok": false,
+          "retryable": true,
+          "errorCode": "MAIL_RATE_LIMITED",
+          "message": "transactional lane is rate limited",
+          "retryAfterMs": 500
+        }
+      ],
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://api.resend.com/emails",
+          "headers": {
+            "Authorization": "Bearer golden-resend-key-1234",
+            "content-type": "application/json",
+            "Idempotency-Key": "rate-1"
+          },
+          "body": "{\"from\":\"Configured Sender <news@example.test>\",\"to\":\"Reader <reader@example.test>\",\"subject\":\"Golden delivery\",\"reply_to\":\"Reply <reply@example.test>\",\"html\":\"<p>HTML body</p>\",\"text\":\"Plain body\",\"headers\":{\"X-Golden\":\"unchanged\"},\"attachments\":[{\"filename\":\"note.txt\",\"content\":\"SGVsbG8=\",\"content_type\":\"text/plain\"}]}",
+          "timeoutMs": 2345
+        },
+        {
+          "method": "POST",
+          "url": "https://api.resend.com/emails",
+          "headers": {
+            "Authorization": "Bearer golden-resend-key-1234",
+            "content-type": "application/json",
+            "Idempotency-Key": "rate-2"
+          },
+          "body": "{\"from\":\"Configured Sender <news@example.test>\",\"to\":\"Reader <reader@example.test>\",\"subject\":\"Golden delivery\",\"reply_to\":\"Reply <reply@example.test>\",\"html\":\"<p>HTML body</p>\",\"text\":\"Plain body\",\"headers\":{\"X-Golden\":\"unchanged\"},\"attachments\":[{\"filename\":\"note.txt\",\"content\":\"SGVsbG8=\",\"content_type\":\"text/plain\"}]}",
+          "timeoutMs": 2345
+        }
+      ],
+      "ledger": [
+        {
+          "kind": "reserve",
+          "input": {
+            "workspaceId": "mail-golden",
+            "idempotencyKey": "rate-1",
+            "recipient": "reader@example.test",
+            "payloadHash": "62cf6a3f841fe06b513f3f2f25c94fcff9025d6ec4ab2a26ebf356146f7801d4",
+            "lane": "transactional",
+            "providerId": "resend"
+          }
+        },
+        {
+          "kind": "mark",
+          "input": {
+            "workspaceId": "mail-golden",
+            "idempotencyKey": "rate-1",
+            "recipient": "reader@example.test",
+            "outcome": "sent",
+            "providerMessageId": "mail-1"
+          }
+        },
+        {
+          "kind": "reserve",
+          "input": {
+            "workspaceId": "mail-golden",
+            "idempotencyKey": "rate-2",
+            "recipient": "reader@example.test",
+            "payloadHash": "62cf6a3f841fe06b513f3f2f25c94fcff9025d6ec4ab2a26ebf356146f7801d4",
+            "lane": "transactional",
+            "providerId": "resend"
+          }
+        },
+        {
+          "kind": "mark",
+          "input": {
+            "workspaceId": "mail-golden",
+            "idempotencyKey": "rate-2",
+            "recipient": "reader@example.test",
+            "outcome": "sent",
+            "providerMessageId": "mail-2"
+          }
+        }
+      ],
+      "counters": {
+        "reserves": 2,
+        "marks": 2,
+        "perRecipient": {
+          "reader@example.test": {
+            "reserves": 2,
+            "marks": 2
+          }
+        }
+      }
+    }
+  },
+  "refusals": {
+    "unconfigured": {
+      "result": {
+        "ok": false,
+        "retryable": false,
+        "errorCode": "MAIL_UNCONFIGURED",
+        "message": "[mail] no transactional mail provider is configured, so this message was NOT sent. Choose one in the admin Mail settings (or ask the assistant to run mail_set_provider) and save its key under Access Tokens (category \"ops\"): SMTP uses \"Tovu Mail — SMTP Server\"."
+      },
+      "requests": [],
+      "counters": {
+        "reserves": 0,
+        "marks": 0,
+        "perRecipient": {}
+      }
+    },
+    "unavailable": {
+      "result": {
+        "ok": false,
+        "retryable": false,
+        "errorCode": "MAIL_PROVIDER_UNAVAILABLE",
+        "message": "[mail] the selected mail provider 'absent' is not installed, so outbound mail is NOT being sent"
+      },
+      "requests": [],
+      "counters": {
+        "reserves": 0,
+        "marks": 0,
+        "perRecipient": {}
+      }
+    },
+    "missingKey": {
+      "result": {
+        "ok": false,
+        "retryable": false,
+        "errorCode": "MAIL_PROVIDER_UNAVAILABLE",
+        "message": "[mail] the selected mail provider 'resend' has no saved credential \"Tovu Mail — Resend API\" under Access Tokens (category \"ops\"), so outbound mail is NOT being sent"
+      },
+      "requests": [],
+      "counters": {
+        "reserves": 0,
+        "marks": 0,
+        "perRecipient": {}
+      }
+    },
+    "missingSender": {
+      "name": "SenderIdentityNotConfiguredError",
+      "message": "No sender address is configured for workspace mail-golden, so the \"resend\" mailer cannot send: real mail providers reject the placeholder no-reply@*.local sender. Set the site's \"core.mail.senderEmail\" setting (and optionally \"core.mail.senderName\") to an address the provider accepts."
+    }
+  },
+  "lifecycle": {
+    "first": {
+      "ok": true,
+      "providerMessageId": "mail-1",
+      "acceptedAt": "2026-11-07T00:00:00.000Z"
+    },
+    "second": {
+      "ok": true,
+      "providerMessageId": "mail-2",
+      "acceptedAt": "2026-11-07T00:00:00.000Z"
+    },
+    "requests": [
+      {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "headers": {
+          "Authorization": "Bearer golden-resend-key-1234",
+          "content-type": "application/json",
+          "Idempotency-Key": "before-rotation"
+        },
+        "body": "{\"from\":\"Configured Sender <news@example.test>\",\"to\":\"Reader <reader@example.test>\",\"subject\":\"Golden delivery\",\"reply_to\":\"Reply <reply@example.test>\",\"html\":\"<p>HTML body</p>\",\"text\":\"Plain body\",\"headers\":{\"X-Golden\":\"unchanged\"},\"attachments\":[{\"filename\":\"note.txt\",\"content\":\"SGVsbG8=\",\"content_type\":\"text/plain\"}]}",
+        "timeoutMs": 2345
+      },
+      {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "headers": {
+          "Authorization": "Bearer golden-rotated-key-5678",
+          "content-type": "application/json",
+          "Idempotency-Key": "after-rotation"
+        },
+        "body": "{\"from\":\"Configured Sender <news@example.test>\",\"to\":\"Reader <reader@example.test>\",\"subject\":\"Golden delivery\",\"reply_to\":\"Reply <reply@example.test>\",\"html\":\"<p>HTML body</p>\",\"text\":\"Plain body\",\"headers\":{\"X-Golden\":\"unchanged\"},\"attachments\":[{\"filename\":\"note.txt\",\"content\":\"SGVsbG8=\",\"content_type\":\"text/plain\"}]}",
+        "timeoutMs": 2345
+      }
+    ],
+    "ledger": [
+      {
+        "kind": "reserve",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "before-rotation",
+          "recipient": "reader@example.test",
+          "payloadHash": "62cf6a3f841fe06b513f3f2f25c94fcff9025d6ec4ab2a26ebf356146f7801d4",
+          "lane": "transactional",
+          "providerId": "resend"
+        }
+      },
+      {
+        "kind": "mark",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "before-rotation",
+          "recipient": "reader@example.test",
+          "outcome": "sent",
+          "providerMessageId": "mail-1"
+        }
+      },
+      {
+        "kind": "reserve",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "after-rotation",
+          "recipient": "reader@example.test",
+          "payloadHash": "62cf6a3f841fe06b513f3f2f25c94fcff9025d6ec4ab2a26ebf356146f7801d4",
+          "lane": "transactional",
+          "providerId": "resend"
+        }
+      },
+      {
+        "kind": "mark",
+        "input": {
+          "workspaceId": "mail-golden",
+          "idempotencyKey": "after-rotation",
+          "recipient": "reader@example.test",
+          "outcome": "sent",
+          "providerMessageId": "mail-2"
+        }
+      }
+    ],
+    "counters": {
+      "reserves": 2,
+      "marks": 2,
+      "perRecipient": {
+        "reader@example.test": {
+          "reserves": 2,
+          "marks": 2
+        }
+      }
+    },
+    "card": {
+      "spec": {
+        "pluginId": "resend",
+        "providerId": "resend",
+        "label": "Tovu Mail — Resend API",
+        "category": "ops",
+        "title": "Connect Resend",
+        "intro": "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).",
+        "helpUrl": "https://resend.com/api-keys",
+        "helpLabel": "Get a key at resend.com/api-keys",
+        "keyHint": "Create a key with Sending access",
+        "baseUrl": "https://api.resend.com",
+        "usedFor": [
+          "Sends your site's emails (sign-in links, form notices, newsletters)"
+        ]
+      },
+      "frame": {
+        "mcpui.dev/ui-preferred-frame-size": [
+          "100%",
+          "360px"
+        ]
+      },
+      "sha256": "2d0d32c30e5bdc9f4a422a4bcc6f93cc96afdcf92df2af930f343cabeed2a2f0",
+      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Resend</title>\n\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Resend</h1>\n<p class=\"mcpui-description\">Connect Resend so this site can send its email (sign-in links, confirmations, form notifications). The key is sealed on the server the moment you submit — the assistant never sees it.</p>\n<dl class=\"mcpui-details\">\n  <dt>Get a key at resend.com/api-keys</dt><dd>https://resend.com/api-keys</dd>\n  <dt>Used for</dt><dd>Sends your site&#39;s emails (sign-in links, form notices, newsletters)</dd>\n  <dt>Saved as</dt><dd>Tovu Mail — Resend API</dd>\n</dl>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">API key<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Create a key with Sending access</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show API key\" data-mcpui-hide-secret=\"Hide API key\" aria-label=\"Show API key\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save key\">Save key</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n\n\n</body>\n</html>"
+    },
+    "selection": {
+      "transactional": null,
+      "bulk": null
+    },
+    "afterOff": {
+      "ok": false,
+      "retryable": false,
+      "errorCode": "MAIL_UNCONFIGURED",
+      "message": "[mail] no transactional mail provider is configured, so this message was NOT sent. Choose one in the admin Mail settings (or ask the assistant to run mail_set_provider) and save its key under Access Tokens (category \"ops\"): SMTP uses \"Tovu Mail — SMTP Server\"."
+    }
+  }
+}

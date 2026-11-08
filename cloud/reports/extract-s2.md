@@ -586,3 +586,71 @@ A1 gate GREEN on Tovu `2731bdf05a2f1cf2011022081deafd66041c7ad8` and Jini `f1510
 The metadata baseline remains `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`; G-card fixture remains `3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01`. No existing test/fixture was edited in this correction; new neutral-host wiring accepts the required messages input. No A1 work remains. Last verified green paired batch: A1 at these SHAs. Next A2.
 
 Continuation 2 progress: 06:15 UTC, A1 complete, HW8 restored without guard exceptions. Verified pushes: Tovu `2731bdf05a2f1cf2011022081deafd66041c7ad8` (includes inventory `981c426b0`); Jini `f1510e12e97f602c65c2db5a7be11de9dc44993d`.
+
+### A2 inventory and unmoved golden (first A2 commit)
+
+A1 is green. Runtime helpers move by source transport; stores, settings ownership, source enumeration, runtime mode, host text and mail policy remain host inputs. The inventory and new golden are committed together before any production move.
+
+| Symbol/helper/dependency | Kind | Source | Destination |
+|---|---|---|---|
+| MAIL_CREDENTIAL_CATEGORY | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:45 | same package (Tovu host binding) |
+| MAIL_SMTP_CREDENTIAL_LABEL | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:48 | same package (Tovu host binding) |
+| SMTP_PROVIDER_SETUP | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:55 | same package (Tovu host binding) |
+| MailProviderCatalogDeps | type | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:61 | same package (Tovu host binding) |
+| MailProviderCatalog | type | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:77 | agent-plugins/src/lifecycle/mail/catalog.ts |
+| builtins | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:90 | agent-plugins/src/lifecycle/mail/catalog.ts |
+| loadAdapters | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:102 | agent-plugins/src/lifecycle/mail/catalog.ts |
+| loadMailProviderCatalog | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:114 | agent-plugins/src/lifecycle/mail/catalog.ts |
+| loadMailCredentialCards | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:136 | agent-plugins/src/lifecycle/mail/catalog.ts |
+| resolveMailCredential | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:151 | same package (Tovu host binding) |
+| resolveMailDomainReadCredential | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:167 | agent-plugins/src/lifecycle/mail/catalog.ts |
+| credentialFailureReason | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:184 | same package (Tovu host binding) |
+| createProviderMailer | value | Tovu apps/website/src/server/runtime/boot/mail-provider-catalog.ts:197 | platform/src/mail/provider-mailer.ts |
+| CatalogEntry | type | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:17 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| lanesFor | value | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:20 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| rowComplete | value | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:25 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| credentialFacts | value | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:30 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| refusalFor | value | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:39 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| describeOne | value | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:45 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| describeMailProviders | value | Tovu apps/website/src/server/runtime/boot/mail-provider-configuration.ts:63 | agent-plugins/src/lifecycle/mail/configuration.ts |
+| MAIL_ADAPTERS_FILENAME | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:41 | same package (Tovu host binding) |
+| LoadedMailAdapter | type | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:45 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| MailAdapterRegistry | type | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:51 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| adapterContribution | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:58 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| AdapterPackage | type | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:66 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| loadMailAdapterRegistry | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:76 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| loadMailAdapterRegistryFromSource | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:87 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| loadBundledMailAdapterRegistry | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:98 | same package (Tovu host binding) |
+| cardNotes | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:110 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| parseMailAdaptersFile | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:122 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| defaultCredentialLabel | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:127 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| v2Mismatch | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:132 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| providerFor | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:144 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| contributeMailProviders | value | Tovu apps/website/src/features/agent-plugins/mail-adapter-registry.ts:164 | agent-plugins/src/lifecycle/mail/contribution.ts |
+| allowSystemMailMigration | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:22 | same package (Tovu host binding) |
+| SiteMailerRequired | type | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:24 | same package (Tovu host binding) |
+| SiteMailer | type | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:35 | same package (Tovu host binding) |
+| installedMailProviderIds | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:52 | same package (Tovu host binding) |
+| createSiteMailer | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:66 | same package (Tovu host binding) |
+| clearPluginSelectionSnapshot | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:73 | agent-plugins/src/lifecycle/mail/selection.ts |
+| clearPluginSelection | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:92 | agent-plugins/src/lifecycle/mail/selection.ts |
+| pendingPluginSelections | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:99 | agent-plugins/src/lifecycle/mail/selection.ts |
+| disabledProviderIds | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:103 | agent-plugins/src/lifecycle/mail/selection.ts |
+| setPluginEnabled | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:119 | agent-plugins/src/lifecycle/mail/selection.ts |
+| selectProvider | value | Tovu apps/website/src/server/runtime/composition/site-mailer.ts:132 | agent-plugins/src/lifecycle/mail/selection.ts |
+| WrapMailerWithPurposeGateOptions | type | Tovu apps/website/src/platform/mail/purpose-scoped-mailer.ts:13 | same package (Tovu host binding) |
+| toJiniMailer | value | Tovu apps/website/src/platform/mail/purpose-scoped-mailer.ts:20 | platform/src/mail/plugin-abi.ts (public names fromPositionalMailer/toPositionalMailer; Tovu aliases remain) |
+| toTovuMailer | value | Tovu apps/website/src/platform/mail/purpose-scoped-mailer.ts:29 | platform/src/mail/plugin-abi.ts (public names fromPositionalMailer/toPositionalMailer; Tovu aliases remain) |
+| wrapMailerWithPurposeGate | value | Tovu apps/website/src/platform/mail/purpose-scoped-mailer.ts:42 | same package (Tovu host binding) |
+| PositionalMailer, PluginMailHttpClient | dependency | new ABI type contracts | core/contracts/mail |
+| toPluginHttpClient, fromPositionalMailer, toPositionalMailer | dependency | new ABI adapters | platform/src/mail/plugin-abi.ts |
+| createHostMailer | dependency | new composition assembly | agent-plugins/src/lifecycle/mail/host-mailer.ts |
+| MailCredentialRow | dependency | CustomCredentialSetRecord fields actually read | named local port in mail/configuration |
+| mailEngine.createRegistry, mailEngine.builtins.console/smtp | dependency | platform mail engine | named required host input mailEngine |
+| ABI functions | dependency | platform mail adapters | named required host input ABI |
+| parseMailProviderSetupProperty | dependency | platform mail parser | named required host input parseSetup |
+| parseMailAdaptersFile parser dependency | dependency | agent-plugins/lifecycle/mail/adapter-descriptors.ts:10 | same package, with required parseSetup port |
+| credential row lookup, error classification, SMTP transport, lifecycle source loader, settings read/write and plugin toggle | dependency | Tovu runtime values | named host inputs/ports |
+| SMTP setup metadata, credential labels/category and refusal copy | dependency | Tovu positional text | named host input mailHostText |
+
+No unresolved row. The SMTP setup metadata and product credential labels stay byte-identical in host input. `resolve-mailer`, mail-delivery-policy/resendPolicyFor, account-token bindings, tables, settings, routes, nodemailer and Jini resend assets stay in place. No extra send-path read is permitted. Only the nine parser calls in the named existing Jini test receive the real parseSetup port.
