@@ -1,6 +1,6 @@
 # Plugin extraction session 2
 
-Latest continuation status: corrected G-card GREEN; A1 GREEN after the approved required host messages correction. A2 and F2 follow in Continuation 2. Active continuation deadline: 07:44:33 UTC. See the Continuation stop record at the end.
+Latest status: corrected G-card GREEN; A1 GREEN after the approved required host messages correction. Continuation 2 STOPPED during A2 at its explicit additional-existing-test wiring rule. F2 was not started. The deadline was 07:44:33 UTC; this was an early stop, not a clock expiry. See the final stop record below.
 
 Start: 2026-11-08 04:12:55 UTC. Deadline: 08:12:55 UTC. Shutdown reserve: 07:52:55 UTC. One serial task; no helper agents. No main merge or publication.
 
@@ -654,3 +654,73 @@ A1 is green. Runtime helpers move by source transport; stores, settings ownershi
 | SMTP setup metadata, credential labels/category and refusal copy | dependency | Tovu positional text | named host input mailHostText |
 
 No unresolved row. The SMTP setup metadata and product credential labels stay byte-identical in host input. `resolve-mailer`, mail-delivery-policy/resendPolicyFor, account-token bindings, tables, settings, routes, nodemailer and Jini resend assets stay in place. No extra send-path read is permitted. Only the nine parser calls in the named existing Jini test receive the real parseSetup port.
+
+
+### Continuation 2 — A2 stop record
+
+Implementation stopped at 2026-11-08 06:31:31 UTC, approximately 19 minutes after the 06:12:26 UTC continuation start. Shutdown/reporting completed before the unchanged 07:44:33 UTC deadline. No subsequent batch was started.
+
+**Exact stop condition:** R5.6 §2.3 says: “Stop if another Jini package calls `parseMailAdaptersFile`, or another existing test needs wiring edits.” The required `parseSetup` input causes the existing `examples/neutral-host/src/contribution-contracts.test.ts:164` to fail type-checking:
+
+```text
+src/contribution-contracts.test.ts(164,109): error TS2345:
+Argument of type '{ raw: string; }' is not assignable to parameter of type
+'{ readonly raw: string; readonly parseSetup: ParseMailSetup; }'.
+Property 'parseSetup' is missing.
+```
+
+That existing file remains byte-identical to the starting pin. The search before extraction covered package callers but missed this example test. No optional parser default, guard waiver or extra test edit was introduced. The formal A2 gate is incomplete; F2 was not started.
+
+| Batch / development check | Paired SHAs / command | Result |
+|---|---|---|
+| Last completely green batch: A1 | Tovu source `2731bdf05a2f1cf2011022081deafd66041c7ad8` plus report `b21cd3fdce1e40ed7d803b35b67340c49566781a`; Jini `f1510e12e97f602c65c2db5a7be11de9dc44993d` | Full A1 gate green, including HW8 49 / 0 new, as recorded above. Both verified pushed. |
+| A2 recording / inventory | Tovu `0506f0df5723d031c6e97a801d07fe9786fd5489` | First A2 commit contains the new golden and symbol inventory, before production changes; recording and unchanged repeat both passed. |
+| ABI bug red | Jini new `examples/neutral-host/src/mail-port-regression.test.ts`; `pnpm --filter @jini-example/neutral-host exec vitest run src/mail-port-regression.test.ts --maxWorkers=2 --minWorkers=1` | Real Resend plugin with object-request fake produces `result.ok === false` without adaptation. First import.meta.resolve attempt was a Vitest harness failure and is not the bug evidence; corrected dynamic public import reproduced the actual ABI failure. Log `c2-a2-resend-abi-red.log`. |
+| ABI adapter green | Same regression with `toPluginHttpClient` | 1/1 passed (`c2-a2-abi-green.log`); plugin unedited. Mutation confirmation remains unfinished. |
+| Development builds/types | `pnpm --filter @jini-ai/core build`; `pnpm --filter @jini-ai/platform build`; `pnpm --filter @jini-ai/platform exec tsc --noEmit`; `pnpm --filter @jini-ai/agent-plugins exec tsc --noEmit`; `pnpm --filter @jini-ai/agent-plugins build` | Exit 0 at the recorded development states. Logs `c2-a2-core-build`, `platform-build`, `platform-pre`, `agent-pre`, `agent-build2`. These do not substitute for the full A2 gate. |
+| Moved-source complexity | ESLint with complexity and cognitive-complexity limits 10 on the eight new/changed mail runtime modules | 0 errors; one unused-import warning subsequently removed before the stop. Not rerun as a gate. |
+| Golden after extraction | Node command below, `mail-send.golden.test.ts` | 1/1 passed against the frozen recording, `c2-a2-golden-post.log`. |
+| Tovu development type-check | Relink; `npx tsc --noEmit` | First check exposed a narrowed optional toggle argument; corrected to accept the host's existing optional object. Rerun exit 0 (`c2-a2-tovu-pre2.log`). |
+| New neutral integration scaffold | `pnpm --filter @jini-example/neutral-host exec vitest run src/mail-port-regression.test.ts src/mail-host.test.ts --maxWorkers=2 --minWorkers=1` | ABI regression passed. New integration scaffold failed at its suppression assertion: expected `MAIL_SUPPRESSED`, actual existing contract `MAIL_RECIPIENT_SUPPRESSED`. No subsequent cases claimed covered. Test left as captured at the stop; no fix after the stop condition. |
+| Neutral-host type-check | `pnpm --filter @jini-example/neutral-host exec tsc --noEmit` | Exit 1 at the additional protected existing caller quoted above (`c2-a2-neutral-tsc-pre.log`). Explicit A2 stop rule applies. |
+
+Node golden command (same recording/repeat/post-move arguments):
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx \
+  --import ./development/test-support/composed-bundle-env.ts \
+  --test --experimental-test-module-mocks --test-concurrency=1 \
+  apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts
+```
+
+The mail golden freezes real bundled Resend and SMTP requests/payloads, ordered ledger calls, per-recipient counters, suppression/redirect/capture/rate-limit results, three configuration refusals, sender identity names and full missing-sender refusal, status/description/checkProvider, rotation, cards and off-clearing. `MAIL_SEND_GOLDEN_WRITE=1` was used once for recording. At recording commit `0506f0df5723d031c6e97a801d07fe9786fd5489` and at the stopped tip:
+
+- Test SHA256: `28738c7757cc624ea03fcd4c7564d9f1a30882d1b94e2574a7d31b4ca4bf92f0`.
+- Fixture SHA256: `f0733d6176cd0d2fc92a9181d342c9ff9480f0d505f7c5e1dc8330d3f48a4be3`.
+
+Other frozen hashes re-read unchanged during shutdown: G-card test `54c1f9c3c98780a882eca0dc94c5c1b7a0d8cd50aa28053b7be20b783c6aa76c`, G-card fixture `3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01`, UI pin `bf2f29fa8dffca5bc5317dbb6e2ed91f7cd23d55d475165dc823a42c04fb77dd`, tool metadata `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`.
+
+Partial A2 implementation is preserved for review: core ABI types; platform ABI/scrubbing boundary; injected contribution/catalog/configuration/selection/host-mailer factories; host text and guarded ports bound by the old Tovu paths. Product labels, SMTP form metadata and refusal copy remain host input. The inventory's positional parser and default credential label rows are host shims/bindings to the generic factory, consistent with the host-text requirement. No new dependency, package, guard/debt edit or migration. Base-to-tip diffs for `packages/server`, Jini Resend assets and migration paths are empty.
+
+A2 is not a completed move-compliance claim. This partial extraction used scripted source slicing and binding edits rather than the required `git mv` transport; move provenance and full why-comment compliance need review before it can be accepted. Neutral wording edits in the draft include the provider wrapper's old Tovu ABI explanation, the contribution HTTP-ABI comment, its shipped-plugin trust wording, and the two ABI adapter API comments. No broader comment audit was completed after the stop. The additional A2 bug entry in `development/open-bugs.md` is explicitly incomplete.
+
+Existing tests remain protected: Tovu base-to-tip tests/fixtures are additions only. A2's sole existing Jini test change is exactly one real-parser import and `parseSetup: parseMailProviderSetupProperty` added to the nine required argument objects in `packages/agent-plugins/src/lifecycle/mail/__tests__/adapter-descriptors.test.ts`; all assertions, raw inputs, expected values and optional arguments are preserved. The newly written tests are not frozen pre-existing tests. This stop inspection does not claim F2's accumulated audit has passed.
+
+Numbered remaining work, requiring a separately approved continuation:
+
+1. Resolve the coordinator-level parser wiring stop for the existing neutral-host contribution test. Review the draft A2 transport/comment provenance; correct and complete the new integration scaffold. Complete the required ABI mutation and refusal/header golden mutations, restoring all frozen bytes.
+2. Complete A2's full listed Tovu/Jini suites, neutral-host outcomes, final builds/types, cross-package checker and exact guard record, with verified paired pushes. None of the unrun tests or outcomes are green by implication.
+3. Run accumulated F2 unchanged-test/pin/metadata/migration audit, its nine named regression groups, every touched package type-check, Tovu type-check, cross-package check and guard record. Stop on its first failure; publish nothing.
+
+Shutdown: all 94 recorded process roots were checked individually through `/proc/<pid>/stat`; none running. Evidence is `/workspace/work/extract-s2/c2-shutdown-process-status.json`. Development command sessions also returned their final exits; no test or build session remains running. No mutation was outstanding. No main merge or publication.
+
+Verified pushed stopped source tips on `cloud/extract-s2` (pull with rebase immediately before each push, then `git ls-remote`):
+
+- Tovu `1022c243689a0f57a0b6a127680513ed217332f0` (this final report is a following report-only commit, whose full remote SHA is supplied in the task response).
+- Jini `eb76e3e193ddc571fb6df444a2aeeda8c8eb3fb8`.
+- ABI red-test recording commit Jini `a6f7b8d5730131e5abd1b68b3eae456957a70dd8` is included in the pushed history.
+
+The last verified green pair remains A1: Tovu `2731bdf05a2f1cf2011022081deafd66041c7ad8` plus report `b21cd3fdce1e40ed7d803b35b67340c49566781a`; Jini `f1510e12e97f602c65c2db5a7be11de9dc44993d`.
+
+Early stop: A2 requires wiring an additional existing neutral-host test, explicitly forbidden by the brief's stop rule. A2 is incomplete and F2 was not started; the clock did not expire.
+EXTRACT-S2 STOPPED AT CAP
