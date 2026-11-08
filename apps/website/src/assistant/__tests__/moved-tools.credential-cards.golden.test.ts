@@ -18,7 +18,6 @@ import { loadFixtureAuthSchemes } from '../../features/custom-credentials/__test
 import { buildPublishHostCredentialHandler, type StaticPublishToolDeps } from '../../features/deployments/publish-agent-tools.js';
 import { InMemoryVendorCredentialSetRepo } from '../../features/deployments/publish-credentials/repo.memory.js';
 import { buildSourceControlCredentialHandler } from '../../features/source-control/tool-registrations.js';
-import type { SourceControlCredentialSetupDeps } from '../../features/source-control/credential-setup.js';
 import { InMemorySourceControlCredentialSetRepo } from '../../features/source-control/repo.memory.js';
 import { githubFromSource } from '../../features/source-control/__tests__/fixtures/github-from-source.js';
 import { saveAgentPluginToken, type AgentPluginAccessTokenToolDeps } from '../../features/agent-plugins/access-token-tool.js';
@@ -96,7 +95,8 @@ async function setup(path: Path) {
     handler = buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } });
     input = { kind: 'publish-host', target: 'acme-host' };
   } else if (path === 'sourceControl') {
-    const deps = { ...common, sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: githubFromSource } satisfies SourceControlCredentialSetupDeps;
+    const deps = { ...common, sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: githubFromSource, sourceControlExportRootDir: '/unused',
+      staticSiteContext: async () => assert.fail('credential save must not export'), exportSiteBound: async () => assert.fail('credential save must not export') } satisfies Parameters<typeof buildSourceControlCredentialHandler>[0]['deps'];
     handler = buildSourceControlCredentialHandler({ deps, surfaces: { surfaceExchanges } });
     input = { kind: 'source-control', target: 'github', label: 'Backup connection' };
     values = { token: SECRET, label: 'Backup connection' };
