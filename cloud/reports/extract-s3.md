@@ -1,6 +1,6 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **Continuation 2: A5 GREEN after guard correction; A6 beginning**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
+Status: **Continuation 2: A6 GREEN; A7 beginning**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
 
 ## Clock and source custody
 
@@ -640,3 +640,117 @@ The first raw development guard correctly rejected N1 references in the four mov
 - admin-surfaces/connections/connections.ts: `@file Tovu's `connections` port` → `@file The host's `connections` port`.
 
 No guard/source-neutrality/shared allowance changed. Existing connect→lifecycle mapping remains; only ./connect/executable→lifecycle added. Admin connections infers its actual admin-surfaces domain, so no arbitrary extra two lines were added to meet an estimate. Two jini.entries values/exports added; no dependency/lock change. The host tool filename stays exactly tovu-agent-tools.json in Tovu. No runtime wording changed.
+
+### A6 gate — GREEN / A7 inventory before edits
+
+A6 source pair: J 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 / T f35d56f5b6cb73e0b03226cca6b65cfdb66b8d78. Both remote tips verified after pull/rebase/push; Tovu first push had transient credential failure, retry succeeded. Full A5 matrix rerun: J integrations57/admin93/public entries5 and Tovu303 =458 tests, all passing/no skips; builds/tsc touched packages/Tovu, strict complexity<=10 (one original discarded-field warning), original-snapshot XP check, raw guard only R2/R10 and fixed HW totals, plugins clean, layers0/isolation0, SI-c9/SI-d7, custody all pass. New A6 entry test recorded at the J source commit; no re-mint after move. Final tip reruns will include it. No node runtime in either emitted closure and no non-core Jini edges in moved source/declarations.
+
+A7 stays in Tovu. Canonical MCP record/save/view/repo/access-snapshot types are aliases of their existing Tovu owners, never copied. core/contracts/hosted-mcp is absent and remains H0/H1 deferred; no invented Jini import. Composition supplies the exact projection functions (accessSnapshot, admissionRevision, readToolGrants, validateToolNames, oauthStatus, hasStaticAccessToken), canonical error classifier and OAuth refusal classifier over the same repo/store. Existing Tovu entry signatures keep compatibility binding wrappers/defaults so frozen hosts need no edits; new generic ports require their inputs. No new queue/exchange/activation owner, no extra I/O/cache.
+
+Cards use AgentPluginCardsPort<Resource> = SurfaceCardsPort<Resource>; build-only views omit waitAtSignInCard, while the waiting seam preserves Resource through the callback. Actual UI builders and exact app ids/URI namespace remain host bindings, credential descriptors/core card shapes use core/contracts. Host defaults remain on old Tovu entries; new generic seam tests use a distinct resource type. Existing ui://tovu bytes, text and ids stay unchanged.
+
+New tests inventoried before edits: features/agent-plugins/__tests__/unit/mcp-ports.error-identity.unit.test.ts (passed validator throws canonical validation error, passed classifier sees same object through old entry; red first), oauth-sign-in-refusal.unit.test.ts (both canonical refusal classes and unknown propagation through actual connect flow), cards-port.generic.unit.test.ts (non-UI resource flowing through actual generic wait callback/builders plus compile pin). Entire A6 matrix, accumulated nine, all connect matrix/new/earlier pins rerun. No A8 extraction.
+
+| Current source:line symbol | Resolved A7 seam / destination |
+| --- | --- |
+| features/agent-plugins/service-ports.ts:10 AgentPluginMcpPort | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| features/agent-plugins/service-ports.ts:20 AgentPluginOAuthPort | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| features/agent-plugins/service-ports.ts:26 PluginCredentialsPort | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| features/agent-plugins/service-ports.ts:34 AgentPluginPreferencesPort | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| features/agent-plugins/service-ports.ts:44 AgentPluginApiConnectionsPort | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| features/agent-plugins/service-ports.ts:51 AgentPluginPathsPort | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| features/agent-plugins/enable-access.ts:11 storedAgentPluginGrants | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/enable-access.ts:21 validatedAgentPluginToolGrant | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/enable-access.ts:36 assertPluginSource | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/enable-access.ts:45 previewSource | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/enable-access.ts:63 previewAgentPluginEnableAccess | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:143 MAX_CONNECTION_ID_LENGTH | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:162 deriveAgentPluginConnectionId | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:175 SkippedAgentPluginMcpServer | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:184 AgentPluginMcpTrustClassifier | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:186 PlannedAgentPluginMcpUpsert | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:196 AgentPluginMcpFederationPlan | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:213 classifyAgentPluginMcpServerForFederation | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:262 planAgentPluginMcpFederation | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:298 resolveAgentPluginMcpServers | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:326 findAgentPluginMcpServerDefaults | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:343 resolveAgentPluginReadOnlyRemoteNames | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:354 ProvisionAgentPluginMcpServersInput | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:363 ProvisionAgentPluginMcpServersResult | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:384 buildProvisioningSaveInput | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:420 isStaleUntouchedProvisioning | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:435 isEmptyJsonList | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:453 adoptOrRecognizeExistingAgentPluginMcpServer | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:515 provisionAgentPluginMcpServers | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/federate-mcp.ts:540 provisionPlannedServer | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:40 CONNECT_DECLINED_ACTOR | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:44 CONNECT_DEFAULTS_ACTOR | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:47 SEED_ACTOR | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:51 isPluginOffByOperator | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:71 switchPluginOnUnlessOperatorOff | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:76 ApplyConnectDefaultsDeps | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:94 readConnectGrant | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:108 allowsAutomaticConnectGrant | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:120 createApplyConnectDefaults | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:152 assertApprovedSnapshot | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:158 approvedSource | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:173 assertApprovedSource | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/apply-connect-defaults.ts:189 recordAgentPluginAccessDeclined | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:6 ConnectionRow | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:7 AgentPluginConnectionStatus | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:13 loadAgentPluginConnectionStatuses | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:33 mcpSignInStatus | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:40 summarizeStatus | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:46 appendStatus | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:54 addMcpStatuses | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:64 addApiStatuses | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connection-status.ts:76 addUnconnectedCards | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:69 AGENT_PLUGIN_CONNECT_TOOL_ID | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:75 AGENT_PLUGIN_CONNECT_PERMISSION | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:77 DEFAULT_POLL_INTERVAL_MS | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:82 DEFAULT_WAIT_TIMEOUT_MS | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:87 EXTERNAL_MCP_OAUTH_CALLBACK_PATH | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:97 resolveConnectRedirectUri | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:117 ResolvedAgentPluginForConnect | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:127 defaultResolveInstalledAgentPlugin | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:141 titleCaseFromPluginId | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:150 isOAuthServer | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:163 beginSignIn | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:181 sleepOrAbort | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:198 AgentPluginConnectToolDeps | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:219 AGENT_PLUGIN_CONNECT_DESCRIPTION | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:235 agentPluginConnectAgentToolCatalog | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:256 agentPluginConnectDerivedRisk | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:261 PendingOAuthServer | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:270 hasStoredAgentPluginCredential | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:278 resolvePendingOAuthServers | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:300 AgentPluginConnectOptions | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:310 AgentPluginConnectResult | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:322 hasReusablePluginCredential | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:335 connectWithoutOAuth | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:368 assertPluginCanConnect | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:386 runAgentPluginConnect | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:443 connectAndReviewMcp | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:460 retainedOAuthServers | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:475 approveSignedInAccess | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:516 currentSignedInAccess | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:530 waitAtMcpSignInCard | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:557 waitForMcpConnection | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:588 findPluginOAuthCard | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-tool.ts:593 connectDeclaredApiConnectionOrRefuse | Same Tovu file; canonical MCP type aliases/local projections, original logic and rationale retained |
+| features/agent-plugins/connect-card-ui.ts:26 agentPluginConnectSurfaceUri | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-card-ui.ts:30 AgentPluginConnectCardSpec | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-card-ui.ts:42 buildAgentPluginConnectCard | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-card-ui.ts:71 buildAgentPluginAccessTokenForm | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-card-ui.ts:106 buildAgentPluginAccessTokenOutcome | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-sign-in-wait.ts:11 waitAtAgentPluginSignInCard | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-destination.ts:5 Destination | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-destination.ts:8 selectedDestination | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| features/agent-plugins/connect-destination.ts:21 chooseApiConnectionDestination | Same Tovu path; generic card port plus old host-binding wrapper, exact identity/copy |
+| server/runtime/composition/agent-plugin-service-ports.ts:21 composeAgentPluginMcp | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| server/runtime/composition/agent-plugin-service-ports.ts:35 composePluginCredentials | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| server/runtime/composition/agent-plugin-service-ports.ts:45 composeAgentPluginPreferences | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| server/runtime/composition/agent-plugin-service-ports.ts:67 composePluginProviderFaces | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+| server/runtime/composition/agent-plugin-service-ports.ts:78 composeAgentPluginConnectServices | Local AgentPluginMcp*/OAuth/cards contracts, or composition bindings to original owners |
+
+Additional files introduced only for binding: features/agent-plugins/mcp-host-bindings.ts (canonical projection/classifier compatibility defaults) and card-host-bindings.ts (actual UI builders and original card app/URI identity). No vocabulary/runtime files move across repositories in A7. Progress 17:26 UTC: elapsed1.87h, remaining2.88h; deadline20:19:09 unchanged.
