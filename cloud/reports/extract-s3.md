@@ -617,3 +617,26 @@ A6 transports whole files via git mv into a temporary Tovu path and then filesys
 | api-connections/surface-connections.ts:179 createSurfaceConnections | Tovu same-path thin wrapper; generic WithPorts implementation moves to agent-plugins/src/admin-surfaces/connections/connections.ts |
 
 Ports already declared in A5 remain local in their destination directories. New public entries: ./connect/executable and ./admin-surfaces/connections, explicit runtime/type exports and two jini.entries values. Register imports local projection/capabilities/types directly. The necessary executable isolation entry maps to existing lifecycle domain; the admin entry infers admin-surfaces. No isolation.shared or exemption added; actual closure audit decides whether any additional domain metadata is necessary. Universal admin entry uses only its own surface-capabilities/ports and global APIs, no node path. New test inventoried: examples/neutral-host/src/executable-surface-entries.test.ts, public functions/typed contracts and actual emitted runtime/declaration closure. Existing tests and both A5 new files stay frozen and rerun through the shims.
+
+### A6 implementation — full gate running
+
+Whole-file transport hashes (verified before edits):
+
+- apps/website/src/features/agent-plugins/executable-tools/register.ts → packages/agent-plugins/src/connect/executable/register.ts: `c0e7b84ddf07f59bf6001722a368448bf36ca8cfd8099b98d4e5fd251e3ca433`.
+- apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts → packages/agent-plugins/src/connect/executable/host-capabilities.ts: `f34a7516aa077c837cb6703db387bde60264f85d5206d19be0defd09cc92c29b`.
+- apps/website/src/features/agent-plugins/executable-tools/approval.ts → packages/agent-plugins/src/connect/executable/approval.ts: `ef05951aaaadd320cfeef82b7d6e3d339579a6e1995a5ddad3593fc01acc2503`.
+- apps/website/src/features/api-connections/surface-connections.ts → packages/agent-plugins/src/admin-surfaces/connections/connections.ts: `f0289c69c04bc4b7ebe7f48ed6bd4ab4348a922fa801e903572564dca44c53cb`.
+
+Both new entries are universal: executable imports only local projection/capability runtime, core and @cfworker/json-schema; admin connections imports its own surface-capabilities only. The new emitted-closure test recursively follows actual relative JS imports, rejects node and non-core Jini dependencies, checks public declarations/metadata, frozen-map identity/custom host labels and foreign-scope error identity. Three new public tests pass in development; all existing callers pass Tovu main tsc via unchanged old signatures. Strict complexity/cognitive ceiling10 passes (only original discarded descriptor field warning).
+
+The first raw development guard correctly rejected N1 references in the four moved file comments. Only rejected comment lines reworded; rationale retained. Exact replacements:
+
+- connect/executable/register.ts: `@file Projects executable Agent Plugin tools (`tovu-agent-tools.json` + `.mjs` modules, admitted` → `@file Projects executable Agent Plugin tools (the host-named tools file + `.mjs` modules, admitted`.
+- connect/executable/register.ts: `and Tovu's approval owner.` → `and the host's approval owner.`.
+- connect/executable/register.ts: `Two Tovu-specific adjustments` → `Two host-specific adjustments`.
+- connect/executable/register.ts: `Tovu's executor has no transport` → `the host's executor has no transport`.
+- connect/executable/host-capabilities.ts: `@file Tovu's implementation` → `@file Host-scoped implementation`.
+- connect/executable/approval.ts: `confirmed in Tovu, on the EXISTING approval` → `confirmed by the host, on the EXISTING approval`.
+- admin-surfaces/connections/connections.ts: `@file Tovu's `connections` port` → `@file The host's `connections` port`.
+
+No guard/source-neutrality/shared allowance changed. Existing connect→lifecycle mapping remains; only ./connect/executable→lifecycle added. Admin connections infers its actual admin-surfaces domain, so no arbitrary extra two lines were added to meet an estimate. Two jini.entries values/exports added; no dependency/lock change. The host tool filename stays exactly tovu-agent-tools.json in Tovu. No runtime wording changed.
