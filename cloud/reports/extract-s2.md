@@ -279,3 +279,64 @@ Q1 is green. Tovu report push `f249e0ea744c1f5ae5df517e0bebff69c60b6cd4` and Jin
 | VAULT_KINDS; VaultError; content-kind constants | value | platform credential-sets/vault.types.ts; cms content-types/types.ts | same package (values unchanged; type annotations only) |
 
 No unresolved destination. Canonical cards retain complete pinned UI presentation shapes, add compatibility aliases for old core names, and preserve an independent pinned UI declaration copy in a new type test before UI definitions change. `SurfaceTokenName`, `VaultKind` and content-kind unions become literal unions as required. No hosted-MCP, vault constructor or A3/later work.
+
+## Q2 implementation and verification in progress
+
+Inventory commit: Tovu `5f366ed47d3f7048ece0c0f7366facea7262afd5`, pushed after pull/rebase and verified. Implementation: Jini `699b47805da6069ae574f57942e56a351d9ec73c`, pushed after pull/rebase and verified. Six `core/contracts/*` area exports with universal metadata; private nested type leaves preserve the original mail and OAuth divisions. Old source paths re-export the canonical types. All runtime implementations remain in place. No `isolation.shared`, server, layer checker, dependency or lockfile changes.
+
+Cards now use the complete pinned UI shapes: `previous`, `labels`, number/boolean variants, submit alternatives, form/secret-form text/tokens, outcome tokens and their presentation-type closure. Original core names remain compatibility aliases. Literal unions replace runtime-derived token/vault/content-kind types; platform/CMS constants retain their values with `satisfies` checks. New two-way type tests cover those constant unions.
+
+Independent UI snapshot pin: `packages/ui/src/features/mcp-ui/__tests__/pinned-cards.typecheck.ts`, SHA256 `bf2f29fa8dffca5bc5317dbb6e2ed91f7cd23d55d475165dc823a42c04fb77dd` at recording commit Jini `699b47805da6069ae574f57942e56a351d9ec73c`. It copies pinned declarations before canonical re-exports; comparisons do not compare aliases to themselves. Recursive normalization preserves optional and readonly properties and discriminated field variants.
+
+Mutation: removed optional `SurfaceDetail.previous` from the new core declaration. Mutant core build passed; a separate type-only witness showed two-way assignability still passed. UI `tsc --noEmit` failed the new exact-equality assertions (and existing uses of `previous`), expected red. Restored source byte-exact with `cmp`; full build/type-check gate runs on the restored source. No new application bug, no test weakened.
+
+A TypeScript transpilation comparison of every inventoried old source against its pinned version, with comments/types erased, found zero runtime-output differences. Existing Jini tests and fixtures remain unedited; no Tovu source/test/fixture changes. No why-comment rewording. Q2 adds no core export-list test entries because neither `ui` integration-exports nor script packed-exports enumerates core's exports; their assertions remain unchanged.
+
+### Q2 selected existing test files (direct imports of moved names)
+
+Selected by parsing/grepping imports in the six touched packages. Three admin-widget `SelectOption` matches refer to a different local widget type and are excluded from this list. Core, OAuth and agent-plugins have no direct moved-name imports in their existing Vitest files. The selected tests run from their owning package so its unchanged Vitest config applies.
+
+- `packages/platform/src/mail/__tests__/adapter-module.test.ts`: MailProviderModule, MailerSendRequired
+- `packages/platform/src/mail/__tests__/delivery-availability.test.ts`: MailerPort
+- `packages/platform/src/mail/__tests__/delivery-observer-w2g.unit.test.ts`: MailerPort, MailProviderModule
+- `packages/platform/src/mail/__tests__/delivery-wrapper.test.ts`: MailerPort, MailSendLedgerPort, MailSuppressionRepoPort, MailProviderModule, MailerSendOptions, MailerSendResult, MailTestApproval, MailTestModeSetting, OutboundEmail
+- `packages/platform/src/mail/__tests__/domain-read.test.ts`: MailProviderCallContext
+- `packages/platform/src/mail/__tests__/engine-contracts.test.ts`: MailAdapterModule, MailCredentialPort, MailProviderCatalog, MailProviderSettingPort, MailStatusReport, SenderDomainVerificationPort, MailerSendOptions, MailerSendRequired, MailTestApproval, MailTestModeSetting
+- `packages/platform/src/mail/__tests__/feedback.test.ts`: MailFeedbackParser, MailSuppressionRepoPort, MailerFeedbackEvent
+- `packages/platform/src/mail/__tests__/policy.test.ts`: MailCapturePort, MailDeliveryLane, MailerPort, MailSendLedgerPort, MailSuppressionRepoPort, MailerSendOptions, MailerSendResult, OutboundEmail
+- `packages/platform/src/mail/__tests__/provider.test.ts`: MailProviderModule
+- `packages/platform/src/mail/__tests__/purpose-gate-defaults.test.ts`: MailerPort
+- `packages/platform/src/mail/__tests__/purpose-gate-predicate.test.ts`: MailerPort
+- `packages/platform/src/mail/__tests__/purpose-scoped-mailer.test.ts`: MailerPort, OutboundEmail, MailerSendOptions, MailerSendResult
+- `packages/platform/src/mail/__tests__/resolve-mailer-lifecycle.test.ts`: MailCredentialFact
+- `packages/platform/src/mail/__tests__/sender-domain-verification.test.ts`: MailProviderModule
+- `packages/platform/src/mail/__tests__/smtp.test.ts`: MailerSendOptions, OutboundEmail
+- `packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts`: KeyringPort, RootKeyHandle
+- `packages/platform/src/secrets/__tests__/vault.api-connection-kind.test.ts`: VaultContext, VaultMeta
+- `packages/platform/src/secrets/__tests__/vault.copy.test.ts`: VaultContext, VaultMeta
+- `packages/platform/src/secrets/__tests__/vault.meta.test.ts`: VaultMeta, VaultMetaParser
+- `packages/platform/src/secrets/__tests__/vault.repo.memory.test.ts`: VaultRecord, VaultPutRecord
+- `packages/platform/src/secrets/__tests__/vault.service.pins.test.ts`: VaultContext, VaultIdentity, VaultMetaParsers, VaultQuery, VaultRecord
+- `packages/platform/src/secrets/__tests__/vault.service.test.ts`: VaultIdentity, VaultMeta, VaultMetaParsers, VaultRepoPort
+- `packages/platform/src/secrets/__tests__/vault.types.test.ts`: VaultRecord
+- `packages/cms/src/content-types/__tests__/lifecycle-dispatch.cov-j2.test.ts`: ContentTypeRecord, ContentTypeStatus
+- `packages/cms/src/content-types/__tests__/lifecycle.cov-j2.test.ts`: ContentTypeRecord, ContentTypeStatus
+- `packages/cms/src/content-types/__tests__/list.test.ts`: ContentTypeRecord
+- `packages/cms/src/content-types/__tests__/repo.memory.cov-j2.test.ts`: ContentTypeRecord
+- `packages/cms/src/content-types/__tests__/tool-registrations.cov-j2.test.ts`: ContentTypeFieldDef
+- `packages/cms/src/content-types/__tests__/write-service.guards-boundary.test.ts`: ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord
+- `packages/cms/src/content-types/__tests__/write-service.register-owner.test.ts`: ContentTypeRecord
+- `packages/cms/src/content-types/__tests__/write-service.register.test.ts`: ContentTypeRecord
+- `packages/cms/src/entries/__tests__/field-validation.boundaries.test.ts`: ContentTypeFieldDef
+- `packages/cms/src/forms/__tests__/notify-durable.test.ts`: MailerPort
+- `packages/cms/src/forms/__tests__/notify-subscriber.host-options.test.ts`: MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail
+- `packages/cms/src/forms/__tests__/notify-subscriber.test.ts`: MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail
+- `packages/cms/src/widgets/__tests__/unit/entry-payload.concurrent-seed.unit.test.ts`: ContentTypeRecord
+- `packages/cms/src/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts`: ContentTypeRecord
+- `packages/ui/src/features/mcp-ui/__tests__/secret-card.unit.test.ts`: SecretCardField, SecretCardForm
+- `packages/ui/src/features/mcp-ui/__tests__/surfaces/controls.test.ts`: SurfaceField
+- `packages/ui/src/features/mcp-ui/__tests__/surfaces/form.test.ts`: FormSurfaceSpec
+
+Commands: for each package/file list above, `pnpm --filter @jini-ai/<pkg> exec vitest run <files> --maxWorkers=2 --minWorkers=1 --reporter=verbose`. Results: platform 23 files / 409 tests PASS; CMS 14 files / 150 tests PASS; UI 3 files / 168 tests PASS; 40 files, 727 tests total, no filtered cases. Full verbose test names retained in scratch logs.
+
+Type-check commands: `pnpm --filter @jini-ai/<pkg> exec tsc --noEmit`, individually for core, platform, oauth, cms, agent-plugins and ui. Full-build command: `pnpm --filter @jini-ai/core run build && pnpm --no-bail -r build`. Build and remaining post-build checks in progress; Q2 is not yet declared green.
