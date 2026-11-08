@@ -731,3 +731,58 @@ EXTRACT-S2 STOPPED AT CAP
 Owner-approved resumption at 2026-11-08 07:18:57 UTC. Deadline unchanged: 07:44:33 UTC; final reserve starts 07:24:33 UTC. Continuing A2; no new extraction batch. The coordinator authorizes exactly one additional existing-test wiring exception: `examples/neutral-host/src/contribution-contracts.test.ts` imports the real `parseMailProviderSetupProperty` and supplies `parseSetup` to its sole existing mail parser call. Every assertion and all other inputs remain unchanged. F2's exact-diff allow-list includes this exception alongside the original nine-call parser exception and additive exports. Any further existing-test wiring remains a stop.
 
 Suppression investigation: original Jini pin `35c4961af` `platform/src/mail/policy.ts:106` returns `MAIL_RECIPIENT_SUPPRESSED`; the pre-move mail golden recorded at `0506f0df5` also contains this exact code. The new integration scaffold expected the wrong code (`MAIL_SUPPRESSED`). Only the new test expectation is corrected; production behavior is unchanged.
+
+
+### Continuation 3 — A2 complete gate
+
+A2 gate GREEN at 07:22:28 UTC. Paired source tips: Tovu `6750354b6985ce4c4badfec4521d31a878764c96` (report-only after `1022c243689a0f57a0b6a127680513ed217332f0`); Jini `e069b3fe0ef00839568168d85c11dfd97285f61f`. Both were pulled/rebased and their pushed remote tips verified. This following report/bug-log commit completes the A2 gate record before F2 begins.
+
+All three expected mutation demonstrations were red, then restored byte-exact: removing `toPluginHttpClient`'s `{ request }` wrapping failed the real plugin regression; changing the unconfigured refusal punctuation failed the frozen mail golden; inserting `X-Mutation: red` into the guarded HTTP request failed that golden. Platform was rebuilt after restoring the ABI adapter. Frozen test and fixture bytes were never regenerated. Logs: `c3-abi-mutation-red`, `c3-refusal-mutation-red`, `c3-header-mutation-red`, `c3-abi-restored-build` under scratch.
+
+Complete formal A2 commands/results (logs and root PIDs have matching `c3-a2-*` labels):
+
+- Tovu Node test command documented above, with all 28 files listed below: **304/304 passed**, 0 skipped/todo. Includes golden, exact policy/refusal/card/identity results, key rotation, plugin-off cleanup and per-recipient counters.
+- `pnpm --filter @jini-ai/platform exec vitest run src/mail/__tests__ --maxWorkers=2 --minWorkers=1`: **23 files, 260/260 passed**.
+- `node --test --test-concurrency=1 packages/agent-plugins/resend/__tests__/*.test.mjs` (expanded explicit paths): **17/17 passed**.
+- `pnpm --filter @jini-ai/agent-plugins exec vitest run src/lifecycle/mail/__tests__/adapter-descriptors.test.ts --maxWorkers=2 --minWorkers=1`: **4/4 passed**.
+- `pnpm --filter @jini-example/neutral-host exec vitest run src/mail-host.test.ts src/mail-port-regression.test.ts src/contribution-contracts.test.ts --maxWorkers=2 --minWorkers=1`: **3 files, 30/30 passed**. Real Resend and SMTP use fake transports; one ledger reserve/mark, suppressed refusal, capture, ready status, next-send rotated key and plugin-off lane clearing all reached and passed. Existing contribution assertions preserved.
+- `pnpm --filter @jini-ai/platform exec tsc --noEmit`, `pnpm --filter @jini-ai/agent-plugins exec tsc --noEmit`, `pnpm --filter @jini-example/neutral-host exec tsc --noEmit`, and Tovu `npx tsc -p tsconfig.json --noEmit`: **all exit 0**.
+- ESLint strict complexity/cognitive limits 10 on all lifecycle/mail modules and the new platform ABI/provider wrapper: **exit 0**.
+- `JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s2/declaration-baseline pnpm check:cross-package`: **XP1–XP5 clean**, using the unchanged original pinned declaration baseline.
+- `pnpm guard`: raw exit 1, **exact original record** after comparing every non-informational guard and hardwiring line by name; only R2(1)/R10(1), informational R13, HW1 17/HW2 16/HW3 135/HW4 1/HW8 49 with 0 new, layers/isolation unchanged. `pnpm guard:plugins`: **exit 0**.
+- Base-to-tip migrations, Jini Resend assets and `packages/server`: **empty diffs**. No send-path settings/credential read added; wrapper still provider → credential scrub → engine observation → delivery policy → host purpose gate. Existing frozen mail golden matches.
+
+Exact Tovu A2 test file list:
+
+- `apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts`
+- `apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts`
+- `apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts`
+- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts`
+- `apps/website/src/features/agent-plugins/__tests__/unit/trusted-plugin-files.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-engine-adoption.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-delivery-policy.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-provider-catalog-setup.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-plugin-account-token.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/site-mailer.unit.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/mail-sender-identity-wiring.integration.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts`
+- `apps/website/src/platform/mail/__tests__/unit/provider-error.unit.test.ts`
+- `apps/website/src/platform/mail/__tests__/unit/purpose-scoped-mailer.unit.test.ts`
+- `apps/website/src/platform/mail/__tests__/unit/sender-identity.unit.test.ts`
+- `apps/website/src/platform/mail/__tests__/integration/purpose-scoped-mailer-call-sites.integration.test.ts`
+- `apps/website/src/platform/mail/adapters/__tests__/smtp.nodemailer.unit.test.ts`
+- `apps/website/src/server/__tests__/routes/mail-providers-route.test.ts`
+- `apps/website/src/server/__tests__/routes/mail-status-route.test.ts`
+- `apps/website/src/features/mail-status/__tests__/provider-operations.unit.test.ts`
+- `apps/website/src/features/mail-status/__tests__/provider-tools.unit.test.ts`
+- `apps/website/src/features/mail-status/__tests__/test-send.test.ts`
+- `content/agent-plugin-overlays/resend/__tests__/bundled-mail.test.mjs`
+
+No A2 test/runtime work remains after these checks. Historical Continuation 2 source transport used slicing rather than `git mv`; that process deviation remains disclosed above and cannot be retroactively changed in published history without rewriting it. No history rewrite was attempted. This continuation adds only the specifically approved existing-test wiring, corrects a new test expectation to the pinned behavior, records mutations and runs the full gate.
+
+Remaining batch: F2 only. It starts before the 07:24:33 UTC shutdown reserve, after this report is committed/pushed and both tips verified. F2 makes no fixes.

@@ -64,3 +64,11 @@ object-request fake (result.ok false). A draft `toPluginHttpClient` adapter make
 green without editing the plugin. Mutation confirmation and the complete A2 gate were not run:
 the required `parseSetup` change exposed a separate existing neutral-host test that needs wiring,
 which triggers the brief's explicit stop rule. This entry is not a completed fix claim.
+
+### `A2-resend-positional-http-abi` — Continuation 3 verification
+
+The real plugin regression now passes through the public `toPluginHttpClient` adapter. Removing
+the object-request wrapping from the adapter makes that regression red again; source bytes were
+restored and platform rebuilt. The refusal and HTTP-header mutations each make the frozen
+pre-move mail golden red. No plugin edits; no fixture regeneration. Full A2 results are recorded
+in `cloud/reports/extract-s2.md`; this note supersedes the unfinished mutation status above.
