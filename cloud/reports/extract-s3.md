@@ -481,3 +481,75 @@ Pre-transport SHA256:
 - host.ts: 947e22c35759d10818c587c2dd48bf7a0e2f906757a63c460814a27d1497fb9a
 - connect.ts: 7d9893437a296c2b57c2cd756878379229f244091145a828152feb57344ed3da
 - plugin-state.ts: a767b8ad102246268690551b599e7f439da01aa2e7ac232f7b19778977309f7f
+
+### A4 move GREEN
+
+Green pushed pair: Jini **ce9e9dcc8c8fcc36869d85e1e2688c3c7322c850**, Tovu **b14e0701b61389340f9e40d669f3f2d7b53aa61c**. Complete A4 seam gate rerun after transport: **314/314 tests** (57 integrations + 93 admin/persistence + 2 public-entry/host-copy + 162 Tovu), no failures/skips/todo; build/tsc integrations+agent-plugins, Tovu relink/tsc, checker with same original snapshot, exact guard/plugins/layers/isolation/HW and custody all passed. Public metadata stays API node / state universal, with no package-manifest change. Row-14 real-vault/CAS proof, rows 5/6, frozen maps, saved formats, roundtrip, callbacks and counters hold through old shims.
+
+Whole-file transport used the same explicit git-mv staging + cross-repo filesystem procedure, initial bytes hashed before import/wrapper edits (a4-transport-initial-hashes.json). 726 seamed source lines transported; final Jini additions include public tests/changeset, Tovu retains old signatures and concrete public host/deps types. All original production why-comments travel with their implementation or remain beside the retained wrapper/host setting; no slicing/retyping of rationale. The J API host/connect depend only on core/local modules plus node crypto; state is universal and uses core-vault types/local state types. No new import edge to another Jini package.
+
+Batch-local type repair: Jini exactOptionalPropertyTypes rejected explicit undefined destinations that the old Tovu contract allowed. The moved destination types now explicitly retain undefined, with no input/flow/test edits. A premature Tovu development tsc during the failed package build reported missing new exports; the correctly ordered rerun and full gate passed. Runtime behavior had no red. Inventory correction: the state unavailable message mentions this site's admin, so that exact constant stays Tovu and the generic state factory requires host messages; a new second-host test proves its refusal is host text before any storage call. No default copy in Jini.
+
+A4 public test recording hash: c6a9fddf3d862e303cbaaaf3ddab062265a1cb5efd093fe0bebf654b62710b53 at ce9e9dcc8c8fcc36869d85e1e2688c3c7322c850. Earlier pins unchanged.
+
+### A5 seam inventory — before edits, no runtime file moves
+
+| Current source:symbol | Resolved seam destination/custody |
+| --- | --- |
+| T features/agent-plugins/executable-tools/register.ts:36 AGENT_PLUGIN_TOOLS_FILENAME | T executable host-bindings: exact filename/one existing definition and legacy host shape; generic runtime consumes typed ports |
+| T features/agent-plugins/executable-tools/register.ts:37 toolContribution | T executable host-bindings: exact filename/one existing definition and legacy host shape; generic runtime consumes typed ports |
+| T features/agent-plugins/executable-tools/register.ts:40 AgentPluginExecutableToolHost | T executable host-bindings: exact filename/one existing definition and legacy host shape; generic runtime consumes typed ports |
+| T features/agent-plugins/executable-tools/register.ts:65 ApplyAgentPluginApproval | Same register.ts for A5, then agent-plugins/connect/executable in A6; registry/id/build ports injected, core auth/details only |
+| T features/agent-plugins/executable-tools/register.ts:70 ToolOwner | Same register.ts for A5, then agent-plugins/connect/executable in A6; registry/id/build ports injected, core auth/details only |
+| T features/agent-plugins/executable-tools/register.ts:73 ownersById | Same register.ts for A5, then agent-plugins/connect/executable in A6; registry/id/build ports injected, core auth/details only |
+| T features/agent-plugins/executable-tools/register.ts:92 registerAgentPluginExecutableTools | Same register.ts for A5, then agent-plugins/connect/executable in A6; registry/id/build ports injected, core auth/details only |
+| T features/agent-plugins/executable-tools/register.ts:109 loadTools | Generic load remains in place; exact admin source/permission/sign-in/handler block retained T behind adminSurfaces.loadActionTools |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:29 AgentPluginConnectionTarget | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:37 AgentPluginConnectionAccess | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:45 AgentPluginArtifactWriter | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:50 AgentPluginRateLimiter | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:55 AgentPluginStateReaderFor | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:58 AgentPluginApiOriginsFor | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:61 FrozenConnectionAccounts | Narrow executable port types, with exact why-comments, J agent-plugins/connect/executable/ports.ts; T re-exports preserve callers |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:68 MAX_RESPONSE_BYTES | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:69 IDLE_TIMEOUT_MS | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:71 HTTPS_ONLY_MESSAGE | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:72 UNDECLARED_ORIGIN_MESSAGE | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:73 RESPONSE_TOO_LARGE_MESSAGE | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:74 UNAPPROVED_CONNECTION_MESSAGE | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:77 createFrozenConnectionAccounts | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:94 confirmedTokenOptions | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:103 guardedPluginFetch | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:119 createGuardedPluginHttp | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:128 declaredOriginsHttp | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:137 withToolSignal | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/host-capabilities.ts:154 createAgentPluginToolCapabilities | Same host-capabilities.ts in A5; own-domain/core imports only; constants and frozen/HTTP/token behavior unchanged |
+| T features/agent-plugins/executable-tools/approval.ts:21 APPROVAL_FAMILY_BY_EFFECT | Same approval.ts in A5; detail type from core; old public wrapper binds T text and new generic function takes ports |
+| T features/agent-plugins/executable-tools/approval.ts:25 TOOL_WITHDRAWN_MESSAGE | Exact host strings retained T approval-bindings; generic disclosure requires messages including Account/Affects labels |
+| T features/agent-plugins/executable-tools/approval.ts:26 NOT_CONNECTED_MESSAGE | Exact host strings retained T approval-bindings; generic disclosure requires messages including Account/Affects labels |
+| T features/agent-plugins/executable-tools/approval.ts:29 AgentPluginDisclosureSource | Same approval.ts in A5; detail type from core; old public wrapper binds T text and new generic function takes ports |
+| T features/agent-plugins/executable-tools/approval.ts:46 createAgentPluginDisclosure | Same approval.ts in A5; detail type from core; old public wrapper binds T text and new generic function takes ports |
+| T features/api-connections/surface-connections.ts:26 IssuedSignIn | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:31 SurfaceConnectionsDeps | T surface-connection-bindings: legacy API host/frozen map and exact ApiConnectionError identity/text |
+| T features/api-connections/surface-connections.ts:41 notAvailable | T surface-connection-bindings: legacy API host/frozen map and exact ApiConnectionError identity/text |
+| T features/api-connections/surface-connections.ts:45 codeOf | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:51 SAFE_ATTEMPT_CODE | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:52 failedAttempt | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:58 StatusSource | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:59 NEVER_CONNECTED | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:62 grantedScopeSets | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:71 liveStagedAccount | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:76 statusFrom | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:89 createSurfaceConnections | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:95 resolve | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:102 forActor | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:108 viewAfterAction | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+| T features/api-connections/surface-connections.ts:116 watchDesktopCompletion | Same surface-connections.ts in A5, then agent-plugins/admin-surfaces/connections in A6; local typed 14-member host port |
+
+Prerequisites: contributions passes the real createRegistry/buildRegistrations/toolIdFor and existing definition; opaque generic registry preserves the actual owner without copying SDK/types/validation. Core adaptLegacyAuthorize/requireToolPermission/LegacyToolAuthorizeFn replaces CMS compatibility imports; SurfaceCardDetail replaces UI type. Host supplies existing approval adapter/read metadata/filename and text, no new confirmation owner. Admin loadActionTools retains source/refresh/auth/revalidation/sign-in decoration exactly in Tovu. connectionKey is the original deriveApiConnectionKey, injected. One issuedTokens/frozen map remains shared across tool/admin paths; old optional frozen fallback preserved.
+
+Surface contract: J admin-surfaces/connections/ports.ts, exactly 14 members from the brief. Opaque generic Connection keeps the canonical loaded connection, with local narrow status/account/staged/attempt/receiver shapes; no integrations/API-error/imported sign-in types. Requested scopes, records, token options, start/account actions, attempts, callback inbox, shared consumer and refusal constructor all delegate to the one host. The old shared-account display suffix remains a host projection, and pinnedTokenOptions reads the same frozen map. All unknowns finalized to consumed shapes, no any, copied rules or extra reads.
+
+New tests inventoried before edits: T executable-tools/__tests__/host-ports.unit.test.ts (second-host definition/disclosure/registry ports) and API __tests__/surface-connections.host-port.unit.test.ts (injected refusal/token pin/status shape); J source/contract assertion as needed. Existing executable/admin/security/vertical-slice/approval/host-capability/register/collision tests and full A4 regressions/pins rerun at A5 and A6. No unresolved crossing.
+
+Progress 17:05:35 UTC: S3-0, A3, A4 seam and move green; original deadline 20:19:09 UTC unchanged.
