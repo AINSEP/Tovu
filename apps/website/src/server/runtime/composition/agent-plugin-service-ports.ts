@@ -5,7 +5,7 @@ import { resolveDefinitionRaw, type SetValueRequired } from '@jini-ai/core/setti
 import { getEffective, set } from '#src/features/settings/index';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { HttpClientPort } from '#src/platform/http/ports';
-import { applyExternalMcpAccess, saveExternalMcpServer, ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from '#src/features/external-mcp/external-mcp-store';
+import { applyExternalMcpAccess, saveExternalMcpServer, ExternalMcpValidationError } from '#src/features/external-mcp/external-mcp-store';
 import type { ExternalMcpOAuthService, ExternalMcpStoreDeps } from '#src/features/external-mcp/contracts';
 import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-roster-change';
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
@@ -15,7 +15,7 @@ import { resolveOperatorLocale } from '#src/features/settings/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
 import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
-import { agentPluginMcpProjections, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
+import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/service-ports';
 
 /** Preserve persistence and error identity over the site's bound sealing capability. O(1). */
@@ -24,10 +24,7 @@ export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options =
     repo: required.repo, projections: agentPluginMcpProjections,
     applyAccess: (input, _options = {}) => applyExternalMcpAccess({ ...input, repo: required.repo, clock: required.clock }),
     saveServer: (input, _options = {}) => saveExternalMcpServer(required, input),
-    classifyError: ({ error }, _options = {}) => {
-      if (error instanceof ExternalMcpValidationError) return 'validation';
-      return error instanceof ExternalMcpSecretStoreUnconfiguredError ? 'unconfigured' : 'other';
-    },
+    classifyError: classifyAgentPluginMcpError,
     notifyRosterChanged: (input, _options = {}) => notifyExternalMcpRosterChanged(input),
   };
 }
