@@ -134,3 +134,67 @@ from the commits. Raw command logs remain outside the repos under
 `/workspace/work/bulk-media/`.
 
 BULK-MEDIA DONE
+
+## BULK-MEDIA-2
+
+Owner-approved follow-up, November 8, 2026, started at 10:24 America/Los_Angeles
+and completed within the 30-minute cap. Part A is unchanged. The following
+supersedes Part B's blanket withholding only when the host supplies redaction.
+
+Added one optional `redactNestedFailure` callback to `createToolExecutor`.
+`nestedInvoker` consults it only for an internal failure, after the inner
+execution has settled. Without that callback, the original safe withheld
+message remains byte-for-byte unchanged.
+
+The assistant executor composition supplies the callback using its existing
+`toolFailures` ports and the existing `redactFailedResult` function. That
+function was exported for reuse; its implementation was not changed. This is
+the smallest route because it adds only a nested-failure seam and composition
+wiring, with no second redactor and no routing of nested calls through the
+recovery/audit decorator stack. The normal single-call redaction wrapper stays
+in its original position. No recovery behavior, new packages, cross-package
+imports, or lint disables were introduced.
+
+Test-first evidence:
+
+- Before changing production, added a regression through the real assistant
+  executor stack. One batched handler throws a readable credential-rejection
+  reason containing a secret value constructed by joining strings in the test;
+  the host's injected redaction port blanks that value. The next item succeeds,
+  and a third item throws `ToolInputError` with unchanged text.
+- Red: 41 tests ran in the two changed test files; 40 passed and 1 failed.
+  The batch returned the old withheld message instead of
+  `Error ERR-0001-0000-0000-0000: upstream rejected credential [REDACTED]`.
+  The no-host fallback and nested-recovery checks already passed.
+- After the fix, green: both changed test files passed, 41 tests, zero failures.
+  The regression asserts the exact reason-preserving error format, absence of
+  the constructed secret, exactly one minted ID and one redaction record for
+  the internal batch item, successful continuation and unchanged validation
+  text. A subsequent single call adds exactly one ID and one record, with the
+  same formatted reason. Single-call status and raw audit detail are preserved.
+- An issued credential-setup diagnostic returned by a nested call still does
+  not run recovery; the test asserts its remedy handler is never called.
+  Existing no-host withheld-message tests remain intact, with names clarified.
+- Daemon type-check: `tsc -p tsconfig.json --noEmit`, exit 0.
+
+Commands (from `Jini/packages/daemon`, identical test selection for red and green):
+
+```sh
+npm run test -- --maxWorkers=2 --minWorkers=1 src/tool-recovery/__tests__/stack.test.ts src/__tests__/tool-executor.dispatch.test.ts
+npm run typecheck
+```
+
+Only changed test files were run. Also ran `git diff --check`, committed the
+Jini change, then `git pull --rebase` and `git push` on `cloud/bulk-media` without
+force. Confirmed pushed Jini SHA:
+`ad2e705274d08e58424ad2ed104cf74b968d9808`
+(`fix(daemon): use host redaction for nested internal failures`).
+
+Tovu changes in this follow-up consist solely of this appended section, committed
+and pushed on its existing `cloud/bulk-media` branch after `git pull --rebase`.
+Nothing was published and main was untouched. No requested work is left undone.
+No test, type-check or server processes remain. Existing untracked Jini plugin
+payloads were preserved. Raw red, green and type-check logs are under
+`/workspace/work/bulk-media/bulk-media-2-*.log`.
+
+BULK-MEDIA-2 DONE
