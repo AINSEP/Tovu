@@ -1,6 +1,6 @@
 import type { AgentPluginMcpPort } from "./service-ports.js";
 import { type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
+import type { AgentPluginMcpRecord } from "./service-ports.js";
 
 import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
@@ -66,14 +66,14 @@ export function renameToolNames(names: readonly string[], renames: Readonly<Reco
  * changed (or either is unreadable). */
 function renameRowTools(
   input: {
-    readonly row: ExternalMcpServerRecord;
+    readonly row: AgentPluginMcpRecord;
     readonly renames: Readonly<Record<string, string>>;
     readonly clock: ClockPort;
     readonly pluginId: string;
     readonly url: string;
   },
   _options = {},
-): ExternalMcpServerRecord | null {
+): AgentPluginMcpRecord | null {
   const { row, renames, clock, pluginId, url } = input;
   if (row.provisionedByPluginId !== pluginId || row.url !== url) return null;
   const nowIso = clockNowIso({ clock });

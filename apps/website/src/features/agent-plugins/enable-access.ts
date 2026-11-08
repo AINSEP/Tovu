@@ -1,14 +1,14 @@
 /** Bind Jini's grant plan to the existing external-MCP rows and plugin enable card. */
 import { ToolInputError, redactSecrets, type AccessApprovalResource } from '@jini-ai/core';
 import { planAgentPluginToolGrant, type AgentPluginToolGrant, type AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
-import type { AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
+import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
 import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
 import type { AgentPluginMcpPort } from './service-ports.js';
 import { findAgentPluginMcpServerDefaults, planAgentPluginMcpFederation, type PlannedAgentPluginMcpUpsert } from './federate-mcp.js';
 import type { McpServerConfig } from './mcp-metadata.js';
 
 /** Translate persisted host columns to Jini's grant contract. O(n) in stored list bytes; no I/O. */
-export function storedAgentPluginGrants({ row }: { row: Pick<ExternalMcpServerRecord, 'enabled' | 'allowedToolNames' | 'writeAllowedToolNames'> | null }, options: AgentPluginMcpContext = {}): AgentPluginToolGrant {
+export function storedAgentPluginGrants({ row }: { row: Pick<AgentPluginMcpRecord, 'enabled' | 'allowedToolNames' | 'writeAllowedToolNames'> | null }, options: AgentPluginMcpContext = {}): AgentPluginToolGrant {
   if (!row) return { enabled: false, allow: [], write: [] };
   const grants = resolveAgentPluginMcpPorts(options).projections.readToolGrants(row, { strict: true });
   return { enabled: row.enabled, allow: grants.allowedToolNames, write: grants.writeAllowedToolNames };
@@ -33,7 +33,7 @@ export function validatedAgentPluginToolGrantWithPorts(
 }
 
 /** Check the exact source identity, rather than inheriting grants from an id collision. O(1). */
-function assertPluginSource({ row, pluginId, source }: { row: ExternalMcpServerRecord | null; pluginId: string; source: PlannedAgentPluginMcpUpsert }): void {
+function assertPluginSource({ row, pluginId, source }: { row: AgentPluginMcpRecord | null; pluginId: string; source: PlannedAgentPluginMcpUpsert }): void {
   if (!row) return;
   const declaredSignIn = row.authMode === source.authMode || (source.acceptsAccessToken && row.authMode === 'static_env');
   const matchesOwner = row.provisionedByPluginId === null || row.provisionedByPluginId === pluginId;

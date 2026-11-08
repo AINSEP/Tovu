@@ -1,6 +1,6 @@
 import { ToolInputError } from '@jini-ai/core';
 import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
-import type { AgentPluginMcpAccessSnapshot as ExternalMcpAccessSnapshot, AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpAccessSnapshot, AgentPluginMcpRecord, AgentPluginMcpContext } from './service-ports.js';
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `defaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
@@ -105,7 +105,7 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
 }
 
 /** Existing choices and nonempty selections stay until a fresh access approval. O(n) list bytes. */
-function allowsAutomaticConnectGrant(row: ExternalMcpServerRecord): boolean {
+function allowsAutomaticConnectGrant(row: AgentPluginMcpRecord): boolean {
   return row.writeGrantsUpdatedByPrincipalId === null &&
     isEmptyJsonList(row.allowedToolNames) && isEmptyJsonList(row.writeAllowedToolNames);
 }
@@ -156,10 +156,10 @@ function assertApprovedSnapshot(approved: { readonly accessKey: string } | undef
 /** Only the detached host-produced snapshot authorizes a chat-triggered widening.
  * The effect compares its admission and previous grants atomically in the repository. */
 function approvedSource({ key, connectionId, pluginId }: { key: string | undefined; connectionId: string; pluginId: string }, _options = {}): {
-  url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
+  url: string; expected: AgentPluginMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
 } | undefined {
   if (key === undefined) return undefined;
-  const sources = JSON.parse(key) as { pluginId: string; connectionId: string; url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
+  const sources = JSON.parse(key) as { pluginId: string; connectionId: string; url: string; expected: AgentPluginMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
   const source = sources.find(source => source.connectionId === connectionId);
   if (!source?.grant) throw new ToolInputError({ message: `The approved card did not grant access to '${connectionId}'. Request the access change again.` });
   if (source.pluginId !== pluginId) throw new ToolInputError({ message: 'The connection owner changed after approval. Request the access change again. Nothing was granted.' });
@@ -171,7 +171,7 @@ function approvedSource({ key, connectionId, pluginId }: { key: string | undefin
 /** New sources must still have the empty access displayed before provisioning.
  * Existing sources additionally use the approved atomic repository snapshot. */
 function assertApprovedSource({ approved, grant, current, url, expected }: {
-  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string | null; expected: ExternalMcpAccessSnapshot;
+  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string | null; expected: AgentPluginMcpAccessSnapshot;
 }, _options = {}): void {
   if (!approved) return;
   const sameGrant = JSON.stringify(approved.grant) === JSON.stringify(grant);

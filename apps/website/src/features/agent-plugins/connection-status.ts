@@ -1,9 +1,9 @@
 import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
-import type { AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from './service-ports.js';
+import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from './service-ports.js';
 import type { LoadPluginCredentialCards } from '../custom-credentials/plugin-credential-card.js';
 import type { ApiConnectionHost } from '../api-connections/host.js';
 
-type ConnectionRow = Pick<ExternalMcpServerRecord, 'provisionedByPluginId' | 'authMode' | 'oauthStatus' | 'sealedOAuth'>;
+type ConnectionRow = Pick<AgentPluginMcpRecord, 'provisionedByPluginId' | 'authMode' | 'oauthStatus' | 'sealedOAuth'>;
 export type AgentPluginConnectionStatus = 'connected' | 'disconnected' | 'pending' | 'needs_reauth';
 
 /** Token-free read model for the Agent Plugins screen. Activation and account state are separate:

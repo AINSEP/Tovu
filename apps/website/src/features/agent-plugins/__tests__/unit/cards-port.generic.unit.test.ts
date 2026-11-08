@@ -15,7 +15,7 @@ test('a concrete non-UI resource flows through the generic card builder and wait
   const resource: TestResource = { kind: 'test-resource', identity: Symbol('host card') };
   const rendered: TestResource[] = [];
   const specs: (SurfaceCardSignInSpec & SurfaceCardSignInState)[] = [];
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator() });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const cards: AgentPluginCardsPort<TestResource> = {
     defineSecretCardTool: () => { throw new Error('Not a secret-card test'); },
     buildSignInCard: spec => { specs.push(spec); return resource; },

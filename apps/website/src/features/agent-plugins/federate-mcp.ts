@@ -1,5 +1,5 @@
 import type { AgentPluginMcpPort } from "./service-ports.js";
-import type { AgentPluginMcpRecord as ExternalMcpServerRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from "./service-ports.js";
+import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from "./service-ports.js";
 import { resolveAgentPluginMcpPorts } from "./mcp-host-bindings.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
@@ -417,7 +417,7 @@ function buildProvisioningSaveInput(
  *  most, a registered OAuth client minted for the OLD endpoint, which must not carry over to the new
  *  one. It is re-provisioned from the current declaration (rule 1b in this file's header).
  *  @complexity O(1) plus two short JSON parses. */
-function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned: PlannedAgentPluginMcpUpsert, projections: AgentPluginMcpProjections): boolean {
+function isStaleUntouchedProvisioning(existing: AgentPluginMcpRecord, planned: PlannedAgentPluginMcpUpsert, projections: AgentPluginMcpProjections): boolean {
   // Saved tokens (OAuth or a pasted access token) mean someone signed in: the row may differ from
   // the declaration because an operator edited its URL or auth mode, and deleting it would throw
   // away those edits and the sign-in (Gemini triage T15).
@@ -452,7 +452,7 @@ export function isEmptyJsonList(raw: string | null): boolean {
  *  @complexity O(1) plus at most one `repo.upsert` for the adoption case. */
 async function adoptOrRecognizeExistingAgentPluginMcpServer(
   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo">,
-  existing: ExternalMcpServerRecord,
+  existing: AgentPluginMcpRecord,
   planned: PlannedAgentPluginMcpUpsert,
   pluginId: string,
 ): Promise<

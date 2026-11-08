@@ -10,7 +10,7 @@ import { requireInputRecord, ToolInputError, type ToolExecutionOptions, type Too
 import { defineSecretCardTool, type SecretCardRun } from "@jini-ai/ui/mcp-ui/secret-card";
 
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
+import type { AgentPluginMcpRecord } from "./service-ports.js";
 
 import { buildAgentPluginAccessTokenForm, buildAgentPluginAccessTokenOutcome } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type AgentPluginConnectToolDeps } from "./connect-tool.js";
@@ -106,7 +106,7 @@ function hostOf(url: string | null): string | null {
 export async function requireTargetRow(
   { routeDeps, target }: { routeDeps: AgentPluginTokenTargetDeps; target: TokenAuthTarget },
   _options = {},
-): Promise<ExternalMcpServerRecord> {
+): Promise<AgentPluginMcpRecord> {
   const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: target.connectionId });
   if (row === null) {
     throw new ToolInputError({ message: `agent_plugin_set_access_token: '${target.pluginId}''s connection could not be set up in this Tovu version. Nothing was changed.` });

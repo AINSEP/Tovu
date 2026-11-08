@@ -25,7 +25,7 @@ function harness(fault: Error) {
   });
   const seen: unknown[] = [];
   const oauth = services.externalMcpOAuth!;
-  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator() }) };
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const emissions: SurfaceEmission[] = [];
   const ctx: ToolExecutionContext = { executionId: 'e', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal };
   const run = () => runAgentPluginConnect({ routeDeps: {
@@ -49,7 +49,7 @@ test('composition passes the original repository and six canonical projections w
   assert.equal(mcp.projections.hasStaticAccessToken, externalMcpRecordHasStaticAccessToken);
 });
 
-for (const fault of [new ExternalMcpValidationError('host validation'), new OAuthError({ code: 'OAUTH_MALFORMED_RESPONSE', message: 'host discovery', operatorAction: 'Review metadata' })]) {
+for (const fault of [new ExternalMcpValidationError('host validation', 'serverId'), new OAuthError({ code: 'OAUTH_MALFORMED_RESPONSE', message: 'host discovery', operatorAction: 'Review metadata' })]) {
   test(`canonical ${fault.constructor.name} is recognized by the passed refusal classifier before any card opens`, async () => {
     const { run, seen, emissions } = harness(fault);
     await assert.rejects(run(), error => error instanceof ToolInputError && error.message === `${fault.message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.`);

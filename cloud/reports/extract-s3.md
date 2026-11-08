@@ -793,3 +793,5 @@ A7 inventory completion before two additional type-only import edits: access-tok
 - apply-tool-renames.ts:136 applyAgentPluginToolRenames: same Tovu implementation, local alias to the original canonical record; no body changes.
 
 All previously inventoried consumers will use the actual AgentPluginMcp* identifiers directly rather than old-name local aliases; comments remain verbatim. The explicit new-test compiler initially could not resolve Node type definitions because its config lives in scratch, fixed typeRoots to the existing Tovu install; no source/package/lock change.
+
+A7 new-test type checks caught three missing required fixture arguments in my new files (two defaultChannel values and one validation-error field). Added only these arguments, no assertion/input behavior weakening. These are batch-authored new tests, fixed under Continuation 2. Both first-recording and corrected hashes/commits are retained; no post-move pin was re-minted and existing tests remain byte-identical.
