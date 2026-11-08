@@ -1,10 +1,10 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **Continuation 2: A6 GREEN; A7 beginning**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
+Status: **S3-0 through A7 GREEN; C-a ready for independent Claude review.** Historical stop/guard-classification records below are retained and explicitly corrected by the final evidence.
 
 ## Clock and source custody
 
-UTC start: **2026-11-08 15:34:09**. Deadline: **2026-11-08 20:19:09**, 285 minutes total. The reserved shutdown window starts **19:59:09**. Final report prepared 2026-11-08 15:44:38 UTC; elapsed **0.1749 hours**. Startup, setup, original-pin build, checks, commits, pushes and reporting all count. No reset or continuation.
+UTC start: **2026-11-08 15:34:09**. Deadline: **2026-11-08 20:19:09**, 285 minutes total. The reserved shutdown window starts **19:59:09**. Initial stopped report prepared 2026-11-08 15:44:38 UTC; then elapsed **0.1749 hours**. Final timing is in C-a below. Startup, setup, original-pin build, checks, commits, pushes and reporting all count. No clock reset across either owner-approved continuation.
 
 Fetched and resolved before tracked writes:
 
@@ -797,3 +797,675 @@ All previously inventoried consumers will use the actual AgentPluginMcp* identif
 A7 new-test type checks caught three missing required fixture arguments in my new files (two defaultChannel values and one validation-error field). Added only these arguments, no assertion/input behavior weakening. These are batch-authored new tests, fixed under Continuation 2. Both first-recording and corrected hashes/commits are retained; no post-move pin was re-minted and existing tests remain byte-identical.
 
 A7 review refinement before the Tovu phase of the ordered final gate: composition now reuses classifyAgentPluginMcpError directly, so compatibility wiring and production have one classifier function rather than two identical inline predicates. Removed a redundant type intersection in federation. These are own-batch wiring/type edits; Jini checks already running are independent and all subsequent Tovu checks see this final source. No baseline behavior/test red.
+
+## C-a — ready for Claude review
+
+Independent review handoff only. Codex has built and verified S3-0 → A3 → A4 seam → A4 move → A5 → A6 → A7. No Claude verdict is invented and Claude was not launched. A8–A11, H0/H1 vocabulary extraction, later sessions, packed/desktop work and publication remain outside this authorization.
+
+Final evidence assembled **2026-11-08 17:43:11 UTC**; original start **15:34:09**, deadline **20:19:09**, reserved shutdown starts **19:59:09**. Elapsed **2.1507h**, remaining **2.5993h** of the original 4.75h. No reset, helpers or new batch in the reserved window. AI-Dev-Shop absent in Tovu was expected.
+
+### Tested source tips and following report commits
+
+| Repository | Branch | Session starting pin | Last GREEN source tip |
+| --- | --- | --- | --- |
+| AINSEP/Tovu | cloud/extract-s3 | 2fe999573b453ff8e28c7327ef3fef257c6b48b1 | e597d245efc33c203e389d72ca70382b7b8eb661 |
+| AINSEP/Jini | cloud/extract-s3 | e069b3fe0ef00839568168d85c11dfd97285f61f | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 |
+
+This is the final green source pair. All subsequent Tovu commits contain this report only; they are not new tested source tips. The final report-only SHA and verified remote pair will be recorded in the shutdown verification and task response. Jini has no report-only change after its source tip. Every push used immediate pull --rebase; no force/main merge/publish. The transient HTTP503 Jini push and transient credential Tovu push both succeeded on ordinary retry, verified by ls-remote.
+
+### Final gate outcome and material correction
+
+**915/915 tests pass, zero failures/cancellations/skips/todo**: Jini checker/source70, review fixes30, platform3, UI2, neutral-host review30, integrations57, admin/state93, public entries5; Tovu625 across62 explicit files. All four touched packages (integrations, agent-plugins, platform, UI) build and typecheck. Scripts typecheck; Tovu relink/main typecheck; exact provider-field parity pin; explicit three-new-contract compile pins; strict cyclomatic/cognitive ceiling10; XP1–XP5 original-snapshot checker; plugin guard; layer/isolation and custody all pass.
+
+Raw guard exit1 has exactly R2-deep-path(1) and R10-chatpane-public-surface(1), plus informational R13 notices. HW1=17/HW2=16/HW3=135/HW4=1/HW8=49, every new count0, HW5/6/7/9=0. Layers0/isolation0, SI-c9/SI-d7 audit. No N1, new R8 or extra finding. The actual guard was never changed or waived. R13 CLI availability notices are not skipped tests. Known baseline bundled-identity, five UI sign-in-card/jsdom cases and the12-error broad test-tsconfig remain excluded as the brief requires; main Tovu typecheck and all named tests pass. API-connect baseline was12/12 and remains12/12, with no grandfathered failure set.
+
+Material correction: the first scratch verifier matched only R-number findings and wrongly accepted N1 comments from my A3/A4/A5 moves. Those historical guard-green claims are withdrawn; tests/build/checker/custody results remain real. Continuation2 explicitly permits repair of own-batch code/gate errors. The verifier was fixed to capture all capital-letter numbered findings, only rejected comment lines were reworded under N1, and the complete A5 superset was rerun green. The final A7 gate independently shows exactly two raw guard findings and reruns every earlier regression/pin. No design/owner-import/saved-data/existing-test behavior failure occurred.
+
+### Batch/source/gate/measurement ledger
+
+Inventories above give every symbol/helper/type/value and resolved destination before its seam/move. The initial S3-0 inventory precedes repairs; A3 first records the saved-format pin; A4 seam is separate and measured before movement. No unresolved inventory remains.
+
+| Batch | Inventory T SHA | Implementation/gate T SHA | Implementation/gate J SHA | TS + / - (both repos, incl tests) | Transported lines | Test outcome / limit |
+| --- | --- | --- | --- | --- | --- | --- |
+| S3-0 | 5bdc4254eed6293d539bcbf467834893b4ca41f5 | ce6dc422d3ee95c607b9284de42fb815cc65b8fb | 9a6a65e6ce12624c94a04a0827ad20d6cef305b2 | +685/-58 | 0 | 312; first complexity11 repaired, tests retained |
+| A3 | 08d0bef9747244a6b8f9dec1ba984cd3d0468942 | e06f9eddca52895670f3459e5abd54dd9799eab6 | 46039c5d444bf36c7d9a281c071c43d00a2f4e95 | +387/-141 | 102 | 233; historical guard classification corrected at A5 |
+| A4 seam | 695702483aa4663508c850ff1326e797e0c49296 | fdd4f5d622ee07bafcabe9d3bf6b2b2eeeddb37d | 1838089229910c0ddd711548dc425807f0ea051f | +241/-70 | 0 | 312; 311 edited lines incl tests, 9.3min/30min allocation |
+| A4 move | 9392213f2014d64f919aa6996c492629ca3c03fb | b14e0701b61389340f9e40d669f3f2d7b53aa61c | ce9e9dcc8c8fcc36869d85e1e2688c3c7322c850 | +771/-711 | 726 | 314; historical guard classification corrected at A5 |
+| A5 | faa84d347b5095867cd4e7c79e6810d2f3921d7b | 1ef11e221e379b0b7ea7f7762864b8e6afcbaa6b | df2698cf66b56bce3103491c79a3dd6273819c32 | +467/-180 | 0 | 455; entire gate rerun after N1/verifier repair |
+| A6 | e2799e6f9ea74d62269e7e5a1a22f4fb6542eeb3 | f35d56f5b6cb73e0b03226cca6b65cfdb66b8d78 | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 | +587/-509 | 533 | 458; full A5 gate through shims, new public/runtime tests |
+| A7 | 0679284fd1df9be55bffb30b7fdbf3f026519f8a | e597d245efc33c203e389d72ca70382b7b8eb661 | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 | +367/-123 | 0 | 915; accumulated nine/new and earlier pins/entire connect matrix |
+
+The mechanical TS diff counts include both added engine files and removed host bodies, and must not be read as the A4 seam edited-line ceiling. The actual seam measurement is311, below600 and the1.4x allocation stop limit. A3 transports102 lines (65+37), A4 move726 (353+228+145), A6 transports533 seamed lines (135+138+75+185): **1361 whole-file lines**, not an estimate626. Every transported file hash matches the corresponding pre-move Git blob (A3 starting pin, A4 seam tip, A5 tip); import/wrapper edits happen only after byte verification. A7 has no move.
+
+### Reproducible XP3 and fixed review findings
+
+Every gate used JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s3/declaration-baseline, produced once from clean unchanged35c4961af718f0f30591c46d2ea2756c4484a731, never from S2/current/previous gate. Exact tools Node24.2.0/npm11.3.0/pnpm10.33.2. Frozen original install/core/recursive build completed before snapshot. Installed tsx loader verified; repaired checker invoked by absolute path with cwd in original checkout. No repaired source copied to original. Writer rejects dirty/wrong provenance/missing outputs/unsafe destination/overwrite and honors actual build-tsconfig/noEmit mapping. 3308 production mappings/3320 d.ts, read-only snapshot. Manifest SHA256 d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459; aggregate snapshot SHA256 f1b750bc75cfa1fbed7d5b3ee4c046f889a43bc8dd69e224203761ba39d04769, all per-file hashes unchanged at final tip.
+
+F1–F7 red/restore/green details and exact permitted two-call existing-test diff are retained above. F1 CLI/mapping/provenance: initial9 failures, later noEmit regression then52 green with unchanged checker suite. F2 five host-input cases red→green; exact Tovu bytes/catalogs/tool ids preserved. F3 raw-only parser20 failures→25 green with real platform parser parity and actual Resend shape; injected parser retains precedence/args. F4 three exact rationale groups/@file scope red→restore→green, production comments intact. F5 debris/18 em-dash restorations/source checks; real collector mutation red→byte restore green; direct Tovu find/load helpers, public factory aliases retained for compatibility. F6 11 failing new cases→green: reference directives/ambient modules in source and emitted declarations plus optionalDependencies, old/core/self controls. Complexity visitor11→small helper split, tests unchanged. F7 optional real projection field mutation red then byte-exact restore/rebuild green, exact keys/properties and bidirectional assignability, host-only test. Missing A2 changeset includes platform and agent-plugins minor; separate A3/A4 seam/A4 move/A5/A6 changesets present, no release published.
+
+XP1 full new/renamed; XP2 original-source modified specifier comparison; XP3 original emitted declaration comparison/full moved files; XP4 type-only core/contracts; XP5 dependency/peer/optionalDependencies. Relative-path crossing coverage was not expanded: existing rootDir/build enforcement remains and that checker limitation is explicitly retained.
+
+### Why-comment and transport audit
+
+Final TypeScript-scanner audit compares every comment in all nine starting-pin source files against their mapped implementation/host-binding/port destinations, applying only the exact N1-rejected substitutions documented above. **90/90 comments preserved**, zero missing. This audit includes the type/interface comments moved into local ports and the admin block retained in Tovu, not just file headers.
+
+| Source at starting pin | Comments preserved | Destinations (relative to checkout) |
+| --- | --- | --- |
+| api-connections/byo-client.ts | 4/4 | Jini/packages/integrations/src/api-connections/byo-client.ts; Tovu/apps/website/src/features/api-connections/byo-client.ts; Jini/packages/integrations/src/api-connections/host-ports.ts |
+| api-connections/hook-http.ts | 3/3 | Jini/packages/integrations/src/api-connections/hook-http.ts; Tovu/apps/website/src/features/api-connections/hook-http.ts; Jini/packages/integrations/src/api-connections/host-ports.ts |
+| api-connections/host.ts | 17/17 | Jini/packages/integrations/src/api-connections/host.ts; Jini/packages/integrations/src/api-connections/host-ports.ts; Tovu/apps/website/src/features/api-connections/host.ts; Tovu/apps/website/src/features/api-connections/host-bindings.ts |
+| api-connections/connect.ts | 4/4 | Jini/packages/integrations/src/api-connections/connect.ts; Jini/packages/integrations/src/api-connections/host-ports.ts; Tovu/apps/website/src/features/api-connections/connect.ts; Tovu/apps/website/src/features/api-connections/connect-bindings.ts |
+| api-connections/plugin-state.ts | 2/2 | Jini/packages/agent-plugins/src/admin-surfaces/plugin-state.ts; Jini/packages/agent-plugins/src/admin-surfaces/plugin-state-persistence.ts; Tovu/apps/website/src/features/api-connections/plugin-state.ts; Tovu/apps/website/src/features/api-connections/plugin-state-bindings.ts |
+| agent-plugins/executable-tools/register.ts | 20/20 | Jini/packages/agent-plugins/src/connect/executable/register.ts; Jini/packages/agent-plugins/src/connect/executable/ports.ts; Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts; Tovu/apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts |
+| agent-plugins/executable-tools/host-capabilities.ts | 22/22 | Jini/packages/agent-plugins/src/connect/executable/host-capabilities.ts; Jini/packages/agent-plugins/src/connect/executable/ports.ts; Tovu/apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts |
+| agent-plugins/executable-tools/approval.ts | 4/4 | Jini/packages/agent-plugins/src/connect/executable/approval.ts; Jini/packages/agent-plugins/src/connect/executable/ports.ts; Tovu/apps/website/src/features/agent-plugins/executable-tools/approval.ts; Tovu/apps/website/src/features/agent-plugins/executable-tools/approval-bindings.ts |
+| api-connections/surface-connections.ts | 14/14 | Jini/packages/agent-plugins/src/admin-surfaces/connections/connections.ts; Jini/packages/agent-plugins/src/admin-surfaces/connections/ports.ts; Tovu/apps/website/src/features/api-connections/surface-connections.ts; Tovu/apps/website/src/features/api-connections/surface-connection-bindings.ts |
+
+Cross-repo Git cannot encode a rename edge between repositories: git mv transported whole files within Tovu, filesystem move crossed repositories, temporary index entries were explicitly removed and thin shims recreated. Final Jini additions/Tovu modifications do not falsely claim a final Git rename. The inherited S2 A2 scripted-slicing deviation remains disclosed and neither rewritten nor certified by S3. All S3 transport followed whole-file/hash/comment custody.
+
+### Boundaries, identity, formats, behavior and cost
+
+- API host/BYO/connect export through integrations/api-connections (node); state through agent-plugins/admin-surfaces (universal); executable through agent-plugins/connect/executable (universal actual closure); surface connections through agent-plugins/admin-surfaces/connections (universal actual closure). Exports/declarations/jini.entries verified by runtime imports and emitted-relative-import traversal. Only necessary executable→lifecycle isolation mapping added; no isolation.shared/exemption/dependency/lock change. New Jini source/declarations imports only core or local same-package modules. API host takes opaque State, never admin-surfaces imports. Fourteen surface-host members finalized to actual local/core/generic shapes, required @agent-note present.
+- Thin old Tovu signatures bind original storage/vault/loader/shared-consumer/limiter/browser/link/callback paths, errors, filename tovu-agent-tools.json, host messages/app ids/URI namespace. No Express/server/route move. Same API host/store/state/inbox, issuedTokens/frozen map, WeakMap listener owner, contribution registry and activation owner. Original optional map fallback retained; production composition shares one. A3 token lookup remains1 contribution load/4 credential opens. Rows5/6 and all counters unchanged; A5/A6 state remains one sealed-row read/tool. A7 adds only function calls, no I/O/cache.
+- Saved format/scope/id/label first pin includes mutation red/byte restore. Actual one-vault/CAS proof patches the real vault prototype methods and observes one instance across API/state rows; restores finally, no debug API. Same format/scope/row labels/JSON/CAS limits, no migration or regenerated golden. Saved-key roundtrip and all accumulated nine pass at final tips.
+- Approval freezes the exact connection account against the call signal. Old withheld-token directions (tool→surface and surface→tool), later-call/error/state scans, frozen admin action, switch refusal, forged refs, blocked origins, disable/reload/revalidation all pass frozen security/vertical-slice tests. No extra approval or copied grant rules. Consent→provision→sign-in→revalidate order retained.
+- A7 local AgentPluginMcpRecord/Save/View/Repo/AccessSnapshot alias canonical Tovu types, not copied60-field vocabulary or nonexistent hosted-mcp core entry. Composition passes six original projection functions and one host classifier over the same repo; adoption spreads the whole existing record. Passed validator/classifier identity regression red→green, canonical MCP validation + canonical OAuthError refusal and unknown identity/no-card tests pass. connect-tool has no OAuthError import/isValidationError branch; legacy hosts adapt only in Tovu binding.
+- Cards use AgentPluginCardsPort<Resource> = SurfaceCardsPort<Resource>; build-only Omit, waiting retains concrete Resource through callback. A new non-UI resource runtime/compile pin proves the type lane. Actual UI/askThenReport/app ids/uriNamespace live in host bindings; original ui://tovu URIs/card ids/copy are byte pinned by frozen state/open-link/theme/destination/skip/golden tests. Credential descriptors/core card types use core contracts. No duplicate exchange, token store or activation queue.
+
+### New pin/test recording and tip hashes
+
+| New file | Recording full SHA | SHA256 at recording and final tip |
+| --- | --- | --- |
+| Jini/scripts/__tests__/extract-s3-checker.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | 38604679a697fba4b881c831f243469f71d0b48594d02dab083cc5771c4790b9 |
+| Jini/scripts/__tests__/extract-s3-source-contracts.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | ddc40cdb741c29c4d39cfbee8e0f8e88aec7d7b9cc340078fcf0782dee43be48 |
+| Jini/packages/agent-plugins/src/connect/__tests__/host-tool-inputs.unit.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | 3ac77d39dff0620104dfa8c8ae2bbb77deb63df765eb6f364176c25588e45d5b |
+| Jini/packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | 07ceb1fe0b04f99c62d81f43be654f31f6fd64b0552b30e9470763abc4a09100 |
+| Tovu/apps/website/src/contracts/core/__tests__/extract-s3-host-source.unit.test.ts | ce6dc422d3ee95c607b9284de42fb815cc65b8fb | 7cb62f733a97ea036b9a250da2629e53b2f2eedfd3c6253b4c42798eb482c388 |
+| Tovu/apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts | ce6dc422d3ee95c607b9284de42fb815cc65b8fb | 7a57ea1126178279361bef826ad1ea4f9383b7c1f4adba683df370c898e59795 |
+| Tovu/apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts | 08d0bef9747244a6b8f9dec1ba984cd3d0468942 | 57a312280c8e890a00683ab3ce7419bc245e9aebe82821c18a6715698f96e902 |
+| Jini/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts | 46039c5d444bf36c7d9a281c071c43d00a2f4e95 | c22bc908e911221113f93bac3f02158abdcd78598513228a380ff414ae804232 |
+| Tovu/apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts | fdd4f5d622ee07bafcabe9d3bf6b2b2eeeddb37d | 63af6d71b754bb755035f8777570cc340834c783d7a28477467000169b879d80 |
+| Jini/packages/agent-plugins/src/admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts | 1838089229910c0ddd711548dc425807f0ea051f | 9b0f31ef47885a02af8e3898f03f58d2134eeb6cda39bd60944c600c6fa1ab54 |
+| Jini/examples/neutral-host/src/api-host-moves.test.ts | ce9e9dcc8c8fcc36869d85e1e2688c3c7322c850 | c6a9fddf3d862e303cbaaaf3ddab062265a1cb5efd093fe0bebf654b62710b53 |
+| Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts | 1ef11e221e379b0b7ea7f7762864b8e6afcbaa6b | d35734d2b983eb2dbe468242a42e338cada8c0766e333d366f4b3e34025d56db |
+| Tovu/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts | 1ef11e221e379b0b7ea7f7762864b8e6afcbaa6b | 5c21700d7399d2eb13ef68418183aa4d6cf0df6ba446c489487ce49c1668dadf |
+| Jini/examples/neutral-host/src/executable-surface-entries.test.ts | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 | 90b2759047c87ef251786078b784491fbb31461134b9ed382d89cc03fa3d1ecc |
+| Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-ports.error-identity.unit.test.ts | 09f7c03a6feb9652f22bb6b8e09a05d9a8c473f8 | 5fd700da38024a8856af6f1d7763e46f624558e28ff2b82407b3823e80c3a18c |
+| Tovu/apps/website/src/features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts | a722a10a04cff3240334dcdb5010efb1b6db38bd | 9a96b3a05f1f9e5ba3e5e1d0f07f0d59c4e94c8f3a6660f4c6053149cb26e6f5 |
+| Same new A7 test, first recording before required-argument type repair (not a move; assertions unchanged) | 346da8e11bd5589d736f45fe239eb486daa1373c | 26d0f36df92d41c4bd508ee1c9a72d12c2234dc6e59de848b8713b00ceb8a06a |
+| Tovu/apps/website/src/features/agent-plugins/__tests__/unit/cards-port.generic.unit.test.ts | a722a10a04cff3240334dcdb5010efb1b6db38bd | 5a866629dcd603e51a534796e07297c03192f0d42560fad8bac4d32c33b5fa48 |
+| Same new A7 test, first recording before required-argument type repair (not a move; assertions unchanged) | 346da8e11bd5589d736f45fe239eb486daa1373c | 6d80761bb8016d7322511d712a44623a20872b0f3b14f2e39c535ea096a6fa22 |
+
+All new move/format/parity pins retained their recording hashes through moves. Only two batch-authored A7 test fixtures needed required-argument type corrections before the formal gate; both original and corrected hashes/commits above are retained. This was explicitly allowed by Continuation2 and is not re-minting a moved pin. No existing test/fixture edit beyond the exact two allowlisted Jini call objects shown above. No Tovu existing test/fixture M/D/R.
+
+### Existing golden/core/UI fixture custody at both tips
+
+Tool metadata SHA256 remains **a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6**. All117 pre-edit hashes below were rechecked unchanged; no golden/fixture regeneration.
+
+| Tovu original file | Starting and final SHA256 |
+| --- | --- |
+| apps/website/src/__tests__/fixtures/site-layout-context.ts | cfd4097788b95f79fad1c8a99c63aa43b301b344765f7c2eb80c7f0e20a5f0ba |
+| apps/website/src/__tests__/fixtures/teardown.test.ts | 68198c6c78b90ab673702225a8f9044a44f1861e5ebb1512fca8181f2379c31c |
+| apps/website/src/__tests__/fixtures/teardown.ts | 91fb0c113007e5638d6aa90d70ceceb4b204dd6bdb9d6d3297d96e357c6b5b47 |
+| apps/website/src/assistant/__tests__/admin-parity-search-discoverability.test.ts | b82b387268ed7286efc8074bb84d4341731aaa3e106c030689eadcfeac37755d |
+| apps/website/src/assistant/__tests__/fixtures/chat-delete-grant.ts | c0a70dfbd42b2e6ba386878397cc02a5345a66b5548557a8a0171dd20ed48e11 |
+| apps/website/src/assistant/__tests__/fixtures/confirmed-registrations.ts | 2ab83af15abc5ef53ae56463d7140ee43f4f54246ede131a3b9e655a1b40fcb0 |
+| apps/website/src/assistant/__tests__/fixtures/content-target-inputs.ts | 16c14275f7995c681944ed4479f6c519a3f8aee83cfeeb7455e30697cbbbc3fa |
+| apps/website/src/assistant/__tests__/fixtures/credential-setup-search.json | 817b3c529dda50bae7a7b2828a423cab126c9886e214c43d61311636199e9c47 |
+| apps/website/src/assistant/__tests__/fixtures/execute-registered-tool.ts | 5854612c762662c6e585dc0eec7b1635519000064d62e77810db8820c0e06c49 |
+| apps/website/src/assistant/__tests__/fixtures/moved-tools.access-token.golden.json | 61e018a56d59eee3a4b44055136c9a7c6144c5a6b13a948c8f90ebb8b14ca16e |
+| apps/website/src/assistant/__tests__/fixtures/moved-tools.credential-cards.golden.json | 3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01 |
+| apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json | 3583bc14fa8c596d64a2e97a274166f87a0ea278aed3f8c12b926552b7fc5f66 |
+| apps/website/src/assistant/__tests__/fixtures/published-catalog-descriptor.ts | 654a2be3f905f13bf967b58121a750cf33b37a4d35d59be2e51c74f046936ca9 |
+| apps/website/src/assistant/__tests__/fixtures/registry-deps.ts | 713c88e41789a31e9dd47b356cd4a84ff204a0909f1062003a87f5ecfb806768 |
+| apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json | a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6 |
+| apps/website/src/assistant/__tests__/fixtures/tool-search-known-gaps.ts | 767bdbd7f700d0a0c6d27679c5354019b33d788359383ef7e6115ca28d8ba028 |
+| apps/website/src/assistant/__tests__/fixtures/tool-search-operator-requests.json | 8f46c0bd15b3d55932f759d30301aa0afb8b7c58c9bc52c2ca15dc8efe714f9a |
+| apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts | a9d7529dca082866a3aab9c7c978a477eb00549aa1496383aeaa899dd8d63706 |
+| apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts | 54c1f9c3c98780a882eca0dc94c5c1b7a0d8cd50aa28053b7be20b783c6aa76c |
+| apps/website/src/assistant/__tests__/moved-tools.golden.test.ts | b5534cf39ffee2b108a425f38f443c6b1d6f5af348271f3f09748e6150d23d3f |
+| apps/website/src/assistant/persistence/__tests__/ddl-parity.test.ts | 630c98f2e780be63d5fe0c9db0927a3dd98b42fd0590f719fa6784e04de24618 |
+| apps/website/src/cli/__tests__/fixtures/deploy-config-plugins/example-host/deploy-configs/example-host.mjs | a16e98fadb308a1d47ac9c0bc55ad7cca630af4906c2e5c1a288658393b9f5cf |
+| apps/website/src/cli/__tests__/fixtures/deploy-config-plugins/example-host/plugin.json | a99784f238196bc515dd50943db83c7f1a3998cd09f2c0eedc6ed1d4e2e18130 |
+| apps/website/src/cli/__tests__/fixtures/deploy-config-plugins/example-host/tovu-deploy-configs.json | 26b0c492d601585d435b210bdcc3011a5c84c4f53ddff4663e805482f1e43452 |
+| apps/website/src/contracts/core/__tests__/fixtures/public-security-headers.json | e85276b940b2b50ba47c71d37410f7520d2b561d1448fc7737e11a22cacf6a71 |
+| apps/website/src/contracts/core/__tests__/plugin-credential-card.typecheck.ts | 587e5d0ef048507133e15412eb81ff6e8b66d0ad95486ce464b0a6ec4b3e47be |
+| apps/website/src/contracts/core/events/__tests__/jini-outbox-parity.test.ts | 2f200f896172857870a1ebf192f9685958dcb3e83273795776efac22797225d0 |
+| apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts | 2a6b661a65bf77feee06569f3d75ad4cb552c770144cb72062952c46125f4a09 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/activation-writer-child.ts | 5de929fa687df5d3051f6afec4b248a0441b8dee9ac119883207e2058f665618 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/build-zip.ts | cea798f992ddae26e37673422476bfa6d8b5e500029120f5c8de9a7b905bef62 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts | b948cd57f5511bf22ea6fd363efc9a88e49b7efdde16d6083134a9454b9e5869 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/composed-bundle-env.ts | 96c47930b460db839087f9a51e8fabc8cb8da7c322702cd1718b2a1b2b8a5d6e |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/connection-service-ports.ts | 67e0f3261cd33f294e278e39478595100b5cdef293cf55fc2225008478d7be19 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts | 8b15c6eb4d9e40cb9c4c2bb2d3850d22fe15ea1272386bb9faa1d3a2c06d9e40 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/install-legacy-revision.ts | 14cb003fa62d79a38a312cfd70a3b3f469ae9ee625e0193a0e6c61bdb2ec5906 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/meilisearch-emulator.ts | be72edf855cae9d779b2d3585b05ac694d3036f0d00bf714e0457d960ac8068b |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/operator-locale-ledger.ts | db3d978501b8f72f7f8e9369db9c16c665116c0e0449d1b30c7829bd502849be |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/plugin-exports.ts | 879ec5f441bae54372c398cbbdd9a43bc7174f02f7b6d14bbc3d57a872bf67c4 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/plugins-uninstall-registration.ts | 7f8a2690d995ea22baf80f9d3d81337376fe5eb9f282043cebec631d12fc8936 |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/supporting-files.ts | cbf207d83322a829a459035028b7a54d32e4f61e6e9e2b9ca328d3bd7e5b0a2e |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts | d11e11e2a92bb63b9338c5d78ef5cddf151cd760a2c762be651f354ab3dfb7fe |
+| apps/website/src/features/agent-plugins/__tests__/fixtures/yazl.d.ts | f44274229288c73e6f487711873742738fb97f6578ec94a3adfe6e22578b377c |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md | e765b1c3aa32ab29d5e77a7268a97c428a817317579d81942f5a31de8fa201eb |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/destinations/rows.mjs | 4e168a2710e59cb9fd23d52485ac93f123eb72375ec4d1680ba3335a87a9c52b |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/lib/connection.mjs | ac846fca3b6706acf8e1f289d5e41bb0b6b2dc780ad89eec8aa367316e49e6ec |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/surface/handlers.mjs | 324584e21852760a5081b644dedf9471cfd371baf6c633f005ff488c139124f9 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/surface/index.html | a3a9b70583227ce44a3e3dc78877c908c60cbae9cf4c054c81833a69376bf701 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tools/append-row.mjs | ef3e556e348af040986d058053407926024fb42de628bcaf683d00691f5a4553 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tools/last-token.mjs | c9c86486a612ed24544a65567679b28414384056be989d5d8189e8bec61e6517 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tools/selection.mjs | 4c5fd615e9ea1ed37424ce1d8682d33d2723c4bd3768fb29ce9a92e09eda5d63 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tools/whoami.mjs | 588065e854c2151bfde47227f152fe2ac820449cf90e48a2bc0cbed1a39bb667 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tovu-admin-surfaces.json | 8c9f92259cfe44049616e05781f455351237165994a2145ad425d1047c05daae |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tovu-agent-tools.json | 0bf296f717094393f7f79848695210cd5cf045397b780a711e6aa275459e57f9 |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tovu-connections.json | 22c4a9c2e8c25257752218d2afda19ce9517a83af06e08149d0848211b0b1b5f |
+| apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tovu-form-destinations.json | 05095848882cc60281f55ca18f138c6be3e9c4f2e18a9d48a793eb720491369d |
+| apps/website/src/features/custom-credentials/__tests__/fixtures/example-host/plugin.json | f73eba3da5a38d495ca69f5db1832b5b49ead0b1f64bf10713c7990153f39ea8 |
+| apps/website/src/features/custom-credentials/__tests__/fixtures/example-host/tovu-credential-schemes.json | 980c0669ef70be06dc391d3a0d31fb296095c4c6646fea54cbe75e71f792f972 |
+| apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/example-host/deploy-ops/example-host.mjs | c67e9eabc0705a6436c415fd7d6a8ede124502ac6af02e347763060e2d072ab8 |
+| apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/example-host/deploy-ops/example-observer.mjs | 75dab2c81edce7abcc6731238809d8b040cc1c9936458dd66d9abe50b20d5902 |
+| apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/example-host/deploy-ops/example-pipeline.mjs | 6ba82c9bf0ec604b0dee99f30580802433c077c5ceb97b4734e58149cf8c8bfe |
+| apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/example-host/plugin.json | a99784f238196bc515dd50943db83c7f1a3998cd09f2c0eedc6ed1d4e2e18130 |
+| apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/example-host/tovu-deploy-ops.json | ccab59f434b554d8059004f4e05c102ef858069b779c9b19830262c4c76985f8 |
+| apps/website/src/features/external-mcp/__tests__/external-mcp-connection-gate.typecheck.ts | d4af98dc55efebbd5d0293a4b079e43768f77ee4f7ec5e8d7949ab69a2e34d45 |
+| apps/website/src/features/forms/fixtures/all-fields-demo.json | 24dc4f7e5c0597cfa0921b01ed9fccd9ef5f212cff5e4add230e53416638faa1 |
+| apps/website/src/features/media/__tests__/fixtures/encrypted.docx | 14350898dc6e163aea01e821ba6c4686361a576c60d63bd2efb4cbc56d29444b |
+| apps/website/src/features/plugin-runtime/__tests__/fixtures/ac11-fixture.ts | 02ae3983c69187996d116cd9b37ae50fd91fdc48cf22e417e044d6ad746f5125 |
+| apps/website/src/features/plugin-runtime/__tests__/fixtures/plugin-post-read.ts | f85aa6dc848e3c4818a48b33f92ed021174653e2ac8ebcc69f4ebb8e52934f38 |
+| apps/website/src/features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.ts | f845627d85c23fc7c6b0c71e5092d1bc53d77ddb4a827a9411de15216d0826b2 |
+| apps/website/src/features/plugin-runtime/__tests__/fixtures/site-plugin-zip.ts | 1c2b7420b85ca09fad0f960115f9036868a564a6541490de5a703d62639d2934 |
+| apps/website/src/features/site-backup/__tests__/fixtures/fake-github.ts | 554a4c8fefead097adb06a34b515fdd9be227b2159bdb9828c7319d949152755 |
+| apps/website/src/features/site-backup/__tests__/fixtures/site-plugin.fixture.ts | 12ca7e05856c7cf27ca4c05314b9033455ac36c9d82b0d3d4df73736a8a3ce63 |
+| apps/website/src/features/source-control/__tests__/fixtures/example-provider.ts | ad79626000e5df4becebe5732e77a9c10850396a4e897b71528a22a31a665e84 |
+| apps/website/src/features/source-control/__tests__/fixtures/github-from-source.ts | bbf79e05b23d125b83889a6b905e9a3107f03fcfa35b518274518e497619805f |
+| apps/website/src/features/theme/__tests__/fixtures/astro-bundler-probe/.gitignore | 0649e911e7d80c64d81f41dc5c8e466c3eb5a72daabab08dc2ab220320ceb912 |
+| apps/website/src/features/theme/__tests__/fixtures/astro-bundler-probe/astro.config.mjs | 0f562b0547b32cc1f44c1a84f6ca6477338df5d11a43cb2052ca6e8d6d4bf9c3 |
+| apps/website/src/features/theme/__tests__/fixtures/astro-bundler-probe/src/pages/index.astro | 28899c860baab7f9342b9224c1d5d1cf11ca79fce939f733766f05c7687998f4 |
+| apps/website/src/features/theme/__tests__/fixtures/font-links.json | ee32bccadeaf5bb125c85cc2cf37ee26c17b3cc36b0d683326b81cfc9c416741 |
+| apps/website/src/features/web/__tests__/fixtures/library-page.html | c161d57bc4e14fc8c6b123fb6fab084ebcd93e58a9724e2e8a055a2aa9e4de03 |
+| apps/website/src/features/webhooks/__tests__/fixtures/site-key-ensure-child.ts | 28dd26ce3fd14ba5023c8fbc83a2d5e4621722d93ba47a2d2a1b706eb074eae7 |
+| apps/website/src/platform/db/__tests__/parity/__fixtures__/vault-parity.golden.json | 96eca71aa30c1b1c865c09eb8170cd3d62a6ee674c17a07a91c53c6908a5b3fa |
+| apps/website/src/platform/db/__tests__/parity/capture-vault-golden.ts | f4a74d1fdeae45383ebc158888ac63ebcfcca6c29a130dd92ae8ac9b7b41f48c |
+| apps/website/src/platform/db/__tests__/parity/parity-harness.ts | c242c3dd8bc49269cca6861fdb86d5a52450d3c228813c8bc4fda8cc2967ec1d |
+| apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts | 1928ce20ce513e7b5e36216fd5e510cda9fae1cb3b49b988193e8a73a36c71fb |
+| apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts | 022fd8cb2f01eb58182a954cd7cd122a8494d0be2ef16c43e2262adbb22e56d2 |
+| apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts | 79bf4c6451baf173ce3665d6ca2d17c84532feb2a14d6af702fce1651e9789c7 |
+| apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts | 4978be52ea953370f93a393de20792c0365b4507e4b4326b85f395d9ffaaffe1 |
+| apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts | 4f4a6634687aea1d7d968d6513064adeb375969246980c671e837f52c70ca2d9 |
+| apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts | f74aef4e367b5559d22402ad6b1fa049db0c529dd46a83d9ca50c7207634ddd0 |
+| apps/website/src/platform/db/__tests__/schema-postgres-parity.test.ts | f17480c21689eb0c9d0d29f942a856e059d3946bab1d5c813b76cf0ce6ce6f61 |
+| apps/website/src/platform/db/kernel/__tests__/fixtures/owner-lock-race-child.ts | 99742fd40ce333839e3997c2aa4a06952e9b252008ccb22700cb209bb0243444 |
+| apps/website/src/platform/db/kernel/__tests__/fixtures/pglite-owner-child.ts | b925accda04981e079d1c411ef44e796319f5e6ce49e137c7449701971c042a0 |
+| apps/website/src/platform/observability/__tests__/fixtures/in-memory-otel.ts | 428f8dd4277c8b9df4a081d3ac3af121397f55cfedb60072109dbff76cd28b9a |
+| apps/website/src/platform/observability/__tests__/fixtures/otel-sdk.ts | 5b0247ffa01fe4510de62203d41056fd65d1ef85c9e409df473cd2c96b38e187 |
+| apps/website/src/server/__tests__/fixtures/bare-test-listeners.baseline.json | 1edf4297104c885d77b7be921b979de427d6f30c6b6ea02c791f321bff899d16 |
+| apps/website/src/server/__tests__/widgets-error-code-parity.test.ts | 6cfb8fc03f99bc97a3429cc389739efcf8f6c6ae0c888821ef21476b2d10b64c |
+| apps/website/src/server/inbound/admin-http/__tests__/fixtures/admin-dev-proxy-tls.ts | 30a99cb114fa81d5801a6e7a9dcbbf8165c76f9cdacae2a5d1eb97eadfd56c0d |
+| apps/website/src/server/inbound/admin-http/routes/settings/__tests__/json-route-parity.unit.test.ts | f7754f4ef883f172c66eecf808bd3d2acba3854a833ece8917ae88d22448b7b6 |
+| apps/website/src/server/inbound/assistant/__tests__/fixtures/daemon-tool-ids.json | 79419ee9b210d2e6c0d64ec7629a821dfca2270863cf15f68765275484988b66 |
+| apps/website/src/server/inbound/public-http/http/site/__tests__/fixtures/exit-worker.js | d0f22143f793bda816bb12adb23deb233ffab7be3d014586d6656881402e577c |
+| apps/website/src/server/inbound/public-http/http/site/__tests__/fixtures/form-theme.css | 63dd5bfd3f486b671adef72c66c31f8630cac7c3d5c5e5ed456886f493b41e57 |
+| apps/website/src/server/inbound/public-http/http/site/__tests__/fixtures/landing-leading-style.html | e22f0d527907f3ecdaf5ffde770eb63d64f7109e9769b795a73f02ab28cc47bb |
+| apps/website/src/server/inbound/public-http/routes/site/__tests__/__fixtures__/commerce-strip-parity.golden.json | 992e2e556670bd0dc163b5eabde8633839ac8e9f8d6185bb85e032d2c224c0f1 |
+| apps/website/src/server/inbound/public-http/routes/site/__tests__/capture-commerce-strip-golden.ts | 72c83e21f091861fba53dac21beb4ca0a1d9751edcf5b446cf8102df93c0cfc3 |
+| apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts | 4168e22135aab5d3dcc7d8f10c89a4bdcdfd07f4a08ee319f8ac742f5192f88d |
+| apps/website/src/server/runtime/boot/__tests__/fixtures/mail-send.golden.json | f0733d6176cd0d2fc92a9181d342c9ff9480f0d505f7c5e1dc8330d3f48a4be3 |
+| apps/website/src/server/runtime/boot/__tests__/fixtures/unhandled-rejection-child.ts | 89f3f72f480bb3fbebfec11e88334d24537592ab0e11ca1f2f5e685bba151e62 |
+| apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts | 10234c460b5aaa513da12049a6edd557ff5d35ab711a8d9a9049db1c3761aeb8 |
+| apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts | 28738c7757cc624ea03fcd4c7564d9f1a30882d1b94e2574a7d31b4ca4bf92f0 |
+| apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts | e8f47a04981537e5f2aebc0a3522093b07d6f0eea7bc148a73b19b31a4a4e1f7 |
+| apps/website/src/server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json | 2be1488c8e4556b71b759536dccac88c78612a22200aa6843748f62cb78e736c |
+| apps/website/src/server/runtime/composition/__tests__/fixtures/legacy-content-history.ts | 53fe7c4736107b90ab47d91434cd941f3eb427526d32b144e120a0b1817d56c0 |
+| apps/website/src/server/runtime/composition/__tests__/fixtures/other-vendor/README.md | 06599e156251b709aa26f73fcd7fddc7c0412b1be0ddade50d45fa9d5617b40d |
+| apps/website/src/server/runtime/composition/__tests__/fixtures/other-vendor/ghost.mjs | 2b1343ef2a211d70cd5c8a8da6d760c39c6fa9c86d1338047cf4830569c3cf9c |
+| apps/website/src/server/runtime/composition/__tests__/fixtures/other-vendor/tovu-form-destinations.json | ba6d5fa635a9497d4875c7221c55729032851ab3bd31b6d57473872a890711fa |
+| apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts | 2551176d2de4c48c7e4d3de8a75b1e63549194d500ef82b8a808ceff15562a16 |
+| apps/website/src/server/runtime/plugin-tier2/__tests__/fixtures/echo-plugin/measure.ts | df26c74d6614854249f2bd1d6f0cf2e315f814467f94eb874028f4449b31924f |
+| apps/website/src/server/runtime/plugin-tier2/__tests__/fixtures/echo-plugin/plugin.ts | 8098885f91ab3ced80d13e348e14b7f4548e1e9c5db4ed98ac60d79577047c27 |
+
+### Every formal command/result and explicit test filename
+
+Commands below use the exact toolchain/scratch cache environment above. Working directories are explicit. Node concurrency1 and Vitest maxWorkers2/minWorkers1 are retained; no broad unbounded suite. Final A7 includes every earlier new regression/pin and accumulated matrix. Guard raw exit1 is validated only for the specified findings; effective exit0 below does not mean the raw guard returns0.
+
+| Batch/check | Command ref | Recorded effective exit | Tests / qualification | Elapsed/remaining h at completion |
+| --- | --- | --- | --- | --- |
+| S3-0 / c2-s3-0-agent-plugins-build | C01 | 0 | — | 0.817/3.933 |
+| S3-0 / c2-s3-0-platform-build | C02 | 0 | — | 0.818/3.932 |
+| S3-0 / c2-s3-0-ui-build | C03 | 0 | — | 0.824/3.926 |
+| S3-0 / c2-s3-0-agent-plugins-tsc | C04 | 0 | — | 0.825/3.925 |
+| S3-0 / c2-s3-0-platform-tsc | C05 | 0 | — | 0.826/3.924 |
+| S3-0 / c2-s3-0-ui-tsc | C06 | 0 | — | 0.831/3.919 |
+| S3-0 / c2-s3-0-scripts-tsc | C07 | 0 | — | 0.831/3.919 |
+| S3-0 / c2-s3-0-checker-tests | C08 | 0 | 70 pass | 0.834/3.916 |
+| S3-0 / c2-s3-0-agent-plugins-tests | C09 | 0 | 30 pass | 0.834/3.916 |
+| S3-0 / c2-s3-0-platform-tests | C10 | 0 | 3 pass | 0.834/3.916 |
+| S3-0 / c2-s3-0-ui-tests | C11 | 0 | 2 pass | 0.835/3.915 |
+| S3-0 / c2-s3-0-neutral-host-tests | C12 | 0 | 30 pass | 0.836/3.914 |
+| S3-0 / c2-s3-0-tovu-link | C13 | 0 | — | 0.836/3.914 |
+| S3-0 / c2-s3-0-tovu-tsc | C14 | 0 | — | 0.841/3.909 |
+| S3-0 / c2-s3-0-provider-field-pin | C15 | 0 | — | 0.841/3.909 |
+| S3-0 / c2-s3-0-tovu-tests | C16 | 0 | 177 pass | 0.854/3.896 |
+| S3-0 / c2-s3-0-cross-package | C17 | 0 | — | 0.854/3.896 |
+| S3-0 / c2-s3-0-guard | C18 | 0 | — | 0.861/3.889 |
+| S3-0 / c2-s3-0-plugins | C19 | 0 | — | 0.861/3.889 |
+| S3-0 / c2-s3-0-layers-isolation | C20 | 0 | — | 0.865/3.885 |
+| S3-0 / c2-s3-0-custody | C21 | 0 | — | 0.865/3.885 |
+| A3 / gate-a3-integrations-build | C22 | 0 | — | 1.002/3.748 |
+| A3 / gate-a3-integrations-tsc | C23 | 0 | — | 1.003/3.747 |
+| A3 / gate-a3-integrations-tests | C24 | 0 | 57 pass | 1.004/3.746 |
+| A3 / gate-a3-admin-tests | C25 | 0 | 92 pass | 1.004/3.746 |
+| A3 / gate-a3-tovu-link | C13 | 0 | — | 1.004/3.746 |
+| A3 / gate-a3-tovu-tsc | C14 | 0 | — | 1.009/3.741 |
+| A3 / gate-a3-tovu-tests | C26 | 0 | 84 pass | 1.018/3.732 |
+| A3 / gate-a3-cross-package | C17 | 0 | — | 1.018/3.732 |
+| A3 / gate-a3-guard | C27 | 0 | historical INVALID N1 classification; corrected full A5 + A7 superset | 1.025/3.725 |
+| A3 / gate-a3-plugins | C19 | 0 | — | 1.025/3.725 |
+| A3 / gate-a3-custody | C21 | 0 | — | 1.025/3.725 |
+| A4 seam / gate-a4-seam-integrations-build | C22 | 0 | — | 1.204/3.546 |
+| A4 seam / gate-a4-seam-agent-build | C01 | 0 | — | 1.206/3.544 |
+| A4 seam / gate-a4-seam-integrations-tsc | C23 | 0 | — | 1.207/3.543 |
+| A4 seam / gate-a4-seam-agent-tsc | C04 | 0 | — | 1.208/3.542 |
+| A4 seam / gate-a4-seam-integrations-tests | C24 | 0 | 57 pass | 1.209/3.541 |
+| A4 seam / gate-a4-seam-admin-tests | C28 | 0 | 93 pass | 1.209/3.541 |
+| A4 seam / gate-a4-seam-tovu-link | C13 | 0 | — | 1.209/3.541 |
+| A4 seam / gate-a4-seam-tovu-tsc | C14 | 0 | — | 1.214/3.536 |
+| A4 seam / gate-a4-seam-tovu-tests | C29 | 0 | 162 pass | 1.224/3.526 |
+| A4 seam / gate-a4-seam-cross-package | C17 | 0 | — | 1.225/3.525 |
+| A4 seam / gate-a4-seam-guard | C30 | 0 | historical INVALID N1 classification; corrected full A5 + A7 superset | 1.231/3.519 |
+| A4 seam / gate-a4-seam-plugins | C19 | 0 | — | 1.232/3.518 |
+| A4 seam / gate-a4-seam-layers-isolation | C20 | 0 | — | 1.236/3.514 |
+| A4 seam / gate-a4-seam-custody | C21 | 0 | — | 1.236/3.514 |
+| A4 move / gate-a4-move-integrations-build | C22 | 0 | — | 1.361/3.389 |
+| A4 move / gate-a4-move-agent-build | C01 | 0 | — | 1.363/3.387 |
+| A4 move / gate-a4-move-integrations-tsc | C23 | 0 | — | 1.364/3.386 |
+| A4 move / gate-a4-move-agent-tsc | C04 | 0 | — | 1.365/3.385 |
+| A4 move / gate-a4-move-integrations-tests | C24 | 0 | 57 pass | 1.366/3.384 |
+| A4 move / gate-a4-move-admin-tests | C28 | 0 | 93 pass | 1.366/3.384 |
+| A4 move / gate-a4-move-public-smoke | C31 | 0 | 2 pass | 1.367/3.383 |
+| A4 move / gate-a4-move-tovu-link | C13 | 0 | — | 1.367/3.383 |
+| A4 move / gate-a4-move-tovu-tsc | C14 | 0 | — | 1.372/3.378 |
+| A4 move / gate-a4-move-tovu-tests | C29 | 0 | 162 pass | 1.382/3.368 |
+| A4 move / gate-a4-move-cross-package | C17 | 0 | — | 1.382/3.368 |
+| A4 move / gate-a4-move-guard | C32 | 0 | historical INVALID N1 classification; corrected full A5 + A7 superset | 1.389/3.361 |
+| A4 move / gate-a4-move-plugins | C19 | 0 | — | 1.389/3.361 |
+| A4 move / gate-a4-move-layers-isolation | C20 | 0 | — | 1.393/3.357 |
+| A4 move / gate-a4-move-custody | C21 | 0 | — | 1.393/3.357 |
+| A5 / gate-a5-corrected-integrations-build | C22 | 0 | — | 1.744/3.006 |
+| A5 / gate-a5-corrected-agent-build | C01 | 0 | — | 1.745/3.005 |
+| A5 / gate-a5-corrected-integrations-tsc | C23 | 0 | — | 1.746/3.004 |
+| A5 / gate-a5-corrected-agent-tsc | C04 | 0 | — | 1.748/3.002 |
+| A5 / gate-a5-corrected-integrations-tests | C24 | 0 | 57 pass | 1.748/3.002 |
+| A5 / gate-a5-corrected-admin-tests | C28 | 0 | 93 pass | 1.749/3.001 |
+| A5 / gate-a5-corrected-public-smoke | C31 | 0 | 2 pass | 1.749/3.001 |
+| A5 / gate-a5-corrected-tovu-link | C13 | 0 | — | 1.749/3.001 |
+| A5 / gate-a5-corrected-tovu-tsc | C14 | 0 | — | 1.754/2.996 |
+| A5 / gate-a5-corrected-tovu-tests | C33 | 0 | 303 pass | 1.767/2.983 |
+| A5 / gate-a5-corrected-cross-package | C17 | 0 | — | 1.768/2.982 |
+| A5 / gate-a5-corrected-guard | C34 | 0 | — | 1.774/2.976 |
+| A5 / gate-a5-corrected-plugins | C19 | 0 | — | 1.775/2.975 |
+| A5 / gate-a5-corrected-layers-isolation | C20 | 0 | — | 1.779/2.971 |
+| A5 / gate-a5-corrected-custody | C21 | 0 | — | 1.779/2.971 |
+| A6 / gate-a6-integrations-build | C22 | 0 | — | 1.831/2.919 |
+| A6 / gate-a6-agent-build | C01 | 0 | — | 1.832/2.918 |
+| A6 / gate-a6-strict | C35 | 0 | — | 1.832/2.918 |
+| A6 / gate-a6-integrations-tsc | C23 | 0 | — | 1.834/2.916 |
+| A6 / gate-a6-agent-tsc | C04 | 0 | — | 1.835/2.915 |
+| A6 / gate-a6-integrations-tests | C24 | 0 | 57 pass | 1.835/2.915 |
+| A6 / gate-a6-admin-tests | C28 | 0 | 93 pass | 1.836/2.914 |
+| A6 / gate-a6-public-smoke | C36 | 0 | 5 pass | 1.836/2.914 |
+| A6 / gate-a6-tovu-link | C13 | 0 | — | 1.836/2.914 |
+| A6 / gate-a6-tovu-tsc | C14 | 0 | — | 1.841/2.909 |
+| A6 / gate-a6-tovu-tests | C33 | 0 | 303 pass | 1.854/2.896 |
+| A6 / gate-a6-cross-package | C17 | 0 | — | 1.854/2.896 |
+| A6 / gate-a6-guard | C37 | 0 | — | 1.861/2.889 |
+| A6 / gate-a6-plugins | C19 | 0 | — | 1.861/2.889 |
+| A6 / gate-a6-layers-isolation | C20 | 0 | — | 1.865/2.885 |
+| A6 / gate-a6-custody | C21 | 0 | — | 1.865/2.885 |
+| A7 / gate-a7-integrations-build | C22 | 0 | — | 2.024/2.726 |
+| A7 / gate-a7-agent-plugins-build | C01 | 0 | — | 2.026/2.724 |
+| A7 / gate-a7-platform-build | C02 | 0 | — | 2.027/2.723 |
+| A7 / gate-a7-ui-build | C03 | 0 | — | 2.033/2.717 |
+| A7 / gate-a7-integrations-tsc | C23 | 0 | — | 2.034/2.716 |
+| A7 / gate-a7-agent-plugins-tsc | C04 | 0 | — | 2.035/2.715 |
+| A7 / gate-a7-platform-tsc | C05 | 0 | — | 2.037/2.713 |
+| A7 / gate-a7-ui-tsc | C06 | 0 | — | 2.041/2.709 |
+| A7 / gate-a7-scripts-tsc | C07 | 0 | — | 2.042/2.708 |
+| A7 / gate-a7-checker-tests | C08 | 0 | 70 pass | 2.044/2.706 |
+| A7 / gate-a7-agent-review-tests | C09 | 0 | 30 pass | 2.045/2.705 |
+| A7 / gate-a7-platform-tests | C10 | 0 | 3 pass | 2.045/2.705 |
+| A7 / gate-a7-ui-tests | C11 | 0 | 2 pass | 2.045/2.705 |
+| A7 / gate-a7-neutral-review-tests | C12 | 0 | 30 pass | 2.046/2.704 |
+| A7 / gate-a7-integrations-tests | C24 | 0 | 57 pass | 2.047/2.703 |
+| A7 / gate-a7-admin-tests | C28 | 0 | 93 pass | 2.047/2.703 |
+| A7 / gate-a7-public-smoke | C36 | 0 | 5 pass | 2.048/2.702 |
+| A7 / gate-a7-strict | C35 | 0 | — | 2.048/2.702 |
+| A7 / gate-a7-tovu-strict | C38 | 0 | — | 2.049/2.701 |
+| A7 / gate-a7-tovu-link | C13 | 0 | — | 2.049/2.701 |
+| A7 / gate-a7-tovu-tsc | C14 | 0 | — | 2.053/2.697 |
+| A7 / gate-a7-new-contract-pins | C39 | 0 | — | 2.055/2.695 |
+| A7 / gate-a7-provider-field-pin | C15 | 0 | — | 2.055/2.695 |
+| A7 / gate-a7-tovu-tests | C40 | 0 | 625 pass | 2.080/2.670 |
+| A7 / gate-a7-cross-package | C17 | 0 | — | 2.080/2.670 |
+| A7 / gate-a7-guard | C41 | 0 | — | 2.087/2.663 |
+| A7 / gate-a7-plugins | C19 | 0 | — | 2.087/2.663 |
+| A7 / gate-a7-layers-isolation | C20 | 0 | — | 2.091/2.659 |
+| A7 / gate-a7-custody | C21 | 0 | — | 2.091/2.659 |
+
+#### C01 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/agent-plugins run build
+```
+
+#### C02 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/platform run build
+```
+
+#### C03 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/ui run build
+```
+
+#### C04 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/agent-plugins exec tsc --noEmit
+```
+
+#### C05 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/platform exec tsc --noEmit
+```
+
+#### C06 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/ui exec tsc --noEmit
+```
+
+#### C07 — cwd /workspace/Jini
+
+```sh
+pnpm exec tsc -p scripts/tsconfig.json --noEmit
+```
+
+#### C08 — cwd /workspace/Jini
+
+```sh
+pnpm exec vitest run scripts/__tests__/check-no-cross-package.test.ts scripts/__tests__/extract-s3-checker.test.ts scripts/__tests__/extract-s3-source-contracts.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C09 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/agent-plugins exec vitest run src/lifecycle/mail/__tests__/adapter-descriptors.test.ts src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts src/connect/__tests__/host-tool-inputs.unit.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C10 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/platform exec vitest run src/mail/__tests__/provider-setup.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C11 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/ui exec vitest run src/features/mcp-ui/__tests__/credential-card.unit.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C12 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-example/neutral-host exec vitest run src/provider-status.test.ts src/contribution-contracts.test.ts src/mail-host.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C13 — cwd /workspace/Tovu
+
+```sh
+JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini
+```
+
+#### C14 — cwd /workspace/Tovu
+
+```sh
+npx tsc -p tsconfig.json --noEmit
+```
+
+#### C15 — cwd /workspace/Tovu
+
+```sh
+npx tsc --noEmit --target ES2022 --module nodenext --moduleResolution nodenext --strict --esModuleInterop --skipLibCheck --types node apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts
+```
+
+#### C16 — cwd /workspace/Tovu
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/custom-credentials/__tests__/credential-save-tool.unit.test.ts apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts apps/website/src/platform/mail/__tests__/unit/purpose-scoped-mailer.unit.test.ts apps/website/src/assistant/__tests__/moved-tools.golden.test.ts apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts apps/website/src/contracts/core/__tests__/extract-s3-host-source.unit.test.ts
+```
+
+#### C17 — cwd /workspace/Jini
+
+```sh
+pnpm check:cross-package
+```
+
+#### C18 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/c2-s3-0-guard.log "$s3_exit"
+```
+
+#### C19 — cwd /workspace/Jini
+
+```sh
+pnpm guard:plugins
+```
+
+#### C20 — cwd /workspace/Jini
+
+```sh
+pnpm exec tsx -e 'import {checkPackageLayers} from "./scripts/check-package-layers.ts"; import {checkSubpathIsolation,auditSubpathIsolation} from "./scripts/check-subpath-isolation.ts"; const layers=checkPackageLayers(), isolation=checkSubpathIsolation(),audit=auditSubpathIsolation();const c=audit.findings.filter(x=>x.kind==="c").length,d=audit.findings.filter(x=>x.kind==="d").length;console.log(JSON.stringify({layers,isolation,SI_c:c,SI_d:d}));if(layers.length||isolation.length||c!==9||d!==7)process.exitCode=1;' 
+```
+
+#### C21 — cwd /workspace/Tovu
+
+```sh
+python3 /workspace/work/extract-s3/verify-custody.py
+```
+
+#### C22 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/integrations run build
+```
+
+#### C23 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/integrations exec tsc --noEmit
+```
+
+#### C24 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/integrations exec vitest run src/api-connections/__tests__/keys.unit.test.ts src/api-connections/__tests__/service.unit.test.ts src/api-connections/__tests__/hosted-sign-in.unit.test.ts src/api-connections/__tests__/account-actions.unit.test.ts src/api-connections/__tests__/vertical-slice.integration.test.ts src/api-connections/__tests__/host-seams.unit.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C25 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/agent-plugins exec vitest run src/admin-surfaces/__tests__/surface-capabilities.unit.test.ts src/admin-surfaces/__tests__/surface-capabilities.security.test.ts src/admin-surfaces/__tests__/action-tools.unit.test.ts src/admin-surfaces/__tests__/issued-token-memory.security.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C26 — cwd /workspace/Tovu
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts apps/website/src/features/api-connections/__tests__/host.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts apps/website/src/features/api-connections/__tests__/connect.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts
+```
+
+#### C27 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-a3-guard.log "$s3_exit"
+```
+
+#### C28 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-ai/agent-plugins exec vitest run src/admin-surfaces/__tests__/surface-capabilities.unit.test.ts src/admin-surfaces/__tests__/surface-capabilities.security.test.ts src/admin-surfaces/__tests__/action-tools.unit.test.ts src/admin-surfaces/__tests__/issued-token-memory.security.test.ts src/admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C29 — cwd /workspace/Tovu
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts apps/website/src/features/api-connections/__tests__/host.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts apps/website/src/features/api-connections/__tests__/connect.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts apps/website/src/features/api-connections/__tests__/surface-connections.unit.test.ts apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts apps/website/src/features/project-keys/__tests__/tools.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts
+```
+
+#### C30 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-a4-seam-guard.log "$s3_exit"
+```
+
+#### C31 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-example/neutral-host exec vitest run src/api-host-moves.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C32 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-a4-move-guard.log "$s3_exit"
+```
+
+#### C33 — cwd /workspace/Tovu
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts apps/website/src/features/api-connections/__tests__/host.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts apps/website/src/features/api-connections/__tests__/connect.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts apps/website/src/features/api-connections/__tests__/surface-connections.unit.test.ts apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts apps/website/src/features/project-keys/__tests__/tools.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/admin-action-tools.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.security.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/approval.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/host-capabilities.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/register.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-id-collision.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/capabilities.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/delivery-bindings.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/forms.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/handlers.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/same-origin.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/surfaces.unit.test.ts apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+```
+
+#### C34 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-a5-corrected-guard.log "$s3_exit"
+```
+
+#### C35 — cwd /workspace/Jini
+
+```sh
+pnpm exec eslint --no-inline-config --rule 'complexity:[error,10]' --rule 'sonarjs/cognitive-complexity:[error,10]' packages/agent-plugins/src/connect/executable/index.ts packages/agent-plugins/src/connect/executable/ports.ts packages/agent-plugins/src/connect/executable/register.ts packages/agent-plugins/src/connect/executable/approval.ts packages/agent-plugins/src/connect/executable/host-capabilities.ts packages/agent-plugins/src/admin-surfaces/connections/index.ts packages/agent-plugins/src/admin-surfaces/connections/ports.ts packages/agent-plugins/src/admin-surfaces/connections/connections.ts
+```
+
+#### C36 — cwd /workspace/Jini
+
+```sh
+pnpm --filter @jini-example/neutral-host exec vitest run src/api-host-moves.test.ts src/executable-surface-entries.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose
+```
+
+#### C37 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-a6-guard.log "$s3_exit"
+```
+
+#### C38 — cwd /workspace/Tovu
+
+```sh
+npx eslint --no-inline-config --rule 'complexity:[error,10]' --rule 'sonarjs/cognitive-complexity:[error,10]' apps/website/src/features/agent-plugins/service-ports.ts apps/website/src/features/agent-plugins/mcp-host-bindings.ts apps/website/src/features/agent-plugins/card-host-bindings.ts apps/website/src/features/agent-plugins/enable-access.ts apps/website/src/features/agent-plugins/federate-mcp.ts apps/website/src/features/agent-plugins/apply-connect-defaults.ts apps/website/src/features/agent-plugins/connection-status.ts apps/website/src/features/agent-plugins/connect-tool.ts apps/website/src/features/agent-plugins/connect-card-ui.ts apps/website/src/features/agent-plugins/connect-sign-in-wait.ts apps/website/src/features/agent-plugins/connect-destination.ts apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts
+```
+
+#### C39 — cwd /workspace/Tovu
+
+```sh
+npx tsc -p /workspace/work/extract-s3/a7-new-pin-tsconfig.json --noEmit
+```
+
+#### C40 — cwd /workspace/Tovu
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts apps/website/src/features/api-connections/__tests__/host.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts apps/website/src/features/api-connections/__tests__/connect.unit.test.ts apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts apps/website/src/features/api-connections/__tests__/surface-connections.unit.test.ts apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts apps/website/src/features/project-keys/__tests__/tools.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/admin-action-tools.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.security.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/approval.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/host-capabilities.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/register.unit.test.ts apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-id-collision.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/capabilities.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/delivery-bindings.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/forms.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/handlers.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/same-origin.unit.test.ts apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/surfaces.unit.test.ts apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts apps/website/src/features/custom-credentials/__tests__/credential-save-tool.unit.test.ts apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts apps/website/src/platform/mail/__tests__/unit/purpose-scoped-mailer.unit.test.ts apps/website/src/assistant/__tests__/moved-tools.golden.test.ts apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts apps/website/src/contracts/core/__tests__/extract-s3-host-source.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connection-status.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-destination.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-destination-flow.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-card-state.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-card-open-link.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/connect-card-theme.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mcp-ports.error-identity.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/cards-port.generic.unit.test.ts
+```
+
+#### C41 — cwd /workspace/Jini
+
+```sh
+pnpm guard
+s3_exit=$?
+python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-a7-guard.log "$s3_exit"
+```
+
+### Full source/report commit ledger before this handoff commit
+
+All commits below are on cloud/extract-s3 and were pushed/verified during the session. Report-only subjects remain distinguished from source commits. The next commit is this C-a report only.
+
+```text
+Tovu
+d59e56b2dab47a4caf80a62c64d5b6cd3ba2c9fd 2026-11-08T15:38:12Z docs(extract-s3): record verified pins and baseline setup
+50e65e1caa8a24ce67b7f35bab63ef8332bcc30a 2026-11-08T15:44:38Z docs(extract-s3): stop at unexpected baseline metadata violations
+46721900a830809fa9006323a6ece1ac12ab5736 2026-11-08T15:52:29Z docs(extract-s3): record owner-approved continuation and residue cleanup
+5bdc4254eed6293d539bcbf467834893b4ca41f5 2026-11-08T15:59:36Z docs(extract-s3): record clean continuation baseline and reproducible XP3 evidence
+ce6dc422d3ee95c607b9284de42fb815cc65b8fb 2026-11-08T16:08:15Z fix(extract-s3): bind exact host wording and pin provider-field parity
+9611275ffe8b4efdf75f15c01e82cfefbb813349 2026-11-08T16:10:54Z docs(extract-s3): record F2-F7 regressions custody and implementation
+4f147255166fb097ea3165ef2e37edddd97684fa 2026-11-08T16:16:36Z docs(extract-s3): stop continuation at strict S3-0 complexity gate
+08d0bef9747244a6b8f9dec1ba984cd3d0468942 2026-11-08T16:28:35Z test(extract-s3): pin plugin state format and inventory A3 before seams
+e06f9eddca52895670f3459e5abd54dd9799eab6 2026-11-08T16:34:10Z refactor(api-connections): bind existing owners through A3 host ports
+5aa5643009b0149d12eebbf45e5dfb827e24283d 2026-11-08T16:39:59Z docs(extract-s3): record A3 green and inventory A4 seam before edits
+695702483aa4663508c850ff1326e797e0c49296 2026-11-08T16:40:25Z docs(extract-s3): complete pre-edit A4 seam inventory and allocation
+fdd4f5d622ee07bafcabe9d3bf6b2b2eeeddb37d 2026-11-08T16:46:18Z refactor(api-connections): seam state callback and sign-in owners in place
+9392213f2014d64f919aa6996c492629ca3c03fb 2026-11-08T16:49:57Z docs(extract-s3): record measured A4 seam green and move inventory
+b14e0701b61389340f9e40d669f3f2d7b53aa61c 2026-11-08T16:55:43Z refactor(api-connections): retain exact Tovu shims over moved host and state
+faa84d347b5095867cd4e7c79e6810d2f3921d7b 2026-11-08T17:05:35Z docs(extract-s3): record A4 move green and complete A5 seam inventory
+1ef11e221e379b0b7ea7f7762864b8e6afcbaa6b 2026-11-08T17:15:56Z feat(extract-s3): seam executable and surface connection owners in place
+ac1732c1507341afcc6a16ed860d37853ef63d18 2026-11-08T17:18:19Z docs(extract-s3): correct guard classification and record N1 repair
+e2799e6f9ea74d62269e7e5a1a22f4fb6542eeb3 2026-11-08T17:21:15Z docs(extract-s3): record corrected A5 gate and A6 inventory
+f35d56f5b6cb73e0b03226cca6b65cfdb66b8d78 2026-11-08T17:23:55Z refactor(extract-s3): retain thin executable and surface connection shims
+0679284fd1df9be55bffb30b7fdbf3f026519f8a 2026-11-08T17:26:49Z docs(extract-s3): record A6 green and A7 symbol inventory
+09f7c03a6feb9652f22bb6b8e09a05d9a8c473f8 2026-11-08T17:27:30Z test(extract-s3): pin injected MCP validation error identity red
+346da8e11bd5589d736f45fe239eb486daa1373c 2026-11-08T17:33:41Z feat(extract-s3): seam canonical MCP projections refusal identity and generic cards
+b9d87d40aa31a589cd7af1cca78c3f585cbb987a 2026-11-08T17:34:18Z docs(extract-s3): complete A7 canonical record consumer inventory
+a722a10a04cff3240334dcdb5010efb1b6db38bd 2026-11-08T17:34:53Z fix(extract-s3): complete local MCP aliases and required new-test arguments
+e597d245efc33c203e389d72ca70382b7b8eb661 2026-11-08T17:36:52Z refactor(extract-s3): share the canonical host error classifier binding
+```
+
+```text
+Jini
+1c0e674e7009ebd90b0889c68b5ac24b24ec27f4 2026-11-08T15:56:46Z fix(extraction): reproduce original declaration baselines through checker CLI
+23c0c69f61bff319f0ebaf6a79cd0e058e9a77ea 2026-11-08T15:59:35Z fix(extraction): respect noEmit when recording baseline mappings
+c393010ae9cc0e003228c3c15249f59c24ff20c2 2026-11-08T16:08:14Z fix(extract-s3): restore host inputs parser compatibility comments and checker coverage
+9a6a65e6ce12624c94a04a0827ad20d6cef305b2 2026-11-08T16:25:49Z refactor(extraction): split specifier collection below complexity limits
+46039c5d444bf36c7d9a281c071c43d00a2f4e95 2026-11-08T16:34:09Z feat(integrations): inject API host ports and move BYO and scoped hook HTTP
+1838089229910c0ddd711548dc425807f0ea051f 2026-11-08T16:46:17Z feat(api-connections): define injected state callback and sign-in contracts
+ce9e9dcc8c8fcc36869d85e1e2688c3c7322c850 2026-11-08T16:55:42Z feat(extract-s3): move API host connect flow and persisted plugin state
+76e5962664fd7dfe1be7efa74217c895f9f6efe7 2026-11-08T17:15:58Z feat(extract-s3): declare executable and surface host ports
+6bccd0ab76d0f82d5f82f03e994fa876a43ae8b9 2026-11-08T17:18:51Z fix(extract-s3): neutralize only guard-rejected rationale lines
+df2698cf66b56bce3103491c79a3dd6273819c32 2026-11-08T17:19:49Z chore(extract-s3): record A5 host contract changeset
+4044fe3c0fa34b1f903c5d20a6b4de7714cde573 2026-11-08T17:24:07Z feat(extract-s3): move executable and surface connection runtime to public entries
+```
+
+### Corrections, limits and deferred work
+
+Stale citations were resolved to actual production paths/coverage before fixture work. The isolated home/cache/tool versions were supplied outside source; no lock edit. Six checkout residue directories were deleted only after git tracked zero files under each, under the explicit continuation authorization (five named plus identical plugin-ui-ux-design residue). Anything tracked would have stopped; no tracked baseline deletion/guard waiver occurred.
+
+The guard-verifier mistake and exact N1-only rationale edits are disclosed above. Own-batch complexity/type/missing new-fixture argument errors were repaired and rerun under the coordinator rule; no existing assertion/input/fixture softened, no design/import exception. Strict lint has zero errors; warnings are the original deliberately discarded parked flag, preexisting nested-template style and repeated type-member literals, with no suppression. Snapshot relative-path coverage limitation retained. Raw-only mail compatibility intentionally keeps a package-local legacy parser while injection is preferred, tested against the real parser; compatibility aliases remain public.
+
+No historical S2 certification. H0/H1 canonical hosted-MCP vocabulary extraction remains deferred; A7 aliases stay in Tovu. No A8–A11, later session, packed/desktop validation, deployment or package publication. Independent Claude verdict and a separate named owner approval are required before later sessions; neither is requested or inferred here. Numbered remaining S3 batches: **none**. Only report shutdown/push verification follows.
+
+Final shutdown verification will record completed task PIDs and exact paired remote tips. Source work is complete and tested at the last green pair above.
+
+EXTRACT-S3 DONE
