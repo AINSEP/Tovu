@@ -553,3 +553,11 @@ Surface contract: J admin-surfaces/connections/ports.ts, exactly 14 members from
 New tests inventoried before edits: T executable-tools/__tests__/host-ports.unit.test.ts (second-host definition/disclosure/registry ports) and API __tests__/surface-connections.host-port.unit.test.ts (injected refusal/token pin/status shape); J source/contract assertion as needed. Existing executable/admin/security/vertical-slice/approval/host-capability/register/collision tests and full A4 regressions/pins rerun at A5 and A6. No unresolved crossing.
 
 Progress 17:05:35 UTC: S3-0, A3, A4 seam and move green; original deadline 20:19:09 UTC unchanged.
+
+### A5 implementation — gate running
+
+The generic implementations remain in their Tovu files for A5. New type-only contracts in Jini describe the contribution registry/builders, core permission callbacks, approval/disclosure inputs, and the 14-member surface host. Tovu binding modules retain the exact tool filename and singleton definition, original admin permission/source/handler/sign-in block, approval copy, API error constructor, shared display suffix and frozen-token adapter. No runtime source file has moved in this batch. The contribution registry is generic and opaque rather than importing or copying the plugins SDK vocabulary. Host adapters close over the original owners; no extra store, read or map.
+
+Batch-local development errors fixed under the coordinator's Continuation 2 rule: core exports AuthorizationPort under ToolPermissionAuthorizationPort, corrected the type import; moved admin wiring needed its existing requireToolPermission import, restored it. Both package build and Tovu main tsc then passed. Four newly inventoried tests passed (two executable host-port and two surface host-port). No existing behavior/test red. One incorrectly located pnpm filtered build printed no matching projects; it is excluded from validation and was rerun in Jini.
+
+Formal A5 gate uses the complete A4 move matrix plus the explicit executable/admin matrix and the four new tests; all commands/results will be listed below. No existing test edits.

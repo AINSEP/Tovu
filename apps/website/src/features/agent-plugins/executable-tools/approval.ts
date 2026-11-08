@@ -12,7 +12,10 @@
  * answer (its validated top-level `connectionRef`), never a walk over the arguments here. Activation and authorization are rechecked by the
  * plugin tool contract right before the handler runs.
  */
-import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
+import type { SurfaceCardDetail as SurfaceDetail } from '@jini-ai/core/contracts/cards';
+import type { AgentPluginDisclosureMessages } from '@jini-ai/agent-plugins/connect';
+import { agentPluginDisclosureMessages } from './approval-bindings.js';
+export { TOOL_WITHDRAWN_MESSAGE, NOT_CONNECTED_MESSAGE } from './approval-bindings.js';
 import type { ToolExecutionContext } from '@jini-ai/core';
 import type { AgentPluginToolDisclosure, AgentPluginToolEffect } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { AgentPluginConnectionAccess, FrozenConnectionAccounts } from './host-capabilities.js';
@@ -22,8 +25,6 @@ export const APPROVAL_FAMILY_BY_EFFECT = {
   read: 'agent-plugin-read', write: 'agent-plugin-write', destructive: 'agent-plugin-destructive',
 } as const satisfies Readonly<Record<AgentPluginToolEffect, string>>;
 
-export const TOOL_WITHDRAWN_MESSAGE = 'This plugin tool is no longer available (the plugin was disabled or reloaded). Nothing was changed.';
-export const NOT_CONNECTED_MESSAGE = 'The connection this tool uses is not connected. Reconnect the account in the plugin settings and retry. Nothing was changed.';
 
 /** The projection's disclosure entry point (`createAgentPluginToolProjection().describeAffectedResources`). */
 export interface AgentPluginDisclosureSource {
@@ -43,8 +44,8 @@ export interface AgentPluginDisclosureSource {
  *   an admin action may sign one in, and an unconnected connection, left unbound, gets no token); ToolInputError for bad input.
  * @complexity O(c + r) rows plus one disclosure hook call and one account read per connection.
  */
-export function createAgentPluginDisclosure(
-  required: { readonly source: AgentPluginDisclosureSource; readonly connections: AgentPluginConnectionAccess; readonly frozen: FrozenConnectionAccounts },
+export function createAgentPluginDisclosureWithPorts(
+  required: { readonly source: AgentPluginDisclosureSource; readonly connections: AgentPluginConnectionAccess; readonly frozen: FrozenConnectionAccounts; readonly messages: AgentPluginDisclosureMessages },
   _optional: Record<string, never> = {},
 ) {
   return async (
@@ -52,18 +53,23 @@ export function createAgentPluginDisclosure(
     optional: { readonly skipUnconnected?: boolean } = {},
   ): Promise<readonly SurfaceDetail[]> => {
     const disclosure = await required.source.describeAffectedResources({ toolId, input: ctx.input });
-    if (!disclosure) throw new Error(TOOL_WITHDRAWN_MESSAGE);
+    if (!disclosure) throw new Error(required.messages.withdrawn);
     const rows: SurfaceDetail[] = [];
     const accounts = new Map<string, string>();
     for (const connectionRef of disclosure.connections) {
       const account = await required.connections.readAccount({ workspaceId, pluginId, connectionRef });
       if (!account && optional.skipUnconnected) continue;
-      if (!account) throw new Error(NOT_CONNECTED_MESSAGE);
+      if (!account) throw new Error(required.messages.notConnected);
       accounts.set(connectionRef, account.accountId);
-      rows.push({ label: 'Account', value: account.displayName });
+      rows.push({ label: required.messages.accountLabel, value: account.displayName });
     }
     required.frozen.bind({ signal: ctx.signal, accounts });
-    for (const resource of disclosure.resources) rows.push({ label: 'Affects', value: resource });
+    for (const resource of disclosure.resources) rows.push({ label: required.messages.affectsLabel, value: resource });
     return rows;
   };
+}
+
+/** Same host signature and copy; account freezing remains in the domain implementation. */
+export function createAgentPluginDisclosure(required: Omit<Parameters<typeof createAgentPluginDisclosureWithPorts>[0], 'messages'>, optional: Record<string, never> = {}) {
+  return createAgentPluginDisclosureWithPorts({ ...required, messages: agentPluginDisclosureMessages }, optional);
 }

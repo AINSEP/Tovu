@@ -22,47 +22,11 @@
  *   writes, keyed by the same plugin and workspace.
  * Nothing here names a provider.
  */
-import type { AgentPluginHttpOptions, AgentPluginLimitResult, AgentPluginStateReader, AgentPluginToolCapabilities, AgentPluginToolCapabilitiesPort } from '@jini-ai/agent-plugins/lifecycle/tools';
+import type { AgentPluginHttpOptions, AgentPluginToolCapabilities, AgentPluginToolCapabilitiesPort } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 
-/** Which connection a call asks for. `connectionRef` is opaque and comes from plugin input. */
-export interface AgentPluginConnectionTarget {
-  readonly workspaceId: string;
-  readonly pluginId: string;
-  readonly connectionRef: string;
-}
-
-/** Host port over the API-connection service (implemented with the connection lots). It must refuse
- *  a `connectionRef` that the plugin does not own in that workspace, and never return a refresh token. */
-export interface AgentPluginConnectionAccess {
-  /** The signed-in account, or null when the connection is not connected or not owned. */
-  readAccount(required: AgentPluginConnectionTarget, optional?: Record<string, never>): Promise<{ readonly accountId: string; readonly displayName: string } | null>;
-  /** A fresh access token; refuses (`account-changed`) when `expectedAccountId` no longer matches. */
-  getAccessToken(required: AgentPluginConnectionTarget, optional?: { readonly expectedAccountId?: string }): Promise<string>;
-}
-
-/** Optional host store for files a tool hands to the user (e.g. an export). */
-export interface AgentPluginArtifactWriter {
-  write(required: { readonly workspaceId: string; readonly pluginId: string; readonly name: string; readonly mediaType: string; readonly content: string | Uint8Array }, optional?: Record<string, never>): Promise<{ readonly artifactRef: string }>;
-}
-
-/** The limiter shape of `@jini-ai/http-kit`'s `RateLimiter` (Tovu's `createRateLimiter`). */
-export interface AgentPluginRateLimiter {
-  check(required: { readonly key: string }): Promise<AgentPluginLimitResult>;
-}
-
-/** The read-only settings view for one plugin in one workspace (`api-connections/plugin-state.ts`'s `readerFor`). */
-export type AgentPluginStateReaderFor = (required: { readonly workspaceId: string; readonly pluginId: string }, optional?: Record<string, never>) => AgentPluginStateReader;
-
-/** The https origins one plugin's connections declare in one workspace (the union of their `apiOrigins`). */
-export type AgentPluginApiOriginsFor = (required: { readonly workspaceId: string; readonly pluginId: string }, optional?: Record<string, never>) => Promise<readonly string[]>;
-
-/** Accounts frozen when a call was confirmed, keyed by that call's abort signal (one per execution). */
-export interface FrozenConnectionAccounts {
-  bind(required: { readonly signal: AbortSignal; readonly accounts: ReadonlyMap<string, string> }, optional?: Record<string, never>): void;
-  /** The frozen account id; `null` when the call was frozen but not for this connection; `undefined` when it was never frozen. */
-  lookup(required: { readonly signal: AbortSignal | undefined; readonly connectionRef: string }, optional?: Record<string, never>): string | null | undefined;
-}
+import type { AgentPluginConnectionTarget, AgentPluginConnectionAccess, AgentPluginArtifactWriter, AgentPluginRateLimiter, AgentPluginStateReaderFor, AgentPluginApiOriginsFor, FrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect';
+export type { AgentPluginConnectionTarget, AgentPluginConnectionAccess, AgentPluginArtifactWriter, AgentPluginRateLimiter, AgentPluginStateReaderFor, AgentPluginApiOriginsFor, FrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect';
 
 /** Response bodies a plugin may read in one request; larger answers fail instead of truncating. */
 const MAX_RESPONSE_BYTES = 1024 * 1024;

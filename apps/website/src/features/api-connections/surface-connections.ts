@@ -1,12 +1,9 @@
-import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionStagedSwitch, type ApiConnectionStatusView } from "@jini-ai/integrations/api-connections";
+import { bindAdminSurfaceConnectionsHost, type SurfaceConnectionsDeps } from "./surface-connection-bindings.js";
+export type { SurfaceConnectionsDeps } from "./surface-connection-bindings.js";
 import {
-  ADMIN_SURFACE_ACTION_INTENTS, type AdminSurfaceAuthorizationStart, type AdminSurfaceConnections, type AdminSurfaceConnectionStatus, type AdminSurfaceSignInAttempt,
+  ADMIN_SURFACE_ACTION_INTENTS, type AdminSurfaceAuthorizationStart, type AdminSurfaceConnections, type AdminSurfaceConnectionStatus, type AdminSurfaceSignInAttempt, type AdminSurfaceConnectionsHost, type AdminSurfaceDeclaredConnection, type AdminSurfaceStagedAccount, type AdminSurfaceStatusView,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 
-import { startApiConnectionSignIn } from "./connect.js";
-import type { DeclaredApiConnection } from "./contribution.js";
-import type { ApiConnectionHost } from "./host.js";
-import { confirmedTokenOptions, type FrozenConnectionAccounts } from "../agent-plugins/executable-tools/host-capabilities.js";
 
 /**
  * @file Tovu's `connections` port for plugin admin-surface handlers (Jini's `AdminSurfaceConnections`):
@@ -28,18 +25,9 @@ export interface IssuedSignIn extends AdminSurfaceAuthorizationStart {
   readonly connectionId: string;
 }
 
-export interface SurfaceConnectionsDeps {
-  readonly host: ApiConnectionHost;
-  /** Called with every authorization URL `begin` issued (the per-request registry the admin route reads). */
+export interface AdminSurfaceConnectionsDeps<Connection extends AdminSurfaceDeclaredConnection> {
+  readonly host: AdminSurfaceConnectionsHost<Connection>;
   readonly onSignInIssued?: (issued: IssuedSignIn) => void;
-  /** Accounts the assistant's confirmation froze (shared with the executable-tool registrar); with the
-   *  call's `signal`, an action run as an assistant tool gets only the account its card showed. */
-  readonly frozen?: FrozenConnectionAccounts;
-}
-
-/** The one refusal for an id the plugin does not declare here, a foreign workspace, or no admin. */
-function notAvailable(): ApiConnectionError {
-  return new ApiConnectionError({ code: "connection-not-found", message: "This connection is not available to this plugin here. Reopen the plugin's settings from this site's admin and retry." });
 }
 
 function codeOf(error: unknown): string {
@@ -55,11 +43,11 @@ function failedAttempt(error: unknown): AdminSurfaceSignInAttempt {
 }
 
 /** What a status is built from: a record (with its staged switch's account) or a service status view. */
-type StatusSource = Pick<ApiConnectionStatusView, "status" | "account" | "grantedScopes" | "pendingSwitch">;
+type StatusSource = AdminSurfaceStatusView;
 const NEVER_CONNECTED: StatusSource = { status: "disconnected", account: null, grantedScopes: [], pendingSwitch: null };
 
 /** The plugin's declared scope sets whose scopes are all granted. @complexity O(s) hook calls. */
-async function grantedScopeSets(host: ApiConnectionHost, connection: DeclaredApiConnection, granted: readonly string[]): Promise<string[]> {
+async function grantedScopeSets<Connection extends AdminSurfaceDeclaredConnection>(host: AdminSurfaceConnectionsHost<Connection>, connection: Connection, granted: readonly string[]): Promise<string[]> {
   const ids: string[] = [];
   for (const id of connection.scopeSets) {
     if ((await host.requestedScopes({ connection, scopeSetIds: [id] })).every((scope) => granted.includes(scope))) ids.push(id);
@@ -68,17 +56,17 @@ async function grantedScopeSets(host: ApiConnectionHost, connection: DeclaredApi
 }
 
 /** A staged switch's account while it can still be confirmed: after its expiry the confirm refuses, so no label. @complexity O(1). */
-function liveStagedAccount(host: ApiConnectionHost, staged: ApiConnectionStagedSwitch | null | undefined): StatusSource["pendingSwitch"] {
-  return staged && Date.parse(staged.expiresAt) > host.clock.nowMs() ? staged.account : null;
+function liveStagedAccount(host: { nowMs(): number }, staged: AdminSurfaceStagedAccount | null | undefined): StatusSource["pendingSwitch"] {
+  return staged && Date.parse(staged.expiresAt) > host.nowMs() ? staged.account : null;
 }
 
 /** Token-free status; scope sets are the plugin's own ids, never raw provider scopes. */
-async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnection, view: StatusSource, connectionRef: string): Promise<AdminSurfaceConnectionStatus> {
+async function statusFrom<Connection extends AdminSurfaceDeclaredConnection>(host: AdminSurfaceConnectionsHost<Connection>, connection: Connection, view: StatusSource, connectionRef: string): Promise<AdminSurfaceConnectionStatus> {
   return {
     connectionId: connection.descriptor.connectionId, status: view.status, accountLabel: view.account?.displayName ?? null,
     grantedScopeSetIds: view.status === "connected" ? await grantedScopeSets(host, connection, view.grantedScopes) : [],
     pendingSwitchAccountLabel: view.pendingSwitch?.displayName ?? null,
-    lastSignInAttempt: host.lastSignInAttempts.get(connectionRef) ?? null,
+    lastSignInAttempt: host.attempts.get(connectionRef) ?? null,
   };
 }
 
@@ -86,27 +74,27 @@ async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnec
  * Builds the per-call connections port for one plugin, workspace and (for account actions) admin.
  * @complexity Each call: one contribution load plus one record read or one service call.
  */
-export function createSurfaceConnections(
-  required: SurfaceConnectionsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string; readonly signal?: AbortSignal },
+export function createAdminSurfaceConnections<Connection extends AdminSurfaceDeclaredConnection>(
+  required: AdminSurfaceConnectionsDeps<Connection> & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined; readonly signal?: AbortSignal | undefined },
   _optional: Record<string, never> = {},
 ): AdminSurfaceConnections {
   const { host, pluginId, workspaceId, principalId } = required;
 
-  async function resolve(connectionId: string): Promise<{ readonly connection: DeclaredApiConnection; readonly connectionRef: string }> {
+  async function resolve(connectionId: string): Promise<{ readonly connection: Connection; readonly connectionRef: string }> {
     const connection = workspaceId === host.workspaceId ? (await host.listConnections({ pluginId })).find((candidate) => candidate.descriptor.connectionId === connectionId) : undefined;
-    if (!connection) throw notAvailable();
-    return { connection, connectionRef: deriveApiConnectionKey({ workspaceId, pluginId, connectionId }) };
+    if (!connection) throw host.notAvailable();
+    return { connection, connectionRef: host.connectionKey({ workspaceId, pluginId, connectionId }) };
   }
 
   /** Account actions need the admin the route authenticated; Jini checks it too. */
   async function forActor(connectionId: string) {
-    if (principalId === undefined) throw notAvailable();
+    if (principalId === undefined) throw host.notAvailable();
     return { ...(await resolve(connectionId)), actorId: principalId };
   }
 
   /** An action's result view, its staged-switch label re-read from the record so an expired one never shows. */
-  async function viewAfterAction(connectionRef: string, view: ApiConnectionStatusView): Promise<StatusSource> {
-    return { ...view, pendingSwitch: liveStagedAccount(host, (await host.records.read({ key: connectionRef }))?.staged) };
+  async function viewAfterAction(connectionRef: string, view: AdminSurfaceStatusView): Promise<StatusSource> {
+    return { ...view, pendingSwitch: liveStagedAccount(host, (await host.readRecord({ key: connectionRef }))?.staged) };
   }
 
   /**
@@ -114,16 +102,16 @@ export function createSurfaceConnections(
    * attempt; a failure is kept (code and next action only) for `status` and logged by code only.
    */
   function watchDesktopCompletion(connectionId: string, attemptId: string, completion: Promise<{ readonly callbackFields: Readonly<Record<string, string>> } | null> | undefined): void {
-    const connectionRef = deriveApiConnectionKey({ workspaceId, pluginId, connectionId });
+    const connectionRef = host.connectionKey({ workspaceId, pluginId, connectionId });
     void completion?.then(
       (done) => {
         if (!done) return;
-        host.lastSignInAttempts.delete(connectionRef);
+        host.attempts.delete(connectionRef);
         host.callbackInbox.deposit({ workspaceId, pluginId, connectionId, attemptId, fields: done.callbackFields });
       },
       // Error codes only: a desktop sign-in that failed after the browser opened.
       (error: unknown) => {
-        host.lastSignInAttempts.set(connectionRef, failedAttempt(error));
+        host.attempts.set(connectionRef, failedAttempt(error));
         console.warn(`[admin-surfaces] desktop sign-in for '${pluginId}' did not complete: ${codeOf(error)}`);
       },
     );
@@ -132,24 +120,24 @@ export function createSurfaceConnections(
   return {
     async getAccessToken({ connectionId }) {
       const { connectionRef } = await forActor(connectionId);
-      const pinned = required.frozen ? confirmedTokenOptions({ frozen: required.frozen, signal: required.signal, connectionRef }) : {};
-      return host.toolConnections.getAccessToken({ workspaceId, pluginId, connectionRef }, pinned);
+      const pinned = host.pinnedTokenOptions?.({ signal: required.signal, connectionRef }) ?? {};
+      return host.getAccessToken({ workspaceId, pluginId, connectionRef }, pinned);
     },
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);
       if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) {
         const shared = await host.sharedOAuth.getStatus(connection);
-        const account = shared?.account ? { ...shared.account, displayName: `${shared.account.displayName} (shared on this Mac)` } : null;
+        const account = shared?.account ?? null;
         return statusFrom(host, connection, shared ? { ...shared, account, pendingSwitch: null } : NEVER_CONNECTED, connectionRef);
       }
-      const record = await host.records.read({ key: connectionRef });
+      const record = await host.readRecord({ key: connectionRef });
       return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED, connectionRef);
     },
     async begin({ connectionId, action }, optional = {}) {
       const { connection, actorId } = await forActor(connectionId);
       const shared = host.sharedOAuth && await host.sharedOAuth.hasBinding(connection);
-      if (shared && ADMIN_SURFACE_ACTION_INTENTS[action] === "switch-account") throw notAvailable();
-      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [],
+      if (shared && ADMIN_SURFACE_ACTION_INTENTS[action] === "switch-account") throw host.notAvailable();
+      const start = await host.startSignIn({ connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [],
         ...(shared ? { destination: "shared" as const } : {}) }, {
         ...(optional.startParams === undefined ? {} : { startParams: optional.startParams }),
       });
@@ -160,14 +148,14 @@ export function createSurfaceConnections(
     },
     async confirmSwitch({ connectionId }) {
       const { connection, connectionRef, actorId } = await forActor(connectionId);
-      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw notAvailable();
-      const view = await host.serviceFor({ connection }).confirmSwitchAccount({ connectionRef, workspaceId, actorId });
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw host.notAvailable();
+      const view = await host.service({ connection }).confirmSwitchAccount({ connectionRef, workspaceId, actorId });
       return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async cancelSwitch({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
-      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw notAvailable();
-      const view = await host.serviceFor({ connection }).cancelSwitchAccount({ connectionRef, workspaceId });
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw host.notAvailable();
+      const view = await host.service({ connection }).cancelSwitchAccount({ connectionRef, workspaceId });
       return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async disconnect({ connectionId }) {
@@ -176,7 +164,7 @@ export function createSurfaceConnections(
         await host.sharedOAuth.stopUsing(connection);
         return { ...(await statusFrom(host, connection, NEVER_CONNECTED, connectionRef)), revocation: "not-needed" as const };
       }
-      const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId });
+      const outcome = await host.service({ connection }).disconnect({ connectionRef, workspaceId });
       // Same vocabulary on both sides: the provider's outcome passes through unchanged.
       return { ...(await statusFrom(host, connection, await viewAfterAction(connectionRef, outcome), connectionRef)), revocation: outcome.remoteRevocation };
     },
@@ -185,4 +173,13 @@ export function createSurfaceConnections(
       return host.callbackInbox.take({ workspaceId, pluginId, connectionId, attemptId });
     },
   };
+}
+
+/** Legacy host signature: the one API host and frozen-account map fulfill the local domain port. */
+export function createSurfaceConnections(required: SurfaceConnectionsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string; readonly signal?: AbortSignal }, optional: Record<string, never> = {}): AdminSurfaceConnections {
+  return createAdminSurfaceConnections({ host: bindAdminSurfaceConnectionsHost(required), pluginId: required.pluginId, workspaceId: required.workspaceId,
+    ...(required.principalId === undefined ? {} : { principalId: required.principalId }),
+    ...(required.signal === undefined ? {} : { signal: required.signal }),
+    ...(required.onSignInIssued === undefined ? {} : { onSignInIssued: required.onSignInIssued }),
+  }, optional);
 }
