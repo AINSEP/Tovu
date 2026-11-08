@@ -1,6 +1,6 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **STOPPED at the unmodified baseline guard**, before S3-0 production edits. This is the brief's first-unexpected-red stop, not an expired clock.
+Status: **Continuation in progress, S3-0**. The initial stopped-at-baseline record below is retained as history; owner approval and current evidence appear under Continuation.
 
 ## Clock and source custody
 
@@ -17,7 +17,7 @@ Both target branches were absent locally and remotely and created at these pins.
 
 The supplied brief remains outside tracked paths in /workspace/attachments. Scratch tools, logs, result records, hashes and process evidence are under /workspace/work/extract-s3. Neither the brief nor a plan is committed. The only tracked change is this report.
 
-## First failed gate — exact finding
+## Initial attempt: first failed gate — exact finding
 
 Unmodified Jini `pnpm guard`, started **15:41:32.825754 UTC**, finished **15:42:02.736387 UTC**, raw exit **1**, reported **7 violations**. The brief permits raw exit 1 only for one R2 and one R10 finding. The other five are:
 
@@ -105,3 +105,23 @@ All launched build/install/check sessions completed. Every recorded command PID 
 ## Continuation
 
 Owner approved continuation on 2026-11-08 after the early baseline stop. Original UTC start/deadline/reserve remain 15:34:09 / 20:19:09 / 19:59:09; no reset. At 15:50:59 UTC, rechecked that git tracks zero files under each of the five named R8 directories, then deleted only those five directories as explicitly authorized. Guard source and expectations unchanged. Additional comparable untracked checkout residue may be removed under the same owner instruction only after checking zero tracked files. Ordered baseline rerun and S3-0 pending.
+
+Continuation baseline found the same R8 condition at packages/plugin-ui-ux-design. Rechecked zero tracked files and no manifest, then deleted that additional residue under the explicit continuation rule. The prior 46 hashes remain recorded from the stopped attempt. No tracked file or guard edit.
+
+### S3-0 inventory before fixes
+
+Fresh full tracked caller searches saved outside source: jini-caller-inventory.txt and tovu-caller-inventory.txt. Exact factory callers match the advance allow-list: Tovu provider-status-tool.ts:5 and credential-save-tool.ts:12; neutral-host provider-status.test.ts:15/29. Existing nine descriptor parser calls and contribution-contracts.test.ts:165 already inject the parser; no edits required there. New tests only, except the exact two permitted required-input objects.
+
+F1: scripts/check-no-cross-package.ts sourcePackages/outputFiles/CLI retain ownership; new writer uses the original clean scratch checkout and actual build tsconfig mapping. F6 extends the same specifier visitor and PackageManifest type. F2: provider-status factory/row/schema/refusal/catalog and credential-save factory/extra-key/OAuth/catalog gain host inputs; Tovu binds exact prior strings. F3: raw-only parser compatibility stays package-local; real platform parser remains injected by Tovu; new compatibility tests compare both. F4: MailAdapterRegistry list/refusals comments -> same members; credential-card typecheck @file -> Jini ui credential-card.ts production header; positional parser doc -> same Tovu shim; provider-status @file -> file scope. F5: named unused Tovu imports only; actual checker collection; UI optionalPeers strings only; Tovu find/load bind direct exports while Jini factory aliases remain compatible. F7: new Tovu host-only exact provider-field parity typecheck, no new production/core neighbor import.
+
+New regression inventory: scripts/__tests__/extract-s3-checker.test.ts (F1 CLI roundtrip/provenance/dirty/missing emit/unsafe/overwrite and F6 syntax/dependency cases); new second-host tool regression; new legacy parser regression with real setup-parser parity; focused source/doc/manifest regression; contracts/core/__tests__/provider-setting-field.typecheck.ts. Tests are named before their production fixes, demonstrate red, then restored green; no existing test edits beyond the two calls.
+
+### Continuation baseline and F1 development evidence
+
+Ordered full build completed before baseline checks. After authorized untracked residue deletion, guard raw exit 1 has exactly R2(1)/R10(1), informational R13; HW1 17/HW2 16/HW3 135/HW4 1/HW8 49, all 0 new. guard:plugins, SDK build, local relink, contracts build, and Tovu main tsc all passed. The unedited connect-tool.api-connections.unit.test.ts baseline is **12/12 passing**, no failure set to grandfather. No tracked baseline repair.
+
+F1 new CLI regressions demonstrated the absent writer (9 failed/1 passed). A test harness import.meta.resolve incompatibility with Vite was corrected first, then the behavioral red was recorded separately. Repaired writer + original unchanged checker suite: 51/51 green. The real original-pin snapshot attempt exposed noEmit configurations; a new regression failed before the mapping fix. Respecting noEmit (without inventing declaration outputs) gives 52/52 green; script tsc passed. Source package/config parsing is cached per inventory object; outputFiles remains the common mapping.
+
+Original checkout frozen install/core/recursive build passed with Node 24.2.0/npm 11.3.0/pnpm 10.33.2 and clean tracked source. Verified installed tsx export resolves to /workspace/Jini/node_modules/.pnpm/tsx@4.23.1/node_modules/tsx/dist/loader.mjs. From that checkout, invoked the repaired S3 checker by absolute path with --base 35c4961af718f0f30591c46d2ea2756c4484a731 --write-baseline /workspace/work/extract-s3/declaration-baseline. No repaired code copied into the old tree.
+
+Snapshot: base **35c4961af718f0f30591c46d2ea2756c4484a731**, **3308** production-source mappings, **3320** emitted declaration files. Manifest SHA256 **d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459**; snapshot SHA256 **f1b750bc75cfa1fbed7d5b3ee4c046f889a43bc8dd69e224203761ba39d04769**. Snapshot files/directories made read-only; per-file hashes retained outside source. env.sh exports the absolute JINI_DECLARATION_BASELINE_DIR for all later gates. No regeneration. Full fixed XP1–XP5 checker at this S3 point passed against this original immutable snapshot.
