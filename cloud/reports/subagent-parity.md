@@ -1,6 +1,6 @@
 # subagent-parity-1
 
-Status: the approved **Redesign** is implemented and locally verified. It supersedes the historical full-snapshot and system-overlay carrier design below. Children receive short loading instructions and approved plugin IDs, with an IDs-only manifest for long lists; no full guidance snapshot is replayed. Native signed-in/Windows acceptance and registry release remain unrun.
+Status: the **Scope cut** below is implemented and verified. The adapter pointer-only policy is removed; normal CLI prompt delivery and full pinned text are restored. Child IDs represent actual full deliveries, automatic primaries inline once per chat, and PowerShell paths escape smart quotes. Earlier design sections are historical and superseded where noted. Native signed-in acceptance and registry integration remain unrun.
 
 Started 2026-11-07 19:17 America/Los_Angeles (2026-11-08 03:17 UTC). Hard deadline 21:17 local (05:17 UTC). No publish, tags, deployments, secrets, sign-ins, or writes to cloud/combine/main.
 
@@ -451,3 +451,148 @@ Existing local Jini links validate source integration only. Registry release and
 The approved source redesign is complete. Remaining: registry/version integration, native platform execution and this signed-in canary. No test process remains running. Finished before the 90-minute cap.
 
 SUBAGENT-PARITY-3 DONE
+
+
+## Scope cut
+
+Approved follow-up began 2026-11-07 20:33:07 America/Los_Angeles (2026-11-08 04:33:07 UTC); hard deadline 21:33:07 local (05:33:07 UTC). Completed before the one-hour cap on the same `cloud/subagent-parity` branches. This section supersedes Redesign's adapter pointer policy, match-derived IDs and primary repetition behavior. The expected missing Tovu toolkit was not treated as a blocker.
+
+### Pushed commits
+
+- Jini `319355f9652eba3d0b3cec74e4fe2a5bd5c56be4`: one-line PowerShell smart-quote fix plus path regression.
+- Jini `cefc53b2b4b632cf1718376a8d8ff0bd7c690dbe`: remove match-derived child IDs; preserve actual delivery separately from consent; stop repeat automatic primary inlining.
+- Jini `4b6bacb6398f645c1c5b7d526105940e3f601b41`: remove the Codex pointer policy and optional adapter field. This is the Jini branch head.
+- Tovu `e765c615765b04841d366fc76a4233ab796c9bd2`: restore ordinary prompt-prefix delivery, cut pointer-policy RPC plumbing, preserve full pins including Off, and add regression coverage.
+- This report is a separate explicit-path Tovu documentation commit; its SHA is in the final handoff.
+
+Explicit paths were committed. Pull/rebase preceded every push; autostash preserved concurrent parent/helper edits in Jini. No force push. `--no-verify` was used only on the authorized Tovu branch. No cloud/combine/main changes, publish, tags, deployments, sign-ins or dependency/lockfile edits.
+
+### Findings 1–3: smaller delivery scope
+
+Removed `automaticPluginGuidance` from the adapter type and Codex definition, removed `pointerOnly` from the controller/context and private preflight request plumbing, and deleted the final adapter-budget/pointer branch. The existing unconditional `assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix)` is restored. Aider, DeepSeek, Codex and Antigravity retain the exact prefix without relying on MCP or nonempty child IDs. Existing launch byte guards still apply; no fallback, argv-limit bypass or new cross-CLI delivery mechanism was added.
+
+Pinned preflight uses the existing resolver with explicit inject delivery so pins remain full text even when automatic plugins are Off or the experimental pointer environment is set. Tests cover the real composition/HTTP response and real Off-with-pin preflight. Off's existing explicit-loader refusal remains unchanged; restoring parent pin text does not widen permissions.
+
+Deleted the separate prepared-ID list and the code that saved all relevant matches as selected. Children receive only existing pinned/full-delivery IDs; a mere relevant match, consent selection or oversized/deferred primary is not delivery evidence. Explicit reads stay repeatable and full, and real explicit/capability deliveries may contribute IDs after complete guidance delivery. Exclusions still constrain IDs.
+
+The existing chat decision now carries an optional validated `delivered` ID list, separate from consent `selected`. Existing browser persistence stores the complete decision object, so no new cache, registry, persistence service or package is needed. A new controller seeds its existing already-loaded set from that marker. A previously delivered ranked primary contributes the existing short metadata/load pointer; it is not resolved or inlined again. Current pins are excluded from automatic ranking so their prefix is not followed by redundant automatic metadata. Saved-state JSON round trips, real later turns, Ask consent and retry behavior are tested.
+
+Legacy selection-only state is deliberately not treated as proof of delivery; the first subsequently observed full delivery records the marker. No transcript inference or migration ledger was added. The 16,384-byte primary cap, 8 KiB capability guard, complete explicit reads, successful preflight caching and rejected-promise clearing remain intact.
+
+### Finding 4: Windows literal paths
+
+Only the existing PowerShell escaping expression changed. It now doubles ASCII apostrophe and U+2018, U+2019, U+201A, U+201B before composing the existing `Get-Content -Raw -Encoding UTF8 -LiteralPath` command with `shell: 'powershell'`. No system Node dependency or new command strategy.
+
+The real fixture directory contains ASCII apostrophe, Japanese text and every U+2018–U+201B character: `owner's 日本語 ‘left’ ‚low‛ directory`. An independent literal-character escape table checks the entire Windows command. POSIX forms execute against that path on Linux. Neither pwsh nor powershell is installed; native PowerShell/Windows parsing is explicitly unrun.
+
+The unchanged Claude child note remains below 2,000 JS characters, keyed on `subagentStartHook`, with the existing IDs-only manifest fallback, settings merge and cleanup. Parent delegation rules still name plugins loaded after preflight.
+
+### Red / mutation / green: exact commands
+
+All tests were changed files only; no full suites or real CLI launches. Logs are local scratch under `/workspace/work/subagent-parity/` unless otherwise noted.
+
+Jini automatic-use command, cwd `/workspace/Jini/packages/agent-plugins`:
+
+```sh
+../../node_modules/.bin/vitest run src/lifecycle/__tests__/unit/automatic-use.unit.test.ts --maxWorkers=2 --minWorkers=1
+```
+
+- RED: 3 fail / 61 pass (`scope-cut-plugins-red.log`): first-turn child IDs included secondary matches, consent selections counted as delivered, and Off dropped pinned IDs.
+- Mutation: seed delivery from selected consent, remove repeat-primary protection and expose consent IDs: 7 fail / 57 pass (`scope-cut-plugins-mutation.log`). Existing prior-selection/backstop tests and all new delivery regressions catch it.
+- GREEN: 64/64 pass (`scope-cut-plugins-final-green.log`). Covers Auto/Ask, real-versus-deferred delivery, selection-only state, excluded delivery, pin with Off, serialized later-turn marker, existing cap boundaries and full explicit reads. Old expectations that metadata-only discovery publishes selection were reverted; consent-state assertions now also verify the actual-delivery marker.
+
+Jini Codex command, cwd `/workspace/Jini/packages/agent-runtime`:
+
+```sh
+../../node_modules/.bin/vitest run src/defs/__tests__/codex.test.ts --maxWorkers=2 --minWorkers=1
+```
+
+- RED: old pointer policy present, 1 fail / 66 pass (`scope-cut-adapter-red.log`).
+- Mutation: re-add the removed property even with undefined value, 1 fail / 66 pass (`scope-cut-adapter-mutation.log`). The regression requires removal, not a disabled leftover.
+- GREEN: 67/67 pass (`scope-cut-adapter-final-green.log`).
+
+Jini Windows hook command, cwd `/workspace/Jini/packages/daemon`:
+
+```sh
+../../node_modules/.bin/vitest run src/agent-executor/claude/__tests__/subagent-start.test.ts --maxWorkers=2 --minWorkers=1
+```
+
+- Baseline: 6/6 pass (`/workspace/work/scope-cut-windows-baseline.log`).
+- RED ASCII-only escaping with the smart-quote path: 1 fail / 5 pass (`/workspace/work/scope-cut-windows-red.log`).
+- Mutation omits U+201B while escaping other quote characters: 1 fail / 5 pass (`/workspace/work/scope-cut-windows-mutation.log`).
+- GREEN: 6/6 pass (`/workspace/work/scope-cut-windows-green.log`). Short note, manifest, merge, exclusive-write and context-limit tests remain in this changed file.
+
+Tovu command prefix, cwd `/workspace/Tovu`:
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2
+```
+
+Append these exact arguments:
+
+- Carrier file: `apps/website/src/server/inbound/assistant/__tests__/plugin-prompt-prefix.unit.test.ts`
+- Pinned file: `apps/website/src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.integration.test.ts`
+- Mutation pair: carrier file followed by pinned file.
+- Final combined: carrier file, `apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts`, then pinned file.
+
+Records:
+
+- Valid carrier RED with the original adapter pointer branch restored: 5 fail / 8 pass (`scope-cut-carrier-valid-red.log`). The main Codex carrier plus all four pinned adapters fail on missing text.
+- Early carrier fixture runs hit existing Full CLI owner/grant requirements for Aider, DeepSeek and Antigravity. The fixture now supplies the real existing owner grant/settings ports; no production permission rule was changed. Those setup failures are not counted as useful RED.
+- Pinned RED under pointer environment: 1 fail / 2 pass (`scope-cut-pinned-red.log`). It required exact full text before the resolver's inject argument was restored.
+- Mutation makes prompt insertion depend on child-ID presence and changes pinned resolution back to pointer: 5 fail / 11 pass across the pair (`scope-cut-tovu-mutation.log`). All four CLI pin cases and real pinned preflight catch the regression.
+- Final combined GREEN: 56/56 pass, no skips or cancellations (`scope-cut-tovu-verified-green.log`). Includes real Off+pin HTTP preflight, actual later-chat-turn delivery-marker reuse, 61,309-byte explicit fresh-child reads, existing consent recovery/retry and full custom-rule assembly.
+
+An intermediate combined run was discarded because it overlapped a deliberate source mutation. After restoring source, another run exposed redundant automatic metadata after a current pin; current pins are now excluded from automatic matching. Only the final isolated green above is claimed as final evidence.
+
+Final changed-file total: **193 passing tests** (64 plugins + 67 Codex + 6 hook + 56 Tovu). Obsolete pointer-policy test expectations were replaced by base-carrier regressions, not retained as product requirements. No test process remains running.
+
+### No-emit and remaining errors
+
+All touched production packages and the changed Tovu tests pass:
+
+```sh
+# cwd /workspace/Jini
+node_modules/.bin/tsc -p packages/agent-plugins/tsconfig.json --noEmit
+node_modules/.bin/tsc -p packages/agent-runtime/tsconfig.json --noEmit
+node_modules/.bin/tsc -p packages/daemon/tsconfig.json --noEmit
+# cwd /workspace/Tovu
+node_modules/.bin/tsc -p tsconfig.json --noEmit
+NODE_OPTIONS=--max-old-space-size=6144 node_modules/.bin/tsc -p /workspace/work/subagent-parity/tsconfig.tovu-changed-tests.json --noEmit
+```
+
+Logs: `scope-cut-plugins-final-typecheck.log`, `scope-cut-runtime-typecheck.log`, `/workspace/work/scope-cut-windows-typecheck.log`, `scope-cut-tovu-production-typecheck.log`, `scope-cut-tovu-final-tests-typecheck.log`. Existing ignored plugin/runtime outputs were refreshed using the corresponding package-local tsc commands without --noEmit, so Tovu's pre-existing local links consume the changes. No dependency install, manifest change or checked-in typecheck exclusion.
+
+Expected `AssertionError` / `ERR_ASSERTION` errors are recorded in RED/mutations. Earlier Full CLI fixture refusals and obsolete consent/publication expectations were corrected before final green. Existing composition `PluginLoadError` / `INTEGRITY_FAILED` warnings for linked chart fixtures remain as previously documented; target tests pass, and no bundled-content repair is claimed. The previously reported unrelated broad test-typecheck failures were not changed or rerun. No inline lint disables or unresolved failures in required checks.
+
+### Whole-branch production totals
+
+Compared to the original requested bases (Jini `6f16c5ebd`, Tovu `eb4c54a2d`), documentation/tests excluded:
+
+| Repository / production file | Added | Removed |
+| --- | ---: | ---: |
+| Jini `packages/agent-plugins/src/lifecycle/automatic-use.ts` | 25 | 26 |
+| Jini `packages/agent-runtime/src/defs/claude.ts` | 1 | 0 |
+| Jini `packages/agent-runtime/src/types.ts` | 2 | 0 |
+| Jini `packages/daemon/src/agent-executor/claude/subagent-start.ts` | 27 | 0 |
+| Jini `packages/daemon/src/agent-executor/contracts.ts` | 3 | 1 |
+| Jini `packages/daemon/src/agent-executor/launch.ts` | 8 | 2 |
+| Tovu `apps/website/src/features/agent-plugins/automatic-agent-plugins.ts` | 9 | 5 |
+| Tovu `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` | 5 | 4 |
+| Tovu `apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts` | 1 | 1 |
+| Tovu `apps/website/src/server/inbound/assistant/assistant-system-overlay.ts` | 1 | 0 |
+| Tovu `apps/website/src/server/runtime/composition/modules/assistant-byok.ts` | 1 | 1 |
+| Tovu `apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts` | 2 | 2 |
+| **Whole-branch total** | **85** | **42** |
+
+**Whole-branch production is +85 / -42, net +43**, smaller than the preceding +96 / -46, net +50. This follow-up cuts a net seven production lines (+36 / -43 relative to the prior tips). Tests/helpers for this follow-up: +94 / -70; whole-branch tests/helpers: +460 / -72. No new cache, registry, package dependency, delivery transport or fallback mechanism.
+
+### Limits and remaining work
+
+Children still receive a short note plus actual delivered IDs, not full snapshot replay. Long-list manifest and explicit loader costs are unchanged; because mere matches are omitted, children no longer load every relevant candidate automatically. Actual model tokens/currency remain unmeasured. One Sidekick helper handled the bounded quoting fix; billing unavailable.
+
+No signed-in Claude canary, native Windows/PowerShell execution, registry publish or version/lockfile integration was performed. The previous canary remains required with the latest semantics: verify pins stay in parent prompts across all CLIs (including Off), automatic primary appears only at first recorded delivery, children load only delivered plugin IDs, and Windows paths containing ASCII/U+2018–U+201B quotes are accepted. Existing launch limits and permission/refusal rules remain authoritative.
+
+All four findings are addressed within the existing design. No test process remains running; completed before the one-hour cap.
+
+SUBAGENT-PARITY-4 DONE
