@@ -106,3 +106,176 @@ Formal Q1 commands: `pnpm exec vitest run scripts/__tests__/check-no-cross-packa
 Q1 recording at Jini `80a7ea2df06b20b26eadb8c7abe4462d0b55bebf`: checker SHA256 `840076e449880694c8db8b8e819333c22922f7171a82e88711111313140d9e56`; new fixture-test source SHA256 `28fb1d47c49cba57c189f6ebc8fdfff5c5bfebcea4bf04ffa2d0d2428d0811d9`. Fixtures are generated temporary git repos, removed by `afterEach`.
 
 Pushes verified after immediate pull/rebase: Jini `477052c9eb9f6a4ea615a35ad076c9c92108de32`, then `80a7ea2df06b20b26eadb8c7abe4462d0b55bebf`, both `cloud/extract-s2`. No push failure or rebase conflict.
+
+## Q2 inventory (first Q2 commit; before type moves)
+
+Q1 is green. Tovu report push `f249e0ea744c1f5ae5df517e0bebff69c60b6cd4` and Jini `80a7ea2df06b20b26eadb8c7abe4462d0b55bebf` verified. Q2 adds only the six approved areas. Whole type-only files move with `git mv`; mixed files contribute their declaration slices. Runtime implementations stay in their current packages. New nested contract leaves preserve the existing mail/OAuth type dependency graph; only the six area subpaths become public entries.
+
+| Symbol or type dependency | Kind | Pinned source | Destination |
+|---|---|---|---|
+| SurfaceCardUri | type | Jini packages/core/src/surface-cards.ts:11 | core/contracts/cards |
+| SurfaceCardApp | type | Jini packages/core/src/surface-cards.ts:12 | core/contracts/cards |
+| SurfaceCardDetail | type | Jini packages/core/src/surface-cards.ts:13 | core/contracts/cards |
+| SurfaceCardChoice | type | Jini packages/core/src/surface-cards.ts:16 | core/contracts/cards |
+| SurfaceCardFieldBase | type | Jini packages/core/src/surface-cards.ts:18 | core/contracts/cards |
+| SurfaceCardStringField | type | Jini packages/core/src/surface-cards.ts:23 | core/contracts/cards |
+| SurfaceCardEnumField | type | Jini packages/core/src/surface-cards.ts:27 | core/contracts/cards |
+| SurfaceCardMultiEnumField | type | Jini packages/core/src/surface-cards.ts:31 | core/contracts/cards |
+| SurfaceCardField | type | Jini packages/core/src/surface-cards.ts:34 | core/contracts/cards |
+| SurfaceCardSecretField | type | Jini packages/core/src/surface-cards.ts:36 | core/contracts/cards |
+| SurfaceCardCopy | type | Jini packages/core/src/surface-cards.ts:40 | core/contracts/cards |
+| SurfaceCardSecretForm | type | Jini packages/core/src/surface-cards.ts:44 | core/contracts/cards |
+| SurfaceCardFormSpec | type | Jini packages/core/src/surface-cards.ts:48 | core/contracts/cards |
+| SurfaceCardOutcome | type | Jini packages/core/src/surface-cards.ts:53 | core/contracts/cards |
+| SurfaceCardSecretRun | type | Jini packages/core/src/surface-cards.ts:59 | core/contracts/cards |
+| SurfaceCardSecretSpec | type | Jini packages/core/src/surface-cards.ts:66 | core/contracts/cards |
+| SurfaceCardSecretOptions | type | Jini packages/core/src/surface-cards.ts:74 | core/contracts/cards |
+| SurfaceCardSecretDeps | type | Jini packages/core/src/surface-cards.ts:84 | core/contracts/cards |
+| SurfaceCardSecretTool | type | Jini packages/core/src/surface-cards.ts:88 | core/contracts/cards |
+| SurfaceCardSignInState | type | Jini packages/core/src/surface-cards.ts:94 | core/contracts/cards |
+| SurfaceCardSignInSpec | type | Jini packages/core/src/surface-cards.ts:95 | core/contracts/cards |
+| SurfaceCardSignInWait | type | Jini packages/core/src/surface-cards.ts:103 | core/contracts/cards |
+| SurfaceCardsPort | type | Jini packages/core/src/surface-cards.ts:119 | core/contracts/cards |
+| PluginCredentialField | type | Jini packages/agent-plugins/src/lifecycle/credential-card-metadata.ts:8 | core/contracts/credentials |
+| PluginCredentialCard | type | Jini packages/agent-plugins/src/lifecycle/credential-card-metadata.ts:16 | core/contracts/credentials |
+| OutboundEmail | type | Jini packages/platform/src/mail/types.ts:6 | core/contracts/mail |
+| EmailAddress | type | Jini packages/platform/src/mail/types.ts:28 | core/contracts/mail |
+| EmailAttachment | type | Jini packages/platform/src/mail/types.ts:33 | core/contracts/mail |
+| MailerSendOptions | type | Jini packages/platform/src/mail/types.ts:39 | core/contracts/mail |
+| MailerSendResult | type | Jini packages/platform/src/mail/types.ts:62 | core/contracts/mail |
+| MailerCapabilities | type | Jini packages/platform/src/mail/types.ts:73 | core/contracts/mail |
+| MailerFeedbackEvent | type | Jini packages/platform/src/mail/types.ts:88 | core/contracts/mail |
+| MailerDelivery | type | Jini packages/platform/src/mail/types.ts:105 | core/contracts/mail |
+| MailerOptional | type | Jini packages/platform/src/mail/types.ts:106 | core/contracts/mail |
+| MailerSendRequired | type | Jini packages/platform/src/mail/types.ts:107 | core/contracts/mail |
+| MailerBatchRequired | type | Jini packages/platform/src/mail/types.ts:108 | core/contracts/mail |
+| MailTestModeSetting | type | Jini packages/platform/src/mail/types.ts:111 | core/contracts/mail |
+| MailTestApproval | type | Jini packages/platform/src/mail/types.ts:114 | core/contracts/mail |
+| MailerPort | type | Jini packages/platform/src/mail/ports.ts:11 | core/contracts/mail |
+| ConsoleMailerAdapter | type | Jini packages/platform/src/mail/ports.ts:23 | core/contracts/mail |
+| InMemoryMailerAdapter | type | Jini packages/platform/src/mail/ports.ts:26 | core/contracts/mail |
+| MailSuppressionScope | type | Jini packages/platform/src/mail/ports.ts:30 | core/contracts/mail |
+| MailSuppressionRepoPort | type | Jini packages/platform/src/mail/ports.ts:32 | core/contracts/mail |
+| MailDeliveryLane | type | Jini packages/platform/src/mail/ports.ts:51 | core/contracts/mail |
+| MailLedgerOutcome | type | Jini packages/platform/src/mail/ports.ts:53 | core/contracts/mail |
+| MailSendLedgerPort | type | Jini packages/platform/src/mail/ports.ts:55 | core/contracts/mail |
+| MailSendDedupRepoPort | type | Jini packages/platform/src/mail/ports.ts:80 | core/contracts/mail |
+| MailCapturePort | type | Jini packages/platform/src/mail/ports.ts:86 | core/contracts/mail |
+| DeliveryReadinessPolicy | type | Jini packages/platform/src/mail/ports.ts:90 | core/contracts/mail |
+| MailCredentialFact | type | Jini packages/platform/src/mail/engine-contracts.ts:8 | core/contracts/mail |
+| MailProviderCredentialFacts | type | Jini packages/platform/src/mail/engine-contracts.ts:16 | core/contracts/mail |
+| MailProviderField | type | Jini packages/platform/src/mail/engine-contracts.ts:25 | core/contracts/mail |
+| MailProviderSetup | type | Jini packages/platform/src/mail/engine-contracts.ts:36 | core/contracts/mail |
+| MailProviderConfiguration | type | Jini packages/platform/src/mail/engine-contracts.ts:42 | core/contracts/mail |
+| MailProviderConfigurationReport | type | Jini packages/platform/src/mail/engine-contracts.ts:56 | core/contracts/mail |
+| MailProviderError | type | Jini packages/platform/src/mail/engine-contracts.ts:63 | core/contracts/mail |
+| ProviderDomainState | type | Jini packages/platform/src/mail/engine-contracts.ts:72 | core/contracts/mail |
+| SenderDomainVerification | type | Jini packages/platform/src/mail/engine-contracts.ts:75 | core/contracts/mail |
+| MailStatusReport | type | Jini packages/platform/src/mail/engine-contracts.ts:82 | core/contracts/mail |
+| MailProviderCheck | type | Jini packages/platform/src/mail/engine-contracts.ts:90 | core/contracts/mail |
+| MailProviderCatalog | type | Jini packages/platform/src/mail/engine-contracts.ts:93 | core/contracts/mail |
+| MailProviderSettingPort | type | Jini packages/platform/src/mail/engine-contracts.ts:102 | core/contracts/mail |
+| MailCredentialPort | type | Jini packages/platform/src/mail/engine-contracts.ts:108 | core/contracts/mail |
+| SenderDomainVerificationPort | type | Jini packages/platform/src/mail/engine-contracts.ts:114 | core/contracts/mail |
+| MailAdapterCredential | type | Jini packages/platform/src/mail/adapter-module.ts:4 | core/contracts/mail |
+| MailAdapterKit | type | Jini packages/platform/src/mail/adapter-module.ts:10 | core/contracts/mail |
+| MailAdapterCreateContext | type | Jini packages/platform/src/mail/adapter-module.ts:16 | core/contracts/mail |
+| MailAdapterModule | type | Jini packages/platform/src/mail/adapter-module.ts:43 | core/contracts/mail |
+| MailRateLimit | type | Jini packages/platform/src/mail/provider.ts:23 | core/contracts/mail |
+| MailProviderCapabilities | type | Jini packages/platform/src/mail/provider.ts:28 | core/contracts/mail |
+| MailFeedbackParser | type | Jini packages/platform/src/mail/provider.ts:38 | core/contracts/mail |
+| MailProviderCallContext | type | Jini packages/platform/src/mail/provider.ts:49 | core/contracts/mail |
+| MailDomainState | type | Jini packages/platform/src/mail/provider.ts:54 | core/contracts/mail |
+| MailProviderModule | type | Jini packages/platform/src/mail/provider.ts:56 | core/contracts/mail |
+| MailProviderRegistry | type | Jini packages/platform/src/mail/provider.ts:88 | core/contracts/mail |
+| MailProviderSetting | type | Jini packages/platform/src/mail/provider.ts:106 | core/contracts/mail |
+| MailLaneState | type | Jini packages/platform/src/mail/provider.ts:126 | core/contracts/mail |
+| MailLaneStatus | type | Jini packages/platform/src/mail/provider.ts:128 | core/contracts/mail |
+| MailStatusWarning | type | Jini packages/platform/src/mail/provider.ts:134 | core/contracts/mail |
+| MailStatus | type | Jini packages/platform/src/mail/provider.ts:136 | core/contracts/mail |
+| SealedSecret | type | Jini packages/platform/src/secrets/types.ts:2 | core/contracts/vault |
+| RootKeyHandle | type | Jini packages/platform/src/secrets/ports.ts:4 | core/contracts/vault |
+| KeyringPort | type | Jini packages/platform/src/secrets/ports.ts:9 | core/contracts/vault |
+| SecretSealerPort | type | Jini packages/platform/src/secrets/ports.ts:16 | core/contracts/vault |
+| VendorCredentialSetRecord | type | Jini packages/platform/src/secrets/credential-sets/types.ts:11 | core/contracts/vault |
+| VendorCredentialSetSummary | type | Jini packages/platform/src/secrets/credential-sets/types.ts:38 | core/contracts/vault |
+| VendorCredentialSetRepoPort | type | Jini packages/platform/src/secrets/credential-sets/types.ts:53 | core/contracts/vault |
+| VaultKind | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:6 | core/contracts/vault |
+| CredentialType | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:7 | core/contracts/vault |
+| CredentialMeta | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:9 | core/contracts/vault |
+| VaultJson | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:10 | core/contracts/vault |
+| VaultMeta | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:11 | core/contracts/vault |
+| VaultOptions | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:12 | core/contracts/vault |
+| VaultContext | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:15 | core/contracts/vault |
+| VaultIdentity | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:23 | core/contracts/vault |
+| VaultRecord | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:24 | core/contracts/vault |
+| VaultSummary | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:36 | core/contracts/vault |
+| VaultPutRecord | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:40 | core/contracts/vault |
+| VaultQuery | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:41 | core/contracts/vault |
+| VaultDefaultQuery | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:49 | core/contracts/vault |
+| VaultSingletonQuery | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:53 | core/contracts/vault |
+| VaultBatchOp | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:60 | core/contracts/vault |
+| VaultBatchResult | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:64 | core/contracts/vault |
+| VaultCopyResult | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:65 | core/contracts/vault |
+| VaultMetaParser | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:73 | core/contracts/vault |
+| VaultMetaParsers | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:74 | core/contracts/vault |
+| VaultRepoPort | type | Jini packages/platform/src/secrets/credential-sets/vault.types.ts:91 | core/contracts/vault |
+| OAuthGrantKind | type | Jini packages/oauth/src/ports.ts:4 | core/contracts/oauth |
+| OAuthClientAuthMethod | type | Jini packages/oauth/src/ports.ts:5 | core/contracts/oauth |
+| OAuthProviderDescriptor | type | Jini packages/oauth/src/ports.ts:7 | core/contracts/oauth |
+| OAuthClient | type | Jini packages/oauth/src/ports.ts:19 | core/contracts/oauth |
+| OAuthTokenSet | type | Jini packages/oauth/src/ports.ts:25 | core/contracts/oauth |
+| OidcTrustConfiguration | type | Jini packages/oauth/src/ports.ts:36 | core/contracts/oauth |
+| OidcIdTokenClaims | type | Jini packages/oauth/src/ports.ts:42 | core/contracts/oauth |
+| OidcSigningAlgorithm | type | Jini packages/oauth/src/ports.ts:54 | core/contracts/oauth |
+| OAuthTokenTypeHint | type | Jini packages/oauth/src/ports.ts:56 | core/contracts/oauth |
+| OAuthFetch | type | Jini packages/oauth/src/ports.ts:58 | core/contracts/oauth |
+| OAuthRandomBytes | type | Jini packages/oauth/src/ports.ts:62 | core/contracts/oauth |
+| OAuthAppOptions | type | Jini packages/oauth/src/ports.ts:67 | core/contracts/oauth |
+| OAuthUrlGuard | type | Jini packages/oauth/src/ports.ts:73 | core/contracts/oauth |
+| OAuthHttpPorts | type | Jini packages/oauth/src/ports.ts:80 | core/contracts/oauth |
+| OAuthSleep | type | Jini packages/oauth/src/ports.ts:85 | core/contracts/oauth |
+| OAuthResource | type | Jini packages/oauth/src/ports.ts:89 | core/contracts/oauth |
+| OAuthTokenStore | type | Jini packages/oauth/src/ports.ts:91 | core/contracts/oauth |
+| TokenRefreshPort | type | Jini packages/oauth/src/ports.ts:111 | core/contracts/oauth |
+| RegisteredOAuthClient | type | Jini packages/oauth/src/ports.ts:118 | core/contracts/oauth |
+| ClientRegistrationCache | type | Jini packages/oauth/src/ports.ts:127 | core/contracts/oauth |
+| OAuthRequiredArgs | type | Jini packages/oauth/src/args.ts:2 | core/contracts/oauth |
+| OAuthOptionalArgs | type | Jini packages/oauth/src/args.ts:5 | core/contracts/oauth |
+| OAuthEmptyArgs | type | Jini packages/oauth/src/args.ts:9 | core/contracts/oauth |
+| DeviceAuthorization | type | Jini packages/oauth/src/device-code.ts:15 | core/contracts/oauth |
+| DiscoveredAuthorizationServer | type | Jini packages/oauth/src/discovery.ts:17 | core/contracts/oauth |
+| DiscoveredOAuthConfiguration | type | Jini packages/oauth/src/discovery.ts:28 | core/contracts/oauth |
+| OAuthProviderRegistry | type | Jini packages/oauth/src/registry.ts:80 | core/contracts/oauth |
+| AuthorizationCallbackParams | type | Jini packages/oauth/src/authorization-code.ts:135 | core/contracts/oauth |
+| IndexableFieldKind | type | Jini packages/cms/src/content-types/types.ts:50 | core/contracts/content-types |
+| ContentTypeFieldKind | type | Jini packages/cms/src/content-types/types.ts:79 | core/contracts/content-types |
+| ContentTypeFieldDef | type | Jini packages/cms/src/content-types/types.ts:114 | core/contracts/content-types |
+| ContentTypeStatus | type | Jini packages/cms/src/content-types/types.ts:121 | core/contracts/content-types |
+| ContentTypeRecord | type | Jini packages/cms/src/content-types/types.ts:124 | core/contracts/content-types |
+| SurfaceDetail | type | Jini packages/ui/src/features/mcp-ui/surfaces/structured-details.ts:5 | core/contracts/cards |
+| SurfaceFieldBase | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:23 | core/contracts/cards |
+| StringField | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:37 | core/contracts/cards |
+| NumberField | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:50 | core/contracts/cards |
+| BooleanField | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:59 | core/contracts/cards |
+| EnumField | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:64 | core/contracts/cards |
+| MultiEnumField | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:85 | core/contracts/cards |
+| SurfaceField | type | Jini packages/ui/src/features/mcp-ui/surfaces/fields.ts:92 | core/contracts/cards |
+| FormSurfaceSpec | type | Jini packages/ui/src/features/mcp-ui/surfaces/form.ts:45 | core/contracts/cards |
+| SurfaceOutcomeSpec | type | Jini packages/ui/src/features/mcp-ui/surfaces/outcome.ts:65 | core/contracts/cards |
+| SelectOption | type | Jini packages/ui/src/features/mcp-ui/surfaces/select.ts:12 | core/contracts/cards |
+| BridgeScriptSpec | type | Jini packages/ui/src/features/mcp-ui/surfaces/bridge.ts:58 | core/contracts/cards |
+| SecretInputText | type | Jini packages/ui/src/features/mcp-ui/surfaces/text-input.ts:12 | core/contracts/cards |
+| SurfaceStatusText | type | Jini packages/ui/src/features/mcp-ui/surfaces/document.ts:381 | core/contracts/cards |
+| ConfirmationToolAction | type | Jini packages/ui/src/features/mcp-ui/surfaces/confirmation.ts:50 | core/contracts/cards |
+| SurfaceTokenName | type | Jini packages/ui/src/features/mcp-ui/surfaces/tokens.ts:77 | core/contracts/cards |
+| SecretCardField | type | Jini packages/ui/src/features/mcp-ui/secret-card.ts:25 | core/contracts/cards |
+| SecretCardForm | type | Jini packages/ui/src/features/mcp-ui/secret-card.ts:32 | core/contracts/cards |
+| VaultErrorCode | type | VaultError.code literal union | core/contracts/vault |
+| ISODateTime, UUID, HttpClientPort | type | core/src/primitives/index.ts | same package (core primitives type imports) |
+| DomainRequirement, ProviderContext, ProviderRegistry, ProviderResult | type | core/src/provider-registry.ts | same package (core provider-registry type imports) |
+| SurfaceAskThenReport, SurfaceExchangeStore | type | core/src/surface-exchanges.ts | same package (core surface-exchanges type imports) |
+| ToolExecutionContext, ToolExecutionOptions | type | core/src/tool-registry.ts | same package (core tool-registry type imports) |
+| VAULT_KINDS; VaultError; content-kind constants | value | platform credential-sets/vault.types.ts; cms content-types/types.ts | same package (values unchanged; type annotations only) |
+
+No unresolved destination. Canonical cards retain complete pinned UI presentation shapes, add compatibility aliases for old core names, and preserve an independent pinned UI declaration copy in a new type test before UI definitions change. `SurfaceTokenName`, `VaultKind` and content-kind unions become literal unions as required. No hosted-MCP, vault constructor or A3/later work.
