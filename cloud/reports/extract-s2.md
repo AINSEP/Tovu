@@ -559,3 +559,20 @@ Continuation progress/stop: 2026-11-08 05:07:22 UTC; elapsed 00:22:49. Deadline 
 
 Actual early failure: A1 adds one HW8-provider-url finding, changing the required guard count from 49 to 50.
 EXTRACT-S2 STOPPED AT CAP
+
+
+## Continuation 2
+
+Owner-approved resumption started 2026-11-08 06:12:26 UTC, on verified clean tips Tovu `1a24a1843c6d7cae4280a53f2e8ac738bafae420` and Jini `9066f7eaebf431503cb86d92989adfab1b1d373b`, both `cloud/extract-s2`. Deadline remains 07:44:33 UTC; shutdown reserve starts 07:24:33 UTC. Runtime status refreshed; original versions and pinned declaration baseline retained. No helpers or new session scope.
+
+Owner/coordinator decision supersedes the A1 HW8 stop: the credential-save description is product wording and becomes a required host `messages.description` input with an agent note. Tovu passes the current description expression byte-exact. No hardwiring debt or guard weakening. A1's complete gate must rerun with HW8 49 and zero new before A2.
+
+Continuation 2 seam inventory (first commit before edits):
+
+| Symbol/helper/dependency | Kind | Source | Destination |
+|---|---|---|---|
+| credentialSaveCatalog description expression | value | Jini packages/agent-plugins/src/connect/credential-save-tool.ts:38-43 | named host input messages.description, bound in Tovu features/custom-credentials/credential-save-tool.ts |
+| CredentialSaveMessages | type | new consumer contract | same package (agent-plugins/connect) |
+| neutral-host description | value | new host wiring | examples/neutral-host/src/provider-status.test.ts |
+
+No unresolved row. Tool text, cards, fixtures and metadata baseline must keep their recording hashes. Then A2 and F2 proceed serially under the original rules.
