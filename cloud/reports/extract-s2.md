@@ -23,8 +23,9 @@ Tool metadata starting SHA256: `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560
 |---|---|---|---|---|---|
 | Setup/baseline | starting pins above | PASS: full Jini build, recorded guard names/counts, plugins; Tovu SDK, link, contracts, tsc | Metadata above | 00:06 | Q1, Q2, G-card, A1, A2, F2 |
 | Q1 | Jini `80a7ea2df06b20b26eadb8c7abe4462d0b55bebf`; Tovu `da81249eb75695b9ff3c73cf21634053dd2b7649` (report-only changes afterward) | PASS: 41/41 tests, script tsc, complexity, checker, identical guard record, plugins, verified pushes | Test SHA256 below | 00:13 | Q2, G-card, A1, A2, F2 |
+| Q2 | Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`; Tovu `008eb932360b0e896aa2a726e66c019cd533b252` (report-only changes afterward) | PASS: 6 tsc, full build, 40 files / 727 tests, checker, guard record, plugins, Tovu tsc, verified pushes | Independent UI pin below | 00:27 | G-card, A1, A2, F2 |
 
-Last verified green paired batch: Q1 at the SHAs in its row. No golden fixtures or move inventories yet. No existing-test changes or bug fixes.
+Last verified green paired batch: Q2 at the SHAs in its row. Q2 inventory and type pin are recorded below. No golden fixtures, existing-test changes or application bug fixes.
 
 ## Progress
 
@@ -240,8 +241,8 @@ Q1 is green. Tovu report push `f249e0ea744c1f5ae5df517e0bebff69c60b6cd4` and Jin
 | TokenRefreshPort | type | Jini packages/oauth/src/ports.ts:111 | core/contracts/oauth |
 | RegisteredOAuthClient | type | Jini packages/oauth/src/ports.ts:118 | core/contracts/oauth |
 | ClientRegistrationCache | type | Jini packages/oauth/src/ports.ts:127 | core/contracts/oauth |
-| OAuthRequiredArgs | type | Jini packages/oauth/src/args.ts:2 | core/contracts/oauth |
-| OAuthOptionalArgs | type | Jini packages/oauth/src/args.ts:5 | core/contracts/oauth |
+| OAuthRequiredArgs | type | Jini packages/oauth/src/args.ts:2 | same package (consumer-only generic helper) |
+| OAuthOptionalArgs | type | Jini packages/oauth/src/args.ts:5 | same package (consumer-only generic helper) |
 | OAuthEmptyArgs | type | Jini packages/oauth/src/args.ts:9 | core/contracts/oauth |
 | DeviceAuthorization | type | Jini packages/oauth/src/device-code.ts:15 | core/contracts/oauth |
 | DiscoveredAuthorizationServer | type | Jini packages/oauth/src/discovery.ts:17 | core/contracts/oauth |
@@ -280,7 +281,7 @@ Q1 is green. Tovu report push `f249e0ea744c1f5ae5df517e0bebff69c60b6cd4` and Jin
 
 No unresolved destination. Canonical cards retain complete pinned UI presentation shapes, add compatibility aliases for old core names, and preserve an independent pinned UI declaration copy in a new type test before UI definitions change. `SurfaceTokenName`, `VaultKind` and content-kind unions become literal unions as required. No hosted-MCP, vault constructor or A3/later work.
 
-## Q2 implementation and verification in progress
+## Q2 implementation and verification
 
 Inventory commit: Tovu `5f366ed47d3f7048ece0c0f7366facea7262afd5`, pushed after pull/rebase and verified. Implementation: Jini `699b47805da6069ae574f57942e56a351d9ec73c`, pushed after pull/rebase and verified. Six `core/contracts/*` area exports with universal metadata; private nested type leaves preserve the original mail and OAuth divisions. Old source paths re-export the canonical types. All runtime implementations remain in place. No `isolation.shared`, server, layer checker, dependency or lockfile changes.
 
@@ -339,4 +340,16 @@ Selected by parsing/grepping imports in the six touched packages. Three admin-wi
 
 Commands: for each package/file list above, `pnpm --filter @jini-ai/<pkg> exec vitest run <files> --maxWorkers=2 --minWorkers=1 --reporter=verbose`. Results: platform 23 files / 409 tests PASS; CMS 14 files / 150 tests PASS; UI 3 files / 168 tests PASS; 40 files, 727 tests total, no filtered cases. Full verbose test names retained in scratch logs.
 
-Type-check commands: `pnpm --filter @jini-ai/<pkg> exec tsc --noEmit`, individually for core, platform, oauth, cms, agent-plugins and ui. Full-build command: `pnpm --filter @jini-ai/core run build && pnpm --no-bail -r build`. Build and remaining post-build checks in progress; Q2 is not yet declared green.
+Type-check commands: `pnpm --filter @jini-ai/<pkg> exec tsc --noEmit`, individually for core, platform, oauth, cms, agent-plugins and ui. Full-build command: `pnpm --filter @jini-ai/core run build && pnpm --no-bail -r build`. All final checks passed on the refined tip as recorded below.
+
+Q2 scope refinement before closing the gate: `OAuthRequiredArgs` and `OAuthOptionalArgs` are consumer-owned generic helpers and remain in `oauth/src/args.ts`; only `OAuthEmptyArgs`, used by the shared registry contract, moves to core. Final source inventory destinations above reflect this decision. Jini `ada68ff7d` records the refinement; verification reran and passed on this tip. The independent UI pin is unchanged.
+
+### Q2 final gate
+
+Final tip Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da` verified pushed. Final logs use `q2-final-*` in the scratch directory. Full build exit 0; core/platform/oauth/cms/agent-plugins/ui `tsc --noEmit`, each exit 0; the same 40 named test files pass again with 727/727 tests; post-build `pnpm check:cross-package` exit 0 against the original pinned declaration snapshot; `pnpm guard` matches baseline finding/hardwiring lines exactly; `pnpm guard:plugins` exit 0. Tovu re-linked and `npx tsc -p tsconfig.json --noEmit` exited 0. No Q2 work remains.
+
+Unchanged-test/fixture inspection against both starting pins: no existing test/fixture M/D/R; no allowed-list edits were needed. Server and prohibited layer-checker diffs empty. Both migration diffs empty. Tovu source diff empty; metadata SHA256 remains the starting hash. Independent UI pin SHA256 unchanged. Runtime emit comparison remains zero differences.
+
+All recorded Q2 test runner PIDs have exited; recorded process groups have no executing test process (only already-exited, defunct esbuild helpers awaiting environment reaping). No test was left running.
+
+Additional verified pushes: Tovu `008eb932360b0e896aa2a726e66c019cd533b252`; Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da`, branch `cloud/extract-s2`, immediate pull/rebase before each. No conflicts or failed pushes.
