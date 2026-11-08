@@ -125,3 +125,61 @@ F1 new CLI regressions demonstrated the absent writer (9 failed/1 passed). A tes
 Original checkout frozen install/core/recursive build passed with Node 24.2.0/npm 11.3.0/pnpm 10.33.2 and clean tracked source. Verified installed tsx export resolves to /workspace/Jini/node_modules/.pnpm/tsx@4.23.1/node_modules/tsx/dist/loader.mjs. From that checkout, invoked the repaired S3 checker by absolute path with --base 35c4961af718f0f30591c46d2ea2756c4484a731 --write-baseline /workspace/work/extract-s3/declaration-baseline. No repaired code copied into the old tree.
 
 Snapshot: base **35c4961af718f0f30591c46d2ea2756c4484a731**, **3308** production-source mappings, **3320** emitted declaration files. Manifest SHA256 **d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459**; snapshot SHA256 **f1b750bc75cfa1fbed7d5b3ee4c046f889a43bc8dd69e224203761ba39d04769**. Snapshot files/directories made read-only; per-file hashes retained outside source. env.sh exports the absolute JINI_DECLARATION_BASELINE_DIR for all later gates. No regeneration. Full fixed XP1–XP5 checker at this S3 point passed against this original immutable snapshot.
+
+### F2–F7 implementation and development verification
+
+F2: new host-tool-inputs.unit.test.ts failed all 5 cases before the fix; all 5 now pass (second-host descriptions/schema/refusals/catalog paths/custom card tool, credential id and OAuth refusal; authorization precedes loading). Tovu binds the exact old description including permission suffix/punctuation and exact catalog paths; no defaults/secret routing/auth/card changes. Only the two allowed neutral-host required-argument objects changed; existing description, ids, imports, assertions, input, fixtures, optional args and flow remain identical.
+
+F3: legacy parser regressions failed 20/21 before fix; 25/25 pass with the unchanged existing parser suite. Raw-only v1/v2, declared setup/default fields, actual checked-in Resend shape, invalid setup/secret defaults/duplicate fields/unknown keys and injected arguments/output are covered. Package-local fallback preserves the whole platform pure setup parser at e069b3fe0, changing only its type import to core and adding provenance; platform stays the canonical injected parser, with parity verified by tests. This compatibility boundary avoids a neighbor import or runtime code in core. Missing A2 changeset now lists both platform and agent-plugins minor releases and every named A2 seam, explaining injection and raw-only compatibility.
+
+F4: all three comment groups and provider @file scope had focused red source regressions first. Exact list/refusal why-comments now sit at registry members; exact 8-line card rationale copied from the unchanged Tovu typecheck header to Jini ui production credential-card.ts; exact positional parser rationale restored in Tovu; complete provider-status privacy @file block relocated verbatim to file scope. Source-to-destination map is this paragraph: no rationale rewritten/dropped; existing credential-card @agent-note remains. F3 parser comments preserved verbatim through the whole-file compatibility copy; other touched modules retain rationale in place.
+
+F5: source/manifest regressions red then green. Removed the six named unused import bindings only. Restored exactly 18 optionalPeers em-dash spellings, no other manifest rewrite. Collapsed identical checker import branches; deleting the real collector statement made the existing type-only import regression red (1 failed), byte-exact restore returned all 52 checker tests green. Tovu now binds direct exported find/load helpers; public Jini factory aliases remain for compatibility, with no caller break.
+
+F6: 11/12 new cases failed before fix. Visitor now collects type-reference directives and string-literal ambient module names in source/emits; XP5 includes optionalDependencies. Tests cover new/renamed full inspection, original-base modified comparisons, declaration-only new vs unchanged edges, domain core/self controls and core prohibition, optional dependency new/old/core controls. Existing missing-output/provenance cases remain green. Full checker/source regression suite: 70/70 green. Relative-path crossings remain a stated limitation; existing build/rootDir rules retained, no broad checker rewrite or claim of new relative-path coverage.
+
+F7: new host-only parity typecheck passed, then an optional driftMutation field was added to the real projection source and the package rebuilt. Explicit pin compile failed (exit 2, exact keys/properties), then byte-exact source restore + rebuild + explicit compile passed. Two-way assignability, exact keys and properties are asserted. No production neighbor/core vocabulary change.
+
+Progress at 16:04 UTC (~0.50h elapsed from original start): S3-0 development in progress; no A3 started, ~4.25h left. Formal S3-0 gate follows; partial test filters were only development red/mutation demonstrations, all formal runs are unfiltered.
+
+### S3-0 recording commits and pin hashes
+
+Implementation: Jini **c393010ae9cc0e003228c3c15249f59c24ff20c2**; Tovu **ce6dc422d3ee95c607b9284de42fb815cc65b8fb**, pushed on cloud/extract-s3 after immediate pull/rebase. Earlier continuation report **46721900a** and baseline evidence report **5bdc4254e** are report-only. F1 commits **1c0e674e7** and **23c0c69f6** are checker implementation. Full pushed SHAs are retained by git and the final ledger.
+
+| New pin/regression | Recording full commit | SHA256 |
+| --- | --- | --- |
+| Jini/scripts/__tests__/extract-s3-checker.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | 38604679a697fba4b881c831f243469f71d0b48594d02dab083cc5771c4790b9 |
+| Jini/scripts/__tests__/extract-s3-source-contracts.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | ddc40cdb741c29c4d39cfbee8e0f8e88aec7d7b9cc340078fcf0782dee43be48 |
+| Jini/packages/agent-plugins/src/connect/__tests__/host-tool-inputs.unit.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | 3ac77d39dff0620104dfa8c8ae2bbb77deb63df765eb6f364176c25588e45d5b |
+| Jini/packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts | c393010ae9cc0e003228c3c15249f59c24ff20c2 | 07ceb1fe0b04f99c62d81f43be654f31f6fd64b0552b30e9470763abc4a09100 |
+| Tovu/apps/website/src/contracts/core/__tests__/extract-s3-host-source.unit.test.ts | ce6dc422d3ee95c607b9284de42fb815cc65b8fb | 7cb62f733a97ea036b9a250da2629e53b2f2eedfd3c6253b4c42798eb482c388 |
+| Tovu/apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts | ce6dc422d3ee95c607b9284de42fb815cc65b8fb | 7a57ea1126178279361bef826ad1ea4f9383b7c1f4adba683df370c898e59795 |
+
+Exact permitted existing-test diff (only two required-input objects; no assertions or flow changed):
+
+```diff
+diff --git a/examples/neutral-host/src/provider-status.test.ts b/examples/neutral-host/src/provider-status.test.ts
+index c2b20911c..c2fd4d286 100644
+--- a/examples/neutral-host/src/provider-status.test.ts
++++ b/examples/neutral-host/src/provider-status.test.ts
+@@ -12,7 +12,7 @@ it('provider status: reports configured providers with no product names, shows t
+   const exchanges = createSurfaceExchangeStore({ clock: createSystemClock(), scheduler: createTimeoutScheduler({}), idGenerator: { newId: () => 'settings-1' }, defaultChannel: 'mcp-ui' });
+   const settingsCard = { tool: 'credential_save' as const, input: { kind: 'provider-settings' as const, target: 'metrics' } };
+   const fields = [{ name: 'apiKey', label: 'API key', secret: true, required: true }];
+-  const status = createProviderStatusTools({ metadata: {}, authorization: { permission: 'studio.providers.read' } });
++  const status = createProviderStatusTools({ metadata: {}, authorization: { permission: 'studio.providers.read' }, catalogModule: 'studio/providers.ts', messages: { description: 'Read provider presence in the studio.', pluginIdDescription: 'Studio provider id from studio_plugins.', unknownPlugin: ({ pluginId }) => `Unknown studio provider ${String(pluginId)}; call studio_plugins.`, unexpectedInput: 'Studio provider status accepts only pluginId.' } });
+   const rows = (): ProviderStatusRow[] => [{ pluginId: 'metrics', fields, settingsCard,
+     enabled: true, configured: memory.has('metrics'), missing: memory.has('metrics') ? [] : ['API key'],
+     store: 'site', appliesAt: 'now', usedByThisSite: true, usedBy: ['studio'] }];
+@@ -26,7 +26,7 @@ it('provider status: reports configured providers with no product names, shows t
+   expect(status.providerStatusAgentToolCatalog[0]?.authorization.permission).toBe('studio.providers.read');
+ 
+   const unused = async (): Promise<never> => { throw new Error('Unexpected credential domain'); };
+-  const tools = createCredentialSaveTools({ metadata: {}, toolId: 'credential_save', categories: ['general'], messages: { description: 'Save a provider credential in the studio human card.' } });
++  const tools = createCredentialSaveTools({ metadata: {}, toolId: 'credential_save', categories: ['general'], messages: { description: 'Save a provider credential in the studio human card.', oauthRefusal: 'Use studio_connect for browser sign-in.' }, catalogModule: 'studio/secrets.ts' });
+   const save = tools.buildCredentialSaveRegistrations({ adapters: {
+     apiCreate: unused, apiRotate: unused, mediaProvider: unused, sourceControl: unused,
+     publishHost: unused, agentPluginToken: unused, pluginProvider: unused,
+```
+
+The formal gate is running the 21 named commands in gate-s3-0-jobs.json, including 17 explicit Tovu files and 8 Jini runtime/host files plus the three checker/source suites. Builds precede relink and host checks; no skipped cases in formal runs. No A3 work has started.
