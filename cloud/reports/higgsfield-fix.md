@@ -291,3 +291,67 @@ Finite 15s overall/4s per-close deadlines and 20s external timeout; cleanup dest
 All authorized functional changes are implemented and pushed; the report records the baseline check failures and the unmodified fixture limitation. No test, native browser, local mock server, or virtual display process is left running. Exited Electron zombie records owned by PID 1 are not running processes.
 
 HIGGSFIELD-FIX DONE
+
+
+## Review fix
+
+Recorded November 7, 2026 at 6:58:51 PM Pacific. The review follow-up changes only the sign-in window's permission handling, the existing fake-Electron test, and this report. Original cap remains November 7, 2026 at 7:22:50 p.m. Pacific. Jini remains unchanged at `76a9e9f78068c7fd7bc1c7781848aa64b2dbbb76`; Tovu continues on `cloud/higgsfield-fix` from the previous report tip `ed19ed327f7f60479370cae55f3e5a8e49a04a61`. The containing commit is identified in the follow-up final response.
+
+Before editing, search of Tovu apps/packages and Jini desktop-host source found no permission request/check handler on the site session. The only existing production handlers were `apps/desktop/src/desktop-capture.ts:22–23`; those belong to the separate `jini-url-capture-${slot}` partition created by `packages/desktop-host/src/electron/electron-url-capture.ts:107`. No existing handler is replaced on the site session.
+
+Added one module-level `WeakSet<WebContents>`, registered each new sign-in popup's contents in it, and installed the two approved site-session callbacks. Both callbacks deny tracked sign-in contents while retaining grants for the site's own guest; the check callback retains the approved null-contents behavior. No other production change.
+
+Line delta from the previous report commit:
+
+| File | Added | Removed |
+|---|---:|---:|
+| Production `apps/desktop/src/main/index.ts` | +5 | -0 |
+| Test `apps/desktop/src/window-navigation-policy.test.ts` | +25 | -3 |
+
+The production delta is four executable statements plus one blank line. The test adds exactly one case and extends the existing fake session to capture both callbacks. It checks two sign-in windows after the second handler registration, the unchanged guest grants for media/geolocation/clipboard/notifications, both check results, and null contents.
+
+Baseline, red, all four mutations, initial green, and restored final green ran this exact command from `/workspace/Tovu/apps/desktop`:
+
+```sh
+node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=2 src/window-navigation-policy.test.ts
+```
+
+- Baseline: exit 0, 30 passed (`review-baseline.log`).
+- Red before production changes: exit 1, 30 passed / 1 failed; `AssertionError [ERR_ASSERTION]: media`, actual true versus expected false (`review-red.log`).
+- Initial green: exit 0, 31 passed (`review-initial-green.log`).
+
+| Temporary mutation | Observed result |
+|---|---|
+| Remove popup membership from WeakSet | Exit 1, 30 passed / 1 failed |
+| Grant every permission request | Exit 1, 30 passed / 1 failed |
+| Grant every permission check | Exit 1, 30 passed / 1 failed |
+| Deny every request, including the site guest | Exit 1, 30 passed / 1 failed |
+
+Every mutation was restored. Final green: exit 0, **31 passed** (`review-green.log`). Only the changed test file ran; no full suite or watch process.
+
+No-emit check, from `/workspace/Tovu/apps/desktop`:
+
+```sh
+./node_modules/.bin/tsc -p tsconfig.main.json --noEmit
+```
+
+Exit 2 with the same four previously proven baseline `TS2531: Object is possibly 'null'` errors in unchanged `src/site-archive-import.test.ts` at 55:20, 170:16, 188:16, and 205:16 (`review-typecheck.log`). No error refers to the changed production/test files. These unrelated errors remain unchanged.
+
+The existing native smoke was quick to rerun. Its scratch source extractor was updated to include the actual module-level WeakSet declaration; no new native test or production helper was added. Exact rerun from `/workspace/Tovu`:
+
+```sh
+/workspace/work/higgsfield/xvfb/usr/bin/Xvfb :99 -screen 0 1280x720x24 -nolisten tcp > /workspace/work/higgsfield/review-xvfb.log 2>&1 &
+xvfb_pid=$!
+trap 'kill "$xvfb_pid" 2>/dev/null; wait "$xvfb_pid" 2>/dev/null' EXIT
+for attempt in 1 2 3 4 5; do test -S /tmp/.X11-unix/X99 && break; sleep 0.2; done
+DISPLAY=:99 XDG_CACHE_HOME=/workspace/work/higgsfield/xdg-cache XDG_CONFIG_HOME=/workspace/work/higgsfield/xdg-config timeout --kill-after=3s 20s /workspace/Jini/node_modules/.pnpm/electron@43.2.0/node_modules/electron/dist/electron --no-sandbox --disable-gpu /workspace/work/higgsfield/electron-sign-in-smoke.cjs > /workspace/work/higgsfield/review-native.log 2>&1
+result=$?
+tail -15 /workspace/work/higgsfield/review-native.log
+exit "$result"
+```
+
+Exit 0: both MCP and hosted API-connection flows pass with the new permission callbacks installed, shared session/cookie roundtrip, and actual callback-script closure. Native permission decisions themselves are asserted by the one new fake-Electron case. The earlier native smoke limitations still apply. No real sign-ins or secrets, and no live test, Electron, mock-server, or Xvfb process remains.
+
+No inline lint disables, dependencies, Jini changes, unrelated fixes, publish, tags, or deployments. `git diff --check` passes. Remaining errors are only the recorded pre-existing typecheck failures; nothing from the requested fix was omitted.
+
+HIGGSFIELD-FIX-2 DONE
