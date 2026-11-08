@@ -1,6 +1,6 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **STOPPED at the S3-0 strict complexity gate**. Functional checks passed, but the new specifier visitor has cyclomatic complexity 11 (maximum 10). No A3 work started. The initial baseline stop remains historical; the Continuation section records the owner-approved cleanup and implementation.
+Status: **Continuation 2: S3-0 GREEN; A3 beginning**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
 
 ## Clock and source custody
 
@@ -285,5 +285,75 @@ The final stopped-report commit follows these source SHAs and is identified sepa
 
 All 43 recorded command PIDs are absent at shutdown; targeted process inspection found no task Node/npm/pnpm/test/build process active. All manual test/build sessions completed. Custody rechecked: no existing Tovu test/fixture M/D/R; Jini only the exact two permitted call-object changes; all 117 old fixture hashes and all 6 new test/pin hashes unchanged; original declaration snapshot unchanged; lockfiles unchanged. The six authorized untracked residue directories were deleted only after confirming zero tracked files under each. No other files removed. No helper agents, time reset, historical S2 certification, or later extraction work.
 
-Actual early failure: S3-0 strict complexity gate — new specifier visitor complexity 11 exceeds maximum 10; the original time cap has not expired.
-EXTRACT-S3 STOPPED AT CAP
+## Continuation 2
+
+Owner approved Continuation 2 and changed the session stop rule: batch-local code/lint/type/new-test failures are repaired and the gate rerun; stop for prior Tovu behavior/test drift, an unworkable design, the owner import rule, or the original cap. Original start/deadline/reserve remain 15:34:09 / 20:19:09 / 19:59:09 UTC. Resumed 16:22:24 UTC; no clock reset, helpers or new branch.
+
+The specifier visitor is split by extracting only import-type-node collection, preserving every test and syntax. The existing sourcePackages cognitive-complexity failure is addressed with a small manifest-reading helper; traversal, filtering, source ownership, comments and I/O remain unchanged. Full strict changed-source lint and the S3-0 gate are rerun before A3.
+
+### Continuation 2: S3-0 GREEN
+
+The smallest specifier split (import-type collection helper) and manifest-reading helper passed strict complexity (0 errors, only two pre-existing unused-rest warnings). The complete 21-command S3-0 gate was rerun: **312/312 tests**, no skipped/failed/todo; all three package builds/tsc, scripts tsc, Tovu tsc, explicit parity pin, immutable-original-base checker, exact guard record/plugins, layers 0/isolation 0 with SI-c 9/SI-d 7, and all hash/test/lock custody checks passed. No tests/pins/snapshot were changed. Gate completed 16:26:04 UTC. Last green source pair: Jini **9a6a65e6ce12624c94a04a0827ad20d6cef305b2** and Tovu **ce6dc422d3ee95c607b9284de42fb815cc65b8fb** (report-only Tovu tip 4f147255166fb097ea3165ef2e37edddd97684fa). Paired pushes verified before A3.
+
+### A3 first pin and complete seam/move inventory
+
+First A3 commit includes only the new real-store format pin and this pre-edit inventory. New pin checks the literal format, exact vault scope including the kind from vault-stores, one real row's exact id/label/format and its reader. Initial green; mutate the production format -> red, byte-exact restore -> green. No saved-byte source change or fixture regeneration.
+
+Top-level declarations and named helpers at the pre-A3 source, with resolved destinations:
+
+| Pre-edit source:symbol | Resolved A3 destination/custody |
+| --- | --- |
+| T features/api-connections/host.ts:47 ApiConnectionRuntime | integrations/api-connections host-ports type; Tovu re-export |
+| T features/api-connections/host.ts:54 API_CONNECTION_CALLBACK_ORIGINS_ENV | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:56 ApiConnectionHostDeps | Tovu host-bindings.ts: original caller contract and comments; host runtime consumes local/core Jini ports |
+| T features/api-connections/host.ts:77 notAvailable | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:82 setupRefused | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:87 configured | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:92 isUnreadableTokenRecord | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:98 wrapsUnreadableTokenRecord | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:102 clientChanged | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:107 clientKindFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:111 ResolvedClient | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:114 byoOAuthClient | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:125 resolveClient | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:136 configuredOrigins | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:141 notConfigured | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:146 connectionStatus | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:155 createApiConnectionHost | Same Tovu host.ts: old-signature wrapper binds ports; original body becomes runtime factory in place |
+| T features/api-connections/host.ts:181 listConnections | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:192 clientFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:198 tokensFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:204 markReconnectRequired | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:215 tokensForAnotherClient | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:228 readHonestRecord | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:235 apiOriginsFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:245 hostedCallbackUrl | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:260 byoCallbackUrl | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:266 hooksFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:271 serviceFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:287 declaredFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:299 accessTokensFor | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:341 requestedScopes | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:346 statusOf | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:367 prepareSignIn | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/host.ts:387 ApiConnectionHost | Same Tovu host.ts in A3; body/helper/type/value preserved, no host move in this batch |
+| T features/api-connections/byo-client.ts:24 ByoClient | Jini integrations/src/api-connections/byo-client.ts; local errors/core/local contracts; same-signature Tovu shim |
+| T features/api-connections/byo-client.ts:30 ByoClientCredentials | Tovu thin shim/credential adapter: repository/crypto and exact host refusal text |
+| T features/api-connections/byo-client.ts:37 byoClientLabel | Jini integrations/src/api-connections/byo-client.ts; local errors/core/local contracts; same-signature Tovu shim |
+| T features/api-connections/byo-client.ts:41 unusable | Tovu thin shim/credential adapter: repository/crypto and exact host refusal text |
+| T features/api-connections/byo-client.ts:50 resolveByoClient | Jini integrations/src/api-connections/byo-client.ts; local errors/core/local contracts; same-signature Tovu shim |
+| T features/api-connections/hook-http.ts:14 PluginHttp | Jini integrations/src/api-connections/hook-http.ts; local narrow HTTP port replaces neighbor type; thin Tovu re-export |
+| T features/api-connections/hook-http.ts:16 CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE | Jini integrations/src/api-connections/hook-http.ts; local narrow HTTP port replaces neighbor type; thin Tovu re-export |
+| T features/api-connections/hook-http.ts:24 createConnectionHookHttp | Jini integrations/src/api-connections/hook-http.ts; local narrow HTTP port replaces neighbor type; thin Tovu re-export |
+
+Imported prerequisites and runtime values: host's randomBytes stays node in Tovu now (later same-package node host); createApiConnectionService/createSignInHandoffs/deriveApiConnectionKey/ApiConnectionError and service/record/client kinds remain Jini integrations same-package after move; OAuth client/HTTP types are core contracts, loopback implementation remains host-bound; platform vault/keyring/sealer and custom-credential repository remain in Tovu binder. Callback inbox and plugin state are still in place for A3 and are injected only in A4. Browser-binding callback constant/re-export stays Tovu; vault-stores, contribution loader and shared-api factory are bound in the host adapter, with their original function bodies untouched. Budgets receive the same host limiter factory. No second vault, state store, inbox, limiter owner, credential open or contribution load is introduced.
+
+Port resolution: storage exposes records/peekAttempt and owner-scoped token factory over the one existing vault; declared connections use same-package descriptor/declaration/hooks types; BYO reads a narrowed credential/origins projection through an injected read port and host refusal constructor, stable saved label remains the same; app identity is {clientDisplayName:Tovu,softwareId:tovu} supplied by Tovu for both local/shared service construction. Shared consumer factory and owner-context storage are injected through local same-package ports; Tovu owns its project/site adapters. Every dependency is assigned to same package/core/host port/input; none unresolved.
+
+New regression inventory before seam/move edits: T format pin plus Jini integrations/api-connections/__tests__/host-seams.unit.test.ts (different-host BYO read/refusal, stable label, hook origin scoping and public exports). Existing tests remain frozen. No production plugin-state/browser-binding/vault-stores/connect/routes/inbox changes in A3.
+
+A3 format pin SHA256 at first commit: **57a312280c8e890a00683ab3ce7419bc245e9aebe82821c18a6715698f96e902**. Source transport pre-edit hashes:
+
+- host.ts: 4118751966b1f03a784fd400e009f85d1d1994c582944baad052c518b8bd6aa4
+- byo-client.ts: 270b9c002f8298d0c8afde524a3effbc09fb830721494b4e8962cbc3745f3f8a
+- hook-http.ts: d732b4f281a34e82e83296fa613b76d00686f1e54cf574eddeb86ae8f08926a2
