@@ -1,10 +1,9 @@
 import {
-  ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, waitForHostedSignIn, type ApiConnectionIntent, type CompletedAuthorization,
+  ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, waitForHostedSignIn, type ApiConnectionIntent, type CompletedAuthorization, type ApiConnectionSignInLink, type ApiConnectionConnectMessages, type DeclaredApiConnection,
 } from "@jini-ai/integrations/api-connections";
 import { ToolInputError } from "@jini-ai/core";
 
-import { hostedSignInLink } from "./browser-binding.js";
-import type { DeclaredApiConnection } from "./contribution.js";
+import { apiConnectionConnectPorts } from "./connect-bindings.js";
 import type { ApiConnectionHost } from "./host.js";
 
 /**
@@ -33,6 +32,8 @@ export interface ApiConnectionConnectDeps {
 export type ApiConnectionConnectStatus = { readonly status: "connected" | "waiting-for-sign-in"; readonly connectionRef: string };
 
 interface ConnectRun {
+  readonly signInLink: ApiConnectionSignInLink;
+  readonly messages: ApiConnectionConnectMessages;
   readonly deps: ApiConnectionConnectDeps;
   readonly connection: DeclaredApiConnection;
   readonly actorId: string;
@@ -45,8 +46,8 @@ interface ConnectRun {
 }
 
 /** API-connection refusals carry safe, actionable messages; surface them as caller-facing input errors. */
-function asToolError(error: unknown): never {
-  if (error instanceof ApiConnectionError) throw new ToolInputError({ message: `agent_plugin_connect: ${error.message}` });
+function asToolError({ error, messages }: { error: unknown; messages: ApiConnectionConnectMessages }): never {
+  if (error instanceof ApiConnectionError) throw new ToolInputError({ message: messages.toolError({ message: error.message }) });
   throw error;
 }
 
@@ -69,12 +70,12 @@ export interface ApiConnectionSignInStart {
  * Shared by `agent_plugin_connect` and the admin-surface connection port.
  * @complexity One start; desktop adds one loopback listener and, later, one exchange.
  */
-export async function startApiConnectionSignIn(
+export async function startApiConnectionSignInWithPorts(
   required: SignInRequest,
   optional: SignInOptions = {},
 ): Promise<ApiConnectionSignInStart> {
   if (required.host.runtime === "desktop") return startDesktopSignIn(required, optional);
-  if (required.destination === "shared") throw new ApiConnectionError({ code: 'connection-not-found', message: 'Shared connections are available only on this Mac. Choose this site for a hosted sign-in.' });
+  if (required.destination === "shared") throw new ApiConnectionError({ code: 'connection-not-found', message: required.messages.sharedUnavailable });
   const { host, connection, actorId, intent, scopeSetIds } = required;
   // The service first: its setup refusals (no client configured) come before the callback address's.
   const service = host.serviceFor({ connection });
@@ -85,10 +86,12 @@ export async function startApiConnectionSignIn(
   // browser binding, then redirects to the provider. The provider URL and the binding stay here.
   const { authorizationUrl, browserBinding, expiresAt } = start;
   const handoffId = host.signInHandoffs.issue({ authorizationUrl, browserBinding, actorId, expiresAt });
-  return { authorizationUrl: hostedSignInLink({ callbackUrl, workspaceId: host.workspaceId, handoffId }), attemptId: start.attemptId, expiresAt };
+  return { authorizationUrl: required.signInLink({ callbackUrl, workspaceId: host.workspaceId, handoffId }), attemptId: start.attemptId, expiresAt };
 }
 
 interface SignInRequest {
+  readonly signInLink: ApiConnectionSignInLink;
+  readonly messages: ApiConnectionConnectMessages;
   readonly host: ApiConnectionHost; readonly connection: DeclaredApiConnection; readonly actorId: string;
   readonly destination?: "site" | "shared"; readonly intent: ApiConnectionIntent; readonly scopeSetIds: readonly string[];
 }
@@ -156,7 +159,7 @@ async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): P
   const connectionRef = deriveApiConnectionKey({ workspaceId: host.workspaceId, pluginId: run.connection.pluginId, connectionId: run.connection.descriptor.connectionId });
   const readGeneration = createApiConnectionGenerationReader({ records: host.records });
   const startGeneration = await readGeneration({ key: connectionRef });
-  const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }).catch(asToolError);
+  const start = await startApiConnectionSignInWithPorts({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds, signInLink: run.signInLink, messages: run.messages }).catch((error: unknown) => asToolError({ error, messages: run.messages }));
   // Built only after the start: building it first threw its setup refusals (no callback origin, no
   // client secret) raw, past the `ToolInputError` mapping above.
   const service = host.serviceFor({ connection: run.connection });
@@ -180,11 +183,11 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   try {
     // `runApiConnectionConnect` takes this path only for a desktop host, so the desktop start is
     // called directly and its completion is always present (no "no completion" case to handle).
-    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds, destination: run.destination }, {
+    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds, destination: run.destination, signInLink: run.signInLink, messages: run.messages }, {
       timeoutMs: run.waitTimeoutMs, signal: listening.signal,
-    }).catch(asToolError);
+    }).catch((error: unknown) => asToolError({ error, messages: run.messages }));
     await run.showSignIn({ signInUrl: start.authorizationUrl });
-    return (await start.completion.catch(asToolError)) !== null;
+    return (await start.completion.catch((error: unknown) => asToolError({ error, messages: run.messages }))) !== null;
   } finally {
     run.signal.removeEventListener("abort", stop);
     stop();
@@ -197,7 +200,7 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
  * @throws {ToolInputError} The connection refused to start or complete (safe message, next step).
  * @complexity One status read, one sign-in round trip bounded by `waitTimeoutMs`.
  */
-export async function runApiConnectionConnect(
+export async function runApiConnectionConnectWithPorts(
   required: ConnectRun,
   _optional: Record<string, never> = {},
 ): Promise<ApiConnectionConnectStatus> {
@@ -214,4 +217,12 @@ export async function runApiConnectionConnect(
   }
   const connected = host.runtime === "desktop" ? await connectDesktop(required, scopeSetIds) : await connectHosted(required, scopeSetIds);
   return { status: connected ? "connected" : "waiting-for-sign-in", connectionRef };
+}
+
+/** Old public signature; the host supplies its browser-link binding and exact refusal copy. */
+export function startApiConnectionSignIn(required: Omit<SignInRequest, 'signInLink' | 'messages'>, optional: SignInOptions = {}) {
+  return startApiConnectionSignInWithPorts({ ...required, ...apiConnectionConnectPorts }, optional);
+}
+export function runApiConnectionConnect(required: Omit<ConnectRun, 'signInLink' | 'messages'>, optional: Record<string, never> = {}) {
+  return runApiConnectionConnectWithPorts({ ...required, ...apiConnectionConnectPorts }, optional);
 }

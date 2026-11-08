@@ -1,8 +1,8 @@
-import { ADMIN_SURFACE_STATE_LIMITS, type AdminSurfaceState, type AdminSurfaceStateValue } from "@jini-ai/agent-plugins/admin-surfaces";
+import { ADMIN_SURFACE_STATE_LIMITS, type AdminSurfaceState, type AdminSurfaceStateValue, type AdminSurfacePluginStatePersistence } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { AgentPluginStateReader } from "@jini-ai/agent-plugins/lifecycle/tools";
-import { VaultError, type SecretsVaultService, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultMeta } from "@jini-ai/core/contracts/vault";
+import { bindPluginStatePersistence, type PluginStateHostInput } from "./plugin-state-bindings.js";
 
-import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from "./vault-stores.js";
 
 /**
  * @file A plugin's own settings ("state": which products are on, the chosen resource), one JSON
@@ -59,7 +59,6 @@ function checkedValue(value: AdminSurfaceStateValue): AdminSurfaceStateValue {
   return JSON.parse(text) as AdminSurfaceStateValue;
 }
 
-const isConflict = (error: unknown): boolean => error instanceof VaultError && error.code === "conflict";
 
 /**
  * Creates the workspace's plugin-state store over the api-connection vault.
@@ -68,12 +67,12 @@ const isConflict = (error: unknown): boolean => error instanceof VaultError && e
  * @complexity get/delete O(1) vault calls; set O(r) in the workspace's api-connection rows (one
  * summary listing); describe O(r log r).
  */
-export function createAgentPluginStateStore(
-  required: { readonly vault: SecretsVaultService; readonly workspaceId: string },
+export function createPersistedAgentPluginStateStore(
+  required: { readonly persistence: AdminSurfacePluginStatePersistence; readonly workspaceId: string },
   _optional: Record<string, never> = {},
 ): AgentPluginStateStore {
-  const { vault } = required;
-  const scope = apiConnectionVaultScope({ workspaceId: required.workspaceId });
+  const { vault, scope, format } = required.persistence;
+  const isConflict = (error: unknown) => required.persistence.isConflict({ error });
 
   /** This scope's row prefix; a foreign workspace or malformed plugin id never reaches the vault. */
   function scopedPrefix(input: AgentPluginStateScope): string {
@@ -108,7 +107,7 @@ export function createAgentPluginStateStore(
     const existing = rows.find((row) => row.id === id);
     if (!existing && rows.filter((row) => row.id.startsWith(rowPrefix(input.pluginId))).length >= PLUGIN_STATE_MAX_KEYS) throw new Error(`A plugin may keep at most ${PLUGIN_STATE_MAX_KEYS} settings here. Remove one and retry.`);
     await vault.put({ ...scope, id, expectedRevision: existing?.revision ?? null, provider: null, label: `Plugin settings ${id}`,
-      meta: { credentialFormat: PLUGIN_STATE_FORMAT }, payload: { value: stored } as unknown as VaultMeta })
+      meta: { credentialFormat: format }, payload: { value: stored } as unknown as VaultMeta })
       .catch((error: unknown) => {
         if (isConflict(error)) throw new Error("This setting changed while it was being saved. Reload the plugin's settings and retry.", { cause: error });
         throw error;
@@ -138,4 +137,9 @@ export function createAgentPluginStateStore(
       },
     }),
   };
+}
+
+/** The old host signature binds its original vault and exact persisted scope/format. */
+export function createAgentPluginStateStore(required: PluginStateHostInput, _optional: Record<string, never> = {}): AgentPluginStateStore {
+  return createPersistedAgentPluginStateStore({ persistence: bindPluginStatePersistence(required), workspaceId: required.workspaceId });
 }

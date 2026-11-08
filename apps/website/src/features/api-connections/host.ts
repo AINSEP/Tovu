@@ -2,17 +2,12 @@ import { bindApiConnectionHost, type ApiConnectionHostDeps, type ApiConnectionHo
 export type { ApiConnectionHostDeps } from "./host-bindings.js";
 import { randomBytes } from "node:crypto";
 
-import { createApiConnectionService, createSignInHandoffs, deriveApiConnectionKey, ApiConnectionError, createConnectionBudgets, resolveByoClient, type ByoClient, type ApiConnectionHostPorts, type ApiConnectionSharedStorage, type ApiConnectionRuntime, type ApiConnectionHostRecordStore, type ApiConnectionClientConfig, type DeclaredApiConnection, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
-import { startLoopbackAuthorizationReceiver, type OAuthClient, type OAuthHttpPorts } from "@jini-ai/oauth";
+import { createApiConnectionService, createSignInHandoffs, deriveApiConnectionKey, ApiConnectionError, createConnectionBudgets, resolveByoClient, type ByoClient, type ApiConnectionRuntimeHostDeps, type ApiConnectionRuntimeHostOptions, type ApiConnectionHostMessages, type ApiConnectionSignInAttempt, type ApiConnectionRuntime, type ApiConnectionHostRecordStore, type ApiConnectionClientConfig, type DeclaredApiConnection, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
+import type { OAuthClient } from "@jini-ai/core/contracts/oauth";
 import type { ApiConnectionRecord } from "@jini-ai/integrations/api-connections";
-import type { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
-import type { Clock } from "@jini-ai/core/primitives";
 
-import { createAdminSurfaceCallbackInbox, type AdminSurfaceSignInAttempt } from "@jini-ai/agent-plugins/admin-surfaces";
 
-import { createConnectionHookHttp, type PluginHttp } from "./hook-http.js";
-import { createAgentPluginStateStore } from "./plugin-state.js";
-import { API_CONNECTION_OAUTH_CALLBACK_PATH as CALLBACK_PATH } from "./browser-binding.js";
+import { createConnectionHookHttp } from "./hook-http.js";
 
 /**
  * @file Composes Jini's api-connections service (G1) with Tovu's vault stores (G2 + 0020) for every
@@ -38,22 +33,11 @@ import { API_CONNECTION_OAUTH_CALLBACK_PATH as CALLBACK_PATH } from "./browser-b
 // Defined beside the binding cookie, whose `Path` it is; re-exported for the routes that mount it.
 export { API_CONNECTION_OAUTH_CALLBACK_PATH } from "./browser-binding.js";
 
+export { API_CONNECTION_CALLBACK_ORIGINS_ENV } from "./host-bindings.js";
 export type { ApiConnectionRuntime } from "@jini-ai/integrations/api-connections";
 
-/**
- * Host setting: the comma-separated site origins registered as hosted sign-in return addresses with
- * the shared web clients (a placeholder the operator fills; never a secret). It adds to a
- * connection's own `clients.web.redirectOrigins`; with neither, hosted sign-in is refused.
- */
-export const API_CONNECTION_CALLBACK_ORIGINS_ENV = "TOVU_API_CONNECTION_CALLBACK_ORIGINS";
-
-interface ApiConnectionRuntimeDeps extends Omit<ApiConnectionHostDeps, 'loadContributions' | 'vaultRepo' | 'customCredentialRepo' | 'keyring' | 'sealer'>, ApiConnectionHostPorts {
-  readonly apiConnectionStorage: ApiConnectionHostPorts['apiConnectionStorage'] & { readonly vault: SecretsVaultService };
-}
-interface ApiConnectionRuntimeOptions {
-  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
-  readonly shared?: ApiConnectionSharedStorage;
-}
+type ApiConnectionRuntimeDeps<State> = ApiConnectionRuntimeHostDeps<State>;
+type ApiConnectionRuntimeOptions = ApiConnectionRuntimeHostOptions;
 
 /** The one refusal for a ref the calling plugin does not own here, whatever the reason. */
 function notAvailable(): ApiConnectionError {
@@ -66,7 +50,7 @@ function setupRefused(message: string): ApiConnectionError {
 }
 
 /** A configured host setting, trimmed; undefined when the plugin names none or it is unset. @complexity O(1). */
-function configured(env: ApiConnectionRuntimeDeps["env"], name: string | undefined): string | undefined {
+function configured(env: ApiConnectionRuntimeDeps<unknown>["env"], name: string | undefined): string | undefined {
   return name === undefined ? undefined : env[name]?.trim() || undefined;
 }
 
@@ -104,24 +88,24 @@ function byoOAuthClient(byo: ByoClient, runtime: ApiConnectionRuntime): Resolved
  * web client (`confidential`) and must have its server-held secret.
  * @complexity O(1).
  */
-function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionRuntimeDeps["env"]): ResolvedClient {
+function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionRuntimeDeps<unknown>["env"], messages: ApiConnectionHostMessages): ResolvedClient {
   const config: ApiConnectionClientConfig | undefined = runtime === "desktop" ? connection.clients.desktop : connection.clients.web;
   const clientId = configured(env, config?.clientIdEnv);
-  if (!config || !clientId) throw notConfigured(connection, runtime, "sign-in client");
+  if (!config || !clientId) throw notConfigured(connection, runtime, "sign-in client", messages);
   const clientSecret = configured(env, config.clientSecretEnv);
   const clientKind = clientKindFor(runtime);
-  if (clientKind === "confidential" && !clientSecret) throw notConfigured(connection, runtime, "sign-in client secret");
+  if (clientKind === "confidential" && !clientSecret) throw notConfigured(connection, runtime, "sign-in client secret", messages);
   return { clientKind, client: clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" } };
 }
 
 /** Each listed entry's origin; an entry that is not a URL is dropped (it can match nothing). @complexity O(n). */
-function configuredOrigins(env: ApiConnectionRuntimeDeps["env"]): string[] {
-  const listed = configured(env, API_CONNECTION_CALLBACK_ORIGINS_ENV)?.split(",") ?? [];
+function configuredOrigins(env: ApiConnectionRuntimeDeps<unknown>["env"], setting: string): string[] {
+  const listed = configured(env, setting)?.split(",") ?? [];
   return listed.flatMap((entry) => URL.parse(entry.trim())?.origin ?? []);
 }
 
-function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, what: string): ApiConnectionError {
-  return setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its ${what} is not configured. Ask the operator to configure it, then retry.`);
+function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, what: string, messages: ApiConnectionHostMessages): ApiConnectionError {
+  return setupRefused(messages.notConfigured({ label: connection.descriptor.label, runtime, what }));
 }
 
 /** Status projection shared by local records and token-free owner connection metadata. */
@@ -140,19 +124,19 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, optiona
  * plugin takes effect without a restart (Node caches each hooks module per file URL).
  * @complexity O(1) setup; each lookup is one contribution load, O(p + c).
  */
-export function createApiConnectionRuntimeHost(
-  required: ApiConnectionRuntimeDeps,
+export function createApiConnectionRuntimeHost<State>(
+  required: ApiConnectionRuntimeDeps<State>,
   optional: ApiConnectionRuntimeOptions = {},
 ) {
-  const { vault, records } = required.apiConnectionStorage;
+  const { records } = required.apiConnectionStorage;
   const budgets = createConnectionBudgets({ clock: required.clock, createLimiter: required.createLimiter });
   // In-process: the public callback and the admin-surface routes run in this host's process.
-  const callbackInbox = createAdminSurfaceCallbackInbox({ now: () => required.clock.nowMs() });
-  const pluginState = createAgentPluginStateStore({ vault, workspaceId: required.workspaceId });
+  const callbackInbox = required.callbackInbox;
+  const pluginState = required.pluginState;
   // In-process, by connection ref: the last desktop sign-in that failed after the browser opened, so
   // the plugin's panel can say so (the loopback page is all the user saw). At most one per declared
   // connection; a later success deletes it.
-  const lastSignInAttempts = new Map<string, AdminSurfaceSignInAttempt>();
+  const lastSignInAttempts = new Map<string, ApiConnectionSignInAttempt>();
   // Hosted sign-ins started here, waiting for their starter's browser to open the host link.
   const signInHandoffs = createSignInHandoffs({ clock: required.clock, randomBytesFn: ({ byteLength }) => randomBytes(byteLength) });
   // Per host (so per workspace) and per loaded declaration object: a BYO client never travels with a
@@ -174,7 +158,7 @@ export function createApiConnectionRuntimeHost(
   function clientFor(connection: DeclaredApiConnection): ResolvedClient {
     const byo = byoClients.get(connection);
     if (byo instanceof ApiConnectionError) throw byo;
-    return byo ? byoOAuthClient(byo, required.runtime) : resolveClient(connection, required.runtime, required.env);
+    return byo ? byoOAuthClient(byo, required.runtime) : resolveClient(connection, required.runtime, required.env, required.messages);
   }
 
   function tokensFor(connection: DeclaredApiConnection, clientId: string) {
@@ -229,19 +213,19 @@ export function createApiConnectionRuntimeHost(
     // A BYO web client is the admin's own registration: they registered this site's own callback.
     const byo = byoClients.get(connection);
     if (byo && !(byo instanceof ApiConnectionError)) return byoCallbackUrl(connection, origin);
-    const allowed = [...(connection.clients.web?.redirectOrigins ?? []), ...configuredOrigins(required.env)];
+    const allowed = [...(connection.clients.web?.redirectOrigins ?? []), ...configuredOrigins(required.env, required.messages.callbackOriginsEnv)];
     if (allowed.length === 0) {
-      throw setupRefused(`${connection.descriptor.label} cannot sign in on this site yet: no registered sign-in return address is configured. Ask the operator to set ${API_CONNECTION_CALLBACK_ORIGINS_ENV} to this site's address, then retry.`);
+      throw setupRefused(required.messages.missingReturnAddress({ label: connection.descriptor.label }));
     }
     if (!origin || !allowed.includes(origin)) {
-      throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address. Use a registered address or configure your own sign-in client.`);
+      throw setupRefused(required.messages.unregisteredOrigin({ label: connection.descriptor.label }));
     }
-    return `${origin}${CALLBACK_PATH}`;
+    return `${origin}${required.callbackPath}`;
   }
 
   function byoCallbackUrl(connection: DeclaredApiConnection, origin: string | undefined): string {
-    if (!origin) throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address: this site has no public address. Set TOVU_PUBLIC_URL, then retry.`);
-    return `${origin}${CALLBACK_PATH}`;
+    if (!origin) throw setupRefused(required.messages.noPublicOrigin({ label: connection.descriptor.label }));
+    return `${origin}${required.callbackPath}`;
   }
 
   /** The connection's hooks over HTTP limited to its declared API origins and token endpoint origin. @complexity O(1). */
@@ -361,7 +345,7 @@ export function createApiConnectionRuntimeHost(
     return sharedOAuth.prepare({ ...input, context });
   }
 
-  const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;
+  const startLoopback = required.startLoopback;
   return { sharingAvailable: Boolean(sharedOAuth), sharedOAuth, prepareSignIn, workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records: honestRecords, startLoopback, listConnections, serviceFor, accessTokensFor,
     toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, lastSignInAttempts, signInHandoffs, pluginState };
 }
