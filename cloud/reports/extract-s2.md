@@ -1,6 +1,6 @@
 # Plugin extraction session 2
 
-Latest continuation status: corrected G-card GREEN; A1 RED at the unchanged guard record. A2 and F2 were not started. Active continuation deadline: 07:44:33 UTC. See the Continuation stop record at the end.
+Latest continuation status: corrected G-card GREEN; A1 GREEN after the approved required host messages correction. A2 and F2 follow in Continuation 2. Active continuation deadline: 07:44:33 UTC. See the Continuation stop record at the end.
 
 Start: 2026-11-08 04:12:55 UTC. Deadline: 08:12:55 UTC. Shutdown reserve: 07:52:55 UTC. One serial task; no helper agents. No main merge or publication.
 
@@ -576,3 +576,13 @@ Continuation 2 seam inventory (first commit before edits):
 | neutral-host description | value | new host wiring | examples/neutral-host/src/provider-status.test.ts |
 
 No unresolved row. Tool text, cards, fixtures and metadata baseline must keep their recording hashes. Then A2 and F2 proceed serially under the original rules.
+
+### Continuation 2 A1 complete gate
+
+Required `CredentialSaveMessages.description` with an agent note now owns the description. Tovu passes the unchanged 3,558-character original expression; neutral-host passes its own wording. The entire catalogue description remains byte-identical for Tovu, confirmed by moved-tools.golden and tool-registrations.contracts. No hardwiring debt, guard edit, suppression or baseline edit.
+
+A1 gate GREEN on Tovu `2731bdf05a2f1cf2011022081deafd66041c7ad8` and Jini `f1510e12e97f602c65c2db5a7be11de9dc44993d`, both verified pushed after pull/rebase. Root command/log prefix `c2-a1-*` in scratch. Complete rerun: agent-plugins build; UI/agent-plugins/neutral-host `tsc --noEmit`; Tovu re-link/main tsc; all 10 previously enumerated A1 Tovu files (146/146); four UI files (71/71); new neutral-host provider-status test (1/1); post-build `check:cross-package`; `guard:plugins`; and guard record. All passed, no filtered/skipped cases. Guard exactly matches the original named findings and every hardwiring count, including **HW8 49, 0 new**.
+
+The metadata baseline remains `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`; G-card fixture remains `3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01`. No existing test/fixture was edited in this correction; new neutral-host wiring accepts the required messages input. No A1 work remains. Last verified green paired batch: A1 at these SHAs. Next A2.
+
+Continuation 2 progress: 06:15 UTC, A1 complete, HW8 restored without guard exceptions. Verified pushes: Tovu `2731bdf05a2f1cf2011022081deafd66041c7ad8` (includes inventory `981c426b0`); Jini `f1510e12e97f602c65c2db5a7be11de9dc44993d`.
