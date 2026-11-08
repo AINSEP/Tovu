@@ -1,6 +1,6 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **Continuation 2: S3-0 GREEN; A3 beginning**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
+Status: **Continuation 2: A5 validation correction in progress**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
 
 ## Clock and source custody
 
@@ -561,3 +561,9 @@ The generic implementations remain in their Tovu files for A5. New type-only con
 Batch-local development errors fixed under the coordinator's Continuation 2 rule: core exports AuthorizationPort under ToolPermissionAuthorizationPort, corrected the type import; moved admin wiring needed its existing requireToolPermission import, restored it. Both package build and Tovu main tsc then passed. Four newly inventoried tests passed (two executable host-port and two surface host-port). No existing behavior/test red. One incorrectly located pnpm filtered build printed no matching projects; it is excluded from validation and was rerun in Jini.
 
 Formal A5 gate uses the complete A4 move matrix plus the explicit executable/admin matrix and the four new tests; all commands/results will be listed below. No existing test edits.
+
+### Guard validation correction — 17:18 UTC
+
+Raw guard review found a bug in my scratch result verifier: it selected R-number findings only and therefore failed to reject N1-consumer-identity comments introduced by my moves. Prior A3/A4 green statements correctly describe tests/build/checker/custody but incorrectly classified the guard; those guard claims are withdrawn. This is batch-authored code/comment and validation error, repaired under Continuation 2, with no change to the real guard and no waiver. The scratch verifier now captures all capital-letter numbered findings and still permits only exact R2/R10 plus informational R13 and the unchanged HW counts. The full A5 matrix covers all A3/A4 regressions and is being rerun after repair, with raw guard findings reviewed independently.
+
+Only N1-rejected production lines reworded, as expressly permitted by the brief: integrations/byo-client.ts `with the Tovu-owned one` → `with the host-owned one`; integrations/host.ts `with Tovu's vault stores` → `with the host's vault stores`; executable/ports.ts `(Tovu's createRateLimiter)` → `(the host's createRateLimiter)` (backticks unchanged). Every rationale remains beside its implementation; no runtime edits. A5 first Jini push returned HTTP 503; pull/rebase/retry succeeded and remote SHA was verified.
