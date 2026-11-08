@@ -420,3 +420,60 @@ Continuation G-card final gate: GREEN. Guard finding/hardwiring lines equal the 
 | Continuation batch | Paired tested SHAs | Commands/test names and result | Fixture hashes | Elapsed from continuation | Remaining |
 |---|---|---|---|---|---|
 | G-card | Tovu `fa9041368fdc1385c0c641474edfa426e0c422de`; Jini `ada68ff7d2cd2bad2495c368b99b2a32d45b34da` | PASS: new golden twice, restored mutation, moved-tools.golden, moved-tools.access-token.golden, cross-package checker and guard record/plugins | Recorded above | 00:09 | A1, A2, F2 |
+
+### A1 inventory (first A1 commit; before moves)
+
+G-card is green and both paired tips are pushed. Cross-repository source transport uses `git mv` to a temporary tracked path, followed by a filesystem move to Jini and recreation of the original Tovu path as a shim; no implementation is retyped. Canonical credential/card types are reused from core.
+
+| Symbol/helper/dependency | Kind | Source | Destination |
+|---|---|---|---|
+| PluginCredentialField | type | Tovu apps/website/src/contracts/core/plugin-credential-card.ts:13 | core/contracts/credentials (canonical re-export) |
+| PluginCredentialCard | type | Tovu apps/website/src/contracts/core/plugin-credential-card.ts:21 | core/contracts/credentials (canonical re-export) |
+| buildPluginCredentialForm | value | Tovu apps/website/src/contracts/core/plugin-credential-card.ts:59 | ui/src/features/mcp-ui/credential-card.ts |
+| applyPluginCredentialCard | value | Tovu apps/website/src/contracts/core/plugin-credential-card.ts:81 | ui/src/features/mcp-ui/credential-card.ts |
+| pluginCardDetails | value | Tovu apps/website/src/contracts/core/plugin-credential-card.ts:89 | ui/src/features/mcp-ui/credential-card.ts |
+| CredentialSaveAdapters | type | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:12 | agent-plugins/src/connect/credential-save-tool.ts |
+| KINDS | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:24 | agent-plugins/src/connect/credential-save-tool.ts |
+| CredentialKind | type | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:25 | agent-plugins/src/connect/credential-save-tool.ts |
+| credentialSaveCatalog | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:32 | agent-plugins/src/connect/credential-save-tool.ts |
+| credentialSaveDerivedRisk | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:57 | agent-plugins/src/connect/credential-save-tool.ts |
+| selectSave | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:65 | agent-plugins/src/connect/credential-save-tool.ts |
+| routeSave | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:84 | agent-plugins/src/connect/credential-save-tool.ts |
+| selectProviderSettingsSave | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:107 | agent-plugins/src/connect/credential-save-tool.ts |
+| selectProviderSave | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:114 | agent-plugins/src/connect/credential-save-tool.ts |
+| selectApiSave | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:119 | agent-plugins/src/connect/credential-save-tool.ts |
+| selectPublishSave | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:125 | agent-plugins/src/connect/credential-save-tool.ts |
+| buildCredentialSaveRegistrations | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:140 | agent-plugins/src/connect/credential-save-tool.ts |
+| routePluginCard | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:164 | agent-plugins/src/connect/credential-save-tool.ts |
+| invokeSaveAdapter | value | Tovu apps/website/src/features/custom-credentials/credential-save-tool.ts:179 | agent-plugins/src/connect/credential-save-tool.ts |
+| LoadPluginCredentialCards | type | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:6 | agent-plugins/src/connect/plugin-credential-card.ts |
+| readPluginCredentialValues | value | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:11 | agent-plugins/src/connect/plugin-credential-card.ts |
+| readPublicField | value | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:23 | agent-plugins/src/connect/plugin-credential-card.ts |
+| assertHttpsInput | value | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:33 | agent-plugins/src/connect/plugin-credential-card.ts |
+| findPluginCredentialCard | value | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:40 | agent-plugins/src/connect/plugin-credential-card.ts |
+| cardMatches | value | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:47 | agent-plugins/src/connect/plugin-credential-card.ts |
+| loadPluginCredentialCardsSafely | value | Tovu apps/website/src/features/custom-credentials/plugin-credential-card.ts:55 | agent-plugins/src/connect/plugin-credential-card.ts |
+| credentialCardsContribution | value | Tovu apps/website/src/features/agent-plugins/credential-cards.ts:9 | agent-plugins/src/connect/credential-cards.ts |
+| mergePluginCredentialCards | value | Tovu apps/website/src/features/agent-plugins/credential-cards.ts:17 | agent-plugins/src/connect/credential-cards.ts |
+| conflictingApiLabels | value | Tovu apps/website/src/features/agent-plugins/credential-cards.ts:37 | agent-plugins/src/connect/credential-cards.ts |
+| isApiCard | value | Tovu apps/website/src/features/agent-plugins/credential-cards.ts:50 | agent-plugins/src/connect/credential-cards.ts |
+| PROVIDER_STATUS_TOOL_ID | value | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:14 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| ProviderStatusRow | type | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:17 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| ProviderStatusPorts | type | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:34 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| providerStatusAgentToolCatalog | value | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:40 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| providerStatusDerivedRisk | value | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:48 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| selectRows | value | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:51 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| buildProviderStatusRegistrations | value | Tovu apps/website/src/features/plugin-runtime/provider-status-tool.ts:59 | agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts |
+| SecretCardForm, SurfaceCardApp | dependency | UI secret-card type dependency | core/contracts/cards |
+| PluginCredentialCard, PluginCredentialField | dependency | Tovu credential-card type dependency | core/contracts/credentials |
+| toolMetadata (both domains) | dependency | Tovu tool metadata modules | named host input metadata |
+| CREDENTIAL_SAVE_TOOL_ID | dependency | Tovu headless contract | named host input toolId |
+| CUSTOM_CREDENTIAL_CATEGORIES | dependency | Tovu credential categories | named host input categories |
+| authorization.permission | dependency | provider-status catalogue | named host input authorization.permission |
+| CustomCredentialValidationError | dependency | custom-credentials/store.ts:26 | named local port cardErrors.validation(message, field) |
+| assertCredentialFreeField | dependency | contracts/core/credential-token.ts:8 | named host input assertFreeField |
+| PluginProviderSettingField | dependency | @jini-ai/plugins/host type | named local port ProviderSettingFieldProjection |
+| parsePluginCredentialCards, parseCredentialCardUsedFor, PluginContributionDefinition | dependency | agent-plugins manifest/lifecycle | same package (agent-plugins) |
+| buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, tool types | dependency | core runtime/types | core root |
+
+No unresolved row. All domain save handlers/stores stay in the host. The neutral-host provider-status placeholder receives actual coverage in a new test file, preserving the frozen existing file and every existing assertion as F2 requires. The new test will use only public exports, show a provider settings card and save through memory ports. No connect/executable or connect/plugin-host entry is added.
