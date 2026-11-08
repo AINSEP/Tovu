@@ -764,3 +764,32 @@ Tovu mcp-host-bindings supplies exact canonical projection functions/classifier 
 Card-host bindings own actual mcpUiCards/askThenReport and exact app ids and URI namespace. build-only ports are Omit<AgentPluginCardsPort<Resource>,waitAtSignInCard>; waiting is generic Resource throughout, no bare alias/unknown erase. Connect/destination/card code has no direct UI runtime imports; credential/card DTO types come from core contracts. Old wrappers bind ui://tovu and unchanged app names/text. Why blocks remain beside their implementations. No cross-repo moves in A7.
 
 Batch-local type error: extending both legacy method-style classifyError and readonly projection-port classifyError produced TS2320; the stronger interface now omits both inherited fields before extending the required projection contract. No test/behavior change. Strict lint and explicit new-test compile pins are running before the formal accumulated gate.
+
+A7 inventory completion before two additional type-only import edits: access-token-tool.ts and apply-tool-renames.ts are the remaining MCP connect/rename consumers of the canonical record type. They retain all runtime logic/why text and switch only the imported alias to local AgentPluginMcpRecord. Symbols (current source lines):
+
+- access-token-tool.ts:47 AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:52 AgentPluginTokenTargetDeps: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:57 AgentPluginAccessTokenToolDeps: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:72 MESSAGES: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:78 UnansweredReason: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:79 SetAccessTokenResult: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:84 TokenAuthTarget: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:91 hostOf: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:106 requireTargetRow: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:128 resolveTarget: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:157 probeToken: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:163 joinStoredList: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:175 saveStaticAccessToken: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:201 describeSaveError: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:214 saveSubmittedAccessToken: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:245 accessTokenResult: same Tovu implementation, local alias to the original canonical record; no body changes.
+- access-token-tool.ts:259 saveAgentPluginToken: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:29 TOOL_RENAMES_ACTOR: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:31 ApplyAgentPluginToolRenamesDeps: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:45 readToolList: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:60 renameToolNames: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:67 renameRowTools: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:97 applyServerToolRenames: same Tovu implementation, local alias to the original canonical record; no body changes.
+- apply-tool-renames.ts:136 applyAgentPluginToolRenames: same Tovu implementation, local alias to the original canonical record; no body changes.
+
+All previously inventoried consumers will use the actual AgentPluginMcp* identifiers directly rather than old-name local aliases; comments remain verbatim. The explicit new-test compiler initially could not resolve Node type definitions because its config lives in scratch, fixed typeRoots to the existing Tovu install; no source/package/lock change.
