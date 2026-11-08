@@ -454,6 +454,7 @@ const assistantCliCapabilitiesContext = new AsyncLocalStorage<AssistantCliPermis
 const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
 // Same per-launch scoping for the person's runtime preferences (`assistant-runtime-guidance.ts`).
 const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGuidanceInput>();
+const assistantPluginGuidanceContext = new AsyncLocalStorage<string>();
 
 /**
  * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
@@ -489,7 +490,9 @@ const assistantPromptAugmenter: PromptAugmenter = {
     // (see `custom-instructions.ts`), so a workspace with no custom instructions gets exactly the
     // base overlay this returned before that tab had any consumer at all.
     const customOverlay = customInstructionsCache.readOverlay();
-    return customOverlay === null ? baseOverlay : `${baseOverlay}\n\n${customOverlay}`;
+    return [customOverlay === null ? baseOverlay : `${baseOverlay}\n\n${customOverlay}`,
+      def?.pluginGuidanceViaSystemOverlay ? assistantPluginGuidanceContext.getStore() : '',
+    ].filter(Boolean).join('\n\n');
   },
 };
 
@@ -1030,12 +1033,13 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPreparation.refusalPrefix);
-      prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
+      if (!getAgentDef({ id: sessionBinding.agentId })?.pluginGuidanceViaSystemOverlay)
+        prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
       if (!(await durableAttemptStillOwnsAnswer())) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
       }
       startupStage = 'CLI launch';
-      await launchAgentRun({ sessionBinding, attachmentRunFields }, {});
+      await assistantPluginGuidanceContext.run(pluginPromptPrefix, () => launchAgentRun({ sessionBinding, attachmentRunFields }, {}));
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.

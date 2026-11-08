@@ -100,6 +100,7 @@ export async function captureDaemonRun(
     readAssistantCliPermissions: async (_required?: unknown, _optional?: unknown) => assistantCliPermissions({ enabled: true }),
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
+    assistantPluginGuidanceContext: new AsyncLocalStorage<string>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
     resolveAssistantRuntimeLaunch,
     // These wiring fixtures exercise already-consented run assembly, not live isolation claims.
