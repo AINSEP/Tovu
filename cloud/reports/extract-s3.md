@@ -1,6 +1,6 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **Continuation 2: A5 validation correction in progress**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
+Status: **Continuation 2: A5 GREEN after guard correction; A6 beginning**. Earlier stop records are historical; the owner-approved revised stop rule is recorded below.
 
 ## Clock and source custody
 
@@ -567,3 +567,53 @@ Formal A5 gate uses the complete A4 move matrix plus the explicit executable/adm
 Raw guard review found a bug in my scratch result verifier: it selected R-number findings only and therefore failed to reject N1-consumer-identity comments introduced by my moves. Prior A3/A4 green statements correctly describe tests/build/checker/custody but incorrectly classified the guard; those guard claims are withdrawn. This is batch-authored code/comment and validation error, repaired under Continuation 2, with no change to the real guard and no waiver. The scratch verifier now captures all capital-letter numbered findings and still permits only exact R2/R10 plus informational R13 and the unchanged HW counts. The full A5 matrix covers all A3/A4 regressions and is being rerun after repair, with raw guard findings reviewed independently.
 
 Only N1-rejected production lines reworded, as expressly permitted by the brief: integrations/byo-client.ts `with the Tovu-owned one` → `with the host-owned one`; integrations/host.ts `with Tovu's vault stores` → `with the host's vault stores`; executable/ports.ts `(Tovu's createRateLimiter)` → `(the host's createRateLimiter)` (backticks unchanged). Every rationale remains beside its implementation; no runtime edits. A5 first Jini push returned HTTP 503; pull/rebase/retry succeeded and remote SHA was verified.
+
+### A5 corrected gate — GREEN, then A6 inventory before edits
+
+Full A5 rerun: integrations build/tsc; agent-plugins build/tsc; J integrations57/admin93/public smoke2; Tovu relink/main tsc and303 tests; original-snapshot cross-package checker; raw guard exactly R2(1)/R10(1), informational R13, fixed HW totals/zero new; plugins; layers0/isolation0/SI-c9/SI-d7; original/new hash custody. All effective exits0, no skipped test. Corrected verifier covers N1 and every guard identifier. This supersedes the earlier misclassified guard claims, with full A3/A4 regression coverage at this pair.
+
+Source pair: J df2698cf66b56bce3103491c79a3dd6273819c32 / T 1ef11e221e379b0b7ea7f7762864b8e6afcbaa6b; following T report-only ac1732c15. Both pushes verified; exact full report tip will be recorded in C-a. A5 new test hashes remain those at 1ef11e221, never re-minted.
+
+A6 transports whole files via git mv into a temporary Tovu path and then filesystem move into Jini, verifies identical bytes before import/wrapper edits, removes the transport index entries, and recreates only thin Tovu shims. Cross-repo final commits cannot retain a Git rename edge; initial hashes and full rationale map make that limitation explicit. Host binding modules and their original filename, messages, error identity, admin source/handlers, sign-in decoration and token pins stay Tovu. Every implementation symbol below moves to its resolved local domain; legacy wrappers remain Tovu.
+
+| Source:line symbol | Destination |
+| --- | --- |
+| agent-plugins/executable-tools/register.ts:28 ToolOwner | agent-plugins/src/connect/executable/register.ts |
+| agent-plugins/executable-tools/register.ts:31 ownersById | agent-plugins/src/connect/executable/register.ts |
+| agent-plugins/executable-tools/register.ts:50 registerAgentPluginExecutableToolsWithPorts | agent-plugins/src/connect/executable/register.ts |
+| agent-plugins/executable-tools/register.ts:63 loadTools | agent-plugins/src/connect/executable/register.ts |
+| agent-plugins/executable-tools/register.ts:133 registerAgentPluginExecutableTools | Tovu same-path thin wrapper; generic WithPorts implementation moves to agent-plugins/src/connect/executable/register.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:32 MAX_RESPONSE_BYTES | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:33 IDLE_TIMEOUT_MS | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:35 HTTPS_ONLY_MESSAGE | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:36 UNDECLARED_ORIGIN_MESSAGE | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:37 RESPONSE_TOO_LARGE_MESSAGE | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:38 UNAPPROVED_CONNECTION_MESSAGE | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:41 createFrozenConnectionAccounts | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:58 confirmedTokenOptions | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:67 guardedPluginFetch | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:83 createGuardedPluginHttp | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:92 declaredOriginsHttp | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:101 withToolSignal | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/host-capabilities.ts:118 createAgentPluginToolCapabilities | agent-plugins/src/connect/executable/host-capabilities.ts |
+| agent-plugins/executable-tools/approval.ts:24 APPROVAL_FAMILY_BY_EFFECT | agent-plugins/src/connect/executable/approval.ts |
+| agent-plugins/executable-tools/approval.ts:30 AgentPluginDisclosureSource | agent-plugins/src/connect/executable/approval.ts |
+| agent-plugins/executable-tools/approval.ts:47 createAgentPluginDisclosureWithPorts | agent-plugins/src/connect/executable/approval.ts |
+| agent-plugins/executable-tools/approval.ts:73 createAgentPluginDisclosure | Tovu same-path thin wrapper; generic WithPorts implementation moves to agent-plugins/src/connect/executable/approval.ts |
+| api-connections/surface-connections.ts:23 IssuedSignIn | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:28 AdminSurfaceConnectionsDeps | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:33 codeOf | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:39 SAFE_ATTEMPT_CODE | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:40 failedAttempt | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:46 StatusSource | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:47 NEVER_CONNECTED | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:50 grantedScopeSets | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:59 liveStagedAccount | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:64 statusFrom | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:77 createAdminSurfaceConnections | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:83 resolve | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:90 forActor | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:96 viewAfterAction | agent-plugins/src/admin-surfaces/connections/connections.ts |
+| api-connections/surface-connections.ts:179 createSurfaceConnections | Tovu same-path thin wrapper; generic WithPorts implementation moves to agent-plugins/src/admin-surfaces/connections/connections.ts |
+
+Ports already declared in A5 remain local in their destination directories. New public entries: ./connect/executable and ./admin-surfaces/connections, explicit runtime/type exports and two jini.entries values. Register imports local projection/capabilities/types directly. The necessary executable isolation entry maps to existing lifecycle domain; the admin entry infers admin-surfaces. No isolation.shared or exemption added; actual closure audit decides whether any additional domain metadata is necessary. Universal admin entry uses only its own surface-capabilities/ports and global APIs, no node path. New test inventoried: examples/neutral-host/src/executable-surface-entries.test.ts, public functions/typed contracts and actual emitted runtime/declaration closure. Existing tests and both A5 new files stay frozen and rerun through the shims.
