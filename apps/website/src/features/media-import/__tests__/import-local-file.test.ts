@@ -16,11 +16,12 @@ import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { applyBatchInputs, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */
 const TOOL = "media_import_local_file";
+const LOCAL_IMPORT_MAX_ITEMS = 50;
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");
 const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 32]), Buffer.from("ftypisom"), Buffer.from([0, 0, 0, 0]), Buffer.from("isomiso2avc1mp41")]);
 const RECOVERY = 'Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.';
@@ -108,11 +109,11 @@ test("local import batches eleven images, preserves per-item errors and keeps th
   const registration = applyBatchInputs({ registrations: [f.registration()] })[0]!;
   const schema = registration.descriptor.inputSchema as { required?: unknown; properties: { items: { maxItems: number } } };
   assert.equal(schema.required, undefined);
-  assert.equal(schema.properties.items.maxItems, DEFAULT_MAX_BATCH_ITEMS);
+  assert.equal(schema.properties.items.maxItems, LOCAL_IMPORT_MAX_ITEMS);
   assert.match(registration.descriptor.description ?? "", /Batch:.*items:/);
   const ctx: ToolExecutionContext = { input: {}, executionId: "exec-batch", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal };
   // Jini 9ba8a52e requires merged items to re-enter the executor's policy/approval gate.
-  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ root: "site", path: "photo.png" })) } }), /the most one call takes is 25/);
+  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { items: Array.from({ length: LOCAL_IMPORT_MAX_ITEMS + 1 }, () => ({ root: "site", path: "photo.png" })) } }), /the most one call takes is 50/);
   await f.noWrites();
   assert.equal(f.resolutions(), 0);
   const items = Array.from({ length: 11 }, (_, index) => ({ path: "photo.png", title: `Photo ${index}`, alt: `Alt ${index}` }));
@@ -130,6 +131,24 @@ test("local import batches eleven images, preserves per-item errors and keeps th
   assert.deepEqual(imported.map(media => media.alt), items.map(item => item.alt));
   assert.equal((await f.deps.mediaRepo.list({ workspaceId: "ws-local" })).length, 11);
   assert.equal(f.authorizeCalls.length, 12);
+});
+
+test("local import batches fifty images with distinct titles in input order", async (t) => {
+  const f = await setup(t);
+  fs.writeFileSync(path.join(f.rootPath, "photo.png"), PNG);
+  const registration = applyBatchInputs({ registrations: [f.registration()] })[0]!;
+  const items = Array.from({ length: LOCAL_IMPORT_MAX_ITEMS }, (_, index) => ({ path: "photo.png", title: `Photo ${index}` }));
+  const result = await invokeRegisteredTool(registration, {
+    input: { root: "site", items }, executionId: "exec-batch", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal,
+  }) as BatchResult;
+  assert.equal(result.succeeded, LOCAL_IMPORT_MAX_ITEMS);
+  assert.equal(result.failed, 0);
+  assert.deepEqual(result.results.map(item => item.index), Array.from({ length: LOCAL_IMPORT_MAX_ITEMS }, (_, index) => index));
+  assert.deepEqual(result.results.map(item => {
+    assert.ok(item.ok);
+    return (item.result as Result).media.title;
+  }), items.map(item => item.title));
+  assert.equal((await f.deps.mediaRepo.list({ workspaceId: "ws-local" })).length, LOCAL_IMPORT_MAX_ITEMS);
 });
 
 test("batching local imports cannot bypass each item's upload permission", async (t) => {
