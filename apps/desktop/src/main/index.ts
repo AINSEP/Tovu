@@ -660,6 +660,8 @@ function isShellPage(raw: string): boolean {
   });
 }
 
+const signInWindows = new WeakSet<WebContents>();
+
 /** Every project tab's `<webview>` guest: same-origin navigation stays, the rest is denied or handed to
  *  the OS browser — see `guest-navigation.ts`. Registered once, globally, from the sites-home branch. */
 function registerGuestNavigationPolicy(): void {
@@ -669,6 +671,9 @@ function registerGuestNavigationPolicy(): void {
       if (!isSupervisedGuestUrl(url) || !isSameOrigin(url, contents.getURL()) ||
           !(isHostedMcpSignInLinkPath({ pathname: target.pathname }) || isHostedSignInLinkPath({ pathname: target.pathname }))) return void shell.openExternal(url);
       const popup = new BrowserWindow({ webPreferences: { session: contents.session, sandbox: true, contextIsolation: true, nodeIntegration: false } });
+      signInWindows.add(popup.webContents);
+      contents.session.setPermissionRequestHandler((wc, _permission, callback) => callback(!signInWindows.has(wc)));
+      contents.session.setPermissionCheckHandler((wc) => !wc || !signInWindows.has(wc));
       installGuestWindowOpenPolicy(popup.webContents, { isSupervisedGuestUrl, openExternal: (next) => void shell.openExternal(next) });
       popup.webContents.on("will-navigate", (event, next) => { if (!isExternalBrowserUrl(next)) event.preventDefault(); });
       popup.webContents.on("will-redirect", (event) => { if (event.isMainFrame && !isExternalBrowserUrl(event.url)) event.preventDefault(); });

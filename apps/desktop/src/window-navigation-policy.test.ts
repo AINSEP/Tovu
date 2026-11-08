@@ -346,8 +346,13 @@ test("sites home: a remote popup is denied and handed to the OS browser; a main-
 
 /** Execute the real registrar without booting the Electron application. */
 function registeredSignInGuest(current = `${APP_ORIGIN}/admin`) {
+  let requestPermission = (_contents: object, _permission: string, callback: (allowed: boolean) => void) => callback(true);
+  let checkPermission = (_contents: object | null) => true;
   class Contents extends EventEmitter {
-    session = {};
+    session = {
+      setPermissionRequestHandler(handler: typeof requestPermission) { requestPermission = handler; },
+      setPermissionCheckHandler(handler: typeof checkPermission) { checkPermission = handler; },
+    };
     open!: (details: { url: string }) => WindowOpenResponse;
     getType() { return "webview"; }
     getURL() { return current; }
@@ -369,13 +374,14 @@ function registeredSignInGuest(current = `${APP_ORIGIN}/admin`) {
   const source = fs.readFileSync(path.join(__dirname, "main/index.ts"), "utf8");
   const start = source.indexOf("function registerGuestNavigationPolicy(");
   const registrar = source.slice(start, source.indexOf("\n}\n", start) + 2);
-  runInNewContext(`${stripTypeScriptTypes(registrar)}; registerGuestNavigationPolicy();`, {
+  const permissionWindows = source.match(/^const signInWindows = .+;$/m)?.[0] ?? "";
+  runInNewContext(`${stripTypeScriptTypes(permissionWindows + "\n" + registrar)}; registerGuestNavigationPolicy();`, {
     app, BrowserWindow: Popup, URL, shell: { openExternal: (url: string) => opened.push(url) },
     installWebviewGuestPolicy, installGuestWindowOpenPolicy, isSameOrigin, isExternalBrowserUrl, ...signInLinks,
     isSupervisedGuestUrl: (url: string) => { try { return [APP_ORIGIN, "http://127.0.0.1:4568"].includes(new URL(url).origin); } catch { return false; } },
   });
   app.emit("web-contents-created", {}, guest);
-  return { guest, windows, opened };
+  return { guest, windows, opened, requestPermission: (contents: object, permission: string, callback: (allowed: boolean) => void) => requestPermission(contents, permission, callback), checkPermission: (contents: object | null) => checkPermission(contents) };
 }
 
 const SIGN_IN_PATHS = [
@@ -436,4 +442,20 @@ test("registered guest requires a supervised site even when the sign-in origin m
   assert.deepEqual(guest.open({ url }), { action: "deny" });
   assert.equal(windows.length, 0);
   assert.deepEqual(opened, [url]);
+});
+
+test("registered sign-in windows deny permissions while the site guest remains granted", () => {
+  const { guest, windows, requestPermission, checkPermission } = registeredSignInGuest();
+  for (const pathname of SIGN_IN_PATHS) guest.open({ url: APP_ORIGIN + pathname });
+  assert.equal(windows.length, 2);
+  for (const contents of [...windows.map(popup => popup.webContents), guest]) {
+    const expected = contents === guest;
+    for (const permission of ["media", "geolocation", "clipboard-read", "notifications"]) {
+      let allowed: boolean | undefined;
+      requestPermission(contents, permission, result => { allowed = result; });
+      assert.equal(allowed, expected, permission);
+    }
+    assert.equal(checkPermission(contents), expected);
+  }
+  assert.equal(checkPermission(null), true);
 });
