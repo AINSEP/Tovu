@@ -386,3 +386,98 @@ A4 seam allocated **30 minutes** from **16:39 UTC**; 1.4x review point 42 minute
 | New composition proof | T composition/__tests__/api-connection-state-vault.identity.test.ts: actual old host factory, one real vault instance across state/API records, scope/format/id/label/CAS; no debug API or extra decrypt. |
 
 All imports/helpers/types/values resolve to same package/core/local port/host input. Integrations receives opaque generic state, never agent-plugins types. Browser binding/vault stores/routes stay Tovu; shared storage/factory, one vault/state/inbox and callbacks retain A3 owners. Additional regression: J admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts for the exported seam. Existing tests/pins unchanged.
+
+### A4 seam GREEN and measurement
+
+Green pushed source pair: Jini **1838089229910c0ddd711548dc425807f0ea051f**, Tovu **fdd4f5d622ee07bafcabe9d3bf6b2b2eeeddb37d**. Integrations build/tsc and **57** tests, agent-plugins build/tsc and **93** admin/persistence tests, Tovu relink/tsc and **162** tests: **312/312**, no failed/skipped/todo. This includes the unchanged 12-case API-connect baseline, all A3 pins/regressions, surface/security/slice tests, project keys, saved-key round trip, composition rows 5/6/counters and new actual same-vault CAS proof. Original-baseline checker, exact guard/HW/plugins, layers 0/isolation 0, SI-c 9/SI-d 7, strict new-contract complexity and all hash/test/lock custody checks passed.
+
+**311 truly edited TS lines** against green A3 (including new tests): Tovu +166/-69, Jini +75/-1. No moves. Seam allocated 30 minutes from 16:39 UTC and gate completed 16:48:17 UTC: **0.155 hours (~9.3 minutes)**, below allocation and 1.4x limit; below 600 lines. The state limits/grammar/labels/format/CAS remain unchanged. One existing vault creates one state store and inbox in the Tovu binder; API host receives them and imports no admin-surfaces. Local/shared identity, exact host setting/refusal bytes, callback path and loopback are passed. Sign-in link/tool-error/shared-refusal text bound in Tovu, original module-level listener WeakMap retained.
+
+New fixed regression hashes:
+- /workspace/Tovu/apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts: 63af6d71b754bb755035f8777570cc340834c783d7a28477467000169b879d80 at fdd4f5d622ee07bafcabe9d3bf6b2b2eeeddb37d
+- /workspace/Jini/packages/agent-plugins/src/admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts: 9b0f31ef47885a02af8e3898f03f58d2134eeb6cda39bd60944c600c6fa1ab54 at 1838089229910c0ddd711548dc425807f0ea051f
+
+### A4 move inventory — before git transport
+
+Full seamed source files are transported, then only host-only wrappers/re-exports are retained in Tovu and imports/public function names adapted. No folder move; existing service/ports/index/token-store files are not overwritten. First move commit will include this inventory.
+
+| Current source:symbol | Resolved destination/custody |
+| --- | --- |
+| T features/api-connections/host.ts:39 ApiConnectionRuntimeDeps | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:40 ApiConnectionRuntimeOptions | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:43 notAvailable | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:48 setupRefused | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:53 configured | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:58 isUnreadableTokenRecord | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:64 wrapsUnreadableTokenRecord | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:68 clientChanged | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:73 clientKindFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:77 ResolvedClient | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:80 byoOAuthClient | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:91 resolveClient | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:102 configuredOrigins | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:107 notConfigured | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:112 connectionStatus | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:117 createApiConnectionHost | Old wrapper/concrete host alias stays Tovu; generic runtime factory/host alias is J integrations |
+| T features/api-connections/host.ts:127 createApiConnectionRuntimeHost | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:147 listConnections | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:158 clientFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:164 tokensFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:170 markReconnectRequired | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:181 tokensForAnotherClient | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:194 readHonestRecord | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:201 apiOriginsFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:211 hostedCallbackUrl | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:226 byoCallbackUrl | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:232 hooksFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:237 serviceFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:253 declaredFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:265 accessTokensFor | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:307 requestedScopes | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:312 statusOf | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:333 prepareSignIn | J integrations/src/api-connections/host.ts, same body/why-comment |
+| T features/api-connections/host.ts:353 ApiConnectionHost | Old wrapper/concrete host alias stays Tovu; generic runtime factory/host alias is J integrations |
+| T features/api-connections/connect.ts:23 ApiConnectionConnectDeps | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:32 ApiConnectionConnectStatus | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:34 ConnectRun | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:49 asToolError | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:55 ApiConnectionSignInStart | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:73 startApiConnectionSignInWithPorts | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:92 SignInRequest | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:99 SignInOptions | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:103 startOptionsOf | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:106 pendingDesktopSignIns | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:114 claimLoopbackSlot | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:124 DesktopSignInStart | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:126 startDesktopSignIn | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:157 connectHosted | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:178 connectDesktop | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:203 runApiConnectionConnectWithPorts | J integrations/src/api-connections/connect.ts, same body/why-comment/one WeakMap |
+| T features/api-connections/connect.ts:223 startApiConnectionSignIn | Old signatures remain Tovu thin wrappers binding signInLink/messages; generic WithPorts functions become public J names |
+| T features/api-connections/connect.ts:226 runApiConnectionConnect | Old signatures remain Tovu thin wrappers binding signInLink/messages; generic WithPorts functions become public J names |
+| T features/api-connections/plugin-state.ts:20 PLUGIN_STATE_MAX_KEYS | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:21 PLUGIN_STATE_UNAVAILABLE_MESSAGE | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:22 KEY_PATTERN | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:24 PLUGIN_ID_PATTERN | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:26 AgentPluginStateScope | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:31 AgentPluginStateStore | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:42 AgentPluginStateSummary | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:46 rowPrefix | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:48 checkedKey | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:54 checkedValue | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:70 createPersistedAgentPluginStateStore | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:78 scopedPrefix | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:84 rowId | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:90 describe | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:103 write | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:117 readerFor | J agent-plugins/src/admin-surfaces/plugin-state.ts, own-domain/core only, universal |
+| T features/api-connections/plugin-state.ts:143 createAgentPluginStateStore | Old vault signature remains Tovu shim; generic persisted-state factory becomes public J createAgentPluginStateStore |
+
+Import/value resolution: generic API host/connect use local integrations service/errors/keys/hooks/budgets/host-ports/record types, core OAuth/ToolInputError and node crypto in node host; no agent-plugins/platform/oauth package import. Callback environment/path exports and old-deps wrappers stay Tovu. Generic state uses same-package surface limits/state types, lifecycle reader types and persistence contract, plus type-only core vault metadata; vault/error/scope/format binders stay Tovu. No new dependency, package, shared isolation exemption or runtime in core. Same-parameter T shims preserve the old public types as well as function signatures. No unresolved prerequisite or second owner.
+
+New public smoke inventory: examples/neutral-host/src/api-host-moves.test.ts imports the real public integrations/admin-surfaces entries and verifies moved factories and runtime metadata; unchanged Tovu regressions exercise their behavior through old shims. All prior pins/hashes remain fixed.
+
+Pre-transport SHA256:
+- host.ts: 947e22c35759d10818c587c2dd48bf7a0e2f906757a63c460814a27d1497fb9a
+- connect.ts: 7d9893437a296c2b57c2cd756878379229f244091145a828152feb57344ed3da
+- plugin-state.ts: a767b8ad102246268690551b599e7f439da01aa2e7ac232f7b19778977309f7f
