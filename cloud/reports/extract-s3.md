@@ -369,3 +369,20 @@ Transport custody: each small whole file first passed through git mv to a tempor
 Recorded A3 hashes (fixed for later tips):
 - /workspace/Tovu/apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts: 57a312280c8e890a00683ab3ce7419bc245e9aebe82821c18a6715698f96e902 at 08d0bef9747244a6b8f9dec1ba984cd3d0468942
 - /workspace/Jini/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts: c22bc908e911221113f93bac3f02158abdcd78598513228a380ff414ae804232 at 46039c5d444bf36c7d9a281c071c43d00a2f4e95
+
+### A4 seam inventory and allocation — before edits
+
+A4 seam allocated **30 minutes** from **16:39 UTC**; 1.4x review point 42 minutes, original cap unchanged. Truly edited seam lines measured against green A3 pair; limit 600. No moves in this phase. (The prior report append had a scratch f-string error after its A3 section; this completes the inventory before production edits.)
+
+| Current source/symbol group | Resolved seam destination/custody |
+| --- | --- |
+| T plugin-state.ts: ADMIN_SURFACE_STATE_LIMITS/State/Value, reader, Scope/Store/Summary, max keys/unavailable/key/id patterns, rowPrefix/checkedKey/checkedValue, createAgentPluginStateStore and nested describe/read/write/delete helpers | Same file/semantics; internal persisted-state factory consumes required persistence port. Old public signature binds in Tovu. Limits/grammar/id/label/CAS stay domain-owned; no stateLimits input. |
+| T plugin-state.ts: VaultError, SecretsVaultService/VaultMeta, apiConnectionVaultScope/PLUGIN_STATE_FORMAT/isConflict | VaultMeta from core/contracts/vault; original vault/error identity/scope/format in new T plugin-state-bindings.ts; no platform value import remains in state implementation. |
+| New AdminSurfacePluginStatePersistence | J agent-plugins/admin-surfaces/plugin-state-persistence.ts: core vault types only, required scope/format, narrowed list/get/put/delete/isConflict({error}); required same-vault note. |
+| T host.ts: all A3 helpers/runtime factory and wrapper | Same file; required opaque built pluginState plus callbackInbox/callbackPath/loopback ports. Old public wrapper binds once in T host-bindings.ts. API host never imports admin-surfaces for state. |
+| T host.ts: callback environment/public-url/app/sign-in refusal text | Exact messages and setting key in T host-bindings.ts. App identity already passed for local/shared services. |
+| T host.ts: sign-in attempt/inbox, OAuth client/HTTP types and loopback default | Local {code,nextAction}/inbox/loopback contracts in J integrations host-ports; OAuth types from core/contracts/oauth; constructors stay T binding. |
+| T connect.ts: status/request/options/run types, asToolError, startApiConnectionSignIn/startOptionsOf, pendingDesktopSignIns/claimLoopbackSlot, desktop/hosted helpers, runApiConnectionConnect | Same file; generic port-taking functions plus old-signature T wrappers. signInLink and exact tool/shared-refusal wording in new T connect-bindings.ts. One original module WeakMap; all flow/comments preserved. |
+| New composition proof | T composition/__tests__/api-connection-state-vault.identity.test.ts: actual old host factory, one real vault instance across state/API records, scope/format/id/label/CAS; no debug API or extra decrypt. |
+
+All imports/helpers/types/values resolve to same package/core/local port/host input. Integrations receives opaque generic state, never agent-plugins types. Browser binding/vault stores/routes stay Tovu; shared storage/factory, one vault/state/inbox and callbacks retain A3 owners. Additional regression: J admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts for the exported seam. Existing tests/pins unchanged.
