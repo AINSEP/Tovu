@@ -130,7 +130,7 @@ export async function captureDaemonRun(
     },
     requestAssistantToolConsent: async () => { reject(new Error("Tool access requires owner consent before launch (ASK).")); return { status: "cancelled" as const }; },
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
-    siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "" }),
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "", pluginIds: [] }),
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
