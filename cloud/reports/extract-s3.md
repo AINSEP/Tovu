@@ -102,5 +102,6 @@ Both branches are `cloud/extract-s3`. Each push uses an immediately preceding pu
 
 All launched build/install/check sessions completed. Every recorded command PID and build/install shell PID was checked absent in /proc at shutdown; no test/build process remains running. Scratch results.jsonl/processes.jsonl, exits.log, shutdown-processes.json, directory evidence and raw logs retain exact commands, UTC times and exits. Working trees have no tracked production/test/lockfile changes; Tovu contains only the new report and Jini retains its preexisting untracked residue. No later work or independent verdict is claimed.
 
-Actual early failure: unmodified Jini baseline guard reported five unexpected R8-package-metadata violations; the clock had not expired.
-EXTRACT-S3 STOPPED AT CAP
+## Continuation
+
+Owner approved continuation on 2026-11-08 after the early baseline stop. Original UTC start/deadline/reserve remain 15:34:09 / 20:19:09 / 19:59:09; no reset. At 15:50:59 UTC, rechecked that git tracks zero files under each of the five named R8 directories, then deleted only those five directories as explicitly authorized. Guard source and expectations unchanged. Additional comparable untracked checkout residue may be removed under the same owner instruction only after checking zero tracked files. Ordered baseline rerun and S3-0 pending.
