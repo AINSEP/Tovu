@@ -1,6 +1,6 @@
 # subagent-parity-1
 
-Status: the **Scope cut** below is implemented and verified. The adapter pointer-only policy is removed; normal CLI prompt delivery and full pinned text are restored. Child IDs represent actual full deliveries, automatic primaries inline once per chat, and PowerShell paths escape smart quotes. Earlier design sections are historical and superseded where noted. Native signed-in acceptance and registry integration remain unrun.
+Status: the **Final fixes** below are implemented and verified. Automatic primary inlining is disabled for accepted adapters declaring maxPromptArgBytes; they retain base metadata-only behavior. Off-mode children receive only current pins, and pinned explicit loads are admitted through the existing checks. Earlier sections are historical; signed-in/native platform acceptance and registry integration remain unrun.
 
 Started 2026-11-07 19:17 America/Los_Angeles (2026-11-08 03:17 UTC). Hard deadline 21:17 local (05:17 UTC). No publish, tags, deployments, secrets, sign-ins, or writes to cloud/combine/main.
 
@@ -596,3 +596,105 @@ No signed-in Claude canary, native Windows/PowerShell execution, registry publis
 All four findings are addressed within the existing design. No test process remains running; completed before the one-hour cap.
 
 SUBAGENT-PARITY-4 DONE
+
+
+## Final fixes
+
+Approved final follow-up began 2026-11-07 22:46:31 America/Los_Angeles (2026-11-08 06:46:31 UTC); hard deadline 23:16:31 local (07:16:31 UTC). Finished before the 30-minute cap on the same `cloud/subagent-parity` branches. The expected missing Tovu toolkit was not a blocker. Only the two requested issues were changed.
+
+### Commits
+
+- Jini `a9c41bc8b35a91ae2212c528deaa5b8ea2392dd8`: existing argv-budget field gates primary inlining; Off-mode pinned admission and child-ID isolation. This is the Jini branch head.
+- Tovu `0af399cf9c639508cbfa8a8fb686fbde2b695196`: derive existing adapter budget from the accepted request, forward it to existing preparation, and add integration regressions.
+- The final report is a separate explicit-path documentation commit; its SHA is in the final handoff and branch history.
+
+Both implementation commits were pushed and remote-confirmed. Explicit paths only; pull/rebase before push; no force pushes. `--no-verify`/hook bypass was confined to the authorized Tovu branch. No changes to cloud/combine/main, sign-ins, dependency/lockfile edits, releases, tags or deployments.
+
+### 1. Base automatic behavior for argv-budgeted adapters
+
+The existing `maxPromptArgBytes` field is read from the accepted run's adapter definition in the server (`run.request.agentId`, default Claude), carried through the existing AutomaticPluginRun context, and passed to Jini preparation. No new boolean flag, adapter policy, private RPC request field or final prompt substitution was introduced.
+
+The automatic primary is eligible for inlining only when `maxPromptArgBytes` is undefined. An adapter declaring a budget receives the original bounded metadata/load-pointer note, without resolving or marking that automatic body as delivered. Unbudgeted adapters retain the current first-delivery primary behavior and 16 KiB cap. Pinned text still inlines and explicit admitted loads still return complete content. Existing final launch limits remain authoritative; this does not attempt to make arbitrary pinned/overlay/request combinations fit.
+
+The regression uses complete 16,344-byte resolved guidance, below the 16 KiB cap, with an accepted DeepSeek run declaring 30,000 bytes. Real authenticated preflight RPC and actual onStarted launch assembly are exercised with matching saved/requested adapter IDs. The roughly 14.5 KiB request plus framing and metadata stays below 30,000 bytes; adding the full guidance would exceed it. Assertions require no automatic body, no false delivered IDs, exact full Claude delivery without a budget, and exact full pinned delivery on DeepSeek. No actual CLI process or native Windows launch is claimed.
+
+### 2. Off-mode pins
+
+Off controllers do not seed the already-loaded set from earlier chat delivery history. Current pins still populate it during preparation. The Off load guard admits only IDs in that pinned set; all other IDs retain the existing Off refusal. Catalog, exclusions, trust, activation, cancellation and resolver checks remain in force.
+
+Only pins reach Off-mode child IDs, even after a pinned load. Prior full-delivery history remains in the existing chat decision for a later return to Auto mode; it does not become Off-mode child context or an admission grant. The real pinned-Off RPC/tool-executor regression now requires `loaded` and complete guidance instead of `off`. No broader Off-mode permission or activation change.
+
+### Red / mutation / green
+
+Jini command, cwd `/workspace/Jini/packages/agent-plugins`:
+
+```sh
+../../node_modules/.bin/vitest run src/lifecycle/__tests__/unit/automatic-use.unit.test.ts --maxWorkers=2 --minWorkers=1
+```
+
+- RED before production edits: 3 fail / 64 pass (`final-fixes-plugins-red.log`): a declared argv budget still inlines the primary, earlier IDs enter Off child context, and a pinned Off read is refused.
+- Mutation keeps 30,000-byte adapters eligible for inlining, restores earlier Off IDs and the old unconditional Off refusal: 3 fail / 64 pass (`final-fixes-plugins-mutation.log`).
+- Restored GREEN: 67/67 pass (`final-fixes-plugins-green.log`). Includes full explicit reads, no-budget/cap behavior, Off pins only, non-pin Off refusal, preservation of prior delivery history, changed trust, cancellation and excluded pins.
+
+Tovu command, cwd `/workspace/Tovu`:
+
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2 apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts
+```
+
+- Baseline: 40/40 pass (`/workspace/work/final-fixes-tovu-baseline.log`).
+- Valid budget RED before plumbing: 1 fail / 42 pass (`/workspace/work/final-fixes-tovu-red.log`). The accepted DeepSeek run receives the full automatic body.
+- Updated pinned-Off assertion against old Jini output: 2 fail / 41 pass, budget plus pinned refusal (`/workspace/work/final-fixes-tovu-off-red.log`).
+- Mutation removes accepted-run budget derivation by supplying undefined: 1 fail / 42 pass (`/workspace/work/final-fixes-tovu-mutation.log`).
+- Restored GREEN with current linked Jini output: 43/43 pass (`/workspace/work/final-fixes-tovu-green.log`).
+- Targeted launch-fixture check used the same command with `--test-name-pattern='accepted adapter'` before the filename: 3/3 pass (`/workspace/work/final-fixes-tovu-capture-check.log`).
+
+Only changed test files ran. Final changed-file total **110 passing tests** (67 Jini + 43 Tovu); no full suites, watch processes or real agent spawns. No test process remains running.
+
+### No-emit checks and errors
+
+```sh
+# cwd /workspace/Jini
+node_modules/.bin/tsc -p packages/agent-plugins/tsconfig.json --noEmit
+# cwd /workspace/Tovu
+node_modules/.bin/tsc --noEmit
+NODE_OPTIONS=--max-old-space-size=6144 node_modules/.bin/tsc -p /workspace/work/subagent-parity/tsconfig.tovu-changed-tests.json --noEmit
+```
+
+All exit 0. Logs: `final-fixes-plugins-typecheck.log`, `/workspace/work/final-fixes-tovu-noemit.log`, `final-fixes-tovu-tests-typecheck.log`. Ignored local Jini output was refreshed with the corresponding package tsc command without --noEmit; no tracked build output or check configuration changed.
+
+Expected errors: `AssertionError` / `ERR_ASSERTION` in RED and mutations. Separate fixture setup assertions caught resolver inventory overhead (16,674 bytes initially exceeded the retained cap); the fixture was reduced to the valid complete 16,344-byte prefix before recording behavioral RED. The real DeepSeek launch fixture initially lacked its existing owner/full-CLI grant; the existing owner fixture corrected this without production permission changes. Existing linked-chart `PluginLoadError` / `INTEGRITY_FAILED` warnings remain as previously documented; target tests pass. No required GREEN/no-emit failures, inline lint disables or unrelated fixes.
+
+### Whole-branch production totals
+
+Compared with the original requested bases, tests/docs excluded:
+
+| Repository / production file | Added | Removed |
+| --- | ---: | ---: |
+| Jini `packages/agent-plugins/src/lifecycle/automatic-use.ts` | 28 | 29 |
+| Jini `packages/agent-runtime/src/defs/claude.ts` | 1 | 0 |
+| Jini `packages/agent-runtime/src/types.ts` | 2 | 0 |
+| Jini `packages/daemon/src/agent-executor/claude/subagent-start.ts` | 27 | 0 |
+| Jini `packages/daemon/src/agent-executor/contracts.ts` | 3 | 1 |
+| Jini `packages/daemon/src/agent-executor/launch.ts` | 8 | 2 |
+| Tovu `apps/website/src/features/agent-plugins/automatic-agent-plugins.ts` | 10 | 5 |
+| Tovu `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` | 5 | 4 |
+| Tovu `apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts` | 1 | 1 |
+| Tovu `apps/website/src/server/inbound/assistant/assistant-system-overlay.ts` | 1 | 0 |
+| Tovu `apps/website/src/server/runtime/composition/modules/assistant-byok.ts` | 1 | 1 |
+| Tovu `apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts` | 4 | 2 |
+| **Whole-branch total** | **91** | **45** |
+
+**Whole-branch production: +91 / -45, net +46.** This final follow-up changes +10 / -7 production lines (net +3) across three existing production files. No new adapter flag, RPC request property, dependency, cache, registry, staging mechanism or fallback. The Jini prepare parameter reuses its existing input alias rather than duplicating its shape.
+
+Tests/helpers for this follow-up: +76 / -5. Whole-branch tests/helpers: +534 / -75. Documentation is excluded from these totals.
+
+### Remaining validation
+
+The generic Claude hook, short-note limit, IDs-only manifest, quote handling and 16 KiB automatic-primary cap are unchanged. Hook/explicit-load costs remain as previously reported; actual model tokens/currency were not measured. One Sidekick helper handled the bounded Tovu plumbing/tests; billing unavailable.
+
+Registry release/version-lockfile integration and signed-in/native platform canaries remain unrun. Canary checks should now include a first import-my-site turn on the 30,000-byte adapters and Off-mode pinned child loading. Existing local links validate source integration, not a registry-installed product release. No sign-ins, releases, tags or deployments were performed.
+
+Both requested final issues are fixed and pushed before the cap. No test processes remain running.
+
+SUBAGENT-PARITY-5 DONE
