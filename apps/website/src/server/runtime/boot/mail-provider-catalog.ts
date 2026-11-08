@@ -1,15 +1,12 @@
 import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createProviderMailer as createEngineProviderMailer } from "@jini-ai/platform/mail";
-import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/index";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
 import {
   createConsoleMailProvider,
   createMailProviderRegistry,
   createSmtpMailProvider,
   type MailAdapterCredential,
   type MailProviderModule,
-  type MailProviderRegistry,
 } from "@jini-ai/platform/mail";
 
 import {
@@ -17,7 +14,6 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
-import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";

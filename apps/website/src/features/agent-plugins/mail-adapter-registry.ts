@@ -11,7 +11,13 @@ export function defaultCredentialLabel({ label }: { label: string }): string { r
 const contributions = createMailContributions({ filename: MAIL_ADAPTERS_FILENAME, parseSetup: parseMailProviderSetupProperty,
   defaultCredentialLabel, abi: { fromPositionalMailer, toPluginHttpClient }, loadFromSource: loadPluginContributionsFromSource });
 export const { loadMailAdapterRegistry, loadMailAdapterRegistryFromSource, contributeMailProviders } = contributions;
-/** Preserve the host's positional parser signature and exact credential label. */
+/**
+ * Parses a plugin's {@link MAIL_ADAPTERS_FILENAME}. Pure. Unknown keys are ignored.
+ * The parser lives in `@jini-ai/agent-plugins/lifecycle/mail`; this keeps the host's positional
+ * signature and supplies this host's {@link defaultCredentialLabel}.
+ *
+ * @complexity O(a) in the declared adapter count.
+ */
 export function parseMailAdaptersFile(raw: string): ReturnType<typeof parseMailAdapterDescriptors> {
   return parseMailAdapterDescriptors({ raw, parseSetup: parseMailProviderSetupProperty }, { defaultCredentialLabel });
 }

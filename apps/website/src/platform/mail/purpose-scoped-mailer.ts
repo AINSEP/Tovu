@@ -4,7 +4,6 @@
  */
 import {
   wrapMailerWithPurposeGate as wrapJiniMailerWithPurposeGate,
-  type MailerPort as JiniMailerPort,
 } from "@jini-ai/platform/mail";
 import type { MailerPort } from "./ports.js";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
