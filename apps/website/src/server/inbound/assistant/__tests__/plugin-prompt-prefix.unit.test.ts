@@ -213,7 +213,7 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   await captureDaemonRun({ prompt: 'USER_REQUEST' }, { request: { agentId }, bindings: {
     assistantCliCapabilitiesContext: capabilities,
     assistantNativeToolsContext: native, assistantRuntimeGuidanceContext: runtime,
-    getAgentDef: ({ id }: { id: string }) => ({ ...getAgentDef({ id })!, automaticPluginGuidance: undefined, mcpIsolation: { perRun: 'fixture@2026-11-05' } }),
+    getAgentDef: ({ id }: { id: string }) => ({ ...getAgentDef({ id })!, mcpIsolation: { perRun: 'fixture@2026-11-05' } }),
     siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: ['ui-ux-design'] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     agentExecutor: { run: async (input: { prompt: string }) => {
       captured = input;
@@ -231,19 +231,14 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
 });
 
 
-test('an argv-budgeted adapter launches with plugin pointers alongside its overlay and request', async () => {
-  const def = { ...getAgentDef({ id: 'codex' })!, maxPromptArgBytes: 30000, automaticPluginGuidance: undefined, mcpIsolation: { perRun: 'fixture@2026-11-05' } };
-  const prefix = 'THEME_BEGIN\n' + 'x'.repeat(61309) + '\nTHEME_END';
-  const request = 'r'.repeat(10000);
-  const overlay = 'o'.repeat(8000);
-  const captured = await captureDaemonRun({ prompt: request }, { request: { agentId: def.id }, bindings: {
-    getAgentDef: () => def,
-    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: ['tovu-theme'] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+
+for (const agentId of ['aider', 'deepseek', 'codex', 'antigravity']) test(`${agentId} keeps pinned text in the prompt without relying on child IDs or MCP`, async () => {
+  const prefix = 'PINNED_BEGIN\n' + 'theme '.repeat(1000) + '\nPINNED_END';
+  const captured = await captureDaemonRun({ prompt: 'USER_REQUEST', pluginRefIds: ['tovu-theme'], agentPluginState: { decision: null, excluded: [] } }, { request: { agentId }, bindings: {
+    ...(agentId !== 'codex' ? { routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal') }, env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }) } : {}),
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: [] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
   } });
-  assert.ok(Buffer.byteLength(captured.prompt + overlay) < def.maxPromptArgBytes);
-  assert.match(captured.prompt, /load_agent_plugin.*tovu-theme/);
-  assert.ok(captured.prompt.includes(request));
-  assert.doesNotMatch(captured.prompt, /THEME_BEGIN|THEME_END/);
-  assert.deepEqual(captured.subagentStartContext?.ids, ['tovu-theme']);
-  assert.match(captured.subagentStartContext?.instructions ?? '', /load_agent_plugin/);
+  assert.ok(captured.prompt.includes(prefix));
+  assert.equal(captured.prompt.split(prefix).length - 1, 1);
+  assert.ok(captured.prompt.includes('USER_REQUEST'));
 });

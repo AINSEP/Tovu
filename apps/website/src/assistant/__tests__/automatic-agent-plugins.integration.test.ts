@@ -166,7 +166,7 @@ for (const action of ['use', 'skip'] as const) {
       notes.push(await f.runs.start({ runId: 'next', messageId: checkpointed ? 'following-answer' : 'answer', context: decidedContext }));
       assert.equal(cards, 1, 'pending, decided and late-answer retries must reuse the original question');
       assert.equal(f.surfaceExchanges.size(), 0);
-      const decided = { decision: { selected, asked: true }, excluded: action === 'use' ? ['synthetic-01'] : ['synthetic-00', 'synthetic-01'] };
+      const decided = { decision: { selected, asked: true, ...(action === 'use' ? { delivered: ['synthetic-00'] } : {}) }, excluded: action === 'use' ? ['synthetic-01'] : ['synthetic-00', 'synthetic-01'] };
       assert.deepEqual(f.published.at(-1)?.state, decided);
       assert.equal(f.published.length, 1, 'late consent is carried into the following turn');
       for (const note of notes) {
@@ -237,7 +237,7 @@ test("Don't ask again writes Auto only for the answering principal through the r
   f.runs.forget({ runId: 'ask-auto' });
 });
 
-test('CLI onStarted uses the Codex pointer carrier and explicit reads stay complete', async t => {
+test('CLI onStarted retains the Codex prompt carrier and explicit reads stay complete', async t => {
   const f = await fixture(t);
   // The daemon now asks the site's sole controller through its actual authenticated RPC.
   const siteTools = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' },
@@ -254,7 +254,7 @@ test('CLI onStarted uses the Codex pointer carrier and explicit reads stay compl
     },
   });
   assert.match(input.prompt, /load_agent_plugin/);
-  assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
+  assert.match(input.prompt, /Use holographic layout discipline/);
   assert.match(input.prompt, /Design holography/);
   const loaded = await siteTools.remote.execute({ principal: { id: 'alice' }, run: { id: 'daemon-test-run' },
     toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
@@ -415,7 +415,7 @@ test('50 relevant ids are discoverable by paging the existing search tool and al
   const note = await f.runs.start({ runId: 'paged', context: { ...f.context, pinned: ['pinned'] } });
   assert.ok(new TextEncoder().encode(note).length <= 600);
   assert.match(note, /\+\d+ more relevant: search_agent_plugin_local.*offset: 0.*nextOffset/);
-  assert.deepEqual(f.published.at(-1)?.plugins, []);
+  assert.equal(f.published.length, 0);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
   for (const registration of buildAgentPluginSearchRegistrations({ workspaceId: f.workspaceId, agentPluginLayout: f.layout })) registry.register(registration);
@@ -691,17 +691,38 @@ test('a rejected preflight promise is cleared so the same turn can retry', async
 });
 
 
-for (const pinned of [false, true]) test(`pointer preflight carries approved plugin ids through real RPC (pinned=${pinned})`, async t => {
+
+for (const kind of ['automatic', 'pinned', 'pinned-off']) test(`preflight carries only delivered plugin ids through real RPC (${kind})`, async t => {
   const f = await fixture(t);
+  const pinned = kind !== 'automatic';
+  if (kind === 'pinned-off') t.mock.method(f.preferences, 'mode', async () => 'off' as const);
   const host = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', pluginRefIds: pinned ? [f.pluginId] : [] },
-    plugins: { controller: f.runs, pinnedPrefix: async () => '', emit: async () => {}, refusalPrefix: () => '' }, tools: [f.runs.loadRegistration] });
+    plugins: { controller: f.runs, pinnedPrefix: async ({ pluginRefIds }) => {
+      const result = await resolveAgentPluginGuidance({ pluginRefIds, workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
+      assert.ok(result.ok); return result.promptPrefix;
+    }, emit: async () => {}, refusalPrefix: () => '' }, tools: [f.runs.loadRegistration] });
   await host.start({ runId: 'daemon-test-run', principalId: 'alice' });
-  const result = await host.preflight({ runId: 'daemon-test-run', pointerOnly: true });
+  const result = await host.preflight({ runId: 'daemon-test-run' });
   assert.deepEqual(result.pluginIds, [f.pluginId]);
-  assert.doesNotMatch(result.prefix ?? '', /Use holographic layout discipline/);
-  assert.deepEqual(await host.preflight({ runId: 'daemon-test-run', pointerOnly: true }), result);
+  assert.match(result.prefix ?? '', /Use holographic layout discipline/);
+  assert.deepEqual(await host.preflight({ runId: 'daemon-test-run' }), result);
   const load = await host.remote.execute({ principal: f.context.principal, run: { id: 'daemon-test-run' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(load.status, 'completed');
-  assert.match((load.output as { guidance: string }).guidance, /Use holographic layout discipline/);
+  if (kind === 'pinned-off') assert.equal((load.output as { status: string }).status, 'off');
+  else assert.match((load.output as { guidance: string }).guidance, /Use holographic layout discipline/);
   f.runs.forget({ runId: 'daemon-test-run' });
+});
+
+
+test('later chat turns retain delivered IDs without repeating primary text', async t => {
+  const f = await fixture(t);
+  const first = await f.runs.start({ runId: 'first-delivery', context: f.context });
+  assert.match(first, /Use holographic layout discipline/);
+  const state = JSON.parse(JSON.stringify(f.published.at(-1)?.state));
+  f.runs.forget({ runId: 'first-delivery' });
+  const next = await f.runs.start({ runId: 'later-turn', context: { ...f.context, state } });
+  assert.doesNotMatch(next, /Use holographic layout discipline/);
+  assert.match(next, /load_agent_plugin/);
+  assert.deepEqual(f.runs.guidanceIds({ runId: 'later-turn' }), [f.pluginId]);
+  f.runs.forget({ runId: 'later-turn' });
 });

@@ -1030,10 +1030,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPreparation.refusalPrefix);
-      const carrier = getAgentDef({ id: sessionBinding.agentId });
-      const guidance = carrier?.maxPromptArgBytes || carrier?.automaticPluginGuidance === 'pointer'
-        ? pluginPreparation.pluginIds.map(pluginId => `Load this plugin before acting: load_agent_plugin(${JSON.stringify({ pluginId })}).`).join('\n') : pluginPromptPrefix;
-      prompt = assemblePromptWithPluginPrefix(prompt, guidance);
+      prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
       if (!(await durableAttemptStillOwnsAnswer())) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
       }
@@ -1055,7 +1052,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
    * preparation. No controller or plugin lifecycle is constructed in this process. Transport
    * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
   async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
-    try { const def = getAgentDef({ id: agentId }); return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal, pointerOnly: !!def?.maxPromptArgBytes || def?.automaticPluginGuidance === 'pointer' }); }
+    try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
     catch {
       console.warn('[agent-plugins] automatic preflight unavailable');
       return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };

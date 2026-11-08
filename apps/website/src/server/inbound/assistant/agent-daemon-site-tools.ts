@@ -121,11 +121,11 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
    * @throws Transport/schema errors or a run ending during preparation. No retries.
    * @complexity O(prefix bytes), bounded to 1 MiB and ten minutes including human consent.
    */
-  async function preflight({ runId, signal, pointerOnly = false }: { runId: string; signal?: AbortSignal; pointerOnly?: boolean }, _options = {}): Promise<z.infer<typeof preflightResponse>> {
+  async function preflight({ runId, signal }: { runId: string; signal?: AbortSignal }, _options = {}): Promise<z.infer<typeof preflightResponse>> {
     const entry = live({ runId });
     const { response, text } = await fetchTextWithTimeout({ url: new URL("/internal/agent-plugin-preflight", baseUrl), timeoutMs: 10 * 60_000,
       init: { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ runId, pointerOnly }), signal, cache: "no-store", redirect: "error" } },
+        body: JSON.stringify({ runId }), signal, cache: "no-store", redirect: "error" } },
     { ...(optional.fetch ? { fetch: optional.fetch } : {}), maxResponseBytes: 1024 * 1024, strictUtf8: true });
     if (!response.ok) throw new Error("site plugin preparation is unavailable");
     if (runs.get(runId) !== entry) throw new Error("a live run is required for site discovery");

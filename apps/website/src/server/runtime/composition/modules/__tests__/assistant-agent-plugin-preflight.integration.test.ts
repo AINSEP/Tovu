@@ -81,7 +81,7 @@ test("a stopped run cannot publish late plugin consent or receive a prepared pre
   assert.ok(forgotten.includes("stopped-run"));
 });
 
-test("pinned preflight retains the selected pointer delivery policy and carries its identity", async t => {
+test("pinned preflight always inlines text and carries its identity, even with pointer environment delivery", async t => {
   const previous = process.env.TOVU_AGENT_PLUGIN_DELIVERY;
   process.env.TOVU_AGENT_PLUGIN_DELIVERY = "pointer";
   t.after(() => { if (previous === undefined) delete process.env.TOVU_AGENT_PLUGIN_DELIVERY; else process.env.TOVU_AGENT_PLUGIN_DELIVERY = previous; });
@@ -98,10 +98,10 @@ test("pinned preflight retains the selected pointer delivery policy and carries 
   await writeFile(path.join(packageDir, "skills", pluginId, "SKILL.md"), guidance);
   await writeFile(path.join(workspace.root, "activations.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { enabled: true, origin: "bundled", updatedAt: "2026-10-18T00:00:00.000Z", updatedBy: "fixture" } } }));
   await writeFile(path.join(workspace.root, "bundled-digests.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { archiveDigest: digest } } }));
-  const expected = await resolveAgentPluginRefs([pluginId], workspace);
+  const expected = await resolveAgentPluginRefs([pluginId], workspace, 'inject');
   assert.equal(expected.ok, true);
   if (!expected.ok) throw new Error("fixture guidance unavailable");
-  assert.ok(!expected.promptPrefix.includes(guidance));
+  assert.ok(expected.promptPrefix.includes(guidance));
   const principalId = await deps.ownerPrincipalId, conversationId = "pinned-pointer-chat", runId = "pinned-pointer-run";
   await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: principalId }).create({ id: conversationId });
   await deps.chatRunLedger.durable!.accept({ conversationId, messageId: "pinned-pointer-answer", runId, principalId, workspaceId: deps.workspaceId,

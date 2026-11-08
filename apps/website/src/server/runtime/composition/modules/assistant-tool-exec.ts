@@ -96,7 +96,7 @@ export function registerAssistantToolExecRoutes({ router, toolSurface, runStore,
     json({ limit: "1kb" }), agentPluginPreflightHandler({ runStore, workspaceId, plugins }));
 }
 
-const preflightBody = z.object({ runId: z.string().min(1), pointerOnly: z.boolean().optional() }).strict();
+const preflightBody = z.object({ runId: z.string().min(1) }).strict();
 
 /** One preflight request, never a run-lifetime stream. Identity and prompt state come only from
  * the accepted site attempt. The existing controller keeps consent for subsequent tool calls;
@@ -106,15 +106,15 @@ const preflightBody = z.object({ runId: z.string().min(1), pointerOnly: z.boolea
 function agentPluginPreflightHandler(deps: ComponentCatalogDeps, _options = {}): RequestHandler {
   return (req, res, next) => {
     const body = preflightBody.safeParse(req.body);
-    if (!body.success) { res.status(400).json({ error: "only runId and pointerOnly are accepted" }); return; }
-    void prepareSitePluginRun({ ...deps, runId: body.data.runId, pointerOnly: body.data.pointerOnly === true, res }).catch(next);
+    if (!body.success) { res.status(400).json({ error: "only runId is accepted" }); return; }
+    void prepareSitePluginRun({ ...deps, runId: body.data.runId, res }).catch(next);
   };
 }
 
 /** Validate ownership across pinned and automatic preparation. The response has no executable
  * registrations and cannot retain an open event stream. O(1) lookups plus plugin-owner work. */
-async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, pointerOnly, res }: ComponentCatalogDeps & {
-  runId: string; pointerOnly: boolean; res: Response;
+async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, res }: ComponentCatalogDeps & {
+  runId: string; res: Response;
 }, _options = {}): Promise<void> {
   const refuse = () => { res.status(404).json({ error: "a live site run is required" }); };
   if (!runStore) { refuse(); return; }
@@ -126,7 +126,7 @@ async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, poi
   const context = parseRunStartContextRef(JSON.stringify({ ...parsed, principalId: run.principalId }));
   const pinnedPrefix = await plugins.pinnedPrefix({ pluginRefIds: context.pluginRefIds });
   if (!(await lookup())) { refuse(); return; }
-  const prefix = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, pointerOnly, res, lookup });
+  const prefix = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, res, lookup });
   if (!(await lookup())) { refuse(); return; }
   res.status(200).set("cache-control", "no-store").json({ prefix, refusalPrefix: plugins.refusalPrefix(), pluginIds: plugins.controller.guidanceIds?.({ runId }) ?? [] });
 }
@@ -135,9 +135,9 @@ async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, poi
  * Pinned failures remain explicit; automatic guidance preserves its existing fail-open contract.
  * @complexity One controller start, indexed checks per emitted event; O(prefix bytes) space.
  */
-async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins, pointerOnly, res, lookup }: {
+async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins, res, lookup }: {
   run: DurableRunHead & { principalId: string }; context: ReturnType<typeof parseRunStartContextRef>;
-  pinnedPrefix: string | null; plugins: PluginPreflightPorts; pointerOnly: boolean; res: Response;
+  pinnedPrefix: string | null; plugins: PluginPreflightPorts; res: Response;
   lookup: () => Promise<DurableRunHead | undefined>;
 }, _options = {}): Promise<string | null> {
   if (pinnedPrefix === null) return null;
@@ -158,7 +158,7 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   };
   const pluginContext: AutomaticPluginRun = {
     principal: { id: run.principalId }, conversationId: run.conversationId, state: context.agentPluginState,
-    query: context.userPrompt ?? context.prompt, pinned: context.pluginRefIds, pointerOnly, signal: abort.signal,
+    query: context.userPrompt ?? context.prompt, pinned: context.pluginRefIds, signal: abort.signal,
     emitSurface: emission => emit({ ...emission.payload, type: emission.channel,
       ...(emission.channel === "mcp-ui" ? { toolUseId: `agent-plugins:${runId}` } : {}) }),
     publish: value => emit({ type: "agent_plugins", ...value }),
