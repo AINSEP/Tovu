@@ -57,7 +57,7 @@ function emittedCard(emission: SurfaceEmission) {
   assert.ok(app, 'the real emitted card has app identity');
   return {
     channel: emission.channel, type: resource.type, ...identity,
-    app: JSON.parse(app[1]!), frameSize: Object.entries(resource.resource._meta ?? {}).find(([key]) => key.endsWith('/preferred-frame-size'))?.[1] ?? null,
+    app: JSON.parse(app[1]!), frameSize: Object.entries(resource.resource._meta ?? {}).find(([key]) => key.endsWith('preferred-frame-size'))?.[1] ?? null,
     sha256: createHash('sha256').update(stable).digest('hex'),
     markup: stable.replace(/<script[^>]*>[\s\S]*?<\/script>/g, '').replace(/<style[^>]*>[\s\S]*?<\/style>/g, '').replace(/\n\s*\n/g, '\n').trim(),
   };
