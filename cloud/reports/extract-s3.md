@@ -1,6 +1,6 @@
 # Plugin extraction session 3 — Revision 6
 
-Status: **Continuation in progress, S3-0**. The initial stopped-at-baseline record below is retained as history; owner approval and current evidence appear under Continuation.
+Status: **STOPPED at the S3-0 strict complexity gate**. Functional checks passed, but the new specifier visitor has cyclomatic complexity 11 (maximum 10). No A3 work started. The initial baseline stop remains historical; the Continuation section records the owner-approved cleanup and implementation.
 
 ## Clock and source custody
 
@@ -64,7 +64,7 @@ F1's writer has **not** been implemented, so no compliant declaration snapshot/m
 
 Before production edits, 117 existing Tovu golden/core/UI parity fixture/pin hashes were recorded in starting-fixture-hashes.json. All 117 were rechecked unchanged at shutdown. Tool metadata SHA256 is **a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6**, as required. No golden regeneration, fixture change, migration, saved-data change, server/layer-checker/debt bypass, dependency, or changeset.
 
-## Batch status and numbered remaining work
+## Initial attempt: batch status and numbered remaining work
 
 | Batch | Inventory / implementation / gate SHA | Result |
 | --- | --- | --- |
@@ -91,7 +91,7 @@ Remaining batches, in order:
 
 No named implementation regression suite was run; there are no new tests or pins, no allowed two-call example wiring edit, and no existing Tovu or Jini test/fixture edits. F1–F7, parser compatibility, host wording parity, why-comment restoration, aliases, changeset minors, public exports, runtime closure, same-vault/shared-map/error/card/counter proofs remain unimplemented and unverified. Source edited/moved lines: **0 / 0**. No 30-minute progress interval elapsed. The inherited S2 A2 scripted-slicing transport deviation is neither rewritten nor certified by this stopped S3 run.
 
-## Push ledger, last green pair and shutdown
+## Initial attempt: push ledger, last green pair and shutdown
 
 Both branches are `cloud/extract-s3`. Each push uses an immediately preceding pull --rebase; no conflict or force push.
 
@@ -183,3 +183,107 @@ index c2b20911c..c2fd4d286 100644
 ```
 
 The formal gate is running the 21 named commands in gate-s3-0-jobs.json, including 17 explicit Tovu files and 8 Jini runtime/host files plus the three checker/source suites. Builds precede relink and host checks; no skipped cases in formal runs. No A3 work has started.
+
+### Continuation S3-0 formal gate — STOP
+
+Shutdown report time **2026-11-08 16:16:36 UTC**, elapsed **0.7076 hours** from the unchanged original start. The original deadline remains **20:19:09 UTC**; shutdown is early because a gate failed, not because time expired. No A3 inventory, pin, seam or move was started.
+
+The full functional gate passed **312 tests with zero failed/skipped/todo**: checker/source suites 70, agent-plugins 30, platform 3, UI 2, neutral-host 30, Tovu 177. Builds/tsc of agent-plugins/platform/ui, scripts tsc, local relink, Tovu tsc and the explicit new field-parity compile passed. Goldens, saved-key round trip, cost counters and wiring identity are included in the unchanged Tovu files. No new pin/fixture hash changed after its recording commit.
+
+The strict changed-source lint extension failed (exit **1**):
+
+```text
+scripts/check-no-cross-package.ts:46:3
+  Function 'visit' has a complexity of 11. Maximum allowed is 10.
+scripts/lib/package-sources.ts:25:12
+  Cognitive Complexity 11 exceeds 10.
+```
+
+The first issue is introduced by F6's two new syntaxes and is the decisive S3-0 failure. The second is in the existing sourcePackages visitor, whose implementation is unchanged (only PackageManifest.optionalDependencies was added in this session). Two existing unused-rest-binding warnings also appeared in credential-save-tool.ts (_kind/_target). No lint disable, increased threshold, test edit, checker relaxation, or post-gate production fix was applied. F6 functionality is implemented but the batch is **not green** and cannot authorize A3. Required next work is a reviewed complexity repair, then a complete S3-0 gate; this run stops here under the brief.
+
+The standalone layer/isolation invocation initially failed before executing checks because Node ESM could not expose the named exports of the root's CommonJS-transformed TypeScript. The invocation was corrected to the installed tsx CLI, with no source/guard edit. Actual results are **layers 0 / isolation 0 failing**, audit **SI-c 9 / SI-d 7**. This invocation error and its corrected result are both retained in separate logs; it is not presented as a passing first invocation. The final hash/test/lock custody check also passed.
+
+Guard: raw exit **1**, exactly R2-deep-path(1) and R10-chatpane-public-surface(1), informational R13, HW1 17/HW2 16/HW3 135/HW4 1/HW8 49, **0 new**. External scratch verification accepted only those exact names/counts; no waiver or guard edit. Plugin guard passed. The unchanged original XP3 snapshot remains SHA256 **f1b750bc75cfa1fbed7d5b3ee4c046f889a43bc8dd69e224203761ba39d04769** and manifest **d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459**.
+
+#### Explicit formal command/result ledger
+
+All Vitest runs use --maxWorkers=2 --minWorkers=1; Node tests use --test-concurrency=1 and the supplied composition environment. No broad test run or hidden exclusion.
+
+| Command | Exit/result |
+| --- | --- |
+| `pnpm --filter @jini-ai/agent-plugins run build` | 0; gate-s3-0-agent-plugins-build |
+| `pnpm --filter @jini-ai/platform run build` | 0; gate-s3-0-platform-build |
+| `pnpm --filter @jini-ai/ui run build` | 0; gate-s3-0-ui-build |
+| `pnpm --filter @jini-ai/agent-plugins exec tsc --noEmit` | 0; gate-s3-0-agent-plugins-tsc |
+| `pnpm --filter @jini-ai/platform exec tsc --noEmit` | 0; gate-s3-0-platform-tsc |
+| `pnpm --filter @jini-ai/ui exec tsc --noEmit` | 0; gate-s3-0-ui-tsc |
+| `pnpm exec tsc -p scripts/tsconfig.json --noEmit` | 0; gate-s3-0-scripts-tsc |
+| `pnpm exec vitest run scripts/__tests__/check-no-cross-package.test.ts scripts/__tests__/extract-s3-checker.test.ts scripts/__tests__/extract-s3-source-contracts.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose` | 0; gate-s3-0-checker-tests |
+| `pnpm --filter @jini-ai/agent-plugins exec vitest run src/lifecycle/mail/__tests__/adapter-descriptors.test.ts src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts src/connect/__tests__/host-tool-inputs.unit.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose` | 0; gate-s3-0-agent-plugins-tests |
+| `pnpm --filter @jini-ai/platform exec vitest run src/mail/__tests__/provider-setup.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose` | 0; gate-s3-0-platform-tests |
+| `pnpm --filter @jini-ai/ui exec vitest run src/features/mcp-ui/__tests__/credential-card.unit.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose` | 0; gate-s3-0-ui-tests |
+| `pnpm --filter @jini-example/neutral-host exec vitest run src/provider-status.test.ts src/contribution-contracts.test.ts src/mail-host.test.ts --maxWorkers=2 --minWorkers=1 --reporter=verbose` | 0; gate-s3-0-neutral-host-tests |
+| `JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini` | 0; gate-s3-0-tovu-link |
+| `npx tsc -p tsconfig.json --noEmit` | 0; gate-s3-0-tovu-tsc |
+| `npx tsc --noEmit --target ES2022 --module nodenext --moduleResolution nodenext --strict --esModuleInterop --skipLibCheck --types node apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts` | 0; gate-s3-0-provider-field-pin |
+| `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/custom-credentials/__tests__/credential-save-tool.unit.test.ts apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts apps/website/src/platform/mail/__tests__/unit/purpose-scoped-mailer.unit.test.ts apps/website/src/assistant/__tests__/moved-tools.golden.test.ts apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts apps/website/src/contracts/core/__tests__/extract-s3-host-source.unit.test.ts` | 0; gate-s3-0-tovu-tests |
+| `pnpm check:cross-package` | 0; gate-s3-0-cross-package |
+| `pnpm guard; s3_exit=$?; python3 /workspace/work/extract-s3/verify-guard.py /workspace/work/extract-s3/gate-s3-0-guard.log "$s3_exit"` | 0; gate-s3-0-guard |
+| `pnpm guard:plugins` | 0; gate-s3-0-plugins |
+| `node --import tsx --input-type=module -e 'import {checkPackageLayers} from "./scripts/check-package-layers.ts"; import {checkSubpathIsolation,auditSubpathIsolation} from "./scripts/check-subpath-isolation.ts"; const layers=checkPackageLayers(), isolation=checkSubpathIsolation(),audit=auditSubpathIsolation();const c=audit.findings.filter(x=>x.kind==="c").length,d=audit.findings.filter(x=>x.kind==="d").length;console.log(JSON.stringify({layers,isolation,SI_c:c,SI_d:d}));if(layers.length\|\|isolation.length\|\|c!==9\|\|d!==7)process.exitCode=1;' ` | 1; gate-s3-0-layers-isolation |
+| pnpm exec tsx -e (checkPackageLayers/checkSubpathIsolation/auditSubpathIsolation, corrected module invocation) | 0; layers [], isolation [], SI-c 9, SI-d 7 |
+| python3 /workspace/work/extract-s3/verify-custody.py | 0; snapshot, 117 existing hashes, 6 new regression/pin hashes, frozen tests/locks |
+| pnpm exec eslint --no-inline-config --rule complexity:[error,10] --rule sonarjs/cognitive-complexity:[error,10] (8 named changed production files) | **1; STOP**, visitor complexity 11 plus unchanged sourcePackages cognitive complexity 11 |
+
+#### Current batch status, remaining work and last green pair
+
+| Batch | Inventory/implementation/gate evidence | Status |
+| --- | --- | --- |
+| Continuation baseline | Starting source pins; Tovu report tip 46721900a830809fa9006323a6ece1ac12ab5736 | GREEN after authorized residue deletion |
+| S3-0 | Inventory in report before fixes; Jini 1c0e674e7009ebd90b0889c68b5ac24b24ec27f4 / 23c0c69f61bff319f0ebaf6a79cd0e058e9a77ea / c393010ae9cc0e003228c3c15249f59c24ff20c2; Tovu ce6dc422d3ee95c607b9284de42fb815cc65b8fb | **FAILED complexity gate**, 312 functional tests passed |
+| A3 | None | NOT STARTED |
+| A4 seam | None | NOT STARTED; no seam allocation/measurement |
+| A4 move | None | NOT STARTED |
+| A5 | None | NOT STARTED |
+| A6 | None | NOT STARTED |
+| A7 | None | NOT STARTED |
+| C-a | No ready-for-Claude-review section or independent verdict | NOT READY |
+
+Remaining in order:
+
+1. Resolve the S3-0 complexity gate and rerun the complete gate; all seven review fixes must be green.
+2. A3 first format pin/inventory, seams/small moves and gate.
+3. A4 seam, <=600 truly edited lines and time measurement, same-vault CAS proof and gate.
+4. A4 move and gate.
+5. A5 seam and gate.
+6. A6 move/public entries and gate.
+7. A7 seam and accumulated gate.
+8. C-a independent-review evidence handoff only after all preceding gates pass.
+
+**Last green code pair in this continuation is the clean baseline only:** Tovu **2fe999573b453ff8e28c7327ef3fef257c6b48b1**, Jini **e069b3fe0ef00839568168d85c11dfd97285f61f**. Tovu's contemporaneous report-only tip was **46721900a830809fa9006323a6ece1ac12ab5736**. No S3-0 green implementation pair is claimed.
+
+Tracked production line counts against the original S3 starting pins: Tovu **+19/-10**, Jini **+281/-41** (including checker/scripts and compatibility parser). No extraction file moves occurred. New tests/docs/manifest formatting are counted separately in git; no A4 measurement is implied.
+
+#### Continuation pushed SHAs and shutdown
+
+All branches remain cloud/extract-s3; every push was preceded immediately by pull --rebase and verified with ls-remote. No conflict/fallback/force/main merge/publication.
+
+Jini pushed implementation SHAs:
+
+- 1c0e674e7009ebd90b0889c68b5ac24b24ec27f4
+- 23c0c69f61bff319f0ebaf6a79cd0e058e9a77ea
+- c393010ae9cc0e003228c3c15249f59c24ff20c2 (**current source tip, failed quality gate**)
+
+Tovu pushed SHAs in this continuation:
+
+- 46721900a830809fa9006323a6ece1ac12ab5736 (continuation report only)
+- 5bdc4254eed6293d539bcbf467834893b4ca41f5 (baseline/XP3 report only)
+- ce6dc422d3ee95c607b9284de42fb815cc65b8fb (**current production source tip**)
+- 9611275ffe8b4efdf75f15c01e82cfefbb813349 (development evidence report only)
+
+The final stopped-report commit follows these source SHAs and is identified separately by the task response after the paired shutdown pushes/ls-remote verification. Earlier initial-attempt Tovu report commits remain d59e56b2dab47a4caf80a62c64d5b6cd3ba2c9fd and 50e65e1caa8a24ce67b7f35bab63ef8332bcc30a; Jini's initial target-branch push was the unchanged e069b3fe0ef00839568168d85c11dfd97285f61f.
+
+All 43 recorded command PIDs are absent at shutdown; targeted process inspection found no task Node/npm/pnpm/test/build process active. All manual test/build sessions completed. Custody rechecked: no existing Tovu test/fixture M/D/R; Jini only the exact two permitted call-object changes; all 117 old fixture hashes and all 6 new test/pin hashes unchanged; original declaration snapshot unchanged; lockfiles unchanged. The six authorized untracked residue directories were deleted only after confirming zero tracked files under each. No other files removed. No helper agents, time reset, historical S2 certification, or later extraction work.
+
+Actual early failure: S3-0 strict complexity gate — new specifier visitor complexity 11 exceeds maximum 10; the original time cap has not expired.
+EXTRACT-S3 STOPPED AT CAP
