@@ -1,6 +1,6 @@
 # Plugin extraction session 2
 
-Latest status: corrected G-card GREEN; A1 GREEN after the approved required host messages correction. Continuation 2 STOPPED during A2 at its explicit additional-existing-test wiring rule. F2 was not started. The deadline was 07:44:33 UTC; this was an early stop, not a clock expiry. See the final stop record below.
+Latest status: Continuation 3 A2 and final accumulated F2 GREEN. Both `cloud/extract-s2` source tips verified pushed; final report commit is identified by the task response. Completed before the unchanged 07:44:33 UTC deadline. Earlier stopped runs remain below as historical records.
 
 Start: 2026-11-08 04:12:55 UTC. Deadline: 08:12:55 UTC. Shutdown reserve: 07:52:55 UTC. One serial task; no helper agents. No main merge or publication.
 
@@ -786,3 +786,55 @@ Exact Tovu A2 test file list:
 No A2 test/runtime work remains after these checks. Historical Continuation 2 source transport used slicing rather than `git mv`; that process deviation remains disclosed above and cannot be retroactively changed in published history without rewriting it. No history rewrite was attempted. This continuation adds only the specifically approved existing-test wiring, corrects a new test expectation to the pinned behavior, records mutations and runs the full gate.
 
 Remaining batch: F2 only. It starts before the 07:24:33 UTC shutdown reserve, after this report is committed/pushed and both tips verified. F2 makes no fixes.
+
+
+### Continuation 3 — final accumulated gate F2
+
+F2 started at 07:23 UTC, before the 07:24:33 UTC shutdown reserve, after the complete A2 gate record was pushed and both remote tips verified. F2 completed GREEN at 2026-11-08 07:25:38 UTC. No fixes were made during F2 and no later batch was started. Continuation 3 elapsed to F2: 6 minutes 41 seconds, plus final shutdown/reporting; deadline remains 07:44:33 UTC.
+
+Final tested source pair: Tovu `8511b0ad00ada0866ba34d9162ae3185cad81585` (runtime source unchanged after `1022c243689a0f57a0b6a127680513ed217332f0`); Jini `e069b3fe0ef00839568168d85c11dfd97285f61f`. This completion report is the only following tracked change; its own final remote SHA is supplied in the task response. Both branches are `cloud/extract-s2`; no main merge or publication.
+
+| F2 requirement | Result and exact scope |
+|---|---|
+| Existing tests/fixtures unchanged | PASS: Tovu starting-pin diff contains additions only. Jini existing-file changes invert byte-exact to the starting pin using only the three enumerated transformations below. No file-wide exemption. |
+| Original R6 parser exception | PASS: `packages/agent-plugins/src/lifecycle/mail/__tests__/adapter-descriptors.test.ts` contains one real platform-parser import and exactly nine injected `parseSetup: parseMailProviderSetupProperty` members. Removing just those additions reconstructs the original file bytes, preserving every assertion, case, raw input, expected result and optional argument. |
+| Continuation 3 additional exception | PASS: `examples/neutral-host/src/contribution-contracts.test.ts` contains one real-parser import and exactly one `parseSetup` member at the pre-existing mail-adapters parser call. Removing just these two additions reconstructs the original bytes. No other existing neutral-host test changed. |
+| Additive export-list exception | PASS: removing only `'./mcp-ui/credential-card'` from the existing UI integration export list reconstructs its original bytes. No other existing export test changed. |
+| Frozen goldens and UI pin | PASS: both G-card hashes, both mail golden hashes and the independent UI pin equal their original recording hashes stated above. No fixture regeneration. |
+| Tool metadata / protected source | PASS: metadata `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6` unchanged; both migration diffs, Jini `packages/server` and `packages/agent-plugins/resend` diffs empty. |
+| Nine accumulated regressions | PASS: **58/58 tests**, 0 failed/cancelled/skipped/todo, Node test concurrency 1. Exact files below. |
+| Every touched Jini package | PASS: `pnpm --filter @jini-ai/<package> exec tsc --noEmit` for **core, platform, oauth, cms, agent-plugins, ui**, all exit 0. |
+| Tovu type-check | PASS: `JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini`, then `npx tsc -p tsconfig.json --noEmit`, exit 0. |
+| Cross-package checker | PASS: `JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s2/declaration-baseline pnpm check:cross-package`, XP1–XP5 clean against the fixed original snapshot, exit 0. |
+| Guard record | PASS: `pnpm guard` raw exit 1 for exactly the two pinned findings, R2(1)/R10(1), plus informational R13. Every non-informational guard and hardwiring line matches the initial record. HW1 17, HW2 16, HW3 135, HW4 1, HW8 49; 0 new throughout. No guard/debt/layer exception added. |
+| Plugin guard | PASS: `pnpm guard:plugins`, exit 0. |
+
+The regression command is the documented Tovu Node command with these nine explicit files:
+
+- `apps/website/src/assistant/__tests__/moved-tools.golden.test.ts`
+- `apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts`
+- `apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts`
+- `apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts`
+- `apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts`
+
+All F2 commands, exit files and root PID files use scratch prefix `c3-f2-*`; accumulated log `c3-f2.log`. Exact unchanged-file transformations, hashes and protected-path comparisons are retained in scratch `c3-f2.py`. No known baseline red was fixed or counted as a new failure.
+
+Final batch table:
+
+| Batch | Verified tested source pair | Result | Remaining work |
+|---|---|---|---|
+| A1, corrected host messages | Tovu `2731bdf05a2f1cf2011022081deafd66041c7ad8` plus report; Jini `f1510e12e97f602c65c2db5a7be11de9dc44993d` | GREEN, full rerun in Continuation 2 | None |
+| A2 | Tovu `8511b0ad00ada0866ba34d9162ae3185cad81585`; Jini `e069b3fe0ef00839568168d85c11dfd97285f61f` | GREEN, complete listed gate and three restored mutations in Continuation 3 | None |
+| F2 | Same tested source pair, with this report-only completion commit following | GREEN, all accumulated requirements above rerun at the tips | None |
+
+Continuation 3 push ledger: Jini `e069b3fe0ef00839568168d85c11dfd97285f61f`; Tovu progress report `6750354b6985ce4c4badfec4521d31a878764c96`, A2 gate report `8511b0ad00ada0866ba34d9162ae3185cad81585`, and this final report-only commit (full final SHA in response). Each push immediately follows a pull with rebase and is verified using `git ls-remote`; no force push.
+
+Historical process limitation: the prior A2 scripted source-slicing transport did not follow the requested `git mv` procedure, as already disclosed. F2 verifies the final code/test/pin state; it cannot certify that earlier move method or retroactively rewrite published history. That deviation remains in this report, with no claim that the procedure was followed.
+
+Shutdown: 125 recorded process roots checked individually by PID via `/proc/<pid>/stat`; **0 running**. Evidence `c3-shutdown-process-status.json`. All mutation sources restored; all test/build orchestration sessions returned final exits. No test process is left. Both worktrees clean apart from this report-only commit before committing; final remote verification follows the commit. Last green pair is F2's pair above, with identical source in the final report commit. No further session-2 batch or runtime gate remains; later-session work was not started.
+
+EXTRACT-S2 DONE
