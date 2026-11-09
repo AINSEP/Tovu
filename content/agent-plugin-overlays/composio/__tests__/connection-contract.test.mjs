@@ -18,7 +18,7 @@ test('the hosted connection supports browser sign-in without inline credentials'
     type: 'streamable-http', url: 'https://connect.composio.dev/mcp', authMode: 'oauth',
   });
   const skill = await readFile(path.join(PLUGIN_ROOT, 'skills/composio/SKILL.md'), 'utf8');
-  assert.match(skill, /agent_plugin_connect/);
+  assert.match(skill, /\*\*Sign in\.\*\* Connect the account\. It provisions the declared\s+connection, shows the secure browser sign-in card/);
   assert.match(skill, /Do not grant.*COMPOSIO_REMOTE_WORKBENCH/s);
   assert.match(skill, /COMPOSIO_REMOTE_BASH_TOOL/);
   assert.match(skill, /Never ask the user for a Composio API key/);

@@ -26,7 +26,7 @@ import { createGoogleClient } from '@jini-ai/agent-plugins/google-workspace/lib/
 import accountInfo from '@jini-ai/agent-plugins/google-workspace/tools/account-info.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
-import { apiConnectionCallbackFieldRules } from '../../../../apps/website/src/features/api-connections/oauth-bindings.ts';
+import { apiConnectionCallbackFieldRules, apiConnectionOAuthCapabilities } from '../../../../apps/website/src/features/api-connections/oauth-bindings.ts';
 
 // Moved from content/agent-plugins/google-workspace (D-W8): the plugin ships as @jini-ai/agent-plugins/google-workspace.
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
@@ -111,6 +111,7 @@ async function harness({ runtime = 'hosted', tokenStore = 'vault' } = {}) {
     records, tokens, fetchFn: ({ url }, init) => fake.fetch({ url }, init), clock,
     guard: createOAuthUrlGuard({ assertAllowed: () => undefined }, { allowLoopbackHttp: true }),
     randomBytesFn: ({ byteLength }) => randomBytes(byteLength), sleep: async () => undefined,
+    oauth: apiConnectionOAuthCapabilities,
   });
   return { service, records, repo, clock, callback: client.callback };
 }
