@@ -1,0 +1,24 @@
+Listing tests:
+  [chromium] › site-import.journey.ts:147:3 › 0.1.13 A1 local reference site import › a real model chooses the import and reference-rebuild skills from the same casual request
+  [real-service] › agent-page.pins.journey.ts:241:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 3: a real spawned CLI agent calls page.find_elements through the real daemon and gets back a real tagged field's real value
+  [real-service] › assistant-chat.pins.journey.ts:107:3 › Bug pin: assistant-chat-regressions › admin assistant chat regressions › two images uploaded in two separate batches both survive send
+  [real-service] › assistant-chat.pins.journey.ts:129:3 › Bug pin: assistant-chat-regressions › admin assistant chat regressions › a video chip appears as a file attachment and a turn with text succeeds
+  [real-service] › assistant-chat.pins.journey.ts:144:3 › Bug pin: assistant-chat-regressions › admin assistant chat regressions › reload during streaming reopens the same conversation and finishes its answer
+  [real-service] › assistant-chat.pins.journey.ts:148:3 › Bug pin: assistant-chat-regressions › admin assistant chat regressions › a follow-up succeeds in the same conversation after a streaming reload
+  [real-service] › assistant-live.pins.journey.ts:224:3 › Bug pin: admin-capability-discovery › capability discovery — a real agent finds and calls an installed Agent Plugin, unaided › A — uncontested: a compliance question with no plausible native tool gets the installed Agent Plugin called, unprompted
+  [real-service] › assistant-live.pins.journey.ts:276:3 › Bug pin: admin-capability-discovery › capability discovery — a real agent finds and calls an installed Agent Plugin, unaided › B — contested (EXPECTED-FAILING, real measured defect): a design-polish question loses the same #1-ranked Agent Plugin to a native theme tool
+  [real-service] › assistant-live.pins.journey.ts:665:3 › Bug pin: destructive-path › destructive-path: content_post_delete false-transcript bug (ADR-055 Decision 2) › confirming delete in the dialog actually deletes the row, but the transcript still claims nothing was deleted — and poisons the next turn
+  [real-service] › assistant-live.pins.journey.ts:738:3 › Bug pin: destructive-path › destructive-path: content_post_delete false-transcript bug (ADR-055 Decision 2) › cancelling the dialog leaves the row intact and tells the model the truth
+  [real-service] › assistant-live.pins.journey.ts:767:3 › Bug pin: destructive-path › destructive-path: content_post_delete false-transcript bug (ADR-055 Decision 2) › prompt injection in post content cannot bypass the human confirmation gate
+  [real-service] › assistant-live.pins.journey.ts:808:3 › Bug pin: destructive-path › destructive-path: content_post_delete false-transcript bug (ADR-055 Decision 2) › stopping the run while the confirmation dialog is pending actually resolves the pending tool call server-side, not just the browser's own view of it
+  [real-service] › assistant-live.pins.journey.ts:1027:1 › Bug pin: surface-live-agent › LIVE AGENT: content_post_delete's real positive path — escaping, the never-echo invariant, and an actual deletion
+  [real-service] › assistant-live.pins.journey.ts:1158:1 › Bug pin: surface-live-agent › LIVE AGENT: the production surface renders a hostile title safely and Confirm deletes that post
+  [real-service] › byok.pins.journey.ts:1198:1 › Bug pin: byok-google-live-smoke › real Gemini BYOK turn: the admin chat actually completes and renders a reply
+  [real-service] › credential-card-safety.pins.journey.ts:69:3 › Bug pin: localhost credential-card safety › save a masked Mailchimp canary, redact a pasted Stripe canary, cancel, and prove zero leaked bytes
+  [real-service] › deployment-live.pins.journey.ts:156:3 › Bug pin: live-publish-e2e › live-publish-e2e: a real, click-through GitHub Pages publish through the assistant › resolves the correct account, does not fall back to guessing/prompting, publishes for real, reports the truth, and is recorded
+  [real-service] › plugins.pins.journey.ts:189:5 › Bug pin: plugin-install › isolated plugin installs › chat attaches site plugin ZIP and installs with attachmentRef
+  [real-service] › plugins.pins.journey.ts:189:5 › Bug pin: plugin-install › isolated plugin installs › chat attaches agent plugin ZIP and installs with attachmentRef
+  [real-service] › widgets-menus.pins.journey.ts:198:1 › Bug pin: ai-menu-widget-embeds › LIVE AGENT: create a menu, a menu-widget, and a text widget; embed both into a real Page and verify on the public site; prove a Post embed cannot resolve
+Total: 20 tests in 9 files
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-hNVcgC
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-lFDj7S

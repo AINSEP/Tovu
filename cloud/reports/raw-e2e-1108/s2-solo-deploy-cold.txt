@@ -1,0 +1,48 @@
+
+Running 1 test using 1 worker
+
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-7e87dd1d-c0fd-41f3-9e4e-b2f6c0662593-I2vHBM
+  ✘  1 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly @isolated-site (2.4s)
+
+
+  1) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-7e87dd1d-c0fd-41f3-9e4e-b2f6c0662593-I2vHBM/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly @isolated-site 
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-AHA643
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-cXFcMQ
+EXIT 1 SECS 57
