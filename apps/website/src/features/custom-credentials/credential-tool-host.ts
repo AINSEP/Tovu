@@ -7,7 +7,7 @@
  * @agent-note Types only; this file must keep importing nothing but `@jini-ai/core` types.
  */
 import type { AgentToolDefinition, DerivedRiskByToolId, SurfaceAskThenReport, ToolMetadataById } from '@jini-ai/core';
-import type { SurfaceCardApp, SurfaceCardFormSpec } from '@jini-ai/core/contracts/cards';
+import type { SurfaceCardApp, SurfaceCardFormSpec, SurfaceCardsPort } from '@jini-ai/core/contracts/cards';
 import type { CredentialedRequestPort, SourceControlWritePort } from '@jini-ai/core/contracts/credentials';
 
 /**
@@ -65,6 +65,21 @@ export interface CustomCredentialToolHost {
  *   ONE `commitFiles` on the SAME provider object `build` returned with the EXACT plan it produced —
  *   never a rebuilt provider or a looser plan. Aborted → no commit.
  */
+/**
+ * The secret-card functions the API credential save handlers open their key cards with.
+ * @agent-note Cards are typically from Jini UI: `defineSecretCardTool` from
+ *   `@jini-ai/ui/mcp-ui/secret-card`, `askThenReport` from `@jini-ai/daemon/surface-exchanges`.
+ *   The `surfaces.surfaceExchanges` passed beside these MUST be the SAME `SurfaceExchangeStore`
+ *   instance your answer/callback route delivers to, or no answer ever reaches the card. Keystrokes
+ *   travel only browser → answer route → exchange → seal; the key never enters model input or a
+ *   result. `askThenReport` replaces the SAME card URI with the outcome only AFTER the save
+ *   finished, never on delivery.
+ */
+export interface CustomCredentialSecretCards {
+  readonly defineSecretCardTool: SurfaceCardsPort["defineSecretCardTool"];
+  readonly askThenReport: SurfaceAskThenReport;
+}
+
 export interface CustomCredentialToolPorts {
   readonly credentialedRequest: CredentialedRequestPort;
   readonly sourceControlWrite: SourceControlWritePort;

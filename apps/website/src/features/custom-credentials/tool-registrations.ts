@@ -71,7 +71,7 @@ import {
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
 import { validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
-import type { CredentialCardIdentity, CustomCredentialToolHost, CustomCredentialToolPorts } from "./credential-tool-host.js";
+import type { CredentialCardIdentity, CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts } from "./credential-tool-host.js";
 import { tovuCredentialCardIdentity } from "./tovu-credential-card-identity.js";
 
 /**
@@ -883,10 +883,10 @@ async function saveCreateCard(
  */
 async function openCreateCard(required: {
   ctx: ToolExecutionContext; emitSurface: ToolExecutionOptions["emitSurface"];
-  routeDeps: CustomCredentialsToolDeps; probe: CredentialedRequestPort["probe"]; surfaces: AssistantSurfaceDeps; locale: string; initialLabel: string; cardIdentity: CredentialCardIdentity;
+  routeDeps: CustomCredentialsToolDeps; probe: CredentialedRequestPort["probe"]; cards: CustomCredentialSecretCards; surfaces: AssistantSurfaceDeps; locale: string; initialLabel: string; cardIdentity: CredentialCardIdentity;
   form: () => SecretCardForm; submissionOf: (values: Readonly<Record<string, unknown>>) => CreateCredentialSubmission;
 }, _optional = {}): Promise<CreateCredentialResult> {
-  const { ctx, emitSurface, routeDeps, probe, surfaces, locale, initialLabel, cardIdentity, form, submissionOf } = required;
+  const { ctx, emitSurface, routeDeps, probe, cards, surfaces, locale, initialLabel, cardIdentity, form, submissionOf } = required;
   // Fail closed rather than degrade — the only place a token can enter is the rendered form.
   // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.
   // The engine checks pre-dialog aborts and uses askThenReport so the save completes before Done.
@@ -894,7 +894,7 @@ async function openCreateCard(required: {
   // The error kind selects this tool's existing reason; the engine still owns error redaction.
   let failure: CreateCardFailure | undefined;
   let displayLabel = safeCredentialLabel({ label: initialLabel });
-  const card = defineSecretCardTool<Record<string, never>, CustomCredentialSummary, CreateCredentialResult>({
+  const card = cards.defineSecretCardTool<Record<string, never>, CustomCredentialSummary, CreateCredentialResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({}),
     form: () => form(),
@@ -935,7 +935,7 @@ async function openCreateCard(required: {
     // Fixed exchange metadata only: exception text, the label, and submitted values are unsafe.
     logFailure: metadata => failureLog(routeDeps)(JSON.stringify(metadata)),
   });
-  return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, { emitSurface });
+  return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport: cards.askThenReport })(ctx, { emitSurface });
 }
 
 /** Optional plugin catalogs enrich this feature's create form without owning its save path. */
@@ -961,7 +961,7 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
  *   `host.cardIdentity` names every card URI and app. The outcome replaces the same URI after the save.
  */
 export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
-  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }) } });
+  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }) }, cards: { defineSecretCardTool, askThenReport } });
 }
 
 /**
@@ -970,9 +970,11 @@ export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: {
  *   saved-origin check and before sealing; a refused or unreachable probe saves nothing. The key
  *   reaches the probe only from the human's card (browser → answer route → exchange → seal), never
  *   from model input.
+ * @agent-note Key cards open only through `cards` (see `CustomCredentialSecretCards`), over
+ *   `surfaces.surfaceExchanges` — the same store the answer route delivers to.
  * @complexity O(1) binding; each adapter performs the existing bounded store operations.
  */
-export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost; ports: Pick<CustomCredentialToolPorts, "credentialedRequest"> }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
+export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports, cards }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost; ports: Pick<CustomCredentialToolPorts, "credentialedRequest">; cards: CustomCredentialSecretCards }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
   const probe: CredentialedRequestPort["probe"] = (input) => ports.credentialedRequest.probe(input);
   const handlers: { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } = {
     // An MCP-UI surface for the SECRET itself — see this file's header, "custom_credential_set_token",
@@ -1009,7 +1011,7 @@ export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host,
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       const pluginCard = await findPluginCredentialCard({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId, saveKind: 'api', target: label });
       let errorSummary = "";
-      const card = defineSecretCardTool<{ label: string }, CustomCredentialSummary, SetTokenResult>({
+      const card = cards.defineSecretCardTool<{ label: string }, CustomCredentialSummary, SetTokenResult>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ label }),
         form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: withCardApp({ spec: setTokenForm(prep), app: host.cardIdentity.appNames.setToken }) }),
@@ -1041,7 +1043,7 @@ export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host,
         },
         logFailure: ({ toolId, exchangeId }) => failureLog(routeDeps)(`[custom-credentials] ${toolId}: save failed exchange=${exchangeId} credentialId=${existing.id} error=${errorSummary}`),
       });
-      return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, options);
+      return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport: cards.askThenReport })(ctx, options);
     },
 
     // Creates a brand-new credential row — see this file's header, "custom_credential_create", for the
@@ -1061,7 +1063,7 @@ export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host,
 
       const providers = await loadCreateCredentialProviders({ routeDeps });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      return openCreateCard({ ctx, emitSurface, routeDeps, probe, surfaces, locale, initialLabel: prefill.label ?? '', cardIdentity: host.cardIdentity,
+      return openCreateCard({ ctx, emitSurface, routeDeps, probe, cards, surfaces, locale, initialLabel: prefill.label ?? '', cardIdentity: host.cardIdentity,
         form: () => withCardApp({ spec: buildCreateForm({ prefill, providers }), app: host.cardIdentity.appNames.create }),
         submissionOf: values => deriveCreateCredentialSubmission(readRawCreateCredentialFields(values)) });
     },
@@ -1076,7 +1078,7 @@ export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host,
       const card = (await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId })).find(entry => entry.providerId === providerId);
       if (!card) throw new ToolInputError({ message: `No installed plugin declares a key card for '${providerId}'. Use credential_save with kind api instead.` });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      return openCreateCard({ ctx, emitSurface, routeDeps, probe, surfaces, locale, initialLabel: card.label, cardIdentity: host.cardIdentity,
+      return openCreateCard({ ctx, emitSurface, routeDeps, probe, cards, surfaces, locale, initialLabel: card.label, cardIdentity: host.cardIdentity,
         form: () => buildPluginCredentialForm({ card }),
         submissionOf: values => {
           const fields = readPluginCredentialValues({ card, values });
