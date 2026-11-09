@@ -971,4 +971,63 @@ Source pins: Tovu a2af906e; T = apps/website/src/features/external-mcp/. Blobs: 
 | `external-mcp-shared-oauth.ts` WHOLE (`createSharedExternalMcpOAuth`, `SharedExternalMcpOwner`, Shared* narrow ports) | shared-oauth.ts:1-326 | node:crypto; `../index.js` (api-connections); `./contracts.js`; core types | J integrations/src/api-connections/hosted-mcp/shared-sign-in.ts | owner/client name/copy via ports (H2c) |
 | stays T: `ExternalMcpReauthRequiredError`, `createExternalMcpReauthRequiredError`, `externalMcpSettingsDeepLink`, `tovuConnectionGateVocabulary`, `createExternalMcpConnectionGate`, `tovuRegistrationIdentity`, `tovuSignInPorts`, `createExternalMcpOAuthService` | oauth.ts:66-125, 224-246, 298-364 | T | T (thin shims + re-exports of `createDeviceAuthorizationStore`, `createHostedMcpSignInService`, `createHostedMcpConnectionGate`, `HostedMcpConnectionGatePorts`; shared-oauth.ts re-exports) | Tovu bytes unchanged |
 
+## H3
+
+Builder: EXTRACT-S5-C H3 (slug s5c-h3). Programmer skills header (`Jini/AI-Dev-Shop/agents/programmer/skills.md`) loaded (header only). Source pins Tovu a2af906e / Jini 2cdeae0f.
+
+### Moves and provenance (cross-repo literal line-range copies; source blobs at Tovu a2af906e)
+- Gate → J `packages/mcp/src/federation/hosted/connection-gate.ts` (134 lines): T `external-mcp-oauth.ts` (blob 243cf0762dfc807701de57e52409f326e3e11279) lines 144-221 (`ExternalMcpConnectionGateDeps`, `HostedMcpConnectionGatePorts` + attached @agent-note, `createHostedMcpConnectionGate` + its why-doc) and 243-291 (`offerPluginAccessCard`, `assertProvisioningPluginEnabled`, `readConnectionRowOrRefuse`, `assertNotAwaitingReauth` + docs). Necessary edits only: 6 import lines (core `ToolInputError`, core UUID, core/contracts/hosted-mcp types, `../ports.js`, `./revocation.js`, `./auth.js`) and `interface ExternalMcpConnectionGateDeps` → `export interface` (the Tovu wrapper keeps its signature through it). Exported from the `./federation/hosted` barrel. No integrations/OAuth import.
+- Sign-in → J `packages/integrations/src/api-connections/hosted-mcp/sign-in.ts` (1047 lines): same T blob lines 22-64 (header why-doc + `CONNECT_TIMEOUT_MS`/`REFRESH_LEASE_MS`/`CLEAR_TOKEN_RESEAL_ATTEMPTS` + docs), 127-142 (`createDeviceAuthorizationStore` + doc), 293-297 (`SignInDeps`, `ExternalMcpOAuthServiceDeps` + doc), 366-1333 (`oauthClientOptions` … `createHostedMcpSignInService`). Imports: node:crypto, core/primitives, core/contracts/{oauth,hosted-mcp}, `./contracts.js`, `./shared-sign-in.js`.
+- Shared sign-in → J `.../hosted-mcp/shared-sign-in.ts`: T `external-mcp-shared-oauth.ts` blob 3d8cf04a92de595bcd29c3631e0be6b80c57a5ea WHOLE (326 lines); 2 import specifiers rewritten (`@jini-ai/integrations/api-connections` → `../index.js`, `…/hosted-mcp` → `./contracts.js`).
+- `hosted-mcp/index.ts` now exports `createHostedMcpSignInService`, `createDeviceAuthorizationStore`, `createSharedExternalMcpOAuth` + shared owner/port types and `SharedMcpConfiguration` (its @agent-note updated: "Types only" → "contracts and values … Imports only core and this package"). package.json exports/jini runtime entries already existed (no package.json, no lockfile edit). Changesets `.changeset/s5c-h3-mcp.md`, `.changeset/s5c-h3-integrations.md`. @agent-notes present in emitted .d.ts (contracts 32, shared-sign-in 5, connection-gate 1, index 1).
+- Tovu shims: `external-mcp-oauth.ts` 1333 → 169 lines (reauth error/factory, settings link, `tovuConnectionGateVocabulary` + `createExternalMcpConnectionGate`, `tovuRegistrationIdentity`, `tovuSignInPorts`, `createExternalMcpOAuthService` — exact original bytes — plus re-exports of `createHostedMcpConnectionGate`, `HostedMcpConnectionGatePorts`, `createDeviceAuthorizationStore`, `createHostedMcpSignInService`); `external-mcp-shared-oauth.ts` 326 → 2 lines (re-exports). One biome fix in the shim (`import type` for `ExternalMcpServerRecord`). assistant/{agent-daemon-port,external-mcp-connection-source}.ts, composition/{app,deps}.ts, routes and browser binding untouched.
+- Lines moved: 1500 T lines deleted (+11), J +1507 production lines (134 + 1047 + 326).
+
+### Necessary non-import edits (exact before → after; behaviour-preserving)
+- **`exactOptionalPropertyTypes`** (J `tsconfig.base.json`; Tovu does not set it): 15 tsc errors on the literal copy (raw `h3-tsc-int-1.txt`; full diffs `raw/h3-signin-vs-source.diff`, `raw/h3-shared-vs-source.diff`). Type-only widenings: sign-in `resource?: string;` → `resource?: string | undefined;` (StoredOAuthEndpoints); `{ readonly resource?: string | null }` → `{ readonly resource?: string | null | undefined }` (toStoredEndpoints); `browserBinding?: string }` → `browserBinding?: string | undefined }` (sealedRedirectState); shared `readonly resource?: string;`/`readonly issuer?: string;` → `… | undefined;` (SharedMcpConfiguration); `redirectUri?: string }` → `redirectUri?: string | undefined }` (configure). Value sites (8): `resource: X` → `...resourceOption(X)` (sign-in 4 sites; new 4-line private helper `resourceOption`, documented) and `resource: context.identity.resource` → `...(context.identity.resource === undefined ? {} : { resource: context.identity.resource })` (shared 4 sites). Runtime difference: an absent audience is now an absent key instead of `resource: undefined`; `@jini-ai/oauth` treats both identically (`input.resource === undefined`, authorization-code.ts:102/143/178). Evidence: T sign-in group still 141/142 (prior-debt failure only) and the neutral host signs in through real oauth.
+- Missing type import: `ExternalMcpOAuthStatus` added to the core/contracts/hosted-mcp import (it came from T contracts before).
+- **Real N1 rejection** (guard-gate run 1: `N1-consumer-identity packages/integrations/src/api-connections/hosted-mcp/sign-in.ts: forbidden source reference "Tovu"`, raw `j-guard-summary-h3.txt` run 1 → `h3-gate-summary-run1.txt`). Rejected comment lines only (raw `h3-n1-before.txt` / `h3-n1-after.txt`): 134 "as Tovu's own," → "as the host's own,"; 135 "which Tovu may replace" → "which the host may replace"; 238 "who Tovu is to it" → "who the host is to it"; 298 "Tovu's internal grant alias" → "The internal grant alias"; 324 "no other grant Tovu implements" → "no other grant this sign-in implements"; 326 "neither grant Tovu" → "neither grant this sign-in"; 524 "one Tovu minted … so Tovu's to replace" → "one the host minted … so the host's to replace"; 637 "a client Tovu minted" → "a client the host minted". All other why-comments byte-exact.
+- Session-caused defect fixed: the first gate copy used off-by-a-few ranges (dropped `offerPluginAccessCard`'s doc, carried the sign-in's `ExternalMcpOAuthDeps` doc); found by diffing against the source ranges, fixed in Jini 0facef63 (comment-only), diff now = imports + `export` only.
+
+### Neutral-host proof (new; public entries only)
+`examples/neutral-host/src/hosted-mcp-sign-in.test.ts` (2 cases): the "Studio" host wires REAL `oauthFlowOperations`/`OAuthError`/`isOAuthError`/`createOAuthUrlGuard`/`defaultOAuthMessages` (@jini-ai/oauth), REAL hosted store + `createHostedMcpConnectionGate` (@jini-ai/mcp/federation/hosted; own toy vault/sealer/credential ports), REAL `createHostedMcpSignInService` + `createDeviceAuthorizationStore` (integrations hosted-mcp), `formatAad` (platform/secrets), against an in-process fake OAuth server (device grant + refresh) and a Higgsfield-shaped provider (`lumafield-studio`, tool `generate_clip`, plugin `studio.media.lumafield`). Flow: device sign-in (pending → connected, onConnected once) → tool call with the issued bearer → token expiry + refresh denied with canary body → host terminal `StudioRelinkError` ("Do not retry this tool.", retryable false), row `needs_reauth` → next call refused by the gate's row read with zero token requests → reconnect → tool works with the new bearer; plugin-off refusal uses host copy. Canaries (token, secret, URL, path) and first-host words never in model-facing text. Varied: workspace/server/plugin ids, settings path, reauth code, softwareId `studio-agent`, client names, link path. `examples/neutral-host/vitest.config.ts` aliases `@jini-ai/mcp/federation/hosted` and `@jini-ai/oauth` to exactly their exports-map targets because neutral-host/package.json does not list them and the lockfile may not change (disclosed; the packed consumer must install them — see H3-HANDOFF). Tovu: new `__tests__/h3/moved-shims.test.ts` (3: identity re-exports, Tovu names/arity/bindings, no moved body left).
+
+### H3 gate (tested Tovu 624f769c / Jini c9d06913; script /home/user/s5/scratch/h3-gate.sh; raw /home/user/s5/raw/h3-g-*.txt, summary h3-gate-summary.txt; run 1 h3-gate-summary-run1.txt)
+| check | result |
+|---|---|
+| J core/oauth/mcp/integrations build + tsc | 0/0 each |
+| closure-check api-connections, …/hosted-mcp (36 src/31 JS/33 dts files, now with runtime), mcp/federation/hosted (17/14/15) src+JS+.d.ts | EXIT 0, CLEAN |
+| J API + conformance | 21 files, 372/372 |
+| J mcp hosted | 2 files, 7/7 |
+| J oauth | 40 files, 714/714 |
+| neutral-host api-host-moves (unchanged) + new hosted-mcp-sign-in | 2 files, 4/4 |
+| relink; T main tsc | 0; 0 errors |
+| T typecheck:tests | EXIT 2, 13 errors = the 13 baseline set (prior debt) |
+| T sign-in group | 141/142; only the prior-debt `agent-daemon-server` desktop-loopback case |
+| T api / connect / store / nine | 156/156, 147/147, 284/284, 58/58 |
+| T new S5 tests h1a/h1b/h2b/h2c + h3 | 30/30 (27 + 3 new) |
+| H0 frozen SQLite; BASELINE rollback | 6/6; EXIT 0 ok:true (5 checks) |
+| guard-gate h3 | run 1 EXIT 1 (N1 "Tovu" in sign-in.ts comments, NEW) → reworded → run 2 EXIT 0 MATCHES BASELINE, FLAGS 0 |
+| xp-gate h3 | EXIT 0, XP1–XP5 clean |
+| hashes T; tool-metadata.baseline.json a0d6b428… | EXIT 0; EXIT 0 |
+| hashes J | EXIT 1: the same 3 H2 required-input-allowance fixtures as at H2c (harness.ts, unit-deps.ts, token-store fixtures.ts); none touched by H3 |
+| strict lint J changed production; biome T shims | 0; 0 |
+| existing-test audit vs S5 pins | T: only shared-owner.integration.test.ts (coordinator ruling (a), pre-H3); J: only the H2 allowance files (pre-H3); H3 added tests only |
+
+Optional PostgreSQL replay: not run in H3 (optional; disclosed, not counted).
+
+### S4 overlap (actual comparison with origin/cloud/extract-s4)
+H3 changed — Tovu: `features/external-mcp/external-mcp-oauth.ts`, `external-mcp-shared-oauth.ts`, `__tests__/h3/moved-shims.test.ts`, this report. Jini: `packages/mcp/src/federation/hosted/{connection-gate,index}.ts`, `packages/integrations/src/api-connections/hosted-mcp/{sign-in,shared-sign-in,index}.ts`, `.changeset/s5c-h3-{mcp,integrations}.md`, `examples/neutral-host/{vitest.config.ts,src/hosted-mcp-sign-in.test.ts}`. None of these paths is changed on cloud/extract-s4 (T 486 / J 36 changed paths compared). Adjacent only: S4 adds `examples/neutral-host/src/connect-plugin-host.test.ts` (same folder, different file; if S4's file needs mcp/oauth it may want the same alias or real devDependencies) and edits `packages/core/src/contracts/hosted-mcp*` (H3 did not edit core). Merge advice: no textual conflict expected; if S4 adds neutral-host devDependencies for @jini-ai/mcp/@jini-ai/oauth, `vitest.config.ts` can be deleted.
+
+### Minor findings (listed, not fixed)
+- neutral-host/package.json lacks @jini-ai/mcp and @jini-ai/oauth devDependencies (lockfile rule) — test resolves them through the alias file; neutral-host `tsc` typecheck of the new file would not resolve them until the deps are added.
+- `hosted-mcp/shared-sign-in.ts` imports the `../index.js` api-connections barrel (as the handoff specified); a narrower module import would shrink the closure.
+- The literal copies still carry first-host file references that N1 does not reject (e.g. `mcp-federation/registrations.ts`, `external-mcp-store.ts`, `createExternalMcpConnectionGate`, `console.warn` in the gate's and sign-in's why-comments) — left byte-exact per the comment rule.
+
+### Pushed SHAs (H3)
+- Jini: 50f6e4c18ee37d5521d9ff47b180c45e0ffcd1cd (moves), c7e7cdba744c29ba21e0f9e1a0402ca8acb54343 (SharedMcpConfiguration export), 9cb27b0dd3e2ac34177f9f8d5c6e24f76e0969b8 (neutral host), 0facef637517cd7a4216f61009c2ad16a5a56931 (gate range fix), c9d06913a35740b4e413d7465cbac1a3a9a20961 (N1 rewording).
+- Tovu: fdae3612f8fc0f0ad7ac203e28c79aa52ec48969 (inventory), 3d22efc021d84b81850a8953fe149be38dee0f21 (shims), 624f769c0a96b9e4564d3068f05efca95e712f57 (h3 test); this report commit follows.
+
+**LAST GREEN PAIR: Tovu 624f769c / Jini c9d06913** (full H3 gate, run 2; prior debt disclosed above).
+
 EXTRACT-S5-C STOPPED AT CAP
