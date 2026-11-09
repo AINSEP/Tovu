@@ -51,7 +51,10 @@ function wire() {
   const catalog:AgentToolDefinition[]=[ids.status,ids.listSecrets,ids.setSecret,ids.unsetSecret].map(name=>({name,description:`Library ${name}`,inputSchema:{type:'object'},sideEffects:'mutates-durable-state',authorization:{permission:'library.change'}}));
   const host:DeployOpsRegistrationHost={catalog,metadata:{},derivedRisk:new Map(catalog.map(c=>[c.name,c.sideEffects])),domain:'library-domain',catalogModule:'library/operations.ts',permissions:{write:'library.change',siteKey:'library.key'},
     permit:async({permission})=>{events.push(permission);},approvals:{confirmFor:()=>undefined},
-    cards:{defineSecretCardTool,askThenReport,surfaceExchanges:exchanges,uriHost:'library',defaultLocale:'library-default',noEmitter:'Library requires a human',locale:async()=> 'library-locale',text:({id,locale})=>`Library ${locale} ${id}`,
+    cards:{defineSecretCardTool:(spec,options)=>defineSecretCardTool({...spec,
+      form:required=>({...spec.form(required),app:{appName:'library-secret-form',appVersion:'7'}}),
+      outcome:required=>{const outcome=spec.outcome(required);return outcome?{...outcome,app:{appName:'library-secret-outcome',appVersion:'8'}}:undefined;},
+    },options),askThenReport,surfaceExchanges:exchanges,uriHost:'library',defaultLocale:'library-default',noEmitter:'Library requires a human',locale:async()=> 'library-locale',text:({id,locale})=>`Library ${locale} ${id}`,
       form:({title,locale})=>({title,description:`Library ${locale}`,submitLabel:'Library save',fields:[{kind:'string',name:'value',label:'Library secret',secret:true}]})},
   };
   return {deps,platform,registry,diagnostic,events,values,host,exchanges,clip:()=>{truncated=true;body='{"clipped":true}';}};
@@ -106,7 +109,7 @@ test('collectTypedDeploySecret uses foreign card URI/text and same exchange, pre
     emissions.push(JSON.stringify(emission));
     if(emissions.length===1) assert.deepEqual(f.exchanges.deliver({exchangeId:'library-exchange',principalId:'librarian',params:{value}},{toolId:ids.setSecret,channel:'mcp-ui'}),{ok:true});
   }});
-  assert.equal(f.values.get('BOOK_KEY'),value);assert.equal((result as {changed:boolean}).changed,true);assert.equal(emissions.length,2);assert.ok(emissions[0]!.includes('ui://library/'));assert.ok(emissions[0]!.includes('Library library-locale'));assert.ok(emissions[1]!.includes('Library library-locale savedTitle'));assert.equal(JSON.stringify([result,emissions]).includes(value),false);assert.equal(f.exchanges.size(),0);
+  assert.equal(f.values.get('BOOK_KEY'),value);assert.equal((result as {changed:boolean}).changed,true);assert.equal(emissions.length,2);assert.ok(emissions[0]!.includes('ui://library/'));assert.ok(emissions[0]!.includes('Library library-locale'));assert.ok(emissions[0]!.includes('library-secret-form'));assert.ok(emissions[1]!.includes('library-secret-outcome'));assert.ok(emissions[1]!.includes('Library library-locale savedTitle'));assert.equal(JSON.stringify([result,emissions]).includes(value),false);assert.equal(f.exchanges.size(),0);
 });
 
 test('buildDeployOpsRegistrations consumes foreign ids/domain/catalog/permissions and denies before protected reads',async()=>{
