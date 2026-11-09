@@ -1183,3 +1183,86 @@ Guard families: R2-deep-path 1, R10-chatpane-public-surface 1 (both pre-existing
 
 Stop reason: continuation token cap — after C2 part 2 rows 1–2 (partial) and the F8 rerun, ≈ 100k of the 450k continuation tokens remain, less than one more row builder plus the mandatory full F8 re-gate (≈ 114k alone); the remaining C2 part 2 rows (listed above) stay unbuilt. Not a behavior, design or import-rule stop.
 EXTRACT-S8-C STOPPED AT CAP
+
+## Codex continuation
+
+### EXTRACT-S8-X clock, inputs and inventory (before implementation)
+
+Conservative UTC start **2026-11-09T15:03:00Z**, deadline **18:03:00Z** (3 hours, including setup),
+implementation cutoff **17:38:00Z** (last 25 minutes reserved for F8, recovery, shutdown and report).
+Single serial worker; no helper agents. Current owner instructions supersede the older branch creation,
+150-minute and token-cap instructions. C0, C1 seam/move, C2 part 1 and the two completed C2 part 2 rows
+are retained. C3, G-deploy, C4, publishing and deployment are excluded.
+
+Fetched and verified before tracked writes:
+
+| Repository / origin | existing branch | continuation input | S3 fetched pin |
+|---|---|---|---|
+| AINSEP/Tovu, https://github.com/AINSEP/Tovu.git | cloud/extract-s8 | 25278ded34ff933801fb6c51e0dc62358f520431 | c3801c833a191be51753dcdecd133b0cad6f8945 |
+| AINSEP/Jini, https://github.com/AINSEP/Jini.git | cloud/extract-s8 | a266ba82144d9c7d8078ef7d056ff8c748d607e6 | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 |
+
+The environment initially checked out unrelated `work` branches. Only after fetching the exact pins
+were local tracking branches for the existing S8 branches selected; no existing branch was overwritten.
+Inherited last verified GREEN source pair: Tovu **1e4f8d3d1271405709bd588c7a04e2c86cd42031** /
+Jini **a266ba82144d9c7d8078ef7d056ff8c748d607e6**. This is inherited evidence, not a new baseline claim.
+The new unmodified baseline is in progress at this inventory commit.
+
+Bootstrap: Tovu's absent AI-Dev-Shop is expected under the current dispatch; Jini's AGENTS and
+AI-Dev-Shop/AGENTS were read. The dispatch's explicit serial/no-helper rule governs. Jini's local
+codebase-memory executable and Graphify output are absent; the available understand-anything index
+was queried, then the actual source and CAPABILITIES were checked. Tovu's cited architecture sections
+13/14 are absent in this checkout; the owner's complete extraction contract supplies the applicable
+architecture. No missing file is treated as an external implementation prerequisite.
+
+Pinned toolchain: Node 24.2.0, npm 11.3.0, pnpm 10.33.2 installed outside both tracked trees. Initial
+installs failed because native builds attempted writes in the read-only user cache; workspace-local
+cache/devdir and the matching Node distribution's headers repair setup without tracked changes.
+The untracked `Jini/packages/plugin-ui-ux-design` residue was inspected with `git ls-files` (empty)
+and status, then removed; no tracked source was removed. Frozen installs and original XP3 reproduction
+are required before relying on the baseline. The private brief stays outside both repositories.
+
+This is one completion batch for the four remaining C2 part 2 groups. Existing entries retain their
+signatures and bind Tovu policy; new fully injected entries accept the required local operations.
+Nothing moves to Jini in C2. The local port declarations import core types only, carry their second-host
+obligations, and are the intended C3 consumer contracts. The prior C2 inventory remains applicable;
+the following resolves its remaining helper closure. Source lines refer to continuation-input Tovu's
+`apps/website/src/features/custom-credentials/tool-registrations.ts` unless another file is named.
+
+| Name / dependency | Value/type | Source file:line | Destination | Host vocabulary: injected input or justification | @agent-note obligations |
+|---|---|---|---|---|---|
+| approvalToolHandler / requireHumanConfirm / describeDeleteRequestApproval | values + narrow type | imports :35, :62; DELETE :1203; contracts/core/human-confirm.ts | named local approval port | host description, tool id, error prefix, namespace/app/path and all dialog text stay in the bound host transport | Same answer-route exchange store; prepare before dialog, explicit human only, freeze input, recheck permission and abort before decrypt/send; decline sends nothing |
+| PluginCredentialCard | type | :2 | core/contracts/credentials | provider/owner/label/category ids are trusted card data, not invented defaults | Cards come from the installed trusted loader; metadata cannot select or authorize a key |
+| loadPluginCredentialCardsSafely / findPluginCredentialCard / readPluginCredentialValues | values | :59; plugin-credential-card.ts | pluginCards load/find/readValues port | workspace/target/saveKind are explicit inputs; warning and validation copy belong to binding | Absent loader means no cards, preserve exact owned-label matching/conflicts, fixed destinations, HTTPS/public-field rules, no plaintext model result |
+| buildPluginCredentialForm / applyPluginCredentialCard | values | :58 | credentialCardForms plugin build/apply | app identity and plugin text/URLs are host inputs | Typically UI builders, never a production package import; token has no prefilled value |
+| buildCreateForm / buildCreateOutcome / CreateCredentialPrefill | values/type | :60 | credentialCardForms create form/outcome + narrow local prefill type | category list, examples/URLs, field labels, app names and dimensions stay with host builders | Preserve form bytes for Tovu; outcome only after save at same URI |
+| setTokenForm / setTokenOutcome | values | :61 | credentialCardForms rotation form/outcome | all form/app/product copy supplied by host | Masked human input only; token hints human-only; keep fresh username on replacement |
+| SecretCardForm / SurfaceOutcomeSpec / AssistantSurfaceDeps | types | :19, :27 | core/contracts/cards and core SurfaceExchangeStore shapes | field names token/label/baseUrl/category/username/worksFor and lifecycle statuses are persisted card protocol | No UI/daemon types in consumer-only contracts; exact same exchange instance as answer route |
+| withCustomCredentialSetup / CredentialSetupFailure / diagnostic issuer | value/types | :8; credential-recovery.ts | recovery withSetup port + narrow local diagnostic type | recovery save tool id/kind/prefill and wording remain host input | Preserve issued-object provenance; missing label offers creation, only explicit invalid verification offers rotation; transport failure never establishes invalidity |
+| loadCreateCredentialProviders / DeployTargetRegistry / source-control catalog | value/types | :937, :5, :63 | catalog loadProviders port | provider/vendor ids supplied by current host catalogs | Optional catalog failure never blocks create or erases explicit worksFor; read-only enrichment, no extra loads |
+| publish registry + invalidatePublishCredentialCompatibility + verification cache | values/types | :3, :864–887 | publish prepareInvalidation port returning an exact after-save callback | host workspace/target/cache keys stay in binding | Same registry/cache objects; prepare before persistence, invalidate only after successful save, never on failure |
+| resolveOperatorLocale / OperatorLocaleDeps | value/type | :12–13 | locale resolve port | workspace/principal locale lookup remains host | Same authenticated principal and workspace; no generic default locale |
+| credentialText / formatCredentialHint / translateCredentialMessage | values | :11 | locale text/hint/translate ports | all sentences/translations and hint labels are host input | Translate only caller-safe text; hints never enter model output |
+| abortGuardedCredentialRepo | value | :1; vendor-credentials/abort-guarded-repo.ts | policy guardRepo port | no product defaults; same repo supplied explicitly | Guard site and project insert/update plus vault put/applyBatch after asynchronous sealing; preserve CAS/transactions and bound receiver; reads/deletes pass through |
+| cleanCardToken | value | :57; card-token.ts | policy cleanToken port | host's token paste policy | Preserve cleanup/validation and exact resulting secret; never log or return it |
+| assertCredentialFreeField | value | :10; contracts/core/credential-token.ts | policy assertFreeField port | field names explicit protocol input; host exception/message policy | Reject secret-looking non-secret fields before disclosure; no echo of secret values |
+| normalizeCredentialWorksFor | value | :4 | policy normalizeWorksFor port | explicit vendor/host ids; default category and unlabeled text become policy/message inputs | Metadata only, never credential selection/authority; preserve explicit submitted compatibility ids |
+| CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS / forbiddenRule | values | :310 | modelFacingErrors host rules | error codes, guidance, secret-store/Admin text all host input | Same canonical error classes; allowlist only; transport/unknown/raw sealer/JSON errors stay redacted, egress safe error before schema decoration |
+| FORM_SAVE_CALLER_SAFE_ERRORS / FORM_SAVE_FAILURE_MESSAGE | values | :498–513 | formErrors host rules/fallback | fixed storage and internal-failure sentences are host text | No raw unknown message; fixed secret-store text; duplicate project-conflict message only through trusted classifier |
+| mapCreateCredentialError / duplicate-label wording | value | :816 | helper consumes form rules/messages + duplicate-message policy | rotation tool name, project-conflict prefix and label wording host supplied | Canonical error identity, safe display label, duplicate refuses overwrite |
+| probeCardBeforeSave | value | :566 | helper consumes messages and existing request probe port | mismatch/refused/unavailable/previous-key/hint text host input | Saved origin before probe; probe before seal; abort around await; failures keep previous key |
+| readCreateCredentialPrefill / safeCredentialLabel / deriveCreateCredentialSubmission | values/types | :682, :780, :785 | same-job helper using policy/messages | category default and unlabeled display text host input; field names persisted protocol | Secret-free prefill, no hidden category/product default; all real validation stays in C1 store |
+| rejectUnexpectedSetUsernameFields / requireUsernameOrClearSentinel / rejectUnexpectedSetTokenFields | values | :444, :467, :492 | helpers consume host messages | username/token tool names and messages supplied | Exact accepted key sets label+username / label; null clears, omission refused; never model secret input |
+| reportRepositoryWriteFailure / failureLog | values | :520, :537 | host diagnostic callbacks | log prefix and tool ids remain host binding | No token, file contents, label or arbitrary exception text; log-only network/egress detail stays server-side |
+| tool ids / registration handler keys / customCredentialsDerivedRisk | values | :46, :62, :343, :1124–1300 | required ids + derivedRisk inputs on new entry | list/verify/setUsername/makeRequest/writeFiles/save ids injected; registration keys computed from them | Catalog, metadata, risk, schema decoration and handler keys must agree; no fallback product ids |
+| create/rotate/pluginProvider adapter keys | local method protocol | :979–1073 | local adapter result shape | neutral operation roles used by credential-save composition, not public tool ids | Stable internal API retained for existing callers; external registered ids still supplied explicitly |
+| makeModelFacingCredentialedRequest / isWriteFilesShapeRejection / performRepositoryFilesWrite / writeTarget | values | :248, :266, :396, :421 | same-job helpers + existing core/request/source-control ports | schema tool ids and error/log text supplied; HTTP method DELETE and Authorization are neutral wire protocol | Preserve caller-safe classifier; target before decrypt; exact same provider/plan and single commit; abort commits nothing |
+| C1 store operations and canonical errors | values/types | :65–78 | existing C1 bindings retained in place | C1 already injects owner/category/store messages; no new host vocabulary default | Same vault/owner/scope/CAS and canonical error objects; no new repository, migration, decrypt or serialization |
+| CustomCredentialToolPorts documentation | type declaration | credential-tool-host.ts:63–99 | put existing JSDoc on actual declaration | no value change | All ordering, same-provider/plan, trusted binding and custody rules visible on declaration hover |
+
+Planned new verification before source edits: `extract-s8-x-host-operations.test.ts` for second-host
+approval/confirm, plugin load/find/read/forms, diagnostics, catalog/invalidation ordering, locale and
+policy callbacks, foreign ids/messages/paths and old-entry byte pins; `extract-s8-x-contracts.test.ts`
+for pure-contract imports/declaration documentation and absence of product defaults in the injected
+closure. Existing tests/fixtures are frozen (allowance NONE). Full 54-file inherited Tovu matrix plus
+all new tests, explicit pin compilation, core/integrations builds/types, neutral host, Jini matrices,
+original-snapshot XP1–XP5 and complete raw guards are required again at the final source pair.
