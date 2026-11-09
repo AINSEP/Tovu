@@ -629,3 +629,39 @@ Gate:
 NOT RUN (budget cap): conformance test wiring the real oauth exports; neutral-host api-host-moves + new examples test; strict lint of changed production; H0 frozen test + BASELINE rollback.
 
 S4 overlap: none. The Tovu files touched are in features/api-connections only; no agent-plugins/connect files. Changesets: s5-h2a-{core,oauth,integrations}.md. No lockfile edits.
+
+## H2b — seam inventory
+
+Recorded before any seam edit (H2b builder; Tovu 01928354, Jini 9a669a56). Source: T `apps/website/src/features/external-mcp/external-mcp-oauth.ts` (1248 lines) and `external-mcp-shared-oauth.ts` (296). Destinations per R3: **MCP** = J `mcp/federation/hosted` (gate, H3); **INT** = J `integrations/api-connections/hosted-mcp` (sign-in, H3); **T** = stays Tovu (host binding/adapter); **PORT** = host-passed input.
+
+### Gate region (old lines 157–273) → MCP in H3; split in place now
+| Symbol | Lines | Closure today | Port it takes | Host vocabulary |
+|---|---|---|---|---|
+| `ExternalMcpConnectionGateDeps` | 159–164 | type | stays as the T signature; neutral `HostedMcpConnectionGatePorts` added | none |
+| `createExternalMcpConnectionGate` + why-doc | 166–213 | revocation (hosted `rosterRefusalFor`), mcp/federation types | repo, isPluginEnabled, assertSharedAuthorized?, reauthRequired factory, revoked factory, recovery text, operator log | none in body; doc cites T paths (provenance) |
+| `offerPluginAccessCard` | 220–225 | `ToolInputError` (core) | recovery `accessHint` | tool id `plugins_set_enabled`, `family:"agent-plugin"`, reason wording → PORT (T binds exact bytes) |
+| `assertProvisioningPluginEnabled` | 231–238 | `ToolInputError` | isPluginEnabled, recovery `pluginOff` | `plugins_set_enabled` wording → PORT |
+| `readConnectionRowOrRefuse` | 246–256 | console.warn, revoked error | `logUnreadableRow`, revoked factory | `[external-mcp]` log prefix → PORT; `unverifiable` reason = neutral D3 key |
+| `assertNotAwaitingReauth` | 262–266 | T projections, reauth class | hosted projections (same package after move), reauthRequired factory | none |
+| `ExternalMcpReauthRequiredError` | 86–121 | `externalMcpSettingsDeepLink` | stays T (host text + settings link); ONE factory `createExternalMcpReauthRequiredError` supplied to gate AND sign-in | `"EXTERNAL_MCP_REAUTH_REQUIRED"`, `Settings → External MCP` → T |
+| `externalMcpSettingsDeepLink` | 136–138 | none | settingsLink PORT | `/settings/external-mcp?server=` → T |
+| `createDeviceAuthorizationStore` | 142–154 | none | moves INT (H3) | none |
+
+### Sign-in half (275–1248 + shared-oauth.ts) → INT in H3
+| Need | Where | Port (sign-in port) | Host vocabulary |
+|---|---|---|---|
+| registration identity | 275–278 `oauthClientOptions`; shared 243 | `registrationIdentity` {softwareId, clientName(record)} | softwareId `tovu`; display `record.label ?? record.serverId` (row-label fallback), shared `Tovu` → T binds |
+| onConnected | 280–289 `notifyConnected`; calls 1104/1133/1139/1164 | existing `deps.onConnected` (contracts.ts:430–433); host log | `[external-mcp] … post-connect step failed` log → T |
+| flow functions (11) | 13–34, shared 3–4 | H2a `OAuthFlowOperations` | none |
+| `OAuthError` construction | 306–309, ~529–540, shared 37 | errors port (oauth error factory) — DEFERRED | `Settings → External MCP`, "grant Tovu supports" → T messages |
+| store open/seal/upsert/lease | 113, 288, 488, 589, 625–704 | store port | none |
+| projections | 36–39 | hosted `hostedMcpProjections` | none |
+| validation/unconfigured errors | 35, ~1063 | errors.validation/unconfigured | `TOVU_PUBLIC_URL` text → T messages |
+| seal-AAD | 775–792 `sealedRedirectState`, `formatAad` (platform) | `aad.format` PORT | kind `oauth-redirect-state` v1 = persisted format (neutral, must stay byte-identical) |
+| owner key | 763–765 | neutral (`${workspaceId}:${serverId}`) | none |
+| link | 6, 771, shared 9 | `signInLink` | T `hostedMcpSignInLink` |
+| messages/policy | 4, ~491, ~536, 785 | `oauthMessages`, `discoveryPolicy`, `withCopy` | `tovuOAuthMessages`, `createTovuIssuerBoundDiscoveryPolicy`, `withTovuOAuthCopy` → T |
+| shared-owner/project-keys types | shared 6–8, 12–22 | narrow structural ports | T `SharedOAuthOwnerStorage`, `SiteOAuthBindings`, `KeyAttachments`, `ProjectKeyTransaction` — adapters stay T |
+| shared inventory type | shared 21 | core vault `VaultRecord` | `import('@jini-ai/platform/…')` → core type |
+
+Plan for this batch (re-cut, ~600-line rule): **H2b = gate split (item 6) + one reauth factory + registration identity/onConnected bindings (item 7)**. The sign-in half's store/error/AAD/link/messages/policy ports and the narrow shared-owner ports (item 1 for the sign-in half) are a separate serial substep (**H2c**) because together they exceed the budget left in this batch.
