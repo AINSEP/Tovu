@@ -1,0 +1,16 @@
+ok 1 - composition preview and the approved provision grant revalidate with the host projections
+ok 2 - the composed classifier keeps host validation identity through the preview
+ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+ok 4 - status and stored-credential reads use the host pure projections
+# tests 4
+# pass 4
+# fail 0
+exit=0 mcp-projection-seam.distinct-ports
+ok 1 - a host-classified refusal carrying provider secrets reaches the model redacted, with no card
+ok 2 - ordinary refusal wording, punctuation and fallback suffix are unchanged
+ok 3 - an unclassified non-Error object propagates with identity and is never rewritten
+ok 4 - the grant repair reason is redacted too; wording and repair action are unchanged
+# tests 4
+# pass 4
+# fail 0
+exit=0 sign-in-refusal.safe-text

@@ -1,0 +1,80 @@
+## M1 plugin-host preview drops composed ports (site 1)
+# file apps/website/src/server/runtime/composition/plugin-host.ts: 'repo: deps.mcp.repo, ...mcpPorts,\n      servers' -> 'repo: deps.mcp.repo,\n      servers'
+# test mcp-projection-seam.distinct-ports exit=1
+not ok 1 - composition preview and the approved provision grant revalidate with the host projections
+not ok 2 - the composed classifier keeps host validation identity through the preview
+ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+ok 4 - status and stored-credential reads use the host pure projections
+# pass 2
+# fail 2
+
+## M2 plugin-host provision grant drops composed ports (indirect, site 4 caller)
+# file apps/website/src/server/runtime/composition/plugin-host.ts: 'clock: deps.clock, ...mcpPorts,\n' -> 'clock: deps.clock,\n'
+# test mcp-projection-seam.distinct-ports exit=1
+not ok 1 - composition preview and the approved provision grant revalidate with the host projections
+ok 2 - the composed classifier keeps host validation identity through the preview
+ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+ok 4 - status and stored-credential reads use the host pure projections
+# pass 3
+# fail 1
+
+## M3 connectGrantFor drops ports into createApplyConnectDefaults (site 4)
+# file apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts: 'notifyRosterChanged: deps.notifyRosterChanged, ...ports }' -> 'notifyRosterChanged: deps.notifyRosterChanged }'
+# test mcp-projection-seam.distinct-ports exit=1
+not ok 1 - composition preview and the approved provision grant revalidate with the host projections
+ok 2 - the composed classifier keeps host validation identity through the preview
+ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+ok 4 - status and stored-credential reads use the host pure projections
+# pass 3
+# fail 1
+
+## M4 eligibility drops ports (site 7)
+# file apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts: 'hasStoredAgentPluginCredential(row, ports)' -> 'hasStoredAgentPluginCredential(row)'
+# test mcp-projection-seam.distinct-ports exit=1
+ok 1 - composition preview and the approved provision grant revalidate with the host projections
+ok 2 - the composed classifier keeps host validation identity through the preview
+not ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+ok 4 - status and stored-credential reads use the host pure projections
+# pass 3
+# fail 1
+
+## M5 factory ignores supplied ports (sites 2-5 factory)
+# file apps/website/src/features/agent-plugins/apply-connect-defaults.ts: 'const ports = agentPluginMcpPortsOf(deps);' -> 'const ports = agentPluginMcpPortsOf({});'
+# test mcp-projection-seam.distinct-ports exit=1
+not ok 1 - composition preview and the approved provision grant revalidate with the host projections
+ok 2 - the composed classifier keeps host validation identity through the preview
+ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+ok 4 - status and stored-credential reads use the host pure projections
+# pass 3
+# fail 1
+
+## M6 status entry ignores supplied projections (site 6 entry)
+# file apps/website/src/features/agent-plugins/connection-status.ts: 'projections: agentPluginMcpPortsOf(required).projections' -> 'projections: agentPluginMcpPortsOf({}).projections'
+# test mcp-projection-seam.distinct-ports exit=1
+ok 1 - composition preview and the approved provision grant revalidate with the host projections
+ok 2 - the composed classifier keeps host validation identity through the preview
+ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+not ok 4 - status and stored-credential reads use the host pure projections
+# pass 3
+# fail 1
+
+## M7 sign-in refusal text skips core redaction (F2)
+# file apps/website/src/features/agent-plugins/connect-tool.ts: '${redactSecrets({ input: (err as Error).message }, { redactPii: false })}. Sign-in' -> '${(err as Error).message}. Sign-in'
+# test sign-in-refusal.safe-text exit=1
+not ok 1 - a host-classified refusal carrying provider secrets reaches the model redacted, with no card
+ok 2 - ordinary refusal wording, punctuation and fallback suffix are unchanged
+ok 3 - an unclassified non-Error object propagates with identity and is never rewritten
+ok 4 - the grant repair reason is redacted too; wording and repair action are unchanged
+# pass 3
+# fail 1
+
+## M8 grant repair text skips core redaction (F2)
+# file apps/website/src/features/agent-plugins/enable-access.ts: '${redactSecrets({ input: (error as Error).message }, { redactPii: false })}. Review' -> '${(error as Error).message}. Review'
+# test sign-in-refusal.safe-text exit=1
+ok 1 - a host-classified refusal carrying provider secrets reaches the model redacted, with no card
+ok 2 - ordinary refusal wording, punctuation and fallback suffix are unchanged
+ok 3 - an unclassified non-Error object propagates with identity and is never rewritten
+not ok 4 - the grant repair reason is redacted too; wording and repair action are unchanged
+# pass 3
+# fail 1
+

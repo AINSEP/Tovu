@@ -1,0 +1,165 @@
+# S4-0b RED: new tests at pre-fix code (production diff bb12cfb1..85e14f0b reverse-applied)
+TAP version 13
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: composition preview and the approved provision grant revalidate with the host projections
+not ok 1 - composition preview and the approved provision grant revalidate with the host projections
+  ---
+  duration_ms: 76.675643
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:1:5404'
+  failureType: 'testCodeFailure'
+  error: |-
+    preview used the host snapshot
+    + actual - expected
+    
+    + 'admissionRevision'
+    - 'provisionedByPluginId'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'provisionedByPluginId'
+  actual: 'admissionRevision'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:88:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: the composed classifier keeps host validation identity through the preview
+not ok 2 - the composed classifier keeps host validation identity through the preview
+  ---
+  duration_ms: 8.35694
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:1:6462'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:104:3)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: sign-in eligibility uses the host credential projection, not Tovu default
+not ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
+  ---
+  duration_ms: 3.831974
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:1:7017'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + []
+    - [
+    -   'media'
+    - ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'media'
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:119:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: status and stored-credential reads use the host pure projections
+ok 4 - status and stored-credential reads use the host pure projections
+  ---
+  duration_ms: 1.015301
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 1
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1564.551642
+exit=1
+TAP version 13
+# Subtest: a host-classified refusal carrying provider secrets reaches the model redacted, with no card
+not ok 1 - a host-classified refusal carrying provider secrets reaches the model redacted, with no card
+  ---
+  duration_ms: 15.188236
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:1:2917'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /abcdefghijklmnopqrstuvwxyz0123456789|A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/. Input:
+    
+    "discovery refused for Bearer abcdefghijklmnopqrstuvwxyz0123456789 using ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu."
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: "discovery refused for Bearer abcdefghijklmnopqrstuvwxyz0123456789 using ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu."
+  operator: 'doesNotMatch'
+  stack: |-
+    Object.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:46:12)
+    expectedException (node:assert:498:17)
+    expectsError (node:assert:621:3)
+    strict.rejects (node:assert:686:3)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:44:3)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: ordinary refusal wording, punctuation and fallback suffix are unchanged
+ok 2 - ordinary refusal wording, punctuation and fallback suffix are unchanged
+  ---
+  duration_ms: 3.095587
+  type: 'test'
+  ...
+# Subtest: an unclassified non-Error object propagates with identity and is never rewritten
+ok 3 - an unclassified non-Error object propagates with identity and is never rewritten
+  ---
+  duration_ms: 2.504919
+  type: 'test'
+  ...
+# Subtest: the grant repair reason is redacted too; wording and repair action are unchanged
+not ok 4 - the grant repair reason is redacted too; wording and repair action are unchanged
+  ---
+  duration_ms: 0.937982
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:1:4182'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/. Input:
+    
+    "The plugin's combined tool grant cannot be saved: tool list rejected near ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Review its tool selection with external_mcp_save before enabling it."
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: "The plugin's combined tool grant cannot be saved: tool list rejected near ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Review its tool selection with external_mcp_save before enabling it."
+  operator: 'doesNotMatch'
+  stack: |-
+    Object.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:75:12)
+    expectedException (node:assert:498:17)
+    expectsError (node:assert:621:3)
+    strict.throws (node:assert:676:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:73:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+    Test.postRun (node:internal/test_runner/test:1191:19)
+    Test.run (node:internal/test_runner/test:1119:12)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 2
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1457.1115
+exit=1
