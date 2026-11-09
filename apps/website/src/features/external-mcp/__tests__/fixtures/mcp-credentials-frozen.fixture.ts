@@ -114,7 +114,8 @@ export function insertFrozenWorkspace({ db }: { db: ContentDb }): void {
 }
 
 function frozenRows({ db, table, column, rowid }: { db: ContentDb; table: string; column: string; rowid: boolean }): Record<string, unknown>[] {
-  return db.$client.prepare(`SELECT ${rowid ? `rowid AS "__rowid", ` : ""}* FROM "${table}" WHERE "${column}" = ? ORDER BY rowid`)
+  const rowidColumn = rowid ? 'rowid AS "__rowid", ' : "";
+  return db.$client.prepare(`SELECT ${rowidColumn}* FROM "${table}" WHERE "${column}" = ? ORDER BY rowid`)
     .all(FROZEN_WORKSPACE) as Record<string, unknown>[];
 }
 

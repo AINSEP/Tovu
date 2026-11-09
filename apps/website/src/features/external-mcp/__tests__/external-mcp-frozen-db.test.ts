@@ -5,17 +5,16 @@ import path from "node:path";
 import test from "node:test";
 import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
 import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
-import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../../platform/db/sqlite/content-db.js";
-import type { ExternalMcpServerRecord } from "../contracts.js";
-import { createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
-import { SqlExternalMcpServerRepo } from "../external-mcp-repo.js";
+import { createExternalMcpConnectionGate, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload,
   readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import { openExternalMcpVaultPayload, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import { FROZEN_PLAINTEXT, FROZEN_PROVIDER, FROZEN_SERVERS, FROZEN_WORKSPACE, type FakeTokenReply, type FakeTokenRequest, closeFrozenDb,
-  fakeOAuthServer, frozenClock, frozenKeyring, frozenSealer, loadFrozenSql, openFrozenDb, readFrozenSql, snapshotFrozenRows } from "./fixtures/mcp-credentials-frozen.fixture.js";
+import { FROZEN_PLAINTEXT, FROZEN_SERVERS, FROZEN_WORKSPACE, type FakeTokenReply, closeFrozenDb, loadFrozenSql, openFrozenDb, readFrozenSql,
+  snapshotFrozenRows } from "./fixtures/mcp-credentials-frozen.fixture.js";
+import { AFTER_RESTART_AT, EXPIRED_AT, NEW_ENV_KEY, REFRESHED, type Row, VALID_AT, assertOpensAllThree, changedColumns, nonZero, requireRecord,
+  resetCounts, serverRow, vaultRow, wire } from "./fixtures/frozen-db-harness.js";
 
 /**
  * @file G-mcp (EXTRACT-S5 H0): the frozen SQLite credential fixture, read and written ONLY through
@@ -31,54 +30,8 @@ import { FROZEN_PLAINTEXT, FROZEN_PROVIDER, FROZEN_SERVERS, FROZEN_WORKSPACE, ty
 const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-frozen-test-"));
 test.after(() => fs.rmSync(SCRATCH, { recursive: true, force: true }));
 
-const VALID_AT = "2026-08-25T12:10:00.000Z";
-const EXPIRED_AT = "2026-08-25T13:30:00.000Z";
-const AFTER_RESTART_AT = "2026-08-25T13:31:00.000Z";
-const REFRESHED = { accessToken: "fake-access-token-0002", refreshToken: "fake-refresh-token-0002" } as const;
-const NEW_ENV_KEY = "fake-env-key-0002";
 const CANARY_PARTS = ["ct-9f3e51", "cs-9f3e51", "internal.canary.example", "/var/lib/canary-path"] as const;
 const CANARY = `token=${CANARY_PARTS[0]} secret=${CANARY_PARTS[1]} at https://${CANARY_PARTS[2]}/oauth reading ${CANARY_PARTS[3]}`;
-
-type Counts = Record<string, number>;
-type Row = Record<string, unknown>;
-
-/** Counts every method call on `inner` by name (calls the target re-enters through `this` are not double-counted). */
-function counted<T extends object>(inner: T, counts: Counts, record?: (method: string, args: unknown[]) => void): T {
-  return new Proxy(inner, { get(target, property, receiver) {
-    const value = Reflect.get(target, property, receiver);
-    if (typeof value !== "function") return value;
-    return (...args: unknown[]) => {
-      counts[String(property)] = (counts[String(property)] ?? 0) + 1;
-      record?.(String(property), args);
-      return value.apply(target, args);
-    };
-  } });
-}
-
-function nonZero(counts: Counts): Counts {
-  return Object.fromEntries(Object.entries(counts).filter(([, n]) => n > 0).sort(([a], [b]) => a.localeCompare(b)));
-}
-
-function resetCounts(...all: Counts[]): void {
-  for (const counts of all) for (const key of Object.keys(counts)) delete counts[key];
-}
-
-/** The wired host over one opened database: counting kernel, repo, sealer and keyring plus a fake token server. */
-function wire({ kernel, clockIso, reply }: { kernel: ContentKernel; clockIso: string; reply?: (request: FakeTokenRequest) => FakeTokenReply }) {
-  const io = { kernel: {} as Counts, repo: {} as Counts, sealer: {} as Counts, keyring: {} as Counts };
-  const openedAad: string[] = [];
-  const repo = counted(new SqlExternalMcpServerRepo(counted(kernel, io.kernel)), io.repo);
-  const keyring = counted(frozenKeyring(), io.keyring);
-  const sealer = counted(frozenSealer(frozenKeyring()), io.sealer, (method, args) => {
-    if (method === "open") openedAad.push(String((args[1] as { aad?: unknown } | undefined)?.aad ?? ""));
-  });
-  const clock = frozenClock(clockIso);
-  const server = fakeOAuthServer(reply ?? (() => ({ status: 599, json: { error: "unexpected_request" } })));
-  const service = createExternalMcpOAuthService({ workspaceId: FROZEN_WORKSPACE, repo, sealer, keyring, clock,
-    devices: createDeviceAuthorizationStore(), lookupProvider: () => FROZEN_PROVIDER,
-    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => server.fetchFn(url, init) } });
-  return { io, openedAad, repo, keyring, sealer, clock, server, service, store: { repo, sealer, keyring, clock } };
-}
 
 /** A fresh SQLite file holding exactly the frozen fixture rows. */
 async function frozenDbFile(filePath: string): Promise<{ db: ContentDb; kernel: ContentKernel }> {
@@ -88,43 +41,6 @@ async function frozenDbFile(filePath: string): Promise<{ db: ContentDb; kernel: 
   return opened;
 }
 
-async function requireRecord(repo: SqlExternalMcpServerRepo, serverId: string): Promise<ExternalMcpServerRecord> {
-  const record = await repo.findByServerId({ workspaceId: FROZEN_WORKSPACE, serverId });
-  assert.ok(record, `expected the frozen row '${serverId}'`);
-  return record;
-}
-
-function vaultRow(rows: Row[], { owner, kind }: { owner: string; kind: string }): Row {
-  const row = rows.find((candidate) => candidate.owner_key === owner && candidate.kind === kind);
-  assert.ok(row, `expected the ${kind} vault row of ${owner}`);
-  return row;
-}
-
-function serverRow(rows: Row[], serverId: string): Row {
-  const row = rows.find((candidate) => candidate.server_id === serverId);
-  assert.ok(row, `expected the server row ${serverId}`);
-  return row;
-}
-
-function changedColumns(before: Row, after: Row): string[] {
-  return Object.keys(before).filter((column) => before[column] !== after[column]).sort();
-}
-
-/** Opens all three frozen credentials through the store's own read paths and checks the plaintext. */
-async function assertOpensAllThree(h: ReturnType<typeof wire>, expected: { envKey: string; accessToken: string; refreshToken: string }) {
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, FROZEN_WORKSPACE);
-  assert.deepEqual(failures, []);
-  const byId = Object.fromEntries(configs.map((config) => [config.serverId, config.target]));
-  assert.deepEqual(byId[FROZEN_SERVERS.env], { kind: "stdio", command: "npx", args: ["-y", "env-tool-mcp"],
-    env: { ...FROZEN_PLAINTEXT.envBlock, FAKE_API_KEY: expected.envKey } });
-  assert.deepEqual(byId[FROZEN_SERVERS.static], { kind: "streamable_http", url: "https://mcp.static.example.com/mcp",
-    headers: { authorization: `Bearer ${FROZEN_PLAINTEXT.staticToken}` } });
-  assert.deepEqual(byId[FROZEN_SERVERS.oauth], { kind: "stdio", command: "npx", args: ["-y", "higgs-mcp"],
-    env: { ...FROZEN_PLAINTEXT.oauthEnv, HIGGS_TOKEN: expected.accessToken } });
-  const payload = await openExternalMcpOAuthPayload(h.sealer, await requireRecord(h.repo, FROZEN_SERVERS.oauth));
-  assert.equal(payload.clientSecret, FROZEN_PLAINTEXT.clientSecret);
-  assert.equal(payload.tokens?.refreshToken, expected.refreshToken);
-}
 
 function assertNoCanary(texts: readonly string[]): void {
   for (const text of texts) for (const part of CANARY_PARTS) assert.ok(!text.includes(part), `model-facing text leaked '${part}': ${text}`);
