@@ -5,6 +5,7 @@
  * caller that already carries projections keeps its own pair (same function and error identity). */
 import { withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import {
+  deriveAgentPluginConnectionId as deriveConnectionId, isEmptyJsonList as emptyJsonList,
   planAgentPluginMcpFederation as planWithTrust, provisionAgentPluginMcpServers as provisionWithPorts,
   resolveAgentPluginMcpServers as resolveWithReads, resolveAgentPluginReadOnlyRemoteNames as readOnlyNamesWithReads,
   type AgentPluginInstalledMcpReads, type AgentPluginMcpFederationMessages, type AgentPluginMcpFederationPlan, type AgentPluginMcpTrustClassifier,
@@ -15,7 +16,7 @@ import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgent
 import type { McpServerConfig } from "./mcp-metadata.js";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
 export {
-  deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList,
+  findAgentPluginMcpServerDefaults,
   type SkippedAgentPluginMcpServer, type AgentPluginMcpTrustClassifier, type PlannedAgentPluginMcpUpsert,
   type AgentPluginMcpFederationPlan, type ProvisionAgentPluginMcpServersResult,
 } from "@jini-ai/agent-plugins/connect";
@@ -54,4 +55,13 @@ export function provisionAgentPluginMcpServers(
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
   return provisionWithPorts(withAgentPluginMcpPorts(deps), withOverrides(input, { classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages }));
+}
+
+/** Preserve the host's positional compatibility signatures; portable APIs take object arguments. */
+export function deriveAgentPluginConnectionId(serverKey: string): string | null {
+  return deriveConnectionId({ serverKey });
+}
+
+export function isEmptyJsonList(raw: string | null): boolean {
+  return emptyJsonList({ raw });
 }
