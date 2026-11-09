@@ -70,7 +70,7 @@ function acmeCopy({ log, authorizeCalls, permission, refuseUse, deny }: {
   const exchanges = fixedExchanges('pick');
   const [tool] = createCredentialCopyRegistrations({ deps: { workspaceId: 'shop-1', ownerPrincipalId: Promise.resolve('owner'),
     projectKeys: fakeProjectKeys({ log, permission: permission ?? 'acme.keys.write', refuseUse: refuseUse ?? false }),
-    authorize: async (params) => { authorizeCalls.push(params); return deny?.() ? { allowed: false, reason: 'denied' } : { allowed: true, reason: 'fixture' }; },
+    authorize: async (params) => { authorizeCalls.push({ ...params }); return deny?.() ? { allowed: false, reason: 'denied' } : { allowed: true, reason: 'fixture' }; },
     gatedMutations: { gatewayDeps: {} } }, surfaces: { surfaceExchanges: exchanges }, host: acmeCopyHost() });
   return { tool: tool!, exchanges };
 }
