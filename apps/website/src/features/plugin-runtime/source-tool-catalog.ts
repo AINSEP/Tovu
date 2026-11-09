@@ -38,4 +38,3 @@ export const pluginSourceAgentToolCatalog: AgentToolDefinition[] = [
   { name: 'plugin_source_rollback', description: 'Reinstalls the previous package’s bytes as a new patch version through the same seal/installer/reload path. Preserves active versions, the newest three releases and your unsealed draft. Fails plainly when no previous version exists. If reload quarantined the plugin, enable it after rollback.' + WORKFLOW,
     sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({}, []) },
 ];
-
