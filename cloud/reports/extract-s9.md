@@ -1,6 +1,8 @@
 # EXTRACT-S9
 
-**Continuation in progress: F1 first, then C3 → G-deploy → C4 seam → C4 move → accumulated gate. The earlier stop is superseded by the coordinator ruling below.**
+**STOPPED at the C3 gate: required F1 classification conflicts with one frozen trace assertion. F1 and the C3 move are implemented; C3 is not green. The requested one-line test allowance is unanswered. This is not a cap stop.**
+
+The input, inventory and initial-stop sections retain historical first-delivery evidence. The Continuation and closing sections below describe the current source and supersede that initial stop.
 
 The inventory below was committed before implementation. The approved R1 relocation resolves the old S8 layout conflict, but does not authorize edits to the two additional failing overlay tests.
 
@@ -272,11 +274,11 @@ Fresh detached scratch checkout at `35c4961af718f0f30591c46d2ea2756c4484a731`; f
 - Sorted declaration aggregate SHA256: `48f6d4223224dc975edfbdebf1a01a25bf12044dfd1d4f872624571266452d24`.
 - Both reverified at shutdown; the receipt includes raw final hash/count output and original HEAD/cleanliness. Every gate command inherited `JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s9/xp3-snapshot`. No snapshot regeneration.
 
-## Preservation, unrun work and delivery
+## Initial preservation, unrun work and delivery (historical)
 
-No production, existing test, fixture, pin, metadata, migration, lock, guard, checker, layer, debt or waiver file changed in either repository. No new dependency, runtime layer or package import was added. The only tracked S9 additions are this report and its gate receipt. Existing C0/golden/mail/cost/saved-state tests ran unchanged; no serialization, ciphertext, key, grant, custody or cost behavior was modified.
+At the first delivery `43fff22ff2f4188c88ef5011da5392eb96e4ebc6`, no production, existing test, fixture, pin, metadata, migration, lock, guard, checker, layer, debt or waiver file had changed in either repository. No new dependency, runtime layer or package import was added. At that first delivery, the only tracked S9 additions were the report and its initial gate receipt. Existing C0/golden/mail/cost/saved-state tests ran unchanged; no serialization, ciphertext, key, grant, custody or cost behavior was modified.
 
-R1 diffs in full: both are empty. `extract-s8-x-contracts.test.ts` remains in Tovu and passed 4/4; re-homing belongs to the unstarted C3 move. The MCP-UI completeness test is unchanged. No new second-host/vocabulary/declaration test listed in the prospective inventory was written or claimed as evidence.
+At the initial stop, R1 diffs were both empty (the later C3 relocation diffs appear in full below). `extract-s8-x-contracts.test.ts` remains in Tovu and passed 4/4; re-homing belongs to the unstarted C3 move. The MCP-UI completeness test is unchanged. No new second-host/vocabulary/declaration test listed in the prospective inventory was written or claimed as evidence.
 
 Remaining work, in order:
 
@@ -286,9 +288,9 @@ Remaining work, in order:
 4. C4 move, inventories/provenance/new tests and full accumulated gate.
 5. Independent C-d review after the work is eligible; not produced or self-approved in this session. X1/X2/X3 remain later work.
 
-Because no implementation began, new-code lint/complexity, moved emitted JS/d.ts/note inspection, mutation tests, G-deploy hashes and post-move accumulated gate were not run. Baseline builds/types do not stand in for any of those gates. No C3 or later batch passed.
+At the initial stop, because no implementation had begun, new-code lint/complexity, moved emitted JS/d.ts/note inspection, mutation tests, G-deploy hashes and post-move accumulated gate were not run. Baseline builds/types do not stand in for any of those gates. No C3 or later batch passed.
 
-Baseline-only paired source: Tovu `2c9c1a65c0c0bcf8993d6a6b774c37de94ca92aa` / Jini `46cd558de9c6b4fa882b46349450ce3bcf0a378d`. There is no fully green S9 source pair, because the required baseline itself has the additional prior drift above. Source pins have not advanced.
+Baseline-only paired source: Tovu `2c9c1a65c0c0bcf8993d6a6b774c37de94ca92aa` / Jini `46cd558de9c6b4fa882b46349450ce3bcf0a378d`. There is no fully green S9 source pair, because the required baseline itself has the additional prior drift above. Those were the unchanged source pins at the initial stop; current C3 source tips are recorded below.
 
 Initial inventory commit pushed on Tovu `cloud/extract-s9`: `0d1f39c0492bfa06ab56537ca617a0ba33fc6820`. Jini `cloud/extract-s9` was pushed and verified at `46cd558de9c6b4fa882b46349450ce3bcf0a378d`; no Jini tracked write/commit. Baseline/stop evidence commit pushed on the same branch: `60bd6711a9aa5ba98a9ff6bf6c984eaadf2acc2b`. The final closing commit is report-only and its full SHA is supplied in the final response; no later source verification is implied.
 
@@ -323,7 +325,7 @@ Proceed on the same `cloud/extract-s9` branches and original clock: start `2026-
 
 Implemented at Tovu `94c9bb85c78cc8bf7858ee40f1ba5b27cc419b46`, Jini unchanged `46cd558de9c6b4fa882b46349450ce3bcf0a378d`. The new tests reproduced the raw-address leak (17 pass /2 new fail), passed after repair (19/19), rejected the raw-message mutation (18 pass /1 fail), then passed restored (19/19). Validation keeps the canonical class and exact map-level prefix, with no schema text; non-validation objects retain identity. Approval/send/exchange counts remain zero on preflight rejection. All old four card/descriptor byte pins remain equal.
 
-The focused full affected gate is 12 files /120 cases: 116 pass, exactly the four approved baseline failures. Both overlay failures still fail at their original literal assertion; neither test nor skill changed. Strict ESLint including complexity/cognitive limits 10, the explicit amended-test type check and main Tovu tsc all exit 0. Raw commands/results are `f1-*` in the existing task logs and will be retained in continuation evidence.
+The focused F1 selection (not the full C3 gate) is 12 files /120 cases: 116 pass, exactly the four approved baseline failures. Both overlay failures still fail at their original literal assertion; neither test nor skill changed. Strict ESLint including complexity/cognitive limits 10, the explicit amended-test type check and main Tovu tsc all exit 0. Raw commands/results are `f1-*` in the existing task logs and will be retained in continuation evidence.
 
 C3 provenance is updated to this F1-fixed source SHA before the move. Its only additional value dependency is the already-existing canonical `CredentialedRequestValidationError`, resolved to Jini `integrations/src/contracts/credentialed-request-errors.ts` (relative `../../contracts/credentialed-request-errors.js` from tools), as inventoried above. The F1 comment correction is owner-requested; no unrelated rationale is changed.
 
@@ -513,3 +515,45 @@ index 000000000..5bd0a663c
 R1 allowlist diff at C3 is empty: the integrated S8 entries already exist, and are not duplicated. All four regex/name/assertion bodies in the relocation remain byte-identical.
 
 All three C3 factory regressions independently reject defaulted host input (permission, card namespace, copy id mutations), each 2 pass /1 expected fail, then restore 3/3. No mutation remains. [Continuation gate receipt](extract-s9-c-gates.json) preserves actual source pairs, raw test/guard outputs, command exits, exact comment rewordings and declaration provenance. The frozen trace allowance remains pending; no later batch is claimed.
+
+## Continuation close — C3 gate blocked, no later batch started
+
+F1's functional repair is implemented and its new regression/mutation evidence is green. The moved credential-tool code, canonical error identities, core-only contracts, required foreign host values and real emitted notes are present. C3 is **not** claimed complete: the full affected gate cannot pass while both requirements remain in force:
+
+- F1 requires the DELETE `resolveTarget` catch to call `classifyError` once before handling a validation rejection.
+- Frozen `extract-s8-c2p2c-ports.test.ts:235` requires the refused-target trace to equal only `['resolveTarget']`. The actual trace is `['resolveTarget', 'classifyError']`.
+
+Skipping or concealing the classification would undo the requested fix. Changing the expected trace is outside the explicit existing-test allowances. A coordinator allowance for that single additive expected-call update was requested, but no answer has been received. The original exact assertion remains untouched; it is not waived, hidden or counted green. This is a joint frozen-contract conflict, not an implementation failure left unfixed or a time-cap stop.
+
+The final replay ran after all source repairs, comment repairs and mutation restoration: **99 Tovu files, 1,244 cases, 1,239 pass /5 fail**, no cancellation/skip. Four failures are the explicitly known baseline failures. The fifth is the trace assertion above. Both Railway/Render tests still fail on their original line36 literal assertion, with 2/3 in each file; both tests and both skill files remain byte-identical to their supplied pins. Main/explicit T types, touched J builds/types, new second-host runtime/type/note/vocabulary tests and strict lint pass. The raw guard after repair is exactly the inherited R2/R10, unchanged HW counts/zero new; no N1/N2 finding remains. Full layer/isolation evidence remains unchanged except 579 closures for the added subpath.
+
+No G-deploy recording/fixture was created, no C4 seam or move started, no accumulated-gate success is claimed, and no C-d review or packed/full-suite proof is claimed. These are the remaining batches, in their required order. No final green post-F1 paired source exists: the last complete baseline-only matrix is at Tovu `2c9c1a65c0c0bcf8993d6a6b774c37de94ca92aa` / Jini `46cd558de9c6b4fa882b46349450ce3bcf0a378d`, with the four now-approved baseline failures. The smaller F1 selection was not proof of the complete C3 gate.
+
+Current moved source pair: Tovu `f11072b7d830654c4010c752f68d9379e14b69af` / Jini `e4c2b55681a8e8a0ab67365b0cc747a7ed84da66`. Later Tovu descendants are report-only. No lock, migration, guard, checker, layer, isolation, debt, waiver, existing golden, metadata or saved fixture changed. Existing-test edits are exactly the approved R1 relocation and the explicitly requested F1 additive cases; the pending trace assertion and both waived overlay tests/skills are unchanged.
+
+All pushed commits in this continuation (branch `cloud/extract-s9` in both repositories):
+
+### Tovu
+
+```text
+4f1d8087bc19b36a68b4ab3d835f06c704bee3e0 docs(extraction): inventory authorized F1 DELETE preflight repair
+f7d36a53c7f914adfc1dd97b4527b789bfeaccf6 test(credentials): reproduce F1 DELETE preflight message leak
+94c9bb85c78cc8bf7858ee40f1ba5b27cc419b46 fix(credentials): sanitize classified DELETE preflight validation text
+d796f7457c634950f9deff3a1b3fd9c18d1c9883 docs(extraction): record F1 gate and C3 fixed-source provenance
+f11072b7d830654c4010c752f68d9379e14b69af refactor(credentials): bind C3 tools from the public Jini subpath
+cf7c6da32f1dc5e8e756ee4938535427801b2a23 docs(extraction): preserve C3 gates and exact frozen-trace conflict
+```
+
+### Jini
+
+```text
+ed15026bdec708ea5d9061ea3e0fb9fb563fa18f feat(integrations): move credential tool closure behind injected host ports
+60ea703f53cf8c79c8b451527dd947bfdadc0a60 fix(integrations): satisfy strict host typing and hint projection lint
+e4c2b55681a8e8a0ab67365b0cc747a7ed84da66 fix(integrations): neutralize guard-rejected comments and retain provenance
+```
+
+The closing Tovu report-only SHA is supplied in the final response; both final remote refs will be verified after that push. XP3 original manifest and declaration aggregate hashes were checked again and still match the required originals; the original checkout is clean.
+
+Actual close/shutdown: `2026-11-09T18:14:47.795236+00:00`; `1.0133` elapsed hours from the original 17:14Z start, deadline still 21:14Z. All 396 recorded command parents have exits, no running exact task process group remains, and defunct entries are already exited. No test/server was left running; no broad kill or unrelated-process change occurred. Both source trees are preserved on the same branches. No brief/plan was committed. The terminal marker records this non-cap session termination, not a successful C3 or completed extraction.
+
+EXTRACT-S9-C DONE
