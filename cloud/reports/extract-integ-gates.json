@@ -1,0 +1,5591 @@
+{
+  "source_pair": {
+    "Tovu": "3fa72e29f0de96ae826eb5ef384c1e47cd74469f",
+    "Jini": "46cd558de9c6b4fa882b46349450ce3bcf0a378d"
+  },
+  "branch": "cloud/extract-integ",
+  "generated_utc": "2026-11-09T17:12:55.814824+00:00",
+  "toolchain": {
+    "node": "v24.22.1",
+    "pnpm": "10.33.2",
+    "vitest_workers": {
+      "max": 2,
+      "min": 1
+    }
+  },
+  "selection_notes": "# Integrated gate selection provenance\nS4: exact83 T-file list and six J groups from tracked a11 artifacts.\nS5: exact reconstructed219 T-file superset from final report, including14 platform/oauth+OAuth-route files beyond filename-only filtering. Integrations API, MCP hosted, OAuth full named suites.\nS8: exact56 T-files and8 integration files from final F8 section.\nS6: original f6-run.sh was never committed and is absent; reconstruct bounded named groups from report/inventory citations. T unit10 selected from directly inventoried declarations, capability, install, invocation and source-tool owners; integration7 sum to the documented61 static test declarations. Worker four named files, admin DTO exact. Composition six named plugin lifecycle/boot files; excludes unrelated commerce/forms/server tests. J worker two characterization files match54 parameterized cases; architecture args-convention2+package-surface3 match5; entry purity1. J-plugin reconstructed12 cites plugin domain/dependency invariants; does not claim recovered exact old127 list. All six S6 addition files included. Inherited nine already in union.\nSelection prepared before the runs; actual final outcomes follow.\n",
+  "tovu": {
+    "named_files": 308,
+    "separate_known_timeout_files": 1,
+    "counts": {
+      "tests": 3941,
+      "pass": 3916,
+      "fail": 22,
+      "cancelled": 1,
+      "skipped": 2,
+      "todo": 0
+    },
+    "files": [
+      {
+        "path": "apps/website/src/assistant/__tests__/custom-credential-tools-search-discoverability.test.ts",
+        "started_utc": "2026-11-09T17:06:25Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts",
+        "started_utc": "2026-11-09T17:06:31Z",
+        "exit": 1,
+        "counts": {
+          "tests": 11,
+          "pass": 8,
+          "fail": 3,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "read defaults match both normalized server identity and exact URL, never only URL",
+          "each roster read loads the current manifest; URL-only servers never receive read metadata",
+          "a read-only manifest does not enable the plugin or change grants on first sign-in"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/external-mcp-connection-source.test.ts",
+        "started_utc": "2026-11-09T17:06:34Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts",
+        "started_utc": "2026-11-09T17:06:36Z",
+        "exit": 0,
+        "counts": {
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/external-mcp-reauth-tool.test.ts",
+        "started_utc": "2026-11-09T17:06:42Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/external-mcp-roster-change.test.ts",
+        "started_utc": "2026-11-09T17:06:44Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/external-mcp-setup-search.test.ts",
+        "started_utc": "2026-11-09T17:06:44Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts",
+        "started_utc": "2026-11-09T17:06:50Z",
+        "exit": 1,
+        "counts": {
+          "tests": 10,
+          "pass": 8,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every surfaceExchanges.open(...) call names a toolId constant this scan can resolve",
+          "every allowlisted id opens an exchange or is a named carve-out"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts",
+        "started_utc": "2026-11-09T17:06:54Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts",
+        "started_utc": "2026-11-09T17:06:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts",
+        "started_utc": "2026-11-09T17:07:05Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts",
+        "started_utc": "2026-11-09T17:07:07Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/moved-tools.golden.test.ts",
+        "started_utc": "2026-11-09T17:07:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts",
+        "started_utc": "2026-11-09T17:07:17Z",
+        "exit": 0,
+        "counts": {
+          "tests": 36,
+          "pass": 36,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.custom-credentials-egress-refusal.integration.test.ts",
+        "started_utc": "2026-11-09T17:07:31Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.external-mcp.test.ts",
+        "started_utc": "2026-11-09T17:07:32Z",
+        "exit": 0,
+        "counts": {
+          "tests": 42,
+          "pass": 42,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts",
+        "started_utc": "2026-11-09T17:07:37Z",
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/contracts/core/__tests__/extract-s3-host-source.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:42Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:44Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/activation-corrupt-file-writes.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:48Z",
+        "exit": 0,
+        "counts": {
+          "tests": 19,
+          "pass": 19,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/activation-durable-write.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:50Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/activation-lock-busy.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/activation.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:56Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts",
+        "started_utc": "2026-11-09T17:07:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:01Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-catalog.pointer.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:02Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-composio-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:02Z",
+        "exit": 1,
+        "counts": {
+          "tests": 6,
+          "pass": 5,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "SKILL.md names the meta-tools the flow uses and the connection's real tool prefix"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-digests.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:16Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-actions-ops.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:18Z",
+        "exit": 1,
+        "counts": {
+          "tests": 3,
+          "pass": 2,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "the github skill routes source control/backup apart from deploying with GitHub Actions"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-activation.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:21Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-backup-push.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:23Z",
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-commit-site.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:24Z",
+        "exit": 0,
+        "counts": {
+          "tests": 59,
+          "pass": 59,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:24Z",
+        "exit": 1,
+        "counts": {
+          "tests": 21,
+          "pass": 19,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "SKILL.md distinguishes pushing app source from committing a rendered static export",
+          "site-backup.md: a site backup is plan-then-push, private-only, and never forced"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-write-files.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:25Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 19,
+          "pass": 19,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-video-docs.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:27Z",
+        "exit": 0,
+        "counts": {
+          "tests": 35,
+          "pass": 35,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch-conformance.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch-provider.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:29Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-compliance-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:31Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-import-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:32Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-software-engineering-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:34Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-source-archive.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:35Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:37Z",
+        "exit": 1,
+        "counts": {
+          "tests": 16,
+          "pass": 11,
+          "fail": 5,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "plugin.json's description tells the model to start with agent_plugin_connect",
+          "SKILL.md calls agent_plugin_connect before any Supabase tool",
+          "SKILL.md drops the old setup: no Settings trip, no restart, no chat-pasted token, no project scoping",
+          "failure-modes.md covers every failure the plan lists",
+          "SKILL.md (G3): small database changes go through execute_sql, the SQL is shown first, and the confirm card is expected"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:38Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:38Z",
+        "exit": 1,
+        "counts": {
+          "tests": 5,
+          "pass": 1,
+          "fail": 4,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "bundled ui-ux-design has a valid manifest and is on the seeded-enabled list",
+          "ui-ux-design seeds correctly for new site",
+          "ui-ux-design seeds correctly for untouched disabled seed",
+          "ui-ux-design seeds correctly for operator disabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/capability-projection.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/cards-port.generic.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-card-open-link.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-card-state.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-card-theme.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-destination-flow.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:44Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-destination.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:46Z",
+        "exit": 0,
+        "counts": {
+          "tests": 12,
+          "pass": 12,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:49Z",
+        "exit": 0,
+        "counts": {
+          "tests": 54,
+          "pass": 54,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/connection-status.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/declined-access.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/deploy-split-activation.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:56Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:57Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts",
+        "started_utc": "2026-11-09T17:08:57Z",
+        "exit": 0,
+        "counts": {
+          "tests": 30,
+          "pass": 30,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts",
+        "started_utc": "2026-11-09T17:08:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 34,
+          "pass": 34,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/grant-signed-in-defaults.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:01Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:02Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/host-signals.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 25,
+          "pass": 25,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/install-tool-sources.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:08Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/install-tool-update.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/install-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:12Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/install-upload-update.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:15Z",
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/install-upload.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/install.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:20Z",
+        "exit": 0,
+        "counts": {
+          "tests": 21,
+          "pass": 21,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/layout.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:24Z",
+        "exit": 0,
+        "counts": {
+          "tests": 16,
+          "pass": 16,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/lifecycle-binding.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 25,
+          "pass": 25,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:31Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:31Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/manifest.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:32Z",
+        "exit": 0,
+        "counts": {
+          "tests": 41,
+          "pass": 41,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/mcp-ports.error-identity.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:32Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:33Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/memory-i18n.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:34Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/memory-tools.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:34Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/new-site-agent-plugin-tokens.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:35Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:36Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/off-plugin-boundaries.regression.test.ts",
+        "started_utc": "2026-11-09T17:09:37Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/operator-locale.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:39Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/package-paths.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:39Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-credential-cards.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-bundled.test.ts",
+        "started_utc": "2026-11-09T17:09:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-export.test.ts",
+        "started_utc": "2026-11-09T17:09:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-render.test.ts",
+        "started_utc": "2026-11-09T17:09:48Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-save.test.ts",
+        "started_utc": "2026-11-09T17:09:50Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-source.test.ts",
+        "started_utc": "2026-11-09T17:09:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/plugin-enable-reload.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:53Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/portable-readers.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/provider-plugin-link.unit.test.ts",
+        "started_utc": "2026-11-09T17:09:59Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/resolve-agent-plugin-refs.real-install.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:00Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 0,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/resolve-agent-plugin-refs.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:02Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/retire-bundled.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:05Z",
+        "exit": 0,
+        "counts": {
+          "tests": 22,
+          "pass": 22,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/retired-plugin-tool-aliases.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:08Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/search.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/set-enabled.tool-access-lowering.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/supersession.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/switch-on-saved-token.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/token-sign-in.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:16Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:17Z",
+        "exit": 0,
+        "counts": {
+          "tests": 26,
+          "pass": 26,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/trusted-plugin-files.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:23Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:25Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/uninstall-confirmation-ui.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/uninstall-dwell.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/uninstall.rollback-injected.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:27Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/uninstall.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:29Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/update-effects.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:32Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:33Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/write-note-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:34Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/capabilities.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:36Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/delivery-bindings.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:36Z",
+        "exit": 0,
+        "counts": {
+          "tests": 22,
+          "pass": 22,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/forms.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:37Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/handlers.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:37Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/same-origin.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:38Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/surfaces.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:38Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/admin-action-tools.test.ts",
+        "started_utc": "2026-11-09T17:10:38Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts",
+        "started_utc": "2026-11-09T17:10:39Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.security.test.ts",
+        "started_utc": "2026-11-09T17:10:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts",
+        "started_utc": "2026-11-09T17:10:42Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/approval.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/host-capabilities.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/register.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:44Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-id-collision.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/api-connection-budgets.test.ts",
+        "started_utc": "2026-11-09T17:10:46Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts",
+        "started_utc": "2026-11-09T17:10:47Z",
+        "exit": 0,
+        "counts": {
+          "tests": 26,
+          "pass": 26,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:48Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:49Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:50Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/connect.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:50Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/contribution.fault.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/contribution.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 27,
+          "pass": 27,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/form-delivery-connection.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:53Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/host.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:56Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:56Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/shared-api.unit.test.ts",
+        "started_utc": "2026-11-09T17:10:57Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts",
+        "started_utc": "2026-11-09T17:10:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts",
+        "started_utc": "2026-11-09T17:11:06Z",
+        "exit": 0,
+        "counts": {
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:08Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/surface-connections.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts",
+        "started_utc": "2026-11-09T17:11:11Z",
+        "exit": 1,
+        "counts": {
+          "tests": 2,
+          "pass": 1,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "no generic seam file names the first provider"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/auth-failure-diagnostic.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 27,
+          "pass": 27,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/auth-schemes.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:12Z",
+        "exit": 0,
+        "counts": {
+          "tests": 21,
+          "pass": 21,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/create-agent-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:15Z",
+        "exit": 0,
+        "counts": {
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/credential-copy-tool.test.ts",
+        "started_utc": "2026-11-09T17:11:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/credential-recovery.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/credential-save-probe.test.ts",
+        "started_utc": "2026-11-09T17:11:19Z",
+        "exit": 0,
+        "counts": {
+          "tests": 22,
+          "pass": 22,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/credential-save-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:21Z",
+        "exit": 0,
+        "counts": {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/credential-works-for-form.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:22Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/credentialed-request.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:22Z",
+        "exit": 0,
+        "counts": {
+          "tests": 63,
+          "pass": 63,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts",
+        "started_utc": "2026-11-09T17:11:23Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-second-host.test.ts",
+        "started_utc": "2026-11-09T17:11:23Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-source-scan.test.ts",
+        "started_utc": "2026-11-09T17:11:24Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p1-credential-ports.test.ts",
+        "started_utc": "2026-11-09T17:11:24Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts",
+        "started_utc": "2026-11-09T17:11:25Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts",
+        "started_utc": "2026-11-09T17:11:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts",
+        "started_utc": "2026-11-09T17:11:27Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts",
+        "started_utc": "2026-11-09T17:11:31Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts",
+        "started_utc": "2026-11-09T17:11:32Z",
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts",
+        "started_utc": "2026-11-09T17:11:33Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/list-agent-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:34Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts",
+        "started_utc": "2026-11-09T17:11:35Z",
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/project-scope.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:39Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/resolve-by-label.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 71,
+          "pass": 71,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 26,
+          "pass": 26,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts",
+        "started_utc": "2026-11-09T17:11:44Z",
+        "exit": 0,
+        "counts": {
+          "tests": 12,
+          "pass": 12,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts",
+        "started_utc": "2026-11-09T17:11:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/update-username.unit.test.ts",
+        "started_utc": "2026-11-09T16:57:38Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/vault-repo.tw4.unit.test.ts",
+        "started_utc": "2026-11-09T16:57:39Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/write-files-confirmation.test.ts",
+        "started_utc": "2026-11-09T16:57:40Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/write-files-network-failure.model-facing.test.ts",
+        "started_utc": "2026-11-09T16:57:41Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/write-files-validation.unit.test.ts",
+        "started_utc": "2026-11-09T16:57:42Z",
+        "exit": 0,
+        "counts": {
+          "tests": 50,
+          "pass": 50,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/access-grants.contract.test.ts",
+        "started_utc": "2026-11-09T16:57:43Z",
+        "exit": 0,
+        "counts": {
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/access-save.integration.test.ts",
+        "started_utc": "2026-11-09T16:57:54Z",
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts",
+        "started_utc": "2026-11-09T16:57:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-aad.test.ts",
+        "started_utc": "2026-11-09T16:57:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-connection-revocation.test.ts",
+        "started_utc": "2026-11-09T16:57:56Z",
+        "exit": 0,
+        "counts": {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-dcr.test.ts",
+        "started_utc": "2026-11-09T16:57:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 36,
+          "pass": 36,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.test.ts",
+        "started_utc": "2026-11-09T16:57:59Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-oauth.test.ts",
+        "started_utc": "2026-11-09T16:58:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-payload-version.test.ts",
+        "started_utc": "2026-11-09T16:58:04Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-revocation.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:05Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts",
+        "started_utc": "2026-11-09T16:58:05Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-store.memory.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:06Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-store.test.ts",
+        "started_utc": "2026-11-09T16:58:07Z",
+        "exit": 0,
+        "counts": {
+          "tests": 92,
+          "pass": 92,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/external-mcp-vault.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:08Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts",
+        "started_utc": "2026-11-09T16:58:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-projections.test.ts",
+        "started_utc": "2026-11-09T16:58:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-type-pins.test.ts",
+        "started_utc": "2026-11-09T16:58:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1b/hosted-store-seams.test.ts",
+        "started_utc": "2026-11-09T16:58:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h2b/connection-gate-seam.test.ts",
+        "started_utc": "2026-11-09T16:58:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h2c/sign-in-ports.test.ts",
+        "started_utc": "2026-11-09T16:58:12Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h3/moved-shims.test.ts",
+        "started_utc": "2026-11-09T16:58:13Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/unit/auth-mode.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/unit/built-in-connections.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:15Z",
+        "exit": 0,
+        "counts": {
+          "tests": 19,
+          "pass": 19,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/unit/save-form.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:16Z",
+        "exit": 0,
+        "counts": {
+          "tests": 40,
+          "pass": 40,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/unit/static-token-setup.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:17Z",
+        "exit": 0,
+        "counts": {
+          "tests": 36,
+          "pass": 36,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts",
+        "started_utc": "2026-11-09T16:58:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts",
+        "started_utc": "2026-11-09T16:58:19Z",
+        "exit": 0,
+        "counts": {
+          "tests": 24,
+          "pass": 24,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts",
+        "started_utc": "2026-11-09T16:58:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts",
+        "started_utc": "2026-11-09T16:58:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts",
+        "started_utc": "2026-11-09T16:58:35Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts",
+        "started_utc": "2026-11-09T16:58:36Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts",
+        "started_utc": "2026-11-09T16:59:00Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts",
+        "started_utc": "2026-11-09T16:59:02Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts",
+        "started_utc": "2026-11-09T16:59:06Z",
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:07Z",
+        "exit": 0,
+        "counts": {
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 25,
+          "pass": 25,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts",
+        "started_utc": "2026-11-09T16:59:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:15Z",
+        "exit": 0,
+        "counts": {
+          "tests": 52,
+          "pass": 52,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:19Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:20Z",
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:26Z",
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/project-keys/__tests__/attached-vault.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/project-keys/__tests__/shared-oauth-disconnect.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:29Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/project-keys/__tests__/tools.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:29Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts",
+        "started_utc": "2026-11-09T16:59:30Z",
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/source-control/__tests__/provider-registry.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:56Z",
+        "exit": 0,
+        "counts": {
+          "tests": 16,
+          "pass": 16,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/source-control/__tests__/repository-target.unit.test.ts",
+        "started_utc": "2026-11-09T16:59:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts",
+        "started_utc": "2026-11-09T16:59:59Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts",
+        "started_utc": "2026-11-09T17:00:08Z",
+        "exit": 0,
+        "counts": {
+          "tests": 33,
+          "pass": 33,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/db/__tests__/oauth-pending-store.sqlite.test.ts",
+        "started_utc": "2026-11-09T17:00:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/db/migrations/__tests__/vault-api-connection-kind.test.ts",
+        "started_utc": "2026-11-09T17:00:31Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/db/repos/__tests__/external-mcp-repo.test.ts",
+        "started_utc": "2026-11-09T17:00:37Z",
+        "exit": 0,
+        "counts": {
+          "tests": 62,
+          "pass": 62,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/db/repos/__tests__/external-mcp-tool-approval-repo.test.ts",
+        "started_utc": "2026-11-09T17:00:57Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/db/repos/__tests__/oauth-pending-store.test.ts",
+        "started_utc": "2026-11-09T17:01:04Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/mail/__tests__/unit/purpose-scoped-mailer.unit.test.ts",
+        "started_utc": "2026-11-09T17:01:10Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/authorization-code.test.ts",
+        "started_utc": "2026-11-09T17:01:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 29,
+          "pass": 29,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/device-code.test.ts",
+        "started_utc": "2026-11-09T17:01:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 26,
+          "pass": 26,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/discovery.test.ts",
+        "started_utc": "2026-11-09T17:01:12Z",
+        "exit": 0,
+        "counts": {
+          "tests": 34,
+          "pass": 34,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/dynamic-registration.test.ts",
+        "started_utc": "2026-11-09T17:01:13Z",
+        "exit": 0,
+        "counts": {
+          "tests": 19,
+          "pass": 19,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/endpoint-safety-adapter.test.ts",
+        "started_utc": "2026-11-09T17:01:13Z",
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/endpoint-safety.test.ts",
+        "started_utc": "2026-11-09T17:01:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 21,
+          "pass": 21,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/legacy-endpoint-error.test.ts",
+        "started_utc": "2026-11-09T17:01:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/pkce-and-state.test.ts",
+        "started_utc": "2026-11-09T17:01:15Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/providers.test.ts",
+        "started_utc": "2026-11-09T17:01:15Z",
+        "exit": 0,
+        "counts": {
+          "tests": 16,
+          "pass": 16,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/token-endpoint.test.ts",
+        "started_utc": "2026-11-09T17:01:16Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/token-refresh.test.ts",
+        "started_utc": "2026-11-09T17:01:17Z",
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts",
+        "started_utc": "2026-11-09T17:01:17Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/secrets/__tests__/store-vault-guards.unit.test.ts",
+        "started_utc": "2026-11-09T17:01:18Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/secrets/__tests__/vault-kinds.unit.test.ts",
+        "started_utc": "2026-11-09T17:01:19Z",
+        "exit": 0,
+        "counts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/platform/secrets/__tests__/vault-meta-rules.unit.test.ts",
+        "started_utc": "2026-11-09T17:01:19Z",
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/__tests__/admin-external-mcp-admissions-routes.test.ts",
+        "started_utc": "2026-11-09T17:01:20Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts",
+        "started_utc": "2026-11-09T17:01:28Z",
+        "exit": 0,
+        "counts": {
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/__tests__/admin-external-mcp-probe-routes.test.ts",
+        "started_utc": "2026-11-09T17:01:42Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/__tests__/admin-external-mcp-routes.test.ts",
+        "started_utc": "2026-11-09T17:01:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 21,
+          "pass": 21,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/__tests__/admin-external-mcp-tool-approvals-routes.test.ts",
+        "started_utc": "2026-11-09T17:02:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/admin-http/http/__tests__/unit/plugins-dto.unit.test.ts",
+        "started_utc": "2026-11-09T17:02:11Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/built-in-connection.test.ts",
+        "started_utc": "2026-11-09T17:02:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts",
+        "started_utc": "2026-11-09T17:02:29Z",
+        "exit": 0,
+        "counts": {
+          "tests": 57,
+          "pass": 57,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/oauth-error-mapping.test.ts",
+        "started_utc": "2026-11-09T17:02:53Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/public-http/routes/api-connections/__tests__/oauth-callback.unit.test.ts",
+        "started_utc": "2026-11-09T17:03:01Z",
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/public-http/routes/external-mcp/__tests__/oauth-callback.test.ts",
+        "started_utc": "2026-11-09T17:03:02Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/public-http/routes/oauth/__tests__/callback-page.test.ts",
+        "started_utc": "2026-11-09T17:03:05Z",
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/inbound/public-http/routes/oauth/__tests__/public-origin.test.ts",
+        "started_utc": "2026-11-09T17:03:06Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts",
+        "started_utc": "2026-11-09T17:03:06Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts",
+        "started_utc": "2026-11-09T17:03:07Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/agent-daemon-deps.plugin-activation-poll.test.ts",
+        "started_utc": "2026-11-09T17:03:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts",
+        "started_utc": "2026-11-09T17:03:09Z",
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts",
+        "started_utc": "2026-11-09T17:03:13Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts",
+        "started_utc": "2026-11-09T17:03:14Z",
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/declared-content-types-wiring.integration.test.ts",
+        "started_utc": "2026-11-09T17:03:17Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts",
+        "started_utc": "2026-11-09T17:03:25Z",
+        "exit": 1,
+        "counts": {
+          "tests": 7,
+          "pass": 6,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts",
+        "started_utc": "2026-11-09T17:03:35Z",
+        "exit": 1,
+        "counts": {
+          "tests": 3,
+          "pass": 2,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts",
+        "started_utc": "2026-11-09T17:03:39Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.preview-port.test.ts",
+        "started_utc": "2026-11-09T17:03:45Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts",
+        "started_utc": "2026-11-09T17:03:47Z",
+        "exit": 1,
+        "counts": {
+          "tests": 25,
+          "pass": 24,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every bundled agent and site package declares a distinct publisher identity and discovery terms"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts",
+        "started_utc": "2026-11-09T17:03:51Z",
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts",
+        "started_utc": "2026-11-09T17:03:52Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.provider-plugins.test.ts",
+        "started_utc": "2026-11-09T17:03:53Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts",
+        "started_utc": "2026-11-09T17:03:54Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts",
+        "started_utc": "2026-11-09T17:03:54Z",
+        "exit": 0,
+        "counts": {
+          "tests": 12,
+          "pass": 12,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/site-saved-keys.integration.test.ts",
+        "started_utc": "2026-11-09T17:03:55Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/vault-plugin-state.integration.test.ts",
+        "started_utc": "2026-11-09T17:03:58Z",
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/vault-unified-credentials.integration.test.ts",
+        "started_utc": "2026-11-09T17:04:05Z",
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+        "started_utc": "2026-11-09T17:04:22Z",
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/plugin-tier2/__tests__/run-in-worker.unit.test.ts",
+        "started_utc": "2026-11-09T17:04:36Z",
+        "exit": 0,
+        "counts": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/plugin-tier2/__tests__/tier2-runtime.integration.test.ts",
+        "started_utc": "2026-11-09T17:04:37Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/plugin-tier2/__tests__/typescript-bootstrap.unit.test.ts",
+        "started_utc": "2026-11-09T17:05:02Z",
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/plugin-tier2/__tests__/worker.unit.test.ts",
+        "started_utc": "2026-11-09T17:05:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/services/__tests__/external-mcp-admissions.observability.unit.test.ts",
+        "started_utc": "2026-11-09T17:05:03Z",
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/server/runtime/services/__tests__/external-mcp-operations.unit.test.ts",
+        "started_utc": "2026-11-09T17:05:04Z",
+        "exit": 0,
+        "counts": {
+          "tests": 61,
+          "pass": 61,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": []
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts",
+        "started_utc": "2026-11-09T17:05:08Z",
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 1,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "a declined enable remains a choice when a seeded-off plugin signs in later"
+        ],
+        "native_timeout_seconds": 60
+      }
+    ],
+    "common_invocation": "TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 <file>"
+  },
+  "jini": {
+    "groups": [
+      {
+        "name": "j-scripts",
+        "package": null,
+        "selected_paths": [
+          "scripts/__tests__/check-no-cross-package.test.ts",
+          "scripts/__tests__/extract-s3-checker.test.ts",
+          "scripts/__tests__/extract-s3-source-contracts.test.ts",
+          "scripts/__tests__/extract-s4-import-equals.test.ts"
+        ],
+        "file_runs": 4,
+        "tests": 76,
+        "exit": 0
+      },
+      {
+        "name": "j-agent-plugins",
+        "package": "@jini-ai/agent-plugins",
+        "selected_paths": [
+          "src/admin-surfaces/__tests__/surface-capabilities.unit.test.ts",
+          "src/admin-surfaces/__tests__/surface-capabilities.security.test.ts",
+          "src/admin-surfaces/__tests__/action-tools.unit.test.ts",
+          "src/admin-surfaces/__tests__/issued-token-memory.security.test.ts",
+          "src/admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts",
+          "src/lifecycle/mail/__tests__/adapter-descriptors.test.ts",
+          "src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts"
+        ],
+        "file_runs": 7,
+        "tests": 100,
+        "exit": 0
+      },
+      {
+        "name": "j-platform",
+        "package": "@jini-ai/platform",
+        "selected_paths": [
+          "src/mail/__tests__/provider-setup.test.ts"
+        ],
+        "file_runs": 1,
+        "tests": 3,
+        "exit": 0
+      },
+      {
+        "name": "j-ui",
+        "package": "@jini-ai/ui",
+        "selected_paths": [
+          "src/features/mcp-ui/__tests__/credential-card.unit.test.ts"
+        ],
+        "file_runs": 1,
+        "tests": 2,
+        "exit": 0
+      },
+      {
+        "name": "j-neutral-host",
+        "package": "@jini-example/neutral-host",
+        "selected_paths": [
+          "src/provider-status.test.ts",
+          "src/contribution-contracts.test.ts",
+          "src/mail-host.test.ts",
+          "src/api-host-moves.test.ts",
+          "src/executable-surface-entries.test.ts",
+          "src/connect-plugin-host.test.ts"
+        ],
+        "file_runs": 6,
+        "tests": 37,
+        "exit": 0
+      },
+      {
+        "name": "j-integrations-api",
+        "package": "@jini-ai/integrations",
+        "selected_paths": [
+          "src/api-connections"
+        ],
+        "file_runs": 24,
+        "tests": 385,
+        "exit": 0
+      },
+      {
+        "name": "j-mcp-hosted",
+        "package": "@jini-ai/mcp",
+        "selected_paths": [
+          "src/federation/hosted"
+        ],
+        "file_runs": 2,
+        "tests": 7,
+        "exit": 0
+      },
+      {
+        "name": "j-oauth",
+        "package": "@jini-ai/oauth",
+        "selected_paths": [],
+        "file_runs": 42,
+        "tests": 755,
+        "exit": 0
+      },
+      {
+        "name": "j-integrations-credentials",
+        "package": "@jini-ai/integrations",
+        "selected_paths": [
+          "src/credentialed-http/__tests__/auth-failure-diagnostic.unit.test.ts",
+          "src/credentialed-http/__tests__/auth-schemes.unit.test.ts",
+          "src/credentialed-http/__tests__/credential-probe.unit.test.ts",
+          "src/credentialed-http/__tests__/credentialed-request.unit.test.ts",
+          "src/credentialed-http/__tests__/ports.contract.test.ts",
+          "src/credentialed-http/__tests__/response-redaction.unit.test.ts",
+          "src/__tests__/package-surface.test.ts",
+          "src/credentialed-http/sets/__tests__/extract-s8-sets.unit.test.ts"
+        ],
+        "file_runs": 8,
+        "tests": 217,
+        "exit": 0
+      },
+      {
+        "name": "j-neutral-additional",
+        "package": "@jini-example/neutral-host",
+        "selected_paths": [
+          "src/hosted-mcp-sign-in.test.ts",
+          "src/credential-sets.test.ts"
+        ],
+        "file_runs": 2,
+        "tests": 3,
+        "exit": 0
+      },
+      {
+        "name": "j-s6-new",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/l1c1.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/runtime-core.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts"
+        ],
+        "file_runs": 6,
+        "tests": 31,
+        "exit": 0
+      },
+      {
+        "name": "j-s6-entry",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/__tests__/host-entry-purity.test.ts"
+        ],
+        "file_runs": 1,
+        "tests": 1,
+        "exit": 0
+      },
+      {
+        "name": "j-s6-worker",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/worker/__tests__/protocol.l237.characterization.test.ts",
+          "src/host/worker/__tests__/run-call.l237.characterization.test.ts"
+        ],
+        "file_runs": 2,
+        "tests": 54,
+        "exit": 0
+      },
+      {
+        "name": "j-s6-architecture",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/__tests__/args-convention.contract.test.ts",
+          "src/__tests__/package-surface.integration.test.ts"
+        ],
+        "file_runs": 2,
+        "tests": 5,
+        "exit": 0
+      },
+      {
+        "name": "j-s6-plugin-reconstructed",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/__tests__/unit/activation.unit.test.ts",
+          "src/host/__tests__/unit/declarative-enable.unit.test.ts",
+          "src/host/__tests__/unit/manifest.unit.test.ts",
+          "src/host/__tests__/unit/plugin-claims.unit.test.ts",
+          "src/host/__tests__/unit/claim-conflicts.unit.test.ts",
+          "src/host/__tests__/unit/loader.unit.test.ts",
+          "src/host/__tests__/unit/discovery.unit.test.ts",
+          "src/host/__tests__/unit/contributions.unit.test.ts",
+          "src/host/__tests__/unit/hook-registry-preview.unit.test.ts",
+          "src/host/__tests__/unit/quarantine.unit.test.ts",
+          "src/host/__tests__/unit/bundled-initialization.test.ts",
+          "src/host/__tests__/unit/provider-contributions.unit.test.ts"
+        ],
+        "file_runs": 12,
+        "tests": 151,
+        "exit": 0
+      },
+      {
+        "name": "j-integ-regressions",
+        "package": "@jini-ai/agent-plugins",
+        "selected_paths": [
+          "src/connect/__tests__/grant-repair.unit.test.ts",
+          "src/connect/__tests__/federation-object-args.unit.test.ts",
+          "src/connect/__tests__/relative-imports.unit.test.ts"
+        ],
+        "file_runs": 3,
+        "tests": 5,
+        "exit": 0
+      }
+    ],
+    "tests": 1832,
+    "file_runs": 123,
+    "common_invocation": "pnpm --filter <pkg> exec vitest run <files> --maxWorkers=2 --minWorkers=1"
+  },
+  "other_gate_exits": {
+    "j-core-build": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:46Z",
+      "seconds": 8.11,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/core",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-oauth-build": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:54Z",
+      "seconds": 2.33,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/oauth",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-s6-smoke": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:57Z",
+      "seconds": 0.23,
+      "command": [
+        "node",
+        "/workspace/work/extract-integ/s6-smoke.mjs"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-xp": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:57Z",
+      "seconds": 12.65,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "check:cross-package"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-production-lint": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:57Z",
+      "seconds": 15.3,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "exec",
+        "eslint",
+        "packages/agent-plugins/src/admin-surfaces/index.ts",
+        "packages/agent-plugins/src/connect/access-token-tool.ts",
+        "packages/agent-plugins/src/connect/apply-connect-defaults.ts",
+        "packages/agent-plugins/src/connect/apply-tool-renames.ts",
+        "packages/agent-plugins/src/connect/connect-card-ui.ts",
+        "packages/agent-plugins/src/connect/connect-destination.ts",
+        "packages/agent-plugins/src/connect/connect-sign-in-wait.ts",
+        "packages/agent-plugins/src/connect/connect-tool.ts",
+        "packages/agent-plugins/src/connect/connection-status.ts",
+        "packages/agent-plugins/src/connect/enable-access.ts",
+        "packages/agent-plugins/src/connect/executable/approval.ts",
+        "packages/agent-plugins/src/connect/executable/host-capabilities.ts",
+        "packages/agent-plugins/src/connect/executable/ports.ts",
+        "packages/agent-plugins/src/connect/executable/register.ts",
+        "packages/agent-plugins/src/connect/federate-mcp.ts",
+        "packages/agent-plugins/src/connect/grant-signed-in-defaults.ts",
+        "packages/agent-plugins/src/connect/import-access-token.ts",
+        "packages/agent-plugins/src/connect/index.ts",
+        "packages/agent-plugins/src/connect/plugin-host/index.ts",
+        "packages/agent-plugins/src/connect/ports.ts",
+        "packages/agent-plugins/src/connect/switch-on-saved-token.ts",
+        "packages/agent-plugins/src/connect/token-sign-in.ts",
+        "packages/agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts",
+        "packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts",
+        "packages/core/src/contracts/credentials.ts",
+        "packages/core/src/contracts/hosted-mcp.ts",
+        "packages/core/src/contracts/hosted-mcp/config.ts",
+        "packages/core/src/contracts/hosted-mcp/record.ts",
+        "packages/core/src/contracts/hosted-mcp/vocabulary.ts",
+        "packages/core/src/contracts/oauth.ts",
+        "packages/core/src/contracts/oauth/flow.ts",
+        "packages/integrations/src/api-connections/access-token.ts",
+        "packages/integrations/src/api-connections/attempt-state.ts",
+        "packages/integrations/src/api-connections/authorization.ts",
+        "packages/integrations/src/api-connections/byo-client.ts",
+        "packages/integrations/src/api-connections/deps.ts",
+        "packages/integrations/src/api-connections/descriptor.ts",
+        "packages/integrations/src/api-connections/finish-authorization.ts",
+        "packages/integrations/src/api-connections/hook-http.ts",
+        "packages/integrations/src/api-connections/host-ports.ts",
+        "packages/integrations/src/api-connections/host.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/contracts.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/index.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/sign-in.ts",
+        "packages/integrations/src/api-connections/hosted-sign-in.ts",
+        "packages/integrations/src/api-connections/index.ts",
+        "packages/integrations/src/api-connections/install-credential.ts",
+        "packages/integrations/src/api-connections/oauth-capabilities.ts",
+        "packages/integrations/src/api-connections/ports.ts",
+        "packages/integrations/src/api-connections/request-checks.ts",
+        "packages/integrations/src/api-connections/token-store/record.ts",
+        "packages/integrations/src/api-connections/token-store/vault-token-store.ts",
+        "packages/integrations/src/credentialed-http/sets/host.ts",
+        "packages/integrations/src/credentialed-http/sets/index.ts",
+        "packages/integrations/src/credentialed-http/sets/store.ts",
+        "packages/integrations/src/credentialed-http/sets/vault-repo.ts",
+        "packages/mcp/src/federation/adapter.http.ts",
+        "packages/mcp/src/federation/config.ts",
+        "packages/mcp/src/federation/hosted/access.ts",
+        "packages/mcp/src/federation/hosted/auth.ts",
+        "packages/mcp/src/federation/hosted/connection-gate.ts",
+        "packages/mcp/src/federation/hosted/index.ts",
+        "packages/mcp/src/federation/hosted/projections.ts",
+        "packages/mcp/src/federation/hosted/revocation.ts",
+        "packages/mcp/src/federation/hosted/store-ports.ts",
+        "packages/mcp/src/federation/hosted/store.memory.ts",
+        "packages/mcp/src/federation/hosted/store.ts",
+        "packages/mcp/src/federation/hosted/unconfigured-error.ts",
+        "packages/mcp/src/federation/hosted/validation-error.ts",
+        "packages/mcp/src/federation/hosted/vault.ts",
+        "packages/mcp/src/federation/hosted/vocabulary.ts",
+        "packages/oauth/src/args.ts",
+        "packages/oauth/src/authorization-code.ts",
+        "packages/oauth/src/device-code.ts",
+        "packages/oauth/src/discovery-policy.ts",
+        "packages/oauth/src/discovery.ts",
+        "packages/oauth/src/flow-operations.ts",
+        "packages/oauth/src/index.ts",
+        "packages/oauth/src/messages.ts",
+        "packages/oauth/src/pending-authorizations.ts",
+        "packages/oauth/src/refresh.ts",
+        "packages/oauth/src/registration.ts",
+        "packages/oauth/src/registry.ts",
+        "packages/oauth/src/sealed-state.ts",
+        "packages/oauth/src/token-endpoint.ts",
+        "packages/oauth/tests/registration-error-redaction.test.ts",
+        "packages/oauth/tests/token-endpoint.test.ts",
+        "packages/oauth/tests/token-error-redaction.test.ts",
+        "packages/plugins/src/host/admin-response.ts",
+        "packages/plugins/src/host/capability-tools.ts",
+        "packages/plugins/src/host/declarative-content-types.ts",
+        "packages/plugins/src/host/index.ts",
+        "packages/plugins/src/host/node/archive-policy.ts",
+        "packages/plugins/src/host/node/index.ts",
+        "packages/plugins/src/host/node/invocation-binding.ts",
+        "packages/plugins/src/host/node/runtime-core.ts",
+        "packages/plugins/src/host/worker/index.ts",
+        "packages/plugins/src/host/worker/start.ts"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-core-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:57Z",
+      "seconds": 17.44,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/core",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-oauth-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:14Z",
+      "seconds": 7.91,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/oauth",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-mcp-build": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:46:56Z",
+      "seconds": 27.25,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/mcp",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-production-strict": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:12Z",
+      "seconds": 22.5,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "exec",
+        "eslint",
+        "--no-inline-config",
+        "--rule",
+        "{\"complexity\": [\"error\", 10], \"sonarjs/cognitive-complexity\": [\"error\", 10]}",
+        "packages/agent-plugins/src/admin-surfaces/index.ts",
+        "packages/agent-plugins/src/connect/access-token-tool.ts",
+        "packages/agent-plugins/src/connect/apply-connect-defaults.ts",
+        "packages/agent-plugins/src/connect/apply-tool-renames.ts",
+        "packages/agent-plugins/src/connect/connect-card-ui.ts",
+        "packages/agent-plugins/src/connect/connect-destination.ts",
+        "packages/agent-plugins/src/connect/connect-sign-in-wait.ts",
+        "packages/agent-plugins/src/connect/connect-tool.ts",
+        "packages/agent-plugins/src/connect/connection-status.ts",
+        "packages/agent-plugins/src/connect/enable-access.ts",
+        "packages/agent-plugins/src/connect/executable/approval.ts",
+        "packages/agent-plugins/src/connect/executable/host-capabilities.ts",
+        "packages/agent-plugins/src/connect/executable/ports.ts",
+        "packages/agent-plugins/src/connect/executable/register.ts",
+        "packages/agent-plugins/src/connect/federate-mcp.ts",
+        "packages/agent-plugins/src/connect/grant-signed-in-defaults.ts",
+        "packages/agent-plugins/src/connect/import-access-token.ts",
+        "packages/agent-plugins/src/connect/index.ts",
+        "packages/agent-plugins/src/connect/plugin-host/index.ts",
+        "packages/agent-plugins/src/connect/ports.ts",
+        "packages/agent-plugins/src/connect/switch-on-saved-token.ts",
+        "packages/agent-plugins/src/connect/token-sign-in.ts",
+        "packages/agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts",
+        "packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts",
+        "packages/core/src/contracts/hosted-mcp.ts",
+        "packages/core/src/contracts/hosted-mcp/config.ts",
+        "packages/core/src/contracts/hosted-mcp/record.ts",
+        "packages/core/src/contracts/hosted-mcp/vocabulary.ts",
+        "packages/integrations/src/api-connections/byo-client.ts",
+        "packages/integrations/src/api-connections/hook-http.ts",
+        "packages/integrations/src/api-connections/host-ports.ts",
+        "packages/integrations/src/api-connections/host.ts",
+        "packages/core/src/contracts/oauth.ts",
+        "packages/core/src/contracts/oauth/flow.ts",
+        "packages/integrations/src/api-connections/access-token.ts",
+        "packages/integrations/src/api-connections/attempt-state.ts",
+        "packages/integrations/src/api-connections/authorization.ts",
+        "packages/integrations/src/api-connections/deps.ts",
+        "packages/integrations/src/api-connections/descriptor.ts",
+        "packages/integrations/src/api-connections/finish-authorization.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/contracts.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/index.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts",
+        "packages/integrations/src/api-connections/hosted-mcp/sign-in.ts",
+        "packages/integrations/src/api-connections/hosted-sign-in.ts",
+        "packages/integrations/src/api-connections/index.ts",
+        "packages/integrations/src/api-connections/install-credential.ts",
+        "packages/integrations/src/api-connections/oauth-capabilities.ts",
+        "packages/integrations/src/api-connections/ports.ts",
+        "packages/integrations/src/api-connections/request-checks.ts",
+        "packages/integrations/src/api-connections/token-store/record.ts",
+        "packages/integrations/src/api-connections/token-store/vault-token-store.ts",
+        "packages/mcp/src/federation/adapter.http.ts",
+        "packages/mcp/src/federation/config.ts",
+        "packages/mcp/src/federation/hosted/access.ts",
+        "packages/mcp/src/federation/hosted/auth.ts",
+        "packages/mcp/src/federation/hosted/connection-gate.ts",
+        "packages/mcp/src/federation/hosted/index.ts",
+        "packages/mcp/src/federation/hosted/projections.ts",
+        "packages/mcp/src/federation/hosted/revocation.ts",
+        "packages/mcp/src/federation/hosted/store-ports.ts",
+        "packages/mcp/src/federation/hosted/store.memory.ts",
+        "packages/mcp/src/federation/hosted/store.ts",
+        "packages/mcp/src/federation/hosted/unconfigured-error.ts",
+        "packages/mcp/src/federation/hosted/validation-error.ts",
+        "packages/mcp/src/federation/hosted/vault.ts",
+        "packages/mcp/src/federation/hosted/vocabulary.ts",
+        "packages/oauth/src/args.ts",
+        "packages/oauth/src/authorization-code.ts",
+        "packages/oauth/src/device-code.ts",
+        "packages/oauth/src/discovery-policy.ts",
+        "packages/oauth/src/discovery.ts",
+        "packages/oauth/src/flow-operations.ts",
+        "packages/oauth/src/index.ts",
+        "packages/oauth/src/messages.ts",
+        "packages/oauth/src/pending-authorizations.ts",
+        "packages/oauth/src/refresh.ts",
+        "packages/oauth/src/registration.ts",
+        "packages/oauth/src/registry.ts",
+        "packages/oauth/src/sealed-state.ts",
+        "packages/oauth/src/token-endpoint.ts",
+        "packages/oauth/tests/token-endpoint.test.ts",
+        "packages/oauth/tests/token-error-redaction.test.ts",
+        "packages/plugins/src/host/admin-response.ts",
+        "packages/plugins/src/host/capability-tools.ts",
+        "packages/plugins/src/host/declarative-content-types.ts",
+        "packages/plugins/src/host/index.ts",
+        "packages/plugins/src/host/node/archive-policy.ts",
+        "packages/plugins/src/host/node/index.ts",
+        "packages/plugins/src/host/node/invocation-binding.ts",
+        "packages/plugins/src/host/node/runtime-core.ts",
+        "packages/plugins/src/host/worker/index.ts",
+        "packages/plugins/src/host/worker/start.ts"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-mcp-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:22Z",
+      "seconds": 20.3,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/mcp",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-integrations-build": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:24Z",
+      "seconds": 20.05,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/integrations",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "t-production-lint": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:35Z",
+      "seconds": 20.65,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "exec",
+        "eslint",
+        "--no-inline-config",
+        "--rule",
+        "{\"complexity\": [\"error\", 10], \"sonarjs/cognitive-complexity\": [\"error\", 10]}",
+        "apps/website/src/contracts/core/external-mcp-access.ts",
+        "apps/website/src/contracts/core/external-mcp-auth.ts",
+        "apps/website/src/features/agent-plugins/access-token-tool.ts",
+        "apps/website/src/features/agent-plugins/apply-connect-defaults.ts",
+        "apps/website/src/features/agent-plugins/apply-tool-renames.ts",
+        "apps/website/src/features/agent-plugins/card-host-bindings.ts",
+        "apps/website/src/features/agent-plugins/connect-card-ui.ts",
+        "apps/website/src/features/agent-plugins/connect-destination.ts",
+        "apps/website/src/features/agent-plugins/connect-sign-in-wait.ts",
+        "apps/website/src/features/agent-plugins/connect-tool.ts",
+        "apps/website/src/features/agent-plugins/connection-status.ts",
+        "apps/website/src/features/agent-plugins/enable-access.ts",
+        "apps/website/src/features/agent-plugins/executable-tools/approval-bindings.ts",
+        "apps/website/src/features/agent-plugins/executable-tools/approval.ts",
+        "apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts",
+        "apps/website/src/features/agent-plugins/executable-tools/register.ts",
+        "apps/website/src/features/agent-plugins/federate-mcp.ts",
+        "apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts",
+        "apps/website/src/features/agent-plugins/import-access-token.ts",
+        "apps/website/src/features/agent-plugins/mcp-host-bindings.ts",
+        "apps/website/src/features/agent-plugins/service-ports.ts",
+        "apps/website/src/features/agent-plugins/switch-on-saved-token.ts",
+        "apps/website/src/features/agent-plugins/token-sign-in.ts",
+        "apps/website/src/features/api-connections/browser-binding.ts",
+        "apps/website/src/features/api-connections/byo-client.ts",
+        "apps/website/src/features/api-connections/connect.ts",
+        "apps/website/src/features/api-connections/contribution.ts",
+        "apps/website/src/features/api-connections/host-bindings.ts",
+        "apps/website/src/features/api-connections/host.ts",
+        "apps/website/src/features/api-connections/oauth-bindings.ts",
+        "apps/website/src/features/api-connections/surface-connection-bindings.ts",
+        "apps/website/src/features/api-connections/surface-connections.ts",
+        "apps/website/src/features/api-connections/vault-stores.ts",
+        "apps/website/src/features/custom-credentials/credential-copy-tool.ts",
+        "apps/website/src/features/custom-credentials/credential-ports.ts",
+        "apps/website/src/features/custom-credentials/credential-tool-host.ts",
+        "apps/website/src/features/custom-credentials/credential-tool-operations.ts",
+        "apps/website/src/features/custom-credentials/sets/host.ts",
+        "apps/website/src/features/custom-credentials/sets/store.ts",
+        "apps/website/src/features/custom-credentials/sets/vault-repo.ts",
+        "apps/website/src/features/custom-credentials/store.ts",
+        "apps/website/src/features/custom-credentials/tool-registrations.ts",
+        "apps/website/src/features/custom-credentials/tovu-credential-card-identity.ts",
+        "apps/website/src/features/custom-credentials/tovu-credential-sets.ts",
+        "apps/website/src/features/custom-credentials/types.ts",
+        "apps/website/src/features/custom-credentials/vault-repo.ts",
+        "apps/website/src/features/external-mcp/contracts.ts",
+        "apps/website/src/features/external-mcp/external-mcp-oauth.ts",
+        "apps/website/src/features/external-mcp/external-mcp-revocation.ts",
+        "apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts",
+        "apps/website/src/features/external-mcp/external-mcp-store.memory.ts",
+        "apps/website/src/features/external-mcp/external-mcp-store.ts",
+        "apps/website/src/features/external-mcp/external-mcp-vault.ts",
+        "apps/website/src/features/plugin-runtime/admin-response.ts",
+        "apps/website/src/features/plugin-runtime/capability-tool-registrations.ts",
+        "apps/website/src/features/plugin-runtime/declarative-content-types.ts",
+        "apps/website/src/features/plugin-runtime/install-archive.ts",
+        "apps/website/src/features/plugin-runtime/invocation-core-deps.ts",
+        "apps/website/src/server/inbound/admin-http/routes/agent-plugins/list.ts",
+        "apps/website/src/server/inbound/admin-http/routes/agent-plugins/set-enabled.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/boot/bootstrap.ts",
+        "apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/plugin-host.ts",
+        "apps/website/src/server/runtime/composition/plugin-runtime.ts",
+        "apps/website/src/server/runtime/plugin-tier2/worker.ts"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "j-integrations-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:43Z",
+      "seconds": 16.2,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/integrations",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-plugins-build": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:44Z",
+      "seconds": 16.75,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/plugins",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-plugins-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:47:59Z",
+      "seconds": 12.0,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/plugins",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-guard": {
+      "exit": 1,
+      "started_utc": "2026-11-09T16:47:10Z",
+      "seconds": 70.28,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "guard"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-agent-plugins-build": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:00Z",
+      "seconds": 22.44,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/agent-plugins",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-plugins": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:20Z",
+      "seconds": 3.87,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "guard:plugins"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-layers": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:24Z",
+      "seconds": 2.48,
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/check-package-layers.ts"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-isolation": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:26Z",
+      "seconds": 2.41,
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/check-subpath-isolation.ts"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-agent-plugins-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:57:49Z",
+      "seconds": 8.08,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/agent-plugins",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-platform-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:35Z",
+      "seconds": 36.33,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/platform",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-audit": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:29Z",
+      "seconds": 89.95,
+      "command": [
+        "node",
+        "--import",
+        "/workspace/Jini/node_modules/tsx/dist/loader.mjs",
+        "/workspace/work/extract-integ/layers-audit.mts"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "t-metadata": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:49:59Z",
+      "seconds": 0.04,
+      "command": [
+        "sha256sum",
+        "apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "j-ui-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:49:11Z",
+      "seconds": 106.36,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-ai/ui",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-plugins-dependents": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:48:23Z",
+      "seconds": 160.47,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "...^@jini-ai/plugins",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "t-sdk": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:51:03Z",
+      "seconds": 7.05,
+      "command": [
+        "npm",
+        "run",
+        "build",
+        "--workspace",
+        "@tovu/sdk"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "j-scripts-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:50:57Z",
+      "seconds": 13.6,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "exec",
+        "tsc",
+        "-p",
+        "scripts/tsconfig.json",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "t-relink": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:51:10Z",
+      "seconds": 0.94,
+      "command": [
+        "npm",
+        "run",
+        "link:jini"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "t-contracts": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:51:11Z",
+      "seconds": 5.61,
+      "command": [
+        "npm",
+        "--prefix",
+        "packages/contracts",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "j-neutral-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:51:11Z",
+      "seconds": 9.79,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@jini-example/neutral-host",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.json",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Jini"
+    },
+    "j-card-pin": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:51:21Z",
+      "seconds": 4.47,
+      "command": [
+        "node",
+        "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--target",
+        "ES2022",
+        "--module",
+        "nodenext",
+        "--moduleResolution",
+        "nodenext",
+        "--strict",
+        "--esModuleInterop",
+        "--skipLibCheck",
+        "--types",
+        "node",
+        "--jsx",
+        "react-jsx",
+        "src/features/mcp-ui/__tests__/cards-contracts.typecheck.ts"
+      ],
+      "cwd": "/workspace/Jini/packages/ui"
+    },
+    "t-s8-pins": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:57:57Z",
+      "seconds": 8.63,
+      "command": [
+        "node_modules/.bin/tsc",
+        "-p",
+        "/workspace/work/extract-integ/tsconfig-s8-pins.json"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "t-s8-declarations": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:58:05Z",
+      "seconds": 0.87,
+      "command": [
+        "node_modules/.bin/tsc",
+        "-p",
+        "/workspace/work/extract-integ/tsconfig-s8-declarations.json"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "t-main-tsc": {
+      "exit": 0,
+      "started_utc": "2026-11-09T16:58:06Z",
+      "seconds": 29.06,
+      "command": [
+        "node_modules/.bin/tsc",
+        "-p",
+        "tsconfig.json",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "t-tests-tsc": {
+      "exit": 2,
+      "started_utc": "2026-11-09T16:58:35Z",
+      "seconds": 87.27,
+      "command": [
+        "node_modules/.bin/tsc",
+        "-p",
+        "tsconfig.tests.json",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/Tovu"
+    },
+    "t-provider-pin": {
+      "exit": 0,
+      "started_utc": "2026-11-09T17:00:03Z",
+      "seconds": 1.23,
+      "command": [
+        "node_modules/.bin/tsc",
+        "--noEmit",
+        "--target",
+        "ES2022",
+        "--module",
+        "nodenext",
+        "--moduleResolution",
+        "nodenext",
+        "--strict",
+        "--esModuleInterop",
+        "--skipLibCheck",
+        "--types",
+        "node",
+        "apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts"
+      ],
+      "cwd": "/workspace/Tovu"
+    }
+  },
+  "guard_raw": "\n> jini@ guard /workspace/Jini\n> node --import tsx ./scripts/guard.ts\n\n[hardwiring] HW1-env-default: 17 total; 0 new\n[hardwiring] HW2-vendor-adapter: 16 total; 0 new\n[hardwiring] HW3-module-state: 135 total; 0 new\n[hardwiring] HW4-injected-fetch: 1 total; 0 new\n[hardwiring] HW5-jini-export: 0 total; 0 new\n[hardwiring] HW6-boot-default: 0 total; 0 new\n[hardwiring] HW7-public-react: 0 total; 0 new\n[hardwiring] HW8-provider-url: 49 total; 0 new\n[hardwiring] HW9-plugin-import: 0 total; 0 new\n[guard] R13-model-fallback-freshness claude: MF3 SKIPPED \u2014 no readable ~/.claude.json and the CLI initialize handshake found nothing (Claude Code not installed/usable here). Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness codex: MF3 compared 9 live id(s) against 20 fallback entr(ies).\n[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED \u2014 `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness pi: MF3 SKIPPED \u2014 MF3 does not apply to `pi` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness aider: MF3 SKIPPED \u2014 MF3 does not apply to `aider` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED \u2014 MF3 does not apply to `opencode` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import \"../../agent-plugins/src/core/identity-namespace.js\" reaches into another package's src (agent-plugins) \u2014 import by package name instead\n[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports \"Icon\" from \"../../../components/Icon.js\" (resolves outside features/chat-pane/**), but \"Icon\" is not in the public barrel's export list (packages/chat/src/react/index.ts) \u2014 a consumer of the published API could not reach this the same way ChatPane does\n\n2 guard violation(s).\n\u2009ELIFECYCLE\u2009 Command failed with exit code 1.\n",
+  "type_baseline": {
+    "errors": 13,
+    "diagnostic_lines": 15,
+    "exact_recorded_S4_match": true,
+    "sha256": "3755005668997fe884a56aa7ff8cc1c84de10c7a0ea775656602daf7075a8e0c"
+  },
+  "declaration_baseline": {
+    "original_pin": "35c4961af718f0f30591c46d2ea2756c4484a731",
+    "manifest_sha256": "d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459",
+    "mappings": 3308,
+    "declarations": 3320,
+    "all_recorded_checksums_verified": true,
+    "read_only": true
+  },
+  "metadata_sha256": "a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6",
+  "integrity_checks": "All four lane manifest exports/jini.entries retained in core, mcp, integrations\nAll four lane reports preserved byte-for-byte\na0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6 apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json\n3583bc14fa8c596d64a2e97a274166f87a0ea278aed3f8c12b926552b7fc5f66 apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json\n61e018a56d59eee3a4b44055136c9a7c6144c5a6b13a948c8f90ebb8b14ca16e apps/website/src/assistant/__tests__/fixtures/moved-tools.access-token.golden.json\n3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01 apps/website/src/assistant/__tests__/fixtures/moved-tools.credential-cards.golden.json\n2be1488c8e4556b71b759536dccac88c78612a22200aa6843748f62cb78e736c apps/website/src/server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json\nNo pre-existing migrations, SQL, goldens or baseline JSON changed\n",
+  "emitted_note_checks": "S4-2: all authority requirements attached to emitted accessApprovalHandler declaration\nS4 F2: all3 note obligations emitted on canonical S5 declarations\nS8-1: caller-safe/classify-once contract emitted\n",
+  "old_reader_runs": [
+    {
+      "gate": "s8",
+      "cwd": "/workspace/work/extract-integ/baselines/tovu-s8-reader",
+      "command": [
+        "node",
+        "--import",
+        "/workspace/work/extract-integ/baselines/tovu-s8-reader/node_modules/tsx/dist/loader.mjs",
+        "/workspace/work/extract-integ/s8-old-reader.mts",
+        "--base",
+        "/workspace/work/extract-integ/baselines/tovu-s8-reader",
+        "--rows",
+        "/workspace/work/extract-integ/s8-replay/new-operations-rows.json"
+      ],
+      "env": {
+        "TSX_TSCONFIG_PATH": "apps/site-chat/tsconfig.json"
+      },
+      "sourceSHA256Before": "b3b2ea3b3414e9f0fee9090d057caf181238ef857498a8c90057863cfdf917c1",
+      "sourceSize": 3721,
+      "platformResolved": "/workspace/work/extract-integ/baselines/jini-s3/packages/platform",
+      "started": "2026-11-09T16:57:58Z",
+      "pid": 33353,
+      "exit": 0,
+      "sourceSHA256After": "b3b2ea3b3414e9f0fee9090d057caf181238ef857498a8c90057863cfdf917c1"
+    },
+    {
+      "gate": "s5",
+      "cwd": "/workspace/work/extract-integ/baselines/tovu-s3",
+      "command": [
+        "node",
+        "--import",
+        "/workspace/work/extract-integ/baselines/tovu-s3/node_modules/tsx/dist/loader.mjs",
+        "/workspace/Tovu/apps/website/src/features/external-mcp/__tests__/fixtures/s5-baseline-rollback.mjs",
+        "--base",
+        "/workspace/work/extract-integ/baselines/tovu-s3",
+        "--db",
+        "/workspace/work/extract-integ/post-write.db"
+      ],
+      "env": {
+        "TSX_TSCONFIG_PATH": "apps/site-chat/tsconfig.json"
+      },
+      "sourceSHA256Before": "81e1f0ab07702ccb4436ee52770b63988d94927341ca4b7571ac027c166517b7",
+      "sourceSize": 1318912,
+      "platformResolved": "/workspace/work/extract-integ/baselines/jini-s3/packages/platform",
+      "started": "2026-11-09T16:58:51Z",
+      "pid": 34241,
+      "exit": 0,
+      "sourceSHA256After": "81e1f0ab07702ccb4436ee52770b63988d94927341ca4b7571ac027c166517b7"
+    },
+    {
+      "gate": "s8",
+      "cwd": "/workspace/work/extract-integ/baselines/tovu-s8-reader",
+      "command": [
+        "node",
+        "--import",
+        "/workspace/work/extract-integ/baselines/tovu-s8-reader/node_modules/tsx/dist/loader.mjs",
+        "/workspace/work/extract-integ/s8-old-reader.mts",
+        "--base",
+        "/workspace/work/extract-integ/baselines/tovu-s8-reader",
+        "--rows",
+        "/workspace/work/extract-integ/s8-replay/new-operations-rows.json"
+      ],
+      "env": {
+        "TSX_TSCONFIG_PATH": "apps/site-chat/tsconfig.json"
+      },
+      "sourceSHA256Before": "643a4a0d358abc276102c1dbc45885b578a1840ed5a1d4a6e2f93f2d418f6df4",
+      "sourceSize": 3721,
+      "platformResolved": "/workspace/work/extract-integ/baselines/jini-s3/packages/platform",
+      "started": "2026-11-09T17:11:55Z",
+      "pid": 40942,
+      "exit": 0,
+      "sourceSHA256After": "643a4a0d358abc276102c1dbc45885b578a1840ed5a1d4a6e2f93f2d418f6df4"
+    }
+  ],
+  "process_cleanup": {
+    "checked_utc": "2026-11-09T17:12:55.900554+00:00",
+    "active_task_test_build_server_processes": [],
+    "matched_defunct_processes": 0
+  },
+  "pushed_commits_before_final_report": [
+    {
+      "repository": "Tovu",
+      "branch": "cloud/extract-integ",
+      "commits": [
+        {
+          "sha": "0c127ef681d134721e4caa7dd2b295de111462bc",
+          "subject": "Merge remote-tracking branch 'origin/cloud/extract-s5' into cloud/extract-integ"
+        },
+        {
+          "sha": "c0c2c705b9d0354011c83d4038c491a00b53d3c5",
+          "subject": "Merge remote-tracking branch 'origin/cloud/extract-s6' into cloud/extract-integ"
+        },
+        {
+          "sha": "de1fc1a81c89c6f83a873f6a2138464d25e9660a",
+          "subject": "Merge remote-tracking branch 'origin/cloud/extract-s8' into cloud/extract-integ"
+        },
+        {
+          "sha": "a309dc12b576baa7bee1658b31d496967145a949",
+          "subject": "fix(agent-plugins): bind existing Tovu grant-repair text"
+        },
+        {
+          "sha": "00028e4d1d72aee3436cee7ae17c6a4e4ea7d06b",
+          "subject": "fix(agent-plugins): preserve positional federation compatibility wrappers"
+        },
+        {
+          "sha": "1ee3b00cb793e7c05ef47fe00b199c4f6321c31e",
+          "subject": "test(agent-plugins): scan compiled artifacts in published connect package"
+        },
+        {
+          "sha": "89397b300c9908f8e943398a4998692a7f13f911",
+          "subject": "fix(credentials): decorate classified caller-safe rejection text once"
+        },
+        {
+          "sha": "3cdf04d0d00d33b76eaa00b2af2e830b19bf74e5",
+          "subject": "test(credentials): record host-bound copy and confirmation exchanges"
+        },
+        {
+          "sha": "736c9014b73f4ef1bd521d3b41a78a0e14e6dc6a",
+          "subject": "docs: record integration commits and focused repair evidence"
+        },
+        {
+          "sha": "7c4c3e86eec1f4ca5cabf987d520df25e9a70a28",
+          "subject": "test(extraction): use published artifacts in remaining consumer seam checks"
+        },
+        {
+          "sha": "b2f06677ad2c0146df527bf6030fe16a851860a3",
+          "subject": "docs: record sweep fixes and integrated checker results"
+        },
+        {
+          "sha": "bc56c883e383dc76b66907f4d0e486ad2d61339c",
+          "subject": "test(agent-plugins): supply repair copy in remaining second-host grant fixture"
+        },
+        {
+          "sha": "3fa72e29f0de96ae826eb5ef384c1e47cd74469f",
+          "subject": "fix(integration): retain S5 legacy sign-in classifier compatibility"
+        },
+        {
+          "sha": "3f3a5a19268c21992ee9b3fbe72a6f695c630978",
+          "subject": "docs: record final-pair compatibility repair and old-reader checks"
+        }
+      ]
+    },
+    {
+      "repository": "Jini",
+      "branch": "cloud/extract-integ",
+      "commits": [
+        {
+          "sha": "b99109266c9bc90d5e3d6670810d1fa15fb9e016",
+          "subject": "Merge remote-tracking branch 'origin/cloud/extract-s5' into cloud/extract-integ"
+        },
+        {
+          "sha": "e15c6c0da747ac2e17ab6d4843b3226f3adadbb2",
+          "subject": "Merge remote-tracking branch 'origin/cloud/extract-s6' into cloud/extract-integ"
+        },
+        {
+          "sha": "caafcade4a139d3b4ebe3aa9d9cb19460cc3fb26",
+          "subject": "Merge remote-tracking branch 'origin/cloud/extract-s8' into cloud/extract-integ"
+        },
+        {
+          "sha": "c5762c1679d405a08cd655e1fd025977d8b7df45",
+          "subject": "fix(oauth): allow only protocol error codes in public registration failures"
+        },
+        {
+          "sha": "8948ff75ce356d94cbcf6023da9d7d3f011807bd",
+          "subject": "fix(agent-plugins): use relative owners inside connect modules"
+        },
+        {
+          "sha": "c16cb354b61d4923fbea11f94781a5a23bf18de8",
+          "subject": "docs(agent-plugins): require active human authority at both approval boundaries"
+        },
+        {
+          "sha": "8b25c23324ced6a775d237db9276f076ac544576",
+          "subject": "fix(agent-plugins): inject combined-grant repair copy from host"
+        },
+        {
+          "sha": "b022f2a5d20808bcdd1e64182379fe595346be3c",
+          "subject": "fix(agent-plugins): take object arguments for federation projections"
+        },
+        {
+          "sha": "8a483889c618f5769be915ced837c683bc80a2e4",
+          "subject": "test(integrations): wire callback rules into integrated BYO origin regression"
+        },
+        {
+          "sha": "e3121a683701b3b3524e6924954c805f274153de",
+          "subject": "test(agent-plugins): satisfy canonical repository fixture signatures"
+        },
+        {
+          "sha": "95fbcd1d0d0bb0e3bbb47a67708582445bd1b992",
+          "subject": "test(oauth): pin plain registration refusals and recognized protocol vocabulary"
+        },
+        {
+          "sha": "46cd558de9c6b4fa882b46349450ce3bcf0a378d",
+          "subject": "docs(extraction): align host rejection contracts with caller-safe decoration"
+        }
+      ]
+    }
+  ]
+}
