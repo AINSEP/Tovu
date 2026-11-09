@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import ts from 'typescript';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -12,6 +13,7 @@ import { requireDeployPlatform } from '@jini-ai/devops/deploy';
 import { runListSecrets, runSetSecret, runUnsetSecret } from '@jini-ai/devops/deploy';
 import { collectTypedDeploySecret } from '@jini-ai/devops/deploy';
 import { buildDeployOpsRegistrations } from '@jini-ai/devops/deploy';
+import { DeployCredentialSetupRequired as HostSetupRequired } from '../run-ops.js';
 
 const ids = { status:'library_state',logs:'library_output',wait:'library_watch',listTargets:'library_targets',deploy:'library_launch',listSecrets:'library_names',setSecret:'library_write',unsetSecret:'library_remove',credentialVerify:'library_check' };
 const input = { platform:'library',target:'catalog',name:'BOOK_KEY',source:{kind:'site-key' as const} };
@@ -131,7 +133,12 @@ test('waitForDeployOps and aborted preserve cancellation and bounded foreign clo
 test('published deploy declarations retain second-host contract notes and types-only runtime',async()=>{
   const root=new URL('./',import.meta.resolve('@jini-ai/devops/deploy'));
   const declarations=await readFile(fileURLToPath(new URL('ops-tool-contracts.d.ts',root)),'utf8');
-  for(const name of ['DeployOpsBoundedRequest','DeployOpsRuntime','DeployOpsSecretCards','DeployOpsRegistrationHost','DeployCredentialDiagnostic','DeployOpsToolIds','SecretConfirm']) assert.match(declarations,new RegExp('@agent-note[^]*?export (?:interface|type) '+name+'[ <={]'));
+  const parsed=ts.createSourceFile('ops-tool-contracts.d.ts',declarations,ts.ScriptTarget.Latest,true);
+  for(const name of ['DeployOpsBoundedRequest','DeployOpsRuntime','DeployOpsSecretCards','DeployOpsRegistrationHost','DeployCredentialDiagnostic','DeployOpsToolIds','SecretConfirm']) {
+    const declaration=parsed.statements.find(node=>(ts.isInterfaceDeclaration(node)||ts.isTypeAliasDeclaration(node))&&node.name.text===name);
+    assert.ok(declaration,name);assert.ok(declarations.slice(declaration.getFullStart(),declaration.getStart(parsed)).includes('@agent-note'),name);
+  }
+  assert.equal(HostSetupRequired,DeployCredentialSetupRequired);
   for(const obligation of ['I/O','maxResponseBytes','same actor-bound exchange','non-enumerable','rechecks write permission','exact UTF-8','truncation']) assert.ok(declarations.includes(obligation),obligation);
   assert.equal((await readFile(fileURLToPath(new URL('ops-tool-contracts.js',root)),'utf8')).trim(),'export {};\n//# sourceMappingURL=ops-tool-contracts.js.map');
 });
@@ -158,4 +165,18 @@ test('foreign approval binding is used for overwrite and write permission is che
  const result=await tool.handler(execution(input));assert.equal((result as {changed:boolean}).changed,true);
  assert.equal(f.values.get('BOOK_KEY'),' library private value\n');
  assert.deepEqual(f.events,['library.change','library.key','registry','site-key','inventory','fingerprint','library-human','library.change','write']);
+});
+
+
+test('all moved public runtime declarations retain local notes and two object arguments',async()=>{
+ const root=new URL('./',import.meta.resolve('@jini-ai/devops/deploy'));
+ const roots:Record<string,string[]>={'ops-runner':['boundContext','runDeployOps','runDeploy','waitForDeployOps'],'ops-secrets':['runListSecrets','runSetSecret','runUnsetSecret'],'ops-secret-card':['collectTypedDeploySecret'],'ops-tools':['buildDeployOpsRegistrations'],'ops-registry':['requireDeployPlatform']};
+ for(const [file,names] of Object.entries(roots)) {
+  const text=await readFile(fileURLToPath(new URL(file+'.d.ts',root)),'utf8');const parsed=ts.createSourceFile(file+'.d.ts',text,ts.ScriptTarget.Latest,true);
+  for(const name of names) {
+   const declarations=parsed.statements.filter(node=>ts.isFunctionDeclaration(node)&&node.name?.text===name);
+   assert.ok(declarations.length>0,name);
+   for(const declaration of declarations) {assert.ok(ts.isFunctionDeclaration(declaration));assert.equal(declaration.parameters.length,2,name);assert.ok(text.slice(declaration.getFullStart(),declaration.getStart(parsed)).includes('@agent-note'),name);}
+  }
+ }
 });
