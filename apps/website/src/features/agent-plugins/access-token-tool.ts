@@ -1,5 +1,5 @@
 /** Tovu compatibility shim (A10c seam). The portable `agent_plugin_set_access_token` body lives in
- * `./portable/access-token-tool.ts`; these entries keep their signatures and bind Tovu's tool name and
+ * `@jini-ai/agent-plugins/connect`; these entries keep their signatures and bind Tovu's tool name and
  * product copy ("this Tovu version"), the `credential_save` card lifecycle id and `ui://tovu` card
  * namespace, the credential token rule (R1: same validator, same error object), the installed-plugin
  * read and the saved-token switch. Bytes unchanged from the pre-seam body. */
@@ -23,8 +23,8 @@ import {
   saveStaticAccessToken as saveWithPorts, saveAgentPluginToken as saveTokenWithPorts,
   type AgentPluginAccessTokenMessages, type AgentPluginTokenValidator, type AgentPluginAccessTokenHost,
   type SetAccessTokenResult, type TokenAuthTarget,
-} from "./portable/access-token-tool.js";
-export type { TokenAuthTarget, SetAccessTokenResult, AgentPluginAccessTokenMessages, AgentPluginTokenValidator, AgentPluginAccessTokenHost } from "./portable/access-token-tool.js";
+} from "@jini-ai/agent-plugins/connect";
+export type { TokenAuthTarget, SetAccessTokenResult, AgentPluginAccessTokenMessages, AgentPluginTokenValidator, AgentPluginAccessTokenHost } from "@jini-ai/agent-plugins/connect";
 
 /** Same permission `agent_plugin_connect` restates (`connect-tool.ts`). */
 const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";
@@ -81,7 +81,7 @@ const tovuTokenFederation = { classifyTrust: classifyAgentPluginMcpServerTrust, 
 
 /** Old deps -> portable target deps. The installed read falls back to the on-disk walk as before;
  * `routeDeps.mcp` is read on first use (after the permission check), its projections bound once. */
-export function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D) {
+export function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D, _optional: Record<string, never> = {}) {
   let mcp: ReturnType<typeof withAgentPluginMcpPorts<D["mcp"]>> | undefined;
   const deps = withOverrides(routeDeps, {
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)

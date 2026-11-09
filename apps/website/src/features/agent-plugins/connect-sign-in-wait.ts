@@ -1,4 +1,4 @@
-/** Tovu compatibility shim (A10 seam). The portable waiter lives in `./portable/connect-sign-in-wait.ts`
+/** Tovu compatibility shim (A10 seam). The portable waiter lives in `@jini-ai/agent-plugins/connect`
  * (generic over the card `Resource` and the connect result); these entries keep their signatures and
  * bind Tovu's UI, card identity, SAME process exchange store and missing-emitter/skip copy. */
 import { agentPluginCardHost } from './card-host-bindings.js';
@@ -8,7 +8,7 @@ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { PluginCredentialCard } from '@jini-ai/core/contracts/credentials';
 import { buildAgentPluginConnectCard, type AgentPluginConnectCardSpec } from './connect-card-ui.js';
-import { waitAtAgentPluginSignInCardWithPorts as waitWithPorts } from './portable/connect-sign-in-wait.js';
+import { waitAtAgentPluginSignInCardWithPorts as waitWithPorts } from '@jini-ai/agent-plugins/connect';
 import type { AgentPluginConnectResult } from './connect-tool.js';
 
 /** Old seam signature (connect result fixed to Tovu's `AgentPluginConnectResult`). */

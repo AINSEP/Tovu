@@ -1,4 +1,4 @@
-/** Tovu compatibility shim (A10c seam). The portable body lives in `./portable/token-sign-in.ts`; these
+/** Tovu compatibility shim (A10c seam). The portable body lives in `@jini-ai/agent-plugins/connect`; these
  * entries keep their positional signatures and bind Tovu's credential token rule (R1). */
 import type { PluginCredentialsPort } from "./service-ports.js";
 import { tovuTokenValidator } from "./access-token-tool.js";
@@ -7,8 +7,8 @@ import type { InstalledAgentPluginServers } from "./import-access-token.js";
 import {
   listTokenSignInPlugins as listWithPorts, checkAgentPluginAccessToken as checkWithPorts,
   type TokenSignInPlugin, type TokenCheckOutcome,
-} from "./portable/token-sign-in.js";
-export type { TokenSignInPlugin, TokenCheckOutcome } from "./portable/token-sign-in.js";
+} from "@jini-ai/agent-plugins/connect";
+export type { TokenSignInPlugin, TokenCheckOutcome } from "@jini-ai/agent-plugins/connect";
 
 /** Same signature as the pre-seam entry. */
 export function listTokenSignInPlugins(

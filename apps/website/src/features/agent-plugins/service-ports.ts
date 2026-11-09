@@ -62,4 +62,4 @@ export interface AgentPluginSignInPort {
   isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
 }
 /** Card ports moved to the portable card body (A10); re-exported so Tovu callers keep this path. */
-export type { AgentPluginCardsPort, AgentPluginCardBuilders } from "./portable/connect-card-ui.js";
+export type { AgentPluginCardsPort, AgentPluginCardBuilders } from "@jini-ai/agent-plugins/connect";

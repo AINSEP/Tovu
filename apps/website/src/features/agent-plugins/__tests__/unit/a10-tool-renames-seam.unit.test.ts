@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AgentPluginMcpRecord, AgentPluginMcpRepo } from '@jini-ai/agent-plugins/connect';
 import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
-import { applyAgentPluginToolRenames, renameToolNames } from '../../portable/apply-tool-renames.js';
+import { applyAgentPluginToolRenames, renameToolNames } from '@jini-ai/agent-plugins/connect';
 import { applyAgentPluginToolRenames as tovuApply } from '../../apply-tool-renames.js';
 
 const URL_ = 'https://mcp.example.test/mcp';

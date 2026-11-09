@@ -7,8 +7,8 @@ import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
-import { grantDeclaredToolsAtBoot, grantDeclaredToolsToSignedInRows, type GrantSignedInDefaultsDeps } from '../../portable/grant-signed-in-defaults.js';
-import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv, listInstalledAgentPluginServers, type ImportAgentPluginAccessTokensFromEnvDeps } from '../../portable/import-access-token.js';
+import { grantDeclaredToolsAtBoot, grantDeclaredToolsToSignedInRows, type GrantSignedInDefaultsDeps } from '@jini-ai/agent-plugins/connect';
+import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv, listInstalledAgentPluginServers, type ImportAgentPluginAccessTokensFromEnvDeps } from '@jini-ai/agent-plugins/connect';
 import type { AgentPluginMcpSave } from '@jini-ai/agent-plugins/connect';
 import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 

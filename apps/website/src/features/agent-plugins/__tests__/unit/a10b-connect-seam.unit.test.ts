@@ -14,7 +14,7 @@ import { mcpTestPort } from '../fixtures/connection-service-ports.js';
 import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
 import { classifyAgentPluginMcpServerTrust } from '../../capability-projection.js';
 import { tovuEnableAccessMessages } from '../../enable-access.js';
-import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '../../portable/connect-tool.js';
+import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '@jini-ai/agent-plugins/connect';
 import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from '../../connect-tool.js';
 import type { McpServerConfig } from '../../mcp-metadata.js';
 

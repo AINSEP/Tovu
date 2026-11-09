@@ -10,8 +10,8 @@ import type { SurfaceCardSecretForm } from '@jini-ai/core/contracts/cards';
 import {
   resolveAgentPluginCardIdentity, buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts,
   type AgentPluginCardBuilders, type AgentPluginCredentialCardForms,
-} from '../../portable/connect-card-ui.js';
-import { chooseApiConnectionDestinationWithPorts } from '../../portable/connect-destination.js';
+} from '@jini-ai/agent-plugins/connect';
+import { chooseApiConnectionDestinationWithPorts } from '@jini-ai/agent-plugins/connect';
 import { agentPluginCardHost, tovuAgentPluginCardIdentity } from '../../card-host-bindings.js';
 import { buildAgentPluginAccessTokenForm } from '../../connect-card-ui.js';
 
@@ -93,9 +93,10 @@ const b = require('@jini-ai/cms');`;
 });
 
 test('no portable A10 body imports Tovu code (value or type) or a non-core Jini package', () => {
-  const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../../portable');
-  const files = readdirSync(dir).filter(name => name.endsWith('.ts'));
-  assert.ok(files.length >= 3);
+  const dir = resolve(dirname(fileURLToPath(import.meta.resolve('@jini-ai/agent-plugins/connect'))), '../../src/connect');
+  const expected = ['access-token-tool.ts', 'apply-tool-renames.ts', 'connect-card-ui.ts', 'connect-destination.ts', 'connect-sign-in-wait.ts', 'connect-tool.ts', 'grant-signed-in-defaults.ts', 'import-access-token.ts', 'token-sign-in.ts'];
+  const files = readdirSync(dir).filter(name => expected.includes(name)).sort();
+  assert.deepEqual(files, expected, 'all nine moved bodies are checked');
   for (const name of files) {
     const source = readFileSync(join(dir, name), 'utf8');
     for (const spec of importedSpecifiers(source)) {

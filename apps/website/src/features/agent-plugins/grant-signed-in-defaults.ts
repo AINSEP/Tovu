@@ -5,7 +5,7 @@ import type { Clock as ClockPort } from '@jini-ai/core/primitives';
 import {
   grantDeclaredToolsToSignedInRows as grantWithPorts, grantDeclaredToolsAtBoot as bootWithPorts,
   type GrantSignedInDefaultsDeps as PortableGrantDeps,
-} from './portable/grant-signed-in-defaults.js';
+} from '@jini-ai/agent-plugins/connect';
 import { agentPluginActivations } from './activation-effects.js';
 import { tovuConnectActors, isPluginOffByOperator, switchPluginOnUnlessOperatorOff } from './apply-connect-defaults.js';
 import { resolveAgentPluginMcpServers } from './federate-mcp.js';

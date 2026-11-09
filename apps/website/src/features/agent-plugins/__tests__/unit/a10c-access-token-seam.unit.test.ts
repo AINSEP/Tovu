@@ -10,10 +10,10 @@ import type { ToolExecutionContext } from '@jini-ai/core';
 import type { SurfaceCardSecretSpec, SurfaceCardSecretOptions, SurfaceCardSecretDeps, SurfaceCardsPort } from '@jini-ai/core/contracts/cards';
 import {
   saveAgentPluginToken, type AgentPluginAccessTokenToolDeps, type SetAccessTokenResult, type TokenAuthTarget,
-} from '../../portable/access-token-tool.js';
+} from '@jini-ai/agent-plugins/connect';
 import { probeToken, tovuAgentPluginAccessTokenHost, tovuTokenValidator } from '../../access-token-tool.js';
 import { CredentialInputError } from '../../../../contracts/core/credential-token.js';
-import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '../../portable/token-sign-in.js';
+import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '@jini-ai/agent-plugins/connect';
 
 class AcmeTokenError extends Error { constructor(readonly acmeRule: string) { super('acme bad token'); } }
 type Prep = { target: TokenAuthTarget; principalId: string; locale: string };

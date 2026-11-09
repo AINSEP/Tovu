@@ -1,4 +1,4 @@
-/** Tovu compatibility shim (A10 seam). The portable card bodies live in `./portable/connect-card-ui.ts`
+/** Tovu compatibility shim (A10 seam). The portable card bodies live in `@jini-ai/agent-plugins/connect`
  * and take the card runtime, identity and product copy as required inputs; these entries keep their
  * original signatures and bind Tovu's UI builders, card identity and wording (bytes unchanged). */
 import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
@@ -8,11 +8,11 @@ import { agentPluginCardHost } from "./card-host-bindings.js";
 import {
   buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts,
   type AgentPluginConnectCardSpec, type AgentPluginAccessTokenFormMessages,
-} from "./portable/connect-card-ui.js";
+} from "@jini-ai/agent-plugins/connect";
 export {
   buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts, resolveAgentPluginCardIdentity,
   type AgentPluginConnectCardSpec, type AgentPluginCardIdentity, type AgentPluginCredentialCardForms, type AgentPluginAccessTokenFormMessages,
-} from "./portable/connect-card-ui.js";
+} from "@jini-ai/agent-plugins/connect";
 
 /** Tovu's token-form wording (bytes unchanged from the pre-seam body). */
 export const tovuAccessTokenFormMessages: AgentPluginAccessTokenFormMessages = {

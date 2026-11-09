@@ -8,13 +8,13 @@ import {
   listInstalledAgentPluginServers as listWithPorts,
   type ImportAgentPluginAccessTokenDeps as PortableImportDeps,
   type InstalledAgentPluginServers, type TokenImportLog,
-} from './portable/import-access-token.js';
+} from '@jini-ai/agent-plugins/connect';
 import { tovuTargetDeps, type AgentPluginTokenTargetDeps } from './access-token-tool.js';
 import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from './switch-on-saved-token.js';
 import { tovuInstalledMcpReads } from './federate-mcp.js';
 import { withOverrides } from './mcp-host-bindings.js';
 import type { AgentPluginLayout } from './layout.js';
-export type { ImportAgentPluginAccessTokenOutcome, InstalledAgentPluginServers, TokenImportLog } from './portable/import-access-token.js';
+export type { ImportAgentPluginAccessTokenOutcome, InstalledAgentPluginServers, TokenImportLog } from '@jini-ai/agent-plugins/connect';
 
 /** Recorded as `updatedBy`/principal on what an import writes. */
 export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = 'system:token-import';

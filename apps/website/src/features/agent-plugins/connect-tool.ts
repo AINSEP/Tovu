@@ -1,4 +1,4 @@
-/** Tovu compatibility shim (A10b seam). The portable tool body lives in `./portable/connect-tool.ts`;
+/** Tovu compatibility shim (A10b seam). The portable tool body lives in `@jini-ai/agent-plugins/connect`;
  * these entries keep their signatures and bind Tovu's tool id, permissions, approval owner, refusal
  * copy (tool names, "this Tovu version", "restart Tovu"), public callback URL, installed/activation
  * reads, trust rule, declined actor and card waiters. Bytes unchanged from the pre-seam body. */
@@ -26,8 +26,8 @@ import {
   agentPluginConnectAgentToolCatalogFor, agentPluginConnectDerivedRiskFor,
   type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages, type AgentPluginConnectOptions, type AgentPluginConnectResult,
   type ResolvedAgentPluginForConnect,
-} from "./portable/connect-tool.js";
-export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "./portable/connect-tool.js";
+} from "@jini-ai/agent-plugins/connect";
+export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "@jini-ai/agent-plugins/connect";
 
 export const AGENT_PLUGIN_CONNECT_TOOL_ID = "agent_plugin_connect";
 
