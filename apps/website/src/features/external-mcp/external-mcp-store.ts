@@ -61,14 +61,9 @@ import { EXTERNAL_MCP_AUTH_MODES, externalMcpRecordHasStaticAccessToken, resolve
  *  consumer reads the same mode vocabulary. */
 
 
-/** Raised when sealing fails because no site key is configured — distinct from a validation error,
- *  because nothing the operator types can fix it. */
-export class ExternalMcpSecretStoreUnconfiguredError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ExternalMcpSecretStoreUnconfiguredError";
-  }
-}
+/** The one canonical "no site key" error class moved to `@jini-ai/mcp/federation/hosted` (EXTRACT-S5 H1a, source blob 2bac5b32); same identity here. */
+import { ExternalMcpSecretStoreUnconfiguredError } from "@jini-ai/mcp/federation/hosted";
+export { ExternalMcpSecretStoreUnconfiguredError };
 
 /** One stored row. `sealedEnv` is null when the server needs no credentials, which is normal. */
 /** Compatibility DTO version for normalized vault envelopes; historical formats live in recovery. */
