@@ -10,28 +10,10 @@ import { formatAad } from "@jini-ai/platform/secrets";
 
 import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "./external-mcp-revocation.js";
 import type { FederatedCallTarget, FederatedGateVerdict } from "@jini-ai/mcp/federation";
-import {
-  beginAuthorizationCode,
-  beginDeviceAuthorization,
-  buildOperatorOAuthProvider,
-  completeAuthorizationCode,
-  createSealedAuthorizationState,
-  createTokenRefresher,
-  discoverAuthorizationServer,
-  createOAuthProviderRegistry,
-  refreshAccessToken,
-  OAuthError,
-  pollDeviceAuthorizationOnce,
-  registerOAuthClientDynamically,
-  type DeviceAuthorization,
-  type DiscoveredOAuthConfiguration,
-  type OAuthClient,
-  type OAuthClientAuthMethod,
-  type OAuthProviderDescriptor,
-  type OAuthTokenSet,
-  type OAuthAppOptions,
-  type OAuthProviderRegistry,
-} from "@jini-ai/oauth";
+import { isOAuthError, OAuthError, oauthFlowOperations } from "@jini-ai/oauth";
+import type { DeviceAuthorization, DiscoveredOAuthConfiguration, OAuthClient, OAuthClientAuthMethod, OAuthProviderDescriptor, OAuthTokenSet, OAuthAppOptions, OAuthProviderRegistry } from "@jini-ai/core/contracts/oauth";
+import type { ExternalMcpOAuthDeps as HostedMcpOAuthDeps, HostedMcpSignInPorts } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import type { SharedExternalMcpOwner } from "./external-mcp-shared-oauth.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
 import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 import { resolveExternalMcpAuthMode } from "../../contracts/core/external-mcp-auth.js";
@@ -310,7 +292,9 @@ function assertNotAwaitingReauth(deps: HostedMcpConnectionGatePorts, record: Ext
 
 /** {@link ExternalMcpOAuthDeps} as the service holds them: `providers` defaulted once at construction,
  *  so nothing downstream builds a second registry. */
-type ExternalMcpOAuthServiceDeps = ExternalMcpOAuthDeps & { readonly providers: OAuthProviderRegistry };
+/** The sign-in's whole input: the canonical deps plus the host's {@link HostedMcpSignInPorts}. */
+type SignInDeps = HostedMcpOAuthDeps<SharedExternalMcpOwner> & { readonly ports: HostedMcpSignInPorts };
+type ExternalMcpOAuthServiceDeps = SignInDeps & { readonly providers: OAuthProviderRegistry };
 
 /**
  * @agent-note Tovu's stable OAuth registration identity, bound once here and handed to the shared sign-in too. Changing
@@ -323,33 +307,89 @@ export const tovuRegistrationIdentity = {
   sharedClientName: "Tovu",
 } as const;
 
+/**
+ * @agent-note Tovu's ONE binding of the hosted sign-in ports, shared by the sign-in service and its shared-owner sign-in. Every
+ * member is Tovu's real implementation, never a copy: `oauthFlowOperations` and real `OAuthError`s; the canonical
+ * `ExternalMcpValidationError`/`ExternalMcpSecretStoreUnconfiguredError`; the ONE reauth factory the connection gate also gets;
+ * the store shims the repository uses; the canonical projections; platform `formatAad`; the browser-binding sign-in link; Tovu's
+ * OAuth copy, issuer-bound discovery policy and stable registration identity. Copy strings are the exact bytes the sign-in used before.
+ */
+export const tovuSignInPorts: HostedMcpSignInPorts = {
+  flow: oauthFlowOperations,
+  errors: {
+    oauth: (input) => new OAuthError(input),
+    isOAuthError: (error): error is OAuthError => isOAuthError({ value: error }),
+    validation: (message, field) => new ExternalMcpValidationError(message, field),
+    isUnconfigured: (error) => error instanceof ExternalMcpSecretStoreUnconfiguredError,
+    reauthRequired: createExternalMcpReauthRequiredError,
+  },
+  store: { openPayload: openExternalMcpOAuthPayload, sealPayload: sealExternalMcpOAuthPayload },
+  projections: { authMode: resolveExternalMcpAuthMode, oauthStatus: resolveExternalMcpOAuthStatus },
+  aad: { format: formatAad },
+  signInLink: hostedMcpSignInLink,
+  registrationIdentity: tovuRegistrationIdentity,
+  oauthMessages: tovuOAuthMessages,
+  discoveryPolicy: createTovuIssuerBoundDiscoveryPolicy,
+  withCopy: withTovuOAuthCopy,
+  copy: {
+    actions: {
+      noProvider: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.",
+      noClientId: "Add this connection's OAuth client id in Settings → External MCP.",
+      chooseGrant: "Set this connection's sign-in method by hand in Settings → External MCP.",
+      noRegistration: "Add this connection's OAuth client id in Settings → External MCP — this server does not mint them automatically.",
+      restartDevice: "Start the connection again from Settings → External MCP.",
+      restartShared: 'Start sign-in again in Settings → External MCP.',
+    },
+    noSupportedGrant: ({ serverId, offered }) => `the authorization server for external MCP server '${serverId}' advertises no grant Tovu supports (it offers: ${offered.join(", ") || "none"})`,
+    noPublicOrigin: ({ serverId }) =>
+      `external MCP server '${serverId}' uses the authorization_code grant, which needs an absolute callback URL ` +
+      `Tovu can be reached at, and none could be found: TOVU_PUBLIC_URL is not set, and this execution context has no ` +
+      `derived origin either. Set TOVU_PUBLIC_URL to this instance's public origin (for example ` +
+      `https://your-site.example.com) and try again, or start this connection from Settings → External MCP, which derives ` +
+      `the origin from the browser's own request. Nothing was changed.`,
+    sharedLocalOnly: 'Shared sign-in is available only in this Mac owner profile. Use local sign-in here.',
+    sharedUnavailable: 'This shared MCP connection is unavailable here. Choose a saved connection or sign in explicitly in Settings → External MCP.',
+    sharedOwnerOnly: 'Use the installation owner’s signed-in session on this Mac to manage saved connections.',
+  },
+  log: {
+    postConnectFailed: ({ serverId, error }) => {
+      console.warn(`[external-mcp] '${serverId}': post-connect step failed: ${error instanceof Error ? error.message : String(error)}`);
+    },
+  },
+};
+
+/** Tovu's sign-in service: the neutral {@link createHostedMcpSignInService} bound to {@link tovuSignInPorts}. Signature and defaults unchanged. */
+export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
+  return createHostedMcpSignInService({ ...required, ports: tovuSignInPorts });
+}
+
 /** Stable registration identity; callback URLs come only from the host's trusted origin policy.
  * Device-only clients deliberately register no redirect URI (RFC 7591).
  */
-function oauthClientOptions(record: ExternalMcpServerRecord, redirectUri: string | undefined): OAuthAppOptions {
-  return { clientDisplayName: tovuRegistrationIdentity.clientName(record), softwareId: tovuRegistrationIdentity.softwareId,
+function oauthClientOptions(ports: HostedMcpSignInPorts, record: ExternalMcpServerRecord, redirectUri: string | undefined): OAuthAppOptions {
+  return { clientDisplayName: ports.registrationIdentity.clientName(record), softwareId: ports.registrationIdentity.softwareId,
     redirectUris: redirectUri === undefined ? [] : [redirectUri] };
 }
 
 /** Calls {@link ExternalMcpOAuthDeps.onConnected}, keeping its failure out of the sign-in's result. */
-async function notifyConnected(deps: ExternalMcpOAuthDeps, serverId: string): Promise<void> {
+async function notifyConnected(deps: SignInDeps, serverId: string): Promise<void> {
   if (!deps.onConnected) return;
   try {
     await deps.onConnected(serverId);
   } catch (error) {
-    console.warn(`[external-mcp] '${serverId}': post-connect step failed: ${error instanceof Error ? error.message : String(error)}`);
+    deps.ports.log.postConnectFailed({ serverId, error });
   }
 }
 
 /** Loads an OAuth-authenticated row, or explains why it cannot be used.
  *  @throws {ExternalMcpValidationError} */
-async function requireOAuthRecord(deps: ExternalMcpOAuthDeps, serverId: string): Promise<ExternalMcpServerRecord> {
+async function requireOAuthRecord(deps: SignInDeps, serverId: string): Promise<ExternalMcpServerRecord> {
   const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
   if (!record) {
-    throw new ExternalMcpValidationError(`no external MCP server is configured as '${serverId}'`, "id");
+    throw deps.ports.errors.validation(`no external MCP server is configured as '${serverId}'`, "id");
   }
-  if (resolveExternalMcpAuthMode(record) !== "oauth") {
-    throw new ExternalMcpValidationError(`external MCP server '${serverId}' is not configured to use OAuth`, "authMode");
+  if (deps.ports.projections.authMode(record) !== "oauth") {
+    throw deps.ports.errors.validation(`external MCP server '${serverId}' is not configured to use OAuth`, "authMode");
   }
   return record;
 }
@@ -357,8 +397,8 @@ async function requireOAuthRecord(deps: ExternalMcpOAuthDeps, serverId: string):
 /** The refusal for a row that names no provider and no token endpoint. One builder for both places
  *  that reach it — provider resolution and self-configuration on a row with no URL to discover from —
  *  because from the operator's side it is the same problem with the same fix. */
-function noOAuthProviderError(required: { readonly serverId: string }): OAuthError {
-  return new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${required.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.", });
+function noOAuthProviderError(required: { readonly ports: HostedMcpSignInPorts; readonly serverId: string }): Error {
+  return required.ports.errors.oauth({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${required.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: required.ports.copy.actions.noProvider, });
 }
 
 /** The endpoint trio an operator may type onto a connection, as stored. Absent members mean "this
@@ -406,9 +446,9 @@ function readStoredEndpoints(record: ExternalMcpServerRecord): StoredOAuthEndpoi
 
 /** Builds a descriptor from the endpoints an operator typed on this connection.
  *  @throws {OAuthError} When they do not form a usable provider. */
-function buildConnectionOwnedProvider(deps: ExternalMcpOAuthDeps, record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints & { tokenEndpoint: string }): OAuthProviderDescriptor {
+function buildConnectionOwnedProvider(deps: SignInDeps, record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints & { tokenEndpoint: string }): OAuthProviderDescriptor {
   const clientAuth = readStoredClientAuth(endpoints);
-  return buildOperatorOAuthProvider({
+  return deps.ports.flow.buildOperatorOAuthProvider({
     guard: deps.httpPorts.guard,
     providerId: record.oauthProviderId ?? `connection-${record.serverId}`,
     label: record.label ?? record.serverId,
@@ -458,7 +498,7 @@ function resolveProviderDescriptor(deps: ExternalMcpOAuthServiceDeps, record: Ex
     return buildConnectionOwnedProvider(deps, record, { ...endpoints, tokenEndpoint: endpoints.tokenEndpoint });
   }
   if (record.oauthProviderId === null) {
-    throw noOAuthProviderError({ serverId: record.serverId });
+    throw noOAuthProviderError({ ports: deps.ports, serverId: record.serverId });
   }
   if (deps.lookupProvider) return deps.lookupProvider(record.oauthProviderId);
   return deps.providers.get({ providerId: record.oauthProviderId });
@@ -468,14 +508,14 @@ function resolveProviderDescriptor(deps: ExternalMcpOAuthServiceDeps, record: Ex
  *  @throws {OAuthError} When the row carries no client id — a state `saveExternalMcpServer` refuses
  *  to create, so reaching it means the row was written by something else. */
 async function resolveClient(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   provider: OAuthProviderDescriptor,
 ): Promise<OAuthClient> {
   if (record.oauthClientId === null) {
-    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' has no OAuth client id`, operatorAction: "Add this connection's OAuth client id in Settings → External MCP.", });
+    throw deps.ports.errors.oauth({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' has no OAuth client id`, operatorAction: deps.ports.copy.actions.noClientId, });
   }
-  const payload = await openExternalMcpOAuthPayload(deps.sealer, record);
+  const payload = await deps.ports.store.openPayload(deps.sealer, record);
   return {
     clientId: record.oauthClientId,
     ...(payload.clientSecret === undefined ? {} : { clientSecret: payload.clientSecret }),
@@ -533,16 +573,16 @@ function toStoredEndpoints(discovered: DiscoveredOAuthConfiguration & { readonly
  * @complexity O(1) in row size; a bounded, small number of outbound requests.
  */
 async function discoverConnectionAuthorizationServer(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
 ): Promise<DiscoveredOAuthConfiguration> {
   const resourceUrl = record.url;
   if (resourceUrl === null) {
-    throw noOAuthProviderError({ serverId: record.serverId });
+    throw noOAuthProviderError({ ports: deps.ports, serverId: record.serverId });
   }
-  return withTovuOAuthCopy({ call: () => discoverAuthorizationServer(
+  return deps.ports.withCopy({ call: () => deps.ports.flow.discoverAuthorizationServer(
     { ...deps.httpPorts, resourceUrl },
-    { timeoutMs: 10_000, metadataPolicy: createTovuIssuerBoundDiscoveryPolicy({ guard: deps.httpPorts.guard }) },
+    { timeoutMs: 10_000, metadataPolicy: deps.ports.discoveryPolicy({ guard: deps.httpPorts.guard }) },
   ) });
 }
 
@@ -580,10 +620,10 @@ function registrationGrantTypes(grant: ExternalMcpOAuthGrant): readonly string[]
  *   "connect failed" has no way to guess that from the failure alone.
  * @complexity O(n) in the number of advertised grant types.
  */
-function resolveGrantFromDiscovery(grantTypesSupported: readonly string[], serverId: string): ExternalMcpOAuthGrant {
+function resolveGrantFromDiscovery(grantTypesSupported: readonly string[], serverId: string, ports: HostedMcpSignInPorts): ExternalMcpOAuthGrant {
   if (grantTypesSupported.includes("authorization_code")) return "authorization_code";
   if (grantTypesSupported.includes(DEVICE_CODE_GRANT_TYPE)) return "device_code";
-  throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `the authorization server for external MCP server '${serverId}' advertises no grant Tovu supports (it offers: ${grantTypesSupported.join(", ") || "none"})`, operatorAction: "Set this connection's sign-in method by hand in Settings → External MCP." });
+  throw ports.errors.oauth({ code: "OAUTH_INVALID_REQUEST", message: ports.copy.noSupportedGrant({ serverId, offered: grantTypesSupported }), operatorAction: ports.copy.actions.chooseGrant });
 }
 
 /**
@@ -600,24 +640,24 @@ function resolveGrantFromDiscovery(grantTypesSupported: readonly string[], serve
  * @complexity O(1) — one bounded outbound request.
  */
 async function mintClientForConnection(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   discovered: DiscoveredOAuthConfiguration,
   input: { readonly redirectUri: string | undefined; readonly scopes: readonly string[]; readonly grant: ExternalMcpOAuthGrant },
 ) {
   const registrationEndpoint = discovered.server.registrationEndpoint;
   if (registrationEndpoint === null) {
-    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' has no OAuth client id and its authorization server offers no dynamic client registration`, operatorAction: "Add this connection's OAuth client id in Settings → External MCP — this server does not mint them automatically." });
+    throw deps.ports.errors.oauth({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' has no OAuth client id and its authorization server offers no dynamic client registration`, operatorAction: deps.ports.copy.actions.noRegistration });
   }
-  return withTovuOAuthCopy({ call: () => registerOAuthClientDynamically(
+  return deps.ports.withCopy({ call: () => deps.ports.flow.registerOAuthClientDynamically(
     {
       ...deps.httpPorts,
-      options: oauthClientOptions(record, input.redirectUri),
+      options: oauthClientOptions(deps.ports, record, input.redirectUri),
       registrationEndpoint,
       scopes: input.scopes,
     },
     {
-      messages: tovuOAuthMessages,
+      messages: deps.ports.oauthMessages,
       // Empty for a device-only client: RFC 7591 requires `redirect_uris` only for a client that
       // registers a redirect-based grant, and `registrationGrantTypes` below registers none for
       // `device_code`. Registering a placeholder instead would mint a client pinned to a callback
@@ -637,7 +677,7 @@ async function mintClientForConnection(
  *  would delete a token the connection is still holding.
  *  @complexity O(1) — one unseal, one seal, one upsert. */
 async function persistSelfConfiguration(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   identity: {
     readonly endpoints: StoredOAuthEndpoints;
@@ -650,9 +690,9 @@ async function persistSelfConfiguration(
   },
   options: { readonly configurationOnly?: boolean } = {},
 ): Promise<ExternalMcpServerRecord> {
-  const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
+  const existing = await deps.ports.store.openPayload(deps.sealer, record);
   const clientSecret = identity.clientSecret === undefined ? existing.clientSecret : (identity.clientSecret ?? undefined);
-  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, record, {
+  const { sealedOAuth, oauthAadVersion } = await deps.ports.store.sealPayload(deps, record, {
     ...(clientSecret === undefined ? {} : { clientSecret }),
     ...(existing.tokens === undefined ? {} : { tokens: existing.tokens }),
   });
@@ -691,7 +731,7 @@ async function persistSelfConfiguration(
  *   already-configured path.
  */
 async function selfConfigureConnection(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   redirectUri: string | undefined,
   options: { readonly configurationOnly?: boolean } = {},
@@ -707,7 +747,7 @@ async function selfConfigureConnection(
   // Endpoints the operator typed win; discovery only fills the ones left blank (a typed token
   // endpoint alone has no authorization endpoint to redirect to).
   const endpoints: StoredOAuthEndpoints = mustDiscover ? discoveredEndpoints : { ...discoveredEndpoints, ...stored, resource: discoveredEndpoints.resource ?? stored.resource };
-  const grant = selfConfiguredGrant({ record, discovered });
+  const grant = selfConfiguredGrant({ record, discovered, ports: deps.ports });
   const scopes = selfConfiguredScopes({ record, discovered });
 
   // Narrowed on the field rather than on `mustRegister`, so there is no fallback that could write an
@@ -736,9 +776,9 @@ async function selfConfigureConnection(
  * @throws {OAuthError} From {@link resolveGrantFromDiscovery}.
  * @complexity O(n) in the number of advertised grant types.
  */
-function selfConfiguredGrant(required: { readonly record: ExternalMcpServerRecord; readonly discovered: DiscoveredOAuthConfiguration }): ExternalMcpOAuthGrant {
+function selfConfiguredGrant(required: { readonly record: ExternalMcpServerRecord; readonly discovered: DiscoveredOAuthConfiguration; readonly ports: HostedMcpSignInPorts }): ExternalMcpOAuthGrant {
   const { record, discovered } = required;
-  return record.oauthGrant === null ? resolveGrantFromDiscovery(discovered.server.grantTypesSupported, record.serverId) : (record.oauthGrant as ExternalMcpOAuthGrant);
+  return record.oauthGrant === null ? resolveGrantFromDiscovery(discovered.server.grantTypesSupported, record.serverId, required.ports) : (record.oauthGrant as ExternalMcpOAuthGrant);
 }
 
 /**
@@ -826,12 +866,12 @@ function ownerKeyOf(workspaceId: UUID, serverId: string): string {
  * failure is the same `OAUTH_INVALID_STATE`, so a guessed or tampered state is not an oracle.
  * @complexity O(state bytes), bounded by Jini; one site-key seal/open, no pending-store I/O.
  */
-function sealedRedirectState({ deps, serverId, browserBinding }: { deps: ExternalMcpOAuthDeps; serverId: string; browserBinding?: string }, _optional: Record<string, never> = {}) {
+function sealedRedirectState({ deps, serverId, browserBinding }: { deps: SignInDeps; serverId: string; browserBinding?: string }, _optional: Record<string, never> = {}) {
   // The HTTP callback always supplies browser proof. Unbound pre-upgrade links cannot decrypt
   // there; persisted grants use their existing vault AAD and remain usable across reconnects.
   const parts = browserBinding === undefined ? [deps.workspaceId, serverId] : [deps.workspaceId, serverId, browserBinding];
-  const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify(parts)] });
-  return createSealedAuthorizationState({ clock: deps.clock, workspaceId: deps.workspaceId, serverId, codec: {
+  const aad = deps.ports.aad.format({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify(parts)] });
+  return deps.ports.flow.createSealedAuthorizationState({ clock: deps.clock, workspaceId: deps.workspaceId, serverId, codec: {
     async seal({ plaintext }, _options = {}) {
       const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey({}), aad });
       return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
@@ -846,12 +886,12 @@ function sealedRedirectState({ deps, serverId, browserBinding }: { deps: Externa
  *  status and expiry beside it. One place, so the plaintext metadata cannot drift from the blob.
  *  @complexity O(1) — one unseal, one seal, one upsert. */
 async function persistTokens(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   tokens: OAuthTokenSet,
 ): Promise<void> {
-  const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, record, {
+  const existing = await deps.ports.store.openPayload(deps.sealer, record);
+  const { sealedOAuth, oauthAadVersion } = await deps.ports.store.sealPayload(deps, record, {
     // Read-modify-write: sealing `{ tokens }` alone would silently delete the operator's client
     // secret, and the next refresh would fail with a message about the provider rather than about us.
     ...(existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret }),
@@ -928,7 +968,7 @@ interface SetOAuthStatusOptions {
  *   {@link CLEAR_TOKEN_RESEAL_ATTEMPTS} attempts.
  */
 async function resolveClearedTokenPatch(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   options: { readonly clearToken?: boolean; readonly dropClientSecret: boolean },
 ): Promise<ClearedTokenPatch> {
@@ -947,13 +987,13 @@ async function resolveClearedTokenPatch(
  *  this branch is safe). Split out purely to keep that function's cognitive complexity under the
  *  shop ceiling. */
 async function openExistingOAuthPayloadForClear(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
-): Promise<{ readonly existing: Awaited<ReturnType<typeof openExternalMcpOAuthPayload>> } | { readonly wholesale: true }> {
+): Promise<{ readonly existing: Awaited<ReturnType<HostedMcpSignInPorts["store"]["openPayload"]>> } | { readonly wholesale: true }> {
   try {
-    return { existing: await openExternalMcpOAuthPayload(deps.sealer, record) };
+    return { existing: await deps.ports.store.openPayload(deps.sealer, record) };
   } catch (error) {
-    if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+    if (!deps.ports.errors.isUnconfigured(error)) throw error;
     return { wholesale: true };
   }
 }
@@ -964,16 +1004,16 @@ async function openExistingOAuthPayloadForClear(
  *  @throws {ExternalMcpSecretStoreUnconfiguredError} If the re-seal never recovers within
  *  {@link CLEAR_TOKEN_RESEAL_ATTEMPTS} attempts. */
 async function resealClearedOAuthToken(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   record: ExternalMcpServerRecord,
   clientSecret: { readonly clientSecret?: string },
 ): Promise<ClearedTokenPatch> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const cleared = await sealExternalMcpOAuthPayload(deps, record, clientSecret);
+      const cleared = await deps.ports.store.sealPayload(deps, record, clientSecret);
       return { sealedOAuth: cleared.sealedOAuth, oauthExpiresAt: null, oauthAadVersion: cleared.oauthAadVersion };
     } catch (error) {
-      if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+      if (!deps.ports.errors.isUnconfigured(error)) throw error;
       if (attempt >= CLEAR_TOKEN_RESEAL_ATTEMPTS) throw error;
     }
   }
@@ -982,7 +1022,7 @@ async function resealClearedOAuthToken(
 /** Moves a row into a terminal or reset OAuth state without touching anything else on it. See
  *  {@link resolveClearedTokenPatch} for the `clearToken` decision tree. */
 async function setOAuthStatus(
-  deps: ExternalMcpOAuthDeps,
+  deps: SignInDeps,
   serverId: string,
   status: ExternalMcpOAuthStatus,
   options: SetOAuthStatusOptions = {},
@@ -1016,9 +1056,9 @@ async function setOAuthStatus(
  *   state's expiry prevent replay. Device authorization still uses the injected durable store;
  *   its in-memory adapter is only suitable when begin and poll run in the same process.
  */
-export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
-  const deps: ExternalMcpOAuthServiceDeps = { ...required, providers: required.providers ?? createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
-  const refresher = createTokenRefresher({
+export function createHostedMcpSignInService(required: SignInDeps, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
+  const deps: ExternalMcpOAuthServiceDeps = { ...required, providers: required.providers ?? required.ports.flow.createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
+  const refresher = deps.ports.flow.createTokenRefresher({
     clock: deps.clock,
     sleep: ({ ms }) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
     port: {
@@ -1027,8 +1067,8 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
         if (!record) return null;
         // A row already parked in `needs_reauth` must not be probed again on every tool call: the
         // state is durable and only a human clears it.
-        if (resolveExternalMcpOAuthStatus(record) === "needs_reauth") return null;
-        const payload = await openExternalMcpOAuthPayload(deps.sealer, record);
+        if (deps.ports.projections.oauthStatus(record) === "needs_reauth") return null;
+        const payload = await deps.ports.store.openPayload(deps.sealer, record);
         return payload.tokens === undefined
           ? null
           : { ...payload.tokens, scopes: [...payload.tokens.scopes] };
@@ -1037,7 +1077,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       async refresh({ key: serverId, refreshToken }) {
         const record = await requireOAuthRecord(deps, serverId);
         const provider = resolveProviderDescriptor(deps, record);
-        return withTovuOAuthCopy({ call: async () => refreshAccessToken(
+        return deps.ports.withCopy({ call: async () => deps.ports.flow.refreshAccessToken(
           { ...deps.httpPorts, clock: deps.clock, tokenEndpoint: provider.tokenEndpoint,
             client: await resolveClient(deps, record, provider), refreshToken },
           { scopes: readStoredScopes(record), resource: readStoredEndpoints(record).resource, timeoutMs: CONNECT_TIMEOUT_MS },
@@ -1071,7 +1111,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
   });
 
-  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, registrationIdentity: tovuRegistrationIdentity, resolveProvider: record => resolveProviderDescriptor(deps, record), configure: async input => {
+  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, ports: deps.ports, resolveProvider: record => resolveProviderDescriptor(deps, record), configure: async input => {
     const record = await selfConfigureConnection(deps, await requireOAuthRecord(deps, input.serverId), input.redirectUri, { configurationOnly: true });
     const provider = resolveProviderDescriptor(deps, record);
     const endpoints = readStoredEndpoints(record);
@@ -1082,7 +1122,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
   return {
     ...(shared ? { assertSharedAuthorized: shared.assertAuthorized, useSharedConnection: shared.useSaved, useLocalConnection: shared.useLocal, listSharedConnections: shared.list } : {}),
     async beginConnect(input) {
-      if (input.destination === 'shared' && !shared) throw new ExternalMcpValidationError('Shared sign-in is available only in this Mac owner profile. Use local sign-in here.', 'destination');
+      if (input.destination === 'shared' && !shared) throw deps.ports.errors.validation(deps.ports.copy.sharedLocalOnly, 'destination');
       if (shared && (input.destination === 'shared' || await shared.hasBinding(input))) return shared.beginConnect(input);
       // Self-configuration first: a row that names no endpoints or no client id gets them here, once,
       // and every step below then reads an ordinary fully-specified connection.
@@ -1094,7 +1134,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       const resource = readStoredEndpoints(record).resource;
 
       if (record.oauthGrant === "device_code") {
-        const authorization = await withTovuOAuthCopy({ call: () => beginDeviceAuthorization(
+        const authorization = await deps.ports.withCopy({ call: () => deps.ports.flow.beginDeviceAuthorization(
           { ...deps.httpPorts, provider, clock: deps.clock, client },
           { scopes, resource, timeoutMs: CONNECT_TIMEOUT_MS },
         ) });
@@ -1115,16 +1155,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       // a blanket precondition a caller had to satisfy before it knew which grant it had.
       const redirectUri = input.redirectUri;
       if (redirectUri === undefined) {
-        throw new ExternalMcpValidationError(
-          `external MCP server '${record.serverId}' uses the authorization_code grant, which needs an absolute callback URL ` +
-            `Tovu can be reached at, and none could be found: TOVU_PUBLIC_URL is not set, and this execution context has no ` +
-            `derived origin either. Set TOVU_PUBLIC_URL to this instance's public origin (for example ` +
-            `https://your-site.example.com) and try again, or start this connection from Settings → External MCP, which derives ` +
-            `the origin from the browser's own request. Nothing was changed.`,
-          // The field an operator would change to fix it is the environment's, not a form's — the
-          // nearest honest answer this error's shape allows, and the one the message names.
-          "redirectUri",
-        );
+        throw deps.ports.errors.validation(deps.ports.copy.noPublicOrigin({ serverId: record.serverId }), "redirectUri");
       }
 
       // The authenticated GET sets the shared browser-binding cookie before revealing a provider
@@ -1133,21 +1164,21 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
         await setOAuthStatus(deps, record.serverId, 'pending');
         return {
           kind: 'redirect_required',
-          authorizationUrl: hostedMcpSignInLink({ callbackUrl: redirectUri, workspaceId: deps.workspaceId, serverId: record.serverId }),
+          authorizationUrl: deps.ports.signInLink({ callbackUrl: redirectUri, workspaceId: deps.workspaceId, serverId: record.serverId }),
           expiresAt: new Date(deps.clock.nowMs() + 600_000).toISOString(),
         };
       }
-      const started = await withTovuOAuthCopy({ call: () => beginAuthorizationCode(
+      const started = await deps.ports.withCopy({ call: () => deps.ports.flow.beginAuthorizationCode(
         { provider, stateless: sealedRedirectState({ deps, serverId: record.serverId, browserBinding: input.browserBinding }), guard: deps.httpPorts.guard,
           randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
-          options: oauthClientOptions(record, redirectUri),
+          options: oauthClientOptions(deps.ports, record, redirectUri),
           ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
           client,
           redirectUri,
         }, {
           scopes,
           resource,
-          messages: tovuOAuthMessages,
+          messages: deps.ports.oauthMessages,
         },
       ) });
       await setOAuthStatus(deps, record.serverId, "pending");
@@ -1162,7 +1193,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
 
       let tokens: OAuthTokenSet;
       try {
-        tokens = await withTovuOAuthCopy({ call: () => completeAuthorizationCode(
+        tokens = await deps.ports.withCopy({ call: () => deps.ports.flow.completeAuthorizationCode(
           { ...deps.httpPorts, provider, stateless: sealedRedirectState({ deps, serverId: record.serverId, browserBinding: input.browserBinding }), clock: deps.clock,
             redirectUri: input.redirectUri,
             ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
@@ -1176,7 +1207,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
         // A provider that refuses the CLIENT (revoked, or never known) will refuse it on every retry,
         // so a self-registered one is dropped and the next connect mints a fresh one. The provider's
         // error still reaches the caller.
-        if ((error instanceof OAuthError) && CLIENT_REJECTED_PROVIDER_CODES.includes(error.providerErrorCode ?? "")) {
+        if (deps.ports.errors.isOAuthError(error) && CLIENT_REJECTED_PROVIDER_CODES.includes(error.providerErrorCode ?? "")) {
           await setOAuthStatus(deps, record.serverId, "disconnected", { clearToken: true, forgetSelfRegisteredClient: true });
         }
         throw error;
@@ -1196,13 +1227,13 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       const record = await requireOAuthRecord(deps, input.serverId);
       const authorization = await deps.devices.get(input.serverId);
       if (!authorization) {
-        throw new OAuthError({ code: "OAUTH_INVALID_STATE", message: `no device authorization is in progress for '${input.serverId}'`, operatorAction: "Start the connection again from Settings → External MCP.", });
+        throw deps.ports.errors.oauth({ code: "OAUTH_INVALID_STATE", message: `no device authorization is in progress for '${input.serverId}'`, operatorAction: deps.ports.copy.actions.restartDevice, });
       }
 
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
       try {
-        const tokens = await withTovuOAuthCopy({ call: () => pollDeviceAuthorizationOnce(
+        const tokens = await deps.ports.withCopy({ call: () => deps.ports.flow.pollDeviceAuthorizationOnce(
           { ...deps.httpPorts, provider, clock: deps.clock,
             client,
             deviceCode: authorization.deviceCode,
@@ -1220,7 +1251,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       } catch (error) {
         // The ONLY retryable branch in this whole module — RFC 8628 §3.5 requires the client to keep
         // polling on these two, and only these two.
-        if ((error instanceof OAuthError) && error.retryable) {
+        if (deps.ports.errors.isOAuthError(error) && error.retryable) {
           return { status: "pending", retryAfterSeconds: error.retryAfterSeconds ?? authorization.intervalSeconds };
         }
         await deps.devices.delete(input.serverId);
@@ -1243,12 +1274,12 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     async reportAuthFailure(serverId, error) {
       if (shared && await shared.hasBinding({ serverId })) {
         await shared.markNeedsReauth({ serverId });
-        throw createExternalMcpReauthRequiredError({ serverId, cause: error });
+        throw deps.ports.errors.reauthRequired({ serverId, cause: error });
       }
       const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
       // A preset connection, a `static_env` row, or one already deleted has no reauth state this
       // service owns — see `createExternalMcpConnectionGate`'s identical passthrough.
-      if (!record || resolveExternalMcpAuthMode(record) !== "oauth") throw error;
+      if (!record || deps.ports.projections.authMode(record) !== "oauth") throw error;
 
       // The state write is BEST EFFORT; the terminal error below is the guarantee. `setOAuthStatus`
       // can still fail here — a row write that rejects, or a blob `openExternalMcpOAuthPayload`
@@ -1264,14 +1295,14 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       let statusWriteFailure: unknown;
       // Idempotent: a call that arrives after `tokenResolver` already discovered the same dead
       // grant must not re-clear an already-cleared token or bump `updatedAt` needlessly.
-      if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") {
+      if (deps.ports.projections.oauthStatus(record) !== "needs_reauth") {
         try {
           await setOAuthStatus(deps, serverId, "needs_reauth", { clearToken: true });
         } catch (writeError) {
           statusWriteFailure = writeError;
         }
       }
-      throw createExternalMcpReauthRequiredError({
+      throw deps.ports.errors.reauthRequired({
         serverId,
         label: record.label,
         ...(statusWriteFailure === undefined ? {} : { cause: statusWriteFailure }),
@@ -1290,9 +1321,9 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
           // a model, so a `needs_reauth` outcome is translated into the one non-retryable sentence
           // that makes it stop. Anything else (a provider outage) keeps its own error, because it is
           // NOT a durable state and must not be reported as one.
-          if ((error instanceof OAuthError) && error.code === "OAUTH_INVALID_GRANT") {
+          if (deps.ports.errors.isOAuthError(error) && error.code === "OAUTH_INVALID_GRANT") {
             const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
-            throw createExternalMcpReauthRequiredError({ serverId, label: record?.label ?? null });
+            throw deps.ports.errors.reauthRequired({ serverId, label: record?.label ?? null });
           }
           throw error;
         }

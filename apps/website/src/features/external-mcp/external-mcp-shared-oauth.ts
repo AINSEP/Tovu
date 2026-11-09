@@ -1,24 +1,52 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { ApiConnectionError, assertSharedOAuthCompatibility, createSharedOAuthConsumer, deriveApiConnectionKey, type ApiConnectionRecord } from '@jini-ai/integrations/api-connections';
-import { beginAuthorizationCode, beginDeviceAuthorization, completeAuthorizationCode, createSealedAuthorizationState, createTokenRefresher,
-  OAuthError, pollDeviceAuthorizationOnce, refreshAccessToken, type OAuthClient, type OAuthProviderDescriptor, type OAuthTokenSet } from '@jini-ai/oauth';
-import { formatAad } from '@jini-ai/platform/secrets';
-import type { SharedOAuthIssuingContext, SharedOAuthOwnerStorage } from '../api-connections/shared-owner.js';
-import type { SiteOAuthBindings } from '../project-keys/site-references.js';
-import type { KeyAttachments, ProjectKeyTransaction } from '../project-keys/attachments.js';
-import { hostedMcpSignInLink } from '../api-connections/browser-binding.js';
-import type { ExternalMcpConnectStart, ExternalMcpOAuthDeps, ExternalMcpServerRecord } from './contracts.js';
+import { ApiConnectionError, assertSharedOAuthCompatibility, createSharedOAuthConsumer, deriveApiConnectionKey, type ApiConnectionClientKind, type ApiConnectionDescriptor,
+  type ApiConnectionRecord, type ApiConnectionRecordStore, type ApiConnectionTokenStore, type SharedOAuthConnection } from '@jini-ai/integrations/api-connections';
+import type { OAuthClient, OAuthProviderDescriptor, OAuthTokenSet } from '@jini-ai/core/contracts/oauth';
+import type { VaultRecord } from '@jini-ai/core/contracts/vault';
+import type { ExternalMcpConnectStart, ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
+import type { ExternalMcpOAuthDeps, ExternalMcpOAuthService, HostedMcpSignInPorts } from '@jini-ai/integrations/api-connections/hosted-mcp';
+
+/** @agent-note Issuing configuration sealed in the owner store (structurally the host's shared-owner context); a consuming site's client cannot replace it. */
+export interface SharedSignInIssuingContext {
+  readonly credentialId: string;
+  readonly identity: SharedOAuthConnection['identity'];
+  readonly client: OAuthClient;
+  readonly clientKind: ApiConnectionClientKind;
+  readonly descriptor: ApiConnectionDescriptor;
+}
+/** @agent-note Fulfilled by the host's shared-owner storage over the owner vault: `records` and `tokensFor` use the SAME vault/record store, `saveContext` refuses a changed issuing identity, `readConnection` checks the record against its context. */
+export interface SharedSignInOwner {
+  readonly records: Pick<ApiConnectionRecordStore, 'read' | 'compareAndSet'>;
+  readContext(input: { credentialId: string }): Promise<SharedSignInIssuingContext | null>;
+  saveContext(input: { credentialId: string; context: SharedSignInIssuingContext }): Promise<void>;
+  tokensFor(input: { context: SharedSignInIssuingContext }): ApiConnectionTokenStore;
+  readConnection(input: { credentialId: string }): Promise<SharedOAuthConnection | null>;
+}
+/** @agent-note Fulfilled by the host's site binding store: token-free consumer→credential references only; a live owner grant still authorizes every use. */
+export interface SharedSignInBindings {
+  read(input: { consumerId: string }): Promise<{ credentialId: string } | null>;
+  set(input: { consumerId: string; credentialId: string }): Promise<void>;
+  remove(input: { consumerId: string }): Promise<void>;
+}
+/** @agent-note Fulfilled by the host's project-key attachments: the live owner grant, checked on every use (no cache). */
+export interface SharedSignInAttachments {
+  attach(required: { siteId: string; keyId: string; siteName: string }): Promise<void>;
+  detach(required: { siteId: string; keyId: string }): Promise<void>;
+  isAttached(required: { siteId: string; keyId: string }): Promise<boolean>;
+}
+/** @agent-note The host's project transaction; binding and attachment writes inside one `run` commit together. */
+export type SharedSignInTransaction = <T>(required: { run: () => Promise<T> }) => Promise<T>;
 
 export interface SharedExternalMcpOwner {
-  readonly owner: SharedOAuthOwnerStorage;
-  readonly bindings: SiteOAuthBindings;
-  readonly attachments: KeyAttachments;
-  readonly transaction: ProjectKeyTransaction;
+  readonly owner: SharedSignInOwner;
+  readonly bindings: SharedSignInBindings;
+  readonly attachments: SharedSignInAttachments;
+  readonly transaction: SharedSignInTransaction;
   readonly siteId: string;
   readonly siteName: string;
   readonly ownerPrincipalId: string | Promise<string>;
   /** Production supplies the existing bounded owner inventory query. */
-  readonly inventory?: () => Promise<readonly import('@jini-ai/platform/secrets/credential-sets').VaultRecord[]>;
+  readonly inventory?: () => Promise<readonly VaultRecord[]>;
 }
 export interface SharedMcpConfiguration {
   readonly record: ExternalMcpServerRecord;
@@ -28,28 +56,28 @@ export interface SharedMcpConfiguration {
   readonly resource?: string;
   readonly issuer?: string;
 }
-interface SharedMcpContext extends SharedOAuthIssuingContext {
+interface SharedMcpContext extends SharedSignInIssuingContext {
   readonly mcp: { readonly provider: OAuthProviderDescriptor; readonly scopes: readonly string[]; readonly url: string | null; readonly grant: string | null };
 }
-const unavailable = () => new ApiConnectionError({ code: 'connection-not-found', message: 'This shared MCP connection is unavailable here. Choose a saved connection or sign in explicitly in Settings → External MCP.' });
 const MCP_PLUGIN_ID = 'external-mcp';
 const consumerId = (serverId: string) => `mcp:${serverId}`;
-const invalidState = () => new OAuthError({ code: 'OAUTH_INVALID_STATE', message: 'This shared sign-in was stopped or replaced.', operatorAction: 'Start sign-in again in Settings → External MCP.' });
 
 /** Site-specific bindings over the existing owner vault. Every call checks live grants; no token is copied to the site.
  * @complexity Selected-row reads per call; one cached refresher per selected owner credential, no timers or polling.
  */
 export function createSharedExternalMcpOAuth(required: {
-  deps: ExternalMcpOAuthDeps;
+  deps: ExternalMcpOAuthDeps<SharedExternalMcpOwner>;
   shared: SharedExternalMcpOwner;
-  /** The host's stable registration identity (one binding; changing it registers a new client). */
-  registrationIdentity: { readonly softwareId: string; readonly sharedClientName: string };
+  /** The host's sign-in ports (the same object the sign-in service received). */
+  ports: HostedMcpSignInPorts;
   resolveProvider: (record: ExternalMcpServerRecord) => OAuthProviderDescriptor;
   configure: (input: { serverId: string; redirectUri?: string }) => Promise<SharedMcpConfiguration>;
 }, _optional = {}) {
-  const { deps, shared, configure, resolveProvider } = required;
+  const { deps, shared, configure, resolveProvider, ports } = required;
   const { owner, bindings, attachments, siteId } = shared;
-  const refreshers = new Map<string, ReturnType<typeof createTokenRefresher>>();
+  const unavailable = () => new ApiConnectionError({ code: 'connection-not-found', message: ports.copy.sharedUnavailable });
+  const invalidState = () => ports.errors.oauth({ code: 'OAUTH_INVALID_STATE', message: 'This shared sign-in was stopped or replaced.', operatorAction: ports.copy.actions.restartShared });
+  const refreshers = new Map<string, ReturnType<HostedMcpSignInPorts['flow']['createTokenRefresher']>>();
   const deviceKeyFor = (serverId: string, credentialId: string, generation: number) => JSON.stringify(['shared', siteId, serverId, credentialId, generation]);
   const bindingFor = ({ serverId }: { serverId: string }) => bindings.read({ consumerId: consumerId(serverId) });
   async function contextFor(credentialId: string): Promise<SharedMcpContext> {
@@ -83,9 +111,9 @@ export function createSharedExternalMcpOAuth(required: {
     if (cached) return cached;
     const context = await contextFor(credentialId);
     const tokens = owner.tokensFor({ context });
-    const refresher = createTokenRefresher({ clock: deps.clock, sleep: ({ ms }) => new Promise(resolve => setTimeout(resolve, ms)), port: {
+    const refresher = ports.flow.createTokenRefresher({ clock: deps.clock, sleep: ({ ms }) => new Promise(resolve => setTimeout(resolve, ms)), port: {
       ...tokens,
-      refresh: ({ refreshToken }) => refreshAccessToken({ ...deps.httpPorts, clock: deps.clock, tokenEndpoint: context.identity.tokenEndpoint,
+      refresh: ({ refreshToken }) => ports.flow.refreshAccessToken({ ...deps.httpPorts, clock: deps.clock, tokenEndpoint: context.identity.tokenEndpoint,
         client: context.client, refreshToken }, { scopes: context.mcp.scopes, resource: context.identity.resource, timeoutMs: 15_000 }),
     } });
     refreshers.set(credentialId, refresher);
@@ -99,7 +127,7 @@ export function createSharedExternalMcpOAuth(required: {
       if (record?.generation !== expectedGeneration || record.status !== 'connected') throw unavailable();
       try { return await (await refreshFor(credentialId)).getAccessToken({ key: credentialId }); }
       catch (error) {
-        if (error instanceof OAuthError && error.code === 'OAUTH_INVALID_GRANT') {
+        if (ports.errors.isOAuthError(error) && error.code === 'OAUTH_INVALID_GRANT') {
           await owner.records.compareAndSet({ key: credentialId, expectedRevision: record.revision,
             record: { ...record, status: 'reconnect-required', revision: record.revision + 1 } });
         }
@@ -121,14 +149,14 @@ export function createSharedExternalMcpOAuth(required: {
     return record;
   }
   function stateFor(input: { serverId: string; credentialId: string; generation: number; browserBinding?: string }) {
-    const aad = formatAad({ kind: 'oauth-redirect-state', version: 'v1', parts: [JSON.stringify(['shared', siteId, input.serverId, input.credentialId, input.generation, input.browserBinding])] });
-    return createSealedAuthorizationState({ clock: deps.clock, workspaceId: siteId, serverId: input.serverId, codec: {
+    const aad = ports.aad.format({ kind: 'oauth-redirect-state', version: 'v1', parts: [JSON.stringify(['shared', siteId, input.serverId, input.credentialId, input.generation, input.browserBinding])] });
+    return ports.flow.createSealedAuthorizationState({ clock: deps.clock, workspaceId: siteId, serverId: input.serverId, codec: {
       seal: async ({ plaintext }) => Buffer.from(JSON.stringify(await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey({}), aad }))).toString('base64url'),
       open: async ({ state }) => deps.sealer.open({ sealed: JSON.parse(Buffer.from(state, 'base64url').toString()) }, { aad }),
     } });
   }
   async function assertOwner(actorId: string | undefined) {
-    if (actorId !== await shared.ownerPrincipalId) throw new ApiConnectionError({ code: 'access-denied', message: 'Use the installation owner’s signed-in session on this Mac to manage saved connections.' });
+    if (actorId !== await shared.ownerPrincipalId) throw new ApiConnectionError({ code: 'access-denied', message: ports.copy.sharedOwnerOnly });
   }
   async function createSelection(input: { serverId: string; redirectUri?: string }) {
     const server = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: input.serverId });
@@ -230,7 +258,7 @@ export function createSharedExternalMcpOAuth(required: {
       await assertAttempt(input.serverId, binding.credentialId, record.generation);
       const provider = context.mcp.provider;
       if (context.mcp.grant === 'device_code') {
-        const authorization = await beginDeviceAuthorization({ ...deps.httpPorts, provider, clock: deps.clock, client: context.client },
+        const authorization = await ports.flow.beginDeviceAuthorization({ ...deps.httpPorts, provider, clock: deps.clock, client: context.client },
           { scopes: context.mcp.scopes, resource: context.identity.resource, timeoutMs: 15_000 });
         await assertAttempt(input.serverId, binding.credentialId, record.generation);
         await deps.devices.put(deviceKeyFor(input.serverId, binding.credentialId, record.generation), authorization);
@@ -238,22 +266,22 @@ export function createSharedExternalMcpOAuth(required: {
           verificationUriComplete: authorization.verificationUriComplete, expiresAt: authorization.expiresAt, intervalSeconds: authorization.intervalSeconds };
       }
       if (!input.redirectUri) throw unavailable();
-      if (input.delivery === 'hosted') return { kind: 'redirect_required', authorizationUrl: hostedMcpSignInLink({ callbackUrl: input.redirectUri,
+      if (input.delivery === 'hosted') return { kind: 'redirect_required', authorizationUrl: ports.signInLink({ callbackUrl: input.redirectUri,
         workspaceId: deps.workspaceId, serverId: input.serverId }), expiresAt: new Date(deps.clock.nowMs() + 600_000).toISOString() };
-      const started = await beginAuthorizationCode({ provider, guard: deps.httpPorts.guard, randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
+      const started = await ports.flow.beginAuthorizationCode({ provider, guard: deps.httpPorts.guard, randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
         stateless: stateFor({ ...input, credentialId: binding.credentialId, generation: record.generation }), ownerKey: JSON.stringify([siteId, input.serverId, binding.credentialId]),
-        client: context.client, redirectUri: input.redirectUri, options: { clientDisplayName: required.registrationIdentity.sharedClientName, softwareId: required.registrationIdentity.softwareId, redirectUris: [input.redirectUri] } },
+        client: context.client, redirectUri: input.redirectUri, options: { clientDisplayName: ports.registrationIdentity.sharedClientName, softwareId: ports.registrationIdentity.softwareId, redirectUris: [input.redirectUri] } },
       { scopes: context.mcp.scopes, resource: context.identity.resource });
       return { kind: 'redirect_required', authorizationUrl: started.authorizationUrl, expiresAt: started.expiresAt };
     },
-    async completeAuthorizationCallback(input: Parameters<import('./contracts.js').ExternalMcpOAuthService['completeAuthorizationCallback']>[0]) {
+    async completeAuthorizationCallback(input: Parameters<ExternalMcpOAuthService['completeAuthorizationCallback']>[0]) {
       const found = await selected(input.serverId);
       if (!found) throw invalidState();
       const { context, binding } = found;
       const record = await owner.records.read({ key: binding.credentialId });
       if (!record) throw invalidState();
       await assertAttempt(input.serverId, binding.credentialId, record.generation);
-      const tokens = await completeAuthorizationCode({ ...deps.httpPorts, provider: context.mcp.provider, clock: deps.clock,
+      const tokens = await ports.flow.completeAuthorizationCode({ ...deps.httpPorts, provider: context.mcp.provider, clock: deps.clock,
         stateless: stateFor({ ...input, credentialId: binding.credentialId, generation: record.generation }), redirectUri: input.redirectUri,
         ownerKey: JSON.stringify([siteId, input.serverId, binding.credentialId]), client: context.client, params: input.params }, { timeoutMs: 15_000 });
       await install(input.serverId, context, record.generation, tokens);
@@ -269,13 +297,13 @@ export function createSharedExternalMcpOAuth(required: {
       const authorization = await deps.devices.get(deviceKey);
       if (!authorization) throw invalidState();
       try {
-        const tokens = await pollDeviceAuthorizationOnce({ ...deps.httpPorts, provider: context.mcp.provider, clock: deps.clock,
+        const tokens = await ports.flow.pollDeviceAuthorizationOnce({ ...deps.httpPorts, provider: context.mcp.provider, clock: deps.clock,
           client: context.client, deviceCode: authorization.deviceCode, expiresAt: authorization.expiresAt }, { resource: context.identity.resource, timeoutMs: 15_000 });
         await deps.devices.delete(deviceKey);
         await install(input.serverId, context, record.generation, tokens);
         return { status: 'connected' as const };
       } catch (error) {
-        if (error instanceof OAuthError && error.retryable) return { status: 'pending' as const, retryAfterSeconds: error.retryAfterSeconds ?? authorization.intervalSeconds };
+        if (ports.errors.isOAuthError(error) && error.retryable) return { status: 'pending' as const, retryAfterSeconds: error.retryAfterSeconds ?? authorization.intervalSeconds };
         await deps.devices.delete(deviceKey);
         throw error;
       }
