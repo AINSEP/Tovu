@@ -43,6 +43,7 @@ console.log('published import has no startup effects');\n`);
 test('resolved emitted contracts document the security and ordering obligations a second host needs', () => {
   let functions = 0;
   const requiredNotes: Record<string, RegExp> = {
+    enabled: /Every enable requires a fresh explicit human answer.*previously approved revisions/i,
     authorize: /same permission evaluator.*after human approval/i,
     approvalFingerprint: /same fingerprint owner.*every supplied revision/i,
     executeCommand: /existing command gateway.*rollback/i,
