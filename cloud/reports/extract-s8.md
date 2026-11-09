@@ -521,3 +521,186 @@ test("sets/ shims import only the Jini entry; the moved code imports nothing but
 ```
 
 Rerun after the correction: source-scan 6/6, C1 second-host 8/8, C0 11/11 (all exit 0); explicit compile of the 3 C1 pins exit 0; eslint on the edited test exit 0. Tovu total 773/773: the 51-file run above had 772 pass and only this test failing; the corrected file now passes 6/6, and nothing else changed between the runs (an integrations rebuild re-emitted identical files).
+
+## C2 part 1 — inventory
+
+Recorded before any C2 implementation edit (R5.6). T = Tovu `apps/website/src/`, J = Jini `packages/`.
+Scope: every helper/type/value a prospective C3 move of the custom-credential tool registrations
+(`T features/custom-credentials/tool-registrations.ts`, 1,245 lines; imports :1-78), the credential-copy
+tool (`credential-copy-tool.ts`, 130 lines) and the write-files/source-control write path would consume.
+C3 itself is NOT authorized in this session; the destination column says where the dependency would
+come from once it is, without any forbidden import. "Same package" means the C3 destination
+`J integrations` (the package `credentialed-http` and, after C1 move, the credential-set store live in).
+Rule applied to every row: a moved handler may import only its own package and `@jini-ai/core`
+(root or `contracts/<area>` / existing core subpaths). Anything from `@jini-ai/{cms,daemon,ui,platform,
+agent-plugins,plugins,devops}` or from Tovu becomes a named local port or named host input.
+
+Cited lines verified at the C1 move tip (Tovu afa3b2c3, Jini b86e8a76). Corrections to the brief's citations: none — `credentialed-request.ts`
+`resolveRequestTarget` :720, `verifyCustomCredential` :734, `makeCredentialedRequest` :749,
+`probeCredentialConnection` :766; tool-registrations build/validate/plan/commit :1193-1225, plan-bound
+commit :381-391, safe-message egress reconstruction :224-231 all match.
+
+Design-stop candidates: **none**. Every row resolves to same package, core root/subpath, core contracts,
+a named local port (the two new ports) or a named host input.
+
+### A. Credentialed request (new `CredentialedRequestPort`, J core/contracts/credentials)
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary — injected or justified | @agent-note obligations |
+|---|---|---|---|---|---|
+| makeCredentialedRequest | async fn (deps, input) → executed result | T custom-credentials/credentialed-request.ts:749 | named local port `CredentialedRequestPort.request` (T binder binds this exact fn) | Access Tokens remedy suffix (:713-716) and not-found identity stay in the T adapter behind the port | executes only after caller policy; DELETE is held by the caller, never by the port; egress refusal identity preserved; result never carries secret/header/username |
+| resolveRequestTarget | async fn → `{label, url: URL}` | credentialed-request.ts:720 | `CredentialedRequestPort.resolveTarget` | same remedy/not-found policy as above | NEVER decrypts; must run before any dialog or decrypt |
+| verifyCustomCredential | async fn → verification result | credentialed-request.ts:734 | `CredentialedRequestPort.verify` | verification messages are J integrations text (neutral, label-only) | tri-state valid/invalid/unreachable; transport failure is "unreachable", never "invalid"; authDiagnostic facts only |
+| probeCredentialConnection | fn (required, {httpClient}) → ok/refused/unavailable | credentialed-request.ts:766 (over J integrations credentialed-http/credentialed-request.ts:~322) | `CredentialedRequestPort.probe` (binder closes over the guarded client) | none | URL is trusted, host-resolved against the saved origin; bodyless GET, no redirects; no body/header/secret escapes |
+| CredentialedRequestDeps {repo, sealer, httpClient, clock, audit?, loadAuthSchemes} | interface | credentialed-request.ts:648 | named host input — closed over by the T binder; never crosses the port | `[custom-credentials]` audit prefix (:629) host | binder must reuse composition's guarded client and the same repo/sealer the store uses |
+| MakeCredentialedRequestInput | interface (label/method/url unknown + headers/body unknown) | T :657, J integrations credentialed-request.ts:461 | core `CredentialedRequestRequired`/`CredentialedRequestOptional` (label/method/url `string` — handlers already `requireString` them; headers/body stay `unknown`: untrusted model fields the port validates) | none | headers/body are validated by the port, never pre-trusted |
+| CredentialedRequestExecutedResult | interface | J credentialed-request.ts:444 | core mirror `CredentialedRequestResult` (structurally identical) | none | redacted provider output only |
+| CredentialedRequestDeclinedResult / Outcome | interface/union | J :453/:459 | same package (only the host confirmation layer produces "declined"; not a port result) | none | — |
+| CustomCredentialVerificationResult / CustomCredentialCheckStatus | interface / union | J :381 / :297 | core mirror `CredentialVerification` / `CredentialCheckStatus` | none | checkedAt from injected clock |
+| AuthFailureDiagnostic | interface | J :174 | core mirror `CredentialAuthFailureDiagnostic` | `remedyToolId` is a host-registered tool id (host input) | never the token/header/username value |
+| CredentialConnectionProbeInput / CredentialConnectionProbeStatus | interface / union | J :304 / :300 | core mirror `CredentialProbeInput` / `CredentialProbeStatus` | none | — |
+| CredentialSchemeRule | interface {id,prefix,scheme} | J integrations credentialed-http/auth-schemes.ts:1 | core mirror `CredentialAuthSchemeRule` | rule ids come from installed plugins (host trust policy) | host owns digest trust of plugin rules |
+| CredentialedRequestValidationError | class | J integrations contracts/credentialed-request-errors.ts | same package; reported by `classifyError` as `validation` | none | message is caller-safe (caller's own url, header keys, saved origins) |
+| CredentialedRequestTransportError | class | J credentialed-request.ts:31 | same package; `classifyError` → `transport` | none | raw transport text never caller-safe: no message field |
+| EgressRefusedError | runtime class (host) | T platform/http/index.ts | `classifyError` → `egress-refused` with `callerSafeMessage` + host-built `callerSafeError` (exactly the :229 reconstruction) | host class; the port hides it | full message (resolved address) stays in audit/server log; model sees callerSafeMessage only |
+| CustomCredentialNotFoundError | class | T custom-credentials/store.ts (C1) | `classifyError` → `not-found`; class itself already in J integrations credentialed-http/sets (C1 move) | label-only message | not schema-decorated |
+| isCredentialedRequestShapeRejection | fn | tool-registrations.ts:208 | same package (C3) over `classifyError` category ∈ {validation, egress-refused} | none | transport/not-found/unknown never decorated |
+| makeModelFacingCredentialedRequest | fn | tool-registrations.ts:224-231 | same package (C3) over `request` + `classifyError(...).callerSafeError` | catalog/tool id host inputs | reconstruction BEFORE decoration reads `.message` |
+| CredentialedRequestAuditPort, Console/InMemory audit | interface/classes | T credentialed-request.ts:620-645 | named host input (inside binder) | `[custom-credentials]` prefix | metadata only |
+| REQUEST_POLICY / mapDiagnostic / rethrowHostError | consts/fns | T credentialed-request.ts:690-717 | host-retained behind the port | Access Tokens wording | unchanged |
+| loadAuthSchemes | dep fn | tool-registrations.ts:153 (deps), used :558 | named host input (`CredentialSchemeRegistryPort` shape is J integrations ports.ts:13, same package) | installed-plugin trust policy | — |
+| probeCardBeforeSave | fn | tool-registrations.ts:551-566 | same package (C3) over `port.probe` + host `loadAuthSchemes`; refusal/unavailable/origin texts host input | "This key was refused…", "The service couldn't be reached…", "The saved origin no longer matches…" host text | origin check before any send; abort checks around probe |
+| buildAuthorizationHeader | fn | J integrations credentialed-http (import :15) | same package | none | header value never logged |
+
+### B. Source-control write (new `SourceControlWritePort`, J core/contracts/credentials)
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary — injected or justified | @agent-note obligations |
+|---|---|---|---|---|---|
+| buildSourceControlProviderForApi | async fn → `{ok, provider}`/`{ok:false,message,refusals}` | T source-control/provider-registry.ts:297 | `SourceControlWritePort.build` (binder closes over load/httpClient/observability) | "No enabled Agent Plugin provides source control for …" (:307), noSourceControlProviderMessage (:265) host text | one build per call; current registry; saved baseUrl from the non-decrypting summary |
+| LoadSourceControlProviders | type | provider-registry.ts:207 | named host input (binder) | `tovu-source-control.json` (:35) host file name, never in Jini | — |
+| SourceControlProvider | type | source-control/provider-module.ts:179 | core `SourceControlFileWriter` (structural subset: planFileWrite, commitFiles, validateTarget?) | provider ids/labels are plugin-declared | port returns the SAME object; plan and commit go to that object |
+| RepositoryTarget / RepositoryTargetValidator | interface / fn type | provider-module.ts:~199/~205 | core mirrors | GitHub wording lives in the plugin | pure, never throws |
+| validateRepositoryTarget | fn (throws CustomCredentialValidationError) | custom-credentials/write-files-validation.ts:95 (→ T source-control/repository-target.ts → `@jini-ai/devops`) | `SourceControlWritePort.validateTarget` (devops is forbidden to integrations, so the host binds it) | host rule text | runs before decrypt |
+| CredentialedRepositoryTarget, WriteFile, FileWriteState, FileWritePlan | interfaces | provider-module.ts:65/72/77/84 | core mirrors | none | plan = read-only reconnaissance the commit must use unchanged |
+| FileWritePlanResult, CommitFilesResult, ProviderCallFailure | unions | provider-module.ts:90/92/59 | core mirrors | `logDetail` server-log only | logDetail never model-facing |
+| provider.planFileWrite / provider.commitFiles | methods | provider-module.ts:164-168 | `SourceControlWritePort.planFileWrite` / `.commitFiles` | none | commit with EXACT plan; abort → no commit; freshness/atomicity owned by provider |
+| performRepositoryFilesWrite | fn | tool-registrations.ts:381-397 | same package (C3) over `commitFiles` | none | same provider + exact plan |
+| writeTarget | fn | tool-registrations.ts:400-402 | same package (buildAuthorizationHeader same package) | none | decrypted connection only in-process |
+| reportRepositoryWriteFailure / failureLog | fns | tool-registrations.ts:536 / :522 | same package (C3) + named host input `failureLog` (deps :158) | `[custom-credentials]` prefix, tool id host input | only code + logDetail |
+| WriteFilesResult | union | tool-registrations.ts:373 | same package | none | no token-carrying field |
+| validateWriteFilesInput, WRITE_FILES_LIMITS, validateBranch/CommitMessage, normalizeWriteFilePath | fns/consts | write-files-validation.ts:61/103/117/140 | same package (C3); its error class: C1 — see C1 inventory (host error factory); `isNonArrayRecord` core root | rule texts (fixed strings) move verbatim | validation before resolve |
+| isWriteFilesShapeRejection | fn | tool-registrations.ts:253 | same package | none | only around validation |
+
+### C. Core registration/catalog/schema/model-error/permission helpers
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary — injected or justified | @agent-note obligations |
+|---|---|---|---|---|---|
+| buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, redactSecrets, ToolInputError, isNonArrayRecord | values | J core (registration-kit.ts:332/486, redact.ts:414) via `@jini-ai/core` | core root | none | — |
+| AgentToolSideEffect, DerivedRiskByToolId, ToolHandler, ToolRegistration, ToolExecutionContext/Options, ToolContributor, SurfaceEmission, AgentToolDefinition | types | `@jini-ai/core` | core root | none | — |
+| callerSafeErrorMessage, withModelFacingErrors, CallerSafeErrorRule, ModelFacingErrorRule, forbiddenRule (core) | values/types | J core/src/model-facing-tool-errors.ts:141/230 | core subpath `@jini-ai/core/model-facing-tool-errors` | none | allowlist: unlisted errors stay redacted |
+| requireToolPermission, adaptLegacyAuthorize | values | today via `@jini-ai/cms/core` (tools/args.ts re-export); real source J core/src/tool-permissions.ts:75/:87, core index.ts:57-58 | core root (no cms/commands-barrel dependency) | permission strings host input | check before any resolve |
+| LegacyToolAuthorizeFn / AuthorizeFn | type | core tool-permissions.ts:15 / T contracts/core/commands | core root `LegacyToolAuthorizeFn` | none | — |
+| forbiddenRule (T) | fn over cms ForbiddenError | T contracts/core/model-facing-tool-errors.ts:35 | core `forbiddenRule` + core `ToolPermissionDeniedError` (index.ts:56; same class cms re-exports as ForbiddenError, cms commands/command.ts:1) with host-input domain prefix | `CUSTOM_CREDENTIALS` prefix host input | class identity unchanged |
+| describeErrorForLog (T) | fn | T contracts/core/model-facing-tool-errors.ts:51 | named host input (log policy) | none | never the raw message |
+| DOMAIN / READ_PERMISSION / WRITE_PERMISSION | consts `custom-credentials`, `.read`, `.write` | tool-registrations.ts:169/171/174 | named host inputs (domain, entityType, permissions) | Tovu permission vocabulary | — |
+| catalogModule | `"features/custom-credentials/agent-tools.ts"` | tool-registrations.ts:1233 | named host input | Tovu path | — |
+| toolMetadata | const | T contracts/core/tool-metadata/custom-credentials.ts:5 | named host input | Tovu catalog metadata | — |
+| customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID | catalog/const | custom-credentials/agent-tools.ts | named host input (catalog text, examples incl. example URLs, ids) | product wording incl. example.com | — |
+| MAKE_CREDENTIALED_REQUEST_TOOL_ID, CREDENTIAL_SAVE_TOOL_ID, CREDENTIAL_COPY_TOOL_ID | consts | delete-request-confirmation-ui.ts:19, T contracts/headless/secret-form-cards.ts:2, credential-copy-tool.ts:11 | named host inputs | tool ids | — |
+| CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS | rule list | tool-registrations.ts:297-320 | named host input (codes `CUSTOM_CREDENTIALS_*`, guidance, fixed messages) | Tovu wording/codes | secret-store message fixed, never err.message |
+| FORM_SAVE_CALLER_SAFE_ERRORS / FORM_SAVE_FAILURE_MESSAGE | list/const | tool-registrations.ts:504/516 | named host input | Tovu wording | — |
+| customCredentialsDerivedRisk | Map | tool-registrations.ts:325 | same package, keyed by host tool ids | tool ids host input | derived from handler calls |
+| SET_USERNAME/SET_TOKEN allowed fields + rejecters | consts/fns | tool-registrations.ts:410-480 | same package | field names are tool schema (neutral) | structural no-token guarantee |
+
+### D. Clock/observability/HTTP/audit/keyring/sealer
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| Clock | type | `@jini-ai/core/primitives` | core subpath | none | — |
+| HttpClientPort | T legacy positional port / core required-object port | T platform/http; J core/src/primitives/http.ts:62 | named host input (closed over by both binders; adapter at credentialed-request.ts:684 unchanged) | none | guarded client from composition only |
+| ObservabilityPort | type | T platform/observability | named host input (closed over by `SourceControlWritePort.build`) | none | — |
+| KeyringPort, SecretSealerPort, idGen | types | T webhooks/index (≡ core contracts/vault) | core contracts/vault (credentials.ts:2) / host input; C1 — see C1 inventory | none | key handles only |
+| customCredentialsAudit / customCredentialsFailureLog | optional deps | tool-registrations.ts:151/158 | named host inputs | — | test-only overrides |
+
+### E. Surfaces, secret cards, approvals, human confirm
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| askThenReport | fn | J daemon/src/surface-exchanges.ts:340 | named host input typed by core `SurfaceAskThenReport` (core surface-exchanges.ts:187) | none | outcome replaces the same URI only after save |
+| AssistantSurfaceDeps {surfaceExchanges} | interface | daemon surface-exchanges.ts:412 | core `SurfaceCardSecretDeps` (contracts/cards) / core `SurfaceExchangeStore` | none | SAME store as the answer/callback route |
+| SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM | consts | J core/src/surface-exchanges.ts:28 (re-exported by daemon) | core root | neutral protocol params | — |
+| defineSecretCardTool | fn | J ui/src/features/mcp-ui/secret-card.ts:238 | named host input via core `SurfaceCardsPort.defineSecretCardTool` (contracts/cards.ts:63) | none | note: typically `mcpUiCards` from `@jini-ai/ui/mcp-ui/cards` |
+| SecretCardForm | type | ui secret-card / core contracts/cards.ts:352 | core contracts/cards | none | — |
+| buildFormSurface / UIResourceUri | fn/type | ui mcp-ui/surfaces form.ts:398 | `SurfaceCardsPort.buildFormSurface` / core `SurfaceCardUri` | none | — |
+| SurfaceOutcomeSpec | type | ui surfaces | core `SurfaceCardOutcome` | none | — |
+| approvalToolHandler / HumanConfirmSpec | fn/type | T contracts/core/human-confirm.ts:216/:33 | named host input (approval surface; T builds over core createApprovalHandler + ui confirmation surface) | approval wording T-owned (approval-i18n) | DELETE: one held call; decline sends nothing; decrypt only after approval |
+| describeDeleteRequestApproval | fn | delete-request-confirmation-ui.ts:31 | named host input | Tovu wording | — |
+| buildCreateForm / buildCreateOutcome | fns | custom-credential-create-ui.ts:70/174 | named host input (credential card builders) | apps `tovu-custom-credential-create` (:128) / `-outcome` (:181) via `cardIdentity.appNames` | outcome after save |
+| setTokenForm / setTokenOutcome | fns | custom-credential-set-token-ui.ts:63/100 | named host input | apps `tovu-custom-credential-set-token` (:83) / `-outcome` (:106) via `cardIdentity.appNames` | same URI |
+| SECRET_FORM_CARD_DEFINITIONS | const | T contracts/headless/secret-form-cards.ts:9 | host-retained (used only by the host builder) | Tovu card defs | — |
+| CreateCredentialPrefill | interface | custom-credential-create-ui.ts:46 | host builder input type (named host input) | answer field names | — |
+| copy URI `ui://tovu/use-saved-key/${exchange.id}` | template | credential-copy-tool.ts:95 | `cardIdentity.uriNamespace` (`tovu`) host input; path segment `use-saved-key` host input | "Your app's id; it appears in every card URI and is compared on answers." | URI keyed by exchange id, never a token |
+
+### F. Locale/translation/hints/token-free rules
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| resolveOperatorLocale / OperatorLocaleDeps | fn/type | T settings/operator-locale.ts:27 / T contracts/headless/plugin-host.ts:54 | named host input `resolveLocale` | locale T-owned | no default locale in generic code |
+| credentialText / formatCredentialHint / translateCredentialMessage / CREDENTIAL_COPY | fns/const | T contracts/core/credential-copy.ts:576/579/590/:4 | named host input (messages) | all copy T-owned | — |
+| assertCredentialFreeField | fn | T contracts/core/credential-token.ts:8 (over `@jini-ai/platform`) | named host input | — | token-free metadata rule |
+| cleanCardToken / TOKEN_PASTE_AGAIN_MESSAGE | fn/const | custom-credentials/card-token.ts:27/:16 | named host input | Tovu wording | — |
+| normalizeCredentialWorksFor | fn | `@jini-ai/platform/secrets/credential-sets` (import :5) | named host input (C1 already injects it) | — | — |
+| suggestCredentialWorksFor | fn | platform (create-ui :1) | host builder (stays T) | — | — |
+
+### G. Deploy/publish/abort guard
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| abortGuardedCredentialRepo | fn | T vendor-credentials/abort-guarded-repo.ts:9 | named host input `guardRepo({store, signal})` | none | every repo/vault write checks signal |
+| invalidatePublishCredentialCompatibility | fn | T deployments/publish-credentials/store.ts:80 | narrow named host port (publish invalidation) | deploy target ids host | runs after save only |
+| loadDeployTargets / DeployTargetRegistry / publishCredentialVerificationCache | deps/type | tool-registrations.ts:144/146, T deployments/contracts.ts | narrow named host port (deploy catalog list + cache delete) | deploy vocabulary host | absent → no invalidation, no provider list |
+| loadCreateCredentialProviders | fn | tool-registrations.ts:927 | same package over the narrow deploy-catalog port | — | failures swallowed (unchanged) |
+
+### H. Plugin cards / recovery / setup diagnostics
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| loadPluginCredentialCardsSafely / findPluginCredentialCard / LoadPluginCredentialCards | fns/type | `@jini-ai/agent-plugins/connect` via T plugin-credential-card.ts:4-5 | named host input `pluginCards.{load,find}` | — | absent loader → none; owned-label/conflict rules preserved |
+| readPluginCredentialValues | fn | T plugin-credential-card.ts:6 | named host input `pluginCards.readValues` | — | plaintext fields only |
+| PluginCredentialCard | type | J core contracts/credentials.ts:16 (T re-export contracts/core/plugin-credential-card.ts:4) | core contracts/credentials | — | — |
+| buildPluginCredentialForm / applyPluginCredentialCard | fns | T contracts/core/plugin-credential-card.ts:6/:9 | named host input `credentialCardForms.{build,apply}` | — | — |
+| withCustomCredentialSetup / CredentialSetupFailure | fn/type | custom-credentials/credential-recovery.ts:10/:4 (over `@jini-ai/daemon/tool-recovery`) | named host input (recovery/setup diagnostics) | setup tool id host | — |
+| createCredentialSaveTools | fn | `@jini-ai/agent-plugins/connect` (credential-save-tool.ts:1) | host composition (unchanged; not a C3 move) | — | — |
+| PluginProviderSettingField (provider-settings-card.ts:4) | type | `@jini-ai/plugins/host` | host-retained (provider-settings card is not in C3 scope) | — | — |
+
+### I. C1 store/errors/types
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| createCustomCredential, updateCustomCredential, listCustomCredentials, describeCredential, describeCredentialByLabel, resolveCustomCredentialByLabel | fns | T custom-credentials/store.ts (imports :63-75; now host bindings at store.ts:29-135) | C1 — see C1 inventory: moved to J integrations/src/credentialed-http/sets, bound by T store.ts + tovu-credential-sets.ts | C1 host inputs (tovu-credential-sets.ts) | C1 |
+| CustomCredentialDuplicateLabelError / NotFound / SecretStoreUnconfigured / Validation | classes | J integrations credentialed-http/sets (T store.ts:15-16 re-exports the same objects) | same package (C1 move) — see C1 inventory | C1 | C1 |
+| CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput | types | T custom-credentials/types.ts | C1 — see C1 inventory | C1 | C1 |
+| CUSTOM_CREDENTIAL_CATEGORIES | const | T contracts/core/custom-credential-categories.ts:9 | C1 — see C1 inventory (host validation list) | categories host list | C1 |
+
+### J. Credential copy tool
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary | @agent-note obligations |
+|---|---|---|---|---|---|
+| ProjectKeysPort / ProjectKeyRow | types | T project-keys/service.ts (copy imports :8) | narrow named host port (list / permissionFor / use / site view) | — | offered ids only; use re-resolves revoked/deleted keys |
+| owner/instance auth (`admit`) | fn | credential-copy-tool.ts:34-42 | same package over core `requireToolPermission` + core `InstanceAuthorizeFn` (`@jini-ai/core/gated-mutations`) | `system.write` (:26/:34/:38) host input | re-admit after the human answers |
+| askThenReport / SURFACE_* params / buildFormSurface | fns/consts | credential-copy-tool.ts:5-7 | as section E | — | — |
+| NEW_KEY `:new-key` | const | credential-copy-tool.ts:12 | named host input (answer field vocabulary) | Tovu answer value | — |
+| card-token cleanup (set-token / create saves) | fn | tool-registrations.ts:605/835/856 | named host input `cleanCardToken` | — | keystrokes browser→route→exchange→seal only |
+
+### Per-handler consumption (prospective C3)
+
+| Handler (line) | Rows consumed |
+|---|---|
+| custom_credential_list (:1074) | C requireNoInput/permission(read); I listCustomCredentials; H loadPluginCredentialCardsSafely |
+| custom_credential_verify (:1088) | C permission(read); A port.verify; H recovery |
+| custom_credential_set_username (:1105) | C allowed-field rejecters, permission(write); I describe/update; D keyring/idGen |
+| custom_credential_make_request (:1130-1180) | C permission(write); A port.request/resolveTarget/classifyError; E approvalToolHandler, describeDeleteRequestApproval; H recovery |
+| credential_save api set-token (:953-1015) | C permission; E defineSecretCardTool, setTokenForm/Outcome, askThenReport; F locale/messages/cleanCardToken; G abort guard; H pluginCards.find, credentialCardForms.apply; A probeCardBeforeSave |
+| credential_save api create (:1020-1040) | E buildCreateForm/Outcome; F worksFor/locale/messages; G abort guard, deploy catalog, publish invalidation; I createCustomCredential |
+| credential_save plugin card (:1041-1058) | H pluginCards.load/readValues, credentialCardForms.build; A probeCardBeforeSave |
+| custom_credential_write_files (:1185-1225) | B port.build/validateTarget/planFileWrite/commitFiles, validateWriteFilesInput, failure log; I describe/resolve |
+| credential_copy_from_project (copy tool) | J ProjectKeysPort, admit, cardIdentity URI, NEW_KEY; E surfaces |
