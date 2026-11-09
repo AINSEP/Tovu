@@ -568,3 +568,64 @@ OAuthFlowOperations closure (core/contracts/oauth, type-only): the 11 named func
 - Consequence of implementing as briefed: `npm run typecheck:tests` gains 1 error (13 → 14, TS2345 missing property) in a frozen T test. Runtime stays green (its descriptor declares no `callbackFields`; `readFields` returns before touching the rules), so the 156/156 API group would still pass.
 - Every alternative violates a rule: keeping descriptor.ts on `@jini-ai/oauth` breaks the H2 Decision ("NONE deferred"); an optional/default rule set is a forbidden optional fallback/copied policy; deferring callback-field validation to service creation changes refusal timing (J descriptor/security-pins expectations).
 - Options for the owner: (a) authorize this one T typecheck drift (14th error = shared-owner.integration.test.ts:22, runtime unchanged) or a one-line T test edit binding the rule input; (b) keep the descriptor edge as the single named H2 exception; (c) another ruling. No code was changed; items 2–4 (flow ops, service deps, handoffs, request-checks) and item 5 (vault) are independent of this and are ready to implement from the ledger above once ruled.
+
+## H2a
+
+Rulings applied: coordinator (c) (core leaf move) was implemented and pushed in Jini 6ab1d818. The owner override then chose (a), so (c) was hand-reverted in 183915bb: core package.json and oauth loopback-callback.ts are byte-identical to 07766d6e again, and the core subpath and its changeset text are removed. `parseApiConnectionDescriptor` now takes a REQUIRED `callbackFieldRules` input, bound from the real oauth `MAX_CALLBACK_FIELDS`/`MAX_CALLBACK_FIELD_LENGTH`/`isCallbackFieldName`.
+
+**The single allowed Tovu test wiring edit (owner ruling, same kind of exception as earlier sessions' newly-required inputs)**, `apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts`:
+```
++import { apiConnectionCallbackFieldRules } from '../oauth-bindings.js';
+-const descriptor = parseApiConnectionDescriptor({ value: { pluginId: 'shared-fixture', connectionId: 'account',
++const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { pluginId: 'shared-fixture', connectionId: 'account',
+```
+
+Ledger result (old edge → replacement). All 14 edges are removed. closure-check over source, JS and .d.ts is CLEAN.
+- 1–3, 7: flow functions → `deps.oauth.flow` (`Pick<OAuthFlowOperations,…>`). Helpers → `deps.oauth.{generateState, pendingStateBytes, invalidPendingState, secureEquals}` / `createSignInHandoffs({…, oauth})`. OAuthError classification → `deps.oauth.isOAuthError`, the real oauth `isOAuthError` (`instanceof`).
+- 5: descriptor rules → required `callbackFieldRules`.
+- 10: request-checks → `checkCallbackParams(value, {maxAuthorizationStateLength, maxCallbackFieldLength})` from `deps.oauth`.
+- 4, 6, 8, 9, 11, 12: types → core/contracts/oauth.
+- 13: `VaultMeta` → core/contracts/vault.
+- 14: `OAuthTokenVaultPort` → local structural get/put/patchMeta/delete port over core vault types. `VaultError` → required `isVaultConflict`; Tovu vault-stores.ts:161 passes its existing `isConflict` (`instanceof VaultError && code==='conflict'`).
+- New: core/contracts/oauth/flow.ts holds `OAuthFlowOperations` plus its signature closure. The 26 types were moved byte-exact with an @agent-note each. Two forced edits: `import("./ports.js").OAuthResource` became `OAuthResource`, and the private `AuthorizationEntry` alias was duplicated (it is still used by the oauth implementation). `OAuthMessages` is an explicit interface; `defaultOAuthMessages` uses `satisfies`. The oauth package re-exports every old name. `oauthFlowOperations` lives in oauth flow-operations.ts.
+- Tovu wiring: features/api-connections/oauth-bindings.ts (new) holds the one real capabilities object plus the rules. host-bindings.ts, contribution.ts:72 and vault-stores.ts use it. browser-binding.ts `createSignInHandoffs` is now a thin bound shim with the old signature. That shim was needed because browser-binding.unit.test.ts failed 2/156 and gave 2 TS errors before it: red → fix → rerun.
+
+Allowance-table J test edits (only real-capability wiring plus one import per file; shared new fixture `__tests__/fixtures/real-capabilities.ts`). Diffs are in raw/h2a-allowance-diff.txt plus commit 183915bb.
+| file | edited sites |
+|---|---|
+| harness.ts | service 102, vault store 128, descriptor 87 |
+| unit-deps.ts | descriptor 39, returned deps 43 |
+| descriptor.unit | 16, 26, 32, 37, 44 |
+| host-seams.unit | 5 |
+| security-pins | 222, 281, 289, 294, 299 |
+| credential-status | 22 |
+| hosted-sign-in.unit | 94, 107, 108, 118, 128 |
+| request-checks.unit | 99, 103, 107, 112, 116 |
+| token-store fixtures | 29 |
+| vault-token-store.security | 66, 281, 306, 321, 335 |
+| vault-token-store.slice | 20 |
+| vault-token-store.unit | 30 |
+
+No assertion, expected value or flow changed. No unlisted J test edit was needed. The baseline hashes of harness.ts, unit-deps.ts and token-store/__tests__/fixtures.ts change because they are allowance files; every other hash is unchanged.
+
+Gate:
+| gate | result |
+|---|---|
+| core/oauth/integrations build + tsc | EXIT 0 |
+| oauth tests (touched exports) | 40 files / 714 pass |
+| J API/token 20 files | 365/365 |
+| closure-check `api-connections` + `/hosted-mcp` (src/js/dts) | CLEAN. Negative control on base tree: 29 violations found |
+| second-host consumer (scratch/h2a-consumer; oauth/platform absent, `preserveSymlinks`, strict) | tsc EXIT 0; runtime run EXIT 0. The descriptor refusal, single-use hand-off and token store all work through fakes |
+| Tovu main tsc | 0 errors |
+| typecheck:tests | 13 = baseline set |
+| T api | 156/156 |
+| T connect | 147/147 |
+| T nine | 58/58 |
+| T sign-in | 141/142 (prior-debt case only) |
+| guard-gate h2a | MATCHES BASELINE |
+| xp-gate h2a | XP1–XP5 clean |
+| Tovu hashes | OK |
+
+NOT RUN (budget cap): conformance test wiring the real oauth exports; neutral-host api-host-moves + new examples test; strict lint of changed production; H0 frozen test + BASELINE rollback.
+
+S4 overlap: none. The Tovu files touched are in features/api-connections only; no agent-plugins/connect files. Changesets: s5-h2a-{core,oauth,integrations}.md. No lockfile edits.
