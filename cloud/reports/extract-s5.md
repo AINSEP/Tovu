@@ -164,3 +164,77 @@ Files touched in H0: the 7 new files under T `features/external-mcp/__tests__/` 
 ## Coordinator decisions
 - 06:36Z Baseline digest: T external-mcp-oauth-loopback-wiring.unit.test.ts case "../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS" RED at unmodified pin (0 !== 1 createTovuOAuthHttpPorts calls). Coordinator verified: git grep at c3801c833 shows no call in agent-daemon-server.ts; Tovu's own cloud/reports/tests-tovu-site.md:1227 already records it as "unchanged obsolete daemon OAuth-port owner assertion ... full replacement ownership proof not completed" (pre-S5). DECISION: treated as NAMED PRIOR DEBT pinned to that exact case (not a stop): file must remain exactly 2/3 with the same single failing case and same assertion message at every gate; the app.ts and deps.ts cases are required-green. Not counted green. Flagged for owner/independent review: the brief says "Required baseline red means prior drift"; coordinator judged this documented, out-of-scope source-scan assertion as prior debt rather than a session stop.
 - typecheck:tests 13 errors (brief expected 12): extra surface-connections.host-port.unit.test.ts(15,5) TS2322 from S3 commit 1ef11e22. Treated likewise as named prior debt; exact 13 set must not grow.
+
+## H1a — inventory
+
+Recorded before any production move (H1a builder, Tovu tip 8aef56e2, Jini pin 4044fe3c0). Source blobs at T pin c3801c833: `features/external-mcp/contracts.ts` e2f1d908 (539 lines), `contracts/core/external-mcp-auth.ts` 6418431c (77), `contracts/core/external-mcp-access.ts` 4f6fc1ba (165), `features/external-mcp/external-mcp-store.ts` 2bac5b32 (only the unconfigured error class); J `mcp/src/federation/adapter.http.ts` 63b935b2. Abbreviations: **CORE** = J `core/src/contracts/hosted-mcp` (types only, new independent subpath `@jini-ai/core/contracts/hosted-mcp`); **MCP** = J `mcp/src/federation/hosted` (new node subpath `@jini-ai/mcp/federation/hosted`); **INT** = J `integrations/src/api-connections/hosted-mcp/contracts.ts` (new node subpath `@jini-ai/integrations/api-connections/hosted-mcp`, types only); **T** = stays Tovu as re-export/alias shim with the same name. Runtime closure "type" = erased.
+
+### contracts.ts (T features/external-mcp)
+| Symbol | Lines | Kind | Runtime closure | Destination | Host vocabulary |
+|---|---|---|---|---|---|
+| header `/** External-MCP connection DTOs… */` | 4 | comment | — | stays T (file header of shim) | none |
+| re-export `ExternalMcpAccessSnapshot` | 1–2 | type re-export | type | T keeps line; type now from CORE via access shim | none |
+| `SUPPORTED_EXTERNAL_MCP_TRANSPORTS` + doc | 11–20 | const tuple | none | MCP `vocabulary.ts` (`satisfies readonly ExternalMcpTransport[]`) | `"stdio"`,`"streamable_http"`: MCP protocol transport names (neutral protocol). Doc names T-era file paths (`mcp-federation/…`) — comment provenance, kept byte-exact |
+| `ExternalMcpTransport` | 22 | type (typeof) | type | CORE literal union `"stdio" \| "streamable_http"` (R5/R6) | same |
+| `EXTERNAL_MCP_OAUTH_GRANTS` + doc | 24–26 | const tuple | none | MCP `vocabulary.ts` | RFC 6749/8628 grant names (neutral protocol) |
+| `ExternalMcpOAuthGrant` | 28 | type | type | CORE literal union | same |
+| `ExternalMcpServerRecord` | 30–102 | interface (28 fields) | type | CORE (`SealedSecret` from core vault; `UUID`/`ISODateTime` core primitives). Field types unchanged (`transport`/`authMode`/`oauthGrant`/`oauthStatus` stay `string`, persisted format) | column docs cite `schema.sqlite.ts`, `trust.ts`, `external-mcp-oauth.ts` (comment provenance only). Saved-row format = persisted, not injected |
+| `ExternalMcpAccessUpdate` | 104–112 | interface | type | CORE | none |
+| `ExternalMcpServerRepoPort` (6 methods) | 114–144 | interface | type | CORE | "ADR-007" comment only |
+| floating doc "decrypted, validated domain shape" | 146 | comment | — | CORE, kept before target doc | none |
+| `ExternalMcpServerTarget` | 147–180 | union | type | CORE; line 179 `import("@jini-ai/mcp/federation").McpBearerTokenSupplier` → core `McpBearerTokenSupplier` | `Authorization: Bearer` (HTTP protocol) |
+| `ExternalMcpServerConfig` | 182–199 | interface | type | CORE | none |
+| `ExternalMcpOAuthView` | 201–217 | interface | type | CORE | comment cites `routes/admin/system/deployment-overview.ts` (provenance only) |
+| `ExternalMcpServerView` | 219–250 | interface | type | CORE as `ExternalMcpServerView<TokenHint = never>`; T alias `= ExternalMcpServerView<CredentialTokenHint>` (host hint type stays host input; no platform type in core) | `CredentialTokenHint` = host/platform type → injected type parameter |
+| `ExternalMcpStoreDeps` | 252–257 | interface | type | CORE (`KeyringPort`/`SecretSealerPort` core vault — platform's are `export type *` of the same core module; `Clock` core primitives) | none |
+| `ExternalMcpOAuthTokenResolverPort` | 259–276 | interface | type | CORE | comment cites `src/platform/oauth/` (provenance) |
+| `SaveExternalMcpOAuthInput` | 278–303 | interface | type | CORE | none |
+| `SaveExternalMcpServerInput` | 305–355 | interface | type | CORE | comments cite `features/agent-plugins/federate-mcp.ts`, `external_mcp_save`, `getAuthedPrincipal(res)`, C-006 (provenance only; no runtime literal) |
+| `ExternalMcpSealedOAuthPayload` | 357–372 | interface | type | CORE | sealed payload v1 member names = persisted format (byte-identical JSON keys) |
+| floating doc "Seals an OAuth payload…" + `SealedExternalMcpOAuth` | 374–393 | comment + interface | type | CORE | none |
+| `DeviceAuthorizationStore` + doc | 395–412 | interface | type | INT (`DeviceAuthorization` from core/contracts/oauth) | doc cites `platform/db/repos/oauth-pending-store.ts`, `content.db`, ADR-058/006 (provenance only) |
+| `ExternalMcpOAuthDeps` | 414–434 | interface | type | INT as `ExternalMcpOAuthDeps<Shared = never>`: `shared?: Shared` is the narrow host port (T alias binds `SharedExternalMcpOwner`); repo/sealer/keyring/clock/devices/httpPorts/providers/lookupProvider/onConnected from CORE + core/contracts/oauth | `SharedExternalMcpOwner` (T shared-owner/project-keys) = host input via type parameter; `onConnected` callback = host input (composition keeps binding `apply-connect-defaults`) |
+| `ExternalMcpAuthorizationStart`/`ExternalMcpDeviceStart`/`ExternalMcpConnectStart` | 436–454 | interfaces/union | type | CORE (connect-start, per brief list) | `"redirect_required"`/`"device_code"` discriminants (protocol/wire shape) |
+| `ExternalMcpOAuthService` | 456–528 | interface | type | INT (`AuthorizationCallbackParams` core/contracts/oauth; `ExternalMcpConnectStart`/`ExternalMcpOAuthTokenResolverPort` CORE) | `delivery?: "hosted"`, `destination?: "shared"` wire literals (unchanged signature). Doc line 468 names the host env var `TOVU_PUBLIC_URL` and tool `external_mcp_oauth_connect` → N1 (`/tovu/i`) will reject the env name in J: reword only if guard reports N1, record before/after |
+| `ExternalMcpRevocationReason` | 530–539 | union | type | CORE | seven reason literals = persisted/test-pinned D3 message keys (neutral) |
+
+**OAuth half boundary confirmed:** INT gets 395–434 (device store + deps) and 456–528 (service). 436–454 (connect-start) goes to CORE as the brief's type list names it; 530–539 (revocation reason) goes to CORE. 1–29 / 30–393 types to CORE, values to MCP.
+
+### external-mcp-auth.ts (T contracts/core) — whole-file values → MCP `auth.ts`, types → CORE
+| Symbol | Lines | Kind | Runtime closure | Destination | Host vocabulary |
+|---|---|---|---|---|---|
+| file header + `@file` doc | 3–13 | comment | — | MCP `auth.ts` byte-exact (cites T-era paths: provenance) | none |
+| `EXTERNAL_MCP_AUTH_MODES` | 15–24 | const | none | MCP | `none`/`static_env`/`oauth` = persisted `auth_mode` values |
+| `ExternalMcpAuthMode` | 25 | type | type | CORE literal union | same |
+| `resolveExternalMcpAuthMode` | 27–40 | fn | MODES | MCP | default `static_env` = persisted-format compatibility rule |
+| `externalMcpRecordHasStaticAccessToken` | 42–54 | fn | resolve fn; `SealedSecret` type → core vault | MCP | none |
+| `EXTERNAL_MCP_OAUTH_STATUSES` | 56–66 | const | none | MCP | persisted `oauth_status` values |
+| `ExternalMcpOAuthStatus` | 68 | type | type | CORE literal union | same |
+| `resolveExternalMcpOAuthStatus` | 70–77 | fn | STATUSES | MCP | default `disconnected` |
+
+### external-mcp-access.ts (T contracts/core) — split
+| Symbol | Lines | Kind | Runtime closure | Destination | Host vocabulary |
+|---|---|---|---|---|---|
+| header | 1–2 | comment | — | MCP `access.ts` | none |
+| `ExternalMcpAccessSnapshot` | 7–16 | interface | type | CORE | none |
+| `ExternalMcpApprovedAccess` | 18–25 | interface | type | CORE | none |
+| `ExternalMcpAdmissionSource` (private) | 27–37 | interface | type | MCP `access.ts`, module-local (signature closure of revision fn) | none |
+| `ExternalMcpAccessRecord` (private) | 39 | type | type | MCP `access.ts`, module-local | none |
+| `ExternalMcpValidationError` | 41–54 | class | Error | MCP `validation-error.ts` (one class per module; `name` = `"ExternalMcpValidationError"`, `field`) — error identity | class name string = error identity, kept |
+| `MAX_ALLOWED_TOOLS` (private) | 56 | const 64 | none | MCP `access.ts` | MCP tool cap (protocol-side admission limit) |
+| `REMOTE_TOOL_NAME_PATTERN` (private) | 57–60 | regex | none | MCP `access.ts` | mirrors J `federation/trust.ts` pattern (same package now) |
+| `parseExternalMcpJsonArray` | 61–72 | fn | JSON, `ToolInputError` (@jini-ai/core) | MCP | strict message "The plugin connection has an unreadable tool list. Save its tool list again before enabling it." — Jini agent-plugin vocabulary, no product/path/permission/id; justified neutral (listed for review) |
+| `externalMcpAdmissionRevision` | 74–120 | fn | `node:crypto` createHash sha256 | MCP (node entry) | revision = sha256(JSON) bytes, persisted/compared format |
+| `externalMcpAccessSnapshot` | 122–131 | fn | revision fn | MCP | none |
+| `readExternalMcpToolGrants` | 133–145 | fn | parse fn | MCP | none |
+| `validateExternalMcpToolNames` | 147–164 | fn | ValidationError, cap, pattern | MCP | messages "at most 64 tools are supported" / "'…' is not a valid MCP tool name, so the trust tier would refuse it on connect" — neutral (Jini trust tier) |
+
+### Other
+| Symbol | Source | Destination | Notes |
+|---|---|---|---|
+| `ExternalMcpSecretStoreUnconfiguredError` | T external-mcp-store.ts:64–71 (class + doc) | MCP `unconfigured-error.ts` (one class per module); store re-exports same identity | name string = error identity. Store algorithms stay (H1b) |
+| `hostedMcpProjections` | new; composes the six functions T `agent-plugins/mcp-host-bindings.ts:8–12` binds (`accessSnapshot, admissionRevision, readToolGrants, validateToolNames, oauthStatus, hasStaticAccessToken`) | MCP `projections.ts` | pure object of the moved functions; no I/O/state. T bindings (S4-owned) not edited: they keep their own object over the same (now re-exported) function identities |
+| `McpBearerTokenSupplier` | J mcp/src/federation/adapter.http.ts:123–124 (cite :124 correct) | CORE; adapter.http.ts re-exports the core type (config.ts/stdio import unchanged) | none |
+| T consumers | `service-ports.ts`, `mcp-host-bindings.ts`, connect files, `composition/agent-plugin-service-ports.ts`, routes, repos, store, oauth | unchanged: old paths keep every name via re-exports/aliases | S4-owned files NOT edited |
+
+**Not moved (stay T):** store/memory/vault/revocation algorithms (H1b), SQL repo, routes, `CredentialTokenHint`/`SharedExternalMcpOwner` (host types, bound by T aliases).
