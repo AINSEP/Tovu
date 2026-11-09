@@ -1063,3 +1063,57 @@ Portable `listTokenSignInPlugins({workspaceId, listPlugins}, optional)` and `che
 1. **import-access-token.ts** (not started): object APIs for `importAgentPluginAccessToken`/`importAgentPluginAccessTokensFromEnv`/`listInstalledAgentPluginServers` with T shims keeping positional signatures; it can import the portable `resolveTarget`/`saveStaticAccessToken` siblings (needs `federation`/`messages`/required `resolveInstalledPlugin` — the T shim reuses `tovuTargetDeps`-style binding from A/access-token-tool.ts); host env-var names/ledger read (`readBundledAgentPluginDigests`, layout) stay T as required inputs; `hasStoredAgentPluginCredential({row, projections})` from portable connect-tool.
 2. **grant-signed-in-defaults.ts** (not started, R5): actors (`connectDeclined`, apply-connect-defaults actors), `warn`, projections REQUIRED; `grantDeclaredToolsAtBoot({deps,log}, optional)` with T shim `(deps, log)`; C/plugin-host binder keeps passing `grantDeclaredToolsToSignedInRows` (T shim, unchanged signature).
 3. **A11** (not started): move A/portable/{connect-card-ui, connect-destination, connect-sign-in-wait, apply-tool-renames, connect-tool, access-token-tool, token-sign-in}.ts (+ the two above once seamed) to J `packages/agent-plugins/src/connect/`; T shims switch `./portable/<x>.js` → `@jini-ai/agent-plugins/connect`; static test dir → J; verify @agent-note attachment in emitted .d.ts; J build/guard/XP3/relink; final accumulated gate.
+
+## Continuation — EXTRACT-S4-C summary (coordinator, 09:22Z)
+
+The owner approved this continuation on the same branches with +700k tokens (subagents included) and +1.5h of clock. It started at 08:37Z, with a hard end at 10:07Z. The owner ruled on two inventory risks:
+- R1: the token validator is a separate required host input.
+- R3: Tovu's card identity bytes stay exactly as they are; the namespace is host input.
+
+Item 4 (moving the F2 notes onto S5's declarations) is not started; it waits for the merge.
+
+| Batch | Time (UTC) | Tokens | Tovu tip | Jini tip | Result |
+|---|---|---|---|---|---|
+| A10a: connect-card-ui, connect-destination, connect-sign-in-wait, apply-tool-renames; R3 | 08:38–08:51 | 196k | 5ba69a9955dd357bf62e07d2ba3580b1b96f4fa3 | f774b9e5 (unchanged) | gate green |
+| A10b: connect-tool (R4 approvals port) | 08:54–09:08 | 230k | 70f9d183419fbe097ae6523332a03a484058ad7a | f774b9e5 | gate green |
+| A10c: regression fix + access-token-tool (R1) + token-sign-in | 09:07–09:21 | 198k | cd4fbe9ff7876d29aa34c58d3f2d14cf30f46d00 | f774b9e5 | gate green |
+
+- Continuation token use, coordinator included, is about 660k of 700k.
+- **Last green paired SHAs:** Tovu cd4fbe9ff7876d29aa34c58d3f2d14cf30f46d00 and Jini f774b9e5c543815b43fa637137a75150aa831f5e. That pair is the A10c gate; this summary adds a report-only commit on top.
+- Each gate: named Tovu list (44 files at A10c, 434 tests) with the only red being the known plugin-host.integration test 9, and connect-tool.api-connections 12/12; main T tsc 0; broad tsconfig exactly the 13 baseline errors; pin compile 0; complexity ≤10 with 0 errors.
+- Custody at each gate: 28/28 pins and tool-metadata a0d6b428 unchanged; XP3 snapshot manifest d836eba0 unchanged; existing-test diff since 599774b8 is added files only, with no frozen test edited.
+- Jini was untouched in the continuation, so the A9 guard result (matches the record, N1 = 0) still holds for Jini f774b9e5.
+- S5 overlap: none on any path touched in the continuation.
+
+### Points for the independent review (continuation)
+1. **A regression introduced and repaired in the same continuation.** A10b's connect-tool shim read `routeDeps.mcp` before the permission check. A10c restored the lazy read after the check (commit 32d12ad9):
+   - test a10c-connect-lazy-mcp.unit
+   - red on 70f9d183, green after the fix, and a mutation that goes red again
+   - raws: a10c-lazy-red.txt, a10c-lazy-green*.txt, a10c-mut-lazy-mcp.txt
+2. **R3 kept S3's `…WithPorts` identity shape** so that frozen cards-port.generic.unit stays unchanged. The required host contract is `AgentPluginCardIdentity`, Tovu bytes are pinned by test, and an alternate `acme` namespace is tested. `tovu-plugin-credential-card` stays in the host's credentials `apply`, outside the nine files.
+3. **R1:** `tokenValidator {assertToken, inputErrorRule}` is required by access-token-tool, probeToken and token-sign-in. Tovu binds `assertCredentialToken` and `CredentialInputError.rule`, and a malformed token keeps the same error object.
+4. **The R4 approvals port** (`accessApprovalHandler`) keeps the permission re-check, fingerprint, principal and approve→provision→sign in→revalidate order inside the body's `run`. Mutations show consent-before-grant and the re-check are both enforced.
+5. **Comment reword (A10b):** "tovu-connections.json" became "Plugin-declared OAuth API connections." in a moved comment.
+6. **Stray file:** the A10a builder created an empty file `/a10-tsc1.txt` (0 bytes) at the filesystem root through an unset shell variable. A safety check blocked the coordinator from deleting it, so the owner needs to remove it.
+
+### Remaining work (numbered)
+1. A10, still to seam:
+   - import-access-token: object APIs plus positional T shims.
+   - grant-signed-in-defaults (R5): actors, warn and projections required. The C/plugin-host binder keeps passing grantDeclaredToolsToSignedInRows.
+2. A11: move A/portable/{connect-card-ui,connect-destination,connect-sign-in-wait,apply-tool-renames,connect-tool,access-token-tool,token-sign-in}.ts, plus the two above, to Jini packages/agent-plugins/src/connect/.
+   - T shims switch to `@jini-ai/agent-plugins/connect`.
+   - The static no-Tovu-import test points at Jini.
+   - Check that the @agent-notes attach in the emitted .d.ts.
+   - Jini build, full guard, XP3, relink.
+   - The R4 stay block in tool-registrations.ts stays in Tovu.
+3. The final accumulated gate (full named matrix at the A11 tip) and C-b evidence for A10/A11.
+4. (After the merge) move the F2 notes from T contracts/core/external-mcp-access.ts onto S5's canonical declarations.
+
+### Shutdown
+- Every builder reported that no process was left running; the coordinator's ps check found no vitest, node --test or tsc process.
+- Nothing was published, merged into main or force-pushed.
+- The brief and plan were never committed.
+
+Stop reason: the continuation's token cap. After A10c about 45k of the extra 700k was left, which cannot fund another builder: each A10 builder used 196k–230k. A10 is 7 of 9 files seamed, and A11 and the final accumulated gate are not started. About 45 minutes of the continuation clock remained.
+
+EXTRACT-S4-C STOPPED AT CAP
