@@ -1124,5 +1124,43 @@ Gate (Tovu root, Node 24.2.0):
 Repairs (own errors): first draft dropped the `CredentialedRequestValidationError` import still used by the map-level error rules → restored before the first compile; explicit pin compile found the test's sealer wrapper untyped → typed parameters. No production behaviour changed by a repair. No process left running (both matrix runners exited 0).
 Elapsed: 08:39Z–08:59Z (≈20 min). Approval injection and rows 3–5 were not started: the remaining window could not hold another implementation plus a full green matrix before the 09:10Z push deadline.
 
-Stop reason: C2 part 2 only partially seamed (remaining rows listed above). Finishing it needs at least one more builder the size of the C2 part 2 run (≈241k tokens) plus a full F8 rerun (≈142k), ≈383k in all, but only ≈330k of the 1.9M-token job cap remains — a token-cap stop, not a behavior, design or import-rule stop.
-EXTRACT-S8 STOPPED AT CAP
+### F8 rerun
+
+Full accumulated gate, rerun 08:58Z–09:06Z at the final pair **Tovu source `1e4f8d3d1` (tip `db3456e397db786bdbe00824ec451fe5985066d5` is report-only) / Jini `a266ba82144d9c7d8078ef7d056ff8c748d607e6`** (unchanged). Same commands as the F8 section above; no earlier green result reused. Node 24.2.0 / npm 11.3.0 / pnpm 10.33.2.
+
+**1. Start-to-tip diffs (git only).**
+- Tovu `c3801c83..db3456e3`: 26 paths = 21 A + 5 M. The M paths are only the five production files `features/custom-credentials/{credential-copy-tool,store,tool-registrations,types,vault-repo}.ts`. No pre-session test or fixture is M, D or R. No migration, package.json, lockfile, guard, checker, layer, debt or `server/` path. Since the previous F8 source (`463f56a8`): `credential-tool-host.ts` and `tool-registrations.ts` modified (both session-added or already-listed), one new test `features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts`, and the report.
+- Jini `4044fe3c..a266ba82`: 11 paths (9 A + 2 M: `packages/core/src/contracts/credentials.ts` types only, `packages/integrations/package.json` exports only). Name list identical to the previous F8.
+- Session-new tests changed after their first commit: `extract-s8-c1-second-host` (2 commits), `extract-s8-c1-source-scan` (3), `extract-s8-c2p2-host-inputs` (2), `extract-s8-g-cred.integration` (2), `extract-s8-c2p2c-ports` (3: `2f25eedb` → `d58df3cf` → `1e4f8d3d`). The c2p2c follow-ups only re-type the test sealer wrapper, widen imports and add the row-2 card cases (+74/−6); no assertion was removed or softened.
+- Shared lanes (fresh fetch of `cloud/extract-s4/s5/s6`, intersected with the S8 name lists): Tovu none; Jini only `packages/integrations/package.json` with S5 (disjoint export entries, as before). S4/S6 none.
+
+**2. Hashes.** 12/12 MATCH (start-pin blob = working tree = HEAD): 5 base fixtures and 3 inherited S3 pins against `c3801c83`, and the 4 C0 fixtures (`expected-open`, `expected-summaries`, `stored-rows`, `synthetic-key`) against `3e3eaa1d`. Byte-identical to the previous F8 hash table.
+
+**3. Jini gates** (XP3 snapshot verified first: manifest.json sha256 `d836eba0…d459`, aggregate d.ts hash `48f6d422…2d24`, both equal the setup record).
+
+| step | exit | result |
+|---|---|---|
+| core build / tsc | 0 / 0 | |
+| integrations build / tsc | 0 / 0 | |
+| integrations vitest (8 named files) | 0 | 8 files, 217/217 |
+| neutral-host `credential-sets.test.ts` / typecheck | 0 / 0 | 1/1 |
+| scripts three (`check-no-cross-package`, `extract-s3-checker`, `extract-s3-source-contracts`) | 0 | 3 files, 70/70 |
+| `JINI_DECLARATION_BASELINE_DIR=<snapshot> pnpm check:cross-package` | 0 | XP1–XP5 clean |
+| `pnpm guard` | 1 | baseline: "2 guard violation(s)", output byte-identical to the previous F8 (timings aside) |
+| guard:plugins / layers / isolation / SI audit | 0 / 0 / 0 / 0 | SI c=9 d=7 |
+| eslint changed (`--max-warnings 0`) | 0 | |
+
+Guard families: R2-deep-path 1, R10-chatpane-public-surface 1 (both pre-existing); HW1/2/3/4/5/6/7/8/9 = 17/16/135/1/0/0/0/49/0, 0 new each; R13 informational only. No N1, R8 or other family.
+
+**4. Tovu gates.** relink 0; contracts build 0; main `tsc --noEmit` 0 (30 s); explicit pin compiles 0 ×5 (C0, C1, C2p1, C2p2, and an all-pins config now covering all 9 session-new test/pin files including `extract-s8-c2p2c-ports.test.ts`); `eslint --max-warnings 0` on the 21 A/M .ts files 0; `biome lint` 0 errors (warnings only in new tests plus pre-existing ones; `tool-registrations.ts` has the same 15 warnings at the start pin, `463f56a8` and HEAD). Tests one file at a time (same node command as F8): **54 files, 799/799 pass, 0 fail, every file exit 0** (the new c2p2c file 9/9).
+
+**5. C0 new→old replay against final code.** `EXTRACT_S8_G_CRED_REPLAY_DIR=<dir>` on the unchanged C0 test: 11/11, exit 0. The pinned old reader from the detached Tovu worktree at `3f19a8bd`: **3/3 rows accepted, exit 0.**
+
+**6. Inspection.**
+- `credential-tool-host.ts` imports only `@jini-ai/core` / `@jini-ai/core/contracts/{cards,credentials}` types. Its `@agent-note`s spell out the port contract: bind both ports over the host's existing adapters; `resolveTarget` never decrypts and runs before any dialog; DELETE decrypts and sends only after approval; `classifyError` returns the egress refusal's caller-safe error without the resolved address; file writes are one `build` → `validateTarget` before decrypt → one `planFileWrite` → one `commitFiles` on the same provider with the exact plan, no commit when aborted; cards are typically from Jini UI (`defineSecretCardTool` from `@jini-ai/ui/mcp-ui/secret-card`, `askThenReport` from `@jini-ai/daemon/surface-exchanges`) with the same `SurfaceExchangeStore` the answer route uses.
+- Open doc issue (not fixed here, to keep the gated pair): the JSDoc block describing the two credential ports sits directly above the `CustomCredentialSecretCards` JSDoc, so `CustomCredentialToolPorts` itself carries no doc comment on hover. Move it onto `CustomCredentialToolPorts` in the next session.
+- Vocabulary: no Tovu/product strings in the added or modified Jini code. The Jini `sets/store.ts` docs say "admin inventory" and "site overrides" (generic wording, unchanged since the previous F8). The Tovu seam files are Tovu-owned and name Tovu only as the example binder.
+- Emitted `core/dist/contracts/{credentials,cards,vault}.js` are each exactly `export {};`.
+
+**Processes.** Jini gate PID 7383 and Tovu gate PID 10530 both exited (DONE); replay and old reader ran in the foreground. `ps` shows no node, vitest, tsc, npm or pnpm process afterwards.
+
