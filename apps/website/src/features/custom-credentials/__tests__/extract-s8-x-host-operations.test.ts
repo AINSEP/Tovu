@@ -334,3 +334,34 @@ test('real Tovu catalog failures remain optional, and absent cache performs no i
   invalidate({ after: SUMMARY });
   assert.equal(deployLoads, 1); assert.equal(sourceLoads, 1);
 });
+
+for (const category of ['validation', 'egress-refused'] as const) {
+  test(`request ${category} decorates only callerSafeMessage and classifies the original once`, async () => {
+    const f = fixture();
+    const raw = new Error('private resolved address 10.0.4.7');
+    const safe = 'Acme request input needs a different host';
+    let classifications = 0;
+    f.ports.credentialedRequest.request = async () => { throw raw; };
+    f.ports.credentialedRequest.classifyError = ({ error }) => {
+      classifications++;
+      assert.equal(error, raw, 'the classifier must receive the original rejection');
+      return category === 'validation' ? { category, error: raw, callerSafeMessage: safe }
+        : { category, error: raw, callerSafeMessage: safe, callerSafeError: new Error(safe) };
+    };
+    await assert.rejects(f.handlers().get(ids.makeRequest)!(context({ label: SUMMARY.label, method: 'GET', url: 'https://api.acme.test/items' })), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes(safe));
+      assert.ok(error.message.includes("Schema for 'acme_request':"));
+      assert.doesNotMatch(error.message, /private resolved|10\.0\.4\.7/);
+      return true;
+    });
+    assert.equal(classifications, 1);
+  });
+}
+test('request unknown rejections retain their original identity after classification', async () => {
+  const f = fixture(); const raw = new Error('host fault'); let classifications = 0;
+  f.ports.credentialedRequest.request = async () => { throw raw; };
+  f.ports.credentialedRequest.classifyError = ({ error }) => { classifications++; assert.equal(error, raw); return { category: 'unknown', error }; };
+  await assert.rejects(f.handlers().get(ids.makeRequest)!(context({ label: SUMMARY.label, method: 'GET', url: 'https://api.acme.test/items' })), error => error === raw);
+  assert.equal(classifications, 1);
+});

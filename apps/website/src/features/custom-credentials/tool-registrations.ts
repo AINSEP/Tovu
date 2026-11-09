@@ -13,7 +13,7 @@ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import { buildAuthorizationHeader, type CredentialedRequestOutcome } from "@jini-ai/integrations/credentialed-http";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
-import { createApprovalHandler, redactSecrets, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { createApprovalHandler, redactSecrets, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, decorateWithSchema, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // The same permission helpers `@jini-ai/cms/core` re-exports, taken from their defining core package.
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/core";
 import type { SurfaceCardApp } from "@jini-ai/core/contracts/cards";
@@ -209,7 +209,7 @@ function withCardApp<Spec extends { readonly app?: SurfaceCardApp }>({ spec, app
  *
  * An `EgressRefusedError` reaches the model in its `callerSafeMessage` form only — without the
  * address the hostname resolved to — via {@link makeModelFacingCredentialedRequest}, which every
- * call site uses instead of wrapping this predicate directly.
+ * call site uses through the same classification boundary.
  *
  * Deliberately NOT `CredentialedRequestTransportError` (a DNS failure, timeout, or connection error
  * is not a decision this process made, and a different URL does not reliably fix it — same reasoning
@@ -221,15 +221,10 @@ function withCardApp<Spec extends { readonly app?: SurfaceCardApp }>({ spec, app
  *
  * @complexity O(1) — one `classifyError` call.
  */
-function isCredentialedRequestShapeRejection(error: unknown, port: CredentialedRequestPort): boolean {
-  const { category } = port.classifyError({ error });
-  return category === "validation" || category === "egress-refused";
-}
-
 /**
- * `makeCredentialedRequest` as the model may see it fail: shape rejections schema-decorated per
- * {@link isCredentialedRequestShapeRejection}, and an `EgressRefusedError` narrowed to its
- * `callerSafeMessage` BEFORE that decoration reads `.message`.
+ * `makeCredentialedRequest` as the model may see it fail: validation and egress rejections schema-decorated
+ * using only their classified `callerSafeMessage`. The original rejection is classified once,
+ * before any decoration can read its private `.message`.
  *
  * The refusal and requested hostname reach the model; the resolved address stays server-side.
  * A model that can name any host and read back its resolved address can map internal
@@ -239,17 +234,16 @@ function isCredentialedRequestShapeRejection(error: unknown, port: CredentialedR
  * @complexity O(1) beyond `makeCredentialedRequest` itself.
  */
 async function makeModelFacingCredentialedRequest({ port, input, catalog, toolId }: { port: CredentialedRequestPort; input: CredentialedRequestRequired & CredentialedRequestOptional; catalog: CustomCredentialToolHost["vocabulary"]["catalog"]; toolId: string }): Promise<CredentialedRequestResult> {
-  return withSchemaOnRejection({ toolId, catalog,
-    isShapeRejection: ({ error }) => isCredentialedRequestShapeRejection(error, port), fn: async () => {
-    const { headers, body, ...required } = input;
-    try {
-      return await port.request(required, { headers, body });
-    } catch (err) {
-      const classified = port.classifyError({ error: err });
-      if (classified.category === "egress-refused") throw classified.callerSafeError;
-      throw err;
+  const { headers, body, ...required } = input;
+  try {
+    return await port.request(required, { headers, body });
+  } catch (error) {
+    const classified = port.classifyError({ error });
+    if (classified.category === "validation" || classified.category === "egress-refused") {
+      throw decorateWithSchema({ toolId, catalog, message: classified.callerSafeMessage });
     }
-  } });
+    throw error;
+  }
 }
 
 /**
