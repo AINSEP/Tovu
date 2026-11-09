@@ -24,6 +24,7 @@ const externalMcpStorePorts: HostedMcpStorePorts = {
   credential: { normalize: normalizeCredentialToken, assert: assertCredentialToken, hint: credentialTokenHint,
     messages: CREDENTIAL_MESSAGES, limit: CREDENTIAL_TOKEN_LIMIT, InputError: CredentialInputError },
   settingsLink: "Settings → External MCP",
+  reauthRequiredCode: "EXTERNAL_MCP_REAUTH_REQUIRED",
 };
 
 export function parseEnvBlock(text: string): Record<string, string> {

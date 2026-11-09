@@ -28,9 +28,11 @@ const REVOCATION_MESSAGES: Record<ExternalMcpRevocationReason, (input: Revocatio
   unverifiable: (input) => `The assistant could not confirm that "${input.serverId}" is still allowed, so this call was refused. Try again later.`,
 };
 
-/** Keeps `new ExternalMcpConnectionRevokedError(input)` and binds {@link REVOCATION_MESSAGES} once. */
+/** Keeps `new ExternalMcpConnectionRevokedError(input)` and binds {@link REVOCATION_MESSAGES} and the error code once. */
 export class ExternalMcpConnectionRevokedError extends HostedExternalMcpConnectionRevokedError {
+  declare readonly code: "EXTERNAL_MCP_CONNECTION_REVOKED";
+
   constructor(input: RevocationMessageInput) {
-    super({ ...input, messages: REVOCATION_MESSAGES });
+    super({ ...input, messages: REVOCATION_MESSAGES, code: "EXTERNAL_MCP_CONNECTION_REVOKED" });
   }
 }
