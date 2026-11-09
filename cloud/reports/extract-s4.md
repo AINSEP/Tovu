@@ -910,3 +910,55 @@ This section is evidence only. It is not approval. Claude reviews it independent
 Stop reason: the token cap. After the A9 gate about 310k of the 1.7M job cap was left (now about 200k). The builders that did comparable batches cost 220k–290k each, so A10 (the hardest batch), A11 and the final accumulated gate cannot finish within the cap. Only the A10 inventory was done. The wall clock still had about 1h20m before the 20-minute reserve.
 
 EXTRACT-S4 STOPPED AT CAP
+
+## Continuation — A10 (builder A10, EXTRACT-S4-C, 08:38–08:58Z)
+
+Bases: Tovu 599774b8, Jini f774b9e5 (Jini **unchanged** by this batch). Skills file: Jini `AI-Dev-Shop/agents/programmer/skills.md` not loaded (dispatched task, budget). **Partial: 4 of 9 files seamed in place**; the rest is listed below with an exact plan. Stopped early on the budget rule: every remaining file value-imports `connect-tool.ts` (620 lines, R4 approvals port), which with `access-token-tool.ts` (R1) cannot be seamed and gated inside the remaining per-builder token cap.
+
+### Implementation SHAs (Tovu cloud/extract-s4)
+- e2d4f0a3 — card cycle leaves: `git mv` A/{connect-card-ui,connect-destination,connect-sign-in-wait}.ts → A/portable/<same>.ts, then edits; old paths re-created as thin T shims (unchanged signatures). New test `a10-card-seam.unit` (5) + mutation raws.
+- 1b1570c0 — `git mv` A/apply-tool-renames.ts → A/portable/apply-tool-renames.ts, edits; T shim keeps `applyAgentPluginToolRenames(deps, log)` / `renameToolNames(names, renames)`. New test `a10-tool-renames-seam.unit` (2) + mutation raw.
+- d8fd5673 — gate raws; renames fixture typing fix (broad tsconfig).
+- Provenance: git records the portable files as A (the old path was re-created as a shim in the same commit); their parent blobs are the 599774b8 blobs of the same-named A/*.ts. Every original comment was kept beside its code; the only body changes are listed per file below.
+
+### What changed per file (portable bodies import only `@jini-ai/core*`, `@jini-ai/agent-plugins/{connect,lifecycle}` and `./` siblings)
+- portable/connect-card-ui: owns `AgentPluginCardsPort<Resource>`/`AgentPluginCardBuilders<Resource>` (T service-ports re-exports them), new `AgentPluginCredentialCardForms<Form>` (`apply({card?,form})` → host Form), **`AgentPluginCardIdentity {uriNamespace, appNames{connect,tokenForm,tokenOutcome}}`** with the brief's @agent-note, `resolveAgentPluginCardIdentity({cardIdentity,toolId})`, `AgentPluginAccessTokenFormMessages` (the "Tovu checks it with" sentence is host copy). Token form builder generic over `Form`. Removed the three T host entries (now in the shim).
+- portable/connect-destination: daemon type import → core `SurfaceExchangeStore`; new required `host: {channel, messages{description, sharedOptionLabel}}` ('mcp-ui' and the two "this Mac" strings are T input).
+- portable/connect-sign-in-wait: generic `<Resource, Result extends {status:string}>`, so the connect-tool ⇄ sign-in-wait type cycle needs no import back into T; T shim re-binds `Result = AgentPluginConnectResult` (old seam signature, frozen `cards-port.generic` unchanged).
+- portable/apply-tool-renames: `(required{deps,log}, optional)` and `renameToolNames({names,renames})`; required `deps.actor` (saved `writeGrantsUpdatedByPrincipalId`) and `deps.listPlugins` (installed reads), both @agent-noted; Mcp repo/record types from `@jini-ai/agent-plugins/connect`, config from `/lifecycle`. T shim binds `system:tool-renames` and the old default listing lazily (layout getter read only if the default runs).
+- T card-host-bindings: `tovuAgentPluginCardIdentity = {uriNamespace:'tovu', appNames:{tovu-agent-plugins-connect, tovu-agent-plugins-access-token, tovu-agent-plugins-access-token-outcome}}`; `agentPluginCardHost` = `{cards, askThenReport, ...resolveAgentPluginCardIdentity(..., toolId 'agent_plugin_connect')}`.
+
+### R1 / R3 resolution
+- **R3 (done):** smallest shape keeping every caller and the frozen `cards-port.generic.unit` (which calls `buildAgentPluginConnectCardWithPorts` with `identity:{uriNamespace:'other-host/connect',toolId,app{…,'2'}}`): the S3 `…WithPorts` low-level identity stays as-is; the required host contract is `AgentPluginCardIdentity`, resolved once by `resolveAgentPluginCardIdentity` (fixed suffixes `agent-plugins-connect`/`sign-in-destination`, version "1"). Tovu binds only through it. Bytes pinned by test (`ui://tovu/agent-plugins-connect/<id>`, `ui://tovu/sign-in-destination/<id>`, three apps v1) + alternate namespace `acme`. `tovu-plugin-credential-card` v1 is built by the host's credentials `apply` (T contracts/core/plugin-credential-card.ts, outside the nine; unchanged) — not an `appNames` member, since no portable body uses it. Token secret card `uriHost:"tovu"` is in access-token-tool (not yet seamed) → bind from `cardIdentity.uriNamespace`.
+- **R1 (NOT implemented; design fixed for the next builder):** separate REQUIRED host input on the portable access-token deps, not on `PluginCredentialsPort`: `tokenValidator: { assertToken(required:{value:unknown; field:'token'}): void; inputErrorRule(required:{error:unknown}): string | null }` (@agent-note: throw your own input error; `inputErrorRule` returns its rule id or null → the original error is rethrown unchanged). `probeToken` maps any throw to `"invalid"` as today; `saveSubmittedAccessToken` maps a non-null rule to `messages.credentialText({id:rule, locale})`. T binds `assertCredentialToken` and `err instanceof CredentialInputError ? err.rule : null` (same error class/identity/bytes).
+
+### Tests (new): red → restore evidence (raw dir cloud/reports/raw/extract-s4/)
+- `a10-card-seam.unit` (5): R3 bytes pinned; alternate namespace + opaque non-UI `OtherResource` (no casts); forms port into an alternate `OtherForm` + T description bytes; destination host channel/copy with opaque resource; **static no-Tovu/no-non-core-Jini import check over every A/portable/*.ts** (also no `Tovu`, `ui://tovu`, `'mcp-ui'` text).
+- `a10-tool-renames-seam.unit` (2): host actor/listing used through the object API; T shim keeps `system:tool-renames` and lazy layout.
+- Mutations: suffix `agent-plugins-connect`→`connect` ⇒ 2 red (`a10-mut-identity.txt`); destination channel hard-coded 'mcp-ui' ⇒ 2 red (`a10-mut-channel.txt`); renames actor hard-coded ⇒ 1 red (`a10-mut-renames-actor.txt`); restored ⇒ green (`a10-u1-green.txt`, `a10-u2-green.txt`, diffs clean).
+- Not covered (files not seamed): waiter callback type beyond the existing frozen generic test, token save/cancel/invalid, R1 injected validator, approvals order (approve→provision→sign in→revalidate; no grant before consent).
+
+### Gate (Tovu 1b1570c0 + d8fd5673; Jini f774b9e5 unchanged, so no J build/guard rerun: guard = A9 record)
+| item | result |
+|---|---|
+| T 41-file list (A8 28 + A10 named + S4-0b/A8 new + 9 baselines + C plugin-host.integration/portable-plugin-host/cost-counters/wiring-identity + 2 new), `a10-gate-summary.txt` | 425 tests, 424 pass; only red = plugin-host.integration test 9 (known). Per-file counts identical to A8/baseline (connect-tool.api-connections 12/12, access-token-tool 31, import-access-token 25, apply-tool-renames 20, token-sign-in 5, destination 7, …) |
+| main T tsc | 0 |
+| broad tests tsconfig | exactly 13 (baseline set; first run 15 = my new fixture typing, fixed in d8fd5673) |
+| pin compile provider-setting-field.typecheck | 0 |
+| complexity ≤10 on changed T files | 0 errors (`a10-complexity.txt`) |
+| pins | 28/28, tool-metadata a0d6b428 unchanged; XP3 snapshot listing unchanged |
+| custody | `git diff --name-status 599774b8 HEAD -- '*__tests__*'` = 2 A (new tests) only; no frozen test edited, no new exceptions |
+| Jini | unchanged (f774b9e5); relink not needed |
+
+### Outside scope / S5 overlap
+- Touched outside the nine: `card-host-bindings.ts` (identity binding), `service-ports.ts` (card port types re-exported from portable; `SurfaceCardsPort` import dropped). `git diff origin/cloud/extract-s3 origin/cloud/extract-s5 --` each touched T path: empty (no S5 overlap).
+- A stray scratch file `/a10-tsc1.txt` (tsc output, 0 bytes of errors) was written at filesystem root by an unset shell variable; removal was refused by the safety check — harmless, outside both repos, left for the owner.
+
+### Lines / time
+607 insertions, 320 deletions across 12 T files (4 portable bodies 402 lines, shims/bindings, 2 new tests 135 lines). 08:38–08:58Z.
+
+### Remaining A10 work (exact, in DAG order) and what A11 must move
+1. connect-tool.ts → A/portable/connect-tool.ts (inventory rows 1–33): approvals port (R4: authority re-check in `run`, fingerprint `prepared.key`, principal, emitSurface; approve→provision→sign in→revalidate), SignIn/Lifecycle/API ports, `permissions`/`messages`/`publicUrl.redirectUri({serverId})`, catalog/risk builders keyed by injected toolId; it then imports `./connect-sign-in-wait.js`/`./connect-destination.js`/`./connect-card-ui.js` siblings.
+2. access-token-tool.ts (rows 34–49): R1 `tokenValidator` as above, Cards<Resource> `defineSecretCardTool` port + host `askThenReport`, `credential_save` toolId and `uriHost` from cardIdentity, cms→core permission helpers.
+3. import-access-token.ts, grant-signed-in-defaults.ts (R5: actors/warn/projections required), token-sign-in.ts (object APIs; T shims keep positional signatures).
+4. A11 moves (once 1–3 are green): A/portable/{connect-card-ui,connect-destination,connect-sign-in-wait,apply-tool-renames}.ts now, plus {connect-tool,access-token-tool,import-access-token,grant-signed-in-defaults,token-sign-in}.ts after 1–3 → `packages/agent-plugins/src/connect/`. Binder change A11 needs: T shims switch `./portable/<x>.js` → `@jini-ai/agent-plugins/connect`; the static test's directory then points at J; `card-host-bindings.ts` imports `resolveAgentPluginCardIdentity` from the J entry; C/plugin-host grant one-liner unchanged until grant is seamed (R5).
