@@ -14,6 +14,7 @@ export { storedAgentPluginGrants } from '@jini-ai/agent-plugins/connect';
 /** Tovu's refusal copy (names Tovu's settings screen). Bytes unchanged from the pre-move body. */
 export const tovuEnableAccessMessages: AgentPluginEnableAccessMessages = {
   ...tovuFederationMessages,
+  combinedGrantRejected: ({ detail }) => `The plugin's combined tool grant cannot be saved: ${detail}. Review its tool selection with external_mcp_save before enabling it.`,
   sourceConfiguredSeparately: ({ connectionId }) => `The '${connectionId}' connection was configured separately or points somewhere else. Open Settings → External MCP and review this connection’s address before connecting the plugin again. Its saved sign-in was kept.`,
 };
 
@@ -21,7 +22,7 @@ export function validatedAgentPluginToolGrant(
   required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools },
   options: { reason?: 'sign-in' | 'owner-enable'; ports?: AgentPluginMcpProjectionPorts } = {},
 ): AgentPluginToolGrant | null {
-  return validatedWithPorts(required, { ...options, ports: options.ports ?? agentPluginMcpProjectionPorts });
+  return validatedWithPorts(required, { ...options, ports: options.ports ?? agentPluginMcpProjectionPorts, messages: tovuEnableAccessMessages });
 }
 
 export function previewAgentPluginEnableAccess(

@@ -6,6 +6,7 @@ import {
   grantDeclaredToolsToSignedInRows as grantWithPorts, grantDeclaredToolsAtBoot as bootWithPorts,
   type GrantSignedInDefaultsDeps as PortableGrantDeps,
 } from '@jini-ai/agent-plugins/connect';
+import { tovuEnableAccessMessages } from './enable-access.js';
 import { agentPluginActivations } from './activation-effects.js';
 import { tovuConnectActors, isPluginOffByOperator, switchPluginOnUnlessOperatorOff } from './apply-connect-defaults.js';
 import { resolveAgentPluginMcpServers } from './federate-mcp.js';
@@ -36,6 +37,7 @@ function tovuGrantDeps(deps: GrantSignedInDefaultsDeps): PortableGrantDeps {
     enablePlugin: (input: { workspaceId: string; pluginId: string; actor: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }),
     isPluginOffByOperator: (pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }),
     actors: tovuConnectActors,
+    combinedGrantRejected: tovuEnableAccessMessages.combinedGrantRejected,
     warn,
     approvedFailure: ({ connectionId, detail }: { connectionId: string; detail: string }) => `The plugin is on, but '${connectionId}' could not load its approved tools. Request plugins_set_enabled again to retry. Details: ${detail}`,
   });

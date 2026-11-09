@@ -28,7 +28,7 @@ function hostWith({ calls, failed }: { calls: Call[]; failed: readonly { serverK
     withLock: ({ run }) => run(), mcp, mcpPorts,
     grantSignedInDefaults: async (required, optional) => { calls.push({ step: "grant", detail: { required, optional } }); return []; },
     warn: message => calls.push({ step: "warn", detail: message }),
-    messages: { provisioningFailed: ({ pluginId }) => `other-host: ${pluginId} failed`, approvedSnapshotMissing: () => "other-host: no key", approvedLoadFailed: ({ detail }) => `other-host: ${detail}`, sourceConfiguredSeparately: ({ connectionId }) => `other-host: ${connectionId} differs`, sseTransportUnsupported: () => "other-host: sse", headersUnsupported: () => "other-host: headers" },
+    messages: { provisioningFailed: ({ pluginId }) => `other-host: ${pluginId} failed`, approvedSnapshotMissing: () => "other-host: no key", approvedLoadFailed: ({ detail }) => `other-host: ${detail}`, combinedGrantRejected: ({ detail }) => `other-host grant: ${detail}`, sourceConfiguredSeparately: ({ connectionId }) => `other-host: ${connectionId} differs`, sseTransportUnsupported: () => "other-host: sse", headersUnsupported: () => "other-host: headers" },
   };
   const servers = { a: { type: "http", url: "https://a.example" }, b: { type: "http", url: "https://b.example" } };
   const host = createPluginHost({ deps }, {

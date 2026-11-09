@@ -4,6 +4,7 @@
  * the activation owner it binds; only these legacy entries, whose frozen callers pass none of them,
  * bind Tovu's. A caller that already carries projections keeps its own pair. */
 import { createApplyConnectDefaults as createWithPorts, recordAgentPluginAccessDeclined as recordDeclinedWithActor, type AgentPluginConnectActors, type ApplyConnectDefaultsDeps as PortableApplyConnectDefaultsDeps } from '@jini-ai/agent-plugins/connect';
+import { tovuEnableAccessMessages } from './enable-access.js';
 import { withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
 import type { AgentPluginMcpContext } from './service-ports.js';
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -51,7 +52,7 @@ export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: stri
 /** Tovu's saved actor ids for the portable connect bodies (bytes unchanged). */
 export const tovuConnectActors: AgentPluginConnectActors = { connectDefaults: CONNECT_DEFAULTS_ACTOR, connectDeclined: CONNECT_DECLINED_ACTOR };
 
-export type ApplyConnectDefaultsDeps = Omit<PortableApplyConnectDefaultsDeps, 'projections' | 'classifyError' | 'resolveServers' | 'enablePlugin' | 'isPluginOffByOperator' | 'actors'> & AgentPluginMcpContext & {
+export type ApplyConnectDefaultsDeps = Omit<PortableApplyConnectDefaultsDeps, 'projections' | 'classifyError' | 'resolveServers' | 'enablePlugin' | 'isPluginOffByOperator' | 'actors' | 'combinedGrantRejected'> & AgentPluginMcpContext & {
   readonly agentPluginLayout: AgentPluginLayout;
   /** Injected for tests. Defaults to `federate-mcp.ts`'s `resolveAgentPluginMcpServers`. */
   readonly resolveServers?: PortableApplyConnectDefaultsDeps['resolveServers'];
@@ -68,6 +69,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     enablePlugin: deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout })),
     isPluginOffByOperator: deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId })),
     actors: tovuConnectActors,
+    combinedGrantRejected: tovuEnableAccessMessages.combinedGrantRejected,
   }), options);
 }
 
