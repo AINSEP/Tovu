@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts (23 tests | 1 failed | 21 skipped) 1168ms
+   × read-only outcome open-link failures > says in plain words that a refused link did not open, keeping the outcome and the button 1083ms
+     → expected 'Published live at https://octo.github…' to contain 'The link did not open.'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/mcp-ui/__tests__/surfaces/outcome.test.ts > read-only outcome open-link failures > says in plain words that a refused link did not open, keeping the outcome and the button
+AssertionError: expected 'Published live at https://octo.github…' to contain 'The link did not open.'
+
+Expected: "The link did not open."
+Received: "Published live at https://octo.github.io/my-site/."
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts:134:53
+    132|     surface.api.openLink.mockReturnValueOnce(reply).mockReturnValue(Pr…
+    133|     surface.click('open-link');
+    134|     await vi.waitFor(() => expect(surface.status()).toContain('The lin…
+       |                                                     ^
+    135|     expect(surface.status()).toBe(`${PUBLISH_SUCCESS.message} The link…
+    136|     expect(surface.statusState()).toBe('done');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 21 skipped (23)
+   Start at  06:04:36
+   Duration  2.55s (transform 353ms, setup 160ms, collect 407ms, tests 1.17s, environment 447ms, prepare 101ms)
+

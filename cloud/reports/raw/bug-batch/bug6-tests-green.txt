@@ -1,0 +1,100 @@
+✔ a .tovu.zip becomes a new registered site with no server and leaves no staged copy (5305.389806ms)
+✔ with no injected password the command still finishes, and its output carries no password (4728.479043ms)
+✔ a damaged archive makes no site, keeps no staged copy, and says so (547.33723ms)
+✔ a second import waiting on the first says so in plain words (526.772833ms)
+✔ a tampered archive is refused in the importer's own words (749.641436ms)
+✔ a file over the archive cap is refused before any of it is read (535.723378ms)
+✔ refuses both sources (0.600123ms)
+✔ refuses no source (0.171746ms)
+✔ refuses a relative path (0.179947ms)
+✔ refuses an unknown field (0.276007ms)
+✔ a plain-http share link is refused by the existing source check, not fetched (521.799087ms)
+✔ a loopback https share link is refused by the guarded client, and nothing is created (471.876338ms)
+✔ stopping the import (the app quitting) after the archive is staged creates no site and keeps no staged copy (4131.813086ms)
+✔ the request is the first line of stdin, read without waiting for stdin to end (1.043177ms)
+✔ stdin ending after the request stops the import in plain words, and lets the process exit (0.871704ms)
+✔ stdin that is closed after the request also stops the import (0.296482ms)
+✔ stdin that is broken after the request also stops the import (0.194053ms)
+✔ input that ends with no newline is still the request, with nothing to stop (6.125816ms)
+✔ empty stdin is refused in plain words (0.655468ms)
+✔ a request with no newline is refused (0.47399ms)
+✔ a request whose newline comes past the cap is refused (0.246688ms)
+✔ a request exactly at the cap is read (0.331181ms)
+✔ displayName is no longer part of the request (0.275189ms)
+✔ a tidy request clears what a killed import left, makes no site and prints nothing (594.140433ms)
+✔ agent-plugin enable surface encodes identity and both callback requests for the held exchange (5.118756ms)
+✔ site-runtime enable surface encodes identity and both callback requests for the held exchange (0.941034ms)
+✔ id-only enable surface names the id and omits an absent Version detail (0.556016ms)
+✔ an agent plugin card names the plugin once, hides the developer rows and explains in a neutral note (1.545964ms)
+✔ a site plugin keeps its red warning for full server access (0.626178ms)
+✔ B raw upload and setup routes reject unauthorized principals, machine credentials and foreign origins (128.12466ms)
+[site-import:Import history] {
+  errorId: '69a6af2b-3b6e-4f16-bcd1-335d1d1a6e85',
+  diagnostic: 'Error: SECRET private disk path\n' +
+    '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts:101:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[site-import:Archive verification] {
+  errorId: '83815015-9075-487f-8236-2eb6db4cda81',
+  diagnostic: 'Error: SECRET private disk path\n' +
+    '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts:101:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[site-import:Import owner setup] {
+  errorId: '72a68eb7-01b7-418e-a819-02e00df268f1',
+  diagnostic: 'Error: SECRET private disk path\n' +
+    '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts:101:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[site-import:Imported site creation] {
+  errorId: '8490f4fc-2fad-4679-b17b-9da6f9c2e5d8',
+  diagnostic: 'Error: SECRET private disk path\n' +
+    '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts:101:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[site-import:ZIP upload] {
+  errorId: 'e1ba52f2-5a62-4443-91c4-e4c2c6faa505',
+  diagnostic: 'Error: SECRET private disk path\n' +
+    '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts:101:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+✔ import routes preserve principal/source contracts and sanitize failures across endpoints (86.914011ms)
+✔ upload admission rejects a concurrent body and releases the lane when the first response closes (12.049588ms)
+✔ raw parser refuses compressed uploads, clears admission and reports the real byte cap (428.286027ms)
+✔ disconnecting during import cancels the backend signal (10.42567ms)
+✔ a stalled upload is dropped by the idle timeout and frees the single upload lane (59.229909ms)
+✔ a stalled upload is dropped by the whole-upload deadline and frees the single upload lane (56.633645ms)
+✔ a client that aborts mid-body during owner setup cancels the backend signal (5.595653ms)
+[site-import:ZIP upload] {
+  errorId: 'e024fb5b-30f2-4e71-b1a5-a42c3e9f99bb',
+  diagnostic: 'Error: authorizer down at /private/db\n' +
+    '    at authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts:222:130)\n' +
+    '    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\n' +
+    '    at gate (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts:63:16)\n' +
+    '    at app.post.express.raw.type (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts:88:18)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)'
+}
+✔ upload admission failures and a refused owner gate on POST answer without reaching the backend (13.706039ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22763.778664

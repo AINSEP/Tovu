@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts (23 tests | 2 failed) 2456ms
+   × read-only outcome open-link failures > says in plain words that a refused link did not open, keeping the outcome and the button 1042ms
+     → expected 'Published live at https://octo.github…' to contain 'The link did not open.'
+   × read-only outcome open-link failures > says in plain words that a rejected link did not open, keeping the outcome and the button 1015ms
+     → expected 'Published live at https://octo.github…' to contain 'The link did not open.'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/mcp-ui/__tests__/surfaces/outcome.test.ts > read-only outcome open-link failures > says in plain words that a refused link did not open, keeping the outcome and the button
+ FAIL  src/features/mcp-ui/__tests__/surfaces/outcome.test.ts > read-only outcome open-link failures > says in plain words that a rejected link did not open, keeping the outcome and the button
+AssertionError: expected 'Published live at https://octo.github…' to contain 'The link did not open.'
+
+Expected: "The link did not open."
+Received: "Published live at https://octo.github.io/my-site/."
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts:134:53
+    132|     surface.api.openLink.mockReturnValueOnce(reply).mockReturnValue(Pr…
+    133|     surface.click('open-link');
+    134|     await vi.waitFor(() => expect(surface.status()).toContain('The lin…
+       |                                                     ^
+    135|     expect(surface.status()).toBe(`${PUBLISH_SUCCESS.message} The link…
+    136|     expect(surface.statusState()).toBe('done');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 21 passed (23)
+   Start at  06:03:18
+   Duration  4.11s (transform 426ms, setup 215ms, collect 424ms, tests 2.46s, environment 530ms, prepare 107ms)
+

@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts (24 tests | 1 failed | 23 skipped) 63ms
+   × cancellable outcome repeated sign-in clicks > reuses the open request in progress instead of opening another window, and opens again once it settles 61ms
+     → expected "spy" to be called 1 times, but got 3 times
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/mcp-ui/__tests__/surfaces/outcome.test.ts > cancellable outcome repeated sign-in clicks > reuses the open request in progress instead of opening another window, and opens again once it settles
+AssertionError: expected "spy" to be called 1 times, but got 3 times
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts:180:34
+    178|     surface.trustedClick('open-link');
+    179|     surface.trustedClick('open-link');
+    180|     expect(surface.api.openLink).toHaveBeenCalledTimes(1);
+       |                                  ^
+    181|     opened({});
+    182|     await vi.waitFor(() => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 skipped (24)
+   Start at  06:06:56
+   Duration  1.40s (transform 319ms, setup 181ms, collect 338ms, tests 63ms, environment 457ms, prepare 101ms)
+

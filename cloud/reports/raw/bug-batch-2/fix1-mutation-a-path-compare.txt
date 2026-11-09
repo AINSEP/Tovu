@@ -1,0 +1,3 @@
+ℹ fail 1
+✖ dataModule: a different path to the same database file (a second mount, a hard link) installs without a warning (17.496975ms)
+✖ failing tests:

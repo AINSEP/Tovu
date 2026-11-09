@@ -1,0 +1,83 @@
+[data-module] dm: /nonexistent/content.db is not the database this connection has open (an in-memory database). Its tables are installed in the open database, and the safety snapshot and disk-space check use it too. Fix the configured database path.
+▶ plugin dataModule engine [sqlite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (208.661431ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (216.827149ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (182.412367ms)
+  ✔ install (609.293925ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (192.308203ms)
+    ✔ recreates an index whose declared shape changed (179.581207ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (157.316237ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (162.262526ms)
+  ✔ upgrade (692.221851ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (153.732409ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (156.752841ms)
+  ✔ identity guard (310.869887ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (158.854988ms)
+    ✔ a staged phase rolls back with its transaction (154.933114ms)
+  ✔ journal and recovery scan (314.073684ms)
+✔ plugin dataModule engine [sqlite] (1927.38996ms)
+▶ plugin dataModule engine [pglite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (3989.164886ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (35.961452ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (33.645534ms)
+  ✔ install (4059.752862ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (144.332501ms)
+    ✔ recreates an index whose declared shape changed (101.783169ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (103.071854ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (95.360795ms)
+  ✔ upgrade (445.122404ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (24.071138ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (80.249355ms)
+  ✔ identity guard (104.631486ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (24.713664ms)
+    ✔ a staged phase rolls back with its transaction (14.874295ms)
+  ✔ journal and recovery scan (39.902894ms)
+✔ plugin dataModule engine [pglite] (4649.897295ms)
+✔ dataModule: declares a namespaced table and records a migration-journal entry (71.745068ms)
+✔ dataModule: a dbPath naming a different real file warns, still installs, and snapshots the open database (15.447504ms)
+✔ dataModule: a different path to the same database file (a second mount, a hard link) installs without a warning (14.857766ms)
+✔ dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof) (13.9421ms)
+✔ dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL) (4.503073ms)
+✔ dataModule: a failing DDL rolls back to a working state (never-brick), snapshot kept as recovery point (18.705883ms)
+✔ dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK (11.970063ms)
+✔ dataModule: FAULT INJECTION — a verification failure now rolls back the DDL atomically, so the journal is truthfully ROLLED_BACK and no drift survives (22.444164ms)
+✔ dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit verification failure survive a later (non-crash) boot recovery pass (38.994506ms)
+✔ dataModule: declaring the same table twice is idempotent (no error, no double-create) (15.403932ms)
+✔ dataModule: against an in-memory db, snapshotPath is null and NO `:memory:.snapshot-*` file is ever created (4.382116ms)
+✔ dataModule: an in-memory db's failing DDL still rolls back to a working state, with no journal entry involved (2.806741ms)
+✔ dataModule: FAULT INJECTION, :memory: — a post-commit verification failure rolls the ALTER back too, not just the reported result (4.516792ms)
+✔ dataModule: rejects a table whose namespaced name would exceed PostgreSQL's 63-byte identifier limit (5.891913ms)
+✔ dataModule: rejects an index whose generated name would exceed the identifier limit, even when the table fits (5.358249ms)
+✔ dataModule: accepts an identifier of exactly 63 bytes — the limit is inclusive (29.775547ms)
+✔ dataModule refuses an otherwise valid Tier-1 declaration before schema, snapshot or bookkeeping writes (5.333423ms)
+✔ dataModule reports a committed migration as successful despite a post-commit checkpoint failure (20.161386ms)
+✔ dataModule rejects an invalid table identifier before any database writes (1.403776ms)
+✔ dataModule rejects an empty table list before any database writes (0.404201ms)
+✔ dataModule rejects a table with no columns before any database writes (0.423537ms)
+✔ dataModule rejects an invalid column identifier before any database writes (0.38122ms)
+✔ dataModule rejects an invalid index identifier before any database writes (0.377718ms)
+✔ dataModule rejects an index without columns before any database writes (0.528121ms)
+✔ dataModule refuses insufficient disk headroom (12 free bytes) before snapshots or DDL (7.333345ms)
+✔ dataModule refuses insufficient disk headroom (unknown free bytes) before snapshots or DDL (9.456186ms)
+✔ dataModule skips disk measurement for in-memory declarations and fully reconciled repeats (2.689947ms)
+✔ dataModule accepts Tier-3 declarations with explicitly false nullable, key and index flags (3.609037ms)
+✔ dataModule rolls back migration bookkeeping when a created table cannot be verified (2.757077ms)
+✔ dataModule housekeeping checkpoints before discarding the snapshot (34.770638ms)
+✔ dataModule housekeeping retains the snapshot on checkpoint failure (14.756673ms)
+✔ dataModule housekeeping skips checkpoints and backups without a file-backed snapshot (2.291792ms)
+ℹ tests 54
+ℹ suites 10
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8158.163692

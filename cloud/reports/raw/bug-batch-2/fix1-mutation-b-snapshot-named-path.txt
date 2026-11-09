@@ -1,0 +1,3 @@
+ℹ fail 1
+✖ dataModule: a dbPath naming a different real file warns, still installs, and snapshots the open database (18.764124ms)
+✖ failing tests:

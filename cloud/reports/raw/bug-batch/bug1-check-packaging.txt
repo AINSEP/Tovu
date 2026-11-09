@@ -1,0 +1,3 @@
+check:packaging — 1 problem(s):
+
+  src/media/video-frames.ffmpeg.ts: reads process.env — a library must not resolve host configuration; take it as a parameter

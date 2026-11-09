@@ -68,6 +68,7 @@ test("import routes preserve principal/source contracts and sanitize failures ac
   let allowed = true, available = true, failure: unknown;
   const view = { importId: "00000000-0000-4000-8000-000000000001", source: { url: "https://share.example/site.zip" }, newSiteId: null, newSiteName: null, state: "needs-owner" as const, status: "needs-owner" as const, createdAt: "2026-10-19", instructions: "Choose an owner password", credentialWarnings: [] };
   const backend: SiteImportBackend = {
+    tidy: async () => assert.fail("unexpected tidy"),
     list: async input => { calls.push(input); if (failure) throw failure; return [view]; },
     get: input => { calls.push(input); if (failure) throw failure; return view; },
     upload: async input => { calls.push(input); if (failure) throw failure; return { uploadId: view.importId }; },

@@ -1,0 +1,32 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/mcp-ui/__tests__/surfaces/form.test.ts (51 tests) 1023ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/confirmation.test.ts (76 tests) 1161ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/controls.test.ts (50 tests) 156ms
+ ✓ src/features/mcp-ui/__tests__/secret-card.unit.test.ts (67 tests) 152ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/bridge.test.ts (26 tests) 33ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts (23 tests) 531ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/document.test.ts (36 tests) 107ms
+ ✓ src/features/mcp-ui/__tests__/resource.test.ts (54 tests) 26ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/choice-group.test.ts (18 tests) 291ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/structured-details.test.ts (24 tests) 168ms
+ ✓ src/features/mcp-ui/__tests__/sandbox-proxy.test.ts (12 tests) 28ms
+ ✓ src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts (7 tests) 24ms
+ ✓ src/features/mcp-ui/__tests__/confirmation-store.test.ts (17 tests) 15ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/tool-approval.test.ts (7 tests) 43ms
+ ✓ src/features/mcp-ui/__tests__/early-message-buffer.test.ts (9 tests) 12ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/host-theme.test.ts (7 tests) 13ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/tokens.test.ts (7 tests) 11ms
+ ✓ src/features/mcp-ui/__tests__/index.test.ts (5 tests) 7ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/access-approval.test.ts (4 tests) 152ms
+ ✓ src/features/mcp-ui/__tests__/escape.test.ts (10 tests) 9ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts (3 tests) 63ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/structured-details-collections.unit.test.ts (6 tests) 71ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/tokens.dark-variant.test.ts (4 tests) 5ms
+
+ Test Files  23 passed (23)
+      Tests  523 passed (523)
+   Start at  06:04:20
+   Duration  15.59s (transform 1.36s, setup 3.24s, collect 3.33s, tests 4.10s, environment 12.88s, prepare 2.20s)
+

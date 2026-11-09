@@ -1,0 +1,40 @@
+✖ dataModule: a dbPath naming a different real file is refused before headroom, snapshot or DDL (58.207795ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 852.609515
+
+✖ failing tests:
+
+test at apps/website/src/features/plugins/__tests__/data-module.test.ts:1:2260
+✖ dataModule: a dbPath naming a different real file is refused before headroom, snapshot or DDL (58.207795ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   code: undefined,
+  +   measured: [
+  +     '/tmp/tovu-dm-other-wTb6hi/other.db'
+  +   ],
+  +   ok: true,
+  +   snapshotPath: '/tmp/tovu-dm-other-wTb6hi/other.db.snapshot-hello-1794203916490'
+  -   code: 'DB_PATH_MISMATCH',
+  -   measured: [],
+  -   ok: false,
+  -   snapshotPath: null
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugins/__tests__/data-module.test.ts:95:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: true, code: undefined, snapshotPath: '/tmp/tovu-dm-other-wTb6hi/other.db.snapshot-hello-1794203916490', measured: [ '/tmp/tovu-dm-other-wTb6hi/other.db' ] },
+    expected: { ok: false, code: 'DB_PATH_MISMATCH', snapshotPath: null, measured: [] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
