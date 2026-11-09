@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
+import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
+import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial, siteKeySourcesForSiteDir } from '#src/features/webhooks/index';
 import type { PublishHistoryStore } from '../static-publish/publish-history.js';
 import type { OperatorLocaleDeps } from '#src/contracts/headless/index';
 import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
@@ -7,7 +11,6 @@ import { CredentialedRequestValidationError, CredentialedRequestTransportError, 
 import { EgressRefusedError } from '../../../platform/http/index.js';
 import type { CredentialedRequestErrorClass } from '@jini-ai/core/contracts/credentials';
 import type { DeployOpsRegistry, DeployOpsInput, LoadedDeployOps, DeployOpsStatus, DeployOpsLogs, DeployOpsTargets, DeployOpsRuntime, WaitClock } from '@jini-ai/devops/deploy';
-import { readDeploySiteKey, secretFingerprint } from './secrets.js';
 import { aborted, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
 import * as portable from '@jini-ai/devops/deploy';
 export { aborted, MAX_RESPONSE_CHARS, MAX_WAIT_SECONDS, MAX_MODULE_SLEEP_MS, DeployCredentialSetupRequired, waitForDeployOps } from '@jini-ai/devops/deploy';
@@ -37,6 +40,23 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   readSiteKey?: () => string | undefined;
 }
 
+const sha256 = (value:string)=>createHash('sha256').update(value,'utf8').digest();
+/** A site-key-shaped value gets the Security page's own fingerprint, so the two can be compared by eye. O(n). */
+export function secretFingerprint(value: string): { fingerprint: string; fingerprintKind: "site-key" | "sha256" } {
+  const parsed = parseSiteKeyHex(value);
+  return parsed.ok ? { fingerprint: fingerprintSiteKeyHex(parsed.hex), fingerprintKind: "site-key" } : { fingerprint: sha256(value).toString("hex").slice(0, 12), fingerprintKind: "sha256" };
+}
+
+/** Same ordered sources and precedence the Security page and the keyring read; re-read on every call. */
+function defaultReadSiteKey(deps: DeployOpsToolDeps): string | undefined {
+  const siteDir = deps.siteBinding?.dir;
+  if (!siteDir) return undefined;
+  const env = process.env;
+  return revealSiteKeyMaterial({ sources: siteKeySourcesForSiteDir({ siteDir, mode: resolveRuntimeMode({ env }), env, home: homedir(), cwd: process.cwd() }) }).hex;
+}
+
+
+export function readDeploySiteKey(deps:DeployOpsToolDeps):string|undefined {return deps.readSiteKey ? deps.readSiteKey() : defaultReadSiteKey(deps);}
 export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
 
   return {
