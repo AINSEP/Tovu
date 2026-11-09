@@ -146,3 +146,107 @@ S7-0b investigation is active. No continuation terminal marker has been written.
 S7-0b warning disposition proof: an external preload observed the unchanged frozen tests' `console.warn` mock while forwarding every call unchanged. First failing case: one legacy-metadata warning plus exactly one activation-refusal warning. Second: two legacy-metadata warnings (preview and post-confirmation reindex) plus exactly one activation-refusal warning. Stack traces lead through `installed-package-index.ts:111` → `ports.onEvent` → Tovu `lifecycle.ts:101`, independently of the refusal at `uninstall-tool.ts:152`. The legacy parser's existing `portable-metadata.unit.test.ts` explicitly requires the deprecation warning, and it plus installed-package indexing tests pass 21/21. Therefore the frozen uninstall assertions count unrelated required diagnostics, rather than duplicate refusal logging. Under the coordinator's conditional disposition this is known test drift; warnings and tests remain unchanged. Both exact failures remain red at every gate. Session-only diagnostic trace: `logs/continuation/uninstall-warnings.jsonl`.
 
 S7-0b boundary regression: new injected-error-predicate test failed before the fix (`other` versus `unconfigured`), then passed. The canonical public error remains the legacy fallback; composition injects the owner's canonical predicate explicitly. Boundary suite 7/7 and canonical-error identity 4/4, combined focused 12/12. No existing test edit.
+
+### L2 closure inventory (before production seam edits)
+
+All sources below are T `features/plugin-runtime/` at the supplied pin. J destinations mean `plugins/src/host/tools/` after L3; L2 first writes the same bodies under T `host-tools/`. Every helper has an owning destination; no unresolved row proceeds.
+
+| Symbol/helper | Kind | Source | Destination | Vocabulary |
+| --- | --- | --- | --- | --- |
+| `AGENT_PLUGIN_FAMILY` | value | tool-registrations.ts:128 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `requireAgentPluginHost` | value | tool-registrations.ts:132 | T host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `listInstalledAgentPlugins` | value | tool-registrations.ts:137 | T host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `CATALOG_BY_ID` | value | tool-registrations.ts:142 | T host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `AgentPluginListRow` | type | tool-registrations.ts:147 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `toAgentPluginListRow` | value | tool-registrations.ts:155 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `listAgentPluginsForResponse` | value | tool-registrations.ts:163 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `PluginsToolDeps` | type | tool-registrations.ts:186 | T host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `pluginsDerivedRisk` | value | tool-registrations.ts:226 | J management.ts keyed risk factory | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `SetEnabledRequest` | type | tool-registrations.ts:272 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `readFamily` | value | tool-registrations.ts:284 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `readSetEnabledRequest` | value | tool-registrations.ts:294 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `PluginApprovalIdentity` | type | tool-registrations.ts:305 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `pluginApprovalIdentity` | value | tool-registrations.ts:318 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `uninstallRequestFor` | value | tool-registrations.ts:355 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `uninstallConfirmedPlugin` | value | tool-registrations.ts:378 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `restartNoteFor` | value | tool-registrations.ts:426 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `applyAgentPluginDecision` | value | tool-registrations.ts:448 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `unwritableAgentPluginActivationsResult` | value | tool-registrations.ts:517 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `hostIncompatibleEnableResult` | value | tool-registrations.ts:542 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `linkedFaceResult` | value | tool-registrations.ts:550 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `linkedFaceEnableResult` | value | tool-registrations.ts:559 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `agentPluginEnablePreflight` | value | tool-registrations.ts:567 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `updatePendingResult` | value | tool-registrations.ts:574 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `updateJournalNextStep` | value | tool-registrations.ts:591 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `hostIncompatibleResult` | value | tool-registrations.ts:600 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `activationsUnreadableResult` | value | tool-registrations.ts:618 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `activationsBusyResult` | value | tool-registrations.ts:640 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `activationsRefusalResult` | value | tool-registrations.ts:662 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `applySiteRuntimeDecision` | value | tool-registrations.ts:676 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `requireEnablePermission` | value | tool-registrations.ts:750 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `requireSetEnabledPermission` | value | tool-registrations.ts:758 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `SiteConsent` | type | tool-registrations.ts:765 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `siteRecordBeingEnabled` | value | tool-registrations.ts:772 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `siteConsentFor` | value | tool-registrations.ts:783 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `SetEnabledPrepared` | type | tool-registrations.ts:796 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `prepareSetEnabled` | value | tool-registrations.ts:809 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `previousPluginEnabled` | value | tool-registrations.ts:823 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `currentApprovedIdentity` | value | tool-registrations.ts:833 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `runSetEnabled` | value | tool-registrations.ts:854 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `PLUGINS_MODEL_FACING_ERRORS` | value | tool-registrations.ts:880 | Split: J canonical conflict rule; T lowering error rule | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `buildPluginsRegistrations` | value | tool-registrations.ts:889 | J management.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `contributePluginsTools` | value | tool-registrations.ts:1014 | T host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `EnableConfirmationSubject` | type | tool-registrations.ts:1024 | T enable-confirmation-ui.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `FAMILY_COPY` | value | tool-registrations.ts:1039 | T enable-confirmation-ui.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `describeEnableApproval` | value | tool-registrations.ts:1059 | T enable-confirmation-ui.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `pluginResourceId` | value | tool-registrations.ts:1084 | T enable-confirmation-ui.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `pluginEnableAccessResources` | value | tool-registrations.ts:1089 | T enable-confirmation-ui.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `PluginsInstallToolDeps` | type | install-tool.ts:44 | T catalog / host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `PLUGINS_INSTALL_TOOL_ID` | value | install-tool.ts:51 | T catalog / host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `catalog` | value | install-tool.ts:53 | T catalog / host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `derivedRisk` | value | install-tool.ts:75 | J install.ts keyed risk factory | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `refusedResult` | value | install-tool.ts:83 | J install.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `localInstallEnabled` | value | install-tool.ts:89 | T catalog / host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `installInputFor` | value | install-tool.ts:95 | T catalog / host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `previewOrRefuse` | value | install-tool.ts:106 | J install.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `installedResult` | value | install-tool.ts:115 | J install.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `buildRegistrations` | value | install-tool.ts:130 | J install.ts | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `contributePluginsInstallTools` | value | install-tool.ts:161 | T catalog / host binding / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `MUTATES_DURABLE_STATE` | value | source-tools.ts:11 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `ENABLE_PLUGIN_PERMISSION` | value | source-tools.ts:12 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `WORKFLOW` | value | source-tools.ts:14 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `id` | value | source-tools.ts:15 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `file` | value | source-tools.ts:16 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `text` | value | source-tools.ts:17 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `schema` | value | source-tools.ts:18 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `pluginSourceAgentToolCatalog` | value | source-tools.ts:22 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `pluginSourceDerivedRisk` | value | source-tools.ts:44 | J source.ts keyed risk factory | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `SourceDeps` | type | source-tools.ts:50 | T legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `stringField` | value | source-tools.ts:53 | J source.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `SourceOperation` | type | source-tools.ts:59 | J source.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `SOURCE_OPERATIONS` | value | source-tools.ts:62 | J source.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `buildPluginSourceRegistrations` | value | source-tools.ts:81 | J source.ts / local contract | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+| `contributePluginSourceTools` | value | source-tools.ts:131 | T catalog / legacy shim | Host literals resolved in vocabulary table below; generic protocol bytes unchanged |
+
+| Vocabulary / closure | Resolution |
+| --- | --- |
+| admin.plugins.read/enable; plugins_list/set_enabled/uninstall/install; nine plugin_source_* ids | Required host permissions/toolIds; same descriptor and dispatch inputs; catalogs/metadata supplied whole |
+| plugins/plugins-install/plugin-source domains and features/plugin-runtime catalog paths | Required registration inputs; no default in portable bodies |
+| plugin, agent-plugin permission entities; plugin-activation mutation entity | Required entity inputs; adds explicit `entityTypes.agentPlugin` and install `entityType` because both are consumed, beyond R1's abbreviated member list |
+| assistant mutation actor; core tool principal kind | `actorPluginId` host input; core's standardized principal kind remains its canonical core constant |
+| tovu.native-escalation.v1; JSON connection id; roster origin; description; tool remoteName | Host approvalFingerprint callback closes over exact existing bytes; J retains original sorted revision JSON/schema |
+| ToolAccessLoweringError and Stop/roster coordination | T canonical lowering operation + extraModelFacingErrors; J retains only own canonical PluginConflictError rule |
+| Agent Plugin classes, compatibility version, search projection, legacy overrides/layout | T lazy agentPlugins binder; classifier uses canonical instanceof; compatibility receives same full safe installed revision snapshot and today's empty activeProvides; no relist |
+| Plugin exports, provider faces | Additional consumed `pluginExports.catalog` local safe-row port; providerFaces contains only three used safe projection methods. Export props are host-opaque validated public data, never handles/paths |
+| agent_plugin_connect, load_agent_plugin, search_agent_plugin_local, content_read.plugin, chat_list_pending_attachments, tool grammar and example URLs | T catalogs/messages only, exact bytes |
+| TOVU env policy; .tovu-plugin/tovu.plugin.json; /api/p/; archive limits and owner/run attachment reading | T catalog/request parsing/install input/policy; no portable host path or environment read |
+| familyRequired/restartNote/changedSinceConfirmation/updatePendingNextStep/hostIncompatibleNote/activationsUnreadableNote/activationsBusyNote; localInstallDisabledNote/installedNote/retryInstallHint | Exact R2 required messages bound by T; no other message member currently needed |
+| plugin_toggled/plugin_installed/operation_failed; cms/assistant telemetry properties | T optional plain toggled/installed/installFailed callbacks preserve bytes/call counts |
+| [agent-plugins] log tag | Existing plugin-family diagnostic tag justified; tool id inside the message becomes supplied toolIds.setEnabled; private error message stays only in existing server log |
+| site-runtime/agent-plugin family tags; plugin:<family>:<id>; reason/result/field keys and PLUGIN_* owning-domain error codes | Stable plugin protocol/saved formats; unchanged and explicitly justified, no new host default |
+| Approvals/descriptions | Generic local host-opaque description type; same prepare/describe/run methods and authenticated host handler. No J surfaces member; T closes over it for approvals and agent uninstall |
+| Command gateway | Local consumed command/mutation shape only; T closes over SAME clock/idGen/changeSets/outbox/authorize and executeCommand |
+
+Existing caller search across J packages/examples found no real caller of the moving builders or pluginApprovalIdentity (only historical TSV/comment mentions); no existing Jini test input change is authorized. Local contract notes will attach authority, identity, privacy, custody, saved bytes, preflight/order, rollback/Stop and failure obligations to each declaration/member. No new package/non-core dependency or universal runtime contract.
+
+S7-0b gate completed: 55 T files / 613 tests, exact coordinator-disposed failure groups retained and boundary now green. All selected Jini groups and neutral connect pass; types/lint/checker/plugin guards/layers/isolation pass. The complete real guard output was read: only inherited R2/R10, unchanged HW totals and six R13 lines. Predicate-bypass mutation makes the new regression fail; restoration passes. Post-S7-0b source diff bases: Tovu `57ecbf6b3` and Jini `b78fa32db`. No frozen test changed during continuation. L2 inventory above is complete and proceeds now.
