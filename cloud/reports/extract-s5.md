@@ -760,6 +760,10 @@ Tovu: 39c1c7c8ddc214cc514cd944a3d7971d900db382 (inventory), e8080710aafc1871e652
 - J `integrations/api-connections/host.ts:131` prefer-destructuring warning (baseline).
 - The H2a report's "second-host consumer: oauth/platform absent" claim was not true isolation (symlinked package node_modules). Corrected above.
 
+### Coordinator decisions (later)
+- ~07:42Z H2a stopped after inventory (Tovu 8496ae73): frozen T test features/api-connections/__tests__/shared-owner.integration.test.ts:10/22 imports and calls J parseApiConnectionDescriptor({value}) directly (caller outside the brief's packages/+examples/ search). Making callback rules a REQUIRED input would add a 14th typecheck:tests error. RULING (c): keep the public signature; MOVE the pure leaves isCallbackFieldName/MAX_CALLBACK_FIELDS/MAX_CALLBACK_FIELD_LENGTH from oauth loopback-callback.ts to a @jini-ai/core root subpath (brief lists "core root" as a legal destination); oauth re-exports same identity; integrations imports from core. Deliberate deviation from seam item 3's "inject via typed input" for these 3 leaves only; no copy, no optional fallback, frozen test untouched. Flagged for independent review.
+- ~07:45Z OWNER OVERRIDE (supersedes ruling (c) above): option (a). descriptor callback rules become a REQUIRED input (descriptor oauth edge removed, no fallback/copy); ONE-line wiring edit in T features/api-connections/__tests__/shared-owner.integration.test.ts passes Tovu's real callback-rule binding; no assertion change. Listed as the single allowed Tovu test wiring edit (owner ruling). Owner: continue H2, H3, gates, C-c within original caps; rest of stop rule applies.
+
 ## Shutdown (coordinator) — STOPPED AT CAP (token cap projection)
 
 Stopped 2026-11-09T08:27Z, elapsed 137 of 270 minutes, 133 minutes left on the clock. The time cap was not reached. **The 1.9M total-token cap was the reason.**
