@@ -665,3 +665,91 @@ Recorded before any seam edit (H2b builder; Tovu 01928354, Jini 9a669a56). Sourc
 | shared inventory type | shared 21 | core vault `VaultRecord` | `import('@jini-ai/platform/…')` → core type |
 
 Plan for this batch (re-cut, ~600-line rule): **H2b = gate split (item 6) + one reauth factory + registration identity/onConnected bindings (item 7)**. The sign-in half's store/error/AAD/link/messages/policy ports and the narrow shared-owner ports (item 1 for the sign-in half) are a separate serial substep (**H2c**) because together they exceed the budget left in this batch.
+
+## H2b
+
+Scope that landed: the H2a leftovers, the seam inventory above, **item 6** (the gate split in place plus one reauth factory), and **item 7** as far as registration identity, the onConnected notes and the hosted closure leak go. **Item 1 is NOT done for the sign-in half.** That means the store, error, AAD, link, messages and policy ports, and the narrow shared-owner ports. It is cut out as a serial substep, **H2c**, which must land before H3. The gate half of item 1 is done.
+
+### H2a leftovers
+- New J `integrations/src/api-connections/__tests__/real-oauth-conformance.integration.test.ts` (7 cases). It wires the real `oauthFlowOperations` and capabilities, `isOAuthError` and `VaultError` through the public entry, and covers: state bytes, which equal `PENDING_AUTHORIZATION_STATE_BYTES`; S256 PKCE; callback complete; refresh through the real refresher; `MAX_*` callback bound+1 refused before any provider call, while the bound itself passes the size check; refresh `invalid_grant` → `reconnect-required` with the exact text and a real `OAuthError` cause; code-exchange `invalid_client` → `authorization-failed`; canaries (token/secret/URL/path in `error_description`/`error_uri`) absent from model text; single-use hand-off; the conflict classifier.
+  - Red→fix: I first asserted that hand-off ids use the pending-state width (24). Base `hosted-sign-in.ts:69` uses `stateBytes: 32`, so the test was wrong, not the code. The test now asserts 32.
+- Scratch consumer redone at `/home/user/s5/scratch/h2a-consumer`. **The H2a positive run was not a true isolation.** It symlinked `packages/integrations`, whose own `node_modules/@jini-ai/oauth` stayed resolvable. The packages are now copied in without `node_modules` or `src`.
+  - Positive: tsc EXIT 0, run EXIT 0.
+  - Negative control `neg.ts`: TS2307 for `@jini-ai/oauth` and `@jini-ai/platform/fetch-with-timeout`, and runtime ERR_MODULE_NOT_FOUND for both (raw `h2b-consumer-neg.txt`).
+  - Base-tree control (`scratch/h2b-consumer-base`, pin packages): 8×TS2307 plus a runtime ERR_MODULE_NOT_FOUND for oauth (raw `h2b-consumer-base-neg.txt`).
+- `examples/neutral-host` `api-host-moves.test.ts`: 2/2, file unchanged.
+- Strict lint of the H2a production files.
+  - J: 20 `sonarjs/unused-import` warnings in 8 oauth files were session-caused (H2a moved types to core and left the imports). Base files lint clean. Fixed, and the oauth tests still pass 714/714.
+  - `host.ts:131` prefer-destructuring is baseline (same line at the pin). Listed, not fixed.
+  - T biome on the H2a files: 2 `noNonNullAssertion` warnings, both baseline.
+
+### Ports (item 6, T `external-mcp-oauth.ts`, in place)
+- `HostedMcpConnectionGatePorts` extends the old `ExternalMcpConnectionGateDeps` with:
+  - `reauthRequired(input) => Error`
+  - `revoked(input) => Error`
+  - `recovery.accessHint` and `recovery.pluginOff` (each returns model text)
+  - `logUnreadableRow({connectionId,error})`
+
+  An attached @agent-note covers one instance per gate, the same repo instance, one read, no unseal/open/network, "activation throw denies", and shared error identity.
+- `createHostedMcpConnectionGate(ports)` holds the original body and order unchanged: read → activation → preset bypass of roster grants only → roster refusal/access hint → shared → legacy reauth → verdict. The why-doc stays attached to it.
+  - It imports no Tovu vocabulary: `ToolInputError` comes from core, and `rosterRefusalFor` and the projections come through T shims of `@jini-ai/mcp/federation/hosted`.
+  - Neither it nor its ports type references integrations or OAuth, so H3 can move it to MCP.
+- `createExternalMcpConnectionGate(deps)` keeps its old signature. It is the neutral gate bound to `tovuConnectionGateVocabulary`, which reproduces the exact old bytes: `plugins_set_enabled`/`agent-plugin` copy, the `[external-mcp]` warn text, and `ExternalMcpConnectionRevokedError`.
+- `createExternalMcpReauthRequiredError` is the ONE factory. It serves the gate binding and all three sign-in throw sites (`reportAuthFailure`/resolver). The class stays in T.
+- Item 7: `tovuRegistrationIdentity` {softwareId `tovu`, clientName = label ?? serverId, sharedClientName `Tovu`} carries an attached note. `oauthClientOptions` uses it, and it is passed as the new required `registrationIdentity` of `createSharedExternalMcpOAuth`. J `hosted-mcp/contracts.ts` got notes for one device store, one registry per service, and onConnected exactly once / failure-tolerant.
+- Leak fix: J `mcp/src/federation/config.ts:1` now takes `McpBearerTokenSupplier` from `@jini-ai/core/contracts/hosted-mcp`, the same type `adapter.http` re-exports. Hosted-entry closure-check: before, 3 violations (src import + dynamic import + .d.ts, raw `h2b-closure-hosted-before.txt`); after, CLEAN on src/JS/.d.ts.
+
+### New tests
+- T `features/external-mcp/__tests__/h2b/connection-gate-seam.test.ts`, 9/9:
+  - roster order
+  - preset bypasses roster only (shared and reauth still run)
+  - roster refusal and access hint
+  - activation failure denies
+  - row failure: operator log only, generic model text (canary checked on both the second host and Tovu)
+  - no origin gets the full re-check
+  - onConnected once, after durable `connected`, with failure tolerated
+  - one reauth factory (gate, sign-in and factory: same class/code/retryable; source has exactly one construction)
+  - identity values
+
+  The second host varies tool ids, paths, codes and identity, and no Tovu word appears in its output.
+- Mutation red, then restored: "shared no longer skips reauth" → 1 fail; "activation failure allows" → 1 fail; "no-origin treated as preset" → 1 fail once the no-origin case was added. Before that case existed this mutation survived, which is why it was added.
+- Red→fix during writing (test-side only): the activation test's expected calls missed the read; the roster fixture needed `oauthStatus: connected` and annotations.
+- Session lint regression: the wrapper repeated the `void|verdict` type, adding a second `noConfusingVoidType`. Fixed with `ReturnType<typeof createHostedMcpConnectionGate>`, and the counts now equal baseline (1/2/1).
+
+### S4 overlap
+None. Tovu touched only `features/external-mcp/external-mcp-oauth.ts` and `external-mcp-shared-oauth.ts`, plus the new test and this report. Jini touched oauth src, `mcp/federation/config.ts` and `integrations/hosted-mcp/contracts.ts`, plus the new test. No `agent-plugins`/`connect`/`composition`/`assistant` files. No changeset or lockfile changes.
+
+### Lines
+Seam lines truly edited: T oauth +76/−22, shared +3/−1; J 4+1 doc/type lines. That is far below 600, but the remaining sign-in ports (H2c) are estimated at around 250–350 edited lines.
+
+## H2 gate (H2b tip: Tovu f88953d8, Jini 575b95e4; raw /home/user/s5/raw/h2b-g-*.txt, summary h2b-gate-summary.txt)
+| gate | result |
+|---|---|
+| J core/oauth/mcp/integrations build + tsc | all EXIT 0 |
+| closure-check: api-connections, …/hosted-mcp, mcp/federation/hosted (src/JS/.d.ts) | CLEAN |
+| J API 20 files + conformance | 21 files / 372 (365 + 7) |
+| J mcp hosted tests | 7/7 |
+| J oauth | 40 files / 714 |
+| neutral-host api-host-moves | 2/2 |
+| T main tsc | 0 errors; rerun after lint fix: 0 |
+| typecheck:tests | 13 (= baseline set) |
+| T sign-in/gate | 141/142, prior-debt case only, same message (rerun after lint fix: same) |
+| T api / connect / store / nine | 156 / 147 / 284 / 58, all pass |
+| T new h1a+h1b+h2b | 21/21 |
+| H0 frozen SQLite / BASELINE rollback | 6/6 / ok, EXIT 0 |
+| guard-gate h2 | MATCHES BASELINE |
+| xp-gate h2 | XP1–XP5 clean |
+| strict lint changed production | J eslint EXIT 0; T biome = baseline counts |
+| hashes | T OK; J only the 3 allowance fixtures differ (harness.ts, unit-deps.ts, token-store fixtures.ts), as expected |
+| existing-test audit vs pins | T: only M `shared-owner.integration.test.ts` (owner-allowed). J: only the 12 allowance-table files M. Everything else is A |
+
+Not part of this gate: the full H2 closure requirement for the sign-in half. The INT `hosted-mcp` entry is types-only; the sign-in runtime is still in T until H2c/H3.
+
+### Pushed SHAs (H2b)
+Jini: 5525436891351a57315caf12c409f5d702b964b3, 9a669a56d188dbcc6dca037ba16e74d0efd459f9, 575b95e4cf86ae21d347ea3efb302c5cec5c08e2.
+Tovu: 39c1c7c8ddc214cc514cd944a3d7971d900db382 (inventory), e8080710aafc1871e652a189f8774aa9ceb648d4, 8f61f08ef1f30306fdce26d3030a05a37b15625d, f88953d84a1edfdb58d1ff1eb7f84ccab347888b, plus this report commit.
+**LAST GREEN PAIR: Tovu f88953d8 / Jini 575b95e4** (green for H2b scope; the H2 gate must rerun after H2c).
+
+### Findings (listed, not fixed)
+- J `integrations/api-connections/host.ts:131` prefer-destructuring warning (baseline).
+- The H2a report's "second-host consumer: oauth/platform absent" claim was not true isolation (symlinked package node_modules). Corrected above.
