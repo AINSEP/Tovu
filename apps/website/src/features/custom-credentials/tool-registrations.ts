@@ -1221,11 +1221,17 @@ export function createCredentialToolRegistrations({ routeDeps, host, ports, oper
       }
 
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
-      // Not wrapped in `withSchemaOnRejection`: its `CredentialedRequestValidationError` and
-      // `CustomCredentialNotFoundError` reach the model through the map-level
-      // `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` wrap instead — the daemon-boundary
-      // redaction this comment once deferred was confirmed to reach here too.
-      const target = await operations.recovery.withSetup({ label, url, invoke: () => credentialedRequest.resolveTarget({ workspaceId: routeDeps.workspaceId, label, url }) }, {});
+      // Classify the original preflight rejection once before map-level message publication.
+      // Preserve the validation class and existing DELETE text; only caller-safe copy may enter it.
+      // Other rejection identities stay unchanged. Schema decoration here would change that text.
+      const target = await operations.recovery.withSetup({ label, url, invoke: async () => {
+        try { return await credentialedRequest.resolveTarget({ workspaceId: routeDeps.workspaceId, label, url }); }
+        catch (error) {
+          const classified = credentialedRequest.classifyError({ error });
+          if (classified.category === "validation") throw new CredentialedRequestValidationError({ message: classified.callerSafeMessage });
+          throw error;
+        }
+      } }, {});
       if ("credentialSetup" in target) return target;
 
       // Fail closed rather than degrade — same posture `content_post_delete`'s own handler documents:
