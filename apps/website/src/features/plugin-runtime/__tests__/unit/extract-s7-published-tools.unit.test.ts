@@ -65,7 +65,7 @@ test('resolved emitted contracts document the security and ordering obligations 
     declined: /Replace the default no-answer result.*without running the mutation/i,
     listInstalled: /rejected listing empties the entire agentPlugins list.*isolate failure/i,
     updatePendingNextStep: /Only PLUGIN_UPDATE_PENDING is recoverable by restart.*other update codes/i,
-    registration: /List rejects all input.*family\/pluginId\/enabled.*exactly site-runtime or agent-plugin/i,
+    registration: /List accepts no input fields.*family\/pluginId\/enabled.*exactly site-runtime or agent-plugin/i,
     toolIds: /Every operation reads id.*name\/description.*oldString\/newString.*replaceAll/i,
     installer: /canonical PluginInstallError.*relayable refusals.*opaque failure/i,
   };
@@ -83,7 +83,7 @@ test('resolved emitted contracts document the security and ordering obligations 
         const member = node.name.getText(ast);
         if (notes.some(note => typeof note.comment === 'string' && requiredNotes[member]?.test(note.comment))) documented.add(member);
         if (member === 'pluginSource' && notes.some(note => typeof note.comment === 'string' && /canonical PluginSourceError or PluginInstallError.*relayable refusals/i.test(note.comment))) sourceErrorNote = true;
-        if (member === 'handler' && notes.some(note => typeof note.comment === 'string' && /set-enabled.*at registration.*uninstall.*per call/i.test(note.comment))) constructionNote = true;
+        if (member === 'handler' && notes.some(note => typeof note.comment === 'string' && /set-enabled.*at registration.*runtime-plugin uninstall.*per call/i.test(note.comment))) constructionNote = true;
       }
       if (ts.isFunctionDeclaration(node) && node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
         functions++;
