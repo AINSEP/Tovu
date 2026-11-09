@@ -1,0 +1,3 @@
+> tsc -p development/tsconfig.e2e.json --noEmit
+
+exit=0

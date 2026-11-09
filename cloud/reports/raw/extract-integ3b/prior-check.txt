@@ -1,0 +1,25 @@
+FAILS-ON-COMBINE | apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts | every surfaceExchanges.open(...) call names a toolId constant this scan can resolve
+FAILS-ON-COMBINE | apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts | no generic seam file names the first provider
+FAILS-ON-COMBINE | apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts | ../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS
+FAILS-ON-COMBINE | apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts | a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault
+FAILS-ON-COMBINE | apps/desktop/src/main-agent-runtime-wiring.test.ts | quit waits for owned runtime disposal even without sites and disposes once across repeated quits
+FAILS-ON-COMBINE | apps/desktop/src/main-shutdown-wiring.test.ts | before-quit waits on in-flight teardowns, not only on openSites
+FAILS-ON-COMBINE | apps/desktop/src/main-shutdown-wiring.test.ts | Quit during a card Stop waits for its tracked teardown after openSites becomes empty
+PASSES-ON-COMBINE | apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts | live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert
+FAILS-ON-COMBINE | apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts | no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+FAILS-ON-COMBINE | apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts | handlebars-worker.ts source graph contains no @jini-ai package roots, including deferred imports
+FAILS-ON-COMBINE | apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts | handlebars-worker.ts loads no database, blob-store or agent packages
+FAILS-ON-COMBINE | apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts | liquid-worker.ts source graph contains no @jini-ai package roots, including deferred imports
+FAILS-ON-COMBINE | apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts | liquid-worker.ts loads no database, blob-store or agent packages
+FAILS-ON-COMBINE | apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/site-title-preservation.integration.test.ts | AC-12 (REQ-07, T-W3): with the definition registered and the pin held open, a pre-existing site renders Tovu Demo Site, never its display name
+FAILS-ON-COMBINE | apps/website/src/server/runtime/composition/__tests__/storage-secret.unit.test.ts | new-site sealing prepares its identified key file and the default reader reopens it
+PASSES-ON-COMBINE | content/agent-plugin-overlays/higgsfield-media/__tests__/higgsfield-media-overlay.test.mjs | every snake_case tool the overlay cites is a served native tool or a per-plugin tool
+NOT-IN-COMBINE-RUN | development/e2e/__tests__/journey-consolidation.unit.test.ts | all web bug pins are collected once by the journeys harness
+NOT-IN-COMBINE-RUN | development/e2e/__tests__/journey-consolidation.unit.test.ts | migration retains all pins, reviewed declaration revisions and why comments
+FAILS-ON-COMBINE | development/scripts/__tests__/bundled-agent-plugin-selection.test.ts | the composed bundled id set is pinned, and no id ships from both content and a package
+FAILS-ON-COMBINE | development/scripts/__tests__/dead-path-sweep.test.ts | dead-path sweep: no path reference outside the known-broken register resolves to nothing
+FAILS-ON-COMBINE | development/scripts/__tests__/dead-path-sweep.test.ts | generated coverage artifacts are not reported as dead paths
+NOT-IN-COMBINE-RUN | development/scripts/__tests__/hardwiring-debt.test.mjs | the hardwiring report contains no stale debt rows after ownership fixes land
+FAILS-ON-COMBINE | development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts | web dev CLI attaches to the selected running site and opens its admin URL
+FAILS-ON-COMBINE | development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts | desktop dev CLI builds preload before watching and forwards Electron flags on normal exit
+FAILS-ON-COMBINE | packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts | SDK external type contracts are declared package dependencies for standalone consumers

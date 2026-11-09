@@ -1,0 +1,1 @@
+check:cross-package exit 1: 70 XP3 lines, each 'Error: absolute JINI_DECLARATION_BASELINE_DIR required'; no XP1/XP2 or other finding lines.
