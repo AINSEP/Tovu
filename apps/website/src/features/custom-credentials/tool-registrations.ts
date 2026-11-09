@@ -17,7 +17,6 @@ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
 
 import { createApprovalHandler, indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-// The same permission helpers `@jini-ai/cms/core` re-exports, taken from their defining core package.
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
@@ -26,14 +25,6 @@ import {
 } from "../../contracts/core/model-facing-tool-errors.js";
 import { type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-// `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
-// functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
-// can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/
-// publish-agent-tools.ts`'s identical import for the same reason.
-
-// `ToolInputError` is the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a rejection
-// `errorKind: 'validation'` instead of the `'internal'` bucket the delegated transport redacts.
-
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 // Types only: the egress refusal is recognised through the request port's `classifyError`
 // (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).
@@ -64,38 +55,9 @@ import type { CredentialToolOperations } from "./credential-tool-operations.js";
 import { tovuCredentialCardIdentity } from "./tovu-credential-card-identity.js";
 
 /**
- * @file Host wiring for custom-credential tools and credential_save's API adapters.
- *
- * Reads and verification use custom-credentials.read; requests and durable edits use
- * custom-credentials.write because they can mutate Tovu or an external provider. DELETE alone
- * requires a human approval card; GET/POST/PUT/PATCH run directly under the owner's policy.
- * resolveRequestTarget checks labels and saved hosts before any dialog or decrypt. DELETE opens
- * one held call, and decrypts only after approval; ADR-055's card flow replaces a heavier
- * plan/confirm/execute ceremony without a second model-issued confirmation call.
- *
- * set_username updates one plaintext account identifier through the existing store owner.
- * It needs no extra confirmation: strict label/username keys prevent token smuggling, and the
- * label-to-id lookup does not decrypt. A missing username can cause HTTP Basic authentication
- * to fail; authDiagnostic supplies the diagnosis this edit can repair.
- *
- * credential_save's API adapters accept non-secret metadata only. Secret keystrokes travel
- * browser -> tool-calls route -> SurfaceExchangeStore -> parked handler -> sealed store, never
- * through the agent CLI, model, chat transcript or audit values (the audit records input keys).
- * Missing emitSurface fails closed: asking for a second model-issued call would expose the secret.
- * Jini's secret-card lifecycle owns submit/cancel/expiry/dismissal. The outcome replaces the same
- * form URI after the save completes; transport delivery alone is not proof that sealing succeeded.
- *
- * Rotation resolves an existing label before opening the form. Creation has no existing row to
- * resolve; the store owns submitted label/URL/category/token validation and workspace-label
- * uniqueness. A duplicate label is refused, never silently overwritten, and directs the caller
- * to rotation. Both return value-free statuses or the non-decrypting CustomCredentialSummary.
- *
- * custom_credential_write_files creates/edits named files directly under the owner's policy.
- * Shape/path/size checks and provider owner/repo rules precede decryption; read-only planFileWrite
- * reconnaissance then provides the exact branch/tree plan passed to commitFiles. The provider
- * retains freshness checks and commits atomically. Aborted calls stop before committing.
- * This path uses the custom credential resolver; whole-site export commits belong to source-control
- * and its separate credential contract. Credential repository consolidation is not implied here.
+ * @file Tovu bindings for the credential tools: permissions, reviewed catalog, error allowlists,
+ * credential-store adapters and card identity; generic ordering and secret handling live in
+ * @jini-ai/integrations/credentialed-http/tools.
  */
 
 export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
@@ -155,8 +117,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: customCredentialsAgentToolCata
 const DOMAIN = "custom-credentials";
 /** Gates `custom_credential_verify` — a read against the third party, never a Tovu-side write. */
 const READ_PERMISSION = `${DOMAIN}.read`;
-/** Gates `custom_credential_make_request` — see this file's header for why a tool that can now issue
- *  a real external POST/PUT/PATCH/DELETE sits on the write permission, not read. */
+/** External writes use the write permission; the shared handler adds human approval for DELETE. */
 const WRITE_PERMISSION = `${DOMAIN}.write`;
 
 /** Tovu's host inputs for the old entries below: the vocabulary above and Tovu's card identity. */
@@ -172,7 +133,7 @@ const TOVU_CUSTOM_CREDENTIAL_HOST: CustomCredentialToolHost = {
  * whole-map wrap is used rather than a per-call-site reshape, and for why this list is an
  * ALLOWLIST: anything unlisted is returned unchanged and stays redacted.
  *
- * The two predicates above already rescue `make_request`'s and `write_files`' shape rejections, but
+ * The shared handlers already rescue request and file-write shape rejections, but
  * only around the calls they wrap. Every other throw — the kit's `ForbiddenError` on all seven tools,
  * a wrong label on the five that resolve one, `set_username`/`set_token`'s own field checks, and the
  * DELETE pre-check — reached the model as the same opaque 500 a crash produces. No class below
@@ -196,7 +157,7 @@ const TOVU_CUSTOM_CREDENTIAL_HOST: CustomCredentialToolHost = {
  *   `JSON.parse`'s own message, and `JSON.parse` quotes the start of its input — decrypted plaintext.
  * - `CredentialedRequestTransportError`: embeds raw transport text (`connect ECONNREFUSED <ip>:443`).
  * - `EgressRefusedError` at map level: its `message` names a resolved address. It surfaces only
- *   through {@link makeModelFacingCredentialedRequest}, in its address-free form.
+ *   through the shared request handler, in its address-free form.
  * - `CustomCredentialDuplicateLabelError`: never escapes as a throw (`mapCreateCredentialError`).
  * - `write_files`' plan-failure `Error`, which carries GitHub's own rejection text (a network failure
  *   is already reduced to fixed text by the plugin provider (`provider-module.ts`)'s `describeSendFailure`), and
