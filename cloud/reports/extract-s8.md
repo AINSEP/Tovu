@@ -704,3 +704,53 @@ a named local port (the two new ports) or a named host input.
 | credential_save plugin card (:1041-1058) | H pluginCards.load/readValues, credentialCardForms.build; A probeCardBeforeSave |
 | custom_credential_write_files (:1185-1225) | B port.build/validateTarget/planFileWrite/commitFiles, validateWriteFilesInput, failure log; I describe/resolve |
 | credential_copy_from_project (copy tool) | J ProjectKeysPort, admit, cardIdentity URI, NEW_KEY; E surfaces |
+
+## C2 part 1
+
+Coordinator boundary C1 move→C2 part 1: 2026-11-09T07:52:16Z, elapsed 56m55s; running token total ≈ 0.95M (setup 131k, C0 241k, C1 seam 269k, C1 move 192k, coordinator ≈ 80k, plus C2 builders in progress) of 1.9M cap.
+
+Window: builder started 07:21Z (read-only draft while C1 moved), build phase 07:52Z–08:01Z. Status: fully green.
+
+**Commits**
+- Tovu `82d0058c382ad93bf0c034ac0388cc651889541e`: the C2 part 1 inventory above (first commit, before any implementation).
+- Jini `a266ba82144d9c7d8078ef7d056ff8c748d607e6`: `CredentialedRequestPort` and `SourceControlWritePort` appended to `packages/core/src/contracts/credentials.ts` (types only), plus changeset `.changeset/extract-s8-c2p1-credential-ports.md` (@jini-ai/core minor).
+- Tovu `09317cc0fb552a1aeb94a04f668673d74125501b`: binder `features/custom-credentials/credential-ports.ts`, the test `__tests__/extract-s8-c2p1-credential-ports.test.ts` and the type pin `__tests__/extract-s8-c2p1-ports.type-pin.ts`.
+
+**Port shapes.** Both ports live in `@jini-ai/core/contracts/credentials`. They are self-contained mirrors, with no import from integrations or Tovu. The pin proves they are mutually assignable with the real shapes: `CredentialedRequestResult` ≡ J `CredentialedRequestExecutedResult`, `CredentialVerification` ≡ `CustomCredentialVerificationResult`, `CredentialAuthFailureDiagnostic` ≡ `AuthFailureDiagnostic`, `CredentialProbeInput`/`CredentialProbeStatus` ≡ the J probe types, and `SourceControlFileWritePlan`/`…PlanResult`/`…CommitFilesResult` ≡ the T provider-module types. Tovu's `SourceControlProvider` satisfies `SourceControlFileWriter` directly, so no wrapper is needed and the object stays the same.
+- `CredentialedRequestPort { request(required{workspaceId,label,method,url}, optional{headers?,body?}), resolveTarget, verify, probe, classifyError }`. The classifier categories are `validation | transport | egress-refused | not-found | unknown`. `error` is always the thrown object itself. Only `callerSafeMessage` is model-safe (validation / egress / not-found). Egress refusals also carry `callerSafeError`, which reproduces the reconstruction at tool-registrations.ts:229 (same class, address-free message) before decoration. Transport and unknown errors expose no message field.
+- `SourceControlWritePort { build, validateTarget, planFileWrite, commitFiles }`. The provider is passed explicitly, so plan and commit go to the same object as built, and `commitFiles` takes the exact plan.
+- The @agent-notes are in the Jini source and survive into `.d.ts`. They cover: no decrypt in resolveTarget, run before any dialog or decrypt; DELETE held for a human, a decline sends nothing; no token/header/username in results; untrusted headers/body are validated by the port; probe URL is trusted and host-resolved; egress full message stays in the server audit; logDetail is for the server log only; the build → validate → decrypt → plan → abort-stop → commit order on the SAME provider with the EXACT plan, with no rebuild or re-plan; whole-site export is separate, and no new confirmation. No Tovu vocabulary appears in Jini (grep `tovu` in the file: 0).
+- Binder: each method is one call of the existing `makeCredentialedRequest` / `resolveRequestTarget` / `verifyCustomCredential` / `probeCredentialConnection` / `buildSourceControlProviderForApi` / `validateRepositoryTarget` / `provider.planFileWrite` / `provider.commitFiles`, with the same deps. No lower-level J call and no behavior change. Handlers are NOT rewired; that is part 2.
+
+**New tests (7, all real bindings; only the network and the git-host provider calls are faked).**
+- Egress identity, safe form, and the address kept in the audit.
+- validation / not-found / transport / unknown identity and safe fields, including the host "Access Tokens" suffix through the port.
+- headers/body/`timeoutMs` 10 000 pass-through equal to the direct adapter call; the 1 MB body bound refuses before sending.
+- verify tri-state with authDiagnostic; probe ok/refused/unavailable as a bodyless GET.
+- resolveTarget makes 0 sealer opens and 0 sends; the request makes 1 open.
+- Write port: 1 registry load; target rules run before planning; plan and commit are called with `this` === the built provider; commit receives the plan object itself; planning alone never commits.
+- No-provider build result.
+
+Mutation proof (the binder was mutated, then restored and checked byte-equal): copying the plan before commit → 1 fail; returning the raw egress error as `callerSafeError` → 1 fail; decrypting before target resolution → 1 fail.
+
+Repair: one input error in my own test before its first commit (a request body passed as an object; the adapter requires a string). I fixed the input; no assertion was softened. Abort→no-commit is pinned at the port by "planning alone never commits". The handler-level abort stop stays covered by the existing write-files-confirmation test. The port has no signal of its own, by design, so behavior is unchanged.
+
+**Gate (all at the tips above)**
+| check | exit | counts |
+|---|---|---|
+| J core build + `tsc --noEmit` | 0 | — (credentials.js stays an empty module) |
+| J integrations `tsc --noEmit` (consumer; core change is types-only, so no runtime rebuild needed) | 0 | — |
+| J eslint core/src/contracts/credentials.ts | 0 | 0 problems |
+| J integrations vitest (C2 J matrix, 7 files) | 0 | 212/212 |
+| J scripts vitest (3 files) | 0 | 70/70 |
+| J C1 new: sets extract-s8-sets.unit / neutral-host credential-sets / neutral-host tsc | 0/0/0 | 5/5, 1/1 |
+| `check:cross-package` (XP3 snapshot dir) | 0 | XP1–XP5 clean |
+| guard | 1 | the same 2 baseline violations (R2-deep-path plugin-catalog, R10-chatpane); HW1/2/3/4/8 17/16/135/1/49 with 0 new; HW5/6/7/9 0; R13 informational; no N1/R8 |
+| guard:plugins / layers / isolation / SI audit | 0/0/0/0 | SI c=9 d=7 |
+| T relink (`link:jini`) / contracts build / main `tsc -p tsconfig.json` | 0/0/0 | — |
+| T eslint (3 new files) | 0 | 0 problems |
+| T explicit compile: C2p1 pin + test / C1 pins / C0 test | 0/0/0 | — |
+| T tests: C0 + C1 matrix + C1 new + C2 matrix + accumulated nine + inherited S3 three + C2p1 new (52 unique files) | every file 0 | 780/780, 0 fail |
+| fixture hashes (5 fixtures + 3 inherited pins) | match | all 8 equal the baseline |
+
+Existing tests and fixtures: none modified (diff since the pin under `__tests__` is additions only). Shared-lane files: none touched (no S4/S5/S6-owned file; `core/src/contracts/credentials.ts` and the new changeset are S8 integration files). Cross-package: core imports nothing new; the binder imports only Tovu modules and `@jini-ai/core/contracts/credentials`. Processes: the one background test runner exited 0; nothing is left running.
