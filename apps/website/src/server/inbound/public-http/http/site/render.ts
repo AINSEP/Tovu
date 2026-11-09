@@ -1594,6 +1594,56 @@ export function renderDocNode(
   return handler ? handler(node, content, deps) : renderChildNodes(content, deps);
 }
 
+/** The `data-embed-config` element that stands for a managed doc node in Page HTML. `alt` is carried
+ *  as a marker attribute because the media resolver reads it there. @complexity O(n) in the node's attrs. */
+function docNodeEmbedMarker(required: { config: JsonObject; attrs: JsonObject; alt?: string }): string {
+  const parsed = resolveEmbedHtmlAttributes(str(required.attrs.htmlAttributes) || null);
+  const classes = [str(required.attrs.cssClass), parsed.class].filter(Boolean).join(" ");
+  const classAttr = classes ? ` class="${escapeHtml(classes)}"` : "";
+  const altAttr = required.alt ? ` alt="${escapeHtml(required.alt)}"` : "";
+  // A single-quoted marker reads its JSON raw, so an apostrophe needs the JSON escape, not an entity.
+  const json = JSON.stringify(required.config).replace(/'/g, "\\u0027");
+  return `<div${classAttr}${altAttr}${formatHtmlAttributes(omitKey(parsed, "class"))} data-embed-config='${json}'></div>`;
+}
+
+/** A widget or managed-media node's Page HTML marker; `undefined` for every other node, which the
+ *  ordinary renderer handles. A malformed reference stays with that renderer's placeholder. @complexity O(1). */
+function managedDocNodeMarker(node: JsonObject): string | undefined {
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  if (node.type === "widgetEmbed" && str(attrs.widgetEntryId)) {
+    const config: JsonObject = { type: "widget", id: str(attrs.widgetEntryId) };
+    if (attrs.content !== undefined) config.content = attrs.content;
+    return docNodeEmbedMarker({ config, attrs });
+  }
+  const assetId = node.type === "media" || node.type === "image" ? plausibleMediaRefId(attrs.assetId) : undefined;
+  return assetId ? docNodeEmbedMarker({ config: { type: "media", id: assetId }, attrs, alt: str(attrs.alt) }) : undefined;
+}
+
+/** Copies `node` with each managed node replaced by a text token, recording its marker by index.
+ *  Past {@link MAX_RENDER_DEPTH} nodes are left for the renderer's own depth limit. @complexity O(n) in nodes. */
+function swapManagedDocNodes(required: { node: JsonValue; token: string; markers: string[]; depth: number }): JsonValue {
+  const { node, token, markers, depth } = required;
+  if (!isObject(node) || depth > MAX_RENDER_DEPTH) return node;
+  const marker = managedDocNodeMarker(node);
+  if (marker !== undefined) return { type: "text", text: `${token}${markers.push(marker) - 1}X` };
+  if (!Array.isArray(node.content)) return node;
+  return { ...node, content: node.content.map(child => swapManagedDocNodes({ node: child, token, markers, depth: depth + 1 })) };
+}
+
+/**
+ * A stored doc body as HTML a Page can keep. Uses the public renderer so text keeps its exact markup,
+ * while widgets and managed media stay live embeds: resolving them here would freeze today's output
+ * into the page, or a placeholder where no render context exists. The random token cannot collide
+ * with the owner's text. A media node's transform has no marker form, so it takes the default image.
+ * @complexity O(n) in doc nodes plus one pass over the rendered HTML.
+ */
+export function renderDocBodyAsPageHtml(bodyJson: unknown): string {
+  const token = `DOCMARKER${randomUUID().replace(/-/g, "")}N`;
+  const markers: string[] = [];
+  const html = renderDocNode(swapManagedDocNodes({ node: bodyJson as JsonValue, token, markers, depth: 0 }));
+  return html.replace(new RegExp(`${token}(\\d+)X`, "g"), (_match, index: string) => markers[Number(index)] ?? "");
+}
+
 // ---------------------------------------------------------------------------
 // Core component registry (v1) — the safe building blocks a theme references.
 // A theme can arrange these by id; it cannot define new ones. This table has no schema,

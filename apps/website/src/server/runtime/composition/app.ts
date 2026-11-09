@@ -1,3 +1,4 @@
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { statfs } from "node:fs/promises";
@@ -1273,6 +1274,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `revisions:` field to wire here (S1, fix plan 2026-09-24 row 14) — unlike the sqlite store,
     // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
+    docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
     // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because

@@ -1,3 +1,4 @@
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
@@ -2287,6 +2288,7 @@ async function composeSiteRouteDeps(
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
+    docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
