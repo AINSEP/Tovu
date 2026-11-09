@@ -817,6 +817,7 @@ This continuation is owner-approved, in the same session and on the same branche
 | UTC | Elapsed in continuation (min) | Event | Continuation tokens (approx) |
 |---|---|---|---|
 | 08:38 | 0 | continuation start; report wording corrected | — |
+| 09:07 | 29 | H2c done + full H2 gate rerun green (closure-check CLEAN on 3 entries) — LAST GREEN PAIR Tovu f9631ad5 / Jini 2cdeae0f | ~290k (H2c 270k) |
 
 ## H2c — inventory
 
