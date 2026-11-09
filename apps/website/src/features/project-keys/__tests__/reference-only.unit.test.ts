@@ -34,6 +34,15 @@ test('consumer cannot enumerate, guess, or mutate an ungranted owner entry', asy
   assert.equal((await vault.find({ workspaceId: 'project', id: 'key-a' }))?.revision, 1);
 });
 
+test('a revoke aimed at a key saved on another site never adds it to Shared Keys', async () => {
+  const { inputs } = await fixture();
+  let adopted = 0;
+  const siteKeys = { list: async () => [], find: async () => null, adopt: async ({ keyId }: { keyId: string }) => { adopted++; return { keyId }; } };
+  const keys = createProjectKeys({ ...inputs, siteKeys });
+  await assert.rejects(keys.use({ keyId: 'saved-on-site:site-b:vercel', use: false }), /no longer exists/);
+  assert.equal(adopted, 0);
+});
+
 test('site metadata list excludes ungranted entries while owner picker can see them', async () => {
   const { inputs } = await fixture();
   const keys = createProjectKeys(inputs);

@@ -49,7 +49,7 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     }
   };
   app.get(BASE, handle(async (_req, res) => {
-    const rows = await deps.projectKeys!.list({});
+    const rows = await deps.projectKeys!.listChoices({});
     res.json({ sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: rows.map(row => ({
       kind: row.kind, id: row.keyId, label: row.name, provider: null, worksFor: [],
       ...(row.siteName ? { siteName: row.siteName } : {}), ...(row.locked ? { locked: row.locked } : {}),

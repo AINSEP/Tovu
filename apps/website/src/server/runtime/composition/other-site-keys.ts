@@ -107,14 +107,26 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     } finally { await kernel.close(); }
   }
 
+  /** readSource for a chosen key: any failure becomes fixed plain words, never a driver or crypto message. */
+  function readPlainly<T>(input: Parameters<typeof readSource<T>>[0]): Promise<T> {
+    return readSource(input).catch(error => {
+      if (error instanceof ToolInputError) throw error;
+      throw refused(couldNotRead(input.source.name));
+    });
+  }
+
+  /** A label or provider shaped like a token is never displayed, whatever else is wrong with the row. */
+  function hasSafeNames({ row }: { row: MetaRow }, _options = {}): boolean {
+    try { assertCredentialFreeField({ value: row.label, field: "label" }); if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" }); return true; }
+    catch { return false; }
+  }
+
   /** A row's reason it cannot be used yet, in plain words; undefined when it can. */
   function lockedReason({ row, source, keyStatus }: { row: MetaRow; source: Source; keyStatus: boolean }, _options = {}): string | undefined {
     if (!keyStatus) return unlockHelp(source.name);
     const meta = parseMeta({ row });
     if (needsUpgrade({ kind: row.kind, meta })) return upgradeHelp(source.name);
-    try { assertCredentialFreeField({ value: row.label, field: "label" }); if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" }); }
-    catch { return renameHelp(source.name); }
-    return undefined;
+    return hasSafeNames({ row }) ? undefined : renameHelp(source.name);
   }
 
   function keyId({ source, row }: { source: Source; row: { id: string } }, _options = {}): string {
@@ -161,7 +173,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
           await readSource({ source, read: async ({ rows, keyStatus }) => {
             for (const row of rows) {
               const locked = lockedReason({ row, source, keyStatus });
-              choices.push({ keyId: keyId({ source, row }), kind: row.kind, name: keyName({ row, site: label(source) }), siteName: source.name, ...(locked ? { locked } : {}) });
+              choices.push({ keyId: keyId({ source, row }), kind: row.kind, name: hasSafeNames({ row }) ? keyName({ row, site: label(source) }) : `Key with an unsafe name, ${label(source)}`, siteName: source.name, ...(locked ? { locked } : {}) });
             }
           } });
         } catch {
@@ -173,7 +185,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     /** Metadata only, for the permission check that precedes a grant. */
     async find({ keyId }: { keyId: string }, _options = {}): Promise<VaultRecord | null> {
       const { source, rowId } = resolveKeyId({ keyId });
-      return readSource({ source, read: async ({ rows }) => {
+      return readPlainly({ source, read: async ({ rows }) => {
         const row = rows.find(item => item.id === rowId);
         if (!row) return null;
         return { workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label, ownerKey: "tovu", principalId: null, binding: null, provider: row.provider, isDefault: false, revision: 1, sealed: null, last4: null, tokenLength: null, meta: parseMeta({ row }) as VaultMeta, createdAt: "", updatedAt: "" };
@@ -182,7 +194,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     /** After owner approval, re-seal the source key into Shared Keys; the plaintext stays in this function. */
     async adopt({ keyId }: { keyId: string }, _options = {}): Promise<{ keyId: string }> {
       const { source, rowId } = resolveKeyId({ keyId });
-      return readSource({ source, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
+      return readPlainly({ source, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
         const row = rows.find(item => item.id === rowId);
         if (!row) throw refused(`This saved key is no longer on ${source.name}. Open Use a saved key again.`);
         const locked = lockedReason({ row, source, keyStatus });
@@ -191,10 +203,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
           .catch(() => { throw refused(unlockHelp(source.name)); });
         if (!opened?.payload) throw refused(`This saved key on ${source.name} is empty. Save it there again, then try again. Details: P25_SITE_KEY_EMPTY.`);
         return { keyId: await promote({ summary: opened.summary, payload: opened.payload, source }) };
-      } }).catch(error => {
-        if (error instanceof ToolInputError) throw error;
-        throw refused(couldNotRead(source.name));
-      });
+      } });
     },
   };
 }

@@ -103,7 +103,7 @@ export function buildCredentialCopyRegistrations({ deps, surfaces, saveNew }: {
         throw new ToolInputError({ message: 'Shared Keys could not open. Open the normal key card to save a key for this site.' });
       }
       if (!options.emitSurface) throw new ToolInputError({ message: 'Using a saved key requires an interactive confirmation channel. Open this action in chat.' });
-      const rows = await deps.projectKeys.list({});
+      const rows = await deps.projectKeys.listChoices({});
       const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: CREDENTIAL_COPY_TOOL_ID, principalId: ctx.principal.id, channel: 'mcp-ui' }, emit: options.emitSurface });
       const uri: UIResourceUri = `ui://tovu/use-saved-key/${exchange.id}`;
       const abort = () => exchange.close({});

@@ -31,6 +31,8 @@ export interface SiteKeySource {
 export interface ProjectKeysPort {
   readonly site?: { readonly id: string; readonly name: string };
   list(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
+  /** Shared Keys plus keys saved on other sites. Opens every registered site's database: only for when the picker opens. */
+  listChoices(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
   listGranted(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
   permissionFor(required: { keyId: string }, optional?: Record<string, never>): Promise<string>;
   use(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<{ keyId: string; usedByThisSite: boolean; usedBy: readonly string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>;
@@ -82,7 +84,7 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   const use: ProjectKeysPort["use"] = async (selected, _optional = {}) => {
     if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
     // Adoption runs after the card's approval and before the grant; a site key becomes a Shared Key here.
-    const input = isSiteKey(selected) ? { ...selected, ...(await siteKeys!.adopt(selected)) } : selected;
+    const input = selected.use && isSiteKey(selected) ? { ...selected, ...(await siteKeys!.adopt(selected)) } : selected;
     await transaction({ run: async () => {
       const row = await find(input);
       if (input.use) {
@@ -117,7 +119,8 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   }
   return {
     site: { id: siteId, name: siteName },
-    list: async input => [...await listRows({ ...input, owner: true }), ...(await siteKeys?.list({}) ?? []).map(row => ({ ...row, usedByThisSite: false, usedBy: [] }))],
+    list: input => listRows({ ...input, owner: true }),
+    listChoices: async input => [...await listRows({ ...input, owner: true }), ...(await siteKeys?.list({}) ?? []).map(row => ({ ...row, usedByThisSite: false, usedBy: [] }))],
     listGranted: async input => (await listRows(input)).map(row => ({ ...row, usedBy: [] })),
     permissionFor: async input => {
       if (!isSiteKey(input)) return projectKeyPermission({ row: await find(input) });

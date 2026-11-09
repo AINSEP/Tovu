@@ -81,7 +81,7 @@ test("a key saved only on site A is listed on site B and usable there after appr
   try {
     await f.save(f.a, "vercel-a", "Vercel");
     const before = fs.readFileSync(f.a.dbPath);
-    const listed = await f.keysOnB.list({});
+    const listed = await f.keysOnB.listChoices({});
     const row = siteRow(listed, "Vercel, site-a");
     assert.equal(row.locked, undefined);
     assert.doesNotMatch(JSON.stringify(listed), new RegExp(FAKE_TOKEN), "listing never carries a token");
@@ -102,7 +102,7 @@ test("a key on this site can be added to Shared Keys from the same picker", asyn
   const f = await fixture();
   try {
     await f.save(f.b, "vercel-b", "Vercel");
-    const row = siteRow(await f.keysOnB.list({}), "Vercel, this site");
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, this site");
     const used = await f.keysOnB.use({ keyId: row.keyId, use: true });
     assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN);
   } finally { await f.close(); }
@@ -113,7 +113,7 @@ test("a source site whose key cannot be unlocked says so in plain words and adds
   try {
     await f.save(f.a, "vercel-a", "Vercel");
     fs.rmSync(f.a.keyPath);
-    const listed = await f.keysOnB.list({});
+    const listed = await f.keysOnB.listChoices({});
     const row = siteRow(listed, "Vercel, site-a");
     assert.match(row.locked ?? "", /site-a/);
     assert.match(row.locked ?? "", /recover/i, "tells the owner what to do");
@@ -127,7 +127,7 @@ test("a key that still needs its site's upgrade says so and is not added", async
   try {
     await f.save(f.a, "vercel-a", "Vercel");
     await f.a.kernel.execute(sql`UPDATE secrets_vault SET meta=${JSON.stringify({ credentialType: "vendor" })} WHERE id='vercel-a'`);
-    const row = siteRow(await f.keysOnB.list({}), "Vercel, site-a");
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, site-a");
     assert.match(row.locked ?? "", /update this key/);
     await assert.rejects(f.keysOnB.use({ keyId: row.keyId, use: true }), /update this key/);
     assert.deepEqual(await f.projectRows(), []);
@@ -141,7 +141,7 @@ test("the same token picked from two sites stays one Shared Key; a different tok
     const c = await f.c();
     await f.save(c, "vercel-c", "Vercel", "fake-other-token-not-real-9999");
     await f.save(f.b, "vercel-b", "Vercel", FAKE_TOKEN);
-    const rows = await f.keysOnB.list({});
+    const rows = await f.keysOnB.listChoices({});
     const first = await f.keysOnB.use({ keyId: siteRow(rows, "Vercel, site-a").keyId, use: true });
     const again = await f.keysOnB.use({ keyId: siteRow(rows, "Vercel, this site").keyId, use: true });
     assert.equal(again.keyId, first.keyId, "same secret reuses the existing Shared Key");
@@ -152,11 +152,40 @@ test("the same token picked from two sites stays one Shared Key; a different tok
   } finally { await f.close(); }
 });
 
+test("a label that looks like a token is never shown, on the row or in its lock reason", async () => {
+  const f = await fixture();
+  try {
+    const tokenLabel = `ghp_${"a".repeat(36)}`;
+    await f.save(f.a, "vercel-a", tokenLabel);
+    const listed = await f.keysOnB.listChoices({});
+    assert.doesNotMatch(JSON.stringify(listed), new RegExp(tokenLabel));
+    const row = siteRow(listed, "Key with an unsafe name, site-a");
+    assert.match(row.locked ?? "", /unsafe name/);
+    await assert.rejects(f.keysOnB.use({ keyId: row.keyId, use: true }), /unsafe name/);
+    assert.deepEqual(await f.projectRows(), []);
+  } finally { await f.close(); }
+});
+
+test("a source database that breaks after listing is reported in plain words, not as a driver error", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Vercel");
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, site-a");
+    for (const suffix of ["-wal", "-shm"]) fs.rmSync(`${f.a.dbPath}${suffix}`, { force: true });
+    fs.writeFileSync(f.a.dbPath, "this is not a database file at all, only some text");
+    await assert.rejects(f.keysOnB.permissionFor({ keyId: row.keyId }), (error: Error) => {
+      assert.equal(error.name, "ToolInputError");
+      assert.match(error.message, /site-a can't be read right now/);
+      return true;
+    });
+  } finally { await f.close(); }
+});
+
 test("a key id that no longer resolves is refused without touching the owner store", async () => {
   const f = await fixture();
   try {
     await f.save(f.a, "vercel-a", "Vercel");
-    const row = siteRow(await f.keysOnB.list({}), "Vercel, site-a");
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, site-a");
     fs.rmSync(path.dirname(f.a.keyPath), { recursive: true });
     await assert.rejects(f.keysOnB.use({ keyId: `${row.keyId}x`, use: true }));
     assert.deepEqual(await f.projectRows(), []);

@@ -129,7 +129,7 @@ test('a key saved on another site is offered by name, adopted after approval, an
 test('a non-owner session is refused before any site is read', async () => {
   const f = await fixture();
   let listed = 0;
-  const keys = { ...f.keys, list: async () => { listed++; return []; } };
+  const keys = { ...f.keys, listChoices: async () => { listed++; return []; } };
   const tool = buildCredentialCopyRegistrations({ deps: { workspaceId: 'workspace-local', ownerPrincipalId: Promise.resolve('owner'),
     projectKeys: keys, authorize: async () => ({ allowed: true, reason: 'fixture' }), gatedMutations: { gatewayDeps: {} } },
     surfaces: { surfaceExchanges: f.exchanges } })[0]!;
