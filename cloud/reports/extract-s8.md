@@ -1179,7 +1179,7 @@ Guard families: R2-deep-path 1, R10-chatpane-public-surface 1 (both pre-existing
   4. `abortGuardedCredentialRepo` / `cleanCardToken` / `assertCredentialFreeField` / `worksFor` / model-facing error rules / form messages / tool ids and handler keys.
 - **Next-session work:** finish the C2 part 2 remaining rows above, then C3 (tools move), G-deploy, C4.
 - **Open doc issue:** move the credential-ports JSDoc onto `CustomCredentialToolPorts` (see F8 rerun, section 6).
-- Continuation tokens: C2p2 remainder 211k + F8 rerun 75k + coordinator ≈ 20k of 450k; elapsed 29m of 60m.
+- Continuation tokens (coordinator-corrected from harness usage): C2p2 remainder 211k + F8 rerun 114k + coordinator ≈ 25k = ≈ 350k of 450k; elapsed 28m of 60m at 09:06:30Z.
 
-Stop reason: continuation 1-hour cap — after C2 part 2 rows 1–2 (partial) and the F8 rerun, the remaining C2 part 2 rows (listed above) cannot be built and re-gated before 09:38:25Z; not a behavior, design or import-rule stop.
+Stop reason: continuation token cap — after C2 part 2 rows 1–2 (partial) and the F8 rerun, ≈ 100k of the 450k continuation tokens remain, less than one more row builder plus the mandatory full F8 re-gate (≈ 114k alone); the remaining C2 part 2 rows (listed above) stay unbuilt. Not a behavior, design or import-rule stop.
 EXTRACT-S8-C STOPPED AT CAP
