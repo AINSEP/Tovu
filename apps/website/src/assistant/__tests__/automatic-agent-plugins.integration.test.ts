@@ -11,7 +11,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
-import { getAgentDef, resolveArgvPromptBudget } from '@jini-ai/agent-runtime';
+import { checkPromptArgvBudget, getAgentDef } from '@jini-ai/agent-runtime';
 import { assistantCliPermissions } from '../assistant-subagents-policy.js';
 import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
@@ -694,26 +694,29 @@ test('a rejected preflight promise is cleared so the same turn can retry', async
 
 
 
-// `fits`: a short prompt leaves argv headroom for the 16 KiB primary even under Windows' 30,000 bytes.
-// `full`: a prompt near the POSIX 100,000-byte guard leaves too little, so the primary becomes a pointer.
-for (const { agentId, pinned, prompt } of [
-  { agentId: 'deepseek', pinned: false, prompt: 'fits' }, { agentId: 'deepseek', pinned: false, prompt: 'full' },
-  { agentId: 'claude', pinned: false, prompt: 'full' }, { agentId: 'deepseek', pinned: true, prompt: 'fits' },
-] as const) test(`accepted adapter prompt budget preserves preflight delivery (${agentId}, pinned=${pinned}, prompt=${prompt})`, async t => {
+// The site no longer guesses the CLI's remaining argv space. Preflight returns the full prefix and a
+// compact one with the primary deferred; the executor launches the compact prompt only when the full
+// one fails its budget guards as actually assembled (Jini agent-executor tests cover that choice).
+for (const { agentId, pinned } of [{ agentId: 'deepseek', pinned: false }, { agentId: 'claude', pinned: false }, { agentId: 'deepseek', pinned: true }] as const)
+  test(`accepted adapter prompt budget preserves preflight delivery (${agentId}, pinned=${pinned})`, async t => {
   const f = await fixture(t);
   const body = `ARGV_BEGIN\n${'x'.repeat(15_920)}\nARGV_END`;
   await writeFile(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'), body);
   const full = await resolveAgentPluginGuidance({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
   assert.ok(full.ok);
   assert.ok(Buffer.byteLength(full.promptPrefix) >= 16_300 && Buffer.byteLength(full.promptPrefix) <= 16_384, `fixture bytes: ${Buffer.byteLength(full.promptPrefix)}`);
+  // ~84 KB: under the POSIX argv guard alone, over it once the 16 KiB primary is inlined.
   const context = { principalId: 'alice', conversationId: 'chat', pluginRefIds: pinned ? [f.pluginId] : [],
-    prompt: `Design holography\n${'Tovu overlay and user request\n'.repeat(prompt === 'fits' ? 100 : 2_800)}` };
+    prompt: `Design holography\n${'Tovu overlay and user request\n'.repeat(2_800)}` };
   const host = await pluginPreflightFixture({ t, context, agentId,
     plugins: { controller: f.runs, pinnedPrefix: async () => pinned ? full.promptPrefix : '', emit: async () => {}, refusalPrefix: () => '' } });
   await host.start({ runId: 'daemon-test-run', principalId: 'alice' });
   const result = await host.preflight({ runId: 'daemon-test-run' });
+  assert.ok(result.prefix?.includes(full.promptPrefix));
+  assert.deepEqual(result.pluginIds, [f.pluginId]);
   if (agentId === 'deepseek' && !pinned) {
-    const budget = resolveArgvPromptBudget({ maxPromptArgBytes: getAgentDef({ id: agentId })!.maxPromptArgBytes! });
+    assert.doesNotMatch(result.compactPrefix ?? '', /ARGV_BEGIN|ARGV_END/);
+    assert.match(result.compactPrefix ?? '', /load_agent_plugin/);
     const input = await captureDaemonRun(context, { request: { agentId },
       bindings: { siteTools: host,
         env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
@@ -722,24 +725,31 @@ for (const { agentId, pinned, prompt } of [
         waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
       } });
     assert.equal(input.agentId, agentId);
-    // Either way the composed argv prompt stays inside the launch guard's limit.
-    assert.ok(Buffer.byteLength(input.prompt) <= budget, `composed ${Buffer.byteLength(input.prompt)} > ${budget}`);
-    if (prompt === 'fits') {
-      assert.ok(result.prefix?.includes(full.promptPrefix));
-      assert.ok(input.prompt.includes(full.promptPrefix));
-      assert.deepEqual(result.pluginIds, [f.pluginId]);
-    } else {
-      assert.match(result.prefix ?? '', /load_agent_plugin/);
-      assert.doesNotMatch(result.prefix ?? '', /ARGV_BEGIN|ARGV_END/);
-      assert.doesNotMatch(input.prompt, /ARGV_BEGIN|ARGV_END/);
-      assert.deepEqual(result.pluginIds, []);
-      assert.ok(Buffer.byteLength(`${input.prompt}\n${full.promptPrefix}`) > budget);
-    }
+    assert.ok(input.prompt.includes(full.promptPrefix));
+    // The compact prompt is the same assembly with only the primary swapped for its pointer.
+    assert.ok(input.compactPrompt !== undefined);
+    assert.equal(input.compactPrompt, input.prompt.replace(result.prefix!, result.compactPrefix!));
+    const def = getAgentDef({ id: agentId });
+    assert.equal(checkPromptArgvBudget({ def, composed: input.prompt }, { platform: 'linux' })?.code, 'AGENT_PROMPT_TOO_LARGE');
+    assert.equal(checkPromptArgvBudget({ def, composed: input.compactPrompt }, { platform: 'linux' }), null);
   } else {
+    // Pinned guidance is never optional, and Claude has no argv limit: neither changes.
     assert.equal(result.prefix, full.promptPrefix);
-    assert.deepEqual(result.pluginIds, [f.pluginId]);
   }
   f.runs.forget({ runId: 'daemon-test-run' });
+});
+
+test('a replacement attempt keeps both prepared variants, so its own launch can choose the compact one', async t => {
+  const f = await fixture(t);
+  const first = await f.runs.start({ runId: 'first', messageId: 'variants', context: f.context });
+  const compact = await f.runs.compactPrefix({ runId: 'first' });
+  assert.match(first, /Use holographic layout discipline/);
+  assert.ok(compact !== undefined);
+  assert.doesNotMatch(compact, /Use holographic layout discipline/);
+  const next = await f.runs.start({ runId: 'replacement', messageId: 'variants', context: { ...f.context, query: 'reconstructed history' } });
+  assert.equal(next, first);
+  assert.equal(await f.runs.compactPrefix({ runId: 'replacement' }), compact);
+  for (const runId of ['first', 'replacement']) f.runs.forget({ runId });
 });
 
 for (const kind of ['automatic', 'pinned', 'pinned-off']) test(`preflight carries only delivered plugin ids through real RPC (${kind})`, async t => {

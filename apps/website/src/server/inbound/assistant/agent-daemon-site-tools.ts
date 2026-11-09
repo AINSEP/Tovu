@@ -20,7 +20,7 @@ const toolResponse = z.object({ tools: z.array(z.object({
   readOnly: z.boolean().optional(), requiresConfirmation: z.boolean().optional(),
   timeoutMs: z.number().optional(), maxOutputBytes: z.number().optional(),
 }).passthrough()) });
-const preflightResponse = z.object({ prefix: z.string().nullable(), refusalPrefix: z.string(), pluginIds: z.array(z.string()) }).strict();
+const preflightResponse = z.object({ prefix: z.string().nullable(), compactPrefix: z.string().nullable().optional(), refusalPrefix: z.string(), pluginIds: z.array(z.string()) }).strict();
 
 type SiteCatalog = { tools: readonly ToolDescriptor[]; query: ReturnType<typeof buildToolCatalogQuery>; revision: number };
 type LiveRun = { principalId: string; revision: number; components?: ReturnType<typeof buildComponentCatalogQuery> };

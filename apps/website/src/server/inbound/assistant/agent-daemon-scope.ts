@@ -675,6 +675,8 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
   }
   let prompt: string;
+  /** `prompt` with automatic primary guidance deferred; the executor uses it only if `prompt` does not fit. */
+  let compactPrompt: string | undefined;
   let coldStartContext: string | undefined;
   let principal: Principal;
   let attachmentIds: readonly string[] = [];
@@ -1030,6 +1032,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPreparation.refusalPrefix);
+      compactPrompt = assemblePromptWithPluginPrefix(prompt, pluginPreparation.compactPrefix ?? pluginPromptPrefix);
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
       if (!(await durableAttemptStillOwnsAnswer())) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
@@ -1051,7 +1054,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   /** The server owns pinned guidance and automatic consent, including later tool-triggered
    * preparation. No controller or plugin lifecycle is constructed in this process. Transport
    * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
-  async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
+  async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; compactPrefix?: string | null | undefined; refusalPrefix: string; pluginIds: string[] }> {
     try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
     catch {
       console.warn('[agent-plugins] automatic preflight unavailable');
@@ -1112,6 +1115,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       permissionMode: policy.permissionMode ?? resolvePermissionMode(),
       nativeToolAccess,
       nativeCapabilities,
+      ...(compactPrompt !== undefined && compactPrompt !== prompt ? { compactPrompt } : {}),
       subagentStartContext: { ids: pluginIds, instructions: 'Before you start, call load_agent_plugin for every parent plugin and follow it. Discover Tovu tools with search_tools, describe before executing, honor approvals, and keep file searches inside the site.' },
       cliParity: nativeToolAccess,
       ...(parityEnv ? { env: parityEnv } : {}),

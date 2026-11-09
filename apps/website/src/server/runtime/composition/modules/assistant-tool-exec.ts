@@ -37,7 +37,6 @@ import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import type { AutomaticPluginRun, createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
-import { getAgentDef, resolveArgvPromptBudget } from "@jini-ai/agent-runtime";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 
 /** Publish one site-prepared consent/state event through the daemon's existing credential gate.
@@ -59,7 +58,7 @@ export async function publishDaemonPluginEvent(required: { runId: string; princi
 }
 
 type PluginPreflightPorts = {
-  controller: Pick<ReturnType<typeof createAutomaticPluginRuns>, "start" | "forget"> & Partial<Pick<ReturnType<typeof createAutomaticPluginRuns>, "guidanceIds">>;
+  controller: Pick<ReturnType<typeof createAutomaticPluginRuns>, "start" | "forget"> & Partial<Pick<ReturnType<typeof createAutomaticPluginRuns>, "guidanceIds" | "compactPrefix">>;
   pinnedPrefix: (required: { pluginRefIds: readonly string[] }) => Promise<string | null>;
   emit: typeof publishDaemonPluginEvent;
   refusalPrefix: () => string;
@@ -127,28 +126,9 @@ async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, res
   const context = parseRunStartContextRef(JSON.stringify({ ...parsed, principalId: run.principalId }));
   const pinnedPrefix = await plugins.pinnedPrefix({ pluginRefIds: context.pluginRefIds });
   if (!(await lookup())) { refuse(); return; }
-  const prefix = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, res, lookup });
+  const { prefix, compactPrefix } = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, res, lookup });
   if (!(await lookup())) { refuse(); return; }
-  res.status(200).set("cache-control", "no-store").json({ prefix, refusalPrefix: plugins.refusalPrefix(), pluginIds: plugins.controller.guidanceIds?.({ runId }) ?? [] });
-}
-
-/** Bytes held back for what the daemon adds around the prompt and pinned guidance: the relevance
- * note (at most 600), a deferred pointer, off-plugin pointers, the refusal prefix and page context. */
-const AUTOMATIC_GUIDANCE_OVERLAY_RESERVE_BYTES = 4 * 1024;
-
-/** Argv bytes left for automatic plugin guidance after the prompt, pinned guidance and overlay,
- * using the same platform rule as the daemon's launch guard. Undefined for adapters with no argv
- * prompt limit (Claude), which keeps their automatic path unchanged.
- * @complexity O(prompt + prefix bytes) for the byte counts; one definition lookup.
- */
-export function automaticGuidanceArgvHeadroom(
-  { agentId, prompt, pinnedPrefix }: { agentId: string; prompt: string; pinnedPrefix: string },
-  { platform = process.platform }: { platform?: NodeJS.Platform } = {},
-): number | undefined {
-  const maxPromptArgBytes = getAgentDef({ id: agentId })?.maxPromptArgBytes;
-  if (maxPromptArgBytes === undefined) return undefined;
-  const used = Buffer.byteLength(prompt) + Buffer.byteLength(pinnedPrefix) + AUTOMATIC_GUIDANCE_OVERLAY_RESERVE_BYTES;
-  return Math.max(0, resolveArgvPromptBudget({ maxPromptArgBytes }, { platform }) - used);
+  res.status(200).set("cache-control", "no-store").json({ prefix, ...(compactPrefix !== prefix ? { compactPrefix } : {}), refusalPrefix: plugins.refusalPrefix(), pluginIds: plugins.controller.guidanceIds?.({ runId }) ?? [] });
 }
 
 /** Bind the existing controller to durable identity and a log emitter that rechecks liveness.
@@ -159,8 +139,8 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   run: DurableRunHead & { principalId: string }; context: ReturnType<typeof parseRunStartContextRef>;
   pinnedPrefix: string | null; plugins: PluginPreflightPorts; res: Response;
   lookup: () => Promise<DurableRunHead | undefined>;
-}, _options = {}): Promise<string | null> {
-  if (pinnedPrefix === null) return null;
+}, _options = {}): Promise<{ prefix: string | null; compactPrefix: string | null }> {
+  if (pinnedPrefix === null) return { prefix: null, compactPrefix: null };
   const runId = run.runId;
   // Capture both halves before any controller work can outlive this daemon scope. A late plugin
   // answer must never be re-authorized with the replacement scope's fresh proxy credential.
@@ -179,16 +159,16 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   const pluginContext: AutomaticPluginRun = {
     principal: { id: run.principalId }, conversationId: run.conversationId, state: context.agentPluginState,
     query: context.userPrompt ?? context.prompt, pinned: context.pluginRefIds, signal: abort.signal,
-    maxPromptArgBytes: automaticGuidanceArgvHeadroom({ agentId: run.request.agentId ?? 'claude',
-      prompt: [context.prompt, context.coldStartContext ?? ''].join('\n\n'), pinnedPrefix }),
     emitSurface: emission => emit({ ...emission.payload, type: emission.channel,
       ...(emission.channel === "mcp-ui" ? { toolUseId: `agent-plugins:${runId}` } : {}) }),
     publish: value => emit({ type: "agent_plugins", ...value }),
   };
   try {
     const automaticPrefix = await plugins.controller.start({ runId, messageId: run.messageId, context: pluginContext });
-    return [pinnedPrefix, automaticPrefix].filter(Boolean).join("\n\n");
-  } catch { console.warn("[agent-plugins] automatic preflight unavailable"); return pinnedPrefix; }
+    const compact = await plugins.controller.compactPrefix?.({ runId }) ?? automaticPrefix;
+    const join = (automatic: string) => [pinnedPrefix, automatic].filter(Boolean).join("\n\n");
+    return { prefix: join(automaticPrefix), compactPrefix: join(compact) };
+  } catch { console.warn("[agent-plugins] automatic preflight unavailable"); return { prefix: pinnedPrefix, compactPrefix: pinnedPrefix }; }
 }
 
 /** Read metadata only after readiness, checking the live attempt across asynchronous boundaries.
