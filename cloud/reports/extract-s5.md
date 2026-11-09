@@ -855,4 +855,103 @@ Recorded before any H2c seam edit (H2c builder; Tovu cdf3038a, Jini 575b95e4). T
 
 Not changed by H2c: routes, browser binding, Express, `contracts.ts`, composition, S4-owned files. Old exports/signatures stay; `createSharedExternalMcpOAuth` is internal to O (only caller) and takes `ports` in place of the H2b-added `registrationIdentity`.
 
+## H2c
+
+Scope: seam item 1 for the sign-in half, plus the rest of item 7. Done in place; H3 moves the code. Skills: `AI-Dev-Shop/agents/programmer/skills.md` header loaded.
+
+### Ports
+J `integrations/src/api-connections/hosted-mcp/contracts.ts` (types only, imports core only) gained `HostedMcpSignInPorts`, `HostedMcpOAuthFailure` and `HostedMcpSignInCopy`, each with attached @agent-notes. The notes say who fulfills each member, that it is one object per composition, real instances only, how error identity is kept, that the repo is the same instance, ordering, and that the AAD bytes and registration identity are stable.
+
+| Member | Tovu binding (`tovuSignInPorts`, T `external-mcp-oauth.ts`, bound ONCE) |
+|---|---|
+| `flow: OAuthFlowOperations` | `oauthFlowOperations` (the same value) |
+| `errors.oauth` / `errors.isOAuthError` | `new OAuthError(input)` / real `isOAuthError({value})` |
+| `errors.validation` / `errors.isUnconfigured` | canonical `ExternalMcpValidationError` / `instanceof ExternalMcpSecretStoreUnconfiguredError` |
+| `errors.reauthRequired` | `createExternalMcpReauthRequiredError` (the same function the gate gets) |
+| `store.openPayload` / `store.sealPayload` | the existing T shims (same identity, same envelope instance) |
+| `projections.authMode` / `projections.oauthStatus` | `resolveExternalMcpAuthMode` / `resolveExternalMcpOAuthStatus` |
+| `aad.format` | platform `formatAad` (`oauth-redirect-state` v1 bytes unchanged) |
+| `signInLink` | `hostedMcpSignInLink` |
+| `registrationIdentity` | `tovuRegistrationIdentity` (tovu / label ?? serverId / Tovu) |
+| `oauthMessages` / `discoveryPolicy` / `withCopy` | `tovuOAuthMessages` / `createTovuIssuerBoundDiscoveryPolicy` / `withTovuOAuthCopy` |
+| `copy.*` | the exact earlier literals (Settings → External MCP, "Tovu", `TOVU_PUBLIC_URL`, "this Mac") |
+| `log.postConnectFailed` | the exact earlier `console.warn` `[external-mcp] … post-connect step failed` |
+
+How the brief's sign-in port list maps:
+- **store.findByServerId/upsert/tryClaimLease/releaseLease** stay `deps.repo`. It is the store's repo instance (A7), and it is not a second port member, so the lease/CAS order is literally unchanged.
+- **rosterRefusalFor** is not used by the sign-in; it belongs to the gate.
+- **errors.unconfigured()/classify({error})** became the predicates `isUnconfigured`/`isOAuthError`. The sign-in never constructs an unconfigured error; it only recognizes one. Classification itself stays with the host's `classifyError`/`isSignInRefusal`, and the test proves it is unchanged.
+
+Code:
+- `createHostedMcpSignInService(required: deps & {ports}, _optional)` is the neutral body.
+- `createExternalMcpOAuthService(required, _optional)` keeps the same signature and defaults and is `createHostedMcpSignInService({...required, ports: tovuSignInPorts})`.
+- `createSharedExternalMcpOAuth` takes `ports` in place of the H2b-added `registrationIdentity`. Its only caller is O.
+- `SharedExternalMcpOwner` is now narrow structural ports: `SharedSignInOwner` (records.read/compareAndSet, readContext, saveContext, tokensFor, readConnection), `SharedSignInBindings` (read/set/remove), `SharedSignInAttachments` (attach/detach/isAttached), `SharedSignInTransaction`, `SharedSignInIssuingContext`, and `inventory` returning the core `VaultRecord`. The Tovu adapters (shared-owner, site-references, attachments) are untouched, and production assigns to these ports unchanged (main tsc 0).
+- `external-mcp-shared-oauth.ts` now imports only `node:crypto`, `@jini-ai/integrations/api-connections{,/hosted-mcp}` and core.
+- The O sign-in body uses no oauth/platform/mcp/T value. A grep audit of lines 296-297 and 366-1333 finds no `new OAuthError`, `instanceof OAuthError`, `formatAad`, `hostedMcpSignInLink`, `tovu*`, `resolveExternalMcp*`, open/seal shims or `console`. `Tovu` is left only in why-comments.
+
+### Semantics preserved
+Same call order and counts. One `openPayload`/`sealPayload` per former call site. The repo calls are unchanged. `onConnected` runs once, after a durable write, and its failure goes to `log` (h2b test still 9/9; h2c second host). There are no new reads, opens or network calls. The H0 counters test is green (6/6) and the BASELINE rollback is ok.
+
+### New tests (new file only): T `features/external-mcp/__tests__/h2c/sign-in-ports.test.ts`, 6/6
+1. A second host signs in with fake flow ops. Its own softwareId/clientName, link path, copy, AAD recorder and validation/OAuth error factories are used. The test checks begin options, the ownerKey, the messages passed, AAD kind/version/parts, the hosted link, callback→connected with onConnected once, no-origin/no-device/shared refusals in second-host words, and no Tovu vocabulary in output.
+2. A second host's onConnected failure goes to its log port, and sign-in still succeeds.
+3. Tovu's binding uses the real implementations by identity. Every copy string is a byte-substring of the BASELINE checkout's oauth/shared files.
+4. With real Tovu wiring, a provider token error carrying token/secret/URL/path canaries arrives as a real `OAuthError`, and neither its message nor its operatorAction carries a canary.
+5. With real wiring, `reportAuthFailure` with a canary provider error gives the canonical reauth error with no canary, and the row becomes needs_reauth.
+6. Error identity:
+   - The canonical validation error is classified `validation` and counts as a sign-in refusal.
+   - The unconfigured error is classified `unconfigured`.
+   - A real OAuthError is recognized by the port and by `isAgentPluginSignInRefusal`; an imitation with the same fields is NOT.
+   - The reauth error has the canonical class and is not retryable.
+- Mutations (raw `h2c-mutations.txt`), all red then restored: hardcoded softwareId → 1 fail; imitation OAuth predicate → 1 fail; swallowed post-connect failure → 1 fail.
+- Red→fix: in the first gate run, typecheck:tests went 13→20; all 7 new errors were in the new test (`.catch` union types). Fixed with a typed `rejection()` helper (f9631ad5), and the FULL gate was rerun (below).
+
+### S4 overlap
+None. Tovu files touched: `external-mcp-oauth.ts`, `external-mcp-shared-oauth.ts`, the new h2c test and this report. Jini: `integrations/src/api-connections/hosted-mcp/contracts.ts`. No agent-plugins/connect/composition/assistant/routes/browser-binding/lockfile/changeset files. `mcp-host-bindings.ts` is only imported by the new test.
+
+### Edited lines
+Seam lines truly edited: T oauth +137/−106 (the 49-line binding included), shared +64/−36, J +72/−2. That is below 600, so no re-cut was needed.
+
+### Pushed SHAs (H2c)
+- Jini: 2cdeae0f06ef8a2a67497eca8bc57704bf4542db (ports contract).
+- Tovu:
+  - 22dd70ba5e564aa0f4ffb899556f3fed58b5eafd (inventory)
+  - 7f6ea0ce96d337c333c0bd3c033ed7be5f7023b6 (seam)
+  - 42bf47f8b794677a40f5dc67dbf52cb2946c490b (test)
+  - f9631ad50b17c238e841a637481bd72b9cbbc7fc (test typing fix)
+  - plus this report commit.
+
+### Findings (listed, not fixed)
+- Moved why-comments in the sign-in body still say "Tovu". H3 moves them byte-exact and rewords them only if the N1 guard really rejects them.
+- The "H2c handoff" is at /home/user/s5/H2C-HANDOFF.md (untracked). It gives exact line ranges for what H3 moves.
+
+## H2 gate (rerun after H2c; tested Tovu f9631ad5 / Jini 2cdeae0f; raw /home/user/s5/raw/h2c-g-*.txt, summary h2c-gate-summary.txt, first run h2c-gate-summary-run1.txt)
+Run 1 was red on one row: typecheck:tests showed 20 errors, 13 of them baseline and 7 from the new test. Every other row of run 1 matched run 2. After the fix (f9631ad5) the FULL gate was rerun:
+
+| gate | result |
+|---|---|
+| J core/oauth/mcp/integrations build + tsc | all EXIT 0 |
+| closure-check: api-connections, …/hosted-mcp, mcp/federation/hosted (src/JS/.d.ts) | CLEAN (EXIT 0) |
+| J API 20 files + conformance | 21 files / 372 |
+| J mcp hosted | 7/7 |
+| J oauth | 40 files / 714 |
+| neutral-host api-host-moves | 2/2 |
+| relink (`link:jini`) | EXIT 0 |
+| T main tsc | 0 errors |
+| typecheck:tests | 13, the same set as H2b, compared file+code |
+| T sign-in/gate | 141/142; only the prior-debt case fails (agent-daemon-server loopback/HTTPS), with the identical assertion message to H2b |
+| T api / connect / store / nine | 156 / 147 / 284 / 58, all pass |
+| T new h1a+h1b+h2b+h2c | 27/27 |
+| H0 frozen SQLite / BASELINE rollback | 6/6 / ok, EXIT 0 |
+| guard-gate h2c | MATCHES BASELINE (EXIT 0) |
+| xp-gate h2c | XP1–XP5 clean |
+| strict lint changed production | J eslint EXIT 0; T biome = baseline counts (1 noConfusingVoidType, 1 noNonNullAssertion, 2 useImportType, all in pre-existing lines) |
+| hashes | T OK; J only the 3 allowance fixtures differ (harness.ts, unit-deps.ts, token-store fixtures.ts), as expected |
+| existing-test audit vs pins | T: only M `shared-owner.integration.test.ts` (coordinator ruling (a)). J: only the 12 allowance-table files M (raw `h2c-audit-{t,j}.txt`). Everything else is A |
+
+Not covered until H3: the hosted-mcp entry's runtime closure. The sign-in runtime is still in T, and its move-readiness is shown by the import/grep audit above. H3 reruns the closure on the moved code.
+
+**LAST GREEN PAIR: Tovu f9631ad5 / Jini 2cdeae0f** (the full H2 gate including H2c; the report commit follows).
+
 EXTRACT-S5-C STOPPED AT CAP
