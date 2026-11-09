@@ -4,7 +4,7 @@ import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginNotInstalledError, AgentPlugi
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { PluginsToolDeps } from './tool-registrations.js';
-import type { ClassifiedPluginError, InstalledPluginRevision, PluginLifecycleToolsPort } from './host-tools/contract.js';
+import type { ClassifiedPluginError, InstalledPluginRevision, PluginLifecycleToolsPort } from '@jini-ai/plugins/host/tools';
 
 function classifyError({ error }: { error: unknown }): ClassifiedPluginError | undefined {
   if (error instanceof AgentPluginNotInstalledError) return { kind: 'not-installed', message: error.message };

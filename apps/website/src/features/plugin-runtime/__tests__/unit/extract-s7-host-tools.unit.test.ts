@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildPluginManagementRegistrations } from '../../host-tools/management.js';
-import { buildPluginInstallRegistrations } from '../../host-tools/install.js';
-import { buildPluginSourceRegistrations } from '../../host-tools/source.js';
+import { buildPluginManagementRegistrations } from '@jini-ai/plugins/host/tools';
+import { buildPluginInstallRegistrations } from '@jini-ai/plugins/host/tools';
+import { buildPluginSourceRegistrations } from '@jini-ai/plugins/host/tools';
 import { bindPluginManagementTools, bindPluginSourceTools } from '../../host-tool-binding.js';
 import { bindPluginInstallTools } from '../../install-tool-binding.js';
 import { harness, context, installedAgentPlugin, PLUGIN_ID } from '../fixtures/plugins-tool-harness.js';
@@ -95,7 +95,7 @@ test('foreign source ids dispatch through catalog permissions and preserve owner
 });
 
 test('approval identity forwards the same sorted revisions to the foreign fingerprint owner', async () => {
-  const { pluginApprovalIdentity } = await import('../../host-tools/management.js');
+  const { pluginApprovalIdentity } = await import('@jini-ai/plugins/host/tools');
   const h = harness({ agentHost: { listInstalled: async () => [installedAgentPlugin({ version: '2.0.0', archiveDigest: 'bb' }), installedAgentPlugin({ version: '1.0.0', archiveDigest: 'aa' })] } });
   const { required } = foreign(h); const inputs: unknown[] = [];
   const identity = await pluginApprovalIdentity({ deps: { ...required, approvalFingerprint: input => { inputs.push(input); return 'other-fingerprint-owner'; } }, request: { family: 'agent-plugin', pluginId: 'higgsfield' } });

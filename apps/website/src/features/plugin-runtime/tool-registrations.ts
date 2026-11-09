@@ -134,7 +134,7 @@ import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@
 import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugins/host/node';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledResult } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginProviderFacesPort } from './service-ports.js';
-import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from './host-tools/management.js';
+import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from '@jini-ai/plugins/host/tools';
 import { bindPluginManagementTools } from './host-tool-binding.js';
 import type { PluginFamily } from './agent-tools.js';
 export { describeEnableApproval, type EnableConfirmationSubject } from './enable-confirmation-ui.js';

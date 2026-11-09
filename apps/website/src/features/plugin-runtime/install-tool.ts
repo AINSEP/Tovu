@@ -1,7 +1,7 @@
 import type { AgentToolDefinition, ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { PluginsToolDeps } from './tool-registrations.js';
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader } from '#src/contracts/headless/index';
-import { buildPluginInstallRegistrations, pluginInstallDerivedRiskFor } from './host-tools/install.js';
+import { buildPluginInstallRegistrations, pluginInstallDerivedRiskFor } from '@jini-ai/plugins/host/tools';
 import { bindPluginInstallTools } from './install-tool-binding.js';
 
 

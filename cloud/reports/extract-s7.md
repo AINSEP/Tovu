@@ -258,3 +258,66 @@ Additional resolved helper inventory: T plugin-tool-ids.ts breaks catalog/binder
 L2 gate: 56 T files / 622 cases: 613 pass, six exact known failures, one exact known cancellation, two existing skips, zero todo. All nine new portable tests pass. Guidance, uninstall and allowlist arrays match S7-0b exactly; no new debt. Full guard read and compared again: R2/R10 only, identical HW totals, six R13 lines; plugin guards 0, layers/isolation [] with 578 closures and the same SI-c9/SI-d7 findings, checker 0. Immutable goldens/metadata equal supplied hashes; no old test/fixture/schema/migration diff after S7-0b. Jini-strict portable compile also passes before the mechanical move. Final L2 type/lint gate is completing; no runtime/port redesign is deferred to L3.
 
 L2 final gate completed with zero new failures. Verified pushed pair: Tovu `c23c8b73dacc1b13a563af6d9ccac68c8325c235`, Jini `b78fa32dbc6aab6f79c2ba77b2bc7e8babb349c4`. Final main/excluded-new-test types, Jini-strict portable types and max-warnings-zero lint pass. L3 inventory delta: no unresolved closure or new port. Four owning modules transport from T host-tools/ to J plugins/src/host/tools/; import-only rewrite to owning leaves; new public node index requires semver/@jini-ai/platform. Cross-repository movement is a filesystem move with explicit T deletions/J additions (git mv cannot move between repositories). L2 source hashes are saved before transport for an import/comment-only comparison.
+
+L3 transport: AST-normalized non-import bodies of all four modules match the gated L2 snapshot exactly after removing comments; hashes are recorded. J public-entry foreign-host tests plus recursive owning-source vocabulary/barrel checks pass 4/4. Published-consumer tests pass 3/3: source-less package.json+dist fixture plain-Node import blocks startup writes/processes/listeners, exact canonical error behavior through old shim/classifier, and attached note/content checks over resolved emitted declarations for every local member and all seven public functions. No J src/sibling/snapshot path is read by a T consumer test.
+
+The actual full guard first rejected N1-consumer-identity in moved management.ts (three findings total including inherited R2/R10). Only these six comment references were minimally neutralized; runtime bodies and why-rationale are preserved. Exact permitted comment diff:
+
+```diff
+--- transported management.ts
++++ N1-neutral management.ts
+@@ -325,7 +325,7 @@
+ 
+ /**
+  * Pre-flight for an Agent Plugin ENABLE, run before the confirmation dialog: the host-incompatible result when any
+- * installed revision of the plugin declares a host range this Tovu does not satisfy, otherwise `undefined`.
++ * installed revision of the plugin declares a host range this host does not satisfy, otherwise `undefined`.
+  *
+  * Same reason as {@link unwritableAgentPluginActivationsResult}: the write would refuse it anyway, but only after a
+  * human had approved something that cannot happen. Uses the lifecycle owner's own compatibility check against the
+@@ -390,7 +390,7 @@
+ }
+ 
+ 
+-/** The plugin declares a host range this Tovu does not satisfy, so it cannot be enabled: the same
++/** The plugin declares a host range this host does not satisfy, so it cannot be enabled: the same
+  *  refusal the admin switch answers with 409 `PLUGIN_HOST_INCOMPATIBLE`. Nothing changed, so it is
+  *  an ADR-055 Decision 6 result, not a failure. @complexity O(1). */
+ function hostIncompatibleResult<Description>(routeDeps: PluginManagementToolsRequired<Description>, request: SetEnabledRequest, error: { 
+@@ -429,7 +429,7 @@
+ }
+ 
+ 
+-/** t91 R2 (2026-09-16): another Tovu process held the cross-process activations.json write lock and
++/** t91 R2 (2026-09-16): another host process held the cross-process activations.json write lock and
+  *  the wait timed out, or this process lost the lock before it could commit. Same ADR-055 Decision 6
+  *  shape as {@link activationsUnreadableResult}: nothing changed, so it is a RESULT the model can
+  *  relay. The host lock path stays in the server log via `console.warn`; `note` is fixed and
+@@ -467,7 +467,7 @@
+ 
+ 
+ /**
+- * The `.tovu-plugin` site/runtime branch — unchanged in mechanism from before this file grew a
++ * The `site plugin` site/runtime branch — unchanged in mechanism from before this file grew a
+  * second family: the SAME `executeCommand` composition `routes/admin/plugins/set-enabled.ts` uses,
+  * with the same `captureInverse`/`rollback` pair.
+  * @complexity O(p) in discovered-plugin count, plus the command gateway's own writes.
+@@ -567,7 +567,7 @@
+ }
+ 
+ 
+-/** What the owner's consent to a site-package enable rests on. Only a site-sourced `.tovu-plugin`
++/** What the owner's consent to a site-package enable rests on. Only a site-sourced `site plugin`
+  * that is being enabled can carry a capability set; every other call has none. */
+ interface SiteConsent {
+   
+@@ -801,7 +801,7 @@
+      * got on 2026-09-09, for the identical reason: two near-identically-named uninstall tools
+      * (`plugins_uninstall` and the now-deleted `agent_plugins_uninstall`) is the exact confusion this
+      * catalog exists to prevent, and the operator asking to "uninstall the Higgsfield plugin" does not
+-     * know which of Tovu's two plugin systems that word means either.
++     * know which of the host's two plugin systems that word means either.
+      *
+      * The 'site-runtime' branch is UNCHANGED: mirrors `routes/admin/plugins/uninstall.ts`'s own
+      * business rules exactly — same permission, same `uninstallPlugin()` module, same pre-bound Trash
+```

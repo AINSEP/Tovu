@@ -7,7 +7,7 @@ import { catalog, PLUGINS_INSTALL_TOOL_ID, type PluginsInstallToolDeps } from '.
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import { pluginInstallMessages } from './plugin-tool-messages.js';
 import type { PluginInstallRequest } from '#src/contracts/headless/index';
-import type { PluginInstallToolsRequired } from './host-tools/contract.js';
+import type { PluginInstallToolsRequired } from '@jini-ai/plugins/host/tools';
 export function bindPluginInstallTools(deps: PluginsInstallToolDeps): PluginInstallToolsRequired<PluginInstallRequest> {
   return {
     registration: { domain: 'plugins-install', catalogModule: 'features/plugin-runtime/install-tool.ts', catalog, metadata: toolMetadata },

@@ -1,4 +1,4 @@
-import type { SetEnabledRequest } from './host-tools/contract.js';
+import type { SetEnabledRequest } from '@jini-ai/plugins/host/tools';
 const AGENT_PLUGIN_FAMILY = 'agent-plugin' as const;
 export const familyRequired = "'family' is required and must be exactly one of: 'site-runtime' (a .tovu-plugin site plugin, as listed by " +
       "content_read.plugin) or 'agent-plugin' (an Agent Plugin, as returned by search_agent_plugin_local). Tovu has two " +

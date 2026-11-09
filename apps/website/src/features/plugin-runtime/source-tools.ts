@@ -2,7 +2,7 @@ import { pluginSourceToolIds } from './plugin-tool-ids.js';
 import type { AgentToolDefinition, ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { PluginsToolDeps } from './tool-registrations.js';
-import { buildPluginSourceRegistrations as portableSourceRegistrations, pluginSourceDerivedRiskFor } from './host-tools/source.js';
+import { buildPluginSourceRegistrations as portableSourceRegistrations, pluginSourceDerivedRiskFor } from '@jini-ai/plugins/host/tools';
 import { bindPluginSourceTools } from './host-tool-binding.js';
 
 

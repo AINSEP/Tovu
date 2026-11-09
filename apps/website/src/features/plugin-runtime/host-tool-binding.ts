@@ -15,7 +15,7 @@ import { pluginToolMessages } from './plugin-tool-messages.js';
 import { lowerPluginToolAccess } from './lower-tool-access.js';
 import { bindAgentPluginTools } from './agent-plugin-tool-binding.js';
 import type { PluginsToolDeps } from './tool-registrations.js';
-import type { PluginApprovalPort, PluginManagementToolsRequired, PluginSourceToolsRequired } from './host-tools/contract.js';
+import type { PluginApprovalPort, PluginManagementToolsRequired, PluginSourceToolsRequired } from '@jini-ai/plugins/host/tools';
 function approvals(surfaces: AssistantSurfaceDeps | undefined): PluginApprovalPort<HumanConfirmSpec> {
   return { handler: (steps, options) => { if (!surfaces) { throw new ToolInputError({ message: 'An authenticated confirmation transport is required.' }); }
       return approvalToolHandler({ surfaces, ...steps }, options); }, notConfirmed: notConfirmedResult };
