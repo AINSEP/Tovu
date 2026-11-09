@@ -576,3 +576,127 @@ New files: `features/deployments/deploy-ops/__tests__/extract-s9-g-deploy.suppor
 Record list/create/no-op/approved overwrite/declined overwrite/unset absent/approved unset/changed-during-confirmation; both site-key and exact UTF-8 plain fingerprints; original irrecoverability card bytes; denied site-key permission with zero protected reads/decrypt/network; direct accepted deploy ledger entry and a tool dispatch whose ledger fails without retry. Every case retains HTTP traces, decrypt/seal/write/site-key/registry/history counts and authorizations, and checks model output/cards/logs contain no synthetic secret. Expiry/abandonment and metadata remain the unchanged frozen tests.
 
 The initial recorder is scratch-only and refuses to overwrite an existing fixture. The new test only reads/replays the literal fixture; it has no recording mode. The recording commit and SHA256 will be pinned before the C4 seam and never regenerated. No deploy production file changes in this batch.
+
+### G-deploy gate and immutable recording
+
+Recording commit `0286aba1811ea180bb7c01c4fb495bfbef7b90f8`; support-only lint follow-up `67ae377e9`. Literal fixture SHA256 `b616c77f065734bdaa64a007eb507117f7ce65666eb8a98cd61afc520bbceb58` (124185 bytes), frozen before the seam. G gate: 44 files, {"tests":425,"pass":421,"fail":4}; exactly the same four known failures. Strict harness lint and explicit new-file types exit0. No deploy production changed.
+
+### C4 seam inventory BEFORE implementation
+
+Source Tovu `67ae377e9` on cloud/extract-s9. Runtime remains in Tovu for the seam gate; final destinations below apply at the move. All existing source comments are retained except exact real N1 rejections, recorded separately.
+
+| Symbol | Kind | Source line | Resolved destination | Host vocabulary / resolution |
+|---|---|---|---|---|
+| MAX_RESPONSE_CHARS | value | run-ops.ts:13 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| MAX_WAIT_SECONDS | value | run-ops.ts:15 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| MAX_MODULE_SLEEP_MS | value | run-ops.ts:17 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| DeployOpsToolDeps | type | run-ops.ts:18 | Tovu host binding | host policy stays |
+| WaitClock | type | run-ops.ts:41 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| systemClock | value | run-ops.ts:42 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| aborted | value | run-ops.ts:52 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| TIMEOUT | value | run-ops.ts:53 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| DeployCredentialSetupRequired | value | run-ops.ts:56 | devops/deploy/ops-runner.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once.","credential_save"] |
+| credentialLabel | value | run-ops.ts:65 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| requirePlatformUrl | value | run-ops.ts:78 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| requireBoundUrl | value | run-ops.ts:87 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| requestFailure | value | run-ops.ts:99 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| normalizeResponse | value | run-ops.ts:108 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| boundContext | value | run-ops.ts:122 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| Operation | type | run-ops.ts:171 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| runDeployOps | value | run-ops.ts:172 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| runDeployOps | value | run-ops.ts:173 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| runDeployOps | value | run-ops.ts:174 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| runDeployOps | value | run-ops.ts:185 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| DeployRequest | type | run-ops.ts:197 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| clip | value | run-ops.ts:198 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| validateDeployResult | value | run-ops.ts:199 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| normalizeDeployResult | value | run-ops.ts:205 | devops/deploy/ops-runner.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["https://"] |
+| runDeploy | value | run-ops.ts:226 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| recordAcceptedDeploy | value | run-ops.ts:244 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| boundedPoll | value | run-ops.ts:266 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| pollBeforeDeadline | value | run-ops.ts:279 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| reachedCondition | value | run-ops.ts:287 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| sleepBeforeDeadline | value | run-ops.ts:291 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| waitSettings | value | run-ops.ts:296 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| waitForDeployOps | value | run-ops.ts:311 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+| deployAdapterInput | value | run-ops.ts:331 | devops/deploy/ops-runner.ts | neutral saved protocol or pure algorithm; no host default |
+
+Dependency resolution run-ops.ts: `import type { PublishHistoryStore } from "../static-publish/publish-history.js";` ; `import type { OperatorLocaleDeps } from "#src/contracts/headless/index";` ; `import { issueCredentialSetup, type ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";` ; `import { nowIso } from "@jini-ai/core/primitives";` ; `import { ToolInputError } from "@jini-ai/core";` ; `import { makeCredentialedRequest, resolveRequestTarget, CredentialedRequestValidationError, CredentialedRequestTransportError, type CredentialedRequestDeps, listCustomCredentials, CustomCredentialNotFoundError, allowedOriginsFor } from "#src/features/custom-credentials/index";` ; `import { EgressRefusedError } from "../../../platform/http/index.js";` ; `import type { AuthorizeFn } from "../../../contracts/core/commands/index.js";` ; `import { requirePlatform } from "./registry.js";` ; `import type { DeployOpsContext, DeployOpsDeployResult, DeployOpsInput, DeployOpsResponse, DeployOpsSendRequest, DeployOpsLogs, DeployOpsRegistry, DeployOpsStatus, DeployOpsTargets, DeployOpsWaitResult, LoadedDeployOps } from "./types.js";`
+
+| SecretValueSource | type | secrets.ts:25 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SecretTargetInput | type | secrets.ts:26 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SetSecretInput | type | secrets.ts:27 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| UnsetSecretInput | type | secrets.ts:28 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SecretComparison | type | secrets.ts:30 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SecretConfirmRequest | type | secrets.ts:32 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SecretNotConfirmed | type | secrets.ts:34 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SecretConfirm | type | secrets.ts:36 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SecretWriteResultBase | type | secrets.ts:37 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SetSecretResult | type | secrets.ts:41 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| UnsetSecretResult | type | secrets.ts:44 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| SECRET_NAME_PATTERN | value | secrets.ts:46 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| clip | value | secrets.ts:47 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| sha256 | value | secrets.ts:48 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| sameValue | value | secrets.ts:51 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| secretFingerprint | value | secrets.ts:56 | Tovu host binding | host policy stays |
+| defaultReadSiteKey | value | secrets.ts:62 | Tovu host binding | host policy stays |
+| requireSiteKey | value | secrets.ts:69 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| secretsPlatform | value | secrets.ts:76 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| requireName | value | secrets.ts:87 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| listNormalized | value | secrets.ts:93 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| applies | value | secrets.ts:100 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| version | value | secrets.ts:104 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| nextStep | value | secrets.ts:105 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| runListSecrets | value | secrets.ts:116 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| resolveValue | value | secrets.ts:125 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| comparisonOfRead | value | secrets.ts:134 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| readComparison | value | secrets.ts:140 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| compareCurrent | value | secrets.ts:151 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| confirmOrRefuse | value | secrets.ts:159 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| validateSetInput | value | secrets.ts:164 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| requireTypedValue | value | secrets.ts:173 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| describeSource | value | secrets.ts:178 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| runSetSecret | value | secrets.ts:192 | devops/deploy/ops-secrets.ts | neutral saved protocol or pure algorithm; no host default |
+| requireSecretSnapshot | value | secrets.ts:214 | devops/deploy/ops-secrets.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted."] |
+| runUnsetSecret | value | secrets.ts:229 | devops/deploy/ops-secrets.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_unset_secret: target changed while confirmation was open. Request a new confirmation; nothing was deleted."] |
+
+Dependency resolution secrets.ts: `import { isDeepStrictEqual } from "node:util";` ; `import { createHash, timingSafeEqual } from "node:crypto";` ; `import { homedir } from "node:os";` ; `import { ToolInputError } from "@jini-ai/core";` ; `import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";` ; `import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from "#src/features/webhooks/index";` ; `import { siteKeySourcesForSiteDir } from "#src/features/webhooks/index";` ; `import { requirePlatform } from "./registry.js";` ; `import { aborted, boundContext, type DeployOpsToolDeps } from "./run-ops.js";` ; `import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, DeployOpsSecretRead, DeployOpsSecretWrite, LoadedDeployOps } from "./types.js";`
+
+| collectTypedDeploySecret | value | typed-secret-card.ts:12 | devops/deploy/ops-secret-card.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_set_secret","tovu"] |
+
+Dependency resolution typed-secret-card.ts: `import { SECRET_FORM_CARD_DEFINITIONS } from "../../../contracts/headless/index.js";` ; `import { requirePlatform } from "./registry.js";` ; `import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";` ; `import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";` ; `import { credentialText } from "#src/contracts/core/credential-copy";` ; `import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";` ; `import { resolveOperatorLocale } from "#src/features/settings/index";` ; `import { boundContext, DeployCredentialSetupRequired, type DeployOpsToolDeps } from "./run-ops.js";` ; `import { runSetSecret, type SecretConfirm, type SetSecretInput } from "./secrets.js";`
+
+| deployOpsDerivedRisk | value | tool-registrations.ts:17 | Tovu host binding | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_status","deployment_ops_logs","deployment_ops_wait","deployment_ops_list_targets","deployment_ops_deploy","deployment_ops_list_secrets","deployment_ops_set_secret","deployment_ops_unset_secret"] |
+| string | value | tool-registrations.ts:36 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| integer | value | tool-registrations.ts:43 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| deployHandler | value | tool-registrations.ts:49 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| onlyKeys | value | tool-registrations.ts:54 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| valueSource | value | tool-registrations.ts:58 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| Permit | type | tool-registrations.ts:65 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| TAKES_EFFECT | value | tool-registrations.ts:66 | Tovu host binding | host policy stays |
+| secretConfirm | value | tool-registrations.ts:68 | Tovu host binding | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_unset_secret","The platform deletes this environment variable. Tovu cannot restore its value.","deployment_ops_set_secret","The current value is overwritten. Tovu cannot restore it.","custom-credentials.write"] |
+| SECRET_KEYS | value | tool-registrations.ts:90 | devops/deploy/ops-tools.ts | neutral saved protocol or pure algorithm; no host default |
+| secretsHandler | value | tool-registrations.ts:96 | devops/deploy/ops-tools.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_list_secrets","deployment_ops_unset_secret","custom-credentials.write"] |
+| SECRET_TOOLS | value | tool-registrations.ts:112 | devops/deploy/ops-tools.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_list_secrets","deployment_ops_set_secret","deployment_ops_unset_secret"] |
+| observationInput | value | tool-registrations.ts:113 | devops/deploy/ops-tools.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_list_targets","deployment_ops_logs","deployment_ops_wait"] |
+| observationHandler | value | tool-registrations.ts:121 | devops/deploy/ops-tools.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_list_targets","deployment_ops_logs","deployment_ops_status"] |
+| buildDeployOpsRegistrations | value | tool-registrations.ts:131 | devops/deploy/ops-tools.ts | required toolIds/messages/catalog/permissions/card-text inputs; ["deployment_ops_deploy","features/deployments/deploy-ops/agent-tools.ts"] |
+| contributeDeployOpsTools | value | tool-registrations.ts:150 | Tovu host binding | host policy stays |
+
+Dependency resolution tool-registrations.ts: `import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";` ; `import { toolMetadata } from '../../../contracts/core/tool-metadata/deploy-ops.js';` ; `import { collectTypedDeploySecret } from "./typed-secret-card.js";` ; `import { nowIso } from "@jini-ai/core/primitives";` ; `import { ToolInputError } from "@jini-ai/core";` ; `import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";` ; `import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";` ; `import type { ToolContributor } from "@jini-ai/core";` ; `import { notConfirmedResult, approvalToolHandler } from "#src/contracts/core/human-confirm";` ; `import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";` ; `import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";` ; `import { runListSecrets, runSetSecret, runUnsetSecret, type SecretConfirm, type SecretConfirmRequest, type SecretValueSource } from "./secrets.js";` ; `import { getDeployOpsAgentToolCatalog } from "./agent-tools.js";` ; `import { DeployCredentialSetupRequired, MAX_WAIT_SECONDS, runDeploy, runDeployOps, waitForDeployOps, type DeployOpsToolDeps } from "./run-ops.js";` ; `import type { DeployOpsInput, DeployOpsRegistry } from "./types.js";`
+
+| DEPLOY_OPS_FILENAME | value | registry.ts:11 | Tovu host binding | required toolIds/messages/catalog/permissions/card-text inputs; ["tovu-deploy-ops.json"] |
+| parseDeployOpsFile | value | registry.ts:15 | Tovu host binding | host policy stays |
+| opsContribution | value | registry.ts:19 | Tovu host binding | host policy stays |
+| loadDeployOpsRegistryFromSource | value | registry.ts:36 | Tovu host binding | host policy stays |
+| loadBundledDeployOpsRegistry | value | registry.ts:43 | Tovu host binding | host policy stays |
+| readBundledDeployOpsDescriptors | value | registry.ts:56 | Tovu host binding | host policy stays |
+| loadDeployOpsRegistry | value | registry.ts:76 | Tovu host binding | host policy stays |
+| requirePlatform | value | registry.ts:93 | devops/deploy/ops-registry.ts as requireDeployPlatform | neutral saved protocol or pure algorithm; no host default |
+| buildRegistry | value | registry.ts:102 | Tovu host binding | host policy stays |
+
+Dependency resolution registry.ts: `import { readFileSync } from "node:fs";` ; `import path from "node:path";` ; `import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";` ; `import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";` ; `import { ToolInputError } from "@jini-ai/core";` ; `import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";` ; `import { asDeployOpsModule, parseDeployOpsFile as parseDeployOpsDescriptors } from "@jini-ai/devops/deploy";` ; `import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "./types.js";`
+
+Core values/types stay core; same-job imports become defining relative modules. Integration request/error classes and platform egress stay host behind bounded request, non-decrypting inventory/resolve/classify ports. CMS authorization stays host behind permit; UI/daemon card functions supplied through core cards/exchange shapes. Webhooks/site env/home/cwd/runtime policy remains host siteKey.read/fingerprint. Publish history narrows to the exact accepted entry; registry trust loaders, catalog/metadata/risk, routes, locale and approval text stay host. No cross-package dependency or core widening.
+
+Consumer contracts: required request bound to existing repo/sealer/no-redirect HTTP/clock/audit/scheme loader, late abort and truncation; siteKey rereads each invocation and preserves Security projection; approval same actor/store/frozen request/recheck permission/no mutation on denial; recovery returns issued diagnostic unchanged; required tool ids/status/listSecrets/deploy/setSecret/unsetSecret/credentialVerify/logs/wait/listTargets, permissions, entity/domain/catalog path, namespace and every host sentence. `[deploy-ops]` warning is the existing neutral dispatch-history log tag; site-key/secret/typed, source field names, started/agent_tool and ledger fields are stable neutral saved protocol. No cache, registry reuse or additional reads.
