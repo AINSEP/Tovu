@@ -17,6 +17,9 @@ import { fileURLToPath } from "node:url";
 
 const self = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(self), "../../../../../..");
+// Not a seam: it pins each bundled plugin's host guidance by plugin id (google-workspace,
+// google-forms and their settings names), so it names providers by design, like this file.
+const PLUGIN_GUIDANCE_PIN = path.join(repoRoot, "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts");
 const VENDOR_VOCABULARY = /google|googleapis|gsheets|spreadsheet|drive\.file|picker/i;
 const SCANNED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".mjs", ".js", ".json", ".md", ".html"]);
 
@@ -78,7 +81,7 @@ test("the scanner reports a vendor word with its file and line, in any case", ()
 
 test("no generic seam file names the first provider", () => {
   const files = SEAMS.flatMap((seam) => {
-    const scanned = filesUnder(path.join(repoRoot, seam)).filter((file) => file !== self);
+    const scanned = filesUnder(path.join(repoRoot, seam)).filter((file) => file !== self && file !== PLUGIN_GUIDANCE_PIN);
     // A moved or emptied seam must fail loudly, not pass by scanning nothing.
     assert.ok(scanned.length > 0, `${seam} has no scannable files`);
     return scanned;
