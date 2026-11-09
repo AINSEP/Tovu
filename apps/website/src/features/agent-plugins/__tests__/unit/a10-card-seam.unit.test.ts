@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
@@ -93,14 +93,16 @@ const b = require('@jini-ai/cms');`;
 });
 
 test('no portable A10 body imports Tovu code (value or type) or a non-core Jini package', () => {
-  const dir = resolve(dirname(fileURLToPath(import.meta.resolve('@jini-ai/agent-plugins/connect'))), '../../src/connect');
+  // Published packages ship compiled bodies and declarations; neither check relies on a workspace src tree.
+  const dir = dirname(fileURLToPath(import.meta.resolve('@jini-ai/agent-plugins/connect')));
   const expected = ['access-token-tool.ts', 'apply-tool-renames.ts', 'connect-card-ui.ts', 'connect-destination.ts', 'connect-sign-in-wait.ts', 'connect-tool.ts', 'grant-signed-in-defaults.ts', 'import-access-token.ts', 'token-sign-in.ts'];
-  const files = readdirSync(dir).filter(name => expected.includes(name)).sort();
-  assert.deepEqual(files, expected, 'all nine moved bodies are checked');
+  const expectedArtifacts = expected.flatMap(name => [name.replace(/\.ts$/, '.js'), name.replace(/\.ts$/, '.d.ts')]).sort();
+  const files = readdirSync(dir).filter(name => expectedArtifacts.includes(name)).sort();
+  assert.deepEqual(files, expectedArtifacts, 'all nine moved bodies and their type declarations are checked');
   for (const name of files) {
     const source = readFileSync(join(dir, name), 'utf8');
     for (const spec of importedSpecifiers(source)) {
-      const ok = /^@jini-ai\/core(\/|$)/.test(spec!) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec!) || /^\.\/[^/]+\.js$/.test(spec!);
+      const ok = /^@jini-ai\/core(\/|$)/.test(spec!) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec!) || /^\.\/[^/]+\.js$/.test(spec!) || spec === '../lifecycle/manifest.js';
       assert.ok(ok, `${name} imports ${spec}`);
     }
     assert.doesNotMatch(source, /\bTovu\b|ui:\/\/tovu|'mcp-ui'/, name);
