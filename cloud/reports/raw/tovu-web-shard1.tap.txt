@@ -1,0 +1,778 @@
+TAP version 13
+# Subtest: React activation preserves page focus on closed mount and focuses explicit opens
+ok 1 - React activation preserves page focus on closed mount and focuses explicit opens
+  ---
+  duration_ms: 124.009958
+  type: 'test'
+  ...
+# Subtest: React activation preserves page focus on resume and focuses explicit opens
+ok 2 - React activation preserves page focus on resume and focuses explicit opens
+  ---
+  duration_ms: 34.183304
+  type: 'test'
+  ...
+# Subtest: React activation without a mount root still toggles, and touches no page element
+ok 3 - React activation without a mount root still toggles, and touches no page element
+  ---
+  duration_ms: 25.664417
+  type: 'test'
+  ...
+# Subtest: a focus request while already open and with no enabled composer leaves focus where it was
+ok 4 - a focus request while already open and with no enabled composer leaves focus where it was
+  ---
+  duration_ms: 20.615114
+  type: 'test'
+  ...
+# Subtest: loader-entry binds the lazy loader to the page button; activating it loads the React widget assets
+ok 5 - loader-entry binds the lazy loader to the page button; activating it loads the React widget assets
+  ---
+  duration_ms: 137.655795
+  type: 'test'
+  ...
+# Subtest: vanilla-entry mounts the vanilla widget into the page root
+ok 6 - vanilla-entry mounts the vanilla widget into the page root
+  ---
+  duration_ms: 260.073437
+  type: 'test'
+  ...
+# Subtest: main mounts the React widget and creates its own root without replaying stored actions
+ok 7 - main mounts the React widget and creates its own root without replaying stored actions
+  ---
+  duration_ms: 1135.133495
+  type: 'test'
+  ...
+# Subtest: visitor copy covers every admin locale and binds to the page language
+ok 8 - visitor copy covers every admin locale and binds to the page language
+  ---
+  duration_ms: 134.738585
+  type: 'test'
+  ...
+# Subtest: fills Jini chat's {name} placeholders and keeps unknown ones
+ok 9 - fills Jini chat's {name} placeholders and keeps unknown ones
+  ---
+  duration_ms: 23.236075
+  type: 'test'
+  ...
+# Subtest: visitor page actions recover after a dropped stream before the next message is sent
+ok 10 - visitor page actions recover after a dropped stream before the next message is sent
+  ---
+  duration_ms: 239.570945
+  type: 'test'
+  ...
+# Subtest: rejects a call with no principal header — 401, and nothing is delivered
+ok 11 - rejects a call with no principal header — 401, and nothing is delivered
+  ---
+  duration_ms: 78.418055
+  type: 'test'
+  ...
+# Subtest: rejects a missing or empty exchangeId — 400
+ok 12 - rejects a missing or empty exchangeId — 400
+  ---
+  duration_ms: 28.6118
+  type: 'test'
+  ...
+# Subtest: rejects an invalid exchangeId even when a valid functionResponse has no surfaceId
+ok 13 - rejects an invalid exchangeId even when a valid functionResponse has no surfaceId
+  ---
+  duration_ms: 0.374177
+  type: 'test'
+  ...
+# Subtest: rejects a null or absent A2UI body with a validation error
+ok 14 - rejects a null or absent A2UI body with a validation error
+  ---
+  duration_ms: 0.192547
+  type: 'test'
+  ...
+# Subtest: rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason
+ok 15 - rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason
+  ---
+  duration_ms: 7.513497
+  type: 'test'
+  ...
+# Subtest: rejects a message whose declared surfaceId disagrees with the route's exchangeId
+ok 16 - rejects a message whose declared surfaceId disagrees with the route's exchangeId
+  ---
+  duration_ms: 4.562604
+  type: 'test'
+  ...
+# Subtest: delivers a matching action to the held-open exchange, and never needs a toolId
+ok 17 - delivers a matching action to the held-open exchange, and never needs a toolId
+  ---
+  duration_ms: 11.891742
+  type: 'test'
+  ...
+# Subtest: a functionResponse message (no surfaceId at all) delivers without tripping the cross-check
+ok 18 - a functionResponse message (no surfaceId at all) delivers without tripping the cross-check
+  ---
+  duration_ms: 11.343923
+  type: 'test'
+  ...
+# Subtest: an error message carrying surfaceId is cross-checked against exchangeId, same as an action
+ok 19 - an error message carrying surfaceId is cross-checked against exchangeId, same as an action
+  ---
+  duration_ms: 4.667635
+  type: 'test'
+  ...
+# Subtest: an error message declaring the WRONG surfaceId is rejected, just like a mismatched action
+ok 20 - an error message declaring the WRONG surfaceId is rejected, just like a mismatched action
+  ---
+  duration_ms: 5.526131
+  type: 'test'
+  ...
+# Subtest: a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check
+ok 21 - a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check
+  ---
+  duration_ms: 8.2079
+  type: 'test'
+  ...
+# Subtest: an unknown, expired, or already-closed exchange is 409, not 404 or a silent success
+ok 22 - an unknown, expired, or already-closed exchange is 409, not 404 or a silent success
+  ---
+  duration_ms: 10.122389
+  type: 'test'
+  ...
+# Subtest: an actually expired exchange rejects delivery with 409
+ok 23 - an actually expired exchange rejects delivery with 409
+  ---
+  duration_ms: 11.968529
+  type: 'test'
+  ...
+# Subtest: an answered exchange rejects a replay with 409 after the handler closes it
+ok 24 - an answered exchange rejects a replay with 409 after the handler closes it
+  ---
+  duration_ms: 5.482907
+  type: 'test'
+  ...
+# Subtest: an action from the wrong principal is refused and leaves the call still waiting
+ok 25 - an action from the wrong principal is refused and leaves the call still waiting
+  ---
+  duration_ms: 3.498237
+  type: 'test'
+  ...
+# Subtest: an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal
+ok 26 - an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal
+  ---
+  duration_ms: 3.952132
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents projects fallback models and reasoning options for claude
+ok 27 - listAssistantAgents projects fallback models and reasoning options for claude
+  ---
+  duration_ms: 45.454406
+  type: 'test'
+  ...
+# Subtest: agent discovery exposes native-policy support for every CLI before a chat is sent
+ok 28 - agent discovery exposes native-policy support for every CLI before a chat is sent
+  ---
+  duration_ms: 0.661044
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+ok 29 - listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+  ---
+  duration_ms: 0.561903
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+ok 30 - listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+  ---
+  duration_ms: 0.500803
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+ok 31 - listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+  ---
+  duration_ms: 0.585326
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents never returns an agent with an empty id/name
+ok 32 - listAssistantAgents never returns an agent with an empty id/name
+  ---
+  duration_ms: 0.430056
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+ok 33 - listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+  ---
+  duration_ms: 0.322179
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+ok 34 - rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+  ---
+  duration_ms: 53.684977
+  type: 'test'
+  ...
+# Subtest: assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+ok 35 - assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+  ---
+  duration_ms: 51.28851
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents surfaces the live model list the prober returns for an available def
+ok 36 - rescanAssistantAgents surfaces the live model list the prober returns for an available def
+  ---
+  duration_ms: 25.484337
+  type: 'test'
+  ...
+# Subtest: known runtime capabilities retain their memory and tool semantics
+ok 37 - known runtime capabilities retain their memory and tool semantics
+  ---
+  duration_ms: 8.484656
+  type: 'test'
+  ...
+# Subtest: assistant inventory preserves dynamic catalog and resolved default for the chat picker
+ok 38 - assistant inventory preserves dynamic catalog and resolved default for the chat picker
+  ---
+  duration_ms: 20.330021
+  type: 'test'
+  ...
+# Subtest: assistant rescan forces model discovery and preserves an unresolved default without guessing
+ok 39 - assistant rescan forces model discovery and preserves an unresolved default without guessing
+  ---
+  duration_ms: 40.808754
+  type: 'test'
+  ...
+# Subtest: live discovery reissues on credential rotation inside the same TTL
+ok 40 - live discovery reissues on credential rotation inside the same TTL
+  ---
+  duration_ms: 5.579332
+  type: 'test'
+  ...
+# Subtest: live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+ok 41 - live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+  ---
+  duration_ms: 2.463828
+  type: 'test'
+  ...
+# Subtest: live discovery never calls the provider for absent, wrong-protocol or blank credentials
+ok 42 - live discovery never calls the provider for absent, wrong-protocol or blank credentials
+  ---
+  duration_ms: 2.097643
+  type: 'test'
+  ...
+# Subtest: live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+ok 43 - live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+  ---
+  duration_ms: 1.695651
+  type: 'test'
+  ...
+# Subtest: live discovery coalesces concurrent calls while the provider is still responding
+ok 44 - live discovery coalesces concurrent calls while the provider is still responding
+  ---
+  duration_ms: 6.381816
+  type: 'test'
+  ...
+# Subtest: live discovery retries a cached failure when the stored baseUrl changes
+ok 45 - live discovery retries a cached failure when the stored baseUrl changes
+  ---
+  duration_ms: 0.919412
+  type: 'test'
+  ...
+# Subtest: Settings and chat share one background inventory while both requests return cached data
+ok 46 - Settings and chat share one background inventory while both requests return cached data
+  ---
+  duration_ms: 16.746196
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and use round trip
+ok 47 - plugin ask-choice: checked matching options and use round trip
+  ---
+  duration_ms: 11.333012
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and skip round trip
+ok 48 - plugin ask-choice: checked matching options and skip round trip
+  ---
+  duration_ms: 1.357782
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and auto round trip
+ok 49 - plugin ask-choice: checked matching options and auto round trip
+  ---
+  duration_ms: 0.982656
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice rejects an unoffered selection even with the Auto action
+ok 50 - plugin ask-choice rejects an unoffered selection even with the Auto action
+  ---
+  duration_ms: 1.065231
+  type: 'test'
+  ...
+# Subtest: the adopted provider mapper preserves an adapter-reported tool error without a fold marker
+ok 51 - the adopted provider mapper preserves an adapter-reported tool error without a fold marker
+  ---
+  duration_ms: 3.622147
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level
+ok 52 - sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level
+  ---
+  duration_ms: 0.862228
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema strips the same keys when nested in properties/items/anyOf, and preserves everything else
+ok 53 - sanitizeGoogleSchema strips the same keys when nested in properties/items/anyOf, and preserves everything else
+  ---
+  duration_ms: 0.95186
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched
+ok 54 - sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched
+  ---
+  duration_ms: 0.221553
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts const to enum, top-level and nested
+ok 55 - sanitizeGoogleSchema converts const to enum, top-level and nested
+  ---
+  duration_ms: 0.411812
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts a const nested exactly 2 properties-levels deep, matching the owner's real error path (declaration[102].parameters.properties[4].value.properties[0].value)
+ok 56 - sanitizeGoogleSchema converts a const nested exactly 2 properties-levels deep, matching the owner's real error path (declaration[102].parameters.properties[4].value.properties[0].value)
+  ---
+  duration_ms: 0.393231
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested
+ok 57 - sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested
+  ---
+  duration_ms: 0.664958
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested
+ok 58 - sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested
+  ---
+  duration_ms: 0.33061
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch
+ok 59 - sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch
+  ---
+  duration_ms: 0.894871
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value
+ok 60 - sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value
+  ---
+  duration_ms: 1.116093
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to MAX_GOOGLE_REF_DEPTH, then substitutes a valid non-recursive stub instead of looping forever
+ok 61 - sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to MAX_GOOGLE_REF_DEPTH, then substitutes a valid non-recursive stub instead of looping forever
+  ---
+  duration_ms: 0.503667
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/cms/navigation), postAgentToolCatalog, and getRedirectsAgentToolCatalog() (this repo), never emits a Gemini-unsupported key or shape anywhere
+ok 62 - sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/cms/navigation), postAgentToolCatalog, and getRedirectsAgentToolCatalog() (this repo), never emits a Gemini-unsupported key or shape anywhere
+  ---
+  duration_ms: 58.891906
+  type: 'test'
+  ...
+# Subtest: on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's numeric enum to strings, and findNumericEnumPaths finds exactly that field on both affected tools
+ok 63 - on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's numeric enum to strings, and findNumericEnumPaths finds exactly that field on both affected tools
+  ---
+  duration_ms: 0.60535
+  type: 'test'
+  ...
+# Subtest: coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone
+ok 64 - coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone
+  ---
+  duration_ms: 0.428659
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested
+ok 65 - runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested
+  ---
+  duration_ms: 44.132979
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema
+ok 66 - runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema
+  ---
+  duration_ms: 10.836392
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER
+ok 67 - runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER
+  ---
+  duration_ms: 8.765074
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)
+ok 68 - runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)
+  ---
+  duration_ms: 0.429945
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance
+ok 69 - runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance
+  ---
+  duration_ms: 9.726176
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field
+ok 70 - runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field
+  ---
+  duration_ms: 7.931238
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(anthropic): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 71 - runByokProviderTurn(anthropic): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 3.815124
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 72 - runByokProviderTurn(openai): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 4.833272
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 73 - runByokProviderTurn(azure): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 4.443817
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 74 - runByokProviderTurn(google): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 4.293777
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic
+ok 75 - runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic
+  ---
+  duration_ms: 5.85239
+  type: 'test'
+  ...
+# Subtest: anthropic preserves success and failure in the tool-result return leg and host events
+ok 76 - anthropic preserves success and failure in the tool-result return leg and host events
+  ---
+  duration_ms: 10.31485
+  type: 'test'
+  ...
+# (node:26271) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:26271) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: google preserves success and failure in the tool-result return leg and host events
+ok 77 - google preserves success and failure in the tool-result return leg and host events
+  ---
+  duration_ms: 7.340771
+  type: 'test'
+  ...
+# Subtest: T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn
+ok 78 - T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn
+  ---
+  duration_ms: 15.493268
+  type: 'test'
+  ...
+# Subtest: T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons
+ok 79 - T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons
+  ---
+  duration_ms: 4.282899
+  type: 'test'
+  ...
+# Subtest: resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively
+ok 80 - resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively
+  ---
+  duration_ms: 0.788037
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools
+ok 81 - runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools
+  ---
+  duration_ms: 6.48678
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn honours an already-aborted signal: no provider request is sent
+ok 82 - runByokProviderTurn honours an already-aborted signal: no provider request is sent
+  ---
+  duration_ms: 3.282736
+  type: 'test'
+  ...
+# Subtest: no id: the list member runs with the caller's input and its result is returned unchanged
+ok 83 - no id: the list member runs with the caller's input and its result is returned unchanged
+  ---
+  duration_ms: 7.299542
+  type: 'test'
+  ...
+# Subtest: an id: the list member runs WITHOUT the id, and only the matching item comes back in the list's own shape
+ok 84 - an id: the list member runs WITHOUT the id, and only the matching item comes back in the list's own shape
+  ---
+  duration_ms: 1.315518
+  type: 'test'
+  ...
+# Subtest: the other list filters still pass through alongside the id
+ok 85 - the other list filters still pass through alongside the id
+  ---
+  duration_ms: 0.732616
+  type: 'test'
+  ...
+# Subtest: not found: exact model-facing text, as a ToolInputError
+ok 86 - not found: exact model-facing text, as a ToolInputError
+  ---
+  duration_ms: 1.266212
+  type: 'test'
+  ...
+# Subtest: a non-string or empty id is refused before the list runs
+ok 87 - a non-string or empty id is refused before the list runs
+  ---
+  duration_ms: 1.406968
+  type: 'test'
+  ...
+# Subtest: a truncated list makes a miss inconclusive, and the message says so
+ok 88 - a truncated list makes a miss inconclusive, and the message says so
+  ---
+  duration_ms: 0.952064
+  type: 'test'
+  ...
+# Subtest: a list with two item families searches both, each by its own id field
+ok 89 - a list with two item families searches both, each by its own id field
+  ---
+  duration_ms: 0.841616
+  type: 'test'
+  ...
+# Subtest: a nested id path (taxonomy rows are { taxonomy, terms })
+ok 90 - a nested id path (taxonomy rows are { taxonomy, terms })
+  ---
+  duration_ms: 0.73341
+  type: 'test'
+  ...
+# Subtest: the list reader's own permission refusal is the answer, and the id path leaks nothing
+ok 91 - the list reader's own permission refusal is the answer, and the id path leaks nothing
+  ---
+  duration_ms: 0.871835
+  type: 'test'
+  ...
+# Subtest: a list result missing its declared items key is an internal error, not a silent 'not found'
+ok 92 - a list result missing its declared items key is an internal error, not a silent 'not found'
+  ---
+  duration_ms: 0.835202
+  type: 'test'
+  ...
+# Subtest: the card schema gains the id as an OPTIONAL property; the list's own properties stay
+ok 93 - the card schema gains the id as an OPTIONAL property; the list's own properties stay
+  ---
+  duration_ms: 0.930492
+  type: 'test'
+  ...
+# Subtest: a card with a hand-written get keeps dispatching to it; the list is never consulted for an id
+ok 94 - a card with a hand-written get keeps dispatching to it; the list is never consulted for an id
+  ---
+  duration_ms: 0.995234
+  type: 'test'
+  ...
+# Subtest: themes (real handler): read one by themeId
+ok 95 - themes (real handler): read one by themeId
+  ---
+  duration_ms: 4.213764
+  type: 'test'
+  ...
+# Subtest: themes (real handler): the same permission refusal by id as by list, no theme data
+ok 96 - themes (real handler): the same permission refusal by id as by list, no theme data
+  ---
+  duration_ms: 5.455025
+  type: 'test'
+  ...
+# Subtest: media (real handler): canonical id and mediaId select one scoped asset, including trashed media
+ok 97 - media (real handler): canonical id and mediaId select one scoped asset, including trashed media
+  ---
+  duration_ms: 11.10398
+  type: 'test'
+  ...
+# Subtest: media (real handler): list and id lookup retain the same permission refusal before repo access
+ok 98 - media (real handler): list and id lookup retain the same permission refusal before repo access
+  ---
+  duration_ms: 2.221292
+  type: 'test'
+  ...
+# Subtest: forms (real handler): read one definition by formId; a miss is the exact not-found text
+ok 99 - forms (real handler): read one definition by formId; a miss is the exact not-found text
+  ---
+  duration_ms: 2.172949
+  type: 'test'
+  ...
+# Subtest: the real composition: every list-lookup card publishes its id as an optional string property
+ok 100 - the real composition: every list-lookup card publishes its id as an optional string property
+  ---
+  duration_ms: 631.419904
+  type: 'test'
+  ...
+# Subtest: comment: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 101 - comment: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 2.785974
+  type: 'test'
+  ...
+# Subtest: content_post: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 102 - content_post: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.372952
+  type: 'test'
+  ...
+# Subtest: member: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 103 - member: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.873008
+  type: 'test'
+  ...
+# Subtest: menu: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 104 - menu: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.214684
+  type: 'test'
+  ...
+# Subtest: newsletter_campaign: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 105 - newsletter_campaign: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.208813
+  type: 'test'
+  ...
+# Subtest: redirect: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 106 - redirect: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 0.715758
+  type: 'test'
+  ...
+# Subtest: seo_entry_meta: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 107 - seo_entry_meta: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.363278
+  type: 'test'
+  ...
+# Subtest: site: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 108 - site: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.026332
+  type: 'test'
+  ...
+# Subtest: term: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 109 - term: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.388935
+  type: 'test'
+  ...
+# Subtest: widget_instance: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 110 - widget_instance: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 0.762992
+  type: 'test'
+  ...
+# Subtest: widget_region: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 111 - widget_region: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 0.898137
+  type: 'test'
+  ...
+# Subtest: workspace: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 112 - workspace: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.225367
+  type: 'test'
+  ...
+# Subtest: backup_restore_point: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 113 - backup_restore_point: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 1.293189
+  type: 'test'
+  ...
+# Subtest: collection_content_type: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 114 - collection_content_type: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 6.717576
+  type: 'test'
+  ...
+# Subtest: collection_entry: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 115 - collection_entry: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.68843
+  type: 'test'
+  ...
+# Subtest: custom_credential: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 116 - custom_credential: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 1.254081
+  type: 'test'
+  ...
+# Subtest: external_mcp: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 117 - external_mcp: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.452706
+  type: 'test'
+  ...
+# Subtest: form_definition: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 118 - form_definition: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.943202
+  type: 'test'
+  ...
+# Subtest: identity_policy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 119 - identity_policy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.944161
+  type: 'test'
+  ...
+# Subtest: identity_role: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 120 - identity_role: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 1.29626
+  type: 'test'
+  ...
+# Subtest: identity_user: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 121 - identity_user: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.521722
+  type: 'test'
+  ...
+# Subtest: media_asset: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 122 - media_asset: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.634536
+  type: 'test'
+  ...
+# Subtest: plugin: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 123 - plugin: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.952928
+  type: 'test'
+  ...
+# Subtest: taxonomy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 124 - taxonomy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.904744
+  type: 'test'
+  ...
+# Subtest: theme: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 125 - theme: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.621688
+  type: 'test'
+  ...
+# Subtest: theme_page_publication: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 126 - theme_page_publication: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.70191
+  type: 'test'
+  ...
+# Subtest: webhook_subscription: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 127 - webhook_subscription: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.444186
+  type: 'test'
+  ...
+# Subtest: canonical truncated misses and permission refusals preserve the list owner's answer
+ok 128 - canonical truncated misses and permission refusals preserve the list owner's answer
+  ---
+  duration_ms: 5.263016
+  type: 'test'
+  ...
+# Subtest: batch canonical and legacy selectors reach the original gated get; missing ids never list
+ok 129 - batch canonical and legacy selectors reach the original gated get; missing ids never list
+  ---
+  duration_ms: 3.910476
+  type: 'test'
+  ...

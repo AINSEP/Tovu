@@ -1,0 +1,494 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryConnectors.test.tsx (70 tests) 341ms
+ ✓ src/renderers/annotation-canvas/react/hooks/__tests__/useAnnotationCanvas.test.ts (85 tests) 716ms
+stderr | src/features/html-editor/react/hooks/__tests__/useInteractiveHtmlEditor.test.tsx > useInteractiveHtmlEditor — integrity failures and lifecycle edges > keeps the last good copy and shows the error when an export throws, and flush then rejects
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: component:add <unknown>)
+
+stderr | src/features/html-editor/react/hooks/__tests__/useInteractiveHtmlEditor.test.tsx > useInteractiveHtmlEditor — integrity failures and lifecycle edges > ignores a content update for a component no longer found in its parent, so it is never spliced
+[useInteractiveHtmlEditor] falling back to full re-serialization: no text edit was recorded for this change
+
+ ✓ src/features/html-editor/react/hooks/__tests__/useInteractiveHtmlEditor.test.tsx (48 tests) 373ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryEntries.test.tsx (46 tests) 240ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/confirmation.test.ts (76 tests) 1036ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/form.test.ts (51 tests) 1247ms
+ ✓ src/react/__tests__/components/CustomSelect.test.tsx (79 tests) 1492ms
+ ✓ src/features/connectors/__tests__/hooks/useConnectorAuthorization.test.ts (38 tests) 120ms
+ ✓ src/renderers/srcdoc/__tests__/build.test.ts (78 tests) 206ms
+ ✓ src/features/lexical-rich-text-editor/__tests__/rules.test.ts (71 tests) 69ms
+ ✓ src/features/browser-chrome/__tests__/rules.test.ts (95 tests) 40ms
+ ✓ src/features/admin-widgets/__tests__/Select.unit.test.tsx (39 tests) 1746ms
+ ✓ src/features/sketch-editor/__tests__/dom.test.ts (58 tests) 130ms
+ ✓ src/features/connectors/__tests__/rules.test.ts (112 tests) 41ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/fetch-query.test.tsx (90 tests) 7913ms
+   ✓ built-in adapter conformance > provider isolation and defaults > surfaces read/write failures once and retries reads only on an explicit request 1232ms
+   ✓ tanstack adapter conformance > provider isolation and defaults > surfaces read/write failures once and retries reads only on an explicit request 1259ms
+   ✓ tanstack adapter conformance > useFetchQuery > exposes the last error while refetching, replaces it on failure and clears it on success (cached data: true) 316ms
+ ✓ src/features/version-manager/__tests__/react/hooks/useVersionManager.test.tsx (38 tests) 3043ms
+ ✓ src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx (49 tests) 1336ms
+ ✓ src/features/mcp-ui/__tests__/secret-card.unit.test.ts (67 tests) 108ms
+ ✓ src/react/__tests__/components/OnboardingDropdown.test.tsx (60 tests) 1084ms
+ ✓ src/features/execution/__tests__/react/components/ExecutionTab.test.tsx (32 tests) 1474ms
+ ✓ src/features/media-providers/__tests__/react/hooks/useMediaProvidersTab.test.ts (27 tests) 3129ms
+stderr | src/features/asset-tree-browser/__tests__/react/components/AssetTreeBrowser.test.tsx > AssetTreeBrowser > clicking the batch-download button drives downloadFiles through to completion
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/features/asset-tree-browser/__tests__/react/components/AssetTreeBrowser.test.tsx (37 tests) 2113ms
+   ✓ AssetTreeBrowser > renames a file, carrying an active selection and preview over to the new path 353ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryConfig.test.ts (33 tests) 136ms
+ ✓ src/react/__tests__/components/WorkingDirPicker.test.tsx (39 tests) 1408ms
+ ✓ src/react/__tests__/components/TooltipLayer.test.tsx (46 tests) 493ms
+ ✓ src/features/source-config-list/__tests__/SourceConfigItemCard.test.tsx (46 tests) 2735ms
+   ✓ SourceConfigItemCard > expand-to-edit (MCP-shaped enable/edit regression) > switches the expanded field list from read-only to editable inputs seeded with current values, and saves a patch 305ms
+   ✓ SourceConfigItemCard > expand-to-edit (MCP-shaped enable/edit regression) > refuses to save an edit that fails the same validation the add form runs 336ms
+ ✓ src/react/hooks/__tests__/useResizableSplitPane.test.tsx (29 tests) 481ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceBoard.test.tsx (32 tests) 1144ms
+ ✓ src/features/resource-dashboard/react/hooks/useResourceBoard.test.ts (38 tests) 1592ms
+ ✓ src/features/asset-tree-browser/__tests__/rules.test.ts (95 tests) 95ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryExtractions.store.test.ts (55 tests) 61ms
+ ✓ src/features/admin-widgets/__tests__/Select.hooks.unit.test.tsx (40 tests) 294ms
+ ✓ src/features/source-config-list/react/components/SourceConfigList.test.tsx (18 tests) 2199ms
+   ✓ SourceConfigList — MCP-server-shaped source > adds a new MCP-shaped source with a trust level through the generic add form 551ms
+   ✓ SourceConfigList — MCP-server-shaped source > toggles enabled and edits the label/fields of a real MCP-shaped server end-to-end 402ms
+   ✓ SourceConfigList — BYOK-key-shaped source (same component, different fields/adapter) > adds a new API-key-shaped source, masks the key, and never renders a trust control 428ms
+   ✓ SourceConfigList — BYOK-key-shaped source (same component, different fields/adapter) > tests the add form's unsaved draft before any submit (BYOK "test before save") 301ms
+ ✓ src/features/memory/__tests__/react/components/MemoryConnectedPanel.test.tsx (47 tests) 1217ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryExtractions.test.tsx (27 tests) 111ms
+ ✓ src/features/memory/__tests__/formatters.test.ts (61 tests) 45ms
+ ✓ src/features/viewer-shell/__tests__/react/components/CommentSidePanel.test.tsx (46 tests) 1410ms
+ ✓ src/features/connectors/__tests__/ConnectorsBrowser.test.tsx (27 tests) 1690ms
+ ✓ src/features/tab-strip/__tests__/react/hooks/useTabStripDragReorder.test.ts (22 tests) 136ms
+ ✓ src/features/execution/__tests__/react/hooks/useReasoningControl.test.ts (24 tests) 64ms
+ ✓ src/features/source-config-list/agent-handles.test.tsx (45 tests) 538ms
+ ✓ src/features/skills/__tests__/react/hooks/useSkillsTab.test.ts (22 tests) 2834ms
+ ✓ src/features/viewer-shell/__tests__/react/hooks/useMarkdownScrollSync.test.ts (14 tests) 579ms
+ ✓ src/features/version-manager/__tests__/react/components/VersionManagerModal.test.tsx (23 tests) 1769ms
+ ✓ src/features/html-editor/__tests__/canvas-embed-placeholders.test.ts (26 tests) 450ms
+ ✓ src/renderers/preview-modal-shell/react/components/__tests__/PreviewModalShell.test.tsx (37 tests) 1666ms
+ ✓ src/features/about/__tests__/rules.test.ts (53 tests) 17ms
+ ✓ src/features/skills/__tests__/rules.test.ts (76 tests) 75ms
+ ✓ src/features/connectors/__tests__/components/ConnectorDetailDrawer.test.tsx (24 tests) 776ms
+ ✓ src/features/resource-dashboard/react/hooks/useResourceRowList.test.ts (23 tests) 1017ms
+ ✓ src/features/asset-grid/__tests__/react/components/AssetGrid.test.tsx (25 tests) 2188ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/controls.test.ts (50 tests) 181ms
+ ✓ src/features/progress-card/__tests__/reference-adapters.test.ts (45 tests) 31ms
+ ✓ src/features/skills/__tests__/react/components/SkillsTab.test.tsx (29 tests) 2444ms
+   ✓ SkillsTab > filters by search text against name/description/triggers 327ms
+   ✓ SkillsTab > creating a skill validates name and body, then saves and shows it in the list 337ms
+ ✓ src/features/media-providers/__tests__/rules.test.ts (66 tests) 38ms
+ ✓ src/utils/__tests__/markdown-scroll-sync.test.ts (40 tests) 181ms
+ ✓ src/features/memory/__tests__/dependencies.test.ts (30 tests) 45ms
+ ✓ src/features/admin-widgets/__tests__/InfoTip.unit.test.tsx (30 tests) 932ms
+ ✓ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx (25 tests) 2173ms
+   ✓ MediaProvidersTab > shows a "uses X by default" hint only while the base URL is blank 301ms
+ ✓ src/renderers/annotation-canvas/react/hooks/__tests__/useAnnotationCanvas.controller.test.ts (46 tests) 21ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-standing-draft-autosave.hooks.test.tsx (17 tests) 227ms
+ ✓ src/renderers/annotation-canvas/react/components/__tests__/AnnotationCanvas.test.tsx (22 tests) 1901ms
+ ✓ src/features/asset-grid/__tests__/react/hooks/useAssetGridLiveUpdates.test.ts (17 tests) 61ms
+ ✓ src/features/file-dropzone/__tests__/react/components/FileDropzone.test.tsx (35 tests) 882ms
+stderr | src/react/__tests__/components/ExportDiagnosticsButton.test.tsx > ExportDiagnosticsButton > falls back to an HTTP export against exportPath when no bridge is supplied
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/react/__tests__/components/ExportDiagnosticsButton.test.tsx (28 tests) 440ms
+ ✓ src/features/about/__tests__/react/components/AboutTab.test.tsx (26 tests) 500ms
+ ✓ src/react/__tests__/components/HeaderActionsMenu.test.tsx (30 tests) 505ms
+ ✓ src/features/sketch-editor/__tests__/rules.test.ts (53 tests) 28ms
+ ✓ src/react/mcp-ui/__tests__/useMcpUiHost.test.tsx (21 tests) 246ms
+ ✓ src/features/charts/__tests__/browser.characterization.test.ts (22 tests) 127ms
+ ✓ src/features/source-config-list/react/hooks/useSourceConfigList.test.ts (22 tests) 1340ms
+ ✓ src/features/connectors/__tests__/hooks/useConnectorDetail.test.ts (15 tests) 257ms
+ ✓ src/features/connectors/__tests__/components/ConnectorCard.test.tsx (24 tests) 519ms
+ ✓ src/renderers/__tests__/sandboxed-document.test.ts (29 tests) 20ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/bridge.test.ts (26 tests) 38ms
+ ✓ src/features/sketch-editor/__tests__/react/hooks/useSketchSaveWorkflow.test.ts (19 tests) 108ms
+ ✓ src/features/viewer-shell/__tests__/react/hooks/useCommentReorder.test.ts (20 tests) 68ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useMentionAtomicNavigation.test.ts (19 tests) 71ms
+ ✓ src/features/source-config-list/__tests__/SourceConfigField.test.tsx (22 tests) 539ms
+ ✓ src/react/__tests__/components/BrandLogo.test.tsx (30 tests) 113ms
+ ✓ src/react/__tests__/components/Toast.test.tsx (31 tests) 281ms
+ ✓ src/features/skills/__tests__/react/components/SkillRow.test.tsx (35 tests) 874ms
+ ✓ src/features/admin-widgets/__tests__/SeeMore.unit.test.tsx (17 tests) 497ms
+stderr | src/features/integrations/__tests__/react/components/IntegrationsTab.test.tsx > IntegrationsTab > shows a method sub-label for the trigger and every dropdown item once install info has loaded
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/features/execution/__tests__/api-key-format-warning.test.ts (24 tests) 19ms
+ ✓ src/features/integrations/__tests__/react/components/IntegrationsTab.test.tsx (20 tests) 1145ms
+ ✓ src/features/file-dropzone/react/hooks/useFileDropzonePreviews.test.ts (18 tests) 494ms
+ ✓ src/features/file-dropzone/react/hooks/useFileDropzone.test.tsx (19 tests) 896ms
+   ✓ useFileDropzone > a large-by-bytes (not by count) selection also triggers the processing affordance 713ms
+ ✓ src/react/__tests__/components/LanguageMenu.test.tsx (23 tests) 311ms
+ ✓ src/react/__tests__/components/RemixIcon.stylesheet.test.tsx (15 tests) 171ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/document.test.ts (36 tests) 95ms
+ ✓ src/features/asset-grid/__tests__/rules.test.ts (43 tests) 54ms
+ ✓ src/features/tab-strip/__tests__/admin/TabBar.unit.test.tsx (23 tests) 704ms
+ ✓ src/features/progress-card/__tests__/reference-adapters.characterization.test.ts (47 tests) 19ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceRowList.test.tsx (19 tests) 597ms
+ ✓ src/utils/__tests__/auto-open-file.test.ts (41 tests) 16ms
+ ✓ src/features/lexical-rich-text-editor/react/components/RichTextInput.test.tsx (23 tests) 374ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts (21 tests) 429ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-serial-writes.hooks.test.ts (13 tests) 46ms
+ ✓ src/features/execution/__tests__/react/hooks/use-execution-credential.lifecycle.test.ts (9 tests) 55ms
+ ✓ src/features/mention-autocomplete/__tests__/react/hooks/useMentionAutocomplete.test.ts (19 tests) 66ms
+ ✓ src/features/lexical-rich-text-editor/__tests__/mention-parser.test.ts (48 tests) 18ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-settings-slice.hooks.test.tsx (20 tests) 78ms
+stderr | src/features/html-editor/__tests__/protected-elements.test.ts > same protected type — exact raw model contract > moving a styled section keeps inline declarations, gaps and raw atoms without synthesized CSS
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: move)
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: move)
+
+stderr | src/features/html-editor/__tests__/protected-elements.test.ts > same protected type — exact raw model contract > styles/scripts are nonvisual atoms, exported once in authored order, without CssComposer copies
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: move)
+
+ ✓ src/features/html-editor/__tests__/protected-elements.test.ts (12 tests) 617ms
+ ✓ src/features/project-locations/__tests__/react/components/ProjectLocationsTab.test.tsx (16 tests) 748ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceBoardView.test.tsx (26 tests) 653ms
+ ✓ src/features/admin-widgets/__tests__/InfoTip.hooks.unit.test.tsx (18 tests) 94ms
+ ✓ src/features/mcp-ui/__tests__/resource.test.ts (54 tests) 42ms
+ ✓ src/features/notifications/react/components/__tests__/NotificationsTab.characterization.test.tsx (21 tests) 1054ms
+ ✓ src/features/lexical-rich-text-editor/mention-node.test.ts (15 tests) 84ms
+ ✓ src/react/__tests__/unit/select-popover.unit.test.ts (34 tests) 128ms
+ ✓ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx (16 tests) 1117ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/choice-group.test.ts (18 tests) 343ms
+ ✓ src/react/__tests__/components/PaletteTweaks.test.tsx (24 tests) 391ms
+ ✓ src/features/admin-widgets/__tests__/Select.portal.unit.test.tsx (16 tests) 999ms
+ ✓ src/features/lexical-rich-text-editor/__tests__/useKeyboardCommands.test.ts (18 tests) 152ms
+ ✓ src/features/tabbed-dialog/__tests__/react/components/TabbedDialog.test.tsx (21 tests) 583ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-focus-trap.hooks.test.tsx (27 tests) 376ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceCard.test.tsx (25 tests) 467ms
+ ✓ src/features/connectors/__tests__/dependencies.test.ts (26 tests) 42ms
+ ✓ src/features/execution/__tests__/react/hooks/useExecutionTab.test.ts (11 tests) 1408ms
+   ✓ replaces the cached catalog after a background probe and stops polling when settled 1015ms
+ ✓ src/react/__tests__/components/agent-handles-driver.integration.test.tsx (11 tests) 1113ms
+ ✓ src/features/execution/__tests__/reasoning-model-groups.test.ts (22 tests) 20ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.behaviour.test.tsx (13 tests) 736ms
+ ✓ src/features/execution/react/hooks/__tests__/useLocalCliAgentCard.test.ts (30 tests) 68ms
+ ✓ src/features/source-config-list/__tests__/SourceConfigAddForm.test.tsx (24 tests) 479ms
+ ✓ src/features/file-dropzone/__tests__/react/components/FileDropzoneLightbox.test.tsx (26 tests) 587ms
+ ✓ src/features/version-manager/__tests__/rules.test.ts (42 tests) 113ms
+ ✓ src/features/asset-grid/react/components/__tests__/AssetGrid.l161.characterization.test.tsx (21 tests) 1317ms
+ ✓ src/features/mention-autocomplete/__tests__/react/components/MentionAutocomplete.test.tsx (15 tests) 1050ms
+   ✓ MentionAutocomplete > opens the results popover when typing the trigger character, and closes when the query ends 323ms
+ ✓ src/features/source-config-list/__tests__/SourceConfigListView.test.tsx (21 tests) 448ms
+ ✓ src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.test.ts (22 tests) 102ms
+ ✓ src/features/sketch-editor/__tests__/react/components/SketchEditor.test.tsx (18 tests) 554ms
+ ✓ src/features/observability/__tests__/boot-timing.test.ts (15 tests) 58ms
+ ✓ src/features/memory/__tests__/react/components/MemoryList.test.tsx (18 tests) 546ms
+ ✓ src/features/skills/__tests__/react/components/SkillDraftForm.test.tsx (27 tests) 598ms
+ ✓ src/features/file-dropzone/react/hooks/useFileDialogTracking.test.ts (15 tests) 80ms
+ ✓ src/features/tab-launcher-menu/react/components/TabLauncherMenu.test.tsx (19 tests) 696ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/environment-parity.integration.test.tsx (12 tests) 862ms
+ ✓ src/features/asset-tree-browser/__tests__/react/components/AssetTreeFileRow.test.tsx (19 tests) 628ms
+ ✓ src/react/hooks/__tests__/useBrandFonts.test.ts (15 tests) 180ms
+ ✓ src/react/hooks/__tests__/useEdgeAutoScroll.test.ts (16 tests) 90ms
+ ✓ src/features/project-locations/react/hooks/__tests__/useProjectLocationsTab.characterization.test.ts (16 tests) 1438ms
+ ✓ src/features/tab-strip/__tests__/admin/TabBar.hooks.unit.test.tsx (21 tests) 287ms
+ ✓ src/features/connectors/__tests__/hooks/useConnectorCatalog.test.ts (12 tests) 741ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.credential-hygiene.test.tsx (12 tests) 250ms
+ ✓ src/features/project-locations/__tests__/react/hooks/useProjectLocationsTab.test.ts (10 tests) 819ms
+ ✓ src/theme/__tests__/apply.characterization.unit.test.ts (10 tests) 61ms
+ ✓ src/features/observability/__tests__/white-screen.test.ts (16 tests) 115ms
+ ✓ src/react/components/SecretInput.test.tsx (10 tests) 1136ms
+   ✓ SecretInput > starts hidden, inside one .jini-secret wrapper with the eye toggle 317ms
+   ✓ SecretInput > re-masks when the value is cleared (a save), but an empty field can still be revealed 370ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/structured-details.test.ts (24 tests) 235ms
+ ✓ src/features/tab-strip/__tests__/react/components/TabStripItem.test.tsx (16 tests) 309ms
+ ✓ src/renderers/react/components/__tests__/ArtifactView.test.tsx (14 tests) 500ms
+ ✓ src/features/lexical-rich-text-editor/__tests__/serialize.test.ts (11 tests) 14ms
+ ✓ src/features/admin-widgets/__tests__/InfoTip.rules.unit.test.ts (23 tests) 10ms
+ ✓ src/features/file-dropzone/__tests__/react/components/FileDropzoneThumbnailGrid.test.tsx (20 tests) 274ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceRowListView.test.tsx (21 tests) 349ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryConnectors.rules.test.ts (23 tests) 16ms
+ ✓ src/features/resource-dashboard/__tests__/rules.test.ts (30 tests) 13ms
+ ✓ src/features/admin-widgets/__tests__/Lightbox.unit.test.tsx (15 tests) 439ms
+ ✓ src/features/asset-tree-browser/__tests__/react/hooks/useAssetTreeRename.test.ts (15 tests) 51ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.i18n.test.tsx (9 tests) 355ms
+ ✓ src/features/asset-tree-browser/__tests__/react/hooks/useAssetTreeDragUpload.test.ts (10 tests) 136ms
+ ✓ src/features/privacy/__tests__/react/components/PrivacyTab.test.tsx (13 tests) 529ms
+ ✓ src/features/tab-strip/__tests__/react/components/TabStrip.test.tsx (10 tests) 229ms
+ ✓ src/features/observability/__tests__/resource-error.test.ts (13 tests) 107ms
+ ✓ src/features/charts/__tests__/catalog-registry.test.tsx (12 tests) 268ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useMentionColorStamping.test.ts (7 tests) 174ms
+ ✓ src/features/resource-dashboard/dependencies.test.ts (25 tests) 15ms
+ ✓ src/features/execution/__tests__/react/components/SearchableModelSelect.test.tsx (11 tests) 1118ms
+ ✓ src/features/mcp-ui/__tests__/sandbox-proxy.test.ts (12 tests) 39ms
+ ✓ src/features/connectors/__tests__/components/ConnectorGrid.test.tsx (10 tests) 285ms
+ ✓ src/features/media-providers/__tests__/catalog-ports.test.ts (6 tests) 584ms
+ ✓ src/features/tab-launcher-menu/react/hooks/useTabLauncherMenu.test.ts (13 tests) 91ms
+ ✓ src/features/notifications/__tests__/react/components/NotificationsTab.test.tsx (13 tests) 895ms
+   ✓ NotificationsTab > toggles the completion-sound master switch 324ms
+ ✓ src/features/tab-strip/__tests__/react/components/TabStrip.dual-shape.test.tsx (2 tests) 205ms
+ ✓ src/renderers/annotation-canvas/__tests__/rules.test.ts (30 tests) 10ms
+ ✓ src/features/schedule-picker/__tests__/react/components/RecurringSchedulePicker.test.tsx (11 tests) 1068ms
+   ✓ RecurringSchedulePicker > editing the schedule and clicking Done commits the new value and closes 344ms
+ ✓ src/utils/__tests__/design-md.test.ts (26 tests) 15ms
+ ✓ src/features/execution/__tests__/react/hooks/useExecutionTab.ordering.test.ts (10 tests) 50ms
+ ✓ src/features/asset-grid/__tests__/react/hooks/useRubberBandDrag.test.ts (8 tests) 71ms
+ ✓ src/react/__tests__/unit/remixicon-font-recovery.unit.test.ts (12 tests) 8ms
+ ✓ src/features/admin-widgets/__tests__/ScrollJump.unit.test.tsx (15 tests) 216ms
+ ✓ src/features/mention-autocomplete/__tests__/rules.test.ts (32 tests) 23ms
+ ✓ src/features/memory/__tests__/react/components/MemoryManualEditor.test.tsx (15 tests) 740ms
+ ✓ src/features/charts/__tests__/provider-selection.test.ts (8 tests) 132ms
+ ✓ src/features/resource-dashboard/react/components/ResourceKanbanBoard.test.tsx (12 tests) 305ms
+ ✓ src/features/tab-strip/__tests__/rules.test.ts (36 tests) 19ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.layout.test.tsx (7 tests) 263ms
+ ✓ src/features/memory/__tests__/react/components/MemoryAdvancedModal.test.tsx (15 tests) 643ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/provider-timing.integration.test.tsx (6 tests) 92ms
+ ✓ src/renderers/annotation-canvas/__tests__/drawing.test.ts (16 tests) 18ms
+ ✓ src/features/asset-tree-browser/__tests__/react/hooks/useAssetTreeBatchActions.test.ts (10 tests) 56ms
+ ✓ src/theme/__tests__/see-more-css.unit.test.ts (4 tests) 10ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceRowListItem.test.tsx (14 tests) 333ms
+ ✓ src/react/mcp-ui/__tests__/McpUiHost.test.tsx (9 tests) 588ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-async-action.hooks.test.ts (10 tests) 50ms
+ ✓ src/features/source-config-list/react/hooks/useSourceConfigAddForm.test.ts (11 tests) 68ms
+ ✓ src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx (14 tests) 311ms
+ ✓ src/features/tab-launcher-menu/react/hooks/__tests__/useTabLauncherMenu.characterization.test.tsx (12 tests) 245ms
+ ✓ src/features/a2ui/__tests__/renderer.test.tsx (7 tests) 232ms
+ ✓ src/features/observability/__tests__/long-task.test.ts (11 tests) 85ms
+ ✓ src/features/project-locations/react/components/__tests__/ProjectLocationsTab.characterization.test.tsx (11 tests) 389ms
+ ✓ src/features/list-detail-panel/__tests__/react/components/ListDetailPanel.test.tsx (13 tests) 226ms
+ ✓ src/features/iframe-pool/react/dom-sync.test.ts (18 tests) 46ms
+ ✓ src/features/schedule-picker/__tests__/rules.test.ts (23 tests) 12ms
+ ✓ src/features/resource-dashboard/react/components/ResourceBoardToolbar.test.tsx (18 tests) 628ms
+ ✓ src/features/asset-grid/__tests__/dependencies.test.ts (11 tests) 12ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/tanstack-loader-races.integration.test.tsx (6 tests) 398ms
+ ✓ src/features/admin-widgets/__tests__/SeeMore.hooks.unit.test.tsx (7 tests) 41ms
+ ✓ src/utils/__tests__/polygon-selection.test.ts (30 tests) 17ms
+ ✓ src/features/viewer-shell/__tests__/react/components/MarkdownSplitPane.test.tsx (14 tests) 378ms
+ ✓ src/react/__tests__/integration/remixicon-font-recovery.integration.test.ts (7 tests) 35ms
+ ✓ src/features/interactive-ui/providers/shadcn/__tests__/data-table-paging.test.tsx (16 tests) 633ms
+stderr | src/features/a2ui/__tests__/renderer-characterization.test.tsx > A2UI renderer characterization > preserves Column order and permits repeated siblings while guarding cycles and missing children
+Encountered two children with the same key, `text`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+
+stderr | src/features/a2ui/__tests__/renderer-characterization.test.tsx > A2UI renderer characterization > preserves Row order and permits repeated siblings while guarding cycles and missing children
+Encountered two children with the same key, `text`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+
+ ✓ src/features/a2ui/__tests__/renderer-characterization.test.tsx (16 tests) 460ms
+ ✓ src/features/browser-chrome/__tests__/react/hooks/useBrowserNavigationStack.test.ts (12 tests) 53ms
+ ✓ src/features/i18n/__tests__/context.test.tsx (13 tests) 137ms
+ ✓ src/theme/__tests__/admin-theme.test.ts (7 tests) 62ms
+ ✓ src/__tests__/w8-ui-ports.test.tsx (6 tests) 56ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/dynamic-loader.integration.test.tsx (14 tests) 831ms
+ ✓ src/features/about/__tests__/react/hooks/useSilentUpdatesToggle.test.ts (7 tests) 36ms
+ ✓ src/features/asset-grid/__tests__/react/components/AssetCard.test.tsx (15 tests) 488ms
+ ✓ src/features/admin-widgets/__tests__/ImagePreviewModal.unit.test.tsx (10 tests) 223ms
+ ✓ src/features/iframe-pool/react/__tests__/dom-sync.characterization.test.ts (9 tests) 22ms
+ ✓ src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts (7 tests) 36ms
+ ✓ src/features/admin-widgets/__tests__/SuggestInput.unit.test.tsx (8 tests) 395ms
+ ✓ src/features/execution/react/components/__tests__/LocalCliAgentCard.pin.test.tsx (10 tests) 103ms
+ ✓ src/core/__tests__/theme/validation.test.ts (78 tests) 47ms
+ ✓ src/features/a2ui/__tests__/real-catalog-components.test.tsx (7 tests) 174ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useCaretFloatingLayerPosition.test.ts (9 tests) 45ms
+ ✓ src/features/resource-dashboard/react/components/ResourceRunHistoryList.test.tsx (12 tests) 272ms
+ ✓ src/features/appearance/__tests__/react/components/AppearanceTab.test.tsx (12 tests) 487ms
+ ✓ src/features/site-card/__tests__/site-list-view.unit.test.ts (21 tests) 15ms
+ ✓ src/features/mcp-ui/__tests__/confirmation-store.test.ts (17 tests) 39ms
+ ✓ src/features/command-palette/react/hooks/useCommandPalette.test.ts (11 tests) 133ms
+ ✓ src/renderers/__tests__/injection-contract.test.ts (13 tests) 32ms
+ ✓ src/features/execution/__tests__/index.test.ts (5 tests) 12ms
+ ✓ src/react/__tests__/components/FileImportPanel.test.tsx (10 tests) 215ms
+ ✓ src/features/execution/react/components/__tests__/LocalCliAgentList.pin.test.tsx (10 tests) 326ms
+ ✓ src/features/iframe-pool/react/components/PooledIframe.test.tsx (7 tests) 253ms
+ ✓ src/renderers/__tests__/sandbox-bridge.test.tsx (10 tests) 240ms
+ ✓ src/features/schedule-picker/__tests__/react/hooks/useRecurringSchedulePicker.test.ts (8 tests) 67ms
+ ✓ src/features/asset-grid/react/hooks/__tests__/useAssetGridKeyboardShortcuts.l161.characterization.test.ts (22 tests) 70ms
+ ✓ src/features/iframe-pool/react/components/IframeKeepAliveProvider.test.tsx (10 tests) 106ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useTriggerDetection.test.ts (7 tests) 66ms
+ ✓ src/utils/__tests__/copy-to-clipboard.test.ts (7 tests) 19ms
+ ✓ src/features/asset-grid/react/components/__tests__/AssetGrid.j5-07.characterization.test.tsx (8 tests) 876ms
+ ✓ src/features/folder-path-drop/__tests__/react/hooks/useFolderPathDropCapture.test.ts (11 tests) 54ms
+ ✓ src/__tests__/index.test.ts (3 tests) 6ms
+ ✓ src/features/sketch-editor/__tests__/react/hooks/useSketchScene.test.ts (10 tests) 61ms
+ ✓ src/features/a2ui/__tests__/provider-actions.integration.test.tsx (10 tests) 783ms
+ ✓ src/features/integrations/__tests__/react/components/CodexInstallToggleButton.test.tsx (9 tests) 258ms
+ ✓ src/features/command-palette/rules.test.ts (25 tests) 15ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/binding.unit.test.tsx (9 tests) 76ms
+ ✓ src/features/interactive-ui/providers/shadcn/__tests__/data-table.test.tsx (7 tests) 807ms
+ ✓ src/features/command-palette/react/hooks/__tests__/useCommandPalette.l306.characterization.test.ts (13 tests) 185ms
+ ✓ src/features/connectors/__tests__/components/ConnectorLogo.test.tsx (8 tests) 55ms
+ ✓ src/react/hooks/__tests__/useInView.test.ts (8 tests) 143ms
+ ✓ src/features/version-manager/__tests__/dependencies.test.ts (13 tests) 9ms
+ ✓ src/features/html-editor/__tests__/canvas-content-wrapper.test.ts (9 tests) 46ms
+ ✓ src/features/version-manager/__tests__/react/hooks/usePreviewCanvasSize.test.tsx (6 tests) 40ms
+ ✓ src/features/version-manager/__tests__/react/components/VersionSidebar.test.tsx (10 tests) 378ms
+ ✓ src/features/tab-launcher-menu/rules.test.ts (24 tests) 18ms
+ ✓ src/features/asset-tree-browser/__tests__/dependencies.test.ts (9 tests) 16ms
+ ✓ src/renderers/annotation-canvas/react/components/__tests__/AnnotationCanvas.inactive-with-marks.test.tsx (2 tests) 91ms
+ ✓ src/features/admin-widgets/__tests__/SuggestInput.hooks.unit.test.tsx (14 tests) 42ms
+ ✓ src/features/html-editor/__tests__/protected-elements.canvas.test.ts (7 tests) 247ms
+ ✓ src/browser/__tests__/useDismissOnOutsideOrEscape.test.ts (7 tests) 39ms
+ ✓ src/features/execution/__tests__/http-adapter.test.ts (6 tests) 7ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-dirty-guard.hooks.test.ts (9 tests) 49ms
+ ✓ src/features/progress-card/__tests__/components/ProgressCard.test.tsx (14 tests) 171ms
+ ✓ src/features/file-dropzone/rules.test.ts (24 tests) 16ms
+ ✓ src/features/memory/__tests__/react/components/MemorySettingsPanel.test.tsx (7 tests) 558ms
+ ✓ src/features/i18n/__tests__/dictionaries.test.tsx (10 tests) 162ms
+ ✓ src/features/execution/__tests__/picker-model-options.test.ts (10 tests) 6ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useSeededValue.test.tsx (5 tests) 44ms
+ ✓ src/features/panel-kit/helpers/__tests__/resolve-active-tab-id.unit.test.ts (9 tests) 4ms
+ ✓ src/features/site-card/__tests__/site-card.unit.test.tsx (9 tests) 200ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.host-layout.test.tsx (5 tests) 292ms
+ ✓ src/features/tab-launcher-menu/react/components/__tests__/TabLauncherMenu.characterization.test.tsx (6 tests) 346ms
+ ✓ src/features/charts/__tests__/table.characterization.test.ts (6 tests) 36ms
+ ✓ src/browser/__tests__/useGlobalKeydown.test.ts (9 tests) 61ms
+ ✓ src/features/i18n/__tests__/locale.test.ts (17 tests) 14ms
+ ✓ src/features/execution/__tests__/fake-execution-port.test.ts (8 tests) 23ms
+ ✓ src/features/a2ui/__tests__/surface-updates.integration.test.tsx (5 tests) 94ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/tool-approval.test.ts (7 tests) 34ms
+ ✓ src/features/integrations/__tests__/react/hooks/useCodexInstallToggle.test.ts (9 tests) 770ms
+ ✓ src/features/connectors/__tests__/hooks/useConnectorAuthorization.stale-race.test.ts (2 tests) 30ms
+ ✓ src/features/browser-chrome/__tests__/react/components/BrowserViewportControls.test.tsx (9 tests) 471ms
+ ✓ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx (3 tests) 697ms
+   ✓ ExternalMcpTab server actions > routes refresh, enable toggle, test and remove for a server to the port with that server id 338ms
+ ✓ src/features/progress-card/__tests__/components/ProgressCard.characterization.test.tsx (10 tests) 205ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryNavigation.test.ts (10 tests) 58ms
+ ✓ src/utils/__tests__/color-math.test.ts (30 tests) 13ms
+ ✓ src/browser/__tests__/useModalWindowDragGuard.test.ts (8 tests) 37ms
+ ✓ src/features/revision-review/react/components/RevisionDiffCard.test.tsx (9 tests) 251ms
+ ✓ src/features/panel-kit/helpers/__tests__/standing-draft-local-backup.unit.test.ts (6 tests) 10ms
+ ✓ src/features/browser-chrome/__tests__/dependencies.test.ts (10 tests) 14ms
+ ✓ src/features/asset-grid/react/components/__tests__/AssetCard.l161.characterization.test.tsx (15 tests) 249ms
+ ✓ src/features/asset-tree-browser/__tests__/react/hooks/useAssetTreeNavigation.test.ts (8 tests) 42ms
+ ✓ src/utils/__tests__/scroll-tabs-with-wheel.test.ts (10 tests) 7ms
+ ✓ src/features/panel-kit/hooks/__tests__/admin-lifecycles.test.tsx (3 tests) 47ms
+ ✓ src/features/asset-tree-browser/__tests__/react/hooks/useAssetTreeSelection.test.ts (8 tests) 41ms
+ ✓ src/features/tab-strip/react/components/__tests__/TabBar.characterization.unit.test.tsx (13 tests) 202ms
+ ✓ src/features/observability/__tests__/stuck-run.test.ts (12 tests) 21ms
+ ✓ src/features/sketch-editor/__tests__/react/hooks/useSketchDomEnhancements.test.tsx (6 tests) 162ms
+ ✓ src/features/asset-grid/__tests__/react/components/AssetGridToolbar.test.tsx (7 tests) 374ms
+ ✓ src/features/viewer-shell/__tests__/react/components/ViewportSwitcher.test.tsx (9 tests) 357ms
+ ✓ src/features/privacy/react/components/__tests__/PrivacyTab.characterization.test.tsx (5 tests) 263ms
+ ✓ src/features/execution/__tests__/react/components/ExecutionTab.wiring.test.tsx (4 tests) 336ms
+ ✓ src/features/admin-widgets/__tests__/useDebouncedHtmlPreview.hooks.unit.test.tsx (5 tests) 45ms
+ ✓ src/features/asset-grid/__tests__/react/hooks/useAssetGridData.test.ts (6 tests) 413ms
+ ✓ src/features/version-manager/__tests__/react/components/VersionRestoreControl.test.tsx (8 tests) 393ms
+ ✓ src/features/memory/__tests__/react/components/MemoryEntryCard.test.tsx (8 tests) 170ms
+ ✓ src/features/i18n/__tests__/locale.characterization.unit.test.ts (26 tests) 8ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/adapter.tanstack.unit.test.tsx (10 tests) 4ms
+ ✓ src/features/version-manager/__tests__/react/components/VersionPreviewFrame.test.tsx (10 tests) 285ms
+ ✓ src/features/observability/__tests__/visibility.test.ts (7 tests) 29ms
+ ✓ src/features/memory/__tests__/react/components/MemoryHooksPanel.test.tsx (6 tests) 273ms
+ ✓ src/features/browser-chrome/__tests__/react/hooks/useBrowserHistory.test.ts (6 tests) 154ms
+stderr | src/features/html-viewer/__tests__/react/hooks/usePresentMode.test.tsx > useWiredPresentMode > binds the real default dependencies and exposes the same controller shape
+Error: Not implemented: window.open
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at /home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/Window.js:960:7
+    at Module.openSandboxedPreviewInNewTab (/home/user/Jini/packages/ui/src/renderers/new-tab-preview.ts:70:25)
+    at Object.openInNewTab (/home/user/Jini/packages/ui/src/features/html-viewer/dependencies.ts:34:7)
+    at Object.presentInNewTab (/home/user/Jini/packages/ui/src/features/html-viewer/react/hooks/usePresentMode.ts:39:34)
+    at /home/user/Jini/packages/ui/src/features/html-viewer/__tests__/react/hooks/usePresentMode.test.tsx:109:33
+    at Proxy.assertThrows (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:2767:5)
+    at Proxy.methodWrapper (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1686:25)
+    at Proxy.<anonymous> (file:///home/user/Jini/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1029:16)
+    at Proxy.overwritingMethodWrapper (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1735:33) undefined
+
+ ✓ src/features/html-viewer/__tests__/react/hooks/usePresentMode.test.tsx (8 tests) 54ms
+ ✓ src/utils/__tests__/timezone.test.ts (12 tests) 34ms
+ ✓ src/features/lexical-rich-text-editor/deserialize.test.ts (9 tests) 22ms
+ ✓ src/features/memory/__tests__/react/components/MemoryExtractionCard.test.tsx (9 tests) 216ms
+ ✓ src/features/execution/__tests__/react/hooks/use-execution-credential.test.ts (2 tests) 25ms
+ ✓ src/react/__tests__/components/Icon.test.tsx (9 tests) 326ms
+ ✓ src/features/integrations/__tests__/react/components/ClientPicker.test.tsx (8 tests) 396ms
+ ✓ src/features/html-viewer/__tests__/react/components/PresentMenu.test.tsx (7 tests) 429ms
+ ✓ src/features/observability/__tests__/resource-error.pin.test.ts (19 tests) 131ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.form-footer.test.tsx (4 tests) 268ms
+ ✓ src/features/viewer-shell/__tests__/index.test.ts (3 tests) 5ms
+ ✓ src/features/charts/__tests__/provider-edges.test.tsx (5 tests) 99ms
+ ✓ src/features/mcp-ui/__tests__/early-message-buffer.test.ts (9 tests) 8ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/refetch-on-window-focus.unit.test.tsx (6 tests) 126ms
+ ✓ src/features/browser-chrome/__tests__/index.test.ts (3 tests) 11ms
+ ✓ src/renderers/renderers/__tests__/markdown.test.ts (13 tests) 47ms
+ ✓ src/renderers/__tests__/new-tab-preview.test.ts (10 tests) 13ms
+ ✓ src/features/html-viewer/__tests__/rules.test.ts (22 tests) 7ms
+ ✓ src/features/viewer-shell/__tests__/react/hooks/useCopyToClipboard.test.ts (8 tests) 115ms
+ ✓ src/features/asset-grid/__tests__/react/hooks/useAssetGridKeyboardShortcuts.test.ts (9 tests) 52ms
+ ✓ src/features/execution/__tests__/react/components/ByokProviderForm.reveal.test.tsx (2 tests) 299ms
+ ✓ src/renderers/preview-modal-shell/rules.test.ts (18 tests) 9ms
+ ✓ src/features/sketch-editor/__tests__/react/components/SketchMainMenu.test.tsx (9 tests) 203ms
+ ✓ src/react/__tests__/components/OnboardingChipField.test.tsx (8 tests) 281ms
+ ✓ src/react/components/ComponentKitPreview.test.tsx (6 tests) 274ms
+ ✓ src/features/html-editor/__tests__/editor-serialization.splice.test.ts (5 tests) 268ms
+ ✓ src/features/lexical-rich-text-editor/react/components/CaretFloatingLayer.test.tsx (6 tests) 68ms
+ ✓ src/features/integrations/__tests__/react/components/SnippetBlock.test.tsx (7 tests) 359ms
+ ✓ src/features/version-manager/__tests__/react/components/VersionPromptPopover.test.tsx (8 tests) 357ms
+ ✓ src/features/asset-tree-browser/__tests__/react/components/AssetTreeRowMenu.test.tsx (7 tests) 325ms
+ ✓ src/features/resource-dashboard/index.test.ts (6 tests) 7ms
+ ✓ src/features/observability/__tests__/install.test.ts (5 tests) 14ms
+ ✓ src/features/tabbed-dialog/__tests__/react/components/tabbedDialogView.test.ts (12 tests) 8ms
+ ✓ src/features/html-viewer/__tests__/react/hooks/useDeckNavigation.test.tsx (8 tests) 46ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryFlash.test.ts (7 tests) 68ms
+ ✓ src/renderers/__tests__/url-load-decision.test.ts (25 tests) 9ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-settlement-generation.hooks.test.ts (7 tests) 50ms
+ ✓ src/renderers/__tests__/registry.test.ts (9 tests) 6ms
+ ✓ src/features/execution/__tests__/http-adapter.probes.test.ts (4 tests) 9ms
+ ✓ src/utils/__tests__/smooth-scroll-to-top.test.ts (6 tests) 21ms
+ ✓ src/react/__tests__/components/EdgeScrollZones.test.tsx (11 tests) 121ms
+ ✓ src/features/command-palette/react/components/CommandPalette.test.tsx (4 tests) 162ms
+ ✓ src/features/observability/__tests__/long-task.pin.test.ts (8 tests) 22ms
+ ✓ src/renderers/__tests__/shiki.test.ts (7 tests) 736ms
+   ✓ highlightCode > returns highlighted HTML for a known language 639ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/usePasteFiles.test.ts (5 tests) 97ms
+ ✓ src/features/html-editor/__tests__/canvas-style.test.ts (10 tests) 8ms
+ ✓ src/renderers/__tests__/index.test.ts (3 tests) 4ms
+ ✓ src/features/interactive-ui/__tests__/registry.test.ts (9 tests) 172ms
+ ✓ src/features/schedule-picker/__tests__/react/components/ScheduleFields.test.tsx (4 tests) 259ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/host-theme.test.ts (7 tests) 6ms
+ ✓ src/features/execution/__tests__/picker-model-options.characterization.test.ts (10 tests) 7ms
+ ✓ src/features/admin-widgets/__tests__/SuggestInput.props.unit.test.tsx (5 tests) 133ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/tokens.test.ts (7 tests) 10ms
+ ✓ src/features/execution/__tests__/react/components/LocalCliAgentList.test.tsx (5 tests) 317ms
+ ✓ src/features/execution/__tests__/react/components/execution-controls.edges.test.tsx (4 tests) 134ms
+ ✓ src/features/sketch-editor/__tests__/react/dependencies-fake.test.tsx (4 tests) 61ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/access-approval.test.ts (4 tests) 101ms
+ ✓ src/features/asset-grid/__tests__/react/hooks/useAssetGridSelection.test.ts (6 tests) 32ms
+ ✓ src/react/__tests__/components/default-agent-handles.test.tsx (5 tests) 173ms
+ ✓ src/features/interactive-ui/__tests__/components/DataTable.test.tsx (8 tests) 258ms
+ ✓ src/features/charts/__tests__/react-host.test.tsx (3 tests) 36ms
+ ✓ src/features/browser-chrome/__tests__/react/hooks/useBrowserBridgeRegistration.test.ts (5 tests) 26ms
+ ✓ src/features/command-palette/dependencies.test.ts (9 tests) 9ms
+ ✓ src/react/__tests__/components/Notice.test.tsx (10 tests) 93ms
+ ✓ src/features/integrations/__tests__/react/hooks/useMcpInstallInfo.test.ts (6 tests) 248ms
+ ✓ src/features/interactive-ui/providers/shadcn/__tests__/icons.test.tsx (8 tests) 43ms
+ ✓ src/features/source-config-list/index.test.ts (5 tests) 5ms
+ ✓ src/features/asset-tree-browser/__tests__/react/components/FilePreviewPane.test.tsx (8 tests) 249ms
+ ✓ src/features/asset-grid/__tests__/react/components/AssetGridBody.test.tsx (4 tests) 145ms
+ ✓ src/features/mention-autocomplete/__tests__/react/components/MentionResultsList.test.tsx (7 tests) 186ms
+ ✓ src/features/tabbed-dialog/__tests__/react/hooks/useTabbedDialog.test.ts (7 tests) 36ms
+ ✓ src/react/hooks/__tests__/useCoalescedCallback.test.ts (5 tests) 41ms
+ ✓ src/renderers/__tests__/html-utils.test.ts (13 tests) 5ms
+ ✓ src/browser/__tests__/useFileDropTarget.test.ts (4 tests) 40ms
+ ✓ src/features/observability/__tests__/iframe.test.ts (7 tests) 107ms
+ ✓ src/features/asset-tree-browser/__tests__/react/hooks/useAssetTreeClipboardPasteUpload.test.ts (5 tests) 34ms
+ ✓ src/features/a2ui/__tests__/use-a2ui-surface.test.ts (4 tests) 29ms
+ ✓ src/features/memory/__tests__/react/components/MemoryHowPanel.test.tsx (4 tests) 264ms
+ ✓ src/features/a2ui/__tests__/catalog-from-registry.test.ts (7 tests) 8ms
+ ✓ src/features/list-detail-panel/__tests__/react/hooks/useListDetailSelection.test.ts (9 tests) 34ms
+ ✓ src/features/iframe-pool/react/hooks/useIframeKeepAlivePool.test.ts (6 tests) 74ms
+ ✓ src/features/memory/__tests__/index.test.ts (3 tests) 8ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useSyncedOnChange.test.ts (3 tests) 34ms
+ ✓ src/features/admin-widgets/__tests__/MiddleTruncate.unit.test.tsx (8 tests) 37ms
+ ✓ src/features/tab-launcher-menu/react/components/TabLauncherResultRow.test.tsx (6 tests) 168ms
+ ✓ src/features/panel-kit/__tests__/ErrorNotice.test.tsx (3 tests) 171ms
+ ✓ src/features/connectors/__tests__/hooks/useWiredConnectorsBrowser.test.ts (4 tests) 203ms
+ ✓ src/features/progress-card/__tests__/rules.test.ts (13 tests) 7ms
+ ✓ src/features/i18n/__tests__/template-i18n.unit.test.ts (13 tests) 8ms
+ ✓ src/react/__tests__/components/KitErrorBoundary.test.tsx (5 tests) 150ms
+ ✓ src/features/settings/dialog/__tests__/react/components/SettingsDialogShell.test.tsx (4 tests) 163ms
+ ✓ src/theme/__tests__/document-adapters.test.ts (3 tests) 10ms
