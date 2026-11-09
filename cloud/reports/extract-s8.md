@@ -433,7 +433,9 @@ New pins, named before edits:
 
 ## C1 move
 
-Window: 07:36Z–07:50Z (clock per `date -u` in the session container). Status: **one red test, needs a coordinator decision; the green marker was NOT created.**
+Coordinator boundary C1 seam→C1 move: 2026-11-09T07:35:37Z, elapsed 40m16s; running token total ≈ 0.93M at move digest (setup 131k, C0 241k, C1 seam 269k, C1 move 183k, C2p1 drafting in progress, coordinator ≈ 70k) of 1.9M cap.
+
+Window: 07:36Z–07:50Z (clock per `date -u` in the session container). Status: fully green after the coordinator-approved new-test wiring correction below (the first digest reported one red test and no marker).
 
 Commits (all pushed, `git ls-remote` verified):
 - Tovu: 610441e9e29f6ce4fb7650e49d6842e87a5068c4 (destination inventory), cc12641d3c4f3aa019d7e683564fb9ff58cc1e1d (repoint + shims), plus this report commit.
@@ -471,3 +473,51 @@ Gate (after transport; Node 24.2.0):
 **Open: drift in a committed C1 seam test.** extract-s8-c1-source-scan.test.ts test 1 ("sets/ imports nothing but @jini-ai/core subpaths and same-directory files") scans the Tovu `sets/*.ts` paths; after the move those paths are shims importing `@jini-ai/integrations/credentialed-http/sets`, so it fails by design. Deleting the shims (as first dispatched) would instead break that whole file and extract-s8-c1-second-host.test.ts at import (14 tests). Rules forbid editing a committed test without approval, so the test was not touched. The test's purpose (its @file: "so they can move into Jini unchanged") is now proven at the destination by the J closure pin. Coordinator choices: (a) approve retargeting test 1 to scan the shims (one specifier = the entry) plus the resolved entry's emitted files (core + same directory only), or (b) record test 1 as retired-by-design.
 
 Shared-lane files: none (no tool-catalog-manifest/deps/external-mcp/api-connections/plugin-runtime/agent-plugins/mcp/plugins file touched). No existing pre-session test or fixture modified, deleted or renamed in either repo; no migration, guard, checker, debt or baseline edit. Processes: background runners (Tovu 51-file loop, Jini gate script) exited; none left. Scratch worktree of Tovu at C0 kept outside the tracked tree (registered in Tovu .git/worktrees).
+
+### New-test wiring correction (coordinator-approved, option (a))
+
+Rationale: extract-s8-c1-source-scan.test.ts is a NEW session-authored pin (C1 seam), not a pre-session test, so the brief's "NEW test wiring mistakes fix normally" applies. The retarget keeps the same property (the moved generic code imports only `@jini-ai/core` + same-directory files) at its new location, adds the shim-imports-only-the-entry check, and keeps BOTH `doesNotMatch` assertions unchanged; no assertion softened. The scan covers the three moved modules (`host`, `vault-repo`, `store`; emitted `.js` and `.d.ts` from the resolved entry directory) rather than every file there: the new `index.ts` barrel's note names its own entry, which is not a moved file. The original per-file "has imports" check now applies per moved module (`.js` + `.d.ts` together), because type-only modules emit `.js` with no imports. Imports added: `dirname`, `join` (node:path), `fileURLToPath` (node:url). Mutation: `import "@jini-ai/platform";` appended to the emitted store.js → test 1 red (5/6); rebuild → 6/6.
+
+Before:
+```ts
+test("sets/ imports nothing but @jini-ai/core subpaths and same-directory files", () => {
+  for (const file of SETS) {
+    const source = readFileSync(file, "utf8");
+    const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map(match => match[1]!);
+    assert.ok(specifiers.length > 0, `${file.pathname} has imports`);
+    for (const specifier of specifiers) {
+      assert.ok(/^@jini-ai\/core(\/[a-z/-]+)?$/.test(specifier) || /^\.\/[a-z-]+\.js$/.test(specifier), `${file.pathname}: forbidden import ${specifier}`);
+    }
+    assert.doesNotMatch(source, /require\(|#src\/|@tovu\/|@jini-ai\/(?!core)/, `${file.pathname}: no Tovu, db, platform or other Jini package`);
+    assert.doesNotMatch(source, /["']tovu["']|Shared Keys|P25_|TOVU_|secrets_vault/, `${file.pathname}: no product owner, wording or table names`);
+  }
+});
+```
+After:
+```ts
+test("sets/ shims import only the Jini entry; the moved code imports nothing but @jini-ai/core subpaths and same-directory files", () => {
+  for (const file of SETS) {
+    const source = readFileSync(file, "utf8");
+    const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map(match => match[1]!);
+    assert.deepEqual(specifiers, ["@jini-ai/integrations/credentialed-http/sets"], `${file.pathname}: shim imports only the entry`);
+  }
+  const dir = dirname(fileURLToPath(import.meta.resolve("@jini-ai/integrations/credentialed-http/sets")));
+  for (const name of ["host", "vault-repo", "store"]) {
+    const files = [`${name}.js`, `${name}.d.ts`].map(file => join(dir, file));
+    let count = 0;
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map(match => match[1]!);
+      count += specifiers.length;
+      for (const specifier of specifiers) {
+        assert.ok(/^@jini-ai\/core(\/[a-z/-]+)?$/.test(specifier) || /^\.\/[a-z-]+\.js$/.test(specifier), `${file}: forbidden import ${specifier}`);
+      }
+      assert.doesNotMatch(source, /require\(|#src\/|@tovu\/|@jini-ai\/(?!core)/, `${file}: no Tovu, db, platform or other Jini package`);
+      assert.doesNotMatch(source, /["']tovu["']|Shared Keys|P25_|TOVU_|secrets_vault/, `${file}: no product owner, wording or table names`);
+    }
+    assert.ok(count > 0, `${name} has imports`);
+  }
+});
+```
+
+Rerun after the correction: source-scan 6/6, C1 second-host 8/8, C0 11/11 (all exit 0); explicit compile of the 3 C1 pins exit 0; eslint on the edited test exit 0. Tovu total 773/773: the 51-file run above had 772 pass and only this test failing; the corrected file now passes 6/6, and nothing else changed between the runs (an integrations rebuild re-emitted identical files).

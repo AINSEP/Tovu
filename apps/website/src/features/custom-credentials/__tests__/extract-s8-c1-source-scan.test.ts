@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { InMemoryVaultRepo, VaultError } from "@jini-ai/platform/secrets/credential-sets";
 
@@ -19,16 +21,27 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 
 const SETS = ["host.ts", "vault-repo.ts", "store.ts"].map(name => new URL(`../sets/${name}`, import.meta.url));
 
-test("sets/ imports nothing but @jini-ai/core subpaths and same-directory files", () => {
+test("sets/ shims import only the Jini entry; the moved code imports nothing but @jini-ai/core subpaths and same-directory files", () => {
   for (const file of SETS) {
     const source = readFileSync(file, "utf8");
     const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map(match => match[1]!);
-    assert.ok(specifiers.length > 0, `${file.pathname} has imports`);
-    for (const specifier of specifiers) {
-      assert.ok(/^@jini-ai\/core(\/[a-z/-]+)?$/.test(specifier) || /^\.\/[a-z-]+\.js$/.test(specifier), `${file.pathname}: forbidden import ${specifier}`);
+    assert.deepEqual(specifiers, ["@jini-ai/integrations/credentialed-http/sets"], `${file.pathname}: shim imports only the entry`);
+  }
+  const dir = dirname(fileURLToPath(import.meta.resolve("@jini-ai/integrations/credentialed-http/sets")));
+  for (const name of ["host", "vault-repo", "store"]) {
+    const files = [`${name}.js`, `${name}.d.ts`].map(file => join(dir, file));
+    let count = 0;
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map(match => match[1]!);
+      count += specifiers.length;
+      for (const specifier of specifiers) {
+        assert.ok(/^@jini-ai\/core(\/[a-z/-]+)?$/.test(specifier) || /^\.\/[a-z-]+\.js$/.test(specifier), `${file}: forbidden import ${specifier}`);
+      }
+      assert.doesNotMatch(source, /require\(|#src\/|@tovu\/|@jini-ai\/(?!core)/, `${file}: no Tovu, db, platform or other Jini package`);
+      assert.doesNotMatch(source, /["']tovu["']|Shared Keys|P25_|TOVU_|secrets_vault/, `${file}: no product owner, wording or table names`);
     }
-    assert.doesNotMatch(source, /require\(|#src\/|@tovu\/|@jini-ai\/(?!core)/, `${file.pathname}: no Tovu, db, platform or other Jini package`);
-    assert.doesNotMatch(source, /["']tovu["']|Shared Keys|P25_|TOVU_|secrets_vault/, `${file.pathname}: no product owner, wording or table names`);
+    assert.ok(count > 0, `${name} has imports`);
   }
 });
 
