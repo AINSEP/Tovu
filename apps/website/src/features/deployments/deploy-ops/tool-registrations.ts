@@ -1,19 +1,15 @@
-import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import { toolMetadata } from '../../../contracts/core/tool-metadata/deploy-ops.js';
-import { collectTypedDeploySecret } from "./typed-secret-card.js";
-import { nowIso } from "@jini-ai/core/primitives";
-import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "@jini-ai/core";
-import { notConfirmedResult, approvalToolHandler } from "#src/contracts/core/human-confirm";
-import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
-import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
-import { runListSecrets, runSetSecret, runUnsetSecret, type SecretConfirm, type SecretConfirmRequest, type SecretValueSource } from "./secrets.js";
-import { getDeployOpsAgentToolCatalog } from "./agent-tools.js";
-import { DeployCredentialSetupRequired, MAX_WAIT_SECONDS, runDeploy, runDeployOps, waitForDeployOps, type DeployOpsToolDeps } from "./run-ops.js";
-import type { DeployOpsInput, DeployOpsRegistry } from "./types.js";
-export type { DeployOpsToolDeps } from "./run-ops.js";
+import { bindDeploySecretCards } from './typed-secret-card.js';
+import { adaptLegacyAuthorize, requireToolPermission, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+import { notConfirmedResult, approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { SITE_KEY_MANAGE_PERMISSION } from '#src/features/identity/site-key-permission';
+import type { SecretConfirmRequest, SecretConfirm } from './secrets.js';
+import { getDeployOpsAgentToolCatalog } from './agent-tools.js';
+import { bindDeployOpsRuntime, type DeployOpsToolDeps } from './run-ops.js';
+import type { DeployOpsRegistry } from './types.js';
+import { buildDeployOpsRegistrations as build } from './portable/ops-tools.js';
+export type { DeployOpsToolDeps } from './run-ops.js';
 export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> gated installed registry, credential summaries, makeCredentialedRequest(GET), audit.
   ["deployment_ops_status", "none"],
@@ -32,36 +28,6 @@ export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   // -> send(DELETE) through the adapter's unsetSecret, only after a human confirms.
   ["deployment_ops_unset_secret", "deletes-durable-state"],
 ]);
-/** Read a bounded string; JSON schema alone cannot protect direct calls to the handler. */
-function string(input: Record<string, unknown>, key: string, required = false): string | undefined {
-  const value = input[key];
-  if (value === undefined && !required) return undefined;
-  if (typeof value !== "string" || !value.trim() || value.length > 200) throw new ToolInputError({ message: `${key} must be a non-empty string of at most 200 characters.` });
-  return value;
-}
-/** Enforce integer bounds even when a caller bypasses schema validation. */
-function integer(input: Record<string, unknown>, key: string, fallback: number, min: number, max: number): number {
-  const value = input[key] === undefined ? fallback : input[key];
-  if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) throw new ToolInputError({ message: `${key} must be an integer from ${min} to ${max}.` });
-  return value;
-}
-/** Validate deploy input independently of the schema, then call the same feature function as the admin route. */
-function deployHandler(deps: DeployOpsToolDeps, input: Record<string, unknown>, signal?: AbortSignal) {
-  onlyKeys(input, ["platform", "target", "ref", "credentialLabel", "workflowFile"]);
-  const ref = string(input, "ref"); const credentialLabel = string(input, "credentialLabel");
-  return runDeploy({ deps, input: { platform: string(input, "platform", true)!, target: string(input, "target", true)!, workflowFile: string(input, "workflowFile"), ...(ref !== undefined ? { ref } : {}), ...(credentialLabel !== undefined ? { credentialLabel } : {}) } }, { signal });
-}
-function onlyKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
-  for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
-}
-/** `source` is a closed shape: a value can never ride in on it. O(1). */
-function valueSource(raw: unknown): SecretValueSource {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new ToolInputError({ message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
-  const record = raw as Record<string, unknown>;
-  if ((record.kind === "typed" || record.kind === "site-key") && Object.keys(record).length === 1) return { kind: record.kind };
-  if (record.kind === "secret" && typeof record.name === "string" && Object.keys(record).length === 2) return { kind: "secret", name: record.name };
-  throw new ToolInputError({ message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
-}
 type Permit = (permission: string) => Promise<void>;
 const TAKES_EFFECT: Record<SecretConfirmRequest["appliesOn"], string> = { "next-deploy": "on the next deploy", "vendor-restart": "after the platform restarts the app", immediately: "immediately" };
 /** The card names exactly what runs; the permission is re-checked after the human answers. Literal tool ids keep the MCP-UI allowlist scan exact. */
@@ -87,64 +53,11 @@ function secretConfirm(ctx: ToolExecutionContext, surfaces: ChatDeleteSurfaceDep
     }, { declined: ({ reason }) => ({ confirmed: false, result: notConfirmedResult({ confirmed: false, reason }) }) })(ctx, options) as ReturnType<SecretConfirm>;
   };
 }
-const SECRET_KEYS: Record<string, readonly string[]> = {
-  deployment_ops_list_secrets: ["platform", "target", "credentialLabel"],
-  deployment_ops_unset_secret: ["platform", "target", "credentialLabel", "name"],
-  deployment_ops_set_secret: ["platform", "target", "credentialLabel", "name", "source", "dryRun"],
-};
-/** Secrets handlers: validation independent of the schema; copying the site key also needs the site-key permission. */
-function secretsHandler(deps: DeployOpsToolDeps, surfaces: ChatDeleteSurfaceDeps | undefined, name: string, permit: Permit): ToolHandler {
-  return async (ctx, options) => {
-    const input = requireInputRecord({ input: ctx.input });
-    onlyKeys(input, SECRET_KEYS[name]!);
-    const target = { platform: string(input, "platform", true)!, target: string(input, "target", true)!, credentialLabel: string(input, "credentialLabel") };
-    if (name === "deployment_ops_list_secrets") return runListSecrets({ deps, input: target }, { signal: ctx.signal });
-    const optional = { signal: ctx.signal, confirm: secretConfirm(ctx, surfaces, options, permit) };
-    if (name === "deployment_ops_unset_secret") return runUnsetSecret({ deps, input: { ...target, name: string(input, "name", true)! } }, optional);
-    const source = valueSource(input.source);
-    if (input.dryRun !== undefined && typeof input.dryRun !== "boolean") throw new ToolInputError({ message: "dryRun must be a boolean." });
-    if (source.kind === "site-key") await permit(SITE_KEY_MANAGE_PERMISSION);
-    const setInput = { ...target, name: string(input, "name", true)!, source, dryRun: input.dryRun === true };
-    if (source.kind === "typed") return collectTypedDeploySecret({ ctx, deps, surfaces, input: setInput, permit: () => permit("custom-credentials.write") }, { ...options, confirm: optional.confirm });
-    return runSetSecret({ deps, input: setInput }, optional);
-  };
-}
-const SECRET_TOOLS = ["deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"];
-function observationInput({ name, input }: { name: string; input: Record<string, unknown> }, _optional = {}): DeployOpsInput {
-  const isList = name === "deployment_ops_list_targets";
-  const allowed = isList ? ["platform", "credentialLabel", "org"] : ["platform", "target", "credentialLabel", "runId", "branch", ...(name === "deployment_ops_logs" ? ["limit"] : []), ...(name === "deployment_ops_wait" ? ["until", "timeoutSeconds"] : [])];
-  onlyKeys(input, allowed);
-  const args: DeployOpsInput = { platform: string(input, "platform", true)!, target: isList ? "" : string(input, "target", true)!, credentialLabel: string(input, "credentialLabel"), ...(isList ? { org: string(input, "org") } : { runId: string(input, "runId"), branch: string(input, "branch") }) };
-  return args;
-}
 
-async function observationHandler({ deps, input, name }: { deps: DeployOpsToolDeps; input: Record<string, unknown>; name: string }, { signal }: { signal?: AbortSignal } = {}) {
-  const args = observationInput({ name, input }, {});
-  if (name === "deployment_ops_list_targets") return await runDeployOps(deps, args, "listTargets", signal);
-  if (name === "deployment_ops_logs") return await runDeployOps(deps, { ...args, limit: integer(input, "limit", 100, 1, 500) }, "logs", signal);
-  if (name === "deployment_ops_status") return await runDeployOps(deps, args, "status", signal);
-  if (input.until !== "healthy" && input.until !== "finished") throw new ToolInputError({ message: "until must be 'healthy' or 'finished'." });
-  return await waitForDeployOps({ status: signal => runDeployOps(deps, args, "status", signal), clock: deps.waitClock, initial: { platform: args.platform, target: args.target, state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: nowIso({ clock: deps.clock }) } }, { until: input.until, timeoutSeconds: integer(input, "timeoutSeconds", 180, 10, MAX_WAIT_SECONDS), signal });
-}
-
-/** Permission precedes any plugin/credential read. Handler input validation is independent of the schema. */
-export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: ChatDeleteSurfaceDeps): ToolRegistration[] {
-  const catalog = getDeployOpsAgentToolCatalog(deps.deployOpsRegistry);
-  const handlers: Record<string, ToolHandler> = {};
-  for (const tool of catalog) handlers[tool.name] = async (ctx, options) => {
-    try {
-      const permit: Permit = permission => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "deploy-ops" });
-      await permit(tool.authorization.permission);
-      if (SECRET_TOOLS.includes(tool.name)) return await secretsHandler(deps, surfaces, tool.name, permit)(ctx, options);
-      const input = requireInputRecord({ input: ctx.input });
-      if (tool.name === "deployment_ops_deploy") return await deployHandler(deps, input, ctx.signal);
-      return await observationHandler({ deps, input, name: tool.name }, { signal: ctx.signal });
-    } catch (error) {
-      if (error instanceof DeployCredentialSetupRequired) return { executed: false, credentialSetup: error.credentialSetup };
-      throw error;
-    }
-  };
-  return buildDomainRegistrations({ metadata: toolMetadata, domain: "deploy-ops", catalogModule: "features/deployments/deploy-ops/agent-tools.ts", catalog: indexCatalogById({ catalog: catalog }), handlers, derivedRisk: deployOpsDerivedRisk });
+export function buildDeployOpsRegistrations(deps:DeployOpsToolDeps,surfaces?:ChatDeleteSurfaceDeps) {
+ return build({deps:bindDeployOpsRuntime(deps),host:{catalog:getDeployOpsAgentToolCatalog(deps.deployOpsRegistry),metadata:toolMetadata,derivedRisk:deployOpsDerivedRisk,domain:'deploy-ops',catalogModule:'features/deployments/deploy-ops/agent-tools.ts',permissions:{write:'custom-credentials.write',siteKey:SITE_KEY_MANAGE_PERMISSION},
+ permit:({ctx,permission})=>requireToolPermission({authorize:adaptLegacyAuthorize({authorize:deps.authorize}),workspaceId:deps.workspaceId,principalId:ctx.principal.id,permission},{entityType:'deploy-ops'}),
+ approvals:{confirmFor:({ctx,permit},options)=>secretConfirm(ctx,surfaces,options,permit)},cards:bindDeploySecretCards(deps,surfaces)}},{});
 }
 /** Contribute five read-only tools, the deploy tool and the secret writers; the composition root supplies a gated registry for daemon schemas. */
 export function contributeDeployOpsTools(options: { registry?: DeployOpsRegistry } = {}): ToolContributor<DeployOpsToolDeps, ChatDeleteSurfaceDeps> {
