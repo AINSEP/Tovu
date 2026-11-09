@@ -9,6 +9,7 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_EXCHANGE_ID
 import { issueToolFailureDiagnostic } from '@jini-ai/daemon/tool-recovery';
 import { buildConfirmationSurface } from '@jini-ai/ui/mcp-ui/surfaces';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
+import { CredentialedRequestValidationError } from '@jini-ai/integrations/credentialed-http';
 import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import { bindTovuCredentialToolOperations, customCredentialsDerivedRisk, createCredentialSaveHandlers, createCredentialToolRegistrations } from '../tool-registrations.js';
@@ -364,4 +365,43 @@ test('request unknown rejections retain their original identity after classifica
   f.ports.credentialedRequest.classifyError = ({ error }) => { classifications++; assert.equal(error, raw); return { category: 'unknown', error }; };
   await assert.rejects(f.handlers().get(ids.makeRequest)!(context({ label: SUMMARY.label, method: 'GET', url: 'https://api.acme.test/items' })), error => error === raw);
   assert.equal(classifications, 1);
+});
+
+test('DELETE preflight classifies the original once and preserves the map prefix with caller-safe validation text', async () => {
+  const f = fixture();
+  const raw = new CredentialedRequestValidationError({ message: 'private DELETE address 10.0.4.7' });
+  const safe = 'Acme DELETE target is not allowed';
+  let classifications = 0;
+  f.ports.credentialedRequest.resolveTarget = async () => { f.log.push('target'); throw raw; };
+  f.ports.credentialedRequest.classifyError = ({ error }) => {
+    classifications++;
+    assert.equal(error, raw);
+    return { category: 'validation', error, callerSafeMessage: safe };
+  };
+  const registrations = createCredentialToolRegistrations({ routeDeps: f.actor, host: HOST, ports: f.ports,
+    operations: { ...f.operations, modelFacingErrors: [{ error: CredentialedRequestValidationError, code: 'ACME_REQUEST_REJECTED' }] } });
+  const handler = registrations.find(r => r.descriptor.id === ids.makeRequest)!.handler;
+  await assert.rejects(handler(context({ label: SUMMARY.label, method: 'DELETE', url: 'https://api.acme.test/items' })), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, `ACME_REQUEST_REJECTED: ${safe}`);
+    assert.doesNotMatch(error.message, /private DELETE|10\.0\.4\.7|Schema for/);
+    return true;
+  });
+  assert.equal(classifications, 1);
+  assert.deepEqual(f.log, ['permit:acme.change:acme-secret-set', 'recovery', 'target']);
+  assert.equal(f.exchanges.size(), 0);
+});
+
+test('DELETE preflight preserves non-validation rejection identity after classifying once', async () => {
+  for (const category of ['not-found', 'transport', 'unknown', 'egress-refused'] as const) {
+    const f = fixture(); const raw = new Error('Acme preflight fault'); let classifications = 0;
+    f.ports.credentialedRequest.resolveTarget = async () => { throw raw; };
+    f.ports.credentialedRequest.classifyError = ({ error }) => {
+      classifications++;
+      assert.equal(error, raw);
+      return { category, error, callerSafeMessage: 'Acme public refusal', callerSafeError: new Error('Acme public refusal') };
+    };
+    await assert.rejects(f.handlers().get(ids.makeRequest)!(context({ label: SUMMARY.label, method: 'DELETE', url: 'https://api.acme.test/items' })), error => error === raw);
+    assert.equal(classifications, 1);
+  }
 });
