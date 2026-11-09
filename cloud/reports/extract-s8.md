@@ -295,3 +295,72 @@ No background process left running (the single test loop exited 0).
 Setup/baseline: all background runners (install/build, link/tsc, original-checkout build, per-file test loop) exited; none left running.
 
 ## Final status
+
+## C1 seam — inventory
+
+Recorded before any C1 implementation edit (R5.6). T = `apps/website/src/`, J = Jini `packages/`.
+Cited lines verified against the C0 tip: `custom-credentials/store.ts` 562 lines, `vault-repo.ts` 129,
+`types.ts` 134, `repo.memory.ts` 7; `platform/secrets/vault-kinds.ts` createTovuStoreVault :62,
+parseTovuStoreMeta :92, byVaultLabel :99; `vendor-credentials/project-scope.ts` credentialScopes :39,
+credentialCreateTarget :51; vault-repo.ts :9 / :21 `"tovu"` owner, :23/:26/:126 `new VaultError`, :44
+`import("../project-keys/attached-vault.js").SiteGrantedVault`; store.ts :354 ProjectKeyCreateConflictError.
+Corrections: none (all cited lines match). One closure addition: store.ts also imports
+`normalizeCredentialWorksFor` and `VaultError` from `@jini-ai/platform` (a Jini package other than core),
+so both are injected too (rows below).
+
+Seam shape: the generic code moves into NEW same-directory files `T features/custom-credentials/sets/{host,vault-repo,store}.ts`
+(destination of the next batch: `J integrations/src/credentialed-http/sets/`). They import only
+`@jini-ai/core/contracts/{credentials,vault}`, `@jini-ai/core/primitives` (types) and each other. A NEW
+Tovu binder `T features/custom-credentials/tovu-credential-sets.ts` holds every Tovu input; `store.ts`
+and `vault-repo.ts` become thin bindings keeping every historical export, signature and default;
+`types.ts` keeps every name as an alias of the core contract (`allowedOriginsFor` runtime stays in `types.ts`).
+
+| Name | Value/type | Source file:line | Destination | Host vocabulary: permission names, ids and paths — injected or justified | @agent-note obligations |
+|---|---|---|---|---|---|
+| CustomProviderConnectionInput | type | T custom-credentials/types.ts:27 | core contracts/credentials `CredentialSetConnectionInput`; T alias | none | username is metadata, only token sealed |
+| CustomCredentialSetRecord | type | types.ts:33 | core `CredentialSetRecord<C>`; T alias `<CustomCredentialCategoryId>` | category union = host input via `C` | vaultRecord/vaultExpectedRevision non-enumerable, never serialized; same vault + CAS; trusted owner/null/kind/AAD |
+| CustomCredentialSummary | type | types.ts:62 | core `CredentialSetSummary<C>`; T alias | `credentialType: "custom"` = core persisted `CredentialType` value (neutral protocol) | metadata only, never decrypts, no token/sealed/private field |
+| CustomCredentialScope | type | types.ts:82 | core `CredentialSetScope`; T alias | `site`/`project` neutral scope ids | site first, then granted project |
+| CustomCredentialProjectScope | type | types.ts:90 | core `CredentialSetProjectScope<C>`; T alias | none | replaceRepo trusted + grant recheck; inventoryRepo cannot open; createRepo create-only; project sealer/keyring |
+| CustomCredentialSetRepoPort | type (repo port, :115-134) | types.ts:115 | core `CredentialSetRepoPort<C>`; T alias | none | CAS writes join host transaction; findByLabel indexed + same authorization; vault is the read vault |
+| CredentialTokenHint | type | contracts/core/credential-token.ts:5 (platform) | core `CredentialSetTokenHint` (narrow identical local type; no platform import) | none | computed at seal; read without decrypt |
+| CustomCredentialCategoryId / CUSTOM_CREDENTIAL_CATEGORIES | type + runtime const | contracts/core/custom-credential-categories.ts:7,9 | stays T; injected as `host.categories` and as type param `C` | `source-control|hosting|media|ai|ops|general` host validation list; core types use `C extends string` so stored `category` strings stay exactly the same bytes (compatibility: core never narrows or rewrites the stored value) | host list validates writes; reads keep stored value |
+| VaultPutRecord / VaultRepoPort / SealedSecret / KeyringPort / SecretSealerPort / VaultErrorCode | types | via @jini-ai/platform re-export of core | core contracts/vault (existing) | none | — |
+| ISODateTime / UUID | types | @jini-ai/core/primitives | core contracts use `string` (identical aliases, no extra import) | none | — |
+| allowedOriginsFor | runtime fn | types.ts:108 | stays T (NOT core) | none | — |
+| customVaultScope | runtime fn | vault-repo.ts:8-11 | generic `credentialSetVaultScope({..., ownerKey})` in sets/vault-repo.ts; T binding unchanged signature | owner `tovu` (vault-repo.ts:9) → required `policy.ownerKey`; null principal/binding neutral | trusted owner, null scope; kind vendor default, custom legacy bridge |
+| isCustomCredentialRow | runtime fn | vault-repo.ts:13-15 | sets/vault-repo.ts (private) | kinds `vendor`/`custom`, meta `credentialType` = core VaultKind/CredentialType values (neutral persisted types) | vendor-default/custom-legacy read bridge |
+| customVaultRecord | runtime fn | vault-repo.ts:20-34 | generic `credentialSetVaultRecord({row, expectedRevision, policy})`; T binding | owner `tovu` (:21) → policy.ownerKey; parseTovuStoreMeta → policy.parseMeta; VaultError → policy.vaultErrors.create | context/invalid-record canonical errors; non-enumerable private context |
+| CustomCredentialVaultRepo | class | vault-repo.ts:37-92 | generic `CredentialSetVaultRepo` (sets/vault-repo.ts); T subclass keeps name + constructor `({vault}, {project})` | byVaultLabel → policy.compareLabels; raw UNIQUE message (vault-repo.ts:83) → policy.labelConflict (host SQL wording) | same vault object, CAS, label order |
+| attached-vault SiteGrantedVault | import-type | vault-repo.ts:44 | removed from generic; optional `findRowByLabel` input; T binds `reader.findByLabel` of the SAME vault | none | indexed, same authorization; repo.vault === supplied vault |
+| compatibilityVaultRow/Meta/TokenHints, preparedVaultRow | runtime fns | vault-repo.ts:96-129 | sets/vault-repo.ts | none beyond policy | hints kept only for unchanged envelope; prepared CAS identity check |
+| VaultError (construct + classify) | runtime class | @jini-ai/platform (vault-repo.ts:23/26/126, store.ts:358,561) | R6 `vaultErrors.create({code}, optionalArgs?)` + `vaultErrors.codeOf(error)`; T binds `new VaultError({code})` / instanceof | none | one canonical class per code; classifier recognizes only it |
+| parseTovuStoreMeta | runtime fn | platform/secrets/vault-kinds.ts:92 | host input `policy.parseMeta`; T binds | Tovu meta policy stays T | same complete-shape parser as the vault service |
+| byVaultLabel | runtime fn | vault-kinds.ts:99 | host input `policy.compareLabels`; T binds | none | label order identical |
+| createTovuStoreVault | runtime fn | vault-kinds.ts:62 | host input `host.openVault({deps, kind})`; T binds with storageError | key/meta protection, owner check stay T | authorize full context before seal/open; crypto → storage error |
+| credentialScopes | runtime fn | vendor-credentials/project-scope.ts:39 | host input `host.scopes`; narrow local `CredentialSetScoped`/`CredentialSetScopeCarrier` types | none | site first, then granted project |
+| credentialCreateTarget | runtime fn | project-scope.ts:51 | host input `host.createTarget` | `scope must be "site" or "project"` stays T wording | project unless site; create-only owner port |
+| isUniqueViolation | runtime fn | @jini-ai/db/kernel (store.ts:6,361) | host input `host.isUniqueViolation` | none | raw UNIQUE → domain duplicate |
+| ProjectKeyCreateConflictError | runtime class | project-keys/create-vault.ts:6 (store.ts:354) | host input `host.isCreateConflict` (type guard); message kept | Shared Keys/P25_KEY_CREATE_CONFLICT wording stays T | keep host message |
+| normalizeCredentialToken / assertCredentialFreeField / CredentialInputError | runtime | contracts/core/credential-token.ts:3-10 | host input `host.token.{normalize,assertFreeField,isInputError}`; T binds the @tovu/contracts application-key detector variant | none | same validation order; input errors → validation error, same message |
+| normalizeCredentialWorksFor | runtime fn | @jini-ai/platform (store.ts:2,560) | host input `host.normalizeWorksFor` | `worksFor must be an array of provider IDs` → host message | canonical vault error → validation error |
+| CREDENTIAL_MESSAGES.storage | value | credential-token.ts (platform) | `host.messages.storage` | host wording | — |
+| duplicate/project/notFound messages | values | store.ts:335,361,475 | `host.messages.{duplicateLabel,projectDuplicateLabel,notFound}` | `a custom credential labeled…`, `Your project already has a key named…`, `no custom credential…` host wording | verbatim |
+| Shared Keys / P25_OWNER_KEY_READ_ONLY messages | values | store.ts:463,504 | `host.messages.{sharedReplacementReadOnly,sharedDeleteReadOnly}` | Shared Keys product name + P25 code host policy | trusted allowSharedKeyReplacement never model input |
+| Field validation messages (label/category/baseUrl/additionalHosts/username/connection) | values | store.ts:170-314 | sets/store.ts | neutral schema wording over field names of the neutral contract (justified neutral protocol); category list comes from host | same order and text |
+| MAX_LABEL_LENGTH = 200 | value | store.ts:20 | sets/store.ts | neutral limit of the contract (stored labels unchanged) | — |
+| Error classes CustomCredential{Validation,DuplicateLabel,ConcurrentModification,SecretStoreUnconfigured,NotFound}Error | runtime classes | store.ts:27-40 | sets/store.ts canonical; T store.ts re-exports the SAME objects | `custom` = core CredentialType value; class names unchanged for identity | one canonical class, old shim same object |
+| Store operations (describe/describeByLabel/list/inventory/create/update/delete/resolve) | runtime fns | store.ts:104-556 | sets/store.ts `{host, deps, input}` API; T store.ts thin bindings, same names/signatures | none | metadata never decrypts; resolve opens only the selected authorized row with same-read metadata; CAS; kind preserved |
+| Deps/input interfaces (Inventory/Read/Write/Resolve deps, Create/Update input) | types | store.ts:88-95,159-166,316-328,395-427,508-511 | T keeps verbatim; generic twins in sets/store.ts | `TOVU_SITE_KEY` only in T comment | allowSharedKeyReplacement trusted |
+| repo.memory.ts InMemoryCustomCredentialSetRepo | class | repo.memory.ts:5-7 | stays T unchanged (platform InMemoryVaultRepo construction) | none | — |
+| owner=tovu / null scopes / vendor-custom bridge | values | vault-repo.ts:9,21,56-62 | `tovuCredentialSetVaultPolicy.ownerKey` (T binder); null scopes + bridge in generic (neutral persisted contract) | owner required input, no default | documented in CredentialSetVaultPolicy note |
+| custom-credentials/read/write/system.write, credential-copy, tool/catalogModule names | permission/tool ids | tool-registrations / tool-catalog-manifest | C2 | not touched in C1 (no C1 symbol uses them) | C2 |
+| copy URI `ui://tovu/use-saved-key/${exchange.id}` | URI | credential-copy tool | C2 | not touched in C1 | C2 |
+| set-token apps `tovu-custom-credential-set-token` / `-outcome`, create/outcome apps, path `/:new-key`, answer fields/examples | app ids/paths | tool registrations/cards | C2 | not touched in C1 | C2 |
+| Access Tokens / environment wording | text | categories doc, `TOVU_SITE_KEY` comment | T only (comments + host list) | host | — |
+| Cycles | — | store.ts → vendor-credentials (pre-existing) | binder only; sets/* has no T import, so no new cycle | — | — |
+
+C1 new tests, named before they are written (T-relative, all NEW files):
+- `features/custom-credentials/__tests__/extract-s8-c1-second-host.test.ts` — a second host (different owner key, category list and messages, its own error classes) drives the generic `sets/` store + vault repo over the platform in-memory vault: create/list/describe/resolve/update/delete, owner/null/kind enforcement, canonical error construction + classifier + context, scope/replace/grants with a project half, same vault identity and read/open/seal/write counts, metadata reads with 0 opens.
+- `features/custom-credentials/__tests__/extract-s8-c1-source-scan.test.ts` — the `sets/` files import nothing but `@jini-ai/core/*` and same-dir files (no db/platform/UI/Tovu/project/vendor path, no `tovu` owner literal); T old-entry identity: `store.ts` error classes are the `sets/store.ts` objects, `CustomCredentialVaultRepo` constructor shape/instance fields, `repo.vault === suppliedVault`, VaultError identity for context/invalid-record, raw UNIQUE message.
+- `features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts` — independent hand-written copies of the old `types.ts` shapes; exact key/readonly/optional/assignability checks against the aliases, compiled explicitly with `tsc --noEmit` (its runtime body is one trivial node test).
