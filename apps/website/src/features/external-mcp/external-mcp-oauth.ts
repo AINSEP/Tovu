@@ -35,7 +35,7 @@ import {
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
 import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 import { resolveExternalMcpAuthMode } from "../../contracts/core/external-mcp-auth.js";
-import { type ExternalMcpOAuthGrant, type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "./contracts.js";
+import { type ExternalMcpOAuthGrant, type ExternalMcpRevocationReason, type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "./contracts.js";
 import { type ExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 
 /**
@@ -118,6 +118,11 @@ export class ExternalMcpReauthRequiredError extends Error {
   }
 }
 
+/** Tovu's ONE canonical re-authorization factory, supplied to both the connection gate and the sign-in service. */
+export function createExternalMcpReauthRequiredError(input: { serverId: string; label?: string | null; cause?: unknown }): ExternalMcpReauthRequiredError {
+  return new ExternalMcpReauthRequiredError(input);
+}
+
 /**
  * The admin deep link for one connection.
  *
@@ -164,6 +169,26 @@ interface ExternalMcpConnectionGateDeps {
 }
 
 /**
+ * @agent-note The gate's host inputs (EXTRACT-S5 H2b seam; the gate moves to `mcp/federation/hosted` in H3 and imports no
+ * integrations or OAuth module). The host fulfills them ONCE per gate. `repo` is the same repository instance the store and
+ * sign-in use; the gate makes one `findByServerId` per call and never unseals, opens a token or touches the network.
+ * `isPluginEnabled` is the host's activation owner: a throw DENIES. `assertSharedAuthorized` is the host's shared-owner
+ * check; `true` skips only the legacy re-authorization check. `reauthRequired` is the host's ONE canonical re-authorization
+ * factory, the same function its sign-in service throws through, so `instanceof`, `code` and `retryable` stay one identity.
+ * `revoked` builds the host's revocation error with its own messages and code. `recovery` returns model-facing recovery
+ * text naming the host's own tool ids. `logUnreadableRow` is operator-only diagnostics; its detail never reaches model text.
+ */
+export interface HostedMcpConnectionGatePorts extends ExternalMcpConnectionGateDeps {
+  readonly reauthRequired: (input: { serverId: string; label?: string | null }) => Error;
+  readonly revoked: (input: { serverId: string; label: string | null; remoteName: string; reason: ExternalMcpRevocationReason }) => Error;
+  readonly recovery: {
+    readonly accessHint: (input: { pluginId: string; serverId: string; refusal: ExternalMcpRevocationReason }) => string;
+    readonly pluginOff: (input: { pluginId: string }) => string;
+  };
+  readonly logUnreadableRow: (input: { connectionId: string; error: unknown }) => void;
+}
+
+/**
  * Builds the liveness-AND-revocation gate `mcp-federation/registrations.ts` checks before every
  * federated call.
  *
@@ -195,46 +220,66 @@ interface ExternalMcpConnectionGateDeps {
  *   reintroduce the cross-process invisibility this exists to close, and the read is far cheaper
  *   than the network round trip it guards.
  */
-export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void | FederatedGateVerdict> {
+export function createHostedMcpConnectionGate(deps: HostedMcpConnectionGatePorts): (connectionId: string, call: FederatedCallTarget) => Promise<void | FederatedGateVerdict> {
   return async (connectionId, call) => {
     const record = await readConnectionRowOrRefuse(deps, connectionId);
     await assertProvisioningPluginEnabled({ deps, record });
     const isPreset = call.origin?.kind === "preset";
     const refusal = isPreset ? null : rosterRefusalFor(record, call);
     if (refusal !== null) {
-      offerPluginAccessCard({ record, refusal });
-      throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: record?.label ?? null, remoteName: call.remoteName, reason: refusal });
+      offerPluginAccessCard({ deps, record, refusal });
+      throw deps.revoked({ serverId: connectionId, label: record?.label ?? null, remoteName: call.remoteName, reason: refusal });
     }
     const shared = await deps.assertSharedAuthorized?.({ serverId: connectionId });
-    if (!shared) assertNotAwaitingReauth(record, connectionId);
+    if (!shared) assertNotAwaitingReauth(deps, record, connectionId);
     // A roster call just passed `rosterRefusalFor`'s current-row grant check; tell Jini so its
     // admitted-grants snapshot does not refuse a grant added since boot. A preset vouches for nothing.
     return isPreset ? undefined : "current-grants-checked";
   };
 }
 
+/** Tovu's bindings for {@link createHostedMcpConnectionGate}: its reauth factory, revocation error, recovery copy and operator log. */
+export const tovuConnectionGateVocabulary: Omit<HostedMcpConnectionGatePorts, keyof ExternalMcpConnectionGateDeps> = {
+  reauthRequired: input => createExternalMcpReauthRequiredError(input),
+  revoked: input => new ExternalMcpConnectionRevokedError(input),
+  recovery: {
+    accessHint: ({ pluginId, serverId, refusal }) => {
+      const reason = refusal === "turned-off" ? "connection was turned off" : "connection needs access approval";
+      return `The '${pluginId}' plugin's '${serverId}' ${reason} (${refusal}). Use plugins_set_enabled({family:"agent-plugin",pluginId:${JSON.stringify(pluginId)},enabled:true}) to show the owner one card for its declared source, tools and may-write grants.`;
+    },
+    pluginOff: ({ pluginId }) => `The '${pluginId}' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled before using its tools.`,
+  },
+  logUnreadableRow: ({ connectionId, error }) => console.warn(
+    `[external-mcp] '${connectionId}': federated tool call refused — its connection row could not be read (${error instanceof Error ? error.message : String(error)})`,
+  ),
+};
+
+/** Tovu's gate: {@link createHostedMcpConnectionGate} bound to {@link tovuConnectionGateVocabulary}. Signature unchanged. */
+export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void | FederatedGateVerdict> {
+  return createHostedMcpConnectionGate({ ...deps, ...tovuConnectionGateVocabulary });
+}
+
 /** Point an active plugin with missing source/tool/write grants back to its existing single card.
  * @throws ToolInputError naming that review flow; no grant or configuration is changed here.
  * @complexity O(1), no I/O.
  */
-function offerPluginAccessCard({ record, refusal }: { record: ExternalMcpServerRecord | null; refusal: string }, _options = {}): void {
+function offerPluginAccessCard({ deps, record, refusal }: { deps: HostedMcpConnectionGatePorts; record: ExternalMcpServerRecord | null; refusal: ExternalMcpRevocationReason }, _options = {}): void {
   const pluginId = record?.provisionedByPluginId;
   if (!pluginId || !['turned-off', 'tool-not-allowed', 'write-not-allowed'].includes(refusal)) return;
-  const reason = refusal === "turned-off" ? "connection was turned off" : "connection needs access approval";
-  throw new ToolInputError({ message: `The '${pluginId}' plugin's '${record!.serverId}' ${reason} (${refusal}). Use plugins_set_enabled({family:"agent-plugin",pluginId:${JSON.stringify(pluginId)},enabled:true}) to show the owner one card for its declared source, tools and may-write grants.` });
+  throw new ToolInputError({ message: deps.recovery.accessHint({ pluginId, serverId: record!.serverId, refusal }) });
 }
 
 /** A surviving connection never overrides its provisioning plugin's OFF switch.
  * @throws ToolInputError before any remote call when activation is off or cannot be verified.
  * @complexity One activation-owner check for plugin rows; no extra row read.
  */
-async function assertProvisioningPluginEnabled({ deps, record }: { deps: ExternalMcpConnectionGateDeps; record: ExternalMcpServerRecord | null }, _options = {}): Promise<void> {
+async function assertProvisioningPluginEnabled({ deps, record }: { deps: HostedMcpConnectionGatePorts; record: ExternalMcpServerRecord | null }, _options = {}): Promise<void> {
   const pluginId = record?.provisionedByPluginId;
   if (!pluginId) return;
   let enabled = false;
   try { enabled = await deps.isPluginEnabled(pluginId); }
   catch { /* An unreadable activation must not authorize a remote call. */ }
-  if (!enabled) throw new ToolInputError({ message: `The '${pluginId}' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled before using its tools.` });
+  if (!enabled) throw new ToolInputError({ message: deps.recovery.pluginOff({ pluginId }) });
 }
 
 /** The gate's row read, guarded: a read that THROWS (a locked database, a corrupt row) must not leak
@@ -243,14 +288,12 @@ async function assertProvisioningPluginEnabled({ deps, record }: { deps: Externa
  *  text. Split out of {@link createExternalMcpConnectionGate} purely to keep that function's
  *  complexity under the shop ceiling.
  *  @complexity O(1). */
-async function readConnectionRowOrRefuse(deps: ExternalMcpConnectionGateDeps, connectionId: string): Promise<ExternalMcpServerRecord | null> {
+async function readConnectionRowOrRefuse(deps: HostedMcpConnectionGatePorts, connectionId: string): Promise<ExternalMcpServerRecord | null> {
   try {
     return await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
   } catch (error) {
-    console.warn(
-      `[external-mcp] '${connectionId}': federated tool call refused — its connection row could not be read (${error instanceof Error ? error.message : String(error)})`,
-    );
-    throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: null, remoteName: "", reason: "unverifiable" });
+    deps.logUnreadableRow({ connectionId, error });
+    throw deps.revoked({ serverId: connectionId, label: null, remoteName: "", reason: "unverifiable" });
   }
 }
 
@@ -259,21 +302,32 @@ async function readConnectionRowOrRefuse(deps: ExternalMcpConnectionGateDeps, co
  *  {@link createExternalMcpConnectionGate} purely to keep that function's complexity under the shop
  *  ceiling.
  *  @complexity O(1). */
-function assertNotAwaitingReauth(record: ExternalMcpServerRecord | null, connectionId: string): void {
+function assertNotAwaitingReauth(deps: HostedMcpConnectionGatePorts, record: ExternalMcpServerRecord | null, connectionId: string): void {
   if (!record || resolveExternalMcpAuthMode(record) !== "oauth") return;
   if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") return;
-  throw new ExternalMcpReauthRequiredError({ serverId: connectionId, label: record.label });
+  throw deps.reauthRequired({ serverId: connectionId, label: record.label });
 }
 
 /** {@link ExternalMcpOAuthDeps} as the service holds them: `providers` defaulted once at construction,
  *  so nothing downstream builds a second registry. */
 type ExternalMcpOAuthServiceDeps = ExternalMcpOAuthDeps & { readonly providers: OAuthProviderRegistry };
 
+/**
+ * @agent-note Tovu's stable OAuth registration identity, bound once here and handed to the shared sign-in too. Changing
+ * `softwareId` or a client display name registers a NEW client at every provider, so these values are fixed: `softwareId`
+ * "tovu"; a connection's client is named by its row label, falling back to its server id; the shared-owner client is "Tovu".
+ */
+export const tovuRegistrationIdentity = {
+  softwareId: "tovu",
+  clientName: (record: Pick<ExternalMcpServerRecord, "label" | "serverId">): string => record.label ?? record.serverId,
+  sharedClientName: "Tovu",
+} as const;
+
 /** Stable registration identity; callback URLs come only from the host's trusted origin policy.
  * Device-only clients deliberately register no redirect URI (RFC 7591).
  */
 function oauthClientOptions(record: ExternalMcpServerRecord, redirectUri: string | undefined): OAuthAppOptions {
-  return { clientDisplayName: record.label ?? record.serverId, softwareId: "tovu",
+  return { clientDisplayName: tovuRegistrationIdentity.clientName(record), softwareId: tovuRegistrationIdentity.softwareId,
     redirectUris: redirectUri === undefined ? [] : [redirectUri] };
 }
 
@@ -1017,7 +1071,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
   });
 
-  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, resolveProvider: record => resolveProviderDescriptor(deps, record), configure: async input => {
+  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, registrationIdentity: tovuRegistrationIdentity, resolveProvider: record => resolveProviderDescriptor(deps, record), configure: async input => {
     const record = await selfConfigureConnection(deps, await requireOAuthRecord(deps, input.serverId), input.redirectUri, { configurationOnly: true });
     const provider = resolveProviderDescriptor(deps, record);
     const endpoints = readStoredEndpoints(record);
@@ -1189,7 +1243,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     async reportAuthFailure(serverId, error) {
       if (shared && await shared.hasBinding({ serverId })) {
         await shared.markNeedsReauth({ serverId });
-        throw new ExternalMcpReauthRequiredError({ serverId, cause: error });
+        throw createExternalMcpReauthRequiredError({ serverId, cause: error });
       }
       const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
       // A preset connection, a `static_env` row, or one already deleted has no reauth state this
@@ -1217,7 +1271,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
           statusWriteFailure = writeError;
         }
       }
-      throw new ExternalMcpReauthRequiredError({
+      throw createExternalMcpReauthRequiredError({
         serverId,
         label: record.label,
         ...(statusWriteFailure === undefined ? {} : { cause: statusWriteFailure }),
@@ -1238,7 +1292,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
           // NOT a durable state and must not be reported as one.
           if ((error instanceof OAuthError) && error.code === "OAUTH_INVALID_GRANT") {
             const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
-            throw new ExternalMcpReauthRequiredError({ serverId, label: record?.label ?? null });
+            throw createExternalMcpReauthRequiredError({ serverId, label: record?.label ?? null });
           }
           throw error;
         }

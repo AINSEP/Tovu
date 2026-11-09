@@ -42,6 +42,8 @@ const invalidState = () => new OAuthError({ code: 'OAUTH_INVALID_STATE', message
 export function createSharedExternalMcpOAuth(required: {
   deps: ExternalMcpOAuthDeps;
   shared: SharedExternalMcpOwner;
+  /** The host's stable registration identity (one binding; changing it registers a new client). */
+  registrationIdentity: { readonly softwareId: string; readonly sharedClientName: string };
   resolveProvider: (record: ExternalMcpServerRecord) => OAuthProviderDescriptor;
   configure: (input: { serverId: string; redirectUri?: string }) => Promise<SharedMcpConfiguration>;
 }, _optional = {}) {
@@ -240,7 +242,7 @@ export function createSharedExternalMcpOAuth(required: {
         workspaceId: deps.workspaceId, serverId: input.serverId }), expiresAt: new Date(deps.clock.nowMs() + 600_000).toISOString() };
       const started = await beginAuthorizationCode({ provider, guard: deps.httpPorts.guard, randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
         stateless: stateFor({ ...input, credentialId: binding.credentialId, generation: record.generation }), ownerKey: JSON.stringify([siteId, input.serverId, binding.credentialId]),
-        client: context.client, redirectUri: input.redirectUri, options: { clientDisplayName: 'Tovu', softwareId: 'tovu', redirectUris: [input.redirectUri] } },
+        client: context.client, redirectUri: input.redirectUri, options: { clientDisplayName: required.registrationIdentity.sharedClientName, softwareId: required.registrationIdentity.softwareId, redirectUris: [input.redirectUri] } },
       { scopes: context.mcp.scopes, resource: context.identity.resource });
       return { kind: 'redirect_required', authorizationUrl: started.authorizationUrl, expiresAt: started.expiresAt };
     },
