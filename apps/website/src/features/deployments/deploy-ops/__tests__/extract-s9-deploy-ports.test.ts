@@ -141,11 +141,11 @@ test('foreign site-key and credential refusal messages and status/check tool ids
  const f=wire();f.deps.siteKey.read=()=>undefined;
  await assert.rejects(runSetSecret({deps:f.deps,input},{}),{message:'Library key unavailable'});
  const raw=new Error('private library transport detail');
- f.deps.credentials.resolveTarget=async()=>{throw raw;};f.deps.credentials.classifyError=({error})=>({category:'not-found',error,callerSafeMessage:'Library key absent'});
+ f.deps.credentials.resolveTarget=async()=>{throw raw;};f.deps.credentials.classifyError=({error})=>{assert.ok(error instanceof Error);return {category:'not-found',error,callerSafeMessage:'Library key absent'};};
  const ctx=await boundContext({deps:f.deps,platform:f.platform},{});
  await assert.rejects(ctx.get('https://api.library.test/state'),{message:'Library key absent'});
  f.deps.credentials.resolveTarget=async({label,url})=>({label,url:new URL(url)});
- f.deps.credentials.request=async()=>{throw raw;};f.deps.credentials.classifyError=({error})=>({category:'transport',error});
+ f.deps.credentials.request=async()=>{throw raw;};f.deps.credentials.classifyError=({error})=>{assert.ok(error instanceof Error);return {category:'transport',error};};
  await assert.rejects(ctx.send({method:'POST',url:'https://api.library.test/start'}),/Check library_state before retrying/);
  f.deps.credentials.request=async()=>({executed:true,status:401,headers:{},bodyText:'private body',bodyTruncated:false});
  await assert.rejects(ctx.get('https://api.library.test/state'),/Run library_check with label/);
