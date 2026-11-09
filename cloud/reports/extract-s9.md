@@ -326,3 +326,190 @@ Implemented at Tovu `94c9bb85c78cc8bf7858ee40f1ba5b27cc419b46`, Jini unchanged `
 The focused full affected gate is 12 files /120 cases: 116 pass, exactly the four approved baseline failures. Both overlay failures still fail at their original literal assertion; neither test nor skill changed. Strict ESLint including complexity/cognitive limits 10, the explicit amended-test type check and main Tovu tsc all exit 0. Raw commands/results are `f1-*` in the existing task logs and will be retained in continuation evidence.
 
 C3 provenance is updated to this F1-fixed source SHA before the move. Its only additional value dependency is the already-existing canonical `CredentialedRequestValidationError`, resolved to Jini `integrations/src/contracts/credentialed-request-errors.ts` (relative `../../contracts/credentialed-request-errors.js` from tools), as inventoried above. The F1 comment correction is owner-requested; no unrelated rationale is changed.
+
+### C3 implementation and gate in progress
+
+The complete 35-declaration closure and both local consumer contract files now live in `@jini-ai/integrations/credentialed-http/tools`; the F1-fixed source was moved, not reconstructed. Tovu's old factories/types bind/re-export that public entry. The new entry declares node runtime, exports and typesVersions without new package dependencies or isolation exceptions. The migrated four-test closure suite retains every assertion, function/type name and regex, changing only directory-local reads.
+
+New tests pass: published second-host factories 3/3, vocabulary/import scan 1/1, migrated closure 4/4, public old-entry/error identity and real emitted notes 2/2. All core/integrations/devops/neutral types, Tovu main and explicit new pins pass. Normal strict lint with both complexity ceilings10 passes after the optional-property and hint-projection adaptations below. Full Jini shared gate passes except the two inherited guard violations; full real guard output was read, all HW counts unchanged/zero new. Layers `[]`, 579 closures after the single new subpath, same nine SI-c and seven SI-d informational paths/reasons.
+
+The full Tovu matrix currently records 99 files /1,244 cases: 1,239 pass and 5 fail. Four are the explicitly known MCP-UI/Railway/Render failures. The remaining failure is the frozen `extract-s8-c2p2c-ports.test.ts:235` trace: F1 requires a classification call after refused `resolveTarget`, while the old expected trace is only `['resolveTarget']`. No assertion has been changed; a single additive expected-call allowance has been requested from the coordinator. C3 is not claimed gated and G-deploy has not started.
+
+Self-caused setup/build/lint findings fixed in scope: Jini strict optional-property checking requires local optional `card`, `pluginCard`, `keyHint` and `pluginId` to explicitly admit undefined; no core contract is widened. Absent emitter uses an empty optional object; saved-card output clones the same safe summary then deletes tokenHint instead of binding an unused discard variable rejected by Jini lint. Old card/descriptor/cost/recording tests remain equal. A new host-test authorizer annotation now uses the canonical core type.
+
+The real guard (not a scratch filter) reported four N1 consumer-name and four N2 source-root comment findings. Only those actual rejected comment lines were neutralized; exact original SHA/path attribution is retained in Jini `packages/integrations/source-map.md`. The eight-line exact old/new record is in continuation evidence. No production string default or stored protocol changed. The corrected raw guard is exactly inherited R2/R10 with HW17/16/135/1/0/0/0/49/0 and zero new.
+
+### R1 full actual relocation diffs
+
+Tovu deletion (the four unchanged tests are preserved in the Jini addition immediately after it):
+
+```diff
+diff --git a/apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts b/apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts
+deleted file mode 100644
+index f64bdaec9..000000000
+--- a/apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts
++++ /dev/null
+@@ -1,72 +0,0 @@
+-/** @file EXTRACT-S8-X: pure consumer contracts, declaration notes and host-vocabulary closure. */
+-import assert from 'node:assert/strict';
+-import { readFileSync } from 'node:fs';
+-import test from 'node:test';
+-import ts from 'typescript';
+-
+-function read(name: string) {
+-  const text = readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
+-  return { text, source: ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true) };
+-}
+-
+-test('consumer-only operations import core types only, with no runtime imports or hidden host defaults', () => {
+-  const { text, source } = read('credential-tool-operations.ts');
+-  for (const statement of source.statements) {
+-    if (ts.isImportDeclaration(statement)) {
+-      assert.equal(statement.importClause?.isTypeOnly, true);
+-      assert.ok(ts.isStringLiteral(statement.moduleSpecifier));
+-      assert.match(statement.moduleSpecifier.text, /^@jini-ai\/core(?:\/|$)/);
+-    } else assert.ok(ts.isInterfaceDeclaration(statement), statement.getText(source));
+-  }
+-  assert.doesNotMatch(text, /@tovu\/|#src\/|@jini-ai\/(?!core)|['"]tovu['"]|CUSTOM_CREDENTIALS|custom_credential_|https?:\/\//);
+-});
+-
+-test('every exported consumer contract carries its own second-host note, preserved in declarations', () => {
+-  for (const name of ['credential-tool-operations.ts', 'credential-tool-host.ts']) {
+-    const { text, source } = read(name);
+-    const declarations = ts.transpileDeclaration(text, { fileName: name, compilerOptions: { removeComments: false } });
+-    assert.deepEqual(declarations.diagnostics ?? [], []);
+-    const emitted = ts.createSourceFile(name.replace('.ts', '.d.ts'), declarations.outputText, ts.ScriptTarget.Latest, true);
+-    for (const declaration of [source, emitted]) {
+-      for (const statement of declaration.statements.filter(ts.isInterfaceDeclaration)) {
+-        const comments = declaration.text.slice(statement.getFullStart(), statement.getStart(declaration));
+-        assert.match(comments, /@agent-note/, `${name}: ${statement.name.text} must carry declaration-local obligations`);
+-      }
+-    }
+-  }
+-});
+-
+-test('the credential-port ordering note is attached to CustomCredentialToolPorts itself', () => {
+-  const { text, source } = read('credential-tool-host.ts');
+-  const declaration = source.statements.find(s => ts.isInterfaceDeclaration(s) && s.name.text === 'CustomCredentialToolPorts');
+-  assert.ok(declaration);
+-  const comment = text.slice(declaration.getFullStart(), declaration.getStart(source));
+-  assert.match(comment, /resolveTarget.*never decrypts/);
+-  assert.match(comment, /SAME provider object/); assert.match(comment, /EXACT plan/); assert.match(comment, /Aborted → no commit/);
+-  assert.doesNotMatch(comment, /The secret-card functions/);
+-});
+-
+-test('the prospective moved handler/helper closure has no product literal defaults or Tovu dependency types', () => {
+-  const { source } = read('tool-registrations.ts');
+-  const names = [
+-    'createCredentialSaveHandlers', 'createCredentialToolRegistrations', 'openCreateCard', 'saveCreateCard', 'saveSetToken',
+-    'probeCardBeforeSave', 'readCreateCredentialPrefill', 'safeCredentialLabel', 'deriveCreateCredentialSubmission',
+-    'mapCreateCredentialError', 'rejectUnexpectedSetUsernameFields', 'requireUsernameOrClearSentinel', 'rejectUnexpectedSetTokenFields',
+-    'makeModelFacingCredentialedRequest', 'performRepositoryFilesWrite',
+-  ];
+-  for (const name of names) {
+-    const fn = source.statements.find(s => ts.isFunctionDeclaration(s) && s.name?.text === name);
+-    assert.ok(fn && ts.isFunctionDeclaration(fn) && fn.body, name);
+-    const visit = (node: ts.Node) => {
+-      if (ts.isStringLiteralLike(node)) assert.doesNotMatch(node.text, /tovu|custom_credential_|custom-credentials|credential_save|features\/|https?:\/\//i, `${name}: host vocabulary must be supplied`);
+-      if (ts.isIdentifier(node)) assert.notEqual(node.text, 'CustomCredentialsToolDeps', `${name}: actor contract must not name Tovu route types`);
+-      ts.forEachChild(node, visit);
+-    };
+-    visit(fn);
+-  }
+-  for (const name of ['ValidatedWriteFilesInput', 'WriteFilesResult', 'SetTokenResult', 'SetTokenAnswerContext', 'RawCreateCredentialFields', 'CreateCredentialSubmission', 'CreateCardFailure', 'CreateCredentialResult']) {
+-    const statement = source.statements.find(s => (ts.isInterfaceDeclaration(s) || ts.isTypeAliasDeclaration(s)) && s.name.text === name);
+-    assert.ok(statement, name);
+-    assert.match(source.text.slice(statement.getFullStart(), statement.getStart(source)), /@agent-note/, name);
+-  }
+-});
+```
+
+Jini addition:
+
+```diff
+diff --git a/packages/integrations/src/credentialed-http/tools/__tests__/contracts-closure.test.ts b/packages/integrations/src/credentialed-http/tools/__tests__/contracts-closure.test.ts
+new file mode 100644
+index 000000000..5bd0a663c
+--- /dev/null
++++ b/packages/integrations/src/credentialed-http/tools/__tests__/contracts-closure.test.ts
+@@ -0,0 +1,75 @@
++/** @file EXTRACT-S8-X: pure consumer contracts, declaration notes and host-vocabulary closure. */
++import assert from 'node:assert/strict';
++import { readdirSync, readFileSync } from 'node:fs';
++import test from 'node:test';
++import ts from 'typescript';
++
++function read(name: string) {
++  const names = name === 'tool-registrations.ts'
++    ? readdirSync(new URL('..', import.meta.url)).filter(file => file.endsWith('.ts'))
++    : [name];
++  const text = names.map(file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')).join('\n');
++  return { text, source: ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true) };
++}
++
++test('consumer-only operations import core types only, with no runtime imports or hidden host defaults', () => {
++  const { text, source } = read('credential-tool-operations.ts');
++  for (const statement of source.statements) {
++    if (ts.isImportDeclaration(statement)) {
++      assert.equal(statement.importClause?.isTypeOnly, true);
++      assert.ok(ts.isStringLiteral(statement.moduleSpecifier));
++      assert.match(statement.moduleSpecifier.text, /^@jini-ai\/core(?:\/|$)/);
++    } else assert.ok(ts.isInterfaceDeclaration(statement), statement.getText(source));
++  }
++  assert.doesNotMatch(text, /@tovu\/|#src\/|@jini-ai\/(?!core)|['"]tovu['"]|CUSTOM_CREDENTIALS|custom_credential_|https?:\/\//);
++});
++
++test('every exported consumer contract carries its own second-host note, preserved in declarations', () => {
++  for (const name of ['credential-tool-operations.ts', 'credential-tool-host.ts']) {
++    const { text, source } = read(name);
++    const declarations = ts.transpileDeclaration(text, { fileName: name, compilerOptions: { removeComments: false } });
++    assert.deepEqual(declarations.diagnostics ?? [], []);
++    const emitted = ts.createSourceFile(name.replace('.ts', '.d.ts'), declarations.outputText, ts.ScriptTarget.Latest, true);
++    for (const declaration of [source, emitted]) {
++      for (const statement of declaration.statements.filter(ts.isInterfaceDeclaration)) {
++        const comments = declaration.text.slice(statement.getFullStart(), statement.getStart(declaration));
++        assert.match(comments, /@agent-note/, `${name}: ${statement.name.text} must carry declaration-local obligations`);
++      }
++    }
++  }
++});
++
++test('the credential-port ordering note is attached to CustomCredentialToolPorts itself', () => {
++  const { text, source } = read('credential-tool-host.ts');
++  const declaration = source.statements.find(s => ts.isInterfaceDeclaration(s) && s.name.text === 'CustomCredentialToolPorts');
++  assert.ok(declaration);
++  const comment = text.slice(declaration.getFullStart(), declaration.getStart(source));
++  assert.match(comment, /resolveTarget.*never decrypts/);
++  assert.match(comment, /SAME provider object/); assert.match(comment, /EXACT plan/); assert.match(comment, /Aborted → no commit/);
++  assert.doesNotMatch(comment, /The secret-card functions/);
++});
++
++test('the prospective moved handler/helper closure has no product literal defaults or Tovu dependency types', () => {
++  const { source } = read('tool-registrations.ts');
++  const names = [
++    'createCredentialSaveHandlers', 'createCredentialToolRegistrations', 'openCreateCard', 'saveCreateCard', 'saveSetToken',
++    'probeCardBeforeSave', 'readCreateCredentialPrefill', 'safeCredentialLabel', 'deriveCreateCredentialSubmission',
++    'mapCreateCredentialError', 'rejectUnexpectedSetUsernameFields', 'requireUsernameOrClearSentinel', 'rejectUnexpectedSetTokenFields',
++    'makeModelFacingCredentialedRequest', 'performRepositoryFilesWrite',
++  ];
++  for (const name of names) {
++    const fn = source.statements.find(s => ts.isFunctionDeclaration(s) && s.name?.text === name);
++    assert.ok(fn && ts.isFunctionDeclaration(fn) && fn.body, name);
++    const visit = (node: ts.Node) => {
++      if (ts.isStringLiteralLike(node)) assert.doesNotMatch(node.text, /tovu|custom_credential_|custom-credentials|credential_save|features\/|https?:\/\//i, `${name}: host vocabulary must be supplied`);
++      if (ts.isIdentifier(node)) assert.notEqual(node.text, 'CustomCredentialsToolDeps', `${name}: actor contract must not name Tovu route types`);
++      ts.forEachChild(node, visit);
++    };
++    visit(fn);
++  }
++  for (const name of ['ValidatedWriteFilesInput', 'WriteFilesResult', 'SetTokenResult', 'SetTokenAnswerContext', 'RawCreateCredentialFields', 'CreateCredentialSubmission', 'CreateCardFailure', 'CreateCredentialResult']) {
++    const statement = source.statements.find(s => (ts.isInterfaceDeclaration(s) || ts.isTypeAliasDeclaration(s)) && s.name.text === name);
++    assert.ok(statement, name);
++    assert.match(source.text.slice(statement.getFullStart(), statement.getStart(source)), /@agent-note/, name);
++  }
++});
+```
+
+R1 allowlist diff at C3 is empty: the integrated S8 entries already exist, and are not duplicated. All four regex/name/assertion bodies in the relocation remain byte-identical.
+
+All three C3 factory regressions independently reject defaulted host input (permission, card namespace, copy id mutations), each 2 pass /1 expected fail, then restore 3/3. No mutation remains. [Continuation gate receipt](extract-s9-c-gates.json) preserves actual source pairs, raw test/guard outputs, command exits, exact comment rewordings and declaration provenance. The frozen trace allowance remains pending; no later batch is claimed.
