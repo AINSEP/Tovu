@@ -180,3 +180,41 @@ Unchanged and staying in Tovu, as the brief requires: `run-in-worker.ts`, `types
 None in S6 scope. The next sessions need named owner approval.
 
 EXTRACT-S6 DONE
+
+---
+
+## EXTRACT-S6-FIX (owner-approved follow-up to the independent review)
+
+Scope: the three review findings only, each with the smallest change. Same branches (`cloud/extract-s6`). Caps: 300k tokens / 30 minutes. Used about 08:22–08:29Z and about 60k tokens. All work was done by the coordinator directly, with no subagent. No process left running.
+
+| # | Finding | Change | Where |
+| --- | --- | --- | --- |
+| 1 (High) | The importer contract promised it was called only after integrity/`sdkRange` checks. In fact the factory is called while building the `loadPlugin` arguments, before those checks. | Documentation only. A new `@agent-note` beside `createModuleImporter` states the two-stage contract. (1) The factory call happens before admission, possibly for a package that is then rejected, so it must be inert: no import, snapshot, file read or executable loading. (2) The returned importer runs only after admission. It must enforce containment (stays inside the real package root, links refused), import a fresh identity of the whole dependency graph on every load (a cached `import()` adapter violates this), and keep snapshots alive for late imports until the lifecycle is disposed. The false sentence was removed from the `PluginRuntimeCoreRequired` note, and the inline comment at the call site was corrected. No code change. | Jini `packages/plugins/src/host/node/runtime-core.ts` |
+| 2 (High) | The install-identity admission note lacked the cross-family obligations. | Documentation only. A new `@agent-note` on `withInstallIdentity` requires the complete sequence: (1) one lock shared by every publisher of every family, across processes; (2) under it, a fresh all-family admission inventory including disabled installs and reserved/built-in identities; (3) assert availability, allowing only a permitted upgrade of the same plugin's identity; (4) publish (`run`) while still holding the lock, at most once. It also notes that the site installer cannot see another family's reservation. The implementation stays host-supplied; Tovu's `plugin-host.ts` already does this. | Jini `packages/plugins/src/host/node/runtime-core.ts` |
+| 3 (Medium) | `runsFreshFor` hard-coded `"content.entry.beforeSave"`. | New required input `beforeSaveHook: string` on `PluginCapabilityToolsRequired`, with an `@agent-note`. `runsFreshFor(manifest, beforeSaveHook)` compares against it. Two doc comments that named the literal now refer to the host-supplied hook. Tovu binds its existing `HOOK_CONTENT_ENTRY_BEFORE_SAVE` from `@tovu/sdk`, so its value, text and behaviour are unchanged. | Jini `packages/plugins/src/host/capability-tools.ts`; Tovu `apps/website/src/features/plugin-runtime/capability-tool-registrations.ts` (+2 lines) |
+
+**Failing test first (finding 3).** New Jini test `packages/plugins/src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts`. A second host uses `record.preCommit` through the public `./host` barrel. One case: a tier-2 plugin declaring `record.preCommit` must run fresh, call the preview port once with the host draft, and return `computedNow: true`. Another: a plugin declaring only `content.entry.beforeSave` must read stored values. Committed RED in Jini `e6acf4a633a49c3721eb6ee3eaf6fce8079e1161`: 2/2 failed (`expected false to be true`, `expected true to be false`). After the fix: green.
+
+**Existing-test wiring, disclosed.** The S6-added proof `capability-tools.extract-s6.unit.test.ts` had to be given the new required input. One line was added to its `secondHost()`: `beforeSaveHook: 'content.entry.beforeSave'`, which keeps the hook string that test already uses. No assertion, input, expectation or flow changed. This test is not a pin-era test and not a golden. No pin-era test or fixture was modified in either repo.
+
+**Commits (all pushed, verified with `git ls-remote`):**
+- Jini `e6acf4a633a49c3721eb6ee3eaf6fce8079e1161`: failing test.
+- Jini `652ef2fafd9e4eb7290455f1dd690bd2813df36f`: fix and notes. This is the new Jini tip.
+- Tovu `89487b078d397f24878aaa05bf16524fdfb2cd7e`: binder binds `HOOK_CONTENT_ENTRY_BEFORE_SAVE`. This is the new Tovu source tip; this report commit follows it.
+
+**Verification (changed files only; raw outputs in `/home/user/s6-raw/fix-*.txt`):**
+- Jini:
+  - `pnpm --filter @jini-ai/plugins run build` 0; `exec tsc --noEmit` 0.
+  - vitest (maxWorkers 2) on the new test, the capability proof and the runtime-core proof: 3 files, 12/12.
+  - Strict eslint (complexity/cognitive ≤10, `--no-inline-config`) on both changed production files: 0.
+  - Emitted `.d.ts`: `@agent-note` count capability-tools 66 (was 65), runtime-core 19 (was 17). No `content.entry.beforeSave` or `tovu` in either.
+  - `pnpm check:cross-package` (immutable XP3): XP1–XP5 clean.
+  - `pnpm guard`: output byte-identical to the baseline (exit 1, allowed R2(1)+R10(1), HW 0 new).
+  - `pnpm guard:plugins`: 0.
+  - No new imports; `@jini-ai/plugins` still imports only `@jini-ai/core`.
+- Tovu:
+  - Relink 0; `npx tsc -p tsconfig.json --noEmit` 0; strict `npx eslint` on the binder 0.
+  - Changed-file tests: 49/49. These are the G-plug golden unit + integration tests, `capability-tool-registrations.unit`, `capability-tool-revocation.integration` and `capability-tool-search-discoverability.integration`. The G-plug goldens pin the exact Tovu capability-tool bytes, so this shows the Tovu text and behaviour are byte-identical.
+  - `tool-metadata.baseline.json` SHA256 is still a0d6b428….
+
+EXTRACT-S6-FIX DONE
