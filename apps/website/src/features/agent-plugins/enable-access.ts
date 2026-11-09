@@ -1,12 +1,19 @@
-/** Tovu compatibility shim (A8 seam). The portable body lives in `portable/enable-access.ts` and requires the
- * host's projection pair; only this legacy entry, whose frozen callers may pass no ports, adds
- * Tovu's canonical pair via `agentPluginMcpPortsOf`. A caller that already carries projections keeps
- * its own pair (same function and error identity). Every other export is the portable module's. */
+/** Tovu compatibility shim (A8 seam, A9 move). The portable body lives in `@jini-ai/agent-plugins/connect` and
+ * requires the host's projection pair, trust rule and refusal copy; only these legacy entries, whose
+ * frozen callers pass none of them, bind Tovu's: the pair via `agentPluginMcpPortsOf`, the trust rule
+ * from `capability-projection.ts` and the copy below. A caller that already carries projections keeps
+ * its own pair (same function and error identity). */
 import type { AgentPluginToolGrant, AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
-import { agentPluginMcpProjectionPorts, withAgentPluginMcpPorts } from './mcp-host-bindings.js';
-import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPluginToolGrant as validatedWithPorts } from './portable/enable-access.js';
+import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPluginToolGrant as validatedWithPorts, type AgentPluginEnableAccessMessages } from '@jini-ai/agent-plugins/connect';
+import { agentPluginMcpProjectionPorts, withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
+import { classifyAgentPluginMcpServerTrust } from './capability-projection.js';
 import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
-export * from './portable/enable-access.js';
+export { storedAgentPluginGrants } from '@jini-ai/agent-plugins/connect';
+
+/** Tovu's refusal copy (names Tovu's settings screen). Bytes unchanged from the pre-move body. */
+export const tovuEnableAccessMessages: AgentPluginEnableAccessMessages = {
+  sourceConfiguredSeparately: ({ connectionId }) => `The '${connectionId}' connection was configured separately or points somewhere else. Open Settings → External MCP and review this connection’s address before connecting the plugin again. Its saved sign-in was kept.`,
+};
 
 export function validatedAgentPluginToolGrant(
   required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools },
@@ -16,8 +23,8 @@ export function validatedAgentPluginToolGrant(
 }
 
 export function previewAgentPluginEnableAccess(
-  input: Omit<Parameters<typeof previewWithPorts>[0], 'projections' | 'classifyError'> & AgentPluginMcpContext,
+  input: Omit<Parameters<typeof previewWithPorts>[0], 'projections' | 'classifyError' | 'classifyTrust' | 'messages'> & AgentPluginMcpContext,
   _options = {},
 ): ReturnType<typeof previewWithPorts> {
-  return previewWithPorts(withAgentPluginMcpPorts(input));
+  return previewWithPorts(withOverrides(withAgentPluginMcpPorts(input), { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages }));
 }

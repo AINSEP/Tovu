@@ -13,13 +13,17 @@ import { readInstalledAgentPluginIdentity } from '#src/features/agent-plugins/id
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
-import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
+import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, tovuInstalledMcpReads } from '#src/features/agent-plugins/federate-mcp';
+import { classifyAgentPluginMcpServerTrust } from '#src/features/agent-plugins/capability-projection';
+import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-access';
+import { CONNECT_DECLINED_ACTOR } from '#src/features/agent-plugins/apply-connect-defaults';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts } from '#src/features/agent-plugins/mcp-host-bindings';
-import { createPluginHost, type PluginHostMessages } from './portable-plugin-host.js';
+import { createPluginHost, type PluginHostMessages } from '@jini-ai/agent-plugins/connect/plugin-host';
 
 /** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
 const tovuPluginHostMessages: PluginHostMessages = {
+  ...tovuEnableAccessMessages,
   provisioningFailed: ({ pluginId, failed }) => `Plugin '${pluginId}' could not create these connections: ${failed.map(failure => `${failure.serverKey}: ${failure.reason}`).join('; ')}. Request plugins_set_enabled again to retry.`,
   approvedSnapshotMissing: () => 'The approved access snapshot is missing. Request plugins_set_enabled again. Nothing was provisioned or granted.',
   approvedLoadFailed: ({ detail }) => `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${detail}`,
@@ -62,7 +66,7 @@ export function createTovuPluginHost(
   // Thin Tovu binder: every runtime owner, path, namespace and product text is bound here; the
   // decisions live in `portable-plugin-host.ts`. The projection pair is resolved once per binding:
   // preview, provisioning grant and status share it (legacy no-ports fallback stays Tovu-only).
-  return createPluginHost<Parameters<AgentPluginHostCapability['uninstall']>[0]>({ deps: {
+  return createPluginHost<Parameters<AgentPluginHostCapability['uninstall']>[0], TovuPluginHostDeps['agentPluginLayout']>({ deps: {
     workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, clock: deps.clock, namespace: 'tovu',
     discoverPlugins: deps.discoverPlugins,
     getActivation: input => deps.pluginActivationRepo.getActivation(input),
@@ -92,6 +96,7 @@ export function createTovuPluginHost(
     // without projections gets Tovu's canonical pair here, never inside the portable bodies.
     mcp: withAgentPluginMcpPorts(deps.mcp), mcpPorts: agentPluginMcpPortsOf(deps.mcp),
     grantSignedInDefaults: grantDeclaredToolsToSignedInRows,
+    installedMcp: tovuInstalledMcpReads, classifyTrust: classifyAgentPluginMcpServerTrust, declinedAccessActor: CONNECT_DECLINED_ACTOR,
     warn, messages: tovuPluginHostMessages,
   } }, {
     ...(optional.resolveMcpServers ? { resolveMcpServers: optional.resolveMcpServers } : {}),
