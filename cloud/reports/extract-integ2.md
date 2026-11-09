@@ -46,6 +46,8 @@ The previous S7 report's claim that the frozen uninstall warning counts were “
 
 `pluginSource` is created before tools are built: Jini host/node/runtime-core.ts constructs composeSourceService before returning runtime services; Tovu composition/plugin-runtime.ts builds that core before returning; server app/deps assembly copies pluginRuntime.pluginSource into route deps. No later assignment was found in runtime/assistant wiring, so the registration snapshot preserves production behavior.
 
+Live-reach inventory covers 33 bundled manifests (31 selected package payloads plus two local manifests): none currently uses the legacy identity namespace or MCP aliases, and 29 summaries differ from descriptions. R1 therefore protects shipped public purposes. R7 still protects retained legacy compatibility; this inventory does not claim that user-installed packages have no legacy metadata.
+
 Tovu credentialed-request.ts re-exports Jini's CredentialedRequestValidationError. A direct runtime equality check confirms identity, so F1 does not change Tovu DELETE error text.
 
 ## Owner guide decision
@@ -60,4 +62,41 @@ The real post-setup guard was personally read: exactly the prior R2 plugin-catal
 
 ## Integrated gates and delivery
 
-Final integrated gate execution and delivery receipt pending; no completion marker has been written.
+The gate selection is the union of the final S7, S9 and earlier integrated named gates, plus conservative repository source/layout readers and this job's regressions. It contains 377 historical named Node files inside a 1,080-file primary selection. A separate audit of omitted readers added 14 files: ten Node files / 34 passing cases and four admin files / 35 cases, with 34 passing and one reproduced prior CSS stacking failure. The audit checked 417 filesystem-reader candidates and 3,181 omitted files for helper aliases; its criteria and limits are retained in the receipt rather than presented as a proof that arbitrary dynamic readers cannot exist.
+
+Production logic was frozen at Tovu `b014553b4b22e1dccaa839d611f3253016393c21` / Jini `e7deedfad285f4bdb6307f56f9ded39848c2f245`. Final tested contract/test pair: Tovu `aab35f81b1c825f5be55ee7d520cc69711651902` / Jini `4de40e0bb766b56118d0335e2c464d679340070d`. Later Jini changes are comments only, verified by parsed noncomment equality; later Tovu changes are one declaration-test typing correction and one documentation assertion. Fresh plugin build, all 19 new-test type files and the affected declaration tests pass on those descendants. Tovu `3c6db135a` fixes this job's own TypeScript AST narrowing error without changing any assertion; it is not classified as prior debt.
+
+The non-test union has 75 requested labels mapped to 47 concrete executions, with the original labels and commands retained. `pnpm check:cross-package` passes XP1–XP5. Touched package builds/types, eight dependent builds, Tovu's linked production type-check, strict production lint and the named SDK/contracts/core/OAuth/MCP/UI checks pass. Missing historical scratch commands were reconstructed with the original selected files and immutable declaration inputs. The original declaration baseline was not regenerated from the tip: its 3,320 declarations / 3,308 mappings were rebuilt from immutable Jini `35c4961af`, SHA-256 `d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459`.
+
+`pnpm guard` exits 1 with the two prior findings: R2 in plugin-catalog/scripts/generate.ts (deep import of agent-plugins/src/core/identity-namespace.js), and R10 in ChatPane (Icon outside its public barrel). HW1–HW9 report zero new findings. The actual layer/isolation API audit reports no layer or blocking isolation findings across 580 closures; 16 existing SI-c/SI-d advisories remain. The broad Tovu test type-check exits 2 with the exact prior 13 errors / 15 diagnostic lines, SHA-256 `3755005668997fe884a56aa7ff8cc1c84de10c7a0ea775656602daf7075a8e0c`. These raw red exits are retained.
+
+Jini's ten selected groups pass 2,011/2,011 cases over 153 file runs; supplemental owning-package checks pass 95/95 over three files. Admin passes 1,522/1,522 over 85 files. Installed Vitest4 rejects the required minWorkers flag, so the work-only runner uses Vitest3.2.4 with exactly maxWorkers=2/minWorkers=1. Its restoreAllMocks behavior erased an existing manual matchMedia default in one file; a work-only compatibility setup restores only that captured default if erased. The unchanged four-case file passes with that setup, and also passed on native Vitest4 as a diagnostic. No repository test/config was changed for the runner.
+
+All 43 actual PostgreSQL cases pass using an isolated PostgreSQL17 Unix-socket cluster; that cluster was stopped after the run. Browser cases use stock Chromium155. POSIX child lifecycle checks run under an official tini subreaper because the environment's PID1 does not reap orphaned children. The close-store check passes 13/13 with real PGlite, sockets, locks and SIGINT, using a private work-directory OS profile because the stock profile lacks its runtime directory. Coverage and native assertions/timeouts remain enabled. Earlier setup/outer-harness timeouts are retained as superseded attempts, not called behavior failures or silently removed.
+
+Saved data and compatibility: current custody/card/deploy pins pass 37/37. Exact archived old Tovu/Jini readers open the current S5 SQLite database (five checks / three credentials) and accept current S8 rows (3/3 with exact summary hints). A resolution guard blocks current production source from those readers, and 12,479 archived files match their git blobs. This proves old-reader SQLite compatibility; current PGlite and PostgreSQL checks are separate evidence. No fixture, golden, baseline, guide or saved input was rewritten.
+
+The tool-metadata golden remains SHA-256 `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`. Final integrity verifies every base/S7/S9 manifest union key and value, six original lane report files, 427 Tovu plus 169 Jini preexisting fixtures/goldens/baselines, and 31 Tovu plus 38 Jini guides. The S9 recording and entire R7 uninstall test are unchanged.
+
+| Final gate lane | Cases | Passed | Retained failures / other outcomes |
+| --- | ---: | ---: | --- |
+| Primary Node: all 1,080 files completed | 12,784 | 12,683 | 80 verified prior failures, one verified prior cancellation, 20 native skips |
+| Historical named subset: 377 files | 4,563 | 4,534 | 24 prior failures, one prior cancellation, four native skips |
+| Required admin: 85 files | 1,522 | 1,522 | None |
+| Additional source readers: 14 files | 69 | 68 | One prior CSS stacking failure |
+| Selected Jini: 153 file runs / ten groups | 2,011 | 2,011 | None |
+| Supplemental Jini owners: three files | 95 | 95 | None |
+
+These lanes overlap; their counts are not a unique-test grand total. The primary selection has 1,043 green files and 37 files with verified prior outcomes, with zero unclassified/new failures. An additional Jini plugin-identity probe retains three prior warning assertions (10/13 pass), reproduced at original Jini46cd558de; its separate receipt is included rather than concealed by the green selected Jini groups.
+
+The last two unclassified primary failures were 30-second CLI fixture-init timeouts before telemetry/auth assertions ran. Exact filtered original/current checks both passed 2/2. The full unchanged serve file then passed 17/17 in 525.18 seconds with coverage, flags, native timeouts and assertions intact. Export, site-key, browser, PostgreSQL, backup and close-store setup retries also reached terminal results; no outer timeout is left silently counted green.
+
+The complete prior failure names, commands and original/baseline provenance are in [the gate receipt](extract-integ2-gates.json). They include frozen host-wording/manifest sensors, existing MCP composition and approval debt, desktop fixture lifecycle mocks, a CLI adopt readiness timeout also reproduced at the initial pin, existing site-preview/title expectations, stale source/debt/worker-import sensors, vendor-overlay schema fixtures and old SDK/version expectations. The source secret-scan failure reports four PAT-shaped strings already in the tracked S4 report; their values are not copied into this report or receipt. Two unchanged overlay deployment-tool assertions remain as described above. Native skips were preserved; no skip/exclude, guard baseline, debt allowlist, package lock or fixture was added to obtain these results.
+
+Last green pair for focused repairs and non-regression checks is Tovu `aab35f81b1c825f5be55ee7d520cc69711651902` / Jini `4de40e0bb766b56118d0335e2c464d679340070d`. **There is no fully green union pair** (`last_fully_green_union_pair: null`): prior test outcomes, the two guard findings and 13 broad test-type errors remain red. All required High/Medium findings are fixed; the listed Low items and explicitly deferred frozen-test/provenance cuts remain.
+
+The receipt retains every pushed first-parent SHA through its delivery parent, all merge records, exact commands/counts/log hashes, final integrity, red/green evidence, baseline reproductions and runner qualifications. Its own final report commit is identified by branch history and the final response. All 1,232 command-log hashes in the aggregate were reverified. The delivered receipt SHA-256 is `55f528d77873e65851ca7ec842e8e646253f5c01b368b7175f0e626b966456f4`.
+
+Completed before the 22:05 UTC cap. Final independent process inventories find zero live test, Node, browser, PostgreSQL or gate-controller processes; the private cluster's PID file is absent. The environment retains 1,685 exited StateZ records under its non-reaping PID1; these are not running processes. The sole generated untracked marker was removed after verification. Only the two requested report artifacts are staged for final delivery; Jini is clean. No main/combine, force-push, publication or deployment action occurred. Remaining work is limited to the explicitly listed prior failures and deferred Low/conditional items, with the merge-history deviation disclosed above.
+
+EXTRACT-INTEG2 DONE
