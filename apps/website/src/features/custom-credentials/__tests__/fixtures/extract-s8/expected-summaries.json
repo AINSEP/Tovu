@@ -1,0 +1,78 @@
+{
+  "list": [
+    {
+      "credentialType": "custom",
+      "worksFor": [],
+      "id": "cred-legacy-custom",
+      "label": "Legacy custom",
+      "category": "general",
+      "baseUrl": "https://legacy.example.test",
+      "additionalHosts": [
+        "https://legacy-files.example.test"
+      ],
+      "configured": true,
+      "tokenHint": null,
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "updatedAt": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "credentialType": "custom",
+      "worksFor": [
+        "example-provider"
+      ],
+      "id": "cred-vendor-custom",
+      "label": "Vendor bridge",
+      "category": "hosting",
+      "baseUrl": "https://api.example.test/v1",
+      "additionalHosts": [
+        "https://upload.example.test"
+      ],
+      "username": "fixture-login",
+      "configured": true,
+      "tokenHint": {
+        "length": 35,
+        "last4": "0001"
+      },
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "updatedAt": "2026-11-01T00:00:00.000Z"
+    }
+  ],
+  "describe": {
+    "cred-legacy-custom": {
+      "credentialType": "custom",
+      "worksFor": [],
+      "id": "cred-legacy-custom",
+      "label": "Legacy custom",
+      "category": "general",
+      "baseUrl": "https://legacy.example.test",
+      "additionalHosts": [
+        "https://legacy-files.example.test"
+      ],
+      "configured": true,
+      "tokenHint": null,
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "updatedAt": "2026-10-01T00:00:00.000Z"
+    },
+    "cred-vendor-custom": {
+      "credentialType": "custom",
+      "worksFor": [
+        "example-provider"
+      ],
+      "id": "cred-vendor-custom",
+      "label": "Vendor bridge",
+      "category": "hosting",
+      "baseUrl": "https://api.example.test/v1",
+      "additionalHosts": [
+        "https://upload.example.test"
+      ],
+      "username": "fixture-login",
+      "configured": true,
+      "tokenHint": {
+        "length": 35,
+        "last4": "0001"
+      },
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "updatedAt": "2026-11-01T00:00:00.000Z"
+    }
+  }
+}
