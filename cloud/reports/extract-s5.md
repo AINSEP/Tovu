@@ -818,4 +818,41 @@ This continuation is owner-approved, in the same session and on the same branche
 |---|---|---|---|
 | 08:38 | 0 | continuation start; report wording corrected | — |
 
+## H2c — inventory
+
+Recorded before any H2c seam edit (H2c builder; Tovu cdf3038a, Jini 575b95e4). T = `apps/website/src/features/external-mcp/`; lines are at cdf3038a: `external-mcp-oauth.ts` (O, 1302 lines) and `external-mcp-shared-oauth.ts` (S, 298 lines). Destination for every row is the H3 move to J `integrations/api-connections/hosted-mcp` (INT), unless a row says T. "Port" means a member of a new `HostedMcpSignInPorts` object, declared types-only in J `integrations/src/api-connections/hosted-mcp/contracts.ts` (core imports only), bound ONCE by Tovu as `tovuSignInPorts`.
+
+| Symbol / need | Source file:line | Runtime closure today | Destination (port member) | Host vocabulary (injected or justified) |
+|---|---|---|---|---|
+| 11 flow fns (begin/complete code, device begin/poll, operator provider, sealed state, refresher, discovery, registry, refresh, DCR) | O:13-34 (calls 411, 543, 612, 832, 1020-1021, 1040, 1097, 1140, 1165, 1205); S:3-4 (calls 86, 88, 125, 233, 243, 256, 272) | `@jini-ai/oauth` values | `flow: OAuthFlowOperations` (core); T binds `oauthFlowOperations` | none |
+| OAuth types (DeviceAuthorization, DiscoveredOAuthConfiguration, OAuthClient, OAuthClientAuthMethod, OAuthProviderDescriptor, OAuthTokenSet, OAuthAppOptions, OAuthProviderRegistry) | O:25-32; S:4 | oauth type re-exports of core | `@jini-ai/core/contracts/oauth` types | none |
+| `new OAuthError(...)` (no provider, no client id, no grant, no DCR, no device auth; shared invalidState) | O:361, 476, 586, 610, 1199; S:37 | oauth class | `errors.oauth({code,message,operatorAction})`; T binds `new OAuthError(input)` (real instance) | operator actions name `Settings → External MCP`; O:586 message says "grant Tovu supports" → `copy` port |
+| `instanceof OAuthError` (client-rejected, retryable poll, invalid_grant) | O:1179, 1223, 1293; S:99, 284 | oauth class | `errors.isOAuthError(error)`; T binds the real `isOAuthError` | none |
+| `new ExternalMcpValidationError(m, f)` | O:349, 352, 1085, 1118 | T re-export of hosted class | `errors.validation(message, field)`; T binds the canonical class | O:1085 Mac-owner text, O:1118-1123 `TOVU_PUBLIC_URL` text → `copy` port; O:349/352 neutral MCP wording kept |
+| `instanceof ExternalMcpSecretStoreUnconfiguredError` | O:956, 976 | T re-export of hosted class | `errors.isUnconfigured(error)`; T binds `instanceof` | none |
+| reauth factory | O:1246, 1274, 1295 | T `createExternalMcpReauthRequiredError` | `errors.reauthRequired(input)`; T binds the ONE factory (same function) | class text/settings link stay T |
+| store open/seal payload | O:478, 653, 655, 853-854, 954, 973, 1031 | T shims over `@jini-ai/mcp/federation/hosted` | `store.openPayload(sealer, record)` / `store.sealPayload(deps, identity, payload)`; T binds its existing shims (same identity, same envelope instance) | none |
+| repo findByServerId/upsert/tryClaim/release lease | O:347, 671, 867, 990, 998, 1026, 1060, 1069, 1248, 1294; S:113, 134, 182, 204 | `deps.repo` (already injected) | stays `deps.repo` — MUST be the store's repo instance (A7); no second store member, so lease/CAS order cannot diverge | none |
+| `rosterRefusalFor` | not used by sign-in (gate only, O:223-310) | — | gate side (MCP in H3) | none |
+| projections authMode/oauthStatus | O:36-37, 351, 1030, 1251, 1267 | T contracts/core re-exports | `projections.{authMode,oauthStatus}`; T binds `resolveExternalMcpAuthMode`/`resolveExternalMcpOAuthStatus` | none |
+| seal-AAD `formatAad` | O:8, 833; S:5, 124 | `@jini-ai/platform/secrets` | `aad.format({kind,version,parts})`; T binds platform `formatAad` | kind `oauth-redirect-state` v1 and parts = persisted format (neutral; bytes unchanged) |
+| sign-in link | O:6, 1136; S:9, 244 | T browser-binding | `signInLink({callbackUrl,workspaceId,serverId})`; T binds `hostedMcpSignInLink` | T route path stays in T |
+| messages / discovery policy / copy wrapper | O:4, 543-545, 612, 620, 1040, 1097, 1140, 1150, 1165, 1205 | T `platform/oauth/endpoint-safety` | `oauthMessages`, `discoveryPolicy({guard})`, `withCopy({call})`; T binds `tovuOAuthMessages`, `createTovuIssuerBoundDiscoveryPolicy`, `withTovuOAuthCopy` | Tovu copy → T |
+| registration identity | O:320-332, 1074; S:44, 247 | T `tovuRegistrationIdentity` | `registrationIdentity {softwareId, clientName(record), sharedClientName}` (replaces S's separate required arg) | `tovu`, label ?? serverId, `Tovu` → T |
+| post-connect log | O:340 | console.warn | `log.postConnectFailed({serverId,error})`; T binds the exact warn | `[external-mcp]` prefix → T |
+| sign-in copy | O:361, 476, 586, 610, 1085, 1118-1123, 1199; S:34, 37, 131 | literals | `copy.*`; T binds exact bytes | `Settings → External MCP`, "Tovu", `TOVU_PUBLIC_URL`, example origin, "this Mac" → T |
+| `randomBytes`/`randomUUID` | O:5, 1142; S:1, 136, 247 | `node:crypto` | kept (INT is `runtime: node` and already imports `node:crypto`) | none |
+| `ToolInputError`, `nowIso`, `UUID` | O:2, 7 | core | kept (core) | none |
+| `ExternalMcp*` record/grant/payload types | O:38-39; S:10 | T contracts re-exports of core | `@jini-ai/core/contracts/hosted-mcp` (S now; O at H3) | none |
+| `ExternalMcpOAuthDeps`/`ExternalMcpOAuthService` | S:10, 270 | T contracts re-exports of J INT | `@jini-ai/integrations/api-connections/hosted-mcp` (relative after H3) | none |
+| shared-owner `SharedOAuthOwnerStorage`, `SharedOAuthIssuingContext` | S:6, 13, 31 | T api-connections/shared-owner | narrow structural `SharedSignInOwner` + `SharedSignInIssuingContext` in S (records.read/compareAndSet, readContext, saveContext, tokensFor, readConnection) | adapter bodies stay T |
+| project-keys `SiteOAuthBindings`, `KeyAttachments`, `ProjectKeyTransaction` | S:7-8, 14-16 | T project-keys | narrow structural `SharedSignInBindings` (read/set/remove), `SharedSignInAttachments` (attach/detach/isAttached), `SharedSignInTransaction` in S | adapters stay T |
+| shared `inventory` VaultRecord | S:21 | `import('@jini-ai/platform/…')` | core `VaultRecord` (`@jini-ai/core/contracts/vault`) | none |
+| shared ids `external-mcp`, `mcp:<serverId>`, `oauth`, `project`, `shared` device key | S:35-36, 50, 135-141 | literals | kept: persisted owner-vault identity/binding keys (changing them orphans saved shared credentials) — neutral persisted format, not host wording | persisted format |
+| timeouts 15 000/10 000 ms, 600 000 ms hosted expiry, lease 45 000, reseal 3 | O:64, 72, 82, 544, 1137; S:87, 237, 245 | constants | kept (protocol timing, unchanged) | none |
+| `createExternalMcpOAuthService` | O:1019 | — | neutral body → `createHostedMcpSignInService({...deps, ports})` (INT at H3); T keeps `createExternalMcpOAuthService(required, _optional)` bound to `tovuSignInPorts`, same signature/defaults | — |
+| `createDeviceAuthorizationStore` | O:147-160 | none | already neutral; INT at H3 (T re-export) | none |
+
+Not changed by H2c: routes, browser binding, Express, `contracts.ts`, composition, S4-owned files. Old exports/signatures stay; `createSharedExternalMcpOAuth` is internal to O (only caller) and takes `ports` in place of the H2b-added `registrationIdentity`.
+
 EXTRACT-S5-C STOPPED AT CAP
