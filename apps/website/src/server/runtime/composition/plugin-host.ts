@@ -2,9 +2,8 @@ import type { Clock } from "@jini-ai/core/primitives";
 /** The host is the only cross-family composition point. Bind the existing lifecycle owners;
  * discovery is metadata-only and fresh on each call so disable/uninstall cannot leave stale grants. */
 import path from 'node:path';
-import { redactSecrets, ToolInputError } from '@jini-ai/core';
 import { withFileLock } from '@jini-ai/platform/fs/file-lock';
-import { createPluginLookup, readPluginIdentity, assertPluginIdentityAvailable, type PluginProvider } from '@jini-ai/core/plugin-directory';
+import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
@@ -16,23 +15,15 @@ import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
-import { recordAgentPluginAccessDeclined } from '#src/features/agent-plugins/apply-connect-defaults';
-import { previewAgentPluginEnableAccess } from '#src/features/agent-plugins/enable-access';
 import { agentPluginMcpPortsOf } from '#src/features/agent-plugins/mcp-host-bindings';
+import { createPluginHost, type PluginHostMessages } from './portable-plugin-host.js';
 
-/** Preserve best-effort diagnostics for background provisioning; an approved card must instead
- * report a partial failure to its caller. O(s) in failed declared servers, no extra I/O.
- */
-function reportProvisioningFailures({ pluginId, failed, approved, warn }: { pluginId: string; failed: Awaited<ReturnType<typeof provisionAgentPluginMcpServers>>['failed']; approved: boolean; warn: (message: string) => void }): void {
-  for (const failure of failed) warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}` }));
-  if (approved && failed.length) throw new ToolInputError({ message: redactSecrets({ input: `Plugin '${pluginId}' could not create these connections: ${failed.map(failure => `${failure.serverKey}: ${failure.reason}`).join('; ')}. Request plugins_set_enabled again to retry.` }) });
-}
-
-/** An approved grant must carry the exact snapshot displayed by its host preview. */
-function requireApprovedAccessKey(key: string | undefined): string {
-  if (!key) throw new ToolInputError({ message: 'The approved access snapshot is missing. Request plugins_set_enabled again. Nothing was provisioned or granted.' });
-  return key;
-}
+/** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
+const tovuPluginHostMessages: PluginHostMessages = {
+  provisioningFailed: ({ pluginId, failed }) => `Plugin '${pluginId}' could not create these connections: ${failed.map(failure => `${failure.serverKey}: ${failure.reason}`).join('; ')}. Request plugins_set_enabled again to retry.`,
+  approvedSnapshotMissing: () => 'The approved access snapshot is missing. Request plugins_set_enabled again. Nothing was provisioned or granted.',
+  approvedLoadFailed: ({ detail }) => `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${detail}`,
+};
 
 export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
@@ -68,134 +59,40 @@ export function createTovuPluginHost(
     ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await optional.readAgentManifest!({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
     : readInstalledAgentPluginIdentity;
 
-  const listSiteProviders = async ({ forAdmission }: { forAdmission: boolean }, _options = {}): Promise<PluginProvider[]> => {
-    const providers: PluginProvider[] = [];
-    for (const record of await deps.discoverPlugins()) {
-      if (record.status !== 'valid' || !record.manifest) {
-        warn(`Plugin '${record.id}': invalid installed manifest omitted from metadata lookup.`);
-        continue;
-      }
-      let parsed: ReturnType<typeof readPluginIdentity> | undefined;
-      try { parsed = readPluginIdentity({ manifest: record.manifest as unknown as Readonly<Record<string, unknown>>, name: record.id, namespace: 'tovu' }); }
-      catch { warn(`Plugin '${record.id}': installed identity manifest is unreadable or invalid; omitted from metadata lookup.`); }
-      if (parsed) {
-        const { warnings, ...identity } = parsed;
-        warnings.forEach(warn);
-        const activation = forAdmission ? null : await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: record.id });
-        providers.push({ ...identity, version: record.version, enabled: activation?.enabled === true, family: 'site-runtime', localId: record.id });
-      }
-    }
-    return providers;
-  };
-
-  const resolveAgentProviders = async ({ agentProviders, workspaceRoot }: {
-    agentProviders: Map<string, PluginProvider[]>; workspaceRoot: string;
-  }, _options = {}): Promise<PluginProvider[]> => {
-    const providers: PluginProvider[] = [];
-    for (const [pluginId, revisions] of agentProviders) {
-      // Multiple digests are revisions of one install, not duplicate provider registrations.
-      // Without a recorded winner the existing lifecycle refuses to guess; discovery follows it
-      // by omitting this plugin, while unrelated lookup and installation remain available.
-      if (revisions.length !== 1) {
-        const declaredIds = new Set(revisions.map(provider => provider.id).filter(id => id !== `unknown/${pluginId}`));
-        warn(`Plugin '${pluginId}': ${declaredIds.size > 1 ? 'conflicting publisher identities' : 'ambiguous installed revisions'}; omitted from metadata lookup.`);
-        continue;
-      }
-      let enabled: boolean;
-      if (optional.resolveEnabled) enabled = await optional.resolveEnabled({ workspaceRoot, pluginId });
-      else {
-        const activation = await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId });
-        enabled = activation.verdict === 'active';
-      }
-      providers.push({ ...revisions[0]!, enabled });
-    }
-    return providers;
-  };
-
-  const listAgentProviders = async ({ workspaceRoot, forAdmission }: {
-    workspaceRoot: string; forAdmission: boolean;
-  }, _options = {}): Promise<PluginProvider[]> => {
-    const providers: PluginProvider[] = [];
-    const agentProviders = new Map<string, PluginProvider[]>();
-    // A legacy revision may acquire its first publisher identity at upgrade; old frozen
-    // digests can remain present from older installs until successful publication prunes them.
-    // Reuse that owner's selection; metadata lookup must not invent a newest-version policy.
-    const installed = await listInstalled();
-    const preferred = forAdmission ? installed : preferBundledAgentPluginDigests(installed, await readBundledAgentPluginDigests(workspaceRoot));
-    const preferredKeys = new Set(preferred.map(plugin => `${plugin.pluginId}:${plugin.archiveDigest}`));
-    for (const plugin of installed) {
-      let parsed: ReturnType<typeof readPluginIdentity>;
-      try { parsed = await readAgentIdentity({ plugin }); }
-      catch { warn(`Plugin '${plugin.pluginId}': installed identity manifest is unreadable or invalid; omitted from metadata lookup.`); continue; }
-      const { warnings, ...identity } = parsed;
-      warnings.forEach(warn);
-      const provider: PluginProvider = { ...identity, version: plugin.version ?? null, enabled: false, family: 'agent-plugin', localId: plugin.pluginId };
-      if (forAdmission) providers.push(provider);
-      else {
-        if (preferredKeys.has(`${plugin.pluginId}:${plugin.archiveDigest}`)) {
-          const revisions = agentProviders.get(plugin.pluginId) ?? [];
-          revisions.push(provider);
-          agentProviders.set(plugin.pluginId, revisions);
-        }
-      }
-    }
-    return providers.concat(await resolveAgentProviders({ agentProviders, workspaceRoot }));
-  };
-
-  const listProviders = async ({ forAdmission = false }: { forAdmission?: boolean } = {}, _options = {}) => {
-    const workspaceRoot = resolveWorkspaceRoot();
-    const providers = await listSiteProviders({ forAdmission });
-    return providers.concat(await listAgentProviders({ workspaceRoot, forAdmission }));
-  };
-  const lookup = createPluginLookup({ listPlugins: listProviders }, { warn });
-
-  // Resolved once per host binding: preview, provisioning grant and status share the composed pair.
-  const mcpPorts = agentPluginMcpPortsOf(deps.mcp);
-  const agentPlugins: AgentPluginHostCapability = {
-    inactivePluginIds: async () => {
-      const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: resolveWorkspaceRoot() });
-      return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
+  // Thin Tovu binder: every runtime owner, path, namespace and product text is bound here; the
+  // decisions live in `portable-plugin-host.ts`. The projection pair is resolved once per binding:
+  // preview, provisioning grant and status share it (legacy no-ports fallback stays Tovu-only).
+  return createPluginHost<Parameters<AgentPluginHostCapability['uninstall']>[0]>({ deps: {
+    workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, clock: deps.clock, namespace: 'tovu',
+    discoverPlugins: deps.discoverPlugins,
+    getActivation: input => deps.pluginActivationRepo.getActivation(input),
+    lifecycle: {
+      listInstalled,
+      preferInstalled: async ({ installed }) => preferBundledAgentPluginDigests([...installed], await readBundledAgentPluginDigests(resolveWorkspaceRoot())),
+      readIdentity: readAgentIdentity,
+      isEnabled: async ({ pluginId }) => {
+        const workspaceRoot = resolveWorkspaceRoot();
+        if (optional.resolveEnabled) return optional.resolveEnabled({ workspaceRoot, pluginId });
+        return (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === 'active';
+      },
+      inactivePluginIds: async () => {
+        const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: resolveWorkspaceRoot() });
+        return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
+      },
+      assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
+      setEnabled: async input => {
+        const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
+        if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
+        return result;
+      },
+      uninstall: input => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
     },
-    previewEnableAccess: async ({ pluginId }) => previewAgentPluginEnableAccess({
-      workspaceId: deps.workspaceId, pluginId, repo: deps.mcp.repo, ...mcpPorts,
-      servers: await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId }),
-    }),
-    recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ applyAccess: deps.mcp.applyAccess, workspaceId: deps.workspaceId, accessKey }),
-    listInstalled,
-    assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
-    setEnabled: async (input: Parameters<AgentPluginHostCapability["setEnabled"]>[0]) => {
-      const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
-      if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
-      return result;
-    },
-    /** Provisioning must use the same two owners as the admin toggle. A failed connection never
-     * rolls back a successful activation; report fixed diagnostics without credential material. */
-    provisionMcp: async ({ pluginId, principalId }: { pluginId: string; principalId: string }, execution = {}) => {
-      try {
-        const approvedEnable = execution.approvedEnable ? { principalId, accessKey: requireApprovedAccessKey(execution.approvedEnableKey) } : undefined;
-        const servers = await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId });
-        const result = await (optional.provisionMcpServers ?? provisionAgentPluginMcpServers)(deps.mcp, { workspaceId: deps.workspaceId, pluginId, servers, principalId });
-        reportProvisioningFailures({ pluginId, failed: result.failed, approved: execution.approvedEnable === true, warn });
-        // Same as the admin toggle: an account signed in while the plugin was off gets the plugin's
-        // declared tools now (bug 2026-11-04, `grant-signed-in-defaults.ts`).
-        await grantDeclaredToolsToSignedInRows({
-          deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, ...mcpPorts,
-            notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
-          pluginId,
-          servers,
-        }, { skipServerKeys: result.failed.map(failure => failure.serverKey), ...(approvedEnable ? { approvedEnable } : {}) });
-      } catch (error) {
-        if (execution.approvedEnable) throw new ToolInputError({ message: redactSecrets({ input: `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${error instanceof Error ? error.message : String(error)}` }) });
-        warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}` }));
-      }
-    },
-    uninstall: async (input: Parameters<AgentPluginHostCapability["uninstall"]>[0]) => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
-  };
-  return {
-    ...lookup,
-    withInstallIdentity: ({ candidate, run }) => withFileLock({
-      lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'),
-      run: async () => { assertPluginIdentityAvailable({ candidate, installed: await listProviders({ forAdmission: true }) }); return run(); },
-    }, { createParent: true }),
-    getHostCapability: ({ capability }) => capability === 'agent-plugin-lifecycle' ? agentPlugins : undefined };
+    withLock: ({ run }) => withFileLock({ lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'), run }, { createParent: true }),
+    mcp: deps.mcp, mcpPorts: agentPluginMcpPortsOf(deps.mcp),
+    grantSignedInDefaults: grantDeclaredToolsToSignedInRows,
+    warn, messages: tovuPluginHostMessages,
+  } }, {
+    ...(optional.resolveMcpServers ? { resolveMcpServers: optional.resolveMcpServers } : {}),
+    ...(optional.provisionMcpServers ? { provisionMcpServers: optional.provisionMcpServers } : {}),
+  });
 }
