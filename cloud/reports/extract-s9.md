@@ -1,6 +1,6 @@
 # EXTRACT-S9
 
-**F1 follow-up authorized and in progress. Credential-tool extraction remains STOPPED for prior overlay-test drift; no move is authorized by this follow-up.**
+**Continuation in progress: F1 first, then C3 → G-deploy → C4 seam → C4 move → accumulated gate. The earlier stop is superseded by the coordinator ruling below.**
 
 The inventory below was committed before implementation. The approved R1 relocation resolves the old S8 layout conflict, but does not authorize edits to the two additional failing overlay tests.
 
@@ -312,3 +312,9 @@ The owner explicitly authorizes the DELETE preflight repair and an additive regr
 The old five-line preflight comment describes the unsafe old behavior; this owner-directed correction will replace it with the caller-safe/class-preserving rule. All unrelated why-comments remain byte-identical. No Jini source, export, dependency or stored format changes are needed for F1.
 
 Follow-up UTC opened 2026-11-09T17:42:42.789517+00:00; original start/deadline remain 17:14Z / 21:14Z. No clock reset. Baseline is the verified report-only tip `43fff22ff2f4188c88ef5011da5392eb96e4ebc6` / Jini `46cd558de9c6b4fa882b46349450ce3bcf0a378d`.
+
+## Continuation
+
+The coordinator explicitly rules the unchanged Railway/Render `credential-card.test.mjs:36` failures to be known baseline failures unrelated to these moves. Neither test nor either plugin skill may change. Every gate will run them and verify the same literal `credential_save` assertion still fails; they are never counted green. The two MCP-UI failures remain known baseline failures too. Every other new red retains the existing fix/stop policy.
+
+Proceed on the same `cloud/extract-s9` branches and original clock: start `2026-11-09T17:14:00Z`, reserve `20:54Z`, hard deadline `21:14Z`. No new cap or helper agent. The final marker is now `EXTRACT-S9-C DONE` or `EXTRACT-S9-C STOPPED AT CAP`, written only at actual close. Historical stop evidence above remains baseline evidence, not the continuation verdict.
