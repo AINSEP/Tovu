@@ -38,7 +38,7 @@ export interface CredentialSetVaultPolicy {
 export type CredentialSetRowByLabel = (input: { workspaceId: string; label: string }) => Promise<VaultPutRecord | null>;
 
 /** The deps object a scope carries: at least a repo (with an optional project half). */
-export interface CredentialSetScopeCarrier { readonly repo: { readonly project?: CredentialSetProjectScope<string> | undefined } }
+export interface CredentialSetScopeCarrier { readonly repo: { readonly project?: CredentialSetProjectScope<string> } }
 
 /** One store a site reads credentials from, with the deps that open its rows. */
 export interface CredentialSetScoped<D> { readonly deps: D; readonly workspaceId: string; readonly scope: CredentialSetScope }

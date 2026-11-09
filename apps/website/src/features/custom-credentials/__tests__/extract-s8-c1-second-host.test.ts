@@ -59,7 +59,10 @@ function makeHost() {
   const policy: CredentialSetVaultPolicy = {
     ownerKey: OWNER,
     parseMeta: ({ kind, meta, provider }) => createVaultMetaParsers({})[kind]({ meta, provider }),
-    compareLabels: (a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0),
+    compareLabels: (a, b) => {
+      if (a.label < b.label) return -1;
+      return a.label > b.label ? 1 : 0;
+    },
     vaultErrors: {
       create: ({ code }) => { created.push(code); return new VaultError({ code }); },
       codeOf: error => (error instanceof VaultError ? error.code : undefined),
@@ -113,7 +116,7 @@ function siteDeps(optional: { project?: CredentialSetProjectScope<Cat>; findRowB
     ...(optional.findRowByLabel ? { findRowByLabel: async (input: { workspaceId: string; label: string }) => { v.counts.findByLabel++; return (await v.inner.list({ workspaceId: input.workspaceId, kind: "vendor", ownerKey: OWNER, principalId: null })).find(row => row.label === input.label) ?? null; } } : {}),
   });
   let n = 0;
-  const deps: CredentialSetWriteDeps<Cat> = { repo, sealer: s.sealer, keyring: s.keyring, clock: { nowMs: () => 0 }, idGen: { newId: () => `id-${++n}` } };
+  const deps: CredentialSetWriteDeps<Cat> = { repo, sealer: s.sealer, keyring: s.keyring, clock: { nowMs: () => 0 }, idGen: { newId: () => { n += 1; return `id-${n}`; } } };
   return { deps, vault: v, sealer: s, repo };
 }
 
