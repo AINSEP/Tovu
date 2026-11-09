@@ -564,3 +564,15 @@ The coordinator explicitly approves adding `classifyError` to the single expecte
 The coordinator also authorizes necessary additive test wiring for already-approved fixes when existing assertion intent is unchanged; each instance must be listed here. Real behavior drift still stops. The known Railway/Render skill-text failures remain unchanged and non-green at every gate.
 
 Original UTC start/deadline remain 17:14Z /21:14Z, reserve20:54Z. Same branches, no agents or clock reset. New final marker: `EXTRACT-S9-D DONE` or `EXTRACT-S9-D STOPPED AT CAP`, only at the actual end.
+
+### C3 gate completed after the approved trace update
+
+Tovu source `4d871e83b` /Jini source `e4c2b55681a8e8a0ab67365b0cc747a7ed84da66`: full replay **99 files /1,244 cases, 1,240 pass /4 known fail**, no skipped/cancelled case. The previously frozen trace now passes with exactly its approved single-entry addition. Every other byte of that test is unchanged. Both overlay failures remain the same line36 literal assertion, 2/3 each. The MCP-UI pair is unchanged. This is the first complete post-F1 C3 matrix with no unapproved failure. Jini's paired-source builds/types, 459 named/added cases (including the re-homed four), strict lint, emitted notes, XP1–XP5, full corrected guard, layers/isolation and mutation-restoration evidence are as recorded above; no Jini source changed since those results.
+
+### G-deploy recording inventory (unmoved code)
+
+New files: `features/deployments/deploy-ops/__tests__/extract-s9-g-deploy.support.ts`, `extract-s9-g-deploy.test.ts`, and literal `fixtures/extract-s9/recordings.json`. The support invokes real `buildDeployOpsRegistrations` and `runDeploy`; fixed synthetic root/site/API/plain values, clock, exchange ids and scripted existing example adapters make results/card bytes deterministic with no live network.
+
+Record list/create/no-op/approved overwrite/declined overwrite/unset absent/approved unset/changed-during-confirmation; both site-key and exact UTF-8 plain fingerprints; original irrecoverability card bytes; denied site-key permission with zero protected reads/decrypt/network; direct accepted deploy ledger entry and a tool dispatch whose ledger fails without retry. Every case retains HTTP traces, decrypt/seal/write/site-key/registry/history counts and authorizations, and checks model output/cards/logs contain no synthetic secret. Expiry/abandonment and metadata remain the unchanged frozen tests.
+
+The initial recorder is scratch-only and refuses to overwrite an existing fixture. The new test only reads/replays the literal fixture; it has no recording mode. The recording commit and SHA256 will be pinned before the C4 seam and never regenerated. No deploy production file changes in this batch.
