@@ -1,0 +1,53 @@
+TAP version 13
+# Subtest: R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval
+not ok 1 - R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval
+  ---
+  duration_ms: 20.58654
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts:1:4964'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'acme.connect',
+    -   'acme.connect',
+    -   'acme.connect'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'acme.connect'
+    1: 'acme.connect'
+    2: 'acme.connect'
+  actual:
+    0: 'acme.connect'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts:107:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: R4: no provisioning, grant or sign-in start before consent; host not-confirmed bytes returned
+ok 2 - R4: no provisioning, grant or sign-in start before consent; host not-confirmed bytes returned
+  ---
+  duration_ms: 1.243148
+  type: 'test'
+  ...
+# Subtest: host copy and ids: other host refusals use its messages; Tovu bytes stay in the T shim
+ok 3 - host copy and ids: other host refusals use its messages; Tovu bytes stay in the T shim
+  ---
+  duration_ms: 1.518868
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1261.429938
