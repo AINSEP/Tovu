@@ -83,7 +83,7 @@ async function harness(scenario: Scenario, ledgerFails = false) {
     return response({ version: 3 });
   };
   let exchange = 0;
-  const store = createSurfaceExchangeStore({ clock, idGenerator: { newId: () => `s9-card-${++exchange}` }, scheduler: { schedule: () => () => undefined }, defaultChannel: 'mcp-ui' });
+  const store = createSurfaceExchangeStore({ clock, idGenerator: { newId: () => { exchange++; return `s9-card-${exchange}`; } }, scheduler: { schedule: () => () => undefined }, defaultChannel: 'mcp-ui' });
   const deps: DeployOpsToolDeps = {
     workspaceId: 'ws-s9', clock, customCredentialSetRepo: repo, siteAssistantSecretSealer: sealer, deployOpsHttpClient: { send },
     customCredentialsAudit: new InMemoryCredentialedRequestAuditLog(), loadAuthSchemes: async () => [], deployOpsRegistry: registry,
