@@ -38,7 +38,7 @@ const scope = { personId: "owner", siteId: "site-1" };
 const bodyText = (html: string) => html.slice(html.indexOf("<body")).replace(/<(script|style)[\s\S]*?<\/\1>/g, "").replace(/<[^>]+>/g, " ");
 
 test("an agent plugin card names the plugin once, hides the developer rows and explains in a neutral note", async () => {
-  const resource = await renderHumanApproval({ spec: describeEnableApproval({ subject: { family: "agent-plugin", pluginId: "composio", adds: ["mail.send"], resources: [{ id: "mcp:gmail", label: "Gmail", previous: null, proposed: { access: "send" }, revision: null, scope }] }, scope }), exchangeId: "e1" });
+  const resource = await renderHumanApproval({ spec: describeEnableApproval({ subject: { family: "agent-plugin", pluginId: "composio", adds: ["mail.send"], resources: [{ id: "mcp:gmail", label: "Gmail", previous: null, proposed: { access: "send" }, revision: null }] }, scope }), exchangeId: "e1" });
   const html = resource.resource.text!;
   const text = bodyText(html);
   assert.equal(text.match(/composio/g)?.length, 1, "the plugin name is the title only");
