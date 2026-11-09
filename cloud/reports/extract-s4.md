@@ -568,3 +568,82 @@ Follow-up gate (final code e74957c8):
 | guard / custody | as A8 gate (Jini unchanged; pins/snapshot untouched by this follow-up; tests diff vs 6f42278c = only the new test file) | unchanged |
 
 Lines (follow-up): +1085/−989 in A (mostly the git mv), +16 mcp-host-bindings. Token note: builder self-estimate ~140k at report time.
+
+## A9 — move A8 portable bodies to @jini-ai/agent-plugins/connect (builder A9, 08:05–08:27Z)
+
+Programmer skills file (Jini AI-Dev-Shop/agents/programmer/skills.md): not loaded (token budget; dispatch-scoped work).
+
+### H0 prerequisite adoption (Jini 5c3235e615208f181ae2d698c83fd6ff0a32c712)
+Byte-identical from origin/cloud/extract-s5 @ 183915bb0ae25c659ec5a1273c97a4b0ba992910. Upstream commits touching the paths: 27063efcc7c0327f517429812e167174d1a80448 (H1a contracts), 60f593071fbec15fda1ada9b3df886ba6c20e14c (config.ts neutral comment); core package.json net of 6ab1d818/183915bb (oauth-callback-fields added then reverted) = only the `./contracts/hosted-mcp` runtime + export entries.
+| path | blob |
+|---|---|
+| packages/core/package.json | cba6f6b8886c74ce57f75d8321ee186309d890d7 |
+| packages/core/src/contracts/hosted-mcp.ts | 1cae38ebc586322136e845d671e296a8f83ebe25 |
+| packages/core/src/contracts/hosted-mcp/vocabulary.ts | fe8826be0c5b7dca7102d15bd2292b4d0e95397b |
+| packages/core/src/contracts/hosted-mcp/record.ts | 5cd2a31f3421f9ea90fa89c105414d566c514e9f |
+| packages/core/src/contracts/hosted-mcp/config.ts | 99747b76efd031778cc31fb02c571761eabde785 |
+Types only: imports are relative `import type` (primitives/vault/vocabulary); emitted JS is `export {}` for all four modules; XP1–XP5 clean. Not adopted: S5 oauth.ts/oauth/flow.ts (H2a), mcp/**, integrations/**, any Tovu part.
+
+### Provenance map (verbatim copy commit Jini 82c0d51a140cd39707ceaaac8077bbb6fe1683b6; seams cfe4f08a0f0f56cf356e8eecc7c132aeab8b2406 + fix 0506634875ecd8d6a63f0e4467de8c25dbf2cec1)
+Source repo Tovu, ref f82936d945630bf1ae72468946d45b096b133900; destination blob at the copy commit equals the source blob (bytes unchanged):
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/features/agent-plugins/portable/federate-mcp.ts blob 7034f4d0d4e4ff9c8100c4f7c7f3de5f3cebf0ff -> Jini packages/agent-plugins/src/connect/federate-mcp.ts blob 7034f4d0d4e4ff9c8100c4f7c7f3de5f3cebf0ff
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/features/agent-plugins/portable/enable-access.ts blob a945df32b15461221e6ae554ff9ad83de2d29f01 -> Jini packages/agent-plugins/src/connect/enable-access.ts blob a945df32b15461221e6ae554ff9ad83de2d29f01
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/features/agent-plugins/portable/apply-connect-defaults.ts blob dbc7b723b275967942677ca5a64f633e9aea3955 -> Jini packages/agent-plugins/src/connect/apply-connect-defaults.ts blob dbc7b723b275967942677ca5a64f633e9aea3955
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/features/agent-plugins/portable/switch-on-saved-token.ts blob bfdc3a44dd2efc271e334bd2684d6e232fc9123a -> Jini packages/agent-plugins/src/connect/switch-on-saved-token.ts blob bfdc3a44dd2efc271e334bd2684d6e232fc9123a
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/features/agent-plugins/portable/connection-status.ts blob 26383585213c10770514e49c16bf2c3c27eed37f -> Jini packages/agent-plugins/src/connect/connection-status.ts blob 26383585213c10770514e49c16bf2c3c27eed37f
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/features/agent-plugins/service-ports.ts blob bc2de4680ba3a2ab7e7acef3436f35af06e30043 -> Jini packages/agent-plugins/src/connect/ports.ts blob bc2de4680ba3a2ab7e7acef3436f35af06e30043
+- Tovu f82936d945630bf1ae72468946d45b096b133900:apps/website/src/server/runtime/composition/portable-plugin-host.ts blob da32f2dc674a57ccba3c96f645a5761c6e89f2bc -> Jini packages/agent-plugins/src/connect/plugin-host/index.ts blob da32f2dc674a57ccba3c96f645a5761c6e89f2bc
+Tovu removal: 541f00a8 (git rm of the six portable files; old-path shims rewired). Rationale comments stay beside the code in Jini; the symbols that stay Tovu (operator-off read, locked switch-on, `system:*` actors, screen names, describeSavedTokenSwitch) moved back into the T shims with their original comments verbatim.
+
+### Vocabulary / bindings (every A8 "A9" row)
+| A8 row | moved-code form (Jini) | Tovu binding (bytes unchanged) |
+|---|---|---|
+| federate-mcp lifecycle reads (listInstalledPlugins/readBundled/preferBundled/readInstalledMcpServers) | required `lifecycle: AgentPluginInstalledMcpReads` (Pick of `createAgentPluginLifecycle`, object args) on resolve/readOnlyNames; plugin-host `installedMcp` | `tovuInstalledMcpReads` in A/federate-mcp.ts over T lifecycle.js/capability-projection.js |
+| classifyAgentPluginMcpServerTrust default | required `classifyTrust` (plan options, provisioning input, preview input, plugin-host dep) | T `capability-projection` rule |
+| skip reasons "this Tovu version's external-MCP store …" (sse, headers) — guard N1 | required `AgentPluginMcpFederationMessages` (plan/provision/preview; plugin-host messages) | `tovuFederationMessages` (exact old strings) |
+| "Open Settings → External MCP …" | `AgentPluginEnableAccessMessages.sourceConfiguredSeparately({connectionId})` | `tovuEnableAccessMessages` (exact old string) |
+| `system:connect-defaults` / `system:connect-declined` | `ApplyConnectDefaultsDeps.actors: AgentPluginConnectActors`; `recordAgentPluginAccessDeclined({actorId})`; plugin-host `declinedAccessActor` | `tovuConnectActors`, `CONNECT_DECLINED_ACTOR` (T shim) |
+| `system:seed`, isPluginOffByOperator, switchPluginOnUnlessOperatorOff (T activation-effects/set-enabled) | not moved: required host inputs `isPluginOffByOperator`/`enablePlugin`/`resolveServers` (apply-connect-defaults) and `isPluginOffByOperator`/`switchPluginOn`/`onConnected` (switch-on) | T shim keeps the functions + defaults (lazy, descriptor-preserving) |
+| AGENT_PLUGINS_SCREEN / EXTERNAL_MCP_SCREEN / describeSavedTokenSwitch | not moved (whole sentences are host copy) | T shim, verbatim |
+| AgentPluginLayout (T layout.js) | local structural `{ forWorkspace(id).root }`; plugin-host deps generic `Layout` passed to the grant untouched | T binder pins `TovuPluginHostDeps['agentPluginLayout']` |
+| McpServerConfig / AgentPluginDefaultTools / planAgentPluginToolGrant / InstalledAgentPlugin / SetAgentPluginEnabled* | same package `../lifecycle/{manifest,enable-grants,types,set-enabled}.js` (pure / type-only) | — |
+| T external-mcp contracts (record/save/view/repo/snapshot/approved access) | `@jini-ai/core/contracts/hosted-mcp` canonical rows; view = `ExternalMcpServerView<unknown>` (host token hint opaque) | T re-exports via service-ports |
+| six projection `typeof` T functions | explicit function types in ports.ts | T pair unchanged |
+| `@jini-ai/daemon` ToolAccessChange | `AgentPluginMcpPort<Lowered = unknown>` | T service-ports binds `ToolAccessChange` |
+| LoadPluginCredentialCards / ApiConnectionHost | same-package `./plugin-credential-card.js`; local narrow `AgentPluginApiConnectionStatusReads` | T host passes its instance |
+| A10 ports (OAuth/credentials/preferences/API/paths/sign-in/cards) + AgentPluginMcpContext | not moved (A10/C-b scope; Tovu-only legacy context) | stay in T service-ports.ts |
+Neutral strings kept (justified): `External MCP source:` approval label and `streamable_http`/`oauth`/`static_env` (canonical hosted-MCP vocabulary), neutral refusal/warning texts without product/tool names.
+Product scan of the 7 moved files for `Tovu|tovu|plugins_set_enabled|system:|Add-Ons|Open Settings|this Mac|http(s)://`: 0 hits. N1-rejected comment lines reworded (exact diffs in commit 05066348 message): federate-mcp ×3, enable-access ×1, plugin-host ×1; meaning kept.
+
+### Exports / isolation
+packages/agent-plugins/package.json: `./connect` (existing; now also exports ports + the five bodies), NEW `./connect/plugin-host` (exports map + jini.entries `universal` + isolation `lifecycle`), `./connect/executable` retained. Runtime closure of both entries (dist JS): `@jini-ai/core`, `@jini-ai/core/plugin-directory`, same-package `../lifecycle/enable-grants.js` (no imports) and the connect bodies — no node built-in, so `universal` is truthful (no facade). No new deps/peers. layers [] isolation [] SI_c 9 SI_d 7 (unchanged). Emitted `.d.ts` @agent-note counts: ports 13, federate-mcp 5, enable-access 1, apply-connect-defaults 5, switch-on-saved-token 3, connection-status 1, plugin-host 23.
+
+### Tests
+- NEW Jini examples/neutral-host/src/connect-plugin-host.test.ts (2): `acme` namespace/actors/paths/copy, in-memory ports, real moved provisioning: order resolve → save → save(fail) → notify → warn → grant with `skipServerKeys:['beta']`; declined access attributed to `acme:declined`; sse skip reason = host copy; no Tovu vocabulary in any step. (Not mutation-tested in this batch — the A8 order mutations still pin the same body.)
+- Tovu new test C/__tests__/portable-plugin-host.unit.test.ts (A8's, not frozen) repointed at the moved modules (import from `@jini-ai/agent-plugins/connect/plugin-host`, static checks read the Jini sources: no `#src`/out-of-package edge, no non-core Jini import, no mcp-host-bindings) + new required deps in its fixture.
+- Own red: run 1 (`a9-gate-run1-summary.txt`): federate-mcp.unit 32/34 — shim spread `{...input}` evaluated a fixture's lazy layout getter ("Test home isolation required"). Fixed with descriptor-preserving `withOverrides` (e19646a3) → 34/34.
+
+### A9 gate (raw dir cloud/reports/raw/extract-s4/)
+| item | raw | result |
+|---|---|---|
+| Jini core build + tsc | a9-core-build (scratch), a9-j-core-tsc.txt | exit 0 |
+| Jini agent-plugins build + tsc | a9-j-build.txt, a9-j-ap-tsc.txt | exit 0 |
+| Jini scripts tsc / tests | a9-j-scripts-tsc.txt, a9-j-scripts.txt | 0 / 76 pass |
+| agent-plugins named tests | a9-j-ap-tests.txt | 100 pass |
+| neutral-host named + new | a9-j-neutral.txt | 37 pass (35 + 2 new) |
+| check:cross-package (XP3 snapshot) | a9-j-xp.txt | XP1–XP5 clean |
+| FULL guard | a9-guard.txt | exit 1, "2 guard violation(s)." = record: R2(1) R10(1), R13 info, HW1 17/HW2 16/HW3 135/HW4 1/HW8 49 all 0 new, HW5/6/7/9 0, **N1 0** (first run had N1 ×3 on moved files → fixed in 05066348) |
+| guard:plugins | a9-guard-plugins.txt | exit 0 |
+| layers/isolation | a9-layers-iso.txt | [] / [] SI 9/7 |
+| complexity ≤10 | a9-j-complexity.txt, a9-t-complexity.txt | 0 errors (J 2 warnings, T 1 warning) |
+| T relink + main tsc | a9-relink.txt, a9-tsc4.txt | exit 0 / 0 |
+| broad tests tsconfig | a9-broad-tsc.txt | exactly 13, identical list to a8b-broad-tsc.txt |
+| pin typecheck | a9-pin-tsc.txt | exit 0 |
+| T A8 list (28 files: A8 matrix + 2 S4-0b tests + C four + new + nine baselines + plugins-uninstall) | a9-gate-summary.txt, a9-gate/ | per-file counts identical to a8b-gate-summary; only known red plugin-host.integration test 9 |
+| custody | a9-pins-check.txt | pins 28/28; tool-metadata a0d6b428… unchanged; XP3 snapshot listing unchanged; tests diff vs f82936d9 = only the A8 new test (repointed); no frozen-test edit |
+
+### Outside named scope / S5 overlap
+- Jini packages/core/** (H0 adoption only, byte-identical to S5 — merge is a no-op for those paths).
+- Tovu A/service-ports.ts (MCP ports → re-exports; S5 diff vs S3 on this file: check at merge — S5 owns T external-MCP contracts, which this file no longer imports for MCP rows), C/plugin-host.ts (binder deps), A/{federate-mcp,enable-access,apply-connect-defaults,switch-on-saved-token,connection-status}.ts shims (S5 0 lines at A8).
+Lines: Jini +1399 verbatim copy, then +200/−232 seams; Tovu +225/−1408 (moved out). Time 08:05–08:27Z. Token note: builder ~165k at report time.
+Remaining: none for A9 scope. A10/A11 must consume the moved MCP ports from `@jini-ai/agent-plugins/connect` (T service-ports re-exports them) and the T binder still passes the T grant (`grantDeclaredToolsToSignedInRows`).

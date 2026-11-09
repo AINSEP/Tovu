@@ -1,0 +1,198 @@
+TAP version 13
+# Subtest: owner 2026-10-09: both families share one live metadata lookup with workspace isolation
+ok 1 - owner 2026-10-09: both families share one live metadata lookup with workspace isolation
+  ---
+  duration_ms: 41.507076
+  type: 'test'
+  ...
+# Subtest: the executable site SDK receives only live metadata methods through the existing loader
+ok 2 - the executable site SDK receives only live metadata methods through the existing loader
+  ---
+  duration_ms: 28.437073
+  type: 'test'
+  ...
+# Subtest: the manifest adapter never includes malformed package bytes in its error
+ok 3 - the manifest adapter never includes malformed package bytes in its error
+  ---
+  duration_ms: 10.534205
+  type: 'test'
+  ...
+# Subtest: legacy metadata warns, preserves the install and never infers provides from permissions
+ok 4 - legacy metadata warns, preserves the install and never infers provides from permissions
+  ---
+  duration_ms: 4.233726
+  type: 'test'
+  ...
+# Subtest: cross-family identity admission refuses duplicates before publication and releases its lock
+ok 5 - cross-family identity admission refuses duplicates before publication and releases its lock
+  ---
+  duration_ms: 9.610551
+  type: 'test'
+  ...
+# Subtest: the composed installer reserves built-in publisher ids even without a cross-family host
+ok 6 - the composed installer reserves built-in publisher ids even without a cross-family host
+  ---
+  duration_ms: 10.691397
+  type: 'test'
+  ...
+# Subtest: plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization
+ok 7 - plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization
+  ---
+  duration_ms: 7.328548
+  type: 'test'
+  ...
+# Subtest: search_tools indexes a site plugin keyword and provides capability
+ok 8 - search_tools indexes a site plugin keyword and provides capability
+  ---
+  duration_ms: 45.174326
+  type: 'test'
+  ...
+# Subtest: every bundled agent and site package declares a distinct publisher identity and discovery terms
+not ok 9 - every bundled agent and site package declares a distinct publisher identity and discovery terms
+  ---
+  duration_ms: 909.156353
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:1:13560'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'unknown/charts-recharts'
+    - 'jini/charts-recharts-agent'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'jini/charts-recharts-agent'
+  actual: 'unknown/charts-recharts'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:202:12)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: parallel host adapters serialize duplicate identity admission across plugin kinds
+ok 10 - parallel host adapters serialize duplicate identity admission across plugin kinds
+  ---
+  duration_ms: 21.69859
+  type: 'test'
+  ...
+# Subtest: unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs
+ok 11 - unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs
+  ---
+  duration_ms: 24.335491
+  type: 'test'
+  ...
+# Subtest: conflicting revisions retain every publisher reservation even when a bundled ledger selects one
+ok 12 - conflicting revisions retain every publisher reservation even when a bundled ledger selects one
+  ---
+  duration_ms: 30.311573
+  type: 'test'
+  ...
+# Subtest: a broken revision cannot hide the only valid operator revision
+ok 13 - a broken revision cannot hide the only valid operator revision
+  ---
+  duration_ms: 3.117139
+  type: 'test'
+  ...
+# Subtest: one malformed identity never hides healthy providers or blocks admission
+ok 14 - one malformed identity never hides healthy providers or blocks admission
+  ---
+  duration_ms: 4.648787
+  type: 'test'
+  ...
+# Subtest: rejected duplicate site records do not reappear in the host directory
+ok 15 - rejected duplicate site records do not reappear in the host directory
+  ---
+  duration_ms: 3.106376
+  type: 'test'
+  ...
+# Subtest: same-name legacy plugins in different families are independently addressable
+ok 16 - same-name legacy plugins in different families are independently addressable
+  ---
+  duration_ms: 3.718658
+  type: 'test'
+  ...
+# Subtest: MCP provisioning logs each server and reason while preserving activation success
+ok 17 - MCP provisioning logs each server and reason while preserving activation success
+  ---
+  duration_ms: 10.685424
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: a signed-in connection receives the reviewed plugin defaults: operator source false
+ok 18 - a signed-in connection receives the reviewed plugin defaults: operator source false
+  ---
+  duration_ms: 93.497171
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: a signed-in connection receives the reviewed plugin defaults: operator source true
+ok 19 - a signed-in connection receives the reviewed plugin defaults: operator source true
+  ---
+  duration_ms: 72.124383
+  type: 'test'
+  ...
+# Subtest: L058b site discovery omits invalid identities and propagates activation read failures
+ok 20 - L058b site discovery omits invalid identities and propagates activation read failures
+  ---
+  duration_ms: 7.475281
+  type: 'test'
+  ...
+# Subtest: L058b default agent activation is resolved through the lifecycle owner
+ok 21 - L058b default agent activation is resolved through the lifecycle owner
+  ---
+  duration_ms: 17.867028
+  type: 'test'
+  ...
+# Subtest: L058b agent revision lookup and admission retain distinct selection contracts
+ok 22 - L058b agent revision lookup and admission retain distinct selection contracts
+  ---
+  duration_ms: 18.728014
+  type: 'test'
+  ...
+# Subtest: the composed MCP port preserves store errors by identity and persists through the bound store
+ok 23 - the composed MCP port preserves store errors by identity and persists through the bound store
+  ---
+  duration_ms: 5.537506
+  type: 'test'
+  ...
+# Subtest: an approved enable reports the failed server and redacted reason to the owner
+ok 24 - an approved enable reports the failed server and redacted reason to the owner
+  ---
+  duration_ms: 4.305744
+  type: 'test'
+  ...
+# Subtest: an approved enable missing its snapshot cannot provision connections
+ok 25 - an approved enable missing its snapshot cannot provision connections
+  ---
+  duration_ms: 2.194113
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 24
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3975.575699

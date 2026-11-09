@@ -1,0 +1,40 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 10152ms
+   ✓ XP1 rejects a new source with type-only import 310ms
+   ✓ XP1 rejects a new source with value export 337ms
+   ✓ XP1 rejects a new source with dynamic import 308ms
+   ✓ XP3 fails closed on missing or invalid baseline declarations 343ms
+   ✓ XP3 fails closed on missing or invalid mapping declarations 371ms
+   ✓ XP3 fails closed on missing or invalid provenance declarations 307ms
+   ✓ XP5 permits added core and unchanged pre-existing dependencies 331ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 2912ms
+   ✓ XP2 rejects a newly added import-equals specifier and permits the unchanged one 351ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 498ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 559ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 942ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 17806ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 902ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 1108ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 1015ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 1139ms
+   ✓ F1 writer refuses dirty tracked source 1042ms
+   ✓ F1 writer refuses a missing emitted declaration 1032ms
+   ✓ F1 writer refuses unsafe source destination 1031ms
+   ✓ F1 writer refuses unsafe ancestor destination 911ms
+   ✓ F1 writer refuses unsafe relative destination 851ms
+   ✓ F1 writer refuses unsafe symlink destination 895ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 2064ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 1059ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 1042ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 921ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 1043ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 8ms
+
+ Test Files  4 passed (4)
+      Tests  76 passed (76)
+   Start at  08:21:48
+   Duration  19.67s (transform 214ms, setup 0ms, collect 2.51s, tests 30.88s, environment 1ms, prepare 414ms)
+

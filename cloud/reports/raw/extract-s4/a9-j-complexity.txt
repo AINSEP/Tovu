@@ -1,0 +1,9 @@
+
+/home/user/Jini/packages/agent-plugins/src/connect/apply-connect-defaults.ts
+  93:9  warning  Use destructuring syntax for these assignments from "deps"  sonarjs/destructuring-assignment-syntax
+
+/home/user/Jini/packages/agent-plugins/src/connect/enable-access.ts
+  77:145  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 2 problems (0 errors, 2 warnings)
+

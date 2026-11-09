@@ -1,0 +1,17 @@
+apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts(26,43): error TS2322: Type 'Promise<ExternalMcpServerView>' is not assignable to type 'Promise<AgentPluginMcpView>'.
+  Type 'ExternalMcpServerView' is not assignable to type 'AgentPluginMcpView'.
+    Types of property 'accessTokenHint' are incompatible.
+      Type 'CredentialTokenHint | null | undefined' is not assignable to type 'null | undefined'.
+        Type 'CredentialTokenHint' is not assignable to type 'null | undefined'.
+apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts(28,83): error TS2345: Argument of type '{ readonly lowered?: unknown; }' is not assignable to parameter of type '{ readonly waitMs?: number | undefined; readonly lowered?: ToolAccessChange | undefined; }'.
+  Types of property 'lowered' are incompatible.
+    Type 'unknown' is not assignable to type 'ToolAccessChange | undefined'.
+apps/website/src/server/runtime/composition/plugin-host.ts(98,5): error TS2322: Type '(required: { readonly deps: GrantSignedInDefaultsDeps; readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>>; }, optional?: GrantDeclaredToolsOptions) => Promise<...>' is not assignable to type '(required: { deps: PluginHostGrantDeps; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; }, optional: { skipServerKeys?: readonly string[] | undefined; approvedEnable?: { ...; } | undefined; }) => Promise<...>'.
+  Types of parameters 'required' and 'required' are incompatible.
+    Type '{ deps: PluginHostGrantDeps; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; }' is not assignable to type '{ readonly deps: GrantSignedInDefaultsDeps; readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>>; }'.
+      Types of property 'deps' are incompatible.
+        Type 'PluginHostGrantDeps' is not assignable to type 'GrantSignedInDefaultsDeps'.
+          Type 'PluginHostGrantDeps' is not assignable to type 'AgentPluginMcpProjectionPorts & { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly repo: AgentPluginMcpRepo; ... 4 more ...; readonly warn?: ((message: string) => void) | undefined; }'.
+            Type 'PluginHostGrantDeps' is not assignable to type '{ readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly repo: AgentPluginMcpRepo; readonly applyAccess: (input: ExternalMcpApprovedAccess, options?: Record<...> | undefined) => Promise<...>; readonly clock: Clock; readonly notifyRosterChanged: () => Promise<...>; readonly onConnected?...'.
+              Types of property 'agentPluginLayout' are incompatible.
+                Type 'AgentPluginLayout' is missing the following properties from type 'AgentPluginLayout': root, workspacesDir

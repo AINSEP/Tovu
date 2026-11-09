@@ -1,0 +1,226 @@
+TAP version 13
+# Subtest: every tool description and explicit prompt call names only declared input arguments
+ok 1 - every tool description and explicit prompt call names only declared input arguments
+  ---
+  duration_ms: 257.573882
+  type: 'test'
+  ...
+# Subtest: CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add
+ok 2 - CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add
+  ---
+  duration_ms: 0.956744
+  type: 'test'
+  ...
+# Subtest: every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}
+ok 3 - every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}
+  ---
+  duration_ms: 231.741443
+  type: 'test'
+  ...
+# Subtest: every content_read card preserves member inputs through published properties or canonical selector aliases
+ok 4 - every content_read card preserves member inputs through published properties or canonical selector aliases
+  ---
+  duration_ms: 196.667365
+  type: 'test'
+  ...
+# Subtest: identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended
+ok 5 - identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended
+  ---
+  duration_ms: 174.263805
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever
+ok 6 - requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever
+  ---
+  duration_ms: 163.501988
+  type: 'test'
+  ...
+# Subtest: a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn
+ok 7 - a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn
+  ---
+  duration_ms: 183.028994
+  type: 'test'
+  ...
+# Subtest: the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema
+ok 8 - the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema
+  ---
+  duration_ms: 175.504045
+  type: 'test'
+  ...
+# Subtest: no rejection message echoes the offending value — a fields payload can carry operator content
+ok 9 - no rejection message echoes the offending value — a fields payload can carry operator content
+  ---
+  duration_ms: 156.794715
+  type: 'test'
+  ...
+# Subtest: a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion
+ok 10 - a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion
+  ---
+  duration_ms: 170.506271
+  type: 'test'
+  ...
+# Subtest: tombstonedAt appears only when set, so an active type's payload carries no always-null key
+ok 11 - tombstonedAt appears only when set, so an active type's payload carries no always-null key
+  ---
+  duration_ms: 332.080012
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type returns every content type as the same model-facing view, regardless of status
+ok 12 - content_read.collection_content_type returns every content type as the same model-facing view, regardless of status
+  ---
+  duration_ms: 168.325327
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type returns an empty list rather than an error when the workspace has none
+ok 13 - content_read.collection_content_type returns an empty list rather than an error when the workspace has none
+  ---
+  duration_ms: 159.126113
+  type: 'test'
+  ...
+# Subtest: the returned fields array is a copy — a tool caller cannot mutate domain state through it
+ok 14 - the returned fields array is a copy — a tool caller cannot mutate domain state through it
+  ---
+  duration_ms: 167.842634
+  type: 'test'
+  ...
+# Subtest: the real catalog and this layer's independent classification agree for every wired tool
+ok 15 - the real catalog and this layer's independent classification agree for every wired tool
+  ---
+  duration_ms: 189.186025
+  type: 'test'
+  ...
+# Subtest: a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build
+ok 16 - a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build
+  ---
+  duration_ms: 2.032538
+  type: 'test'
+  ...
+# Subtest: an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'
+ok 17 - an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'
+  ---
+  duration_ms: 7.552609
+  type: 'test'
+  ...
+# Subtest: the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree
+ok 18 - the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree
+  ---
+  duration_ms: 1.550391
+  type: 'test'
+  ...
+# Subtest: a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler
+ok 19 - a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler
+  ---
+  duration_ms: 1.341085
+  type: 'test'
+  ...
+# Subtest: the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat
+ok 20 - the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat
+  ---
+  duration_ms: 168.11364
+  type: 'test'
+  ...
+# Subtest: collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired
+ok 21 - collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired
+  ---
+  duration_ms: 184.703006
+  type: 'test'
+  ...
+# Subtest: an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules
+ok 22 - an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules
+  ---
+  duration_ms: 1.6376
+  type: 'test'
+  ...
+# Subtest: deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array
+ok 23 - deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array
+  ---
+  duration_ms: 663.318834
+  type: 'test'
+  ...
+# Subtest: both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it
+ok 24 - both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it
+  ---
+  duration_ms: 277.057621
+  type: 'test'
+  ...
+# Subtest: deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable
+ok 25 - deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable
+  ---
+  duration_ms: 586.839547
+  type: 'test'
+  ...
+# Subtest: search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it
+ok 26 - search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it
+  ---
+  duration_ms: 262.731095
+  type: 'test'
+  ...
+# Subtest: both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them
+ok 27 - both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them
+  ---
+  duration_ms: 293.414601
+  type: 'test'
+  ...
+# Subtest: search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through
+ok 28 - search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through
+  ---
+  duration_ms: 305.532704
+  type: 'test'
+  ...
+# Subtest: describe_component executes through the REAL ToolExecutor and returns a known button's manifest
+ok 29 - describe_component executes through the REAL ToolExecutor and returns a known button's manifest
+  ---
+  duration_ms: 315.938124
+  type: 'test'
+  ...
+# Subtest: describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable
+ok 30 - describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable
+  ---
+  duration_ms: 328.046142
+  type: 'test'
+  ...
+# Subtest: assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement
+ok 31 - assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement
+  ---
+  duration_ms: 237.276907
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not
+ok 32 - plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not
+  ---
+  duration_ms: 497.268986
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog
+ok 33 - plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog
+  ---
+  duration_ms: 252.370685
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash
+ok 34 - plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash
+  ---
+  duration_ms: 263.00778
+  type: 'test'
+  ...
+# Subtest: publish pull tools are wired with honest risk and the human-confirmed execute contract
+ok 35 - publish pull tools are wired with honest risk and the human-confirmed execute contract
+  ---
+  duration_ms: 656.464237
+  type: 'test'
+  ...
+# Subtest: root-added load_agent_plugin is discoverable and publishes the shared domain approval contract
+ok 36 - root-added load_agent_plugin is discoverable and publishes the shared domain approval contract
+  ---
+  duration_ms: 566.823167
+  type: 'test'
+  ...
+1..36
+# tests 36
+# suites 0
+# pass 36
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15889.66
