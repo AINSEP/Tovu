@@ -754,3 +754,52 @@ Repair: one input error in my own test before its first commit (a request body p
 | fixture hashes (5 fixtures + 3 inherited pins) | match | all 8 equal the baseline |
 
 Existing tests and fixtures: none modified (diff since the pin under `__tests__` is additions only). Shared-lane files: none touched (no S4/S5/S6-owned file; `core/src/contracts/credentials.ts` and the new changeset are S8 integration files). Cross-package: core imports nothing new; the binder imports only Tovu modules and `@jini-ai/core/contracts/credentials`. Processes: the one background test runner exited 0; nothing is left running.
+
+## C2 part 2 — inventory/plan
+
+Recorded before any C2 part 2 implementation edit (R5.6). Row names refer to "C2 part 1 — inventory"
+above (sections A–J). Seams are made IN PLACE in Tovu: no tool, source-control, deployment, project,
+HTTP or policy code moves; old entries keep their signatures and bind Tovu's values. Jini is not
+edited in this part (every type the seams need already exists in `@jini-ai/core` root,
+`core/gated-mutations` and `core/contracts/cards`; the two new contracts are consumer-local because
+both consumers would land in the same package at C3).
+
+New Tovu files (T = `apps/website/src/`):
+- `features/custom-credentials/credential-tool-host.ts` — types only (imports only `@jini-ai/core` types):
+  `CredentialCardIdentity {uriNamespace, appNames}`, `CustomCredentialToolVocabulary`,
+  `CustomCredentialToolHost`, `CredentialCopyProjectKeysPort` (narrow list/permissionFor/use/savedResult/site),
+  `CredentialCopyMessages`, `CredentialCopyToolHost`. Every field required; @agent-notes carry the
+  second-host rules (namespace compared on answers, permission-before-resolve, re-admit after answer,
+  use re-resolves, same SurfaceExchangeStore).
+- `features/custom-credentials/tovu-credential-card-identity.ts` — Tovu binds namespace `tovu` and the
+  exact apps `tovu-custom-credential-{create,create-outcome,set-token,set-token-outcome}` version `1`.
+
+| Inventory row (section) | Seamed now | How | Remains for C3 |
+|---|---|---|---|
+| owner/instance auth `admit` (J) | yes | new `createCredentialCopyRegistrations({deps,surfaces,host},{saveNew})`; owner permission `host.vocabulary.ownerPermission`; core-root `requireToolPermission`/`adaptLegacyAuthorize`/`LegacyToolAuthorizeFn` (no cms) | — |
+| ProjectKeysPort/ProjectKeyRow (J) | yes | narrow local `CredentialCopyProjectKeysPort`; T `ProjectKeysPort` passes structurally | — |
+| copy URI `ui://tovu/use-saved-key/${id}` (E/J) | yes | `ui://${cardIdentity.uriNamespace}/${vocabulary.cardPath}/${exchange.id}` | — |
+| NEW_KEY `:new-key` (J) | yes | `vocabulary.newKeyValue` | — |
+| copy catalog / tool id / domain / catalogModule / metadata / derived risk (J, C) | yes | host inputs; old exports `catalog`, `CREDENTIAL_COPY_TOOL_ID`, `credentialCopyDerivedRisk` unchanged objects | — |
+| copy card + error sentences (J) | yes | `host.messages` (16 fields, verbatim T text) | — |
+| askThenReport / buildFormSurface for copy (E) | yes | `host.protocol` typed by core `SurfaceAskThenReport` / `SurfaceCardFormSpec`; T binds daemon/ui functions | — |
+| DOMAIN / READ_PERMISSION / WRITE_PERMISSION / catalogModule / toolMetadata / catalog (C) | yes | new `createCustomCredentialsRegistrations` + `createApiCredentialSaveHandlers` take `host.vocabulary`; T consts and why-comments stay in place, bound by old entries | — |
+| secret-card `uriHost: 'tovu'` ×2 (E) | yes | `host.cardIdentity.uriNamespace` | — |
+| create/set-token app names (E: buildCreateForm/Outcome, setTokenForm/Outcome) | yes | `cardIdentity.appNames.*` stamped on the host builder output (T values identical bytes) | builders themselves stay host builders |
+| requireToolPermission/adaptLegacyAuthorize via `@jini-ai/cms/core` (C) | yes | imported from `@jini-ai/core` (same objects; cms re-exports them) | — |
+| tool ids MAKE_CREDENTIALED_REQUEST / CREDENTIAL_SAVE / WRITE_FILES, handler keys, derived-risk map (C) | no | — | host inputs at C3 |
+| CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS, FORM_SAVE_* messages, set-token/create fixed texts (C, E) | no | — | `messages` host input at C3 |
+| resolveOperatorLocale / credentialText / formatCredentialHint / translateCredentialMessage (F) | no | — | locale/translation port at C3 |
+| defineSecretCardTool / askThenReport in tool-registrations, approvalToolHandler, describeDeleteRequestApproval (E) | no | — | `SurfaceCardsPort` + approval host input at C3 |
+| CredentialedRequestPort / SourceControlWritePort wiring into handlers (A, B) | no | part 1 binders exist (`credential-ports.ts`) | handler consumption at C3 |
+| deploy catalog / publish invalidation / cache delete (G), abortGuardedCredentialRepo (G) | no | — | narrow ports at C3 |
+| pluginCards {load,find,readValues}, credentialCardForms {build,apply}, recovery (H) | no | — | host inputs at C3 |
+| cleanCardToken, assertCredentialFreeField, normalizeCredentialWorksFor (F, J) | no | — | host inputs at C3 |
+| C1 store/errors/types (I) | n/a | C1 (done) | — |
+
+Not touched: `server/runtime/composition/tool-catalog-manifest.ts` (old entries keep their call
+shapes; connect tokenDeps :595 untouched), H/A/L areas, any test or fixture.
+New tests (named before edits): `features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts`
+— second host with different permissions/entity/domain/catalogModule/tool id/namespace/apps/path/
+messages/answer value; T old-entry byte pins (sha256 of emitted copy and create cards and the
+registration descriptors, recorded on the unmodified code before the seam edits).
