@@ -1,0 +1,32 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 7380ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 1970ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 356ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 692ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 14510ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 905ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 814ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 760ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 925ms
+   ✓ F1 writer refuses dirty tracked source 739ms
+   ✓ F1 writer refuses a missing emitted declaration 832ms
+   ✓ F1 writer refuses unsafe source destination 732ms
+   ✓ F1 writer refuses unsafe ancestor destination 786ms
+   ✓ F1 writer refuses unsafe relative destination 713ms
+   ✓ F1 writer refuses unsafe symlink destination 734ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 1507ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 924ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 876ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 819ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 912ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 7ms
+
+ Test Files  4 passed (4)
+      Tests  76 passed (76)
+   Start at  06:46:41
+   Duration  16.02s (transform 158ms, setup 0ms, collect 1.97s, tests 23.87s, environment 1ms, prepare 310ms)
+
+exit=0

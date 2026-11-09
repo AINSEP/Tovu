@@ -1,0 +1,15 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 2005ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 364ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 353ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 658ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  06:47:11
+   Duration  3.34s (transform 100ms, setup 0ms, collect 762ms, tests 2.01s, environment 0ms, prepare 107ms)
+
+exit=0

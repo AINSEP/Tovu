@@ -1,0 +1,187 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests | 6 failed) 1742ms
+   × XP1 and XP3 reject a new source with an import-equals edge 187ms
+     → expected [] to deeply equal [ { rule: 'XP1', …(2) }, …(1) ]
+   × XP1 and XP3 reject an import-equals edge in a moved source and its declaration 160ms
+     → expected [] to deeply equal [ [ 'XP1', '@jini-ai/ui' ], …(1) ]
+   × XP2 rejects a newly added import-equals specifier and permits the unchanged one 219ms
+     → expected [] to deeply equal [ { rule: 'XP2', …(2) } ]
+   × XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 188ms
+     → expected [] to deeply equal [ { rule: 'XP3', …(2) } ]
+   × import-equals of core and of the own package are allowed; core may import no neighbour 308ms
+     → expected [] to deeply equal [ [ 'XP1', '@jini-ai/ui' ], …(1) ]
+   × the declaration tsc actually emits for import-equals is caught by XP3 680ms
+     → expected [] to deeply equal [ { rule: 'XP3', …(2) } ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/extract-s4-import-equals.test.ts > XP1 and XP3 reject a new source with an import-equals edge
+AssertionError: expected [] to deeply equal [ { rule: 'XP1', …(2) }, …(1) ]
+
+- Expected
++ Received
+
+- Array [
+-   Object {
+-     "file": "packages/platform/src/new.ts",
+-     "rule": "XP1",
+-     "specifier": "@jini-ai/ui",
+-   },
+-   Object {
+-     "file": "packages/platform/src/new.ts",
+-     "rule": "XP3",
+-     "specifier": "@jini-ai/ui",
+-   },
+- ]
++ Array []
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts:63:21
+     61| test('XP1 and XP3 reject a new source with an import-equals edge', () …
+     62|   const f = fixture(); f.change('packages/platform/src/new.ts', import…
+     63|   expect(f.check()).toEqual([
+       |                     ^
+     64|     { rule: 'XP1', file: 'packages/platform/src/new.ts', specifier: '@…
+     65|     { rule: 'XP3', file: 'packages/platform/src/new.ts', specifier: '@…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  scripts/__tests__/extract-s4-import-equals.test.ts > XP1 and XP3 reject an import-equals edge in a moved source and its declaration
+AssertionError: expected [] to deeply equal [ [ 'XP1', '@jini-ai/ui' ], …(1) ]
+
+- Expected
++ Received
+
+- Array [
+-   Array [
+-     "XP1",
+-     "@jini-ai/ui",
+-   ],
+-   Array [
+-     "XP3",
+-     "@jini-ai/ui",
+-   ],
+- ]
++ Array []
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts:73:53
+     71|   f.git('mv', 'packages/platform/src/index.ts', 'packages/platform/src…
+     72|   f.write('packages/platform/dist/renamed.d.ts', importEquals);
+     73|   expect(f.check().map(v => [v.rule, v.specifier])).toEqual([['XP1', '…
+       |                                                     ^
+     74| });
+     75| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  scripts/__tests__/extract-s4-import-equals.test.ts > XP2 rejects a newly added import-equals specifier and permits the unchanged one
+AssertionError: expected [] to deeply equal [ { rule: 'XP2', …(2) } ]
+
+- Expected
++ Received
+
+- Array [
+-   Object {
+-     "file": "packages/platform/src/index.ts",
+-     "rule": "XP2",
+-     "specifier": "@jini-ai/ui/other",
+-   },
+- ]
++ Array []
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts:81:21
+     79|   expect(f.check()).toEqual([]);
+     80|   f.change('packages/platform/src/index.ts', `${importEquals} import o…
+     81|   expect(f.check()).toEqual([{ rule: 'XP2', file: 'packages/platform/s…
+       |                     ^
+     82| });
+     83| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  scripts/__tests__/extract-s4-import-equals.test.ts > XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one
+AssertionError: expected [] to deeply equal [ { rule: 'XP3', …(2) } ]
+
+- Expected
++ Received
+
+- Array [
+-   Object {
+-     "file": "packages/platform/src/index.ts",
+-     "rule": "XP3",
+-     "specifier": "@jini-ai/ui",
+-   },
+- ]
++ Array []
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts:87:21
+     85|   const f = fixture();
+     86|   f.change('packages/platform/src/index.ts', "import type { X } from '…
+     87|   expect(f.check()).toEqual([{ rule: 'XP3', file: 'packages/platform/s…
+       |                     ^
+     88|   const pinned = fixture({ source: 'export interface Existing {}', dec…
+     89|   pinned.change('packages/platform/src/index.ts', 'export interface Ch…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  scripts/__tests__/extract-s4-import-equals.test.ts > import-equals of core and of the own package are allowed; core may import no neighbour
+AssertionError: expected [] to deeply equal [ [ 'XP1', '@jini-ai/ui' ], …(1) ]
+
+- Expected
++ Received
+
+- Array [
+-   Array [
+-     "XP1",
+-     "@jini-ai/ui",
+-   ],
+-   Array [
+-     "XP3",
+-     "@jini-ai/ui",
+-   ],
+- ]
++ Array []
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts:99:63
+     97|   const coreFixture = fixture();
+     98|   coreFixture.change('packages/core/src/new.ts', importEquals);
+     99|   expect(coreFixture.check().map(v => [v.rule, v.specifier])).toEqual(…
+       |                                                               ^
+    100| });
+    101| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  scripts/__tests__/extract-s4-import-equals.test.ts > the declaration tsc actually emits for import-equals is caught by XP3
+AssertionError: expected [] to deeply equal [ { rule: 'XP3', …(2) } ]
+
+- Expected
++ Received
+
+- Array [
+-   Object {
+-     "file": "packages/platform/src/index.ts",
+-     "rule": "XP3",
+-     "specifier": "@jini-ai/ui",
+-   },
+- ]
++ Array []
+
+ ❯ scripts/__tests__/extract-s4-import-equals.test.ts:107:21
+    105|   const f = fixture();
+    106|   f.change('packages/platform/src/index.ts', 'export interface Changed…
+    107|   expect(f.check()).toEqual([{ rule: 'XP3', file: 'packages/platform/s…
+       |                     ^
+    108| });
+    109| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  06:46:22
+   Duration  2.92s (transform 96ms, setup 0ms, collect 727ms, tests 1.74s, environment 0ms, prepare 68ms)
+
+exit=1
