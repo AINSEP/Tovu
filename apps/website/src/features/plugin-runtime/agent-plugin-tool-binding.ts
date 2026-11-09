@@ -17,7 +17,7 @@ function classifyError({ error }: { error: unknown }): ClassifiedPluginError | u
 /** Only the fields the portable body consumes; no packageRoot/files/skillPath enters the port. */
 function safeRevision(plugin: InstalledAgentPlugin): InstalledPluginRevision {
   return { pluginId: plugin.pluginId, version: plugin.version, archiveDigest: plugin.archiveDigest,
-    skills: plugin.skills.map(({ name }) => ({ name })), displayName: plugin.displayName, description: plugin.description,
+    skills: plugin.skills.map(({ name }) => ({ name })), displayName: plugin.displayName, summary: plugin.summary, description: plugin.description,
     hostRange: plugin.hostRange, requires: plugin.requires };
 }
 export function bindAgentPluginTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces?: AssistantSurfaceDeps }): PluginLifecycleToolsPort {
