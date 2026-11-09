@@ -36,6 +36,12 @@ S7 E1: Tovu `24d99e367` removes the surplus isUnconfigured predicate and its red
 
 E5 remains because frozen tests still import the identity shim. E8's conditional provenance convention is retained consistently with the other extracted packages. S7 L1 (injecting two existing host strings) and L3 (object callback adapters across hosts) need more than a one-line change and are listed, per the brief's Low rule. L4 is moot after the peer-free R5 fix.
 
+S9 exact cuts: Tovu `d66039ba6` and `d8d877f5e` reuse the canonical credential classifier with the required two-object public signature; Jini `a8fc30e99` removes the optional aliases and empty zero-argument factory parameters. Jini `385520de0` and Tovu `8246f3672` replace repeated S9 notes and declaration-count sensors with specific host obligations. Declaration existence and the two-object argument assertions remain. Jini `ed5cf396a` and `74d40263c` make the credential privacy and surface-emitter wording precise. Jini `dfaa1b494` makes the one-line vendor example neutral. The explicitly deferred frozen-test shims remain. Injecting the two remaining S9 model/card phrases (`this site's key` and restart wording) needs more than one line and remains listed under the Low rule.
+
+Final note corrections: Jini `e7deedfad`, `835b0e7b2`, and `4de40e0bb` distinguish runtime uninstall timing, scope list privacy correctly, require fresh consent even for previously approved revisions, and require a shared preview/install owner. Tovu `d968cd682` and `aab35f81b` pin these precise obligations. The S7 contract shrank from 269 notes / 54,140 bytes to 30 notes / 14,810 bytes; management/install/source have zero private implementation notes.
+
+The previous S7 report's claim that the frozen uninstall warning counts were “proved wrong” is withdrawn and superseded by R7's behavioral fix. The original report remains byte-identical as requested; neither frozen uninstall assertion was edited.
+
 ## Required open checks resolved
 
 `pluginSource` is created before tools are built: Jini host/node/runtime-core.ts constructs composeSourceService before returning runtime services; Tovu composition/plugin-runtime.ts builds that core before returning; server app/deps assembly copies pluginRuntime.pluginSource into route deps. No later assignment was found in runtime/assistant wiring, so the registration snapshot preserves production behavior.
