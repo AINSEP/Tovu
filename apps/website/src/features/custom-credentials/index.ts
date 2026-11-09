@@ -48,3 +48,5 @@ export {
   type CustomCredentialVerificationResult,
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
+
+export { classifyCredentialedRequestError } from "./credential-ports.js";

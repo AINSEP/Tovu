@@ -29,7 +29,7 @@ import { validateRepositoryTarget } from "./write-files-validation.js";
  * The egress rebuild is the one `tool-registrations.ts` performs before schema decoration.
  * @complexity O(1) — at most four `instanceof` checks.
  */
-function classifyCredentialedRequestError(error: unknown): CredentialedRequestErrorClass {
+export function classifyCredentialedRequestError(error: unknown): CredentialedRequestErrorClass {
   if (error instanceof EgressRefusedError) {
     const callerSafeMessage = error.callerSafeMessage;
     return { category: "egress-refused", error, callerSafeMessage, callerSafeError: new EgressRefusedError({ message: callerSafeMessage }, { callerSafeMessage }) };

@@ -6,10 +6,7 @@ import type { PublishHistoryStore } from '../static-publish/publish-history.js';
 import type { OperatorLocaleDeps } from '#src/contracts/headless/index';
 import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
 import { issueCredentialSetup } from '#src/contracts/core/tool-failure-diagnostics';
-import { makeCredentialedRequest, resolveRequestTarget, listCustomCredentials, allowedOriginsFor, type CredentialedRequestDeps } from '#src/features/custom-credentials/index';
-import { CredentialedRequestValidationError, CredentialedRequestTransportError, CustomCredentialNotFoundError } from '#src/features/custom-credentials/index';
-import { EgressRefusedError } from '../../../platform/http/index.js';
-import type { CredentialedRequestErrorClass } from '@jini-ai/core/contracts/credentials';
+import { makeCredentialedRequest, resolveRequestTarget, listCustomCredentials, allowedOriginsFor, classifyCredentialedRequestError, type CredentialedRequestDeps } from '#src/features/custom-credentials/index';
 import type { DeployOpsRegistry, DeployOpsInput, LoadedDeployOps, DeployOpsStatus, DeployOpsLogs, DeployOpsTargets, DeployOpsRuntime, WaitClock } from '@jini-ai/devops/deploy';
 import { aborted, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
 import * as portable from '@jini-ai/devops/deploy';
@@ -66,7 +63,7 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
       available:!!deps.deployOpsHttpClient,
       list:async()=> (await listCustomCredentials({repo:deps.customCredentialSetRepo},{workspaceId:deps.workspaceId})).map(c=>({label:c.label,get allowedOrigins(){return allowedOriginsFor(c);}})),
       resolveTarget:(required,optional)=>resolveRequestTarget({repo:deps.customCredentialSetRepo},{...required,...optional}),
-      classifyError:({error})=>classifyDeployError(error),
+      classifyError:({error})=>classifyCredentialedRequestError(error),
       request:async(required,optional)=>{
         const {signal}=optional;
         const requestDeps:CredentialedRequestDeps={repo:deps.customCredentialSetRepo,sealer:deps.siteAssistantSecretSealer,httpClient:deps.deployOpsHttpClient!,clock:deps.clock,...(deps.customCredentialsAudit?{audit:deps.customCredentialsAudit}:{}),loadAuthSchemes:deps.loadAuthSchemes};
@@ -97,10 +94,3 @@ export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operati
 export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'status'|'logs'|'listTargets',signal?:AbortSignal) {return portable.runDeployOps({deps:bindDeployOpsRuntime(deps),input,operation},{signal});}
 export function runDeploy(required:{deps:DeployOpsToolDeps;input:portable.DeployRequest},optional:{signal?:AbortSignal}={}) {return portable.runDeploy({...required,deps:bindDeployOpsRuntime(required.deps)},optional);}
 
-function classifyDeployError(error:unknown):CredentialedRequestErrorClass {
- if(error instanceof EgressRefusedError) return {category:'egress-refused',error,callerSafeMessage:error.callerSafeMessage,callerSafeError:new EgressRefusedError({message:error.callerSafeMessage},{callerSafeMessage:error.callerSafeMessage})};
- if(error instanceof CredentialedRequestValidationError) return {category:'validation',error,callerSafeMessage:error.message};
- if(error instanceof CustomCredentialNotFoundError) return {category:'not-found',error,callerSafeMessage:error.message};
- if(error instanceof CredentialedRequestTransportError) return {category:'transport',error};
- return {category:'unknown',error};
-}
