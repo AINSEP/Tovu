@@ -1108,7 +1108,7 @@ Follow-up on the existing `cloud/extract-s5` branches. Starting tips verified ex
 1. **Provider error codes:** `oauth/src/token-endpoint.ts` now permits only recognized OAuth token/device/error protocol codes in error text. Unrecognized values get a plain unrecognized-error message plus the existing recovery action; their metadata also becomes the safe `invalid_provider_error` sentinel. Known codes retain the old exact message/action bytes. The canary is constructed as concatenated strings, including its value in `error`, not just descriptions/URIs. Existing token-endpoint baseline: **49/49 green** before the fix. New regression first: **3 failures / 13 passes**, exposing the secret in the message at HTTP 200/400/503. Fixed: **65/65** across the old endpoint suite and the new file. A further real-OAuth conformance case proved the actual `ApiConnectionError.message` path: **1 failure / 7 passes** against the old built OAuth output, then **8/8** after rebuilding the fix. No error identity, retry state or retry count changed for recognized codes. Three existing sentinel-message assertions were updated only for the approved unknown-code security behavior.
 2. **Owner workspace:** `SharedExternalMcpOwner.ownerWorkspaceId` is required and supplies both key derivation and the lifecycle record workspace. Tovu's composition and existing shared-sign-in test bind `"project"`. New second-host cases first both failed because the owner store received `"project"` instead of its own workspace; both now pass, including restart/resume for device and redirect grants. Existing Tovu shared-sign-in cases remain green; key construction/order and persisted values for Tovu are unchanged.
 3. **Persisted context:** the `@agent-note` attached to `SharedSignInIssuingContext` explicitly requires lossless storage of the full supplied object, including `mcp: { provider, scopes, url, grant }` and any additional fields. The JSON-round-trip restart cases above verify both completion paths. No serialization or field order changed.
-4. **Deleted scratch dependency:** the existing copy case was reproduced at **5 pass / 1 fail**, with `ENOENT` for its deleted `/home/user/s5/base/Tovu` source. It now reads committed immutable `.txt` source fixtures under `__tests__/fixtures/sign-in-copy-baseline`, derived directly from the original pinned git objects, retaining every old copy assertion and adding exact SHA256 assertions. Focused Tovu run: **17/17** (six port/copy cases plus eleven existing shared-sign-in cases). Fixture provenance records pin `c3801c833a191be51753dcdecd133b0cad6f8945`, blobs `bd997b3ee10e7fffce962eb31fb921ddaa9b38db` and `fc964786bb702c99a2fd0b0948fa447838feaa77`; SHA256 `37403ba581a374961e1435bfe86cafc1abe4db479869107fc3dd45e762811415` / `acec0a97bad6443817cf56ab6df38da02db00d9bedd063d4c4e36bc783b4cc32`. Both fixtures reverified byte-for-byte against those git objects.
+4. **Deleted scratch dependency:** the existing copy case was reproduced at **5 pass / 1 fail**, with `ENOENT` for its deleted `/home/user/s5/base/Tovu` source. It now reads committed immutable `.txt` source fixtures under `__tests__/fixtures/sign-in-copy-baseline`, derived directly from the original pinned git objects, retaining every old copy assertion and adding exact SHA256 assertions. Focused Tovu run: **17/17** (six port/copy cases plus eleven existing shared-sign-in cases). Fixture provenance records pin `c3801c833a191be51753dcdecd133b0cad6f8945`, blobs `bd997b3ee10e7fffce962eb31fb921ddaa9b38db` and `fc964786bb702c99a2fd0b0948fa447838feaa77`; SHA256 `37403ba581a374961e1435bfe86cafc1abe4db479869107fc3dd45e762811415` / `acec0a97bad6443817cf56ab6df38da02db00d9bedd063d4c4e36bc783b4cc32`. Both fixtures reverified byte-for-byte against those git objects. The completion commit also adds a local `*.txt -text` attribute: a real `core.autocrlf=true` checkout-filter probe first changed the fixture hash, then preserved both pinned hashes after this attribute. This keeps fresh Windows checkouts byte-identical too.
 5. **Neutral-host dependencies:** declared `@jini-ai/mcp` and `@jini-ai/oauth` as workspace devDependencies, updated only their importer entries (six lockfile lines), deleted the complete nineteen-line Vitest alias config. The pre-change typecheck showed both missing modules; the standalone hosted sign-in test subsequently passes **2/2** through declared public package exports without aliases. Final full neutral-host typecheck and accumulated two-file result are recorded below.
 
 ### Additional vocabulary and contract sweep
@@ -1143,12 +1143,185 @@ Jini:
 
 - `324103f25d1d87b9b0e497cdd2ed71eee9b34c8b` — docs(hosted-mcp): finish host-neutral storage contract wording
 
-### Verification progress (2026-11-09T15:36Z)
+### Final accumulated H3 verification
 
-- Four Jini focused builds and four no-emit typechecks pass, as do the full neutral-host typecheck and its two named files (4/4). The final wording-only follow-up has been re-emitted, with AST comparison confirming unchanged code/types; current-tip verification is being completed.
-- XP snapshot rebuilt from the clean ORIGINAL pin with frozen install and complete builds: 3308 mappings, 3320 declarations, 3321 files; manifest SHA256 matches the original report exactly. The snapshot is read-only, write-open refused, and its checksums reverify. Current `check:cross-package` passes XP1–XP5.
-- Three source/JS/declaration entry closures are CLEAN. Negative control rejects 33 forbidden import/export/dynamic/import-type references. Package layers and isolation: 0 violations each; 576 closures, SI-c9/SI-d7 audit entries.
-- Real raw guard read personally: exactly R2-deep-path and R10-chatpane-public-surface, with unchanged HW totals and 0 new; plugin guards pass. The final tip guard is being rerun after the final wording-only commit.
-- Tovu main typecheck passes after cold build completion. Test typecheck is exactly the documented 13-error set; no new error.
-- The original H3 scratch scripts and exact 50-path Tovu list were deleted and were not committed. Reconstructed coverage uses a documented conservative **195-file superset**: both moved domains and S5 tests, relevant caller/connect tests, the exact accumulated nine recovered from the S2 report, and the complete S3 final matrix recovered from its report. No test/assertion was skipped or weakened. This extra scope also runs unrelated bundled-content/seed tests: sixteen failures in six unchanged files have already been reproduced against ORIGINAL S5 pins Tovu c3801c833 / Jini 4044fe3c0. They are prior drift, not repaired or counted green. Full accumulated results and baseline comparison will follow when the run completes.
-- Frozen database replay, full final test totals, commands and shutdown verification remain in progress.
+Functional source pair: **Tovu `1d1e211f73d11bee53a493d00f0a1c8764d165ca` / Jini `324103f25d1d87b9b0e497cdd2ed71eee9b34c8b`**. Tovu `3d373992afd3db2e215cca216f236855c9a7b99f` is the report-progress commit; this completion commit adds the final report and the fixture checkout attribute verified above.
+
+The original `/home/user/s5` scripts and exact 50-path Tovu list were deleted and never committed. Coverage was reconstructed from the report, committed test paths, the exact accumulated nine in the S2 report, and the complete 62-path S3 final matrix. The commands below select a **219-file Tovu superset**, including both moved domains, all S5 tests, relevant caller/connect tests, compatibility route files, OAuth shims and the vault-kind migration. This also exercises unrelated bundled-content/seed checks. All assertions remain intact.
+
+| Check | Actual final result |
+|---|---|
+| J core/oauth/mcp/integrations builds and no-emit typechecks | EXIT 0 for all four; affected packages re-emitted after final documentation changes |
+| Neutral-host full NodeNext typecheck, alias file deleted | EXIT 0 |
+| J API + token-store + conformance + shared-owner restart cases | 23 files, **382/382**, EXIT 0 |
+| J mcp hosted | 2 files, **7/7**, EXIT 0 |
+| J oauth | 41 files, **730/730**, EXIT 0 |
+| Neutral-host named API-host-moves + hosted-MCP sign-in | 2 files, **4/4**, EXIT 0 |
+| T main typecheck | EXIT 0, no errors |
+| T test typecheck | EXIT 2, exactly the previous **13-error** set; no new error |
+| T reconstructed main set | 195 files, 2364 cases: **2344 pass / 18 prior fail / 2 existing opt-in skipped**, EXIT 1 |
+| T additional compatibility/caller/OAuth files | 23 files, **380/380**, EXIT 0 |
+| T vault API-connection kind migration | 1 file, **4/4**, EXIT 0 (SQLite and PGlite) |
+| T total across selected paths | 219 files, **2728 pass / 18 prior fail / 2 existing opt-in skipped**; no new failing case |
+| H0 frozen SQLite | All **6/6** within the main set pass |
+| BASELINE rollback using original S5 source/build pair | EXIT 0, **ok:true, all five checks**: workspace unchanged; server rows in place; untouched envelopes byte-identical; rewritten envelopes retain format columns; baseline opens all three credentials |
+| Three moved entry closures, source + JS + declarations | CLEAN; `api-connections` 32/28/29 files, hosted sign-in 36/31/33, hosted MCP 17/14/15. Negative control EXIT 1 with exactly **33 forbidden edges** |
+| Current-tip real guard, raw output personally read | EXIT 1, exactly **2** baseline violations: R2-deep-path at plugin-catalog/scripts/generate.ts and R10-chatpane-public-surface at ChatPane.tsx; no N1/new rule |
+| Hardwiring | HW1–HW9 = **17/16/135/1/0/0/0/49/0**, every rule **0 new** |
+| guard:plugins | EXIT 0, no findings |
+| Package layers / subpath isolation | **0 / 0** violations; **576** closures, audit **SI-c9 / SI-d7** |
+| Immutable ORIGINAL declaration baseline + XP | Clean pin `35c4961af718f0f30591c46d2ea2756c4484a731`, frozen install, core and full recursive builds EXIT 0; writer EXIT 0; **XP1–XP5 clean** at the final tip |
+| Changed production strict lint / existing T shims Biome | EXIT 0 / EXIT 0 |
+| Existing fixtures, metadata and new baseline fixtures | Unchanged and verified as recorded above; no fixture regenerated to match changed behavior |
+
+Jini's named test groups total **1123/1123 passing**. Optional real PostgreSQL replay was not run, as in the original H3 gate.
+
+### Prior-failure proof and stop-rule boundary
+
+The larger selection reproduces eighteen failures. The same **exact failing-case set**, with no additions or omissions, was reproduced using independently installed/built ORIGINAL S5 pins **Tovu c3801c833 / Jini 4044fe3c0**, before any S5 extraction or this follow-up. Two baseline commands ran 67 cases: 49 pass / 18 fail. These files and assertions were not changed:
+
+| Unchanged Tovu file | Prior failing cases |
+|---|---:|
+| assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts | 3 (old `tovuDefaultTools` fixture vocabulary) |
+| features/agent-plugins/__tests__/unit/bundled-composio-package.unit.test.ts | 1 |
+| features/agent-plugins/__tests__/unit/bundled-github-actions-ops.unit.test.ts | 1 |
+| features/agent-plugins/__tests__/unit/bundled-github-package.unit.test.ts | 2 |
+| features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts | 5 |
+| features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts | 4 (including expected 0.6.2 vs actual 0.6.3) |
+| features/api-connections/__tests__/vendor-neutrality.test.ts | 1 (existing hits in portable-host-guidance, bundled-catalog and shared-owner) |
+| server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts | 1 (the already named desktop-loopback source-scan debt) |
+
+The bundled-content failures are stale skill/manifest/version expectations. The two skipped cases are pre-existing environment-acceptance tests requiring a real installed and activated ui-ux-design plugin; no new skip was introduced. Prior behavior/test drift was left unchanged under the stop rule and is not counted green. No unrelated behavior fix or test relaxation was made.
+
+Cold setup initially used the host's incompatible pnpm 11 and read-only home cache; subsequent commands pin pnpm **10.33.2** and use a workspace cache. An early full build saw one self-authored test error (missing callback `state`), which was fixed; final focused builds/typechecks and all Jini suites pass. Early T typechecks started before user-management emission completed and saw missing exports; the final checks after all emissions produce main EXIT 0 and only the thirteen known test errors. Untracked package residue was moved out of the checkout, and generated Cloudflare files were built before rerunning the real guard. No setup error was grandfathered.
+
+### Snapshot provenance and integrity
+
+The declaration snapshot has **3308 source mappings / 3320 declarations / 3321 total files**. Its manifest SHA256 **d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459** exactly matches the earlier report. Its new, explicitly defined relative-path-order inventory (`<sha256>  <relative path>\n`) hashes to **09390aafb26ca6c23b92f1a968e4655fddc2e5817dc40cc779923f87dc714247**. Every inventory checksum reverified before shutdown. The original report did not retain the list formatting/path prefixes behind its whole-snapshot digest; equality to that older whole-snapshot digest is not claimed. The snapshot is read-only and a write-open probe was refused; `chattr` is unavailable in this executor, so no filesystem immutable-flag claim is made.
+
+### Commands and retained evidence
+
+Logs, the checksum inventory, source/closure audit helpers and exact selected-file lists remain outside both checkouts in `/workspace/work/extract-s5-x`. The brief was never committed. Commands ran with Node **24.22.1**, npm **11.9.0**, pnpm **10.33.2**. The actual cached pnpm launcher was `/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/.bin/pnpm`; a reproducible launcher is `npm_config_cache=/workspace/work/npm-cache npx --yes pnpm@10.33.2`.
+
+Setup and final type/build commands (run in the named repository):
+
+```bash
+# Jini: frozen install, core first, then recursive setup build.
+export npm_config_cache=/workspace/work/npm-cache
+CI=true npx --yes pnpm@10.33.2 install --frozen-lockfile --store-dir /workspace/work/pnpm-store
+npx --yes pnpm@10.33.2 --filter @jini-ai/core build
+npx --yes pnpm@10.33.2 --no-bail -r build
+# Final focused builds followed by typechecks, after fixing the self-authored test error.
+for pkg in core oauth mcp integrations; do npx --yes pnpm@10.33.2 --filter @jini-ai/$pkg build; done
+for pkg in core oauth mcp integrations; do npx --yes pnpm@10.33.2 --filter @jini-ai/$pkg typecheck; done
+npx --yes pnpm@10.33.2 --filter @jini-example/neutral-host typecheck
+# Tovu setup and final checks.
+npm ci
+npm run build --workspace @tovu/sdk
+npm --prefix packages/contracts run build
+JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini
+node_modules/.bin/tsc -p tsconfig.json --noEmit
+npm run typecheck:tests
+```
+
+The accumulated test driver used below retains raw exits (including prior-debt EXIT 1). It selects all moved domain tests, the exact recovered accumulated nine and S3 matrix, plus caller/connect coverage:
+
+```bash
+#!/usr/bin/env bash
+# Reconstructed H3 accumulated test gate. Original scratch scripts/file lists were deleted.
+# Tovu is a conservative source-derived superset; see h3-gate-reconstruction.txt.
+set -u
+export npm_config_cache="${npm_config_cache:-/workspace/work/npm-cache}"
+log_dir="${S5X_LOG_DIR:-/workspace/work/extract-s5-x}"
+mkdir -p "$log_dir"
+: > "$log_dir/h3-test-status.txt"
+fail=0
+run() {
+  local name="$1" repo="$2"
+  shift 2
+  (cd "$repo" && "$@") > "$log_dir/$name.log" 2>&1
+  local code=$?
+  printf '%s exit=%s\n' "$name" "$code" | tee -a "$log_dir/h3-test-status.txt"
+  if [ "$code" -ne 0 ]; then fail=1; fi
+}
+python3 - "$log_dir" <<'PY'
+import pathlib,re,sys
+out=pathlib.Path(sys.argv[1]); root=pathlib.Path('/workspace/Tovu'); src=root/'apps/website/src'
+# All non-PostgreSQL tests in the two moved domains, host connect unit pins,
+# and source-scanned external MCP/OAuth caller contracts. This contains the S5 additions.
+files=set()
+# Exact accumulated-nine list (S2) and final accumulated S3 C40 matrix.
+report_s2=(root/'cloud/reports/extract-s2.md').read_text()
+nine_section=report_s2.split('The regression command is the documented Tovu Node command with these nine explicit files:',1)[1].split('All F2 commands',1)[0]
+nine_paths=re.findall(r'`(apps/website/src/[^`]+\.test\.ts)`',nine_section)
+assert len(nine_paths)==9, f'expected exact nine, got {len(nine_paths)}'
+report_s3=(root/'cloud/reports/extract-s3.md').read_text()
+s3_section=report_s3.split('#### C40 — cwd /workspace/Tovu',1)[1].split('#### C41',1)[0]
+s3_paths=re.findall(r'apps/website/src/[^\s`]+\.test\.ts',s3_section)
+assert s3_paths, 'S3 C40 matrix missing'
+for value in nine_paths+s3_paths:
+ p=root/value
+ assert p.is_file(), f'documented accumulated test missing: {value}'
+ if 'postgres' not in p.name: files.add(p)
+print(f'Exact accumulated nine: {len(nine_paths)}; S3 C40 matrix: {len(set(s3_paths))} paths')
+for d in ['features/external-mcp','features/api-connections','features/agent-plugins/__tests__/unit']:
+ files.update(p for p in (src/d).rglob('*.test.ts') if 'postgres' not in p.name)
+for pat in ['assistant/__tests__/external-mcp*.test.ts','assistant/__tests__/tool-registrations.external-mcp.test.ts',
+ 'assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts',
+ 'platform/db/repos/__tests__/external-mcp*.test.ts','platform/db/repos/__tests__/oauth-pending-store.test.ts',
+ 'server/inbound/admin-http/routes/external-mcp/__tests__/*.test.ts',
+ 'server/inbound/public-http/routes/external-mcp/__tests__/*.test.ts',
+ 'server/inbound/public-http/routes/api-connections/__tests__/*.test.ts',
+ 'server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts']:
+ files.update(src.glob(pat))
+(out/'h3-tovu-files.txt').write_text(''.join(str(p.relative_to(root))+'\n' for p in sorted(files)))
+print(f'Tovu conservative superset: {len(files)} files')
+PY
+mapfile -t tovu_files < "$log_dir/h3-tovu-files.txt"
+run h3-tovu /workspace/Tovu env S5_FROZEN_DB_OUT="$log_dir/post-write.db" TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 "${tovu_files[@]}"
+run h3-j-integrations /workspace/Jini /workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/.bin/pnpm --filter @jini-ai/integrations exec vitest run src/api-connections --maxWorkers=2 --minWorkers=1
+run h3-j-mcp-hosted /workspace/Jini /workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/.bin/pnpm --filter @jini-ai/mcp exec vitest run src/federation/hosted --maxWorkers=2 --minWorkers=1
+run h3-j-oauth /workspace/Jini /workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/.bin/pnpm --filter @jini-ai/oauth exec vitest run --maxWorkers=2 --minWorkers=1
+run h3-j-neutral /workspace/Jini /workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/.bin/pnpm --filter @jini-example/neutral-host exec vitest run src/api-host-moves.test.ts src/hosted-mcp-sign-in.test.ts --maxWorkers=2 --minWorkers=1
+exit "$fail"
+```
+
+The additional twenty-three paths were selected from `rg --files apps/website/src`: `.test.ts` names containing `external-mcp` or `oauth` that were absent from the 195-file list, excluding `postgres` and unrelated `form-delivery` paths. The same Tovu Node command above ran that explicit list, then `apps/website/src/platform/db/migrations/__tests__/vault-api-connection-kind.test.ts`. Their paths are retained in `h3-tovu-additional-files.txt`.
+
+Focused red/green commands:
+
+```bash
+# Jini; new test files/cases ran red before their relevant implementation/build fix.
+pnpm --filter @jini-ai/oauth exec vitest run tests/token-error-redaction.test.ts
+pnpm --filter @jini-ai/oauth exec vitest run tests/token-error-redaction.test.ts tests/token-endpoint.test.ts
+pnpm --filter @jini-ai/integrations exec vitest run src/api-connections/hosted-mcp/__tests__/shared-owner.test.ts
+pnpm --filter @jini-ai/integrations exec vitest run src/api-connections/__tests__/real-oauth-conformance.integration.test.ts
+# Tovu: the existing copy case ran red before changing its baseline inputs.
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/external-mcp/__tests__/h2c/sign-in-ports.test.ts apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts
+# Byte preservation with Windows checkout conversion enabled: failed before the local attribute, passed after it.
+git -c core.autocrlf=true cat-file --filters HEAD:apps/website/src/features/external-mcp/__tests__/fixtures/sign-in-copy-baseline/external-mcp-oauth.txt | sha256sum
+```
+
+Baseline worktrees were created with `git worktree add --detach` at the two original S5 pins and the XP original pin. Each Jini baseline received a frozen install, core build and full recursive build; baseline Tovu received `npm ci`, SDK/contracts builds and `JINI_PACKAGES_DIR=/workspace/work/extract-s5-x/base/Jini/packages npm run link:jini`. For the XP writer, cwd was the clean original checkout:
+
+```bash
+node --import /workspace/Jini/node_modules/tsx/dist/loader.mjs /workspace/Jini/scripts/check-no-cross-package.ts --base 35c4961af718f0f30591c46d2ea2756c4484a731 --write-baseline /workspace/work/extract-s5-x/declaration-baseline
+# Current Jini; snapshot made read-only once and never regenerated for a gate.
+JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s5-x/declaration-baseline pnpm check:cross-package
+# Baseline Tovu cwd, reading the database produced by the main frozen test.
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx /workspace/Tovu/apps/website/src/features/external-mcp/__tests__/fixtures/s5-baseline-rollback.mjs --base /workspace/work/extract-s5-x/base/Tovu --db /workspace/work/extract-s5-x/post-write.db
+# Current Jini; raw output read in full, not filtered to R-number findings.
+node --import tsx scripts/guard.ts
+node --import tsx scripts/check-plugin-packages.ts
+node --import tsx scripts/check-agent-plugin-content.ts
+```
+
+The isolation driver calls the real exported `checkPackageLayers()`, `checkSubpathIsolation()` and `auditSubpathIsolation()` from `scripts/`. The reconstructed closure checker recursively parses literal imports, re-exports, dynamic imports, `require` and import-type nodes using the TypeScript AST, resolves relative edges in src/JS/.d.ts separately, and rejects missing files, package escapes and any non-self/non-core Jini edge. All three entries passed; a separate synthetic nine-file tree produced thirty-three forbidden edges as expected. Documentation-only commits were compared using TypeScript's AST printer with comments removed (a raw token scanner was replaced because template-token rescanning is required).
+
+Strict lint used `eslint --no-inline-config --rule '{"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]}'` on every changed production file. Biome checked the two unchanged Tovu sign-in shims. Raw artifacts include `f1-{baseline,red,green}.log`, `f1-api-{red,green}.log`, `f2-{red,green}.log`, `f4-{red,green}.log`, `f5-{red,test-green}.log`, `h3-*.log`, `j-guard-tip.log`, `j-isolation-final.log`, `j-closure-final.log`, `j-closure-negative.log`, `j-xp-final.log`, `t-{main,test}-tsc-final.log`, `t-baseline-rollback.log`, and the original-pin prior-failure logs. Baseline failure-set equality was asserted directly from the Node reporter case names.
+
+### Completion and shutdown
+
+All five findings and the requested additional vocabulary/contract sweep are complete. All source batches and the progress report were pushed successfully after pull/rebase; the completion report's commit is identified in the task response. Prior behavior/test drift remains unchanged and disclosed above. The three scratch worktrees were checked tracked-clean and removed after replay; the independent checksum-protected declaration snapshot and raw evidence remain in `work/`. No task-started test, build or server process remains. No force push, main-branch modification or publication occurred. Finished before the conservative 16:24Z deadline.
+
+EXTRACT-S5-X DONE
