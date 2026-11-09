@@ -318,3 +318,11 @@ Follow-up UTC opened 2026-11-09T17:42:42.789517+00:00; original start/deadline r
 The coordinator explicitly rules the unchanged Railway/Render `credential-card.test.mjs:36` failures to be known baseline failures unrelated to these moves. Neither test nor either plugin skill may change. Every gate will run them and verify the same literal `credential_save` assertion still fails; they are never counted green. The two MCP-UI failures remain known baseline failures too. Every other new red retains the existing fix/stop policy.
 
 Proceed on the same `cloud/extract-s9` branches and original clock: start `2026-11-09T17:14:00Z`, reserve `20:54Z`, hard deadline `21:14Z`. No new cap or helper agent. The final marker is now `EXTRACT-S9-C DONE` or `EXTRACT-S9-C STOPPED AT CAP`, written only at actual close. Historical stop evidence above remains baseline evidence, not the continuation verdict.
+
+### F1 result (before C3 move)
+
+Implemented at Tovu `94c9bb85c78cc8bf7858ee40f1ba5b27cc419b46`, Jini unchanged `46cd558de9c6b4fa882b46349450ce3bcf0a378d`. The new tests reproduced the raw-address leak (17 pass /2 new fail), passed after repair (19/19), rejected the raw-message mutation (18 pass /1 fail), then passed restored (19/19). Validation keeps the canonical class and exact map-level prefix, with no schema text; non-validation objects retain identity. Approval/send/exchange counts remain zero on preflight rejection. All old four card/descriptor byte pins remain equal.
+
+The focused full affected gate is 12 files /120 cases: 116 pass, exactly the four approved baseline failures. Both overlay failures still fail at their original literal assertion; neither test nor skill changed. Strict ESLint including complexity/cognitive limits 10, the explicit amended-test type check and main Tovu tsc all exit 0. Raw commands/results are `f1-*` in the existing task logs and will be retained in continuation evidence.
+
+C3 provenance is updated to this F1-fixed source SHA before the move. Its only additional value dependency is the already-existing canonical `CredentialedRequestValidationError`, resolved to Jini `integrations/src/contracts/credentialed-request-errors.ts` (relative `../../contracts/credentialed-request-errors.js` from tools), as inventoried above. The F1 comment correction is owner-requested; no unrelated rationale is changed.
