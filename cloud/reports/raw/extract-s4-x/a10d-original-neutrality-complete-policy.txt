@@ -1,0 +1,12 @@
+[
+  {
+    "rule": "N1-consumer-identity",
+    "file": "packages/agent-plugins/src/grant-signed-in-defaults.ts",
+    "reason": "forbidden source reference \"Tovu\" (comments included)"
+  },
+  {
+    "rule": "N1-consumer-identity",
+    "file": "packages/agent-plugins/src/import-access-token.ts",
+    "reason": "forbidden source reference \"TOVU\" (comments included)"
+  }
+]

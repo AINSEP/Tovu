@@ -1,0 +1,4 @@
+
+> jini@ guard:plugins /workspace/Jini
+> node --import tsx ./scripts/check-plugin-packages.ts && node --import tsx ./scripts/check-agent-plugin-content.ts
+
