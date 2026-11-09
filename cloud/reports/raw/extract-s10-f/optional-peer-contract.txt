@@ -1,0 +1,14 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/optional-peer-contract.test.ts (57 tests) 8771ms
+   ✓ agent-runtime default source entry never reaches an opt-in peer 609ms
+   ✓ all real default entries keep runtime libraries required and classify opt-in subpaths 7951ms
+
+ Test Files  1 passed (1)
+      Tests  57 passed (57)
+   Start at  23:38:49
+   Duration  9.65s (transform 138ms, setup 0ms, collect 459ms, tests 8.77s, environment 0ms, prepare 54ms)
+
+exit 0

@@ -1,0 +1,3 @@
+{"entries":133,"misses":0,"unresolved":0,"missingTargets":0,"optionalPeerReach":11}
+exit 0
+optionalPeerReach identical to S10

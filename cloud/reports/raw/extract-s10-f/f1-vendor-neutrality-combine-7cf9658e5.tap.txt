@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: the scanner reports a vendor word with its file and line, in any case
+ok 1 - the scanner reports a vendor word with its file and line, in any case
+  ---
+  duration_ms: 1.972393
+  type: 'test'
+  ...
+# Subtest: no generic seam file names the first provider
+not ok 2 - no generic seam file names the first provider
+  ---
+  duration_ms: 100.806344
+  type: 'test'
+  location: '/tmp/w/combine-vn/apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts:79:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts:43',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts:44',
+    +   'apps/website/src/features/api-connections/shared-owner.ts:81'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/website/src/features/agent-plugins/bundled-catalog.ts:43'
+    1: 'apps/website/src/features/agent-plugins/bundled-catalog.ts:44'
+    2: 'apps/website/src/features/api-connections/shared-owner.ts:81'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/w/combine-vn/apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts:88:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 230.534625
+exit 1

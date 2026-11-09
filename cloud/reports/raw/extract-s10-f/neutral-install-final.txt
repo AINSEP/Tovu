@@ -1,0 +1,32 @@
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 184, reused 180, downloaded 2, added 0
+Packages: +219
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 268, reused 218, downloaded 2, added 219, done
+.../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+.../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+
+dependencies:
++ @cfworker/json-schema 4.1.6
++ @jini-ai/agent-plugins 0.6.24
++ @jini-ai/cms 0.6.22
++ @jini-ai/cookie-consent 0.6.19
++ @jini-ai/core 0.6.23
++ @jini-ai/daemon 0.6.23
++ @jini-ai/devops 0.6.22
++ @jini-ai/http-kit 0.6.22
++ @jini-ai/integrations 0.6.19
++ @jini-ai/mcp 0.6.23
++ @jini-ai/oauth 0.6.19
++ @jini-ai/platform 0.6.23
++ @jini-ai/plugins 0.6.22
++ @jini-ai/search 0.6.19
++ @jini-ai/user-management 0.6.22
++ semver 7.8.6
+
+devDependencies:
++ @types/node 24.19.2 (26.6.6 is available)
++ typescript 5.9.3 (7.0.2 is available)
++ vitest 2.1.9 (5.1.0 is available)
+
+Done in 2.4s using pnpm v10.33.2

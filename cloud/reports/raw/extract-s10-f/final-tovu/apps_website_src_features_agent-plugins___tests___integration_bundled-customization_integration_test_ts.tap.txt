@@ -1,0 +1,18 @@
+TAP version 13
+# [agent-plugins:migration-complete] /tmp/tovu-customize-8bJbt7/installed/ws/site
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: H1: owner customizes bundled tovu-theme through chat into a saved site copy, preserving bundled bytes and trust
+ok 1 - H1: owner customizes bundled tovu-theme through chat into a saved site copy, preserving bundled bytes and trust
+  ---
+  duration_ms: 250.978344
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1141.252293

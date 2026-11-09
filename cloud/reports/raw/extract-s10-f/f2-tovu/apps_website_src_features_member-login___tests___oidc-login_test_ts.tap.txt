@@ -1,0 +1,178 @@
+TAP version 13
+# Subtest: begin uses S256, fixed callback, nonce and identity-only scopes; complete returns no tokens
+ok 1 - begin uses S256, fixed callback, nonce and identity-only scopes; complete returns no tokens
+  ---
+  duration_ms: 29.584715
+  type: 'test'
+  ...
+# Subtest: missing/wrong browser binding refuses forwarded authorization URL (0) before exchange
+ok 2 - missing/wrong browser binding refuses forwarded authorization URL (0) before exchange
+  ---
+  duration_ms: 1.651494
+  type: 'test'
+  ...
+# Subtest: missing/wrong browser binding refuses forwarded authorization URL (5) before exchange
+ok 3 - missing/wrong browser binding refuses forwarded authorization URL (5) before exchange
+  ---
+  duration_ms: 4.569443
+  type: 'test'
+  ...
+# Subtest: missing/wrong browser binding refuses forwarded authorization URL (43) before exchange
+ok 4 - missing/wrong browser binding refuses forwarded authorization URL (43) before exchange
+  ---
+  duration_ms: 1.499591
+  type: 'test'
+  ...
+# Subtest: tampered or expired state refuses before token exchange
+ok 5 - tampered or expired state refuses before token exchange
+  ---
+  duration_ms: 1.951621
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: iss=https://attacker.example
+ok 6 - invalid claim rejected: iss=https://attacker.example
+  ---
+  duration_ms: 3.559292
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: aud=other-client
+ok 7 - invalid claim rejected: aud=other-client
+  ---
+  duration_ms: 3.744881
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: nonce=other-nonce
+ok 8 - invalid claim rejected: nonce=other-nonce
+  ---
+  duration_ms: 5.616253
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: exp=1
+ok 9 - invalid claim rejected: exp=1
+  ---
+  duration_ms: 3.297278
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: iat=9999999999
+ok 10 - invalid claim rejected: iat=9999999999
+  ---
+  duration_ms: 14.485644
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: email_verified=false
+ok 11 - invalid claim rejected: email_verified=false
+  ---
+  duration_ms: 16.826902
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: email_verified=true
+ok 12 - invalid claim rejected: email_verified=true
+  ---
+  duration_ms: 4.517559
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: email_verified=undefined
+ok 13 - invalid claim rejected: email_verified=undefined
+  ---
+  duration_ms: 3.985996
+  type: 'test'
+  ...
+# Subtest: invalid claim rejected: sub=
+ok 14 - invalid claim rejected: sub=
+  ---
+  duration_ms: 3.278748
+  type: 'test'
+  ...
+# Subtest: invalid signature is rejected against the pinned JWKS
+ok 15 - invalid signature is rejected against the pinned JWKS
+  ---
+  duration_ms: 5.619292
+  type: 'test'
+  ...
+# Subtest: disable after start rejects the old redirect before exchange
+ok 16 - disable after start rejects the old redirect before exchange
+  ---
+  duration_ms: 0.846356
+  type: 'test'
+  ...
+# Subtest: rotate after start rejects the old redirect before exchange
+ok 17 - rotate after start rejects the old redirect before exchange
+  ---
+  duration_ms: 0.866684
+  type: 'test'
+  ...
+# Subtest: rotateSecret after start rejects the old redirect before exchange
+ok 18 - rotateSecret after start rejects the old redirect before exchange
+  ---
+  duration_ms: 0.941335
+  type: 'test'
+  ...
+# Subtest: signed-in connect is bound to that member on completion
+ok 19 - signed-in connect is bound to that member on completion
+  ---
+  duration_ms: 4.46637
+  type: 'test'
+  ...
+# Subtest: email authority user@gmail.com, hd=undefined
+ok 20 - email authority user@gmail.com, hd=undefined
+  ---
+  duration_ms: 9.924658
+  type: 'test'
+  ...
+# Subtest: email authority user@googlemail.com, hd=undefined
+ok 21 - email authority user@googlemail.com, hd=undefined
+  ---
+  duration_ms: 2.845478
+  type: 'test'
+  ...
+# Subtest: email authority user@business.example, hd=business.example
+ok 22 - email authority user@business.example, hd=business.example
+  ---
+  duration_ms: 5.19982
+  type: 'test'
+  ...
+# Subtest: email authority user@custom.example, hd=undefined
+ok 23 - email authority user@custom.example, hd=undefined
+  ---
+  duration_ms: 4.053198
+  type: 'test'
+  ...
+# Subtest: email authority user@alias.example, hd=primary.example
+ok 24 - email authority user@alias.example, hd=primary.example
+  ---
+  duration_ms: 3.663154
+  type: 'test'
+  ...
+# Subtest: email authority user@custom.example, hd=
+ok 25 - email authority user@custom.example, hd=
+  ---
+  duration_ms: 5.411865
+  type: 'test'
+  ...
+# Subtest: callback uses configured base path and URL escaping
+ok 26 - callback uses configured base path and URL escaping
+  ---
+  duration_ms: 0.442286
+  type: 'test'
+  ...
+# Subtest: custom-domain continuation retains only verified input and requires the same browser
+ok 27 - custom-domain continuation retains only verified input and requires the same browser
+  ---
+  duration_ms: 6.005906
+  type: 'test'
+  ...
+# Subtest: disabling the provider invalidates an emailed-code continuation
+ok 28 - disabling the provider invalidates an emailed-code continuation
+  ---
+  duration_ms: 4.119153
+  type: 'test'
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1310.33385

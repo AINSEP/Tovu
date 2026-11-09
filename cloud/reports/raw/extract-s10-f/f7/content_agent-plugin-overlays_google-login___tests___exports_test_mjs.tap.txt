@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: U1: the bundled contract pins the host link, fixed label, consent and static fallback
+ok 1 - U1: the bundled contract pins the host link, fixed label, consent and static fallback
+  ---
+  duration_ms: 2.065271
+  type: 'test'
+  ...
+# Subtest: U1: each variant passes the real fragment policy with native keyboard navigation and local assets
+ok 2 - U1: each variant passes the real fragment policy with native keyboard navigation and local assets
+  ---
+  duration_ms: 14.175623
+  type: 'test'
+  ...
+# Subtest: U1: disabled, unconfigured and foreign-owner providers cannot render a button
+ok 3 - U1: disabled, unconfigured and foreign-owner providers cannot render a button
+  ---
+  duration_ms: 4.60785
+  type: 'test'
+  ...
+# Subtest: U1: arbitrary variant, label and URL props are rejected, including a mixed valid/invalid batch
+ok 4 - U1: arbitrary variant, label and URL props are rejected, including a mixed valid/invalid batch
+  ---
+  duration_ms: 2.670878
+  type: 'test'
+  ...
+# Subtest: U1: static mode keeps authored fallback and bundles deduplicated CSS and G artwork references
+ok 5 - U1: static mode keeps authored fallback and bundles deduplicated CSS and G artwork references
+  ---
+  duration_ms: 1.484368
+  type: 'test'
+  ...
+# Subtest: U1: every bundled public export template passes the single CMS fragment validator
+ok 6 - U1: every bundled public export template passes the single CMS fragment validator
+  ---
+  duration_ms: 10.995797
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 825.82654

@@ -1,0 +1,40 @@
++ export PATH=/root/.local/node24/bin:/nix/var/nix/profiles/default/bin:/root/.local/bin:/root/.cargo/bin:/usr/local/go/bin:/opt/node22/bin:/opt/maven/bin:/opt/gradle/bin:/opt/rbenv/bin:/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ PATH=/root/.local/node24/bin:/nix/var/nix/profiles/default/bin:/root/.local/bin:/root/.cargo/bin:/usr/local/go/bin:/opt/node22/bin:/opt/maven/bin:/opt/gradle/bin:/opt/rbenv/bin:/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ rm -rf /tmp/w/xp3 /tmp/w/xp3-out
++ git clone -q --no-hardlinks /home/user/Jini /tmp/w/xp3
++ cd /tmp/w/xp3
++ git -c advice.detachedHead=false checkout -q 35c4961af718f0f30591c46d2ea2756c4484a731
++ git log --oneline -1
+35c4961a docs(db): add agent-notes to the data-module host contracts
++ CI=true
++ pnpm install --frozen-lockfile
++ echo 'install exit 0'
+install exit 0
++ pnpm --filter @jini-ai/core build
++ echo 'core build exit 0'
+core build exit 0
++ pnpm --no-bail -r build
++ echo 'build exit 0'
+build exit 0
++ node --import /home/user/Jini/node_modules/tsx/dist/loader.mjs /home/user/Jini/scripts/check-no-cross-package.ts --base 35c4961af718f0f30591c46d2ea2756c4484a731 --write-baseline /tmp/w/xp3-out
+declaration baseline: 35c4961af718f0f30591c46d2ea2756c4484a731; 3308 source mappings; /tmp/w/xp3-out
++ echo 'write-baseline exit 0'
+write-baseline exit 0
++ cd /tmp/w/xp3-out
+++ ls
+++ sha256sum manifest.json
++ echo 'manifest sha256: manifest.json
+packages
+d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459  manifest.json'
+manifest sha256: manifest.json
+packages
+d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459  manifest.json
+++ find . -name '*.d.ts'
+++ LC_ALL=C
+++ xargs sha256sum
+++ sort
+++ sha256sum
++ echo 'decl aggregate: 48f6d4223224dc975edfbdebf1a01a25bf12044dfd1d4f872624571266452d24  -'
+decl aggregate: 48f6d4223224dc975edfbdebf1a01a25bf12044dfd1d4f872624571266452d24  -
++ echo XP3-DONE
+XP3-DONE

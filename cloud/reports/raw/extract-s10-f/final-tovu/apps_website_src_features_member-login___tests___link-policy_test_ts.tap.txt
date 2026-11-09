@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: linked subject keeps its member when email changes
+ok 1 - linked subject keeps its member when email changes
+  ---
+  duration_ms: 0.661077
+  type: 'test'
+  ...
+# Subtest: disabled remains blocked even with an existing subject
+ok 2 - disabled remains blocked even with an existing subject
+  ---
+  duration_ms: 0.120467
+  type: 'test'
+  ...
+# Subtest: trash remains blocked even with an existing subject
+ok 3 - trash remains blocked even with an existing subject
+  ---
+  duration_ms: 0.054529
+  type: 'test'
+  ...
+# Subtest: unlink blocks auto-link, deliberate connect permits relink
+ok 4 - unlink blocks auto-link, deliberate connect permits relink
+  ---
+  duration_ms: 0.078571
+  type: 'test'
+  ...
+# Subtest: connect never moves an identity to another member
+ok 5 - connect never moves an identity to another member
+  ---
+  duration_ms: 0.107688
+  type: 'test'
+  ...
+# Subtest: pending verified match links and new authoritative email creates
+ok 6 - pending verified match links and new authoritative email creates
+  ---
+  duration_ms: 0.07888
+  type: 'test'
+  ...
+# Subtest: custom-domain first link needs inbox proof, subsequent subject sign-in does not
+ok 7 - custom-domain first link needs inbox proof, subsequent subject sign-in does not
+  ---
+  duration_ms: 0.107223
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 237.745831

@@ -1,0 +1,136 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/user-management
+
+ ✓ src/server/__tests__/admin-crud-service.test.ts (47 tests) 131ms
+ ✓ src/admin/__tests__/roles.controller.pins.test.ts (52 tests) 27ms
+ ✓ src/server/__tests__/agent-tool-registrations.contracts.test.ts (50 tests) 190ms
+ ✓ src/admin/__tests__/users.controller.pins.test.ts (45 tests) 39ms
+ ✓ src/admin/__tests__/memory.pins.test.ts (41 tests) 30ms
+ ✓ src/server/__tests__/grant-service.test.ts (16 tests) 71ms
+ ✓ src/server/__tests__/seed.resume.test.ts (8 tests) 29ms
+ ✓ src/server/__tests__/authorization-regressions.test.ts (21 tests) 28ms
+ ✓ src/server/__tests__/owner-passkeys.test.ts (12 tests) 60ms
+ ✓ src/server/__tests__/agent-tools.schema-agreement.test.ts (29 tests) 9ms
+ ✓ src/server/__tests__/seed.pins.test.ts (13 tests) 32ms
+ ✓ src/server/__tests__/seed.test.ts (7 tests) 35ms
+ ✓ src/admin/__tests__/people.controllers.test.ts (13 tests) 24ms
+ ✓ src/server/__tests__/agent-tool-input.pins.test.ts (53 tests) 23ms
+ ✓ src/server/__tests__/owner-mfa.test.ts (9 tests) 50ms
+ ✓ src/server/__tests__/admin-crud-service.pins.test.ts (17 tests) 52ms
+ ✓ src/server/__tests__/auth-service.test.ts (9 tests) 37ms
+ ✓ src/server/__tests__/authorize.test.ts (12 tests) 9ms
+ ✓ src/server/__tests__/cms-entries-authorization.integration.test.ts (4 tests) 5ms
+ ✓ src/server/__tests__/auth-service.pins.test.ts (27 tests) 19ms
+ ✓ src/server/__tests__/permission-migrations.pins.test.ts (15 tests) 18ms
+ ✓ src/server/__tests__/auth-challenge.test.ts (53 tests) 16ms
+ ✓ src/admin/__tests__/people.rules.test.ts (19 tests) 13ms
+ ✓ src/server/__tests__/cms-content-types-authorization.integration.test.ts (4 tests) 6ms
+ ✓ src/server/__tests__/change-username.test.ts (8 tests) 37ms
+ ✓ src/admin/__tests__/controllers.test.ts (6 tests) 9ms
+ ✓ src/server/__tests__/recovery-codes.test.ts (7 tests) 31ms
+ ✓ src/admin/__tests__/people.adapters.test.ts (5 tests) 12ms
+ ✓ src/server/__tests__/unit/ensure-principal.unit.test.ts (12 tests) 16ms
+ ✓ src/admin/__tests__/conformance.failures.test.ts (7 tests) 10ms
+ ✓ src/admin/__tests__/rules.pins.test.ts (9 tests) 5ms
+ ✓ src/server/__tests__/args-convention.test.ts (4 tests) 11ms
+ ✓ src/admin/__tests__/people.rules.pins.test.ts (6 tests) 1051ms
+   ✓ userActionAllowed truth table (pin) > consults ownership exactly once when a caller exists and never without one 349ms
+   ✓ userActionAllowed truth table (pin) > returns a real boolean for every combination 348ms
+ ✓ src/server/__tests__/grant-service.validation.test.ts (4 tests) 19ms
+ ✓ src/admin/__tests__/memory.test.ts (4 tests) 8ms
+ ✓ src/admin/__tests__/members.controller.branches.test.ts (8 tests) 17ms
+ ✓ src/server/__tests__/agent-tool-registrations.consistency.test.ts (4 tests) 24ms
+ ✓ src/server/__tests__/session-policy.test.ts (8 tests) 7ms
+ ✓ src/admin/__tests__/http.options.test.ts (5 tests) 9ms
+ ✓ src/core/__tests__/runtime-boundary.test.ts (4 tests) 68ms
+ ✓ src/admin/__tests__/boundaries.test.ts (3 tests) 249ms
+ ✓ src/admin/__tests__/controller-store.test.ts (5 tests) 6ms
+ ✓ src/admin/__tests__/http.test.ts (2 tests) 6ms
+ ✓ src/server/__tests__/repo.memory-transactions.contract.test.ts (5 tests) 5ms
+ ✓ src/core/__tests__/builtin-permissions.invariants.test.ts (6 tests) 9ms
+ ✓ src/__tests__/user-management-rename.contract.test.ts (2 tests) 8ms
+ ✓ src/server/__tests__/login-providers.test.ts (10 tests) 7ms
+ ❯ src/__tests__/public-args.test.ts (1 test | 1 failed) 238ms
+   × public functions, constructors and adapter methods accept named argument objects 237ms
+     → /home/user/Jini/packages/user-management/src/server/login-types.ts: constructor: expected undefined to be defined
+ ✓ src/core/__tests__/permissions.test.ts (5 tests) 3ms
+ ✓ src/server/__tests__/runtime.test.ts (4 tests) 4ms
+ ✓ src/server/__tests__/change-username-tool.test.ts (1 test) 24ms
+ ✓ src/server/__tests__/agent-tools.honesty.test.ts (5 tests) 5ms
+ ✓ src/server/__tests__/owner-reset-input.test.ts (4 tests) 9ms
+ ✓ src/__tests__/package-entries.test.ts (2 tests) 5ms
+ ✓ src/server/__tests__/agent-tool-registrations.guards.test.ts (2 tests) 3ms
+ ✓ src/server/__tests__/password-policy.test.ts (4 tests) 2ms
+ ✓ src/__tests__/react-import-boundaries.test.ts (2 tests) 6ms
+ ✓ src/admin/__tests__/public-barrel.test.ts (1 test) 2ms
+ ✓ src/core/__tests__/principal-kind-policy.test.ts (2 tests) 11ms
+ ✓ src/server/__tests__/totp-adapter.test.ts (1 test) 7ms
+ ✓ src/admin/__tests__/conformance.test.ts (1 test) 3ms
+ ✓ src/react/users/__tests__/use-users.hooks.pins.test.tsx (45 tests) 2478ms
+ ✓ src/react/users/__tests__/Users.coverage.test.tsx (37 tests) 970ms
+ ✓ src/react/users/__tests__/use-users.ported.test.tsx (19 tests) 1542ms
+ ✓ src/admin/react/__tests__/people-hooks.test.tsx (15 tests) 300ms
+ ✓ src/react/users/__tests__/Users.complexity-pins.test.tsx (36 tests) 820ms
+ ✓ src/admin/react/__tests__/people.test.tsx (12 tests) 2567ms
+   ✓ composable users screen > renders read-only with no grants, and hides all writes for unresolved owner classifications 443ms
+   ✓ composable users screen > creates an operator with new-password autocomplete and manages email and grants 611ms
+   ✓ composable members and login > login works before any grants, reports failure and invokes the host on successful credentials 372ms
+ ✓ src/admin/react/__tests__/admin-pages.branches.test.tsx (17 tests) 2346ms
+   ✓ members page > shows a load failure with a retry that recovers the roster 341ms
+   ✓ roles and policies tabs > keeps the role form with the server error when creating a role fails 379ms
+   ✓ roles and policies tabs > renames a policy and its description inline, and cancel discards a second edit 509ms
+   ✓ roles and policies tabs > lists an unscoped permission without a resource type and offers no removal to read-only viewers 350ms
+ ✓ src/react/members/__tests__/use-members.hooks.pins.test.ts (24 tests) 1352ms
+ ✓ src/react/users/__tests__/account-protections.ported.test.tsx (19 tests) 726ms
+ ✓ src/react/members/__tests__/use-members.ported.test.ts (10 tests) 1041ms
+ ✓ src/admin/react/__tests__/UsersTab.hooks.pins.test.tsx (19 tests) 183ms
+ ✓ src/admin/react/__tests__/roles.test.tsx (7 tests) 1977ms
+   ✓ composable roles React screen > loads a read-only screen without grants and exposes readable permissions without any write controls 505ms
+   ✓ composable roles React screen > creates roles and policies, renames inline, and hides builtin/frozen mutation controls 641ms
+   ✓ composable roles React screen > requires confirmation for revocation and policy deletion 579ms
+ ✓ src/react/__tests__/testing.fakes.test.ts (11 tests) 11ms
+ ✓ src/react/users/__tests__/change-username.hooks.test.tsx (7 tests) 698ms
+ ✓ src/react/users/__tests__/UserRowParts.unit.test.tsx (16 tests) 137ms
+ ✓ src/admin/react/__tests__/RolesPage.hooks.pins.test.tsx (9 tests) 159ms
+ ✓ src/react/auth/__tests__/passkeys.unit.test.tsx (5 tests) 351ms
+ ✓ src/react/__tests__/screens.test.tsx (5 tests) 568ms
+ ✓ src/admin/react/__tests__/RolesPage.pins.test.tsx (12 tests) 158ms
+ ✓ src/react/members/__tests__/Members.ported.test.tsx (5 tests) 412ms
+ ✓ src/admin/react/__tests__/UsersPage.pins.test.tsx (13 tests) 221ms
+ ✓ src/react/auth/__tests__/use-login.hooks.unit.test.ts (8 tests) 41ms
+ ✓ src/react/members/__tests__/Members.detail.test.tsx (7 tests) 325ms
+ ✓ src/react/auth/__tests__/Login.unit.test.tsx (9 tests) 293ms
+ ✓ src/react/auth/__tests__/mfa.unit.test.tsx (5 tests) 519ms
+ ✓ src/admin/react/__tests__/MemberRow.pins.test.tsx (11 tests) 177ms
+ ✓ src/react/__tests__/errors.pins.test.ts (18 tests) 6ms
+ ✓ src/admin/react/__tests__/admin-rows.branches.test.tsx (3 tests) 218ms
+ ✓ src/react/members/__tests__/fqfix-disable.unit.test.ts (3 tests) 205ms
+ ✓ src/react/__tests__/integration-reconcile.test.tsx (3 tests) 144ms
+ ✓ src/react/users/__tests__/use-reset-password-fields.unit.test.tsx (5 tests) 32ms
+ ✓ src/react/auth/__tests__/passkey-browser.unit.test.ts (3 tests) 6ms
+ ✓ src/react/members/__tests__/Members.host-ports.test.tsx (2 tests) 121ms
+ ✓ src/react/users/__tests__/rules.labels.unit.test.ts (3 tests) 6ms
+ ✓ src/react/users/__tests__/ChangeUsernameDialog.unit.test.tsx (2 tests) 112ms
+ ✓ src/react/members/__tests__/rules.busy.unit.test.ts (2 tests) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/public-args.test.ts > public functions, constructors and adapter methods accept named argument objects
+AssertionError: /home/user/Jini/packages/user-management/src/server/login-types.ts: constructor: expected undefined to be defined
+ ❯ check src/__tests__/public-args.test.ts:27:39
+     25|       for (const parameter of node.parameters) {
+     26|         expect(parameter.dotDotDotToken, label).toBeUndefined();
+     27|         expect(parameter.type, label).toBeDefined();
+       |                                       ^
+     28|         if (!parameter.type) continue;
+     29|         const type = parameter.type;
+ ❯ src/__tests__/public-args.test.ts:40:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 96 passed (97)
+      Tests  1 failed | 1171 passed (1172)
+   Start at  23:40:24
+   Duration  45.76s (transform 5.06s, setup 11.26s, collect 22.24s, tests 24.13s, environment 13.20s, prepare 5.72s)
+
+exit 1

@@ -1,0 +1,7 @@
+apps/website/src/features/member-login/__tests__/credentials.test.ts	0	2026-11-09T23:36:50Z	tests=3	pass=3	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/link-policy.test.ts	0	2026-11-09T23:36:52Z	tests=7	pass=7	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/link-service.dialects.test.ts	0	2026-11-09T23:36:53Z	tests=4	pass=4	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/link-service.test.ts	0	2026-11-09T23:37:03Z	tests=12	pass=12	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/oidc-login.test.ts	0	2026-11-09T23:37:05Z	tests=28	pass=28	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/providers.test.ts	0	2026-11-09T23:37:07Z	tests=16	pass=16	fail=0	cancelled=0	skipped=0	todo=0
+DONE

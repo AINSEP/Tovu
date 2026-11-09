@@ -1,0 +1,8 @@
+== packed user-management: any oauth mention in package.json
+0
+== packed login-types.d.ts import:
+2:import type { OAuthClientAuthMethod, OidcSigningAlgorithm } from "@jini-ai/core/contracts/oauth";
+== packed agent-plugins notes:
+semver: opt-in: plugin version compatibility; import @jini-ai/agent-plugins/lifecycle, import @jini-ai/agent-plugins/lifecycle/host-tools — Plugin version compatibility could not load semver. Install semver to enable this feature, or check its installed version and native binaries.
+@cfworker/json-schema: opt-in: json schema validation; import @jini-ai/agent-plugins/lifecycle/tools, import @jini-ai/agent-plugins/connect/executable — JSON Schema validation could not load @cfworker/json-schema. Install @cfworker/json-schema to enable this feature, or check its installed version and native binaries.
+== agent-note in packed entry files:

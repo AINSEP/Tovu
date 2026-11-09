@@ -1,0 +1,961 @@
+{
+ "entries": [
+  {
+   "label": "@jini-ai/agent-plugins/manifest",
+   "files": 10,
+   "bareSpecifiers": [
+    "@jini-ai/core/plugin-directory",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle",
+   "files": 47,
+   "bareSpecifiers": [
+    "@jini-ai/core/plugin-directory",
+    "@jini-ai/core/provider-registry",
+    "@jini-ai/platform/fs",
+    "@jini-ai/platform/fs/file-lock",
+    "node:crypto",
+    "node:fs",
+    "node:http",
+    "node:path",
+    "node:url",
+    "node:util",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/node",
+   "files": 3,
+   "bareSpecifiers": [
+    "@jini-ai/platform/fs/file-lock",
+    "node:crypto",
+    "node:fs/promises",
+    "node:os",
+    "node:perf_hooks",
+    "node:timers/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/yauzl",
+   "files": 25,
+   "bareSpecifiers": [
+    "@jini-ai/core/plugin-directory",
+    "@jini-ai/platform/fs",
+    "@jini-ai/platform/fs/file-lock",
+    "node:crypto",
+    "node:fs",
+    "node:path",
+    "node:util",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/tools",
+   "files": 7,
+   "bareSpecifiers": [
+    "@cfworker/json-schema",
+    "@jini-ai/core"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/host-tools",
+   "files": 14,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/plugin-directory",
+    "node:crypto",
+    "node:fs/promises",
+    "node:path",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/mail",
+   "files": 12,
+   "bareSpecifiers": [
+    "@jini-ai/core/provider-registry",
+    "node:path"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/admin-surfaces",
+   "files": 23,
+   "bareSpecifiers": [
+    "@jini-ai/core"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/admin-surfaces/connections",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins/connect",
+   "files": 23,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/primitives"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/connect/executable",
+   "files": 8,
+   "bareSpecifiers": [
+    "@cfworker/json-schema",
+    "@jini-ai/core"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/connect/plugin-host",
+   "files": 31,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/plugin-directory",
+    "@jini-ai/core/primitives",
+    "@jini-ai/platform/fs",
+    "@jini-ai/platform/fs/file-lock",
+    "node:crypto",
+    "node:fs",
+    "node:path",
+    "node:util",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/core/contracts/cards",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/core/contracts/credentials",
+   "files": 3,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/core/contracts/mail",
+   "files": 17,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/core/contracts/vault",
+   "files": 5,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/core/contracts/oauth",
+   "files": 15,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/core/contracts/content-types",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/core/contracts/hosted-mcp",
+   "files": 5,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/ui/mcp-ui/credential-card",
+   "files": 2,
+   "bareSpecifiers": [
+    "@jini-ai/core/contracts/cards",
+    "@jini-ai/core/contracts/credentials"
+   ]
+  },
+  {
+   "label": "@jini-ai/ui/mcp-ui/secret-card",
+   "files": 18,
+   "bareSpecifiers": [
+    "@jini-ai/agentic",
+    "@jini-ai/core",
+    "@jini-ai/core/contracts/cards",
+    "@jini-ai/core/text"
+   ]
+  },
+  {
+   "label": "@jini-ai/ui/mcp-ui/sign-in-card",
+   "files": 11,
+   "bareSpecifiers": [
+    "@jini-ai/agentic",
+    "@jini-ai/core",
+    "@jini-ai/core/text"
+   ]
+  },
+  {
+   "label": "@jini-ai/integrations/api-connections",
+   "files": 33,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/primitives",
+    "node:crypto",
+    "node:path"
+   ]
+  },
+  {
+   "label": "@jini-ai/integrations/api-connections/hosted-mcp",
+   "files": 33,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/primitives",
+    "node:crypto",
+    "node:path"
+   ]
+  },
+  {
+   "label": "@jini-ai/integrations/credentialed-http",
+   "files": 8,
+   "bareSpecifiers": [
+    "@jini-ai/core/primitives"
+   ]
+  },
+  {
+   "label": "@jini-ai/integrations/credentialed-http/sets",
+   "files": 5,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/integrations/credentialed-http/tools",
+   "files": 13,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/model-facing-tool-errors",
+    "@jini-ai/core/primitives"
+   ]
+  },
+  {
+   "label": "@jini-ai/mcp/federation/hosted",
+   "files": 16,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/contracts/hosted-mcp",
+    "@jini-ai/core/primitives",
+    "node:crypto",
+    "node:util"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host",
+   "files": 30,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/contribution-registry",
+    "@jini-ai/core/plugin-directory",
+    "@jini-ai/core/primitives",
+    "@jini-ai/core/provider-registry",
+    "@jini-ai/core/records",
+    "@jini-ai/core/text",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host/node",
+   "files": 33,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/contribution-registry",
+    "@jini-ai/core/plugin-directory",
+    "@jini-ai/core/primitives",
+    "@jini-ai/core/provider-registry",
+    "@jini-ai/core/records",
+    "@jini-ai/platform/fs/file-lock",
+    "node:async_hooks",
+    "node:crypto",
+    "node:fs",
+    "node:fs/promises",
+    "node:os",
+    "node:path",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host/worker",
+   "files": 8,
+   "bareSpecifiers": [
+    "@jini-ai/core/provider-registry",
+    "node:path",
+    "node:url"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host/sql",
+   "files": 4,
+   "bareSpecifiers": [
+    "@jini-ai/db/kernel"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host/tools",
+   "files": 21,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/contribution-registry",
+    "@jini-ai/core/model-facing-tool-errors",
+    "@jini-ai/core/plugin-directory",
+    "@jini-ai/core/primitives",
+    "@jini-ai/core/provider-registry",
+    "@jini-ai/core/records",
+    "@jini-ai/platform/fs/file-lock",
+    "node:crypto",
+    "node:fs",
+    "node:fs/promises",
+    "node:os",
+    "node:path",
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/devops/deploy",
+   "files": 23,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/primitives",
+    "@jini-ai/core/text",
+    "node:crypto",
+    "node:path",
+    "node:util"
+   ]
+  },
+  {
+   "label": "@jini-ai/devops/deploy/node",
+   "files": 3,
+   "bareSpecifiers": [
+    "@jini-ai/platform",
+    "node:dns",
+    "node:net",
+    "undici"
+   ]
+  },
+  {
+   "label": "@jini-ai/user-management/server",
+   "files": 35,
+   "bareSpecifiers": [
+    "@jini-ai/core",
+    "@jini-ai/core/optional-peer",
+    "@jini-ai/core/primitives",
+    "@jini-ai/core/records",
+    "@simplewebauthn/server",
+    "node:async_hooks",
+    "node:crypto",
+    "node:module",
+    "node:readline",
+    "node:stream",
+    "otplib"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/form-destinations/cloudflare-d1.mjs",
+   "files": 4,
+   "bareSpecifiers": [
+    "node:fs/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/api.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/assets.mjs",
+   "files": 2,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/cms-forms.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/dns.mjs",
+   "files": 2,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/domain-inventory.mjs",
+   "files": 3,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/domain-status.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/domains.mjs",
+   "files": 6,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/forms.mjs",
+   "files": 3,
+   "bareSpecifiers": [
+    "node:fs/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/pages-upload.mjs",
+   "files": 3,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/target.mjs",
+   "files": 11,
+   "bareSpecifiers": [
+    "node:crypto",
+    "node:fs/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/workers-upload.mjs",
+   "files": 12,
+   "bareSpecifiers": [
+    "node:crypto",
+    "node:fs/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/lib/zones.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/targets/cloudflare-pages.mjs",
+   "files": 12,
+   "bareSpecifiers": [
+    "node:crypto",
+    "node:fs/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/targets/cloudflare-workers.mjs",
+   "files": 13,
+   "bareSpecifiers": [
+    "node:crypto",
+    "node:fs/promises"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/worker/forms-receiver.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:cloudflare/worker/portable-validation.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:core/commerce-server.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "@jini-ai/commerce"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:fly/deploy-configs/fly.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:fly/deploy-ops/fly.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:fly/scripts/render-deploy-workflow.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:fs",
+    "node:path",
+    "node:url"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github/deploy-ops/github-actions.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github/deployments/github.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github/source-control/backup-push.mjs",
+   "files": 2,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github/source-control/commit-site.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github/source-control/github.mjs",
+   "files": 4,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github/source-control/write-files.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:github-pages/targets/github-pages.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/form-destinations/dedupe.mjs",
+   "files": 3,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/form-destinations/delivery-result.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/form-destinations/mapping.mjs",
+   "files": 3,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/form-destinations/sheets.mjs",
+   "files": 11,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/auth.mjs",
+   "files": 6,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/drive-files.mjs",
+   "files": 3,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/form-destination-settings.mjs",
+   "files": 10,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/http.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/picker-flow.mjs",
+   "files": 11,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/picker-selection.mjs",
+   "files": 9,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/product-state.mjs",
+   "files": 3,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/request-policy.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/sheets-a1.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/sheets-admin-csv.mjs",
+   "files": 3,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/sheets-admin-request-kinds.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/sheets-client.mjs",
+   "files": 7,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/lib/surface-actions.mjs",
+   "files": 9,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/account-info.mjs",
+   "files": 4,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/copy-tab.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/copy.mjs",
+   "files": 9,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/create.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/find-replace.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/find.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/get-by-data-filter.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/get.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-append.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-batch-clear.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-batch-get.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-batch-update.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-by-data-filter.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-clear.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-get.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets/values-update.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/basic-filter.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/batch-update.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/developer-metadata.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/export-csv.mjs",
+   "files": 9,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/filter-views.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/format.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/named-ranges.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/open-existing.mjs",
+   "files": 10,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/protected-ranges-get.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/sort.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/tools/sheets-admin/tab-modify.mjs",
+   "files": 8,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/connection-panel.handler.mjs",
+   "files": 13,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/connection-panel.mjs",
+   "files": 4,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/connection-view.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/destination-panel.handler.mjs",
+   "files": 14,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/destination-panel.mjs",
+   "files": 5,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/dom.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/picker-flow.mjs",
+   "files": 4,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/picker-view.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/picker.handler.mjs",
+   "files": 12,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/picker.mjs",
+   "files": 5,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:google-workspace/ui/surface-client.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:meilisearch/providers/meilisearch.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:netlify/targets/netlify.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:railway/deploy-configs/railway.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:railway/deploy-ops/railway.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:render/deploy-configs/render.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:render/deploy-ops/render.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:resend/adapters/resend.mjs",
+   "files": 4,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:resend/lib/domains.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:resend/lib/errors.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:resend/lib/feedback.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:s3-compatible/object-stores/s3-compatible.mjs",
+   "files": 2,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:s3-compatible/targets/s3-compatible.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:vercel/object-stores/vercel-blob.mjs",
+   "files": 1,
+   "bareSpecifiers": []
+  },
+  {
+   "label": "@jini-ai/agent-plugins:vercel/targets/vercel.mjs",
+   "files": 1,
+   "bareSpecifiers": [
+    "node:crypto"
+   ]
+  }
+ ],
+ "misses": [],
+ "unresolved": [],
+ "missingTargets": [],
+ "optionalPeerReach": [
+  {
+   "label": "@jini-ai/agent-plugins/manifest",
+   "peers": [
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle",
+   "peers": [
+    "semver",
+    "@jini-ai/platform"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/node",
+   "peers": [
+    "@jini-ai/platform"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/tools",
+   "peers": [
+    "@cfworker/json-schema"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/lifecycle/host-tools",
+   "peers": [
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins/connect/executable",
+   "peers": [
+    "@cfworker/json-schema"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host",
+   "peers": [
+    "semver"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host/node",
+   "peers": [
+    "semver",
+    "@jini-ai/platform"
+   ]
+  },
+  {
+   "label": "@jini-ai/plugins/host/sql",
+   "peers": [
+    "@jini-ai/db"
+   ]
+  },
+  {
+   "label": "@jini-ai/devops/deploy/node",
+   "peers": [
+    "undici",
+    "@jini-ai/platform"
+   ]
+  },
+  {
+   "label": "@jini-ai/agent-plugins:core/commerce-server.mjs",
+   "peers": [
+    "@jini-ai/commerce"
+   ]
+  }
+ ]
+}

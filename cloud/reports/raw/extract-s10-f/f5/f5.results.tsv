@@ -1,0 +1,3 @@
+apps/website/src/features/agent-plugins/__tests__/integration/bundled-customization.integration.test.ts	0	2026-11-09T23:34:12Z	tests=1	pass=1	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/agent-plugins/__tests__/integration/bundled-upgrade-digest-supersession.integration.test.ts	0	2026-11-09T23:34:13Z	tests=7	pass=7	fail=0	cancelled=0	skipped=0	todo=0
+DONE

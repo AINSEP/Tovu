@@ -1,0 +1,13 @@
+edges at e1b1bdbd6 80  at HEAD 79
+NEW ('user-management', 'oauth') ['packages/user-management/src/server/login-types.ts']
+GONE ('commerce', 'cms')
+GONE ('integrations', 'oauth')
+      1 +      "@jini-ai/oauth": "opt-in: member login types; import @jini-ai/user-management/server — Member login could not load @jini-ai/oauth. Install @jini-ai/oauth to enable this feature, or check its installed version and native binaries."
+      1 +    "@jini-ai/oauth": "^0.6.10"
+      1 +    "@jini-ai/oauth": "workspace:*"
+      1 +    "@jini-ai/oauth": {
+      1 +    "@jini-ai/ui": "^0.6.10"
+      1 -      "@jini-ai/cms": "opt-in: cms integrations; import @jini-ai/commerce/tools \u2014 CMS integrations could not load @jini-ai/cms. Install @jini-ai/cms to enable this feature, or check its installed version and native binaries.",
+      1 -    "@jini-ai/cms": "^0.6.10"
+      1 -    "@jini-ai/cms": {
+      1 -    "@jini-ai/ui": "^0.6.10",

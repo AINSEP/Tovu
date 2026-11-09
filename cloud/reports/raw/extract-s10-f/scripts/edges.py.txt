@@ -1,0 +1,29 @@
+import subprocess,re,sys,collections
+def edges(rev):
+    files=subprocess.run(['git','ls-tree','-r','--name-only',rev,'packages/'],capture_output=True,text=True).stdout.split()
+    E=collections.defaultdict(set)
+    rx=re.compile(r'''(?:from\s*|import\s*\(\s*|import\s+|require\s*\(\s*)['"](@jini-ai/[a-z0-9-]+)(/[^'"]*)?['"]''')
+    for f in files:
+        m=re.match(r'packages/([^/]+)/(.*)$',f)
+        if not m: continue
+        if not re.search(r'\.(ts|tsx|mts|js|mjs|cts|cjs)$',f): continue
+        if re.search(r'(__tests__|/test/|/tests/|\.test\.|\.spec\.|/fixtures?/|__mocks__|/e2e/)',f): continue
+        pkg=m.group(1)
+        txt=subprocess.run(['git','show',f'{rev}:{f}'],capture_output=True,text=True).stdout
+        for mm in rx.finditer(txt):
+            tgt=mm.group(1).split('/')[1]
+            if tgt in ('core',): continue
+            own=pkg
+            if tgt==own: continue
+            E[(pkg,tgt)].add(f)
+    return E
+a=edges(sys.argv[1]); b=edges(sys.argv[2])
+print('edges at',sys.argv[1],len(a),' at',sys.argv[2],len(b))
+for k in sorted(set(b)-set(a)):
+    print('NEW',k,sorted(b[k]))
+for k in sorted(set(a)-set(b)):
+    print('GONE',k)
+# also new files on existing edges
+for k in sorted(set(a)&set(b)):
+    nf=b[k]-a[k]
+    if nf: print('EXISTING-EDGE new files',k,sorted(nf))

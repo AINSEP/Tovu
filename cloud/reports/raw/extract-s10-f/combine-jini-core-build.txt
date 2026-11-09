@@ -1,0 +1,4 @@
+
+> @jini-ai/core@0.6.23 build /tmp/w/jini-combine/packages/core
+> tsc -p tsconfig.json
+

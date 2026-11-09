@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: the source directory is the pinned version inside the installed package, not content/plugins
+ok 1 - the source directory is the pinned version inside the installed package, not content/plugins
+  ---
+  duration_ms: 0.992276
+  type: 'test'
+  ...
+# Subtest: the approval equals the packaged manifest: id, version, browser providers and the FULL integrity map
+ok 2 - the approval equals the packaged manifest: id, version, browser providers and the FULL integrity map
+  ---
+  duration_ms: 1.055167
+  type: 'test'
+  ...
+# Subtest: every pinned file is on disk with exactly the pinned bytes
+ok 3 - every pinned file is on disk with exactly the pinned bytes
+  ---
+  duration_ms: 2.134357
+  type: 'test'
+  ...
+# Subtest: the runtime manifest is the approval: a package cannot widen its own trust
+ok 4 - the runtime manifest is the approval: a package cannot widen its own trust
+  ---
+  duration_ms: 0.167742
+  type: 'test'
+  ...
+# Subtest: resolution uses the desktop payload roots and the pinned version, whatever the package version
+ok 5 - resolution uses the desktop payload roots and the pinned version, whatever the package version
+  ---
+  duration_ms: 0.399667
+  type: 'test'
+  ...
+# Subtest: a missing package is a loud packaging error, never a silent content/plugins fallback
+ok 6 - a missing package is a loud packaging error, never a silent content/plugins fallback
+  ---
+  duration_ms: 0.459839
+  type: 'test'
+  ...
+# Subtest: the agent face (@jini-ai/agent-plugins/charts-recharts) drives this runtime source
+ok 7 - the agent face (@jini-ai/agent-plugins/charts-recharts) drives this runtime source
+  ---
+  duration_ms: 0.524292
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 245.018782

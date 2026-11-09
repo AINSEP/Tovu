@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: bundled preset admits the active, unchanged installed contribution
+ok 1 - bundled preset admits the active, unchanged installed contribution
+  ---
+  duration_ms: 14.224125
+  type: 'test'
+  ...
+# Subtest: a non-bundled plugin is ignored even if it copies the shipped provider
+ok 2 - a non-bundled plugin is ignored even if it copies the shipped provider
+  ---
+  duration_ms: 4.180639
+  type: 'test'
+  ...
+# Subtest: bundled id cannot replace pinned issuer
+ok 3 - bundled id cannot replace pinned issuer
+  ---
+  duration_ms: 6.688414
+  type: 'test'
+  ...
+# Subtest: bundled id cannot replace pinned jwksUri
+ok 4 - bundled id cannot replace pinned jwksUri
+  ---
+  duration_ms: 6.385072
+  type: 'test'
+  ...
+# Subtest: bundled id cannot replace pinned authorizationEndpoint
+ok 5 - bundled id cannot replace pinned authorizationEndpoint
+  ---
+  duration_ms: 4.078038
+  type: 'test'
+  ...
+# Subtest: bundled id cannot replace pinned tokenEndpoint
+ok 6 - bundled id cannot replace pinned tokenEndpoint
+  ---
+  duration_ms: 3.757961
+  type: 'test'
+  ...
+# Subtest: disabled package contributes no provider
+ok 7 - disabled package contributes no provider
+  ---
+  duration_ms: 0.283126
+  type: 'test'
+  ...
+# Subtest: duplicate provider ids are refused in full
+ok 8 - duplicate provider ids are refused in full
+  ---
+  duration_ms: 2.712947
+  type: 'test'
+  ...
+# Subtest: invalid preset rejected: pkce
+ok 9 - invalid preset rejected: pkce
+  ---
+  duration_ms: 0.365315
+  type: 'test'
+  ...
+# Subtest: invalid preset rejected: signingAlgorithm
+ok 10 - invalid preset rejected: signingAlgorithm
+  ---
+  duration_ms: 0.279357
+  type: 'test'
+  ...
+# Subtest: invalid preset rejected: clientAuthentication
+ok 11 - invalid preset rejected: clientAuthentication
+  ---
+  duration_ms: 0.135307
+  type: 'test'
+  ...
+# Subtest: invalid preset rejected: scopes
+ok 12 - invalid preset rejected: scopes
+  ---
+  duration_ms: 0.096095
+  type: 'test'
+  ...
+# Subtest: invalid preset rejected: jwksUri
+ok 13 - invalid preset rejected: jwksUri
+  ---
+  duration_ms: 0.066537
+  type: 'test'
+  ...
+# Subtest: bundled login presets retain stable identity through jini metadata
+ok 14 - bundled login presets retain stable identity through jini metadata
+  ---
+  duration_ms: 10.341591
+  type: 'test'
+  ...
+# Subtest: bundled login presets retain stable identity through tovu metadata
+ok 15 - bundled login presets retain stable identity through tovu metadata
+  ---
+  duration_ms: 19.244688
+  type: 'test'
+  ...
+# Subtest: portable identity takes precedence over an unrelated legacy login identity
+ok 16 - portable identity takes precedence over an unrelated legacy login identity
+  ---
+  duration_ms: 3.713799
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1189.05332

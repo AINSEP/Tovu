@@ -1,0 +1,63 @@
+TAP version 13
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-5SplKg/ws/44444444-4444-4444-8444-444444444444
+# Subtest: a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest
+ok 1 - a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest
+  ---
+  duration_ms: 220.539356
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-JN4ySg/ws/44444444-4444-4444-8444-444444444444
+# Subtest: a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content
+ok 2 - a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content
+  ---
+  duration_ms: 146.573569
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-sXVmsB/ws/44444444-4444-4444-8444-444444444444
+# Subtest: an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump
+ok 3 - an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump
+  ---
+  duration_ms: 151.490272
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-1eM2bI/ws/44444444-4444-4444-8444-444444444444
+# Subtest: an upgrade keeps the superseded bytes and the newly published digest; the ledger names the new one
+ok 4 - an upgrade keeps the superseded bytes and the newly published digest; the ledger names the new one
+  ---
+  duration_ms: 177.114051
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-RJVbEL/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-6Alu6H/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-k4O2Fx/ws/44444444-4444-4444-8444-444444444444
+# Subtest: the admin listing reports the version the RUNNING build ships, in EITHER seeding order
+ok 5 - the admin listing reports the version the RUNNING build ships, in EITHER seeding order
+  ---
+  duration_ms: 346.018511
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-0fnzCO/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-DtrE49/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-yoFz9i/ws/44444444-4444-4444-8444-444444444444
+# Subtest: MCP federation reads the RUNNING build's package, in EITHER seeding order
+ok 6 - MCP federation reads the RUNNING build's package, in EITHER seeding order
+  ---
+  duration_ms: 374.597709
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-HphDFn/ws/44444444-4444-4444-8444-444444444444
+# Subtest: a bundled upgrade preserves an operator's disabled decision and keeps both gates closed
+ok 7 - a bundled upgrade preserves an operator's disabled decision and keeps both gates closed
+  ---
+  duration_ms: 142.838831
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3472.589479

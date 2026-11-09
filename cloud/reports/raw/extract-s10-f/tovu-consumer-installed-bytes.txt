@@ -1,0 +1,3 @@
+== installed vs unpacked tarball, all @jini-ai packages (diff -rq; empty = identical)
+symlinks: 0
+installed: 35

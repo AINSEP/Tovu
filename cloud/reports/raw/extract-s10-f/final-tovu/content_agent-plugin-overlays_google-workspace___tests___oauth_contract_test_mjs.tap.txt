@@ -1,0 +1,184 @@
+TAP version 13
+# Subtest: vertical slice: hosted sign-in asks for drive.file only, proves PKCE, and the account_info tool names the account without a token
+ok 1 - vertical slice: hosted sign-in asks for drive.file only, proves PKCE, and the account_info tool names the account without a token
+  ---
+  duration_ms: 74.07882
+  type: 'test'
+  ...
+# Subtest: PKCE: the verifier sent to the token endpoint matches the S256 challenge of the same attempt (the fake refuses any other)
+ok 2 - PKCE: the verifier sent to the token endpoint matches the S256 challenge of the same attempt (the fake refuses any other)
+  ---
+  duration_ms: 9.911701
+  type: 'test'
+  ...
+# Subtest: state: a callback whose state was never issued is refused as invalid-attempt and no code is exchanged
+ok 3 - state: a callback whose state was never issued is refused as invalid-attempt and no code is exchanged
+  ---
+  duration_ms: 2.153464
+  type: 'test'
+  ...
+# Subtest: state: a replayed callback is refused as invalid-attempt (consume once)
+ok 4 - state: a replayed callback is refused as invalid-attempt (consume once)
+  ---
+  duration_ms: 5.728621
+  type: 'test'
+  ...
+# Subtest: consent denial: access-denied, nothing exchanged or stored, still not connected
+ok 5 - consent denial: access-denied, nothing exchanged or stored, still not connected
+  ---
+  duration_ms: 1.657743
+  type: 'test'
+  ...
+# Subtest: partial scopes: a grant without drive.file is refused as scope-not-granted and no token is served
+ok 6 - partial scopes: a grant without drive.file is refused as scope-not-granted and no token is served
+  ---
+  duration_ms: 3.243944
+  type: 'test'
+  ...
+# Subtest: missing refresh token: a hosted same-account reconnect that omits one keeps the stored refresh token
+ok 7 - missing refresh token: a hosted same-account reconnect that omits one keeps the stored refresh token
+  ---
+  duration_ms: 22.095473
+  type: 'test'
+  ...
+# Subtest: refresh rotation: a rotated refresh token is stored and the old one is never sent again
+ok 8 - refresh rotation: a rotated refresh token is stored and the old one is never sent again
+  ---
+  duration_ms: 9.567747
+  type: 'test'
+  ...
+# Subtest: invalid_grant: the connection needs a reconnect and the plugin client says "Reconnect required" with a reconnect action
+ok 9 - invalid_grant: the connection needs a reconnect and the plugin client says "Reconnect required" with a reconnect action
+  ---
+  duration_ms: 8.697203
+  type: 'test'
+  ...
+# Subtest: revoke hook: posts the token form-encoded to Google's revocation endpoint and resolves only on 200
+ok 10 - revoke hook: posts the token form-encoded to Google's revocation endpoint and resolves only on 200
+  ---
+  duration_ms: 2.273498
+  type: 'test'
+  ...
+# Subtest: revoke hook: a refusal is never a confirmation (only invalid_token, "already revoked", is), and the error carries no token
+ok 11 - revoke hook: a refusal is never a confirmation (only invalid_token, "already revoked", is), and the error carries no token
+  ---
+  duration_ms: 8.373227
+  type: 'test'
+  ...
+# Subtest: revoke hook: Google's own error text never reaches the thrown message
+ok 12 - revoke hook: Google's own error text never reaches the thrown message
+  ---
+  duration_ms: 6.533287
+  type: 'test'
+  ...
+# Subtest: revoke hook: a transport failure is pending (provider-unreachable), never confirmed
+ok 13 - revoke hook: a transport failure is pending (provider-unreachable), never confirmed
+  ---
+  duration_ms: 0.590967
+  type: 'test'
+  ...
+# Subtest: scopes: a product the catalog does not know is refused, never silently dropped from the sign-in
+ok 14 - scopes: a product the catalog does not know is refused, never silently dropped from the sign-in
+  ---
+  duration_ms: 2.047257
+  type: 'test'
+  ...
+# Subtest: identity: a Drive answer that names no stable account id is refused, so no account is bound
+ok 15 - identity: a Drive answer that names no stable account id is refused, so no account is bound
+  ---
+  duration_ms: 1.982317
+  type: 'test'
+  ...
+# Subtest: revoke: a confirmed revocation clears local tokens; a failed one stays "revocation pending", serves no token, and a retry confirms
+ok 16 - revoke: a confirmed revocation clears local tokens; a failed one stays "revocation pending", serves no token, and a retry confirms
+  ---
+  duration_ms: 8.904
+  type: 'test'
+  ...
+# Subtest: revoke over the vault token store reaches Google and clears the grant
+ok 17 - revoke over the vault token store reaches Google and clears the grant
+  ---
+  duration_ms: 8.466182
+  type: 'test'
+  ...
+# Subtest: revoke: Google answering that the token is already revoked counts as confirmed, so a retry can finish
+ok 18 - revoke: Google answering that the token is already revoked counts as confirmed, so a retry can finish
+  ---
+  duration_ms: 8.768195
+  type: 'test'
+  ...
+# Subtest: revoke: any other refusal from Google stays pending
+ok 19 - revoke: any other refusal from Google stays pending
+  ---
+  duration_ms: 4.650521
+  type: 'test'
+  ...
+# Subtest: desktop: the installed-app sign-in forces consent without incremental grants, and re-consent replaces the old tokens
+ok 20 - desktop: the installed-app sign-in forces consent without incremental grants, and re-consent replaces the old tokens
+  ---
+  duration_ms: 9.447086
+  type: 'test'
+  ...
+# Subtest: hosted incremental: include_granted_scopes=true and a grant carrying earlier scopes is accepted
+ok 21 - hosted incremental: include_granted_scopes=true and a grant carrying earlier scopes is accepted
+  ---
+  duration_ms: 7.366971
+  type: 'test'
+  ...
+# Subtest: redaction: no token or client secret reaches status, connection records or the tool output
+ok 22 - redaction: no token or client secret reaches status, connection records or the tool output
+  ---
+  duration_ms: 6.382578
+  type: 'test'
+  ...
+# Subtest: redaction: a Google error that echoes request data becomes a fixed safe message
+ok 23 - redaction: a Google error that echoes request data becomes a fixed safe message
+  ---
+  duration_ms: 2.284658
+  type: 'test'
+  ...
+# Subtest: transport: the test fetch refuses every host but Google's (no real third-party call is possible)
+ok 24 - transport: the test fetch refuses every host but Google's (no real third-party call is possible)
+  ---
+  duration_ms: 0.389382
+  type: 'test'
+  ...
+# Subtest: browser binding (hosted): missing or another browser's proof burns the attempt before exchange
+ok 25 - browser binding (hosted): missing or another browser's proof burns the attempt before exchange
+  ---
+  duration_ms: 2.274417
+  type: 'test'
+  ...
+# Subtest: offline access (hosted): a first grant without a refresh token is refused before credential install
+ok 26 - offline access (hosted): a first grant without a refresh token is refused before credential install
+  ---
+  duration_ms: 11.280592
+  type: 'test'
+  ...
+# Subtest: browser binding (desktop): missing or another browser's proof burns the attempt before exchange
+ok 27 - browser binding (desktop): missing or another browser's proof burns the attempt before exchange
+  ---
+  duration_ms: 2.111221
+  type: 'test'
+  ...
+# Subtest: offline access (desktop): a first grant without a refresh token is refused before credential install
+ok 28 - offline access (desktop): a first grant without a refresh token is refused before credential install
+  ---
+  duration_ms: 9.654194
+  type: 'test'
+  ...
+# Subtest: hosted consent: a renewable same-account reconnect keeps incremental grants without forcing consent again
+ok 29 - hosted consent: a renewable same-account reconnect keeps incremental grants without forcing consent again
+  ---
+  duration_ms: 4.744446
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 616.882789

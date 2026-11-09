@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /tmp/w/neutral
+
+ ✓ src/api-connection-sheets-get.test.ts (1 test) 87ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  23:42:40
+   Duration  584ms (transform 72ms, setup 0ms, collect 243ms, tests 87ms, environment 0ms, prepare 81ms)
+

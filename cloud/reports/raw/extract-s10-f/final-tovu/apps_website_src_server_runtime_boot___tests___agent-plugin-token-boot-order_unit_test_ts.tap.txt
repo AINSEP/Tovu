@@ -1,0 +1,37 @@
+TAP version 13
+# [agent-plugins] could not apply this site's pending access tokens: disk went away
+# [agent-plugins] could not connect 'supabase' with the access token given when this site was created (will retry next start).
+# [agent-plugins] saved the access token given for 'supabase' when this site was created; it stays off because an operator turned it off.
+# Subtest: pending onboarding tokens are applied first, and the env import skips every plugin that had one
+ok 1 - pending onboarding tokens are applied first, and the env import skips every plugin that had one
+  ---
+  duration_ms: 1.52606
+  type: 'test'
+  ...
+# Subtest: a failed pending apply still keeps the env import off the pending plugins
+ok 2 - a failed pending apply still keeps the env import off the pending plugins
+  ---
+  duration_ms: 0.831928
+  type: 'test'
+  ...
+# Subtest: memory mode has no site folder: only the env import runs, skipping nothing
+ok 3 - memory mode has no site folder: only the env import runs, skipping nothing
+  ---
+  duration_ms: 0.199029
+  type: 'test'
+  ...
+# Subtest: default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it
+ok 4 - default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it
+  ---
+  duration_ms: 16.309589
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3037.951634

@@ -1,0 +1,49 @@
+✘ [ERROR] No matching export in "node_modules/@jini-ai/agent-plugins/dist/lifecycle/manifest.js" for import "readAgentPluginMetadata"
+
+    apps/website/src/features/agent-plugins/host-signals.ts:1:9:
+      1 │ import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/man...
+        ╵          ~~~~~~~~~~~~~~~~~~~~~~~
+
+✘ [ERROR] No matching export in "node_modules/@jini-ai/plugins/dist/host/index.js" for import "createDeclarativeContentTypes"
+
+    apps/website/src/features/plugin-runtime/declarative-content-types.ts:31:2:
+      31 │   createDeclarativeContentTypes,
+         ╵   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+✘ [ERROR] No matching export in "node_modules/@jini-ai/plugins/dist/host/node/index.js" for import "readPluginArchive"
+
+    apps/website/src/features/plugin-runtime/install-archive.ts:12:29:
+      12 │ ... { PluginInstallError, readPluginArchive } from "@jini-ai/plugi...
+         ╵                           ~~~~~~~~~~~~~~~~~
+
+✘ [ERROR] No matching export in "node_modules/@jini-ai/plugins/dist/host/node/index.js" for import "createPluginInvocationBinding"
+
+    apps/website/src/features/plugin-runtime/invocation-core-deps.ts:19:9:
+      19 │ import { createPluginInvocationBinding } from "@jini-ai/plugins/ho...
+         ╵          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/home/user/Tovu/node_modules/esbuild/lib/main.js:1748
+  let error = new Error(text);
+              ^
+
+Error: Build failed with 4 errors:
+apps/website/src/features/agent-plugins/host-signals.ts:1:9: ERROR: No matching export in "node_modules/@jini-ai/agent-plugins/dist/lifecycle/manifest.js" for import "readAgentPluginMetadata"
+apps/website/src/features/plugin-runtime/declarative-content-types.ts:31:2: ERROR: No matching export in "node_modules/@jini-ai/plugins/dist/host/index.js" for import "createDeclarativeContentTypes"
+apps/website/src/features/plugin-runtime/install-archive.ts:12:29: ERROR: No matching export in "node_modules/@jini-ai/plugins/dist/host/node/index.js" for import "readPluginArchive"
+apps/website/src/features/plugin-runtime/invocation-core-deps.ts:19:9: ERROR: No matching export in "node_modules/@jini-ai/plugins/dist/host/node/index.js" for import "createPluginInvocationBinding"
+    at failureErrorWithLog (/home/user/Tovu/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/user/Tovu/node_modules/esbuild/lib/main.js:1207:25
+    at /home/user/Tovu/node_modules/esbuild/lib/main.js:1159:52
+    at buildResponseToResult (/home/user/Tovu/node_modules/esbuild/lib/main.js:1205:7)
+    at /home/user/Tovu/node_modules/esbuild/lib/main.js:1232:16
+    at responseCallbacks.<computed> (/home/user/Tovu/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/user/Tovu/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/user/Tovu/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:514:28)
+    at addChunk (node:internal/streams/readable:569:12) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+
+Node.js v24.22.2
+exit 1

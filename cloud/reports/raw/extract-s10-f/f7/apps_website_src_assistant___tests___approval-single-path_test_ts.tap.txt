@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: human approval asking stays in the shared owner and its named host transports
+ok 1 - human approval asking stays in the shared owner and its named host transports
+  ---
+  duration_ms: 2363.833598
+  type: 'test'
+  ...
+# Subtest: the automatic plugin renderer exception does not permit other choice approval calls
+ok 2 - the automatic plugin renderer exception does not permit other choice approval calls
+  ---
+  duration_ms: 0.41656
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3673.268741

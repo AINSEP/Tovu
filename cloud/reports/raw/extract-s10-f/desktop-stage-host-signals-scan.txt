@@ -1,0 +1,29 @@
+file: staging/website-shared/src/features/agent-plugins/host-signals.ts bytes=11284
+== bare specifiers left (import/require/dynamic import):
+103:from "node:fs"
+104:from "node:path"
+139:from "node:fs"
+140:from "node:path"
+1:from "node:module"
+== esbuild origin comments for semver:
+== origin comments for agent-plugins manifest:
+3:// node_modules/@jini-ai/agent-plugins/dist/core/identity-namespace.js
+31:// node_modules/@jini-ai/agent-plugins/dist/lifecycle/metadata.js
+== 'SemVer' identifier count:
+0
+== any bare semver reference in whole staged output:
+(end)
+== installed manifest entry and its static import closure reaching semver:
+{
+  types: './dist/lifecycle/manifest.d.ts',
+  import: './dist/lifecycle/manifest.js',
+  default: './dist/lifecycle/manifest.js'
+}
+== static+dynamic closure of installed @jini-ai/agent-plugins/manifest (dist/lifecycle/manifest.js), relative edges followed, bare specifiers listed:
+{
+ "files": 9,
+ "bare": [
+  "@jini-ai/core/plugin-directory",
+  "semver"
+ ]
+}

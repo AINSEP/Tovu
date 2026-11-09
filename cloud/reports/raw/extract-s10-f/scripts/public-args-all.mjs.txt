@@ -1,0 +1,14 @@
+import ts from '/home/user/Jini/node_modules/typescript/lib/typescript.js';
+import { readFileSync, readdirSync, statSync } from 'node:fs'; import { join } from 'node:path';
+const root = process.argv[2]; const out = [];
+const walk = d => readdirSync(d).flatMap(n => { const p = join(d, n); return statSync(p).isDirectory() ? (n === '__tests__' ? [] : walk(p)) : (/\.tsx?$/.test(n) && !/\.(test|d)\.tsx?$/.test(n) ? [p] : []); });
+for (const f of walk(root)) { const ast = ts.createSourceFile(f, readFileSync(f, 'utf8'), ts.ScriptTarget.Latest, true);
+  const check = n => { const label = `${f.slice(root.length)}: ${ts.isConstructorDeclaration(n) ? 'constructor' : n.name?.getText(ast)}`;
+    if (n.parameters.length === 0 || n.parameters.length > 2) out.push(label + ' param count ' + n.parameters.length);
+    for (const p of n.parameters) { if (p.dotDotDotToken) out.push(label + ' rest'); if (!p.type) { out.push(label + ' untyped ' + p.name.getText(ast)); continue; }
+      if (!(ts.isTypeLiteralNode(p.type) || ts.isTypeReferenceNode(p.type) || ts.isIntersectionTypeNode(p.type))) out.push(label + ' type kind ' + p.type.getText(ast)); } };
+  for (const s of ast.statements) { if (!ts.canHaveModifiers(s) || !ts.getModifiers(s)?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)) continue;
+    if (ts.isFunctionDeclaration(s)) check(s);
+    if (ts.isClassDeclaration(s)) for (const m of s.members) { if (!ts.isConstructorDeclaration(m) && !ts.isMethodDeclaration(m)) continue;
+      if (ts.getModifiers(m)?.some(x => x.kind === ts.SyntaxKind.PrivateKeyword || x.kind === ts.SyntaxKind.ProtectedKeyword)) continue; check(m); } } }
+console.log(out.join('\n') || 'none');

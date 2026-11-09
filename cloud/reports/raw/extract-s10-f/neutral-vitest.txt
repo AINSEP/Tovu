@@ -1,0 +1,36 @@
+
+ RUN  v2.1.9 /tmp/w/neutral
+
+ ✓ src/hosted-mcp-sign-in.test.ts (2 tests) 27ms
+ ✓ src/s10-hosted-revocation.test.ts (2 tests) 22ms
+ ✓ src/credential-tools.test.ts (3 tests) 9ms
+ ✓ src/contribution-contracts.test.ts (28 tests) 96ms
+ ✓ src/neutral-host/neutral-host.test.ts (28 tests | 13 skipped) 999ms
+   ✓ moved classes in a neutral host > skill tool: returns a plugin skill by reading one bounded file, for every skills-only plugin 689ms
+ ✓ src/mail-host.test.ts (1 test) 17ms
+ ✓ src/connect-plugin-host.test.ts (2 tests) 14ms
+ ✓ src/credential-sets.test.ts (1 test) 13ms
+ ✓ src/provider-status.test.ts (1 test) 6ms
+ ✓ src/hosted-mcp-contracts.test.ts (1 test) 2ms
+ ✓ src/executable-surface-entries.test.ts (3 tests) 7ms
+ ✓ src/deploy-tools.test.ts (1 test) 6ms
+ ✓ src/neutral-host/support-imports.test.ts (4 tests) 81ms
+ ✓ src/s10-sheets-get.test.ts (1 test) 50ms
+Warning: Detected unsettled top-level await at file:///tmp/w/neutral/src/s10-tier2-entry.mjs:15
+await startTier2Worker({ workerData, parentPort, binding: { pluginSdkBinding, createInvocationCoreDeps }, registerSdkResolver() {}, realImport: (entry) => import(entry) });
+^
+
+
+
+ ✓ src/s10-plugin-state-vault.test.ts (1 test) 3ms
+ ✓ src/s10-tier2-worker.test.ts (1 test) 366ms
+   ✓ runs a beforeSave hook in a worker and returns its patch; a hung setup is cut at the host timeout 365ms
+ ✓ src/api-host-moves.test.ts (2 tests) 5ms
+ ✓ src/mail-port-regression.test.ts (1 test) 9ms
+
+ Test Files  18 passed (18)
+      Tests  70 passed | 13 todo (83)
+   Start at  23:33:25
+   Duration  3.74s (transform 290ms, setup 0ms, collect 2.05s, tests 1.73s, environment 3ms, prepare 1.07s)
+
+exit 0

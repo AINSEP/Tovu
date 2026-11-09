@@ -1,0 +1,5 @@
+node_modules/.pnpm/@jini-ai+agent-runtime@file+..+tgz+jini-ai-agent-runtime-0.6.23.tgz_@cfworker+json-sche_920436a2b595955d06c5050cbc507902/node_modules/@jini-ai/agent-runtime/dist/providers/connection-test.d.ts(36,37): error TS2344: Type '"dispatcher"' does not satisfy the constraint 'keyof RequestInit'.
+node_modules/.pnpm/@jini-ai+agent-runtime@file+..+tgz+jini-ai-agent-runtime-0.6.23.tgz_@cfworker+json-sche_920436a2b595955d06c5050cbc507902/node_modules/@jini-ai/agent-runtime/dist/providers/elevenlabs.d.ts(48,37): error TS2344: Type '"dispatcher"' does not satisfy the constraint 'keyof RequestInit'.
+node_modules/.pnpm/@jini-ai+agent-runtime@file+..+tgz+jini-ai-agent-runtime-0.6.23.tgz_@cfworker+json-sche_920436a2b595955d06c5050cbc507902/node_modules/@jini-ai/agent-runtime/dist/providers/model-catalog.d.ts(20,37): error TS2344: Type '"dispatcher"' does not satisfy the constraint 'keyof RequestInit'.
+node_modules/.pnpm/@jini-ai+oauth@file+..+tgz+jini-ai-oauth-0.6.19.tgz/node_modules/@jini-ai/oauth/dist/dns-pinned-transport.d.ts(21,50): error TS2339: Property 'dispatcher' does not exist on type 'RequestInit'.
+exit 2

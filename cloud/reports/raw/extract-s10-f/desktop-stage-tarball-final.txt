@@ -1,0 +1,17 @@
+stage-website-shared: bundled 15 module(s) -> staging/website-shared
+  src/assistant/assistant-subagents-policy.ts
+  src/assistant/daemon-exit-codes.ts
+  src/contracts/core/assistant-native-fallbacks.ts
+  src/contracts/core/host-signals.ts
+  src/contracts/headless/index.ts
+  src/features/agent-plugins/host-signals.ts
+  src/platform/server-logs/console-tee.ts
+  src/platform/server-logs/redact-local-text.ts
+  src/server/runtime/boot/process-error-guards.ts
+  src/server/runtime/boot/startup-secrets.ts
+  src/server/runtime/composition/observability-export.ts
+  src/server/runtime/composition/product-events.ts
+  src/server/runtime/composition/product-telemetry.ts
+  src/server/runtime/composition/site-paths.ts
+  src/server/runtime/lifecycle/assistant-daemon-connection.ts
+exit 0

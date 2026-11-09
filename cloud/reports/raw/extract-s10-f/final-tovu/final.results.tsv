@@ -1,0 +1,17 @@
+apps/website/src/features/member-login/__tests__/credentials.test.ts	0	2026-11-09T23:43:15Z	tests=3	pass=3	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/link-policy.test.ts	0	2026-11-09T23:43:16Z	tests=7	pass=7	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/link-service.dialects.test.ts	0	2026-11-09T23:43:16Z	tests=4	pass=4	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/link-service.test.ts	0	2026-11-09T23:43:22Z	tests=12	pass=12	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/oidc-login.test.ts	0	2026-11-09T23:43:24Z	tests=28	pass=28	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/member-login/__tests__/providers.test.ts	0	2026-11-09T23:43:24Z	tests=16	pass=16	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/agent-plugins/__tests__/integration/bundled-customization.integration.test.ts	0	2026-11-09T23:43:25Z	tests=1	pass=1	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/agent-plugins/__tests__/integration/bundled-upgrade-digest-supersession.integration.test.ts	0	2026-11-09T23:43:26Z	tests=7	pass=7	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/site-guide/__tests__/plugin-contributions.test.ts	0	2026-11-09T23:43:30Z	tests=3	pass=3	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts	0	2026-11-09T23:43:31Z	tests=7	pass=7	fail=0	cancelled=0	skipped=0	todo=0
+content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs	0	2026-11-09T23:43:31Z	tests=6	pass=6	fail=0	cancelled=0	skipped=0	todo=0
+content/agent-plugin-overlays/composio/__tests__/connection-contract.test.mjs	0	2026-11-09T23:43:32Z	tests=1	pass=1	fail=0	cancelled=0	skipped=0	todo=0
+content/agent-plugin-overlays/google-workspace/__tests__/oauth.contract.test.mjs	0	2026-11-09T23:43:32Z	tests=29	pass=29	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/assistant/__tests__/approval-single-path.test.ts	0	2026-11-09T23:43:33Z	tests=2	pass=2	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts	0	2026-11-09T23:43:36Z	tests=4	pass=4	fail=0	cancelled=0	skipped=0	todo=0
+apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts	1	2026-11-09T23:43:39Z	tests=2	pass=1	fail=1	cancelled=0	skipped=0	todo=0
+DONE

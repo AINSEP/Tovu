@@ -1,0 +1,13 @@
+2026-11-09 23:35:27.662 UTC [21957] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-11-09 23:35:27.664 UTC [21957] LOG:  listening on Unix socket "/tmp/w/pgsock/.s.PGSQL.5432"
+2026-11-09 23:35:27.666 UTC [21960] LOG:  database system was shut down at 2026-11-09 23:35:27 UTC
+2026-11-09 23:35:27.669 UTC [21957] LOG:  database system is ready to accept connections
+2026-11-09 23:35:37.697 UTC [21958] LOG:  checkpoint starting: immediate force wait
+2026-11-09 23:35:37.722 UTC [21958] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 1 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.026 s; sync files=5, longest=0.001 s, average=0.001 s; distance=7469 kB, estimate=7469 kB; lsn=0/1C3AA20, redo lsn=0/1C3A9E8
+2026-11-09 23:35:45.542 UTC [21957] LOG:  received fast shutdown request
+2026-11-09 23:35:45.543 UTC [21957] LOG:  aborting any active transactions
+2026-11-09 23:35:45.545 UTC [21957] LOG:  background worker "logical replication launcher" (PID 21963) exited with exit code 1
+2026-11-09 23:35:45.545 UTC [21958] LOG:  shutting down
+2026-11-09 23:35:45.546 UTC [21958] LOG:  checkpoint starting: shutdown immediate
+2026-11-09 23:35:45.549 UTC [21958] LOG:  checkpoint complete: wrote 1 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=1, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=6722 kB; lsn=0/1C3AB60, redo lsn=0/1C3AB60
+2026-11-09 23:35:45.557 UTC [21957] LOG:  database system is shut down

@@ -1,0 +1,5 @@
+export PATH=$HOME/.local/node24/bin:$PATH
+rm -rf /tmp/w/jini-combine && git clone -q --no-hardlinks /home/user/Jini /tmp/w/jini-combine && cd /tmp/w/jini-combine && git fetch -q /home/user/Jini refs/remotes/origin/cloud/combine && git -c advice.detachedHead=false checkout -q e1b1bdbd632fb727434aef49f33f80c263c4fcc6 && git log --oneline -1
+CI=true pnpm install --frozen-lockfile > /tmp/w/raw/combine-jini-install.txt 2>&1; echo "install exit $?"
+pnpm guard > /tmp/w/raw/combine-jini-guard.txt 2>&1; echo "exit $?" >> /tmp/w/raw/combine-jini-guard.txt
+echo COMBINE-GUARD-DONE

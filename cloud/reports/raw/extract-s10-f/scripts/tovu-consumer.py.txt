@@ -1,0 +1,18 @@
+# Rewrite every @jini-ai/* dep in root, packages/contracts, packages/sdk to file:<tgz>, and a flat overrides map.
+import json,os,glob,sys
+root=sys.argv[1]; tgzdir=sys.argv[2]
+m={}
+for f in glob.glob(os.path.join(tgzdir,'*.tgz')):
+    b=os.path.basename(f)[len('jini-ai-'):-4]
+    name='@jini-ai/'+b.rsplit('-',1)[0]
+    m[name]='file:'+f
+for rel in ['package.json','packages/contracts/package.json','packages/sdk/package.json']:
+    p=os.path.join(root,rel); j=json.load(open(p))
+    for sec in ['dependencies','devDependencies','peerDependencies','optionalDependencies']:
+        for k in list(j.get(sec,{})):
+            if k.startswith('@jini-ai/'):
+                if k not in m: print('NO TGZ',k); continue
+                j[sec][k]=m[k]
+    if rel=='package.json': j['overrides']=dict(sorted(m.items()))
+    json.dump(j,open(p,'w'),indent=2); open(p,'a').write('\n')
+print(len(m),'tarballs mapped')

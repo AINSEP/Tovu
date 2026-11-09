@@ -1,0 +1,10 @@
+set -x
+export PATH=$HOME/.local/node24/bin:$PATH
+rm -rf /tmp/w/xp3 /tmp/w/xp3-out
+git clone -q --no-hardlinks /home/user/Jini /tmp/w/xp3 && cd /tmp/w/xp3 && git -c advice.detachedHead=false checkout -q 35c4961af718f0f30591c46d2ea2756c4484a731 && git log --oneline -1
+CI=true pnpm install --frozen-lockfile > /tmp/w/raw/xp3-install.txt 2>&1; echo "install exit $?"
+pnpm --filter @jini-ai/core build > /tmp/w/raw/xp3-core-build.txt 2>&1; echo "core build exit $?"
+pnpm --no-bail -r build > /tmp/w/raw/xp3-build.txt 2>&1; echo "build exit $?"
+node --import /home/user/Jini/node_modules/tsx/dist/loader.mjs /home/user/Jini/scripts/check-no-cross-package.ts --base 35c4961af718f0f30591c46d2ea2756c4484a731 --write-baseline /tmp/w/xp3-out; echo "write-baseline exit $?"
+cd /tmp/w/xp3-out && echo "manifest sha256: $(ls; sha256sum manifest.json 2>/dev/null)"; echo "decl aggregate: $(find . -name '*.d.ts' | LC_ALL=C sort | xargs sha256sum | sha256sum)"
+echo XP3-DONE

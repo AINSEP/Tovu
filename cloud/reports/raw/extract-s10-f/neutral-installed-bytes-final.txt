@@ -1,0 +1,9 @@
+== .pnpm @jini-ai entries not from file: tarballs (registry copies):
+(end)
+== byte compare each .pnpm @jini-ai package with its unpacked tarball:
+node_modules/.pnpm/@jini-ai+agent-plugins@file+..+tgz+jini-ai-agent-plugins-0.6.24.tgz_@cfworker+json-sche_90d1fa8267b739e29cdaef39aed1ab5c/node_modules/@jini-ai/agent-plugins: Only in node_modules/.pnpm/@jini-ai+agent-plugins@file+..+tgz+jini-ai-agent-plugins-0.6.24.tgz_@cfworker+json-sche_90d1fa8267b739e29cdaef39aed1ab5c/node_modules/@jini-ai/agent-plugins: node_modules
+node_modules/.pnpm/@jini-ai+cms@file+..+tgz+jini-ai-cms-0.6.22.tgz_@jini-ai+db@file+..+tgz+jini-ai-db-0.6._96d1704d2f1434badc4535604da94199/node_modules/@jini-ai/cms: Only in node_modules/.pnpm/@jini-ai+cms@file+..+tgz+jini-ai-cms-0.6.22.tgz_@jini-ai+db@file+..+tgz+jini-ai-db-0.6._96d1704d2f1434badc4535604da94199/node_modules/@jini-ai/cms: node_modules
+node_modules/.pnpm/@jini-ai+devops@file+..+tgz+jini-ai-devops-0.6.22.tgz_@jini-ai+platform@file+..+tgz+jin_50958281a419ec8e25770d2bb9ca68a9/node_modules/@jini-ai/devops: Only in node_modules/.pnpm/@jini-ai+devops@file+..+tgz+jini-ai-devops-0.6.22.tgz_@jini-ai+platform@file+..+tgz+jin_50958281a419ec8e25770d2bb9ca68a9/node_modules/@jini-ai/devops: node_modules
+node_modules/.pnpm/@jini-ai+mcp@file+..+tgz+jini-ai-mcp-0.6.23.tgz_zod@3.25.76/node_modules/@jini-ai/mcp: Only in node_modules/.pnpm/@jini-ai+mcp@file+..+tgz+jini-ai-mcp-0.6.23.tgz_zod@3.25.76/node_modules/@jini-ai/mcp: node_modules
+node_modules/.pnpm/@jini-ai+plugins@file+..+tgz+jini-ai-plugins-0.6.22.tgz_@jini-ai+db@file+..+tgz+jini-ai_cb865793da9f7de74975947cbacfedd5/node_modules/@jini-ai/plugins: Only in node_modules/.pnpm/@jini-ai+plugins@file+..+tgz+jini-ai-plugins-0.6.22.tgz_@jini-ai+db@file+..+tgz+jini-ai_cb865793da9f7de74975947cbacfedd5/node_modules/@jini-ai/plugins: node_modules
+(end)

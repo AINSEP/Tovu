@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: new verified identity uses member creation owner and the sole member-session minter
+ok 1 - new verified identity uses member creation owner and the sole member-session minter
+  ---
+  duration_ms: 3.32253
+  type: 'test'
+  ...
+# Subtest: pending verified match activates and revokes old sessions
+ok 2 - pending verified match activates and revokes old sessions
+  ---
+  duration_ms: 2.09176
+  type: 'test'
+  ...
+# Subtest: disabled cannot link or mint a session
+ok 3 - disabled cannot link or mint a session
+  ---
+  duration_ms: 0.787726
+  type: 'test'
+  ...
+# Subtest: trash cannot link or mint a session
+ok 4 - trash cannot link or mint a session
+  ---
+  duration_ms: 0.39873
+  type: 'test'
+  ...
+# Subtest: linked subject follows its original member when provider email changes
+ok 5 - linked subject follows its original member when provider email changes
+  ---
+  duration_ms: 0.820016
+  type: 'test'
+  ...
+# Subtest: unlink blocks subsequent sign-in and deliberate signed-in connect may restore it
+ok 6 - unlink blocks subsequent sign-in and deliberate signed-in connect may restore it
+  ---
+  duration_ms: 1.058034
+  type: 'test'
+  ...
+# Subtest: a foreign signed-in connect cannot move an already-linked subject
+ok 7 - a foreign signed-in connect cannot move an already-linked subject
+  ---
+  duration_ms: 0.624014
+  type: 'test'
+  ...
+# Subtest: signed-in connect with a different Google address links without verifying the member's own email
+ok 8 - signed-in connect with a different Google address links without verifying the member's own email
+  ---
+  duration_ms: 0.692864
+  type: 'test'
+  ...
+# Subtest: custom-domain first link returns proof-needed without member/link/session writes
+ok 9 - custom-domain first link returns proof-needed without member/link/session writes
+  ---
+  duration_ms: 0.569632
+  type: 'test'
+  ...
+# Subtest: one existing email code permits first custom-domain link; replay fails
+ok 10 - one existing email code permits first custom-domain link; replay fails
+  ---
+  duration_ms: 10.980099
+  type: 'test'
+  ...
+# Subtest: wrong email code spends an attempt outside the link transaction
+ok 11 - wrong email code spends an attempt outside the link transaction
+  ---
+  duration_ms: 7.678538
+  type: 'test'
+  ...
+# Subtest: credential revocation fences an outstanding callback
+ok 12 - credential revocation fences an outstanding callback
+  ---
+  duration_ms: 0.442562
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2656.453465

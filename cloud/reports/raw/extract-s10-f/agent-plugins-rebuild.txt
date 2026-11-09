@@ -1,0 +1,5 @@
+
+> @jini-ai/agent-plugins@0.6.24 build /home/user/Jini/packages/agent-plugins
+> tsc -p tsconfig.json && node scripts/build-cloudflare.mjs
+
+exit 0
