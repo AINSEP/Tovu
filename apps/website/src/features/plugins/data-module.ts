@@ -252,6 +252,8 @@
  * unconditionally for core-mediated DDL; the access-control framing is advisory until ADR-024 §4
  * Rung 2 (capability sandbox) ships — see ADR-023 §0 for the full, precise wording.
  */
+import { existsSync, realpathSync } from "node:fs";
+
 import { sql } from "kysely";
 
 import {
@@ -937,6 +939,16 @@ export async function declareDataModule(
   // Snapshot + journal exist for next-boot restore of a whole SQLite file (this file's header,
   // STORAGE KERNEL): nothing to restore for an in-memory db or a Postgres/PGlite kernel.
   const recoverable = kernel.dialect === "sqlite" && !isInMemoryDbPath(dbPath);
+  // The snapshot is written beside `dbPath`, boot recovery restores it over `dbPath`, and headroom is
+  // measured on `dbPath`; a path naming some other file would make all three act on the wrong file.
+  if (recoverable) {
+    const [main] = await kernel.query<{ file: string }>(sql`SELECT file FROM pragma_database_list WHERE name = 'main'`);
+    const openFile = main?.file ? realpathSync(main.file) : "";
+    if (!existsSync(dbPath) || realpathSync(dbPath) !== openFile) {
+      const message = `dataModule declare refused: ${dbPath} is not the database this connection has open (${openFile || "an in-memory database"}). Pass the path of the open database file.`;
+      return { ok: false, created: [], altered: [], snapshotPath: null, error: { code: "DB_PATH_MISMATCH", message } };
+    }
+  }
   const preflight = await runPreflightChecks(kernel, dbPath, decl, recoverable, checkHeadroom);
   if (!preflight.ok) {
     return { ok: false, created: [], altered: [], snapshotPath: null, error: preflight.error };

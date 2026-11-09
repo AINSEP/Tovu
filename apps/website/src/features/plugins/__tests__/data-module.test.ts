@@ -80,6 +80,28 @@ test("dataModule: declares a namespaced table and records a migration-journal en
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("dataModule: a dbPath naming a different real file is refused before headroom, snapshot or DDL", async () => {
+  // Otherwise the snapshot lands beside the wrong file (where boot recovery would restore it over
+  // that file), and headroom is measured on a file that may be empty or absent, so it always passes.
+  const { db, dir } = openWithCore();
+  const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-other-"));
+  const wrongPath = path.join(otherDir, "other.db");
+  new Database(wrongPath).close();
+  const measured: string[] = [];
+  const result = await declareDataModule({ db: contentKernel(db), dbPath: wrongPath, decl: productsDecl }, {
+    checkHeadroom: ({ dbPath }) => { measured.push(dbPath); return { ok: true, requiredBytes: 0, freeBytes: 0 }; },
+  });
+
+  assert.deepEqual({ ok: result.ok, code: result.error?.code, snapshotPath: result.snapshotPath, measured }, { ok: false, code: "DB_PATH_MISMATCH", snapshotPath: null, measured: [] });
+  assert.match(result.error!.message, /is not the database this connection has open/);
+  assert.equal(tableExists(db, "p_hello__products"), false, "nothing was declared");
+  assert.deepEqual(fs.readdirSync(otherDir), ["other.db"], "no snapshot beside the wrong file");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(otherDir, { recursive: true, force: true });
+});
+
 test("dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof)", async () => {
   // Proven on the failure path deliberately. A committed migration now discards its snapshot
   // (ADR-023 §4 amendment 2026-08-02), so success is the one case where the file is legitimately
