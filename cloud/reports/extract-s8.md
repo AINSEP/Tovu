@@ -1073,5 +1073,7 @@ After F8, `ps` shows no node, vitest, tsc, npm or pnpm process. **Nothing is lef
 - Coordinator boundary C2 part 2→F8: 2026-11-09T08:13:06Z, elapsed 77m45s; running token total ≈ 1.41M + F8 of 1.9M cap.
 - F8 boundary: 2026-11-09T08:20:35Z, elapsed 85m14s (F8 ≈ 70k tokens).
 
-Stop reason: C2 part 2 only partially seamed (remaining rows listed above); finishing it plus a final F8 rerun would exceed the 1.9M-token job cap — not a behavior, design or import-rule stop.
+- Coordinator final tally: 2026-11-09T08:22:17Z, elapsed 86m56s of 150m. Actual subagent tokens: setup 131k, C0 241k, C1 seam 269k, C1 move 192k, C2 part 1 252k, C2 part 2 241k, F8 142k = 1.468M; coordinator ≈ 0.105M; job total ≈ 1.57M of the 1.9M cap. Subagents: 7 (6 build + F8), no follow-up builder. Batch-time note: C1 seam, C1 move and C2 part 1 each finished inside their windows; no batch ran over 1.4× its estimate.
+
+Stop reason: C2 part 2 only partially seamed (remaining rows listed above). Finishing it needs at least one more builder the size of the C2 part 2 run (≈241k tokens) plus a full F8 rerun (≈142k), ≈383k in all, but only ≈330k of the 1.9M-token job cap remains — a token-cap stop, not a behavior, design or import-rule stop.
 EXTRACT-S8 STOPPED AT CAP
