@@ -1,5 +1,6 @@
 import { type ToolRegistry, type ToolRegistration } from "@jini-ai/core";
 import { createPluginCapabilityTools, pluginCapabilityToolDerivedRisk as derivedRiskFor, type PluginCapabilityToolSource, type PluginContributionRegistry, type PluginCapabilityToolText } from "@jini-ai/plugins/host";
+import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import type { DerivedRiskByToolId } from "@jini-ai/core";
@@ -73,6 +74,7 @@ export interface PluginCapabilityToolDeps {
 
 const capabilityTools = createPluginCapabilityTools<PostRecord, Parameters<PluginBeforeSavePreview>[1], 'plugin-capability-result'>({
   identityNamespace: "tovu",
+  beforeSaveHook: HOOK_CONTENT_ENTRY_BEFORE_SAVE,
   text: CAPABILITY_TOOL_MESSAGES,
   catalog: { domain: "plugin-capability", catalogModule: "features/plugin-runtime/capability-tool-registrations.ts", metadata: toolMetadata },
   // `content.read`, the same permission `content_post_get` itself requires, on the read post.
