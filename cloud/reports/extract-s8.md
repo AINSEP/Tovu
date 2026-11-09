@@ -430,3 +430,44 @@ Every moved contract keeps its @agent-notes in J source and emitted `.d.ts`; the
 New pins, named before edits:
 - J `integrations/src/credentialed-http/sets/__tests__/extract-s8-sets.unit.test.ts` (vitest, relative imports like the sibling credentialed-http tests): public entry wiring (package.json export/typesVersions/jini.entries + built entry exports), a second host (different owner/categories/messages) over an in-test vault fake, error class identity through the entry, declaration closure (built `dist/credentialed-http/sets/*.d.ts` reference only `@jini-ai/core/*` and same-directory paths), @agent-notes present in emitted `.d.ts`.
 - J `examples/neutral-host/src/credential-sets.test.ts` (vitest via `pnpm --filter @jini-example/neutral-host exec vitest run`, typechecked by its `tsc -p tsconfig.json`): a neutral host wiring the public `@jini-ai/integrations/credentialed-http/sets` entry with `@jini-ai/platform` vault parts (host tests may import several packages).
+
+## C1 move
+
+Window: 07:36Z–07:50Z (clock per `date -u` in the session container). Status: **one red test, needs a coordinator decision; the green marker was NOT created.**
+
+Commits (all pushed, `git ls-remote` verified):
+- Tovu: 610441e9e29f6ce4fb7650e49d6842e87a5068c4 (destination inventory), cc12641d3c4f3aa019d7e683564fb9ff58cc1e1d (repoint + shims), plus this report commit.
+- Jini: 63e11c5d4e5575a23af0892857de302de71a13ea (move + entry + changeset), b86e8a76abba75cb959a08f07a66f34e1591ef19 (new pins + core note correction).
+
+Moved (cross-repo, provenance in the Jini commit message: `AINSEP/Tovu apps/website/src/features/custom-credentials/sets/{host,vault-repo,store}.ts@43a0e5d4`):
+- J packages/integrations/src/credentialed-http/sets/host.ts (102 → 104), vault-repo.ts (151 → 153), store.ts (550 → 552): byte-identical to the Tovu seam files except two added provenance lines in each `@file` block. NEW index.ts barrel with the second-host `@agent-note`.
+- Provenance deviation (forced by the guard, recorded): the requested in-source wording "moved from AINSEP/Tovu <path>" would fail source-neutrality rules N1-consumer-identity (`/tovu/i`, comments included) and N2-consumer-path (`apps/website`). The `@file` line therefore reads "moved unchanged (EXTRACT-S8 C1 move) from the first host's credential-set seam file `sets/<name>.ts` at its commit 43a0e5d4"; the full repo/path is in the Jini commit message and here.
+- Jini-strictness edits: **none** — the three files compile unchanged under the package tsconfig (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`).
+- Imports after the move: only `./host.js`, `./vault-repo.js`, `./store.js`, `@jini-ai/core/contracts/{credentials,vault}`, `@jini-ai/core/primitives`; no relative path leaves packages/integrations; no Tovu vocabulary (manual grep for tovu, apps/, #src, Shared Keys, Access Tokens, P25, secrets_vault: none). Comment-only references `vendor-credentials/project-scope.ts`, `types.ts`, route `409`/`400` kept verbatim (no guard rejection).
+- Entry: `@jini-ai/integrations/credentialed-http/sets` in exports (types/import/default), typesVersions, `jini.entries` = node — same shape as `./credentialed-http`; dependencies still only `@jini-ai/core`. Changeset `.changeset/extract-s8-c1-credential-sets-entry.md` (@jini-ai/integrations minor). `./credentialed-http` unchanged.
+- Tovu: tovu-credential-sets.ts (binder), store.ts and vault-repo.ts import the public entry (import specifiers + three comment path references updated to the entry name). sets/{host,vault-repo,store}.ts are now 7-line re-export shims of the entry (`export type *` for host.ts, `export *` for the others) so the error classes stay ONE object. VaultError stays host canonical; repo.memory.ts, SQL/indexed query/kernel/project adapter, allowedOriginsFor stay in Tovu, unchanged.
+- Core note correction (J packages/core/src/contracts/credentials.ts, doc-only, found reading as a second host): `CredentialSetKeyringPort`'s note said "both historical keyring shapes satisfy it"; a keyring whose `activeKey` takes the vault port's required options argument (platform keyrings) does NOT, and the host adapts it (`activeKey: () => keyring.activeKey({})`). Covered by the existing unreleased core minor changeset.
+
+New pins: J integrations sets/__tests__/extract-s8-sets.unit.test.ts (5 tests: entry declaration; one canonical object per runtime export; second host with owner `second-host`, categories red/blue and its own messages — metadata reads 0 opens, resolve 1 open, 1 seal; canonical error classes and host `context` error for a foreign owner; emitted `.d.ts` closure = core subpaths + same directory and @agent-notes present). Mutation check: an extra `@jini-ai/platform` import appended to the emitted store.d.ts → the closure test fails (1 of 5); rebuild → 5/5. J examples/neutral-host/src/credential-sets.test.ts (1 test: owner `library-host`, books/tools, create/list/describe/resolve/duplicate/category/delete through the public entry).
+
+Gate (after transport; Node 24.2.0):
+| step | exit | result |
+|---|---|---|
+| core build / core tsc | 0 / 0 | — |
+| integrations build / `exec tsc --noEmit` | 0 / 0 | build also compiles the new J pin (package tsconfig includes src) |
+| integrations vitest: 6 credentialed-http files + package-surface + new pin | 0 | 8 files / 217 tests (212 baseline + 5) |
+| neutral-host vitest (new pin) / neutral-host `tsc -p` | 0 / 0 | 1/1 |
+| scripts/__tests__ three (with XP3 snapshot env) | 0 | 3 files / 70 |
+| `JINI_DECLARATION_BASELINE_DIR=<35c4961af snapshot> pnpm check:cross-package` | 0 | XP1–XP5 clean |
+| guard | 1 | identical to the setup baseline: R2-deep-path(1), R10-chatpane-public-surface(1) only; HW1=17/HW2=16/HW3=135/HW4=1/HW8=49, HW5/6/7/9=0, 0 new; no N1/N2/R8/other |
+| guard:plugins / layers / isolation / SI audit | 0/0/0/0 | clean; SI c=9, d=7 |
+| T relink / T main tsc | 0 / 0 | — |
+| T explicit compile of the 3 C1 seam pins | 0 | — |
+| eslint T (6 changed) / J (7 changed/new) | 0 / 0 | 0 problems |
+| Tovu tests, 51 files one at a time (C1 matrix 11, C2-Tovu 28, accumulated nine + inherited S3 three, C0, C1 seam three) | all 0 but one | 773 tests, 772 pass, **1 fail**: extract-s8-c1-source-scan.test.ts test 1 |
+| C0 + new→old replay | 0 | C0 11/11 with `EXTRACT_S8_G_CRED_REPLAY_DIR`; rows written by the moved code read by the pinned old reader from a detached Tovu worktree at C0 3f19a8bd: 3/3 accepted; dump differs from the C0 dump only in `sealed_ciphertext`/`sealed_nonce` (fresh randomness) |
+| hashes | — | 5 base fixtures + 3 inherited S3 pins match; C0 fixtures/test unchanged since 3f19a8bd; counts unchanged (C0 test green, cost-counters baseline green) |
+
+**Open: drift in a committed C1 seam test.** extract-s8-c1-source-scan.test.ts test 1 ("sets/ imports nothing but @jini-ai/core subpaths and same-directory files") scans the Tovu `sets/*.ts` paths; after the move those paths are shims importing `@jini-ai/integrations/credentialed-http/sets`, so it fails by design. Deleting the shims (as first dispatched) would instead break that whole file and extract-s8-c1-second-host.test.ts at import (14 tests). Rules forbid editing a committed test without approval, so the test was not touched. The test's purpose (its @file: "so they can move into Jini unchanged") is now proven at the destination by the J closure pin. Coordinator choices: (a) approve retargeting test 1 to scan the shims (one specifier = the entry) plus the resolved entry's emitted files (core + same directory only), or (b) record test 1 as retired-by-design.
+
+Shared-lane files: none (no tool-catalog-manifest/deps/external-mcp/api-connections/plugin-runtime/agent-plugins/mcp/plugins file touched). No existing pre-session test or fixture modified, deleted or renamed in either repo; no migration, guard, checker, debt or baseline edit. Processes: background runners (Tovu 51-file loop, Jini gate script) exited; none left. Scratch worktree of Tovu at C0 kept outside the tracked tree (registered in Tovu .git/worktrees).
