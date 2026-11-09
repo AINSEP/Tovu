@@ -44,7 +44,7 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
     loadDeployWorkflowFiles:deps.loadDeployWorkflowFiles,waitClock:deps.waitClock,publishHistoryStore:deps.publishHistoryStore,
     credentials:{
       available:!!deps.deployOpsHttpClient,
-      list:async()=> (await listCustomCredentials({repo:deps.customCredentialSetRepo},{workspaceId:deps.workspaceId})).map(c=>({label:c.label,allowedOrigins:allowedOriginsFor(c)})),
+      list:async()=> (await listCustomCredentials({repo:deps.customCredentialSetRepo},{workspaceId:deps.workspaceId})).map(c=>({label:c.label,get allowedOrigins(){return allowedOriginsFor(c);}})),
       resolveTarget:(required,optional)=>resolveRequestTarget({repo:deps.customCredentialSetRepo},{...required,...optional}),
       classifyError:({error})=>classifyDeployError(error),
       request:async(required,optional)=>{
