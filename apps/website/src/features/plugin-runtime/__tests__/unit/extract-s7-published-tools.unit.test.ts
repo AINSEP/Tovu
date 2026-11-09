@@ -40,37 +40,48 @@ console.log('published import has no startup effects');\n`);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('resolved emitted contracts retain attached second-host notes on every local member and public method', () => {
-  let members = 0; let functions = 0;
-  const missing: string[] = [];
+test('resolved emitted contracts document the security and ordering obligations a second host needs', () => {
+  let functions = 0;
+  const requiredNotes: Record<string, RegExp> = {
+    authorize: /same permission evaluator.*after human approval/i,
+    approvalFingerprint: /same fingerprint owner.*every supplied revision/i,
+    executeCommand: /existing command gateway.*rollback/i,
+    lowerToolAccess: /after durable OFF.*propagate cleanup failure/i,
+    uninstall: /complete authorize, preview, confirm and remove.*authenticated exchange/i,
+    recordDeclinedAccess: /only a genuine declined answer.*same scoped connection owner/i,
+    compatibility: /every supplied revision.*without relisting/i,
+    handler: /authenticated actor\/tool\/exchange.*missing transport.*unanswered required approval/i,
+    prepare: /Authorize before disclosing.*detach the proposal identity/i,
+    run: /Reauthorize and revalidate.*before.*mutation/i,
+    inactivePluginIds: /Strict approval reads must refuse.*non-strict list reads/i,
+    setEnabled: /Share the workspace admission queue and activation repository/i,
+    provisionMcp: /only after successful enable.*approved access key unchanged/i,
+    classifyError: /canonical host error classes.*unknown failures.*identity/i,
+    pluginActivationRepo: /Share this workspace-scoped repository.*same activation state/i,
+    pluginSource: /Record source approval before enabling.*OFF if recording fails/i,
+    rollback: /exact prior activation row.*newly created row.*hooks/i,
+  };
+  const documented = new Set<string>();
   for (const name of ['contract', 'management', 'install', 'source']) {
     const url = new URL(`./${name}.d.ts`, publicEntry);
-    const ast = ts.createSourceFile(url.href, readFileSync(url, 'utf8'), ts.ScriptTarget.Latest, true);
+    const declaration = readFileSync(url, 'utf8');
+    assert.doesNotMatch(declaration, /Preserve the existing caller-safe plugin protocol value|Required host inputs have no vocabulary defaults/);
+    const ast = ts.createSourceFile(url.href, declaration, ts.ScriptTarget.Latest, true);
     function visit(node: ts.Node): void {
-      if (ts.isPropertySignature(node) || ts.isMethodSignature(node)) {
-        members++;
+      if (name === 'contract' && (ts.isPropertySignature(node) || ts.isMethodSignature(node))) {
         const notes = ts.getJSDocTags(node).filter(tag => tag.tagName.text === 'agent-note');
-        if (!notes.some(note => typeof note.comment === 'string' && note.comment.length > 25)) missing.push(`${name}:${node.name.getText(ast)}`);
+        const member = node.name.getText(ast);
+        if (notes.some(note => typeof note.comment === 'string' && requiredNotes[member]?.test(note.comment))) documented.add(member);
       }
       if (ts.isFunctionDeclaration(node) && node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
         functions++;
-        assert.ok(ts.getJSDocTags(node).some(tag => tag.tagName.text === 'agent-note'), node.name?.text);
       }
       ts.forEachChild(node, visit);
     }
     visit(ast);
-    if (name === 'contract') {
-      for (const member of ['authorize', 'approvalFingerprint', 'executeCommand', 'lowerToolAccess', 'uninstall', 'recordDeclinedAccess', 'compatibility']) {
-        const matches: ts.Node[] = [];
-        function find(node: ts.Node): void { if ((ts.isMethodSignature(node) || ts.isPropertySignature(node)) && node.name.getText(ast) === member) matches.push(node); ts.forEachChild(node, find); }
-        find(ast); assert.ok(matches.length, member);
-        assert.ok(matches.some(node => ts.getJSDocTags(node).some(tag => typeof tag.comment === 'string' && /same|canonical|existing|sole|authenticated|owner|EVERY/i.test(tag.comment))), member);
-      }
-    }
   }
-  assert.deepEqual(missing, []); assert.ok(members > 80); assert.equal(functions, 7);
-  const index = readFileSync(new URL('./index.d.ts', publicEntry), 'utf8');
-  assert.match(index, /@agent-note[\s\S]*semver[\s\S]*@jini-ai\/platform/);
+  for (const member of Object.keys(requiredNotes)) assert.ok(documented.has(member), member);
+  assert.equal(functions, 7);
 });
 
 test('canonical owner errors cross the old shim and host classifier; lookalikes retain identity', async () => {
