@@ -58,7 +58,7 @@ These are prior or environment reds, not S6 drift. This run reports them and doe
 | Batch | Inventory commit | Implementation commits | Gate result | Tovu tip | Jini tip | Elapsed (cum.) | Tokens (cum., approx.) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | G-plug | 80a97e9e | 3f77009f (recording), 08ec5eb3, 38cd30d1; 78cf4728 inventory hashes | GREEN (new G-plug 10/10 ×4 runs; T tsc 0; strict eslint 0; plugin groups identical to baseline incl. 3 pin reds) | 78cf4728f035f40619f1a1d707fd7a46639baa5d | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 (untouched) | 06:26:49→06:52:39 (26 min) | ~0.33M (builder 249k + coordinator) |
-| L1a | | | | | | | |
+| L1a | Tovu b7161e80f9356b05bb7cde120943966569909e22 | Jini d775c6811e0d16abd2166abdbe9966e4562b5186, 01b36f27e72b87e54de949436223d8ed9c4561fc, 1f7bcbe13884d5e9639b0a9470af1b27c8c11bc2; Tovu f700769d07c6c4406e5cd7fcbfd4b0bf5a92638f, c56b4db8e3c71372f15971d2fdfe10d09bda85b3 | GREEN: J build/tsc 0; J vitest 22/22 (5 files, including new second-host proof); XP1–XP5 clean; guard output byte-identical to baseline (diff empty); guard:plugins 0; layers []/isolation []/audit 16; strict eslint 0 in both repos; plain-Node smoke OK; T link+tsc 0; G-plug 10/10; T declarative/host-binding/install matrix 78/78; frozen SHA256s OK; 28/28 @agent-notes in emitted .d.ts; T binder 54 code lines | c56b4db8e3c71372f15971d2fdfe10d09bda85b3 | 1f7bcbe13884d5e9639b0a9470af1b27c8c11bc2 | 06:52:39→07:09:03 (42 min cum.) | ~0.53M (builder 187k) |
 | L1b | | | | | | | |
 | L1c | | | | | | | |
 | F6 | | | | | | | |
