@@ -21,8 +21,8 @@ import type { SurfaceEmission } from '@jini-ai/core';
 import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import type { CustomCredentialToolHost, CustomCredentialToolPorts } from '../credential-tool-host.js';
-import { createCustomCredential } from '../store.js';
-import { createCustomCredentialsToolRegistrations, type CustomCredentialsToolDeps } from '../tool-registrations.js';
+import { createCustomCredential, resolveCustomCredentialByLabel } from '../store.js';
+import { createApiCredentialSaveToolHandlers, createCustomCredentialsToolRegistrations, type CustomCredentialsToolDeps } from '../tool-registrations.js';
 import { credentialToolDeps, ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';
 
 /** Recorded on the unmodified code (Tovu 3aa67be7) by the C2 part 2 builder; still required. */
@@ -119,8 +119,8 @@ async function acmeDeps({ log, authorizeCalls }: { log: string[]; authorizeCalls
   const base = credentialToolDeps({ authorizeCalls });
   const inner = base.siteAssistantSecretSealer;
   const sealer: typeof inner = {
-    seal: (input, optional) => inner.seal(input, optional),
-    open: (input, optional) => { log.push('open'); return inner.open(input, optional); },
+    seal: (input: Parameters<typeof inner.seal>[0]) => inner.seal(input),
+    open: (input: Parameters<typeof inner.open>[0], optional: Parameters<typeof inner.open>[1] = {}) => { log.push('open'); return inner.open(input, optional); },
   };
   const deps = { ...base, siteAssistantSecretSealer: sealer };
   await createCustomCredential({ repo: deps.customCredentialSetRepo, sealer: inner, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
@@ -265,4 +265,44 @@ test('write files: abort during the plan → no commit; a refused target → no 
   const refusedTools = registrations(await acmeDeps({ log: refusedLog, authorizeCalls: [] }), { credentialedRequest: acmeRequestPort({ log: refusedLog }), sourceControlWrite: acmeWritePort({ log: refusedLog, provider, seen: {}, refuseTarget: true }) });
   await assert.rejects(refusedTools.get('custom_credential_write_files')!.handler({ ...ctx('write'), input: WRITE_INPUT }, {}), /ACME repo name refused/);
   assert.deepEqual(refusedLog, ['build:https://api.acme-git.test', 'validateTarget']);
+});
+
+const ACME_CARD = { providerId: 'acme-shop', pluginId: 'acme-shop', label: 'Acme API', ownedApiLabel: 'Acme API', category: 'ops',
+  baseUrl: 'https://api.acme-git.test/v1', probeUrl: 'https://api.acme-git.test/me', title: 'Connect Acme', saveKind: 'api' as const, keyHint: 'An Acme read key.' };
+
+/** Rotates the saved Acme key through the human's card; the injected port's probe answers `status`. */
+async function rotateWithProbe({ status }: { status: 'ok' | 'refused' }) {
+  const log: string[] = [];
+  const probes: unknown[] = [];
+  const base = await acmeDeps({ log, authorizeCalls: [] });
+  const deps: CustomCredentialsToolDeps = { ...base, loadPluginCredentialCards: async () => [ACME_CARD] };
+  await createCustomCredential({ repo: deps.customCredentialSetRepo, sealer: base.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: ACME_CARD.label, category: 'ops', baseUrl: ACME_CARD.baseUrl, connection: { token: 'acme-old-key' } });
+  const port = acmeRequestPort({ log });
+  const exchanges = fixedExchanges('acme-rot');
+  const { rotate } = createApiCredentialSaveToolHandlers({ routeDeps: deps, surfaces: { surfaceExchanges: exchanges }, host: ACME_HOST,
+    ports: { credentialedRequest: { ...port, probe: async (input) => { probes.push(input); return status; } } } });
+  let emitted = '';
+  const result = await rotate({ ...ctx('rotate'), input: { label: ACME_CARD.label } }, { emitSurface: async (emission) => {
+    emitted += JSON.stringify(emission);
+    setImmediate(() => exchanges.deliver({ exchangeId: 'acme-rot-1', principalId: 'owner', params: { token: 'acme-new-key' } }, { toolId: 'credential_save' }));
+  } }) as Record<string, unknown>;
+  const stored = await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: base.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: ACME_CARD.label });
+  return { result, probes, emitted, storedToken: stored?.connection.token };
+}
+
+test('plugin-card key probe goes through the injected port before sealing; a refusal keeps the old key', async () => {
+  const refused = await rotateWithProbe({ status: 'refused' });
+  assert.equal(refused.probes.length, 1);
+  assert.deepEqual(refused.probes[0], { connection: { token: 'acme-new-key' }, url: ACME_CARD.probeUrl, schemes: [] });
+  assert.equal(refused.result.saved, false);
+  assert.match(String(refused.result.message), /This key was refused for this purpose\. This card needs: An Acme read key\./);
+  assert.equal(refused.storedToken, 'acme-old-key');
+  assert.match(refused.emitted, /acme-key-rotate/);
+  assert.ok(!refused.emitted.includes('acme-new-key') && !JSON.stringify(refused.result).includes('acme-new-key'), 'the key stays out of cards and results');
+
+  const ok = await rotateWithProbe({ status: 'ok' });
+  assert.equal(ok.probes.length, 1);
+  assert.equal(ok.result.saved, true);
+  assert.equal(ok.storedToken, 'acme-new-key');
 });
