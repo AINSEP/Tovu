@@ -153,7 +153,7 @@ that grants declared defaults at sign-in has already filled them after a normal
 `agent_plugin_connect`; read the row before asking the person to grant anything by hand.
 
 1. **You will never see it.** It goes to the host's log. A refused tool is not registered, so
-   `search_tools` cannot find it and `describe_tool` cannot describe it. From inside a run, a
+   a tool search cannot find it and it cannot be described. From inside a run, a
    withheld tool and a nonexistent tool look identical.
 
 ```
@@ -182,7 +182,7 @@ media_import_from_url { url, filename?, alt?, caption?, credit? }
 
 ## Host details for skills/higgsfield-media/references/failure-modes.md
 
-**Symptom:** `search_tools` finds no `mcp__higgsfield__generate_image`; `describe_tool` cannot
+**Symptom:** a tool search finds no `mcp__higgsfield__generate_image`; the host cannot
 describe it. From inside a run this is indistinguishable from the tool never having existed.
 
 **Do not:** retry the same model; conclude the integration is broken; silently switch to
