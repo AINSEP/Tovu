@@ -3,3 +3,48 @@
 [WebServer] (!) outDir /tmp/tovu-journeys-DMAKaX/admin-build/dist is not inside project root and will not be emptied.
 [WebServer] Use --emptyOutDir to override.
 [WebServer] 
+[WebServer] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] 
+[WebServer] (!) outDir /tmp/tovu-journeys-DMAKaX/site-chat-dist is not inside project root and will not be emptied.
+[WebServer] Use --emptyOutDir to override.
+[WebServer] 
+[WebServer] [agent-plugins:migration-complete] /tmp/tovu-journeys-DMAKaX/sites/journey-site/agent-plugins/ws/workspace-local
+[WebServer] [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+[WebServer] [agent-plugins:migration-complete] /tmp/tovu-journeys-media-PuRP5b/sites/journey-site/agent-plugins/ws/workspace-local
+[WebServer] [assistant] live Claude model discovery failed (no_models: Provider returned no usable text-generation models.) — falling back to the static model list
+[WebServer] [assistant-byok] tool schema fallback {
+[WebServer]   toolId: 'search_tools',
+[WebServer]   protocol: 'anthropic',
+[WebServer]   reason: 'unsupported-schema'
+[WebServer] }
+[WebServer] [assistant-byok] tool schema fallback {
+[WebServer]   toolId: 'execute_delegated_tool',
+[WebServer]   protocol: 'anthropic',
+[WebServer]   reason: 'open-map'
+[WebServer] }
+[WebServer] [assistant] live Claude model discovery failed (no_models: Provider returned no usable text-generation models.) — falling back to the static model list
+[WebServer] [assistant-byok] tool schema fallback {
+[WebServer]   toolId: 'search_tools',
+[WebServer]   protocol: 'anthropic',
+[WebServer]   reason: 'unsupported-schema'
+[WebServer] }
+[WebServer] [assistant-byok] tool schema fallback {
+[WebServer]   toolId: 'execute_delegated_tool',
+[WebServer]   protocol: 'anthropic',
+[WebServer]   reason: 'open-map'
+[WebServer] }
+[WebServer] [assistant] live Claude model discovery failed (no_models: Provider returned no usable text-generation models.) — falling back to the static model list
+[WebServer] [assistant-byok] tool schema fallback {
+[WebServer]   toolId: 'search_tools',
+[WebServer]   protocol: 'anthropic',
+[WebServer]   reason: 'unsupported-schema'
+[WebServer] }
+[WebServer] [assistant-byok] tool schema fallback {
+[WebServer]   toolId: 'execute_delegated_tool',
+[WebServer]   protocol: 'anthropic',
+[WebServer]   reason: 'open-map'
+[WebServer] }
