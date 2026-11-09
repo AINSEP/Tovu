@@ -3,9 +3,10 @@
  * server code: `run-in-worker.ts` spawns it by file path in a fresh, heap-limited worker per call,
  * and terminates it after the first reply or the timeout.
  *
- * The call logic is `Jini/packages/plugins/src/host/worker/run-call.ts`'s pure `runTier2Call()`; this file
- * only wires the worker's own message port and import mechanism to it. `main()` is exported and
- * auto-runs only when `!isMainThread`, so tests cover it in-process.
+ * The call logic is `Jini/packages/plugins/src/host/worker/run-call.ts`'s pure `runTier2Call()`,
+ * wired to a worker's message port by `@jini-ai/plugins/host/worker`'s `startTier2Worker()`
+ * (EXTRACT-S6 L1c); this file is the product entry that supplies the binding, SDK resolver and real
+ * `import()`. `main()` is exported and auto-runs only when `!isMainThread`, so tests cover it in-process.
  *
  * The worker entry imports its product binding relatively: under tsx this entry is loaded through
  * a CJS `require()`, and every module it pulls in is startup time inside the call's timeout budget.
@@ -13,8 +14,7 @@
 import { isMainThread, parentPort, workerData } from "node:worker_threads";
 
 import { pluginHostBinding } from "../../../features/plugin-runtime/host-binding.js";
-import { runTier2Call } from "@jini-ai/plugins/host/worker";
-import type { Tier2Request } from "@jini-ai/plugins/host/worker";
+import { startTier2Worker } from "@jini-ai/plugins/host/worker";
 import { registerPluginSdkResolver } from "../../../features/plugin-runtime/sdk-resolver.js";
 
 export interface Tier2WorkerMainRequired {
@@ -37,29 +37,14 @@ export function importPluginModule(entryPath: string): Promise<unknown> {
 }
 
 /**
- * Runs the posted request and posts its reply.
+ * Runs the posted request and posts its reply. CIC U-002: the SDK resolver is registered per
+ * worker, before the plugin's first import, unless a test injects `importModule`.
  *
  * @throws When there is no parent port (not inside a worker).
  * @complexity O(1) own work plus the plugin's import/setup/filter cost.
  */
 export async function main(required: Tier2WorkerMainRequired, optional: Tier2WorkerMainOptional = {}): Promise<void> {
-  const port = required.parentPort;
-  if (!port) throw new Error("the tier-2 plugin worker must run inside a worker_threads Worker");
-
-  let importModule = optional.importModule;
-  if (!importModule) {
-    // CIC U-002, per worker: main-thread `module.register()` hooks do not reach a worker spawned
-    // with `execArgv: []` (measured, Node v24.2.0), so without this a site plugin's
-    // SDK imports (including the legacy alias) fail, or resolve to a copy planted next to the plugin. Registered
-    // before the plugin's first import.
-    registerPluginSdkResolver();
-    importModule = importPluginModule;
-  }
-  const importEntry = importModule;
-  port.postMessage(await runTier2Call({ ...pluginHostBinding, request: required.workerData as Tier2Request, importModule: async ({ modulePath }) => {
-    const imported = await importEntry(modulePath);
-    return { exported: typeof imported === "object" && imported !== null ? (imported as { default?: unknown }).default : undefined };
-  } }));
+  return startTier2Worker({ ...required, binding: pluginHostBinding, registerSdkResolver: registerPluginSdkResolver, realImport: importPluginModule }, optional);
 }
 
 /**

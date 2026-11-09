@@ -1,0 +1,113 @@
+{
+  "success": {
+    "enabled": {
+      "value": {
+        "activation": {
+          "pluginId": "tier2-echo",
+          "workspaceId": "ws-tier2",
+          "version": "1.0.0",
+          "enabled": true,
+          "updatedAt": "2026-10-04T12:00:00.000Z"
+        }
+      }
+    },
+    "afterEnable": {
+      "pluginId": "tier2-echo",
+      "workspaceId": "ws-tier2",
+      "version": "1.0.0",
+      "enabled": true,
+      "updatedAt": "2026-10-04T12:00:00.000Z"
+    },
+    "savedOk": true,
+    "savedExt": {
+      "tier2-echo": {
+        "seenSlug": "hello",
+        "titleLength": 5
+      }
+    },
+    "preview": {
+      "value": {
+        "seenSlug": "draft-slug",
+        "titleLength": 10
+      }
+    },
+    "previewSavedPost": null,
+    "afterPreview": {
+      "pluginId": "tier2-echo",
+      "workspaceId": "ws-tier2",
+      "version": "1.0.0",
+      "enabled": true,
+      "updatedAt": "2026-10-04T12:00:00.000Z"
+    },
+    "importedInProcess": [],
+    "pluginEvaluatedInThisThread": false
+  },
+  "timeout": {
+    "enabled": {
+      "value": {
+        "activation": {
+          "pluginId": "tier2-loop",
+          "workspaceId": "ws-tier2",
+          "version": "1.0.0",
+          "enabled": true,
+          "updatedAt": "2026-10-04T12:00:00.000Z"
+        }
+      }
+    },
+    "afterEnable": {
+      "pluginId": "tier2-loop",
+      "workspaceId": "ws-tier2",
+      "version": "1.0.0",
+      "enabled": true,
+      "updatedAt": "2026-10-04T12:00:00.000Z"
+    },
+    "preview": {
+      "error": {
+        "class": "PluginHookFailedError",
+        "name": "PluginHookFailedError",
+        "message": "plugin 'tier2-loop' content.entry.beforeSave filter failed: plugin 'tier2-loop' tier-2 exceeded 6000ms timeout"
+      }
+    },
+    "afterPreview": {
+      "pluginId": "tier2-loop",
+      "workspaceId": "ws-tier2",
+      "version": "1.0.0",
+      "enabled": true,
+      "updatedAt": "2026-10-04T12:00:00.000Z"
+    },
+    "firstSave": {
+      "error": {
+        "class": "PluginHookFailedError",
+        "name": "PluginHookFailedError",
+        "message": "plugin 'tier2-loop' content.entry.beforeSave filter failed: plugin 'tier2-loop' tier-2 exceeded 6000ms timeout"
+      }
+    },
+    "afterFirstSave": {
+      "pluginId": "tier2-loop",
+      "workspaceId": "ws-tier2",
+      "version": "1.0.0",
+      "enabled": true,
+      "updatedAt": "2026-10-04T12:00:00.000Z"
+    },
+    "secondSave": {
+      "error": {
+        "class": "PluginHookFailedError",
+        "name": "PluginHookFailedError",
+        "message": "plugin 'tier2-loop' content.entry.beforeSave filter failed: plugin 'tier2-loop' tier-2 exceeded 6000ms timeout"
+      }
+    },
+    "afterSecondSave": {
+      "pluginId": "tier2-loop",
+      "workspaceId": "ws-tier2",
+      "version": "1.0.0",
+      "enabled": false,
+      "updatedAt": "2026-10-04T12:00:00.000Z",
+      "quarantinedAt": "2026-10-04T12:00:00.000Z",
+      "quarantineReason": "plugin 'tier2-loop' content.entry.beforeSave filter failed: plugin 'tier2-loop' tier-2 exceeded 6000ms timeout",
+      "quarantineFailureCount": 2
+    },
+    "previewAfterQuarantine": {
+      "value": null
+    }
+  }
+}
