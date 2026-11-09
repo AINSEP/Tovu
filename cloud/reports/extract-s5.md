@@ -359,7 +359,7 @@ Recorded before any production move (H1b builder, Tovu tip 559cbb43, Jini tip 88
 | `externalMcpVaultEnvelope` | 15 | pure | HOSTED, unchanged signature | — |
 | `externalMcpVaultRecord` | 22 | throws `VaultError` ×2 (26, 29) | HOSTED; both throws → `vaultErrors.create({code:"context"})`; required object gains `vaultErrors` | — |
 | `service` (private) | 33 | `VaultError` ×2 (37, 40), `createTovuVaultKinds`, `SecretsVaultService`, `randomUUID`, `Date` | HOSTED; 37/40 → `vaultErrors.create`; metadata policy (validateMeta foreign-kind refusal) and `authorize` stay byte-exact in HOSTED, same order; foreign kind refused (line 37) before the parser factory or any crypto runs; `now`/`newId` unchanged (`new Date().toISOString()`, `randomUUID()`) | — |
-| `sealExternalMcpVaultPayload` | 54 | `InMemoryVaultRepo` (64? no: 60), `VaultError` (64) | HOSTED; memory repo via `vault.createMemoryRepo()`; 64 → factory; id generated at the same point (before put) | — |
+| `sealExternalMcpVaultPayload` | 54 | `InMemoryVaultRepo` (60), `VaultError` (64) | HOSTED; memory repo via `vault.createMemoryRepo()`; 64 → factory; id generated at the same point (before put) | — |
 | `openExternalMcpVaultPayload` | 71 | `InMemoryVaultRepo` (76), `VaultError` (79, 84) | HOSTED; 79/84 → factory; fail-closed seal/keyring ports unchanged | — |
 | `persistExternalMcpVaultEnvelope` | 91 | `VaultError` (99, 102) | HOSTED; 99/102 → factory; carried-envelope JSON equality unchanged | — |
 | `deleteExternalMcpVaultEnvelope` | 108 | repo only | HOSTED unchanged | — |
@@ -420,3 +420,120 @@ Imports: access/auth values (1–2, 4, 56) → relative HOSTED `access.js`/`auth
 **Store port (types in HOSTED `store-ports.ts`, core types only):** per-call `repo/sealer/keyring/clock` (unchanged core `ExternalMcpStoreDeps`) + host-bound `HostedMcpStorePorts` = `{ vault:{createService,createMemoryRepo}, vaultErrors:{create({code}:{code:VaultErrorCode}, optionalArgs?:Record<string,never>):Error}, metaParsers, assertFreeField, credential:{normalize,assert,hint,messages,limit,InputError}, settingsLink }`. `classifyVaultError`/`aad.format`: not used → omitted. T binds once in `external-mcp-vault.ts` (vault ports) and `external-mcp-store.ts` (store ports); old exports keep names/signatures: `saveExternalMcpServer(deps,input)`, `readEnabledExternalMcpConfigs`, `listExternalMcpServerViews`, `applyExternalMcpAccess`, `deleteExternalMcpServer`, `openExternalMcpOAuthPayload(sealer,record)`, `sealExternalMcpOAuthPayload(deps,identity,payload)`, `parseEnvBlock(text)`, `normalizeExternalMcpAccessToken(value,transport)`, vault fns (same required-object shapes), `new InMemoryExternalMcpServerRepo()`, `new ExternalMcpConnectionRevokedError(input)`.
 
 **Stays Tovu:** `external-mcp-repo.ts` (SQL repo; imports envelope fns through the T vault shim = the HOSTED module instance), `external-mcp-repo.sqlite.ts`, `REVOCATION_MESSAGES`, the T bindings. S4-owned files: not touched.
+
+## H1b
+
+Builder: H1b subagent. Programmer skills file (`Jini AI-Dev-Shop/agents/programmer/skills.md`) loaded. Starting pair Tovu 559cbb43 / Jini 883db690 (last green Tovu 5162e3db / Jini 883db690).
+
+### Inventory resolution
+Every row in "## H1b — inventory" was resolved as recorded, with these additions:
+- **Two extra ports, from real N3 rejections.** The guard's `N3-host-copy` rule forbids `EXTERNAL_MCP` literals, so two error codes became host input:
+  - `reauthRequiredCode` (store ports). Tovu binds `"EXTERNAL_MCP_REAUTH_REQUIRED"`.
+  - The revoked error's `code` (constructor input). The T subclass binds `"EXTERNAL_MCP_CONNECTION_REVOKED"` and keeps `declare readonly code: "EXTERNAL_MCP_CONNECTION_REVOKED"` so the literal type is unchanged.
+- **One `exactOptionalPropertyTypes` widening.** `store.memory.ts` `stage({ previous?: … | undefined })`. The type only widens; runtime is identical.
+- **Complexity split.** `resolveExternalMcpAccessToken` had complexity 11 before this batch. Its final try/catch moved unchanged into `resolveOwnedAccessToken`, and the function now returns that helper's result. Proof that behaviour is identical:
+  - The same reasons come back in the same order.
+  - The store group passes 284/284, which includes the reauth/needs_reauth/shared cases.
+  - Strict lint at complexity 10 is clean.
+- Nothing else moved. `classifyVaultError` and `aad.format` are not used by any of the four files, so they were not added. `parseAllowedToolNames` is unchanged.
+
+### Provenance / comment custody
+- **Source.** T blobs at 559cbb43 were copied whole:
+  - store 23042de1 → `store.ts`
+  - memory 87595f9e → `store.memory.ts`
+  - vault 5d77eda7 → `vault.ts`
+  - revocation 8b806a7b → `revocation.ts`
+- **Edits.** The only changes after the copy were explicit string replacements:
+  - imports;
+  - port threading: replacing `sealer` with `deps`/`ports`, adding the `credential.*` reads, and interpolating `settingsLink`;
+  - adding `@agent-note`s.
+- **Comment custody.** "Why" comments moved byte-exact with their owner: AAD, staging, foreign kind before crypto, carried-envelope equality, CAS/leases, no retry. `REVOCATION_MESSAGES` and its doc block stayed in T, byte-exact (host wording).
+- **N1 rewordings (real rejection `N1-consumer-identity /tovu/i`, `raw/j-guard-h1b.txt` first run), store.ts comments only:**
+  - "resolvers read \`TOVU_<VENDOR>_MCP_*\` environment variables;" → "resolvers read the host's \`<VENDOR>_MCP_*\` environment variables;"
+  - "OAuth — Tovu obtains the token" → "OAuth — the host obtains the token"
+  - "Tovu's call and not an operator preference." → "the host's call and not an operator preference."
+  - "/** Tovu error adapter for the shared token policy." → "/** Host error adapter for the shared token policy."
+- **Model-facing bytes are unchanged.** The 8 "Settings → External MCP" reasons are now `${settingsLink}` templates, and T binds the identical string. All T store/connect/nine tests pass unmodified, and those tests pin the reasons.
+
+### Ports (J `mcp/src/federation/hosted/store-ports.ts`, core vault types only)
+- **`HostedMcpVaultPorts`** = `{ vault:{createService, createMemoryRepo}, vaultErrors:{create({code}:{code:VaultErrorCode}, optionalArgs?:Record<string,never>):Error}, metaParsers({validateMeta}) }`.
+- **`HostedMcpStorePorts`** extends it with `assertFreeField`, `credential:{normalize, assert, hint, messages(env/ascii/storage/blank/url), limit, InputError}`, `settingsLink` and `reauthRequiredCode`.
+- Per call, the deps are still the unchanged core `ExternalMcpStoreDeps`. The new `HostedMcpStoreDeps` = deps & ports.
+- **Bound once in T:**
+  - `external-mcp-vault.ts` → `externalMcpVaultPorts`: the real `SecretsVaultService`, `InMemoryVaultRepo`, `VaultError`, and `createTovuVaultKinds` with the original two policy stubs.
+  - `external-mcp-store.ts` → the store ports: the real credential-token exports and `"Settings → External MCP"`.
+  - The T memory and revocation files are subclasses that keep their 0- and 1-argument constructors.
+- **No J file imports `@jini-ai/platform`.** All ten `new VaultError` sites (26, 29, 37, 40, 47, 64, 79, 84, 99, 102) became `vaultErrors.create`. The memory store uses `vault.createMemoryRepo()` and has no Map vault.
+
+### Envelope module: one instance
+- `vault.ts` is the only module that holds `contextKey`/`stagedKey`. The store, memory repo and T shims import it. The T SQL repo (`external-mcp-repo.ts`, unchanged) gets it through the T vault shim, which re-exports or wraps the same dist module.
+- Tovu resolves `@jini-ai/mcp/federation/hosted` to `packages/mcp/dist/federation/hosted/index.js`, which the test asserts.
+- Proof by a negative control: an envelope sealed through the shim is accepted by the dist `externalMcpVaultRecord` and rejected (`VaultError`) by the **source** `vault.ts` instance. This shows the symbols are per-instance, so the passing path uses one shared instance.
+- No seal-path additions. AAD, version, ids, kinds, null scope, staging, id timing (before put), owner checks, `expectedRevision`, carried-envelope JSON equality, foreign kind before the parser/crypto, and metadata policy order are all unchanged.
+
+### Counters
+- The H0 frozen test passes 6/6 unmodified, with its exact counters: toView env1/static1/oauth2, sealer open:4, leased refresh {open:4, seal:1}, repo/kernel/keyring counts.
+- The new memory-path pins through the shims: save {seal:2, open:2}, list {open:2}, config read {open:2}.
+- In the second host: save {seal:2, open:2}, read {open:2}, and a foreign context gives open:0.
+
+### New tests (existing tests frozen; `git diff --name-status` vs both pins shows only A under `__tests__`)
+- **T `features/external-mcp/__tests__/h1b/hosted-store-seams.test.ts` (3 tests):**
+  - per-row counts;
+  - foreign server, foreign kind, missing context and foreign seal kind all give the real platform `VaultError` `context` with 0 opens/seals;
+  - a carried envelope that is not in the repo gives `conflict`;
+  - revoked error identity (`instanceof` hosted and `ToolInputError`; name, code, retryable, exact message);
+  - `rosterRefusalFor` and envelope function identity;
+  - dist resolution plus the single-instance negative control.
+- **J `mcp/src/federation/hosted/__tests__/second-host-store.test.ts` (3 tests).** The test supplies its own vault service, memory repo, AAD sealer, `AcmeVaultError`/`AcmeInputError`, credential policy, settings path "Console › Tools › Remote servers", reauth/revoked codes, and `acme-*` ids and workspaces. It checks:
+  - save, list and read work, with exact counts;
+  - failure reasons carry the second host's path and messages;
+  - a provider canary (`sk_acme_secret` + URL) never reaches a reason;
+  - a plain-field secret is refused with the second host's message;
+  - a foreign workspace, server or kind is refused with the host error before crypto;
+  - no first-host vocabulary appears in the output.
+  - My first run was red because of 2 errors in my own test (clock shape `nowMs`; rows need `enabled: true`). I fixed and reran: 7/7. A typing slip in the same test (`isDefault`) broke the mcp build once; I fixed it and the build is green.
+- Not separately covered: there is no second-host case for `reauthRequiredCode`. The T store group covers the Tovu binding.
+
+### Gate (final tip: Tovu ddf430cc + this report, Jini 07766d6e; raw under /home/user/s5/raw/)
+| Gate | Result | Raw |
+|---|---|---|
+| H0 frozen SQLite (S5_FROZEN_DB_OUT) | 6/6 EXIT 0 (three runs, incl. Jini tip) | h1b-h0-frozen, h1b-final-h0-frozen, h1b-tip-frozen-new |
+| H0 BASELINE rollback | ok:true, 5 checks, EXIT 0 (three runs) | h1b-h0-rollback, h1b-final-…, h1b-tip-rollback |
+| T store/vocabulary | 284/284 EXIT 0 (before and after the N1/N3 fix) | h1b-t-store, h1b-final-t-store |
+| T connect / nine | 147/147, 58/58 EXIT 0 | h1b-final-t-connect, -nine |
+| T sign-in/gate | 141/142 EXIT 1. Only the named prior-debt case fails, with the same message "must have one OAuth ports call" 0 !== 1. Not counted green | h1b-final-t-signin |
+| T H1a + H1b new tests | 12/12 EXIT 0 | h1b-final-t-new |
+| J mcp build / tsc --noEmit | EXIT 0 / 0 (one red build from my test typing → fixed) | h1b-build-mcp-3, h1b-j-tsc-3 |
+| J hosted tests (entry + second host) | 7/7 | h1b-j-hosted-tests |
+| Relink (symlinked) + T main tsc | EXIT 0, 0 errors (at tip) | h1b-tip-t-tsc |
+| T typecheck:tests | EXIT 2, exactly the 13 baseline errors (set diff empty) | h1b-t-tsc-tests |
+| guard-gate.sh h1b | First run DIFFERS: N1 store.ts and N3 ×2 (store.ts:543, revocation.ts:59). Fixed (above) and rerun: **MATCHES BASELINE**. TOTAL 2 (R2, R10); HW +0; layers 0; isolation 0; audit 576/16 (c9/d7) | h1b-guard-gate-summary, j-guard-h1b |
+| xp-gate.sh h1b | snapshot VERIFIED; XP1–XP5 clean EXIT 0 | h1b-xp-gate-summary |
+| Strict lint, changed production | J: 1 warning (unused import, mine) → fixed → 0. T shims: 0. The prior T complexity-11 error is gone (split) | h1b-j-lint-rerun, h1b-t-lint |
+| Emitted closure | Runtime closure of the hosted entry is 13 files: core/node only. Non-core `@jini-ai` specifiers in hosted `.js`/`.d.ts`: 0. No product strings in runtime literals. The "Settings → External MCP" text in the `@file` header comment is a byte-exact comment. `@agent-note` counts match source and dist: store 6, vault 8, store-ports 6, memory 1, revocation 4 | — |
+| Hashes | fixture aca349ca…, tool-metadata a0d6b428…, `sha256sum -c` T and J OK | — |
+
+### Findings (listed, not fixed)
+- **Declaration closure.** `toResolvedFederatedConnections` returns `ResolvedFederatedConnection` (`../config.d.ts`), whose closure already reaches the type-only `@jini-ai/platform/fetch-with-timeout` through pre-existing `adapter.http.ts` (present at pin 4044fe3c0; mcp declares platform as a dependency).
+  - The guard, SI audit and XP accept this.
+  - The H1a isolated scratch consumer was not refreshed. It would need that type or `skipLibCheck`.
+- "this site" / "site credential store" stay in moved reasons. The guard explicitly allows generic "this site".
+- "The token exceeds the 8192-character limit…" is hard-coded next to the injected `credential.limit`. It is byte-exact; a reviewer may prefer it as host input.
+- The PostgreSQL replay was not rerun in H1b (optional).
+
+### S4 overlap
+- T: `features/external-mcp/{external-mcp-store,external-mcp-store.memory,external-mcp-vault,external-mcp-revocation}.ts`, the new `__tests__/h1b/`, and this report.
+- J: `mcp/src/federation/hosted/{store,store-ports,vault,store.memory,revocation,index}.ts`, a new hosted test, and `.changeset/s5-h1b-mcp.md`.
+- **No S4-owned file was touched.** `service-ports.ts`, `mcp-host-bindings.ts`, the connect files and `composition/agent-plugin-service-ports.ts` are unedited. All old export names and signatures are kept, which the passing connect/nine/store groups confirm.
+- No `package.json` or lockfile edits.
+
+### Lines
+- J production: +2142 (moved text plus ports and notes).
+- T production: −1962/+71.
+- New tests: J 131, T 82.
+
+### Pushed SHAs
+- Jini: 0203256288d36d38bac90cc0f3f49487db252b9b, fabc0b09f7b7be331196fe261f44bfabb400f044, 18e2d521cc5f6c1db0e88c9480dae10e6d3ec104, 07766d6e7db863e2a7ae7c6bcc6c2b860affbc2b.
+- Tovu: eb3736f46457a5211a61f115347c3b79d4cbc536 (inventory), 045f6258ef933e6cd936477e0b93001e58c61d83, ce2ec9250b3a7862eb1c0134411a735af7cbd4ac, ddf430cc17c3439b44b80de64d9b9f808d2372b1, plus this report commit.
+
+**LAST GREEN PAIR: Tovu ddf430cc17c3439b44b80de64d9b9f808d2372b1 (tested source; the report commit adds only this file) / Jini 07766d6e7db863e2a7ae7c6bcc6c2b860affbc2b.**
