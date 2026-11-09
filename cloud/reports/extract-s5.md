@@ -32,6 +32,12 @@ Scratch worktrees: base/{Jini,Tovu} at the S5 pins (H0 rollback baseline; frozen
 |---|---|---|---|
 | 06:10 | 0 | start, pins verified, branches created | — |
 | 06:36 | 26 | Baseline agent done (Tovu 55111a2e) + H0 done (Tovu tip 8c563ef5; Jini pin) — LAST GREEN PAIR Tovu 8c563ef5 / Jini 4044fe3c0 | ~515k (baseline 174k, H0 269k — H0 over 230k target, within cap) |
+| 07:04 | 54 | H1a done — LAST GREEN PAIR Tovu 5162e3db / Jini 883db690 | ~805k (H1a 274k) |
+| 07:34 | 84 | H1b done — LAST GREEN PAIR Tovu ddf430cc / Jini 07766d6e | ~1.10M (H1b 279k; >1.4x? no batch estimate exceeded in time) |
+| 07:40 | 90 | H2a stopped after inventory (test-contract drift); coordinator ruling (c) | ~1.26M |
+| 07:45 | 95 | OWNER override → ruling (a); H2a resumed | — |
+| 08:00 | 110 | H2a items 2–5 landed — green for its gates Tovu 2c717cfb / Jini 183915bb | ~1.35–1.50M (H2a 150k first run, 255k resumed run) |
+| 08:26 | 136 | H2b done (H2 gate green for H2b scope) — LAST GREEN PAIR Tovu f88953d8 / Jini 575b95e4 | ~1.60–1.75M (H2b 228k) |
 
 ## Baseline (setup, guard, XP3, named tests)
 
@@ -753,3 +759,44 @@ Tovu: 39c1c7c8ddc214cc514cd944a3d7971d900db382 (inventory), e8080710aafc1871e652
 ### Findings (listed, not fixed)
 - J `integrations/api-connections/host.ts:131` prefer-destructuring warning (baseline).
 - The H2a report's "second-host consumer: oauth/platform absent" claim was not true isolation (symlinked package node_modules). Corrected above.
+
+## Shutdown (coordinator) — STOPPED AT CAP (token cap projection)
+
+Stopped 2026-11-09T08:27Z, elapsed 137 of 270 minutes, 133 minutes left on the clock. The time cap was not reached. **The 1.9M total-token cap was the reason.**
+
+Measured subagent usage (final context per run): baseline 174k, H0 269k, H1a 274k, H1b 279k, H2a 150k first run + 255k resumed, H2b 228k. That is about 1.48–1.63M depending on how the resumed H2a run is counted, plus about 120k for the coordinator, so about 1.60–1.75M in total. Every builder so far has used 200–280k. The work left is H2c, its full H2 gate rerun, H3 and C-c, which needs at least three more such runs. That cannot fit in the 150–300k remaining. Following the "on any cap: push what you have, report, END" rule, the coordinator did not start H2c on a partial budget. A half-landed seam would put the last green pair at risk.
+
+### Final tips (verified with git ls-remote)
+- Tovu cloud/extract-s5: d86c41d8432990558d72e1ca4a55d95643847f79. This tip is report-only; the tested source is f88953d84a1edfdb58d1ff1eb7f84ccab347888b.
+- Jini cloud/extract-s5: 575b95e4cf86ae21d347ea3efb302c5cec5c08e2.
+- **LAST GREEN PAIR: Tovu f88953d8 / Jini 575b95e4.** It is green for H0, H1a, H1b, H2a and H2b scope; full table in "## H2 gate". The H2 gate must be rerun after H2c.
+
+### Every pushed SHA
+Tovu (oldest first): a6e2921d, 31504fd7, fde31568, b744f77c, 55111a2e, 06863b2d, 8c563ef5, 8aef56e2, 1472d1c2, 9355bd8c, d075d1e4, 5162e3db, 559cbb43, eb3736f4, 045f6258, ce2ec925, ddf430cc, 63ba11b3, 8496ae73, 55214a2f, 776e5226, 2c717cfb, 01928354, 39c1c7c8, e8080710, 8f61f08e, f88953d8, d86c41d8. Full SHAs are in `git log c3801c833..cloud/extract-s5`.
+Jini (oldest first): 27063efc, 0b7183c3, 60f59307, 883db690, 02032562, fabc0b09, 18e2d521, 07766d6e, 6ab1d818 (ruling (c), reverted by 183915bb), d0a76a53, f1e53648, 183915bb, 55254368, 9a669a56, 575b95e4. Full SHAs are in `git log 4044fe3c0..cloud/extract-s5`.
+
+### Batch status
+| Batch | Status |
+|---|---|
+| Baseline | done; one prior-debt case and 13 typecheck:tests errors, see Coordinator decisions |
+| H0 | DONE, green (SQLite mandatory green; PostgreSQL replay also proven for the main flow) |
+| H1a | DONE, green |
+| H1b | DONE, green |
+| H2 | PARTIAL. H2a items 2–5 done: all 14 reviewed imports removed, closure-check CLEAN on src/JS/.d.ts, owner ruling (a) applied. H2b items 6 and part of 7 done: gate split in place, one reauth factory, registration identity. **H2c NOT DONE**: item 1 for the sign-in half and the rest of item 7, see H2B-HANDOFF list in "## H2b". |
+| H3 | NOT STARTED |
+| C-c | NOT STARTED: no packed consumer smoke and no C-c handoff section |
+
+### Numbered remaining work
+1. H2c: sign-in half of seam item 1 and the rest of item 7 in Tovu external-mcp-oauth.ts / external-mcp-shared-oauth.ts. Flow functions go behind OAuthFlowOperations; direct `new OAuthError` calls go behind an errors port; store, validation/unconfigured errors, formatAad, sign-in link, messages/policy and public-URL text become ports; shared-owner/project-keys types become narrow ports. Estimated 250–350 edited lines.
+2. Full H2 gate rerun after H2c, including closure-check on all three entries.
+3. H3: move the gate and policy to J mcp/federation/hosted, and sign-in, device store and shared sign-in to J integrations/api-connections/hosted-mcp; thin Tovu shims; new neutral host signs in to a Higgsfield-shaped fake provider; full H3 gate, including G-mcp and the BASELINE rollback.
+4. C-c: packed scratch consumer (nodenext, plain node), .d.ts note/import inspection, and the "## C-c — ready for Claude review" section.
+
+### S4 overlap (actual comparison of changed paths vs pins)
+- Tovu: no file in the S4-owned set (features/agent-plugins/{federate-mcp,…,apply-tool-renames}.ts, mcp-host-bindings.ts, composition/agent-plugin-service-ports.ts) changed. No package.json or package-lock changes.
+- Jini: no agent-plugins/src/connect/** changes, no pnpm-lock changes. **Shared manifests touched:** packages/core/package.json, packages/mcp/package.json, packages/integrations/package.json, with additive `exports`/`jini.entries` insertions for the new subpaths. Merge advice: union the entries. Changesets are uniquely named `s5-h1a-*`, `s5-h1b-mcp`, `s5-h2a-*`.
+
+### Processes
+No test, server or PostgreSQL processes remain (`ps` checked at 08:26Z). The H0 PostgreSQL scratch cluster (PID 16820) and the H1a one (PID 24407) were stopped by their builders. Scratch worktrees /home/user/s5/{base,xp3-orig} and the read-only XP3 snapshot are left in place in the container, untracked, for a continuation session.
+
+EXTRACT-S5 STOPPED AT CAP
