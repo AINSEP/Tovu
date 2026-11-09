@@ -1,0 +1,33 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 7382ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 2028ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 412ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 346ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 655ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 14618ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 816ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 988ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 768ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 885ms
+   ✓ F1 writer refuses dirty tracked source 728ms
+   ✓ F1 writer refuses a missing emitted declaration 830ms
+   ✓ F1 writer refuses unsafe source destination 821ms
+   ✓ F1 writer refuses unsafe ancestor destination 722ms
+   ✓ F1 writer refuses unsafe relative destination 700ms
+   ✓ F1 writer refuses unsafe symlink destination 846ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 1395ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 876ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 888ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 900ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 855ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 5ms
+
+ Test Files  4 passed (4)
+      Tests  76 passed (76)
+   Start at  06:52:21
+   Duration  16.17s (transform 172ms, setup 0ms, collect 2.02s, tests 24.03s, environment 1ms, prepare 315ms)
+
+exit=0

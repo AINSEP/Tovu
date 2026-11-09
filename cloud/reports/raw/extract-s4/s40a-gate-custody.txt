@@ -1,0 +1,18 @@
+== pins: recomputed sha256 vs t-pins-sha256.txt
+     28 same apps/website/src/assistant/__tests__/fixtures/chat-delete-grant.ts
+== tool-metadata.baseline.json
+a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6  apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json
+== XP3 snapshot listing diff (empty = unchanged)
+snapshot-diff-exit=0
+d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459  /tmp/claude-0/-home-user/a10819e9-12f8-5f7a-b1c1-5dc224b62b52/scratchpad/s4/declaration-baseline/manifest.json
+== Tovu existing tests changed vs c3801c833 (name-status, __tests__)
+M	apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+A	apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts
+A	apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts
+M	apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+== Jini existing tests changed vs 4044fe3c0 (name-status, __tests__)
+D	packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts
+A	packages/agent-plugins/src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts
+A	packages/integrations/src/api-connections/__tests__/byo-origin-order.unit.test.ts
+M	packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
+A	scripts/__tests__/extract-s4-import-equals.test.ts

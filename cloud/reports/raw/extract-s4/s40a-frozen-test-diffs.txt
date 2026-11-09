@@ -1,0 +1,62 @@
+diff --git a/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts b/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+index 21825cee..42b28067 100644
+--- a/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+@@ -3,8 +3,8 @@ import test from 'node:test';
+ import { createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
+ import { createPluginContributionRegistry, buildPluginContributionToolRegistrations, pluginToolIdFor } from '@jini-ai/plugins/host';
+ import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
+-import { registerAgentPluginExecutableToolsWithPorts } from '../register.js';
+-import { createAgentPluginDisclosureWithPorts } from '../approval.js';
++import { registerAgentPluginExecutableTools as registerAgentPluginExecutableToolsWithPorts } from '@jini-ai/agent-plugins/connect/executable';
++import { createAgentPluginDisclosure as createAgentPluginDisclosureWithPorts } from '@jini-ai/agent-plugins/connect/executable';
+ import { createFrozenConnectionAccounts } from '../host-capabilities.js';
+ 
+ test('the registrar consumes the host definition and contribution builders without replacing their owner', async () => {
+@@ -14,7 +14,7 @@ test('the registrar consumes the host definition and contribution builders witho
+   let registryCalls = 0;
+   let buildCalls = 0;
+   const registered = await registerAgentPluginExecutableToolsWithPorts({
+-    registry, workspaceId: 'other-workspace',
++    registry, workspaceId: 'other-workspace', toolPermission: 'admin.assistant.use',
+     host: {
+       loadContributions: async (input, options) => { assert.equal(input.definition, definition); assert.equal(options.orderByPluginId, true); return { items: [], refusals: ['host refusal'] }; },
+       connections: { readAccount: async () => null, getAccessToken: async () => 'unused' },
+diff --git a/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts b/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+index 438c222c..7d7488b3 100644
+--- a/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
++++ b/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+@@ -1,7 +1,7 @@
+ import assert from 'node:assert/strict';
+ import test from 'node:test';
+-import type { AdminSurfaceConnectionsHost, AdminSurfaceDeclaredConnection } from '@jini-ai/agent-plugins/admin-surfaces';
+-import { createAdminSurfaceConnections } from '../surface-connections.js';
++import type { AdminSurfaceConnectionsHost, AdminSurfaceDeclaredConnection } from '@jini-ai/agent-plugins/admin-surfaces/connections';
++import { createAdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces/connections';
+ 
+ function harness() {
+   const unavailable = new Error('Other host refusal.');
+diff --git a/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts b/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
+index fdfcd876..51d3f78c 100644
+--- a/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
++++ b/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
+@@ -10,7 +10,7 @@ function declaration(): DeclaredApiConnection {
+ 
+ it('A3 public BYO seam reads one projected credential and preserves the stable label', async () => {
+   const reads: unknown[] = [];
+-  const byoCredentials: ApiConnectionByoCredentials = { read: async input => { reads.push(input); return { connection: { username: ' client ', token: 'human-secret' }, allowedOrigins: ['https://auth.relay.test'] }; }, refuse: () => { throw new Error('unexpected refusal'); } };
++  const byoCredentials: ApiConnectionByoCredentials = { read: async input => { reads.push(input); return { connection: { username: ' client ', token: 'human-secret' }, allowedOrigins: () => ['https://auth.relay.test'] }; }, refuse: () => { throw new Error('unexpected refusal'); } };
+   expect(byoClientLabel({ pluginId: 'relay', connectionId: 'account' })).toBe('relay/account OAuth client');
+   expect(await resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials })).toEqual({ clientId: 'client', clientSecret: 'human-secret' });
+   expect(reads).toEqual([{ workspaceId: 'studio', label: 'relay/account OAuth client' }]);
+@@ -20,8 +20,8 @@ it('A3 BYO unreadable/wrong-origin/missing-id refusals are the injected host err
+   const marker = new ApiConnectionError({ code: 'descriptor-invalid', message: 'Studio client unavailable; use studio settings.' });
+   const problems: string[] = [];
+   for (const read of [async () => { throw new Error('private read failure'); },
+-    async () => ({ connection: { token: 'secret', username: 'client' }, allowedOrigins: ['https://wrong.test'] }),
+-    async () => ({ connection: { token: 'secret' }, allowedOrigins: ['https://auth.relay.test'] })]) {
++    async () => ({ connection: { token: 'secret', username: 'client' }, allowedOrigins: () => ['https://wrong.test'] }),
++    async () => ({ connection: { token: 'secret' }, allowedOrigins: () => ['https://auth.relay.test'] })]) {
+     expect(await resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials: { read, refuse: input => { problems.push(input.problem); return marker; } } })).toBe(marker);
+   }
+   expect(problems).toEqual(['unreadable', 'wrong-origin', 'missing-client-id']);

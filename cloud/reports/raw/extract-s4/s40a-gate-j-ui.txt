@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/mcp-ui/__tests__/credential-card.unit.test.ts (2 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  06:52:47
+   Duration  893ms (transform 68ms, setup 170ms, collect 31ms, tests 5ms, environment 389ms, prepare 68ms)
+
+exit=0

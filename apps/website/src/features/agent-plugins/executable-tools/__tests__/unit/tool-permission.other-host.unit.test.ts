@@ -44,7 +44,7 @@ async function registerWith({ toolPermission, authorize }: { toolPermission: str
   const tool = built.find(registration => registration.descriptor.id === pluginToolIdFor({ pluginId: PLUGIN, name: 'read_rows' }));
   assert.ok(tool, 'the read tool is built by the real contribution builder');
   assert.ok(registry.has({ toolId: tool.descriptor.id }), 'and registered');
-  return { authorizeRead: () => tool.policy.authorize({ principal: { id: 'operator' }, run: { id: 'r' }, tool: tool.descriptor, input: {} }), registered };
+  return { authorizeRead: async () => tool.policy.authorize({ principal: { id: 'operator' }, run: { id: 'r' }, tool: tool.descriptor, input: {} }), registered };
 }
 
 test('another host authorizes plugin tools with its own RBAC permission name', async () => {

@@ -228,3 +228,81 @@ No other red at baseline.
 ## Processes
 
 The only background job was the Tovu per-file matrix runner (`run-tovu-matrix.sh`, harness task bsc8q0r9o); it exited 0 and targeted inspection shows no runner, vitest or tsc process left. All other commands ran in the foreground with `timeout`.
+
+## S4-0a (builder S4-0a, 06:37–07:05Z) — Main F1–F5 + confirmed cuts (A7 F1–F4, A/* cuts and isValidationError retirement are S4-0b)
+
+Programmer skills file `AI-Dev-Shop/agents/programmer/skills.md` (Jini) loaded. Bases: Tovu e989c75d, Jini 4044fe3c0. Raw files: `cloud/reports/raw/extract-s4/s40a-*.txt`.
+
+### Findings (red → fix → mutation → green)
+
+| Finding | Test file(s) (new unless noted) | Red raw | Fix SHA | Mutation raw | Green raw |
+|---|---|---|---|---|---|
+| Main F1 required `toolPermission` | T `E/__tests__/unit/tool-permission.other-host.unit.test.ts` (real J registrar + real `@jini-ai/plugins/host` builder; other host permission `reports.tools.run` allows, lacking it rejects with core `ForbiddenError {permission:'reports.tools.run',reason:'no_grant'}`; T binder binds exactly `admin.assistant.use`) | s40a-f1-red.txt (3/3 fail at S3 code) | J 42cfff737ea54a2e0a79122a89e6753b4d11c6c2, T 5de4da8c4104d0b2efd371895c9b4e4f078a2dab | s40a-f1-mutation.txt (hard-coded `'admin.assistant.use'` restored in register.ts → 2 fail) | s40a-f1-green.txt, s40a-f1-green-final.txt (3/3; host-ports 2/2) |
+| Main F3 BYO prior behaviour RESTORED (not accepted) | J `I/__tests__/byo-origin-order.unit.test.ts` (raw identity escapes, read failure = unreadable, order read→origins); T `features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts` (malformed saved base URL → raw `TypeError` ERR_INVALID_URL; exact "could not be read on this site" refusal for a true read failure; usable client resolves) | s40a-f3-red-jini.txt (2 fail), s40a-f3-red-tovu.txt ("Missing expected rejection": S3 swallowed the URL error) | J b2017d9f1a5da6d86c0dd0f543be42d596bf83bc, T 5e23383c7feb1ecc1ec1f09e6eed325b31e39f56 | s40a-f3-mutation-tovu.txt (eager projection inside read → red), s40a-f3-mutation-jini.txt (projection caught as unreadable → red) | s40a-f3-green-jini.txt (7/7), s40a-f3-green-tovu.txt (5/5), s40a-f3-restored-jini.txt |
+| Main F4 copied parser deleted (owner-approved) | J `P/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts` (exact `{ ok: false, reason: "this host supplies no mail setup validator" }` for raw-only v2 with/without setup; raw v1 parses; injected validator's setup and refusal used unchanged) | s40a-f4-red.txt (exact-refusal case fails at S3 code; the first run also had a test-side `at` expectation error, corrected) | J a6e4a7596c8ebf7039979a815e04813bc04b18f1 (deletes `legacy-mail-setup.ts` 143 lines + `legacy-adapter-descriptors.unit.test.ts` 55 lines) | s40a-f4-mutation.txt (missing validator returns the unvalidated descriptor → red) | s40a-f4-green.txt (with adapter-descriptors.test.ts, 7/7), s40a-f4-restored.txt |
+| Main F5 checker import-equals | J `scripts/__tests__/extract-s4-import-equals.test.ts`: XP1 new + moved, XP2 modified-new red / unchanged-old green, XP3 declaration-only red / unchanged pinned green, core/self allowed, core→neighbour red, real `tsc`-emitted `.d.ts` with `import ui = require('@jini-ai/ui')` caught by XP3 | s40a-f5-red.txt (6/6 fail) | J 8f5eca41cd0d2b79bd61659beafc712cf5075c9e (`collectImportEquals`: literal `ExternalModuleReference` only; visit complexity ≤10) | s40a-f5-mutation.txt (visitor line disabled → 6 fail) | s40a-f5-green.txt (all 4 checker suites 76/76), s40a-f5-restored.txt |
+| Main F2 shared-instance notes | declaration proof (no behaviour change) | — | J 8aac3941e58b9d5450ce9a28c1140877692517e5 | — | s40a-notes-emitted.txt: `@agent-note` attached in emitted `dist/connect/executable/ports.d.ts` to `issuedTokens` (ONE memory shared tools/admin handlers, module scope shared) and `frozen` (SAME object as admin-surface connections; omitted-frozen behaviour retained), and in `dist/api-connections/host-ports.d.ts` to `ApiConnectionHostPorts` (floating file-head note moved verbatim; head now starts with imports). Also shows F1 `toolPermission`, F3 `allowedOrigins`, F4 `ParseMailSetup` notes emitted. Withholding both ways / account pins: existing `issued-token-memory.security`, `capability-lifetime.security`, `admin-action-tools`, `host-ports.unit` all green unchanged; no new instance created (T host-bindings still passes the one `issuedTokens`/`frozen`). |
+
+F1 detail: `toolPermission: string` is a required member of `AgentPluginExecutableRegistrationRequired` (no default; `@agent-note`), consumed by `resolveAuth`'s `requireToolPermission`. T `bindExecutableToolRegistration` adds `toolPermission: 'admin.assistant.use'`; T bytes otherwise unchanged. Callers searched (J packages/examples/scripts, T apps): only T binder and the listed T test call the registrar; `examples/neutral-host/src/executable-surface-entries.test.ts` imports it without calling — no edit. Unrelated chat/history literal untouched.
+
+F3 detail: `ApiConnectionByoCredential.allowedOrigins` is now `() => readonly string[]`; `resolveByoClient` keeps only `read()` inside `.catch(... 'unreadable')`, then computes `tokenOrigin` and calls `allowedOrigins()` — the exact pre-S3 order (read; `new URL(tokenEndpoint)`; `allowedOriginsFor(saved)`). T `createByoCredentials.read` returns `allowedOrigins: () => allowedOriginsFor(saved)`. Refusal bytes unchanged (wrong-origin/missing-id/unreadable). This is a restoration, not an accepted change.
+
+### Confirmed cuts (proof: J agent-plugins/integrations build + `tsc --noEmit` exit 0; T main tsc exit 0; broad test tsconfig 13 baseline errors; named matrix unchanged)
+
+| Row | Change | SHA |
+|---|---|---|
+| T features/api-connections/host-bindings.ts:68 | dropped `vault,` from `apiConnectionStorage` (no reader; the shared `vault` still feeds records/tokens/pluginState) | T bcee732f |
+| T features/api-connections/host.ts:8 | dropped `createApiConnectionRuntimeHost` re-export (no caller) | T bcee732f |
+| T features/api-connections/connect.ts:5 | dropped `...WithPorts` re-exports (no caller) | T bcee732f |
+| E/register.ts:3, E/approval.ts:5, T surface-connections.ts:4 | re-exports deleted; the two listed tests repointed to J public entries with the same local aliases | T bcee732f |
+| E/host-bindings.ts:66–68,84 | `loadActionTools({ admin, ... })` is bound only when `adminSurfaces` exists; dead `admin ?…: []` / `if (admin)` branches removed; same list → refresh → build order and trust re-read | T bcee732f |
+| P/connect/index.ts:4–9; P/admin-surfaces/index.ts:48 | duplicate type exports cut; repointed E/approval-bindings.ts:1 and E/host-bindings.ts:8 → `@jini-ai/agent-plugins/connect/executable`, T surface-connection-bindings.ts:2 → `@jini-ai/agent-plugins/admin-surfaces/connections`. Other exact type callers searched in J packages/examples and T apps: none | J 92b4eb7d, T bcee732f |
+| P/connect/executable/host-capabilities.ts:29 | own-ports type re-export cut; approval.ts imports the types from `./ports.js` | J 92b4eb7d |
+| I/host.ts:40,42–43,345 | duplicate `export type { ApiConnectionRuntime }` cut (index exports it from host-ports); two local aliases replaced by `ApiConnectionRuntimeHostDeps/Options` directly; `startLoopback: required.startLoopback` inline in the same returned-object position | J 92b4eb7d |
+| I/hook-http.ts:12 | `PluginHttp = HttpPort` alias cut; imports `PluginHttp` from host-ports | J 92b4eb7d |
+| P/lifecycle/host-tools/provider-status-tool.ts | six blank lines at the factory head removed (whitespace only) | J 92b4eb7d |
+| P/lifecycle/mail/legacy-mail-setup.ts + test | F4 deletion above; no relocated copy | J a6e4a759 |
+
+Full SHAs: J 92b4eb7dc455f5dae3e7693a73cb08385c9b8947; T bcee732ff666d0ba6e32920ed418de080f918247.
+
+### Changesets (Jini `.changeset/`, S3 changesets untouched)
+- `extract-s4-tool-permission.md` (minor): required `toolPermission`; states it is breaking for direct registrar callers.
+- `extract-s4-byo-origin-order.md` (minor): BYO prior behaviour restored; `allowedOrigins` deferred function.
+- `extract-s4-mail-setup-validator.md` (minor): copy deleted; names the approved raw-only v2 refusal string.
+
+### Exact diffs to frozen tests (only the listed exceptions; full text in s40a-frozen-test-diffs.txt)
+- T `E/__tests__/host-ports.unit.test.ts`: lines 6–7 `from '../register.js'`/`'../approval.js'` → `import { registerAgentPluginExecutableTools as registerAgentPluginExecutableToolsWithPorts }` / `import { createAgentPluginDisclosure as createAgentPluginDisclosureWithPorts } from '@jini-ai/agent-plugins/connect/executable'`; call at line 17 adds `toolPermission: 'admin.assistant.use'`. Assertions unchanged.
+- T `features/api-connections/__tests__/surface-connections.host-port.unit.test.ts`: lines 3–4 types and factory from `@jini-ai/agent-plugins/admin-surfaces/connections`. Fixtures/assertions unchanged (its known prior-drift TS2322 at (15,5) is still the 13th broad-tsconfig error).
+- J `I/__tests__/host-seams.unit.test.ts`: lines 13, 23, 24 `allowedOrigins: [..]` → `allowedOrigins: () => [..]` (same arrays, connections, read counts, refusal callbacks, assertions).
+- J deleted (approved): `P/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts`.
+- No other existing test M/D/R in either repo (s40a-gate-custody.txt).
+
+### Outside-scope files / S5 overlap
+- No file outside the S4-0a scope was edited. No C/** file touched.
+- S5 overlap (I files): `I/byo-client.ts` (1 line: `allowedOrigins()` call), `I/host-ports.ts` (floating note moved onto `ApiConnectionHostPorts`; `ApiConnectionByoCredential.allowedOrigins` type + note), `I/host.ts` (export/alias/`startLoopback` cut, no behaviour change), `I/hook-http.ts` (alias cut). No hosted-mcp/MCP file touched.
+- Untracked build residue removed (gitignored, zero tracked files): `packages/agent-plugins/dist/lifecycle/mail/legacy-mail-setup.{js,js.map,d.ts,d.ts.map}` and `dist/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.*` (stale outputs of the deleted sources).
+
+### S4-0a gate (07:00Z, at J 92b4eb7d / T bcee732f + new-test typing fix)
+
+| Item | Command / raw | Result |
+|---|---|---|
+| J builds + tsc | agent-plugins, integrations `run build` / `exec tsc --noEmit` | exit 0 / 0 |
+| J scripts tests | s40a-gate-j-scripts.txt (3 named + new F5) | 76/76 (base 70 + 6 new) |
+| J agent-plugins | s40a-gate-j-agent-plugins.txt (adapter-descriptors, new F4, 5 admin-surfaces) | 100/100 (base 118 − 21 deleted legacy + 3 new) |
+| J integrations | s40a-gate-j-integrations.txt (6 named + new F3) | 60/60 (57 + 3) |
+| J platform / ui | s40a-gate-j-platform.txt / s40a-gate-j-ui.txt | 3/3 / 2/2 |
+| J neutral-host | s40a-gate-j-neutral-host.txt; typecheck s40a-gate-j-neutral-host-tsc.txt | 35/35; tsc exit 0 |
+| J scripts tsc | s40a-gate-j-scripts-tsc.txt | exit 0 |
+| Checker | `JINI_DECLARATION_BASELINE_DIR=<s4>/declaration-baseline pnpm check:cross-package` s40a-gate-j-checker.txt | XP1–XP5 clean, exit 0 |
+| Full guard (read whole output) | s40a-gate-j-guard.txt | exit 1 = record exactly: R2-deep-path(1) plugin-catalog/scripts/generate.ts, R10-chatpane-public-surface(1) ChatPane.tsx, R13 informational; HW1 17/HW2 16/HW3 135/HW4 1/HW8 49 all 0 new; HW5/6/7/9 0; no N1, no R8, no other family; "2 guard violation(s)." |
+| guard:plugins | s40a-gate-j-guard-plugins.txt | exit 0 |
+| layers/isolation | s40a-gate-j-layers-isolation.txt | `{"layers":[],"isolation":[],"SI_c":9,"SI_d":7}` exit 0 |
+| Complexity ≤10 changed production/scripts | s40a-gate-j-complexity.txt (13 J files), s40a-gate-t-complexity.txt (10 T files) | 0 errors (2 pre-existing non-complexity warnings each) |
+| T relink + contracts | s40a-gate-t-relink.txt, s40a-gate-t-contracts.txt | exit 0 / 0 |
+| T main tsc | s40a-gate-t-main-tsc.txt | exit 0 |
+| Pin compile | s40a-gate-t-pin.txt (provider-setting-field.typecheck.ts) | exit 0 |
+| Broad test tsconfig | s40a-gate-t-broad-tsc.txt | exactly the 13 baseline errors (first run showed a 14th in my new F1 test, a sync/async return type; fixed in the test and rerun) |
+| T named matrix | s40a-gate-t-matrix-summary.txt: G2 (14), G3 (16), G4 mail (6), G7 nine baselines, + 2 new | 47 files, 448/448 pass; every baseline file's tests/pass/fail identical to the setup baseline |
+| Custody | s40a-gate-custody.txt | 28/28 pinned fixtures sha256 unchanged; tool-metadata.baseline.json a0d6b428…; XP3 snapshot listing diff empty, manifest d836eba0…; test diffs only the listed exceptions |
+
+Token/time: ~07:05Z finish, ≈28 minutes elapsed; about 60 tool calls; context well under the 230k target.

@@ -1,0 +1,23 @@
+files: packages/agent-plugins/src/admin-surfaces/index.ts
+packages/agent-plugins/src/connect/executable/approval.ts
+packages/agent-plugins/src/connect/executable/host-capabilities.ts
+packages/agent-plugins/src/connect/executable/ports.ts
+packages/agent-plugins/src/connect/executable/register.ts
+packages/agent-plugins/src/connect/index.ts
+packages/agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts
+packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts
+packages/integrations/src/api-connections/byo-client.ts
+packages/integrations/src/api-connections/hook-http.ts
+packages/integrations/src/api-connections/host-ports.ts
+packages/integrations/src/api-connections/host.ts
+scripts/check-no-cross-package.ts
+
+/home/user/Jini/packages/agent-plugins/src/connect/executable/register.ts
+  83:35  warning  Remove the declaration of the unused '_parked' variable  sonarjs/no-unused-vars
+
+/home/user/Jini/packages/integrations/src/api-connections/host.ts
+  127:9  warning  Use destructuring syntax for these assignments from "required"  sonarjs/destructuring-assignment-syntax
+
+✖ 2 problems (0 errors, 2 warnings)
+
+exit=0

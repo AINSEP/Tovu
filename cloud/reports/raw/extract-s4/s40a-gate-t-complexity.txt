@@ -1,0 +1,20 @@
+files: apps/website/src/features/agent-plugins/executable-tools/approval-bindings.ts
+apps/website/src/features/agent-plugins/executable-tools/approval.ts
+apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts
+apps/website/src/features/agent-plugins/executable-tools/register.ts
+apps/website/src/features/api-connections/byo-client.ts
+apps/website/src/features/api-connections/connect.ts
+apps/website/src/features/api-connections/host-bindings.ts
+apps/website/src/features/api-connections/host.ts
+apps/website/src/features/api-connections/surface-connection-bindings.ts
+apps/website/src/features/api-connections/surface-connections.ts
+
+/home/user/Tovu/apps/website/src/features/api-connections/byo-client.ts
+  27:11  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/website/src/features/api-connections/surface-connection-bindings.ts
+  42:56  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+✖ 2 problems (0 errors, 2 warnings)
+
+exit=0
