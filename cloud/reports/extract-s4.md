@@ -962,3 +962,47 @@ Bases: Tovu 599774b8, Jini f774b9e5 (Jini **unchanged** by this batch). Skills f
 2. access-token-tool.ts (rows 34–49): R1 `tokenValidator` as above, Cards<Resource> `defineSecretCardTool` port + host `askThenReport`, `credential_save` toolId and `uriHost` from cardIdentity, cms→core permission helpers.
 3. import-access-token.ts, grant-signed-in-defaults.ts (R5: actors/warn/projections required), token-sign-in.ts (object APIs; T shims keep positional signatures).
 4. A11 moves (once 1–3 are green): A/portable/{connect-card-ui,connect-destination,connect-sign-in-wait,apply-tool-renames}.ts now, plus {connect-tool,access-token-tool,import-access-token,grant-signed-in-defaults,token-sign-in}.ts after 1–3 → `packages/agent-plugins/src/connect/`. Binder change A11 needs: T shims switch `./portable/<x>.js` → `@jini-ai/agent-plugins/connect`; the static test's directory then points at J; `card-host-bindings.ts` imports `resolveAgentPluginCardIdentity` from the J entry; C/plugin-host grant one-liner unchanged until grant is seamed (R5).
+
+## Continuation — A10b (builder A10b, EXTRACT-S4-C, 08:54–09:1xZ)
+
+Bases: Tovu 5ba69a99, Jini f774b9e5 (Jini **unchanged**). Skills file not loaded (dispatched task, budget). **Item 1 (connect-tool) seamed and gated; item 2 (access-token-tool, R1) NOT started** — stopped on the clock (dispatch window ~09:25Z; the gate must run on a quiescent tree, so no second item could be edited while it ran).
+
+### Implementation SHAs (Tovu cloud/extract-s4)
+- efd46913 — `git mv` A/connect-tool.ts → A/portable/connect-tool.ts, then edits; old path re-created as a thin T shim (unchanged signatures). Provenance: portable parent blob = 5ba69a99 `A/connect-tool.ts` a222c1d5. Every original comment kept beside its code; removed-to-T fragments (permission constant + its "mirrors" comment, callback path + `resolveConnectRedirectUri` with its precedence comment, `defaultResolveInstalledAgentPlugin` + comment, deps interface, tool description) were moved verbatim into the shim. One neutral reword: deps comment "`tovu-connections.json`" → "Plugin-declared OAuth API connections." (product file name; meaning kept).
+- df1b8814 — new test `a10b-connect-seam.unit` (3) + raws.
+
+### What changed (portable body imports only `@jini-ai/core*`, `@jini-ai/agent-plugins/{connect,lifecycle}`; zero sibling/T imports)
+- **R4 approvals port** `AgentPluginConnectApprovalsPort<Surfaces>`: `accessApprovalHandler<Prepared>({surfaces, prepare, describe, run}, {ask, declined}) → ToolHandler` + `notConfirmedResult({reason})`. @agent-note states the contract: frozen ctx/bound principal before prepare, `run` only after explicit confirm with the bound ctx (the body's `run` itself re-checks permission + activation + `prepared.key` fingerprint, unchanged), emitSurface/options forwarded, `declined` (never `run`) on decline/expiry/abort. T binds `approvalToolHandler` / `notConfirmedResult({confirmed:false,reason})` (same objects, same bytes). Order approve→provision→sign in→revalidate is the unmoved body; proven by test + mutation.
+- Ports/host inputs (each @agent-noted): `AgentPluginConnectSignInPort` (beginConnect → core `ExternalMcpConnectStart`, isSignInRefusal), `AgentPluginConnectApiConnectionsPort<Connection>` (opaque connection), credentials `loadSafe`, required `isPluginEnabled`/`resolveInstalledPlugin` (no fs default in P), `mcp` with required projection pair, and `host: AgentPluginConnectHost<Surfaces>` = toolId, permissions {connect, apiConnectionWrite}, entityType, approvalErrorCode, approvals, messages (12 members: every string naming `agent_plugin_connect`/`credential_save`/`plugins_set_enabled`/"this Tovu version"/"restart Tovu"), publicUrl.redirectUri, federation {classifyTrust, messages}, actors.connectDeclined, waitAtSignInCard, chooseDestination.
+- Type cycle: resolved inside A/portable — the body never imports `connect-sign-in-wait` (host passes the waiter; the portable waiter is already generic over `Result`). T shim `connect-sign-in-wait.ts` still type-imports `AgentPluginConnectResult` from T `connect-tool.ts`, which re-exports it from portable.
+- Object APIs: `titleCaseFromPluginId({pluginId})`, `hasStoredAgentPluginCredential({row, projections})`, `agentPluginConnectAgentToolCatalogFor({toolId, permission, description, pluginIdDescription})`, `agentPluginConnectDerivedRiskFor({toolId})`; T shims keep `titleCaseFromPluginId(pluginId)`, `hasStoredAgentPluginCredential(row, options)`, `agentPluginConnectAgentToolCatalog`, `agentPluginConnectDerivedRisk`, `AGENT_PLUGIN_CONNECT_TOOL_ID`, `runAgentPluginConnect({routeDeps,surfaces,ctx,pluginId}, optional)`, `defaultResolveInstalledAgentPlugin`, `AgentPluginConnectToolDeps`.
+- T shim binder `tovuConnectDeps`: `withOverrides(routeDeps, {mcp: withAgentPluginMcpPorts(routeDeps.mcp), isPluginEnabled/resolveInstalledPlugin lazily falling back to the old fs reads, host})`. Behaviour note: `routeDeps.mcp` is now read once at entry (before the permission check) instead of first use; fixture/production mcp is a plain property, no observable change in any gated test. Provision now receives `tovuEnableAccessMessages` (superset of `tovuFederationMessages`, same two federation strings) — identical bytes.
+- R4 stay block in `tool-registrations.ts`: untouched (imports resolve through the T shim).
+
+### Tests (new) — raw dir cloud/reports/raw/extract-s4/
+- `a10b-connect-seam.unit` (3): (1) other host (`acme_connect`, `acme.connect`, ACME, opaque `AcmeSurfaces`, own waiter/redirect) — exact flow `activation, approval:prepare, approval:run, activation, provision, begin:<host redirect>, sign-in-card, show:<url>, approval:prepare, approval:run, activation`, one sign-in start, host ids on both approvals, permission checked up front + re-checked in each `run`; (2) approval not given → log only `activation, approval:prepare, approval:expired`, no row provisioned, result = host not-confirmed bytes; (3) other-host refusal copy + Tovu bytes pinned in shim (tool id, permissions, "this Tovu version", catalog "restart Tovu").
+- Mutations (each 1 red, restored by copy, `cmp` clean): describe toolId hard-coded → `a10b-mut-approval-toolid.txt`; consent guard removed (`if (!access.approved) return`) → `a10b-mut-consent-order.txt`; permission re-check in `run` removed → `a10b-mut-recheck.txt`; green `a10b-u1-green.txt`, `a10b-u1-green2.txt`.
+- Static no-Tovu/no-non-core import test (A10a, globs A/portable) covers the new file: green.
+
+### Gate (Tovu df1b8814; Jini f774b9e5 unchanged → no J build/guard rerun; guard = A9 record)
+| item | result |
+|---|---|
+| T list `s4/a10b-gate-files.txt` = A10a's 41 + `a10b-connect-seam` (`a10b-gate-summary.txt`) | 428 tests, 427 pass; only red = plugin-host.integration test 9 (known baseline). Every per-file count identical to A10a (connect-tool.api-connections 12/12, connect-tool.unit 54, access-token-tool 31, tool-registrations.unit 26, tool-registrations.contracts 36, moved-tools goldens unchanged) |
+| main T tsc | 0 (`a10b-tsc1.txt`, empty) |
+| broad tests tsconfig | exactly 13, identical error lines to `a10-broad-tsc.txt` (`a10b-broad-tsc.txt`) |
+| pin compile provider-setting-field.typecheck | 0 |
+| complexity ≤10 (cyclomatic + cognitive) on connect-tool.ts + portable/connect-tool.ts | 0 errors (`a10b-complexity.txt`, empty) |
+| pins | 28/28 OK (`a10b-pins.txt`); tool-metadata a0d6b428 unchanged; XP3 snapshot manifest d836eba0… unchanged |
+| custody | `git diff --name-status 599774b8 HEAD -- '*__tests__*'` = 3 A (a10-card-seam, a10-tool-renames-seam, a10b-connect-seam) only; no frozen test edited |
+| Jini | unchanged f774b9e5 (no relink/build/guard needed) |
+
+### Outside scope / S5 overlap
+- Touched only A/connect-tool.ts (shim), A/portable/connect-tool.ts, the new test. `git diff origin/cloud/extract-s3 origin/cloud/extract-s5 --` those paths: empty (no S5 overlap).
+
+### Lines / time
+71 + 651 insertions / 489 deletions in production (shim 560→ ~150 lines, portable 651 incl. new port declarations/notes), test 127. 08:54–09:07Z (+report/push).
+
+### Remaining (A10c / A11)
+1. **access-token-tool.ts** (rows 34–49) — not started. Plan unchanged: R1 `tokenValidator {assertToken({value,field}), inputErrorRule({error}) → rule|null}` as a separate REQUIRED host input (T binds `assertCredentialToken` / `err instanceof CredentialInputError ? err.rule : null`); Cards `defineSecretCardTool` port + host `askThenReport`; `credential_save` toolId + `uriHost` from `cardIdentity.uriNamespace`; `@jini-ai/cms/core` permission helpers → the same `@jini-ai/core` exports; messages (credentialText/translateCredentialMessage/describeSavedTokenSwitch, `agent_plugin_set_access_token` prefixes). It can now import `./connect-tool.js` siblings `titleCaseFromPluginId`/types from portable; `defaultResolveInstalledAgentPlugin` must become a host read (it stays T).
+2. import-access-token, grant-signed-in-defaults (R5), token-sign-in (object APIs, T shims keep positional).
+3. A11: move A/portable/{connect-card-ui,connect-destination,connect-sign-in-wait,apply-tool-renames,connect-tool}.ts (+ the rest once seamed) to J `packages/agent-plugins/src/connect/`; T shims switch `./portable/<x>.js` → `@jini-ai/agent-plugins/connect`; static test dir → J. `connect-tool` host waiter/destination bindings stay in the T shim.
