@@ -4,7 +4,16 @@
  * Jini owns expiry, capacity and consumption; this file owns Tovu's routes and cookie policy.
  */
 import { serialize } from "cookie";
-export { createSignInHandoffs, type SignInHandoffs } from "@jini-ai/integrations/api-connections";
+import { createSignInHandoffs as createRuntimeSignInHandoffs, type SignInHandoffs } from "@jini-ai/integrations/api-connections";
+import { apiConnectionOAuthCapabilities } from "./oauth-bindings.js";
+export type { SignInHandoffs } from "@jini-ai/integrations/api-connections";
+
+/** Old signature; binds Tovu's real OAuth capabilities (pending store, state generator) to Jini's hand-off factory. */
+export function createSignInHandoffs(
+  required: Omit<Parameters<typeof createRuntimeSignInHandoffs>[0], "oauth">, optional: Record<string, never> = {},
+): SignInHandoffs {
+  return createRuntimeSignInHandoffs({ ...required, oauth: apiConnectionOAuthCapabilities }, optional);
+}
 
 export const API_CONNECTION_OAUTH_CALLBACK_PATH = "/api/agent-plugins/connections/oauth/callback";
 export const API_CONNECTION_BINDING_COOKIE = "__Secure-tovu_api_connection_binding";
