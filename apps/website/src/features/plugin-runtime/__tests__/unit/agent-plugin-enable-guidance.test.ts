@@ -69,10 +69,10 @@ test("no bundled Agent Plugin markdown tells the model it cannot enable a plugin
   assert.deepEqual(offenders, []);
 });
 
-test("bundled cold-start guidance names the enable tool and Agent Plugin family", () => {
+test("bundled cold-start guidance names confirmed enablement and Agent Plugin family", () => {
   for (const pluginId of ["composio", "higgsfield-media"]) {
     const guidance = fs.readFileSync(path.join(AGENT_PLUGINS_ROOT, pluginId, "skills", pluginId, "SKILL.md"), "utf8");
-    assert.match(guidance, /plugins_set_enabled[\s\S]*family: "agent-plugin"/);
+    assert.match(guidance, /enable the plugin with confirmation[\s\S]*family: "agent-plugin"/);
     assert.match(guidance, new RegExp(`pluginId: "${pluginId}"`));
   }
 });

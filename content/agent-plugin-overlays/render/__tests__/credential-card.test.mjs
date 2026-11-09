@@ -33,7 +33,7 @@ test('Render declares one owned API card with a fixed destination, accepted by t
 });
 
 test('Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement', () => {
-  assert.ok(skill.includes('credential_save { kind: "plugin-provider", target: "render" }'));
+  assert.ok(skill.includes('open the secure connection card; it saves as `Render API`.'));
   assert.ok(skill.includes('Writing `render.yaml` needs **no'));
   assert.ok(skill.includes('deployment_ops_deploy'));
   assert.doesNotMatch(skill, /being added|Config generation only/);

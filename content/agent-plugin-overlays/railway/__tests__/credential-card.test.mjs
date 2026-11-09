@@ -33,7 +33,7 @@ test('Railway declares one owned API card with a fixed destination, accepted by 
 });
 
 test('Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement', () => {
-  assert.ok(skill.includes('credential_save { kind: "plugin-provider", target: "railway" }'));
+  assert.ok(skill.includes('open the secure connection card; it saves as `Railway API`.'));
   assert.ok(skill.includes('Writing `railway.json` needs **no'));
   assert.ok(skill.includes('deployment_ops_deploy'));
   assert.doesNotMatch(skill, /being added|Config generation only/);
