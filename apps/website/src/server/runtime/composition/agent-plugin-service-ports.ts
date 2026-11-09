@@ -5,7 +5,7 @@ import { resolveDefinitionRaw, type SetValueRequired } from '@jini-ai/core/setti
 import { getEffective, set } from '#src/features/settings/index';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { HttpClientPort } from '#src/platform/http/ports';
-import { applyExternalMcpAccess, saveExternalMcpServer, ExternalMcpValidationError } from '#src/features/external-mcp/external-mcp-store';
+import { applyExternalMcpAccess, saveExternalMcpServer } from '#src/features/external-mcp/external-mcp-store';
 import type { ExternalMcpOAuthService, ExternalMcpStoreDeps } from '#src/features/external-mcp/contracts';
 import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-roster-change';
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
@@ -83,7 +83,6 @@ export function composeAgentPluginConnectServices(required: {
     credentials: composePluginCredentials(required),
     externalMcpOAuth: externalMcpOAuth && {
       beginConnect: (input, _options = {}) => externalMcpOAuth.beginConnect(input),
-      isValidationError: ({ error }, _options = {}) => error instanceof ExternalMcpValidationError,
       isSignInRefusal: isAgentPluginSignInRefusal,
     },
     apiConnections: apiConnections && {

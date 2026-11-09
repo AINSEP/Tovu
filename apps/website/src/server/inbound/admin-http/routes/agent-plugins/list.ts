@@ -5,6 +5,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteRegistrar } from "./deps.js";
 import { agentPluginLifecycleFields } from "./install-response.js";
 import { loadAgentPluginConnectionStatuses } from "#src/features/agent-plugins/connection-status";
+import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
 
 /**
  * @file `AGENT_PLUGINS_LIST` — `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins` (2026-09-09).
@@ -55,7 +56,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
 
       const candidates = await loadAgentPluginSearchCandidates(deps);
       const connectionStatuses = await loadAgentPluginConnectionStatuses({ workspaceId: deps.workspaceId,
-        mcp: deps.externalMcpServerRepo, loadCards: deps.loadPluginCredentialCards, apiConnections: deps.apiConnections?.host });
+        mcp: deps.externalMcpServerRepo, loadCards: deps.loadPluginCredentialCards, apiConnections: deps.apiConnections?.host, ...agentPluginMcpPortsOf(deps.mcp) });
 
       res.json({
         agentPlugins: candidates.map((candidate) => ({

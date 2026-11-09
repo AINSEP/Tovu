@@ -61,7 +61,7 @@ export async function importAgentPluginAccessToken(
   const principalId = input.principalId ?? AGENT_PLUGIN_TOKEN_IMPORT_ACTOR;
   const target = await resolveTarget({ routeDeps: deps, pluginId: input.pluginId, principalId });
   const row = await deps.mcp.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
-  if (row && hasStoredAgentPluginCredential(row)) {
+  if (row && hasStoredAgentPluginCredential(row, deps.mcp)) {
     // Finishes a switch-on an earlier import saved the token for but did not complete (it threw
     // after the save): idempotent, and it keeps an operator's off switch (`switch-on-saved-token.ts`).
     await switchOnSavedTokenConnection(deps, target);

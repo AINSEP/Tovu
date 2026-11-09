@@ -2220,6 +2220,8 @@ async function composeSiteRouteDeps(
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
   });
   const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
+  // ONE composed MCP port: routeDeps.mcp and the sign-in grant share its projections and classifier.
+  const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     siteBackupSanitize: sanitizeShareDatabase,
     pluginExports,
@@ -2339,7 +2341,7 @@ async function composeSiteRouteDeps(
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,
     bundledSourceRoot: bundledAgentPluginsDir(),
-    mcp: composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock }),
+    mcp: agentPluginMcp,
     preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, read: getEffective, write: (required, optional) => routeDeps.set(required, optional) }),
     providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace(workspaceId).root }),
     notifyRosterChanged: notifyExternalMcpRosterChanged,
@@ -2361,7 +2363,7 @@ async function composeSiteRouteDeps(
       clock,
       devices: externalMcpOAuthDevices,
       ...compositionSharedOAuth(),
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, applyAccess: input => routeDeps.mcp.applyAccess(input), clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, applyAccess: input => routeDeps.mcp.applyAccess(input), clock, notifyRosterChanged: notifyExternalMcpRosterChanged, projections: agentPluginMcp.projections, classifyError: agentPluginMcp.classifyError }),
     }),
     externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc; computed above with the plugin connection seams.

@@ -1,34 +1,36 @@
 /** Bind Jini's grant plan to the existing external-MCP rows and plugin enable card. */
 import { ToolInputError, redactSecrets, type AccessApprovalResource } from '@jini-ai/core';
 import { planAgentPluginToolGrant, type AgentPluginToolGrant, type AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
-import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
-import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
+import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from './service-ports.js';
+import { agentPluginMcpProjectionPorts, agentPluginMcpPortsOf } from './mcp-host-bindings.js';
 import type { AgentPluginMcpPort } from './service-ports.js';
 import { findAgentPluginMcpServerDefaults, planAgentPluginMcpFederation, type PlannedAgentPluginMcpUpsert } from './federate-mcp.js';
 import type { McpServerConfig } from './mcp-metadata.js';
 
 /** Translate persisted host columns to Jini's grant contract. O(n) in stored list bytes; no I/O. */
-export function storedAgentPluginGrants({ row }: { row: Pick<AgentPluginMcpRecord, 'enabled' | 'allowedToolNames' | 'writeAllowedToolNames'> | null }, options: AgentPluginMcpContext = {}): AgentPluginToolGrant {
+export function storedAgentPluginGrants({ row, projections }: { row: Pick<AgentPluginMcpRecord, 'enabled' | 'allowedToolNames' | 'writeAllowedToolNames'> | null; projections: AgentPluginMcpProjections }, _options = {}): AgentPluginToolGrant {
   if (!row) return { enabled: false, allow: [], write: [] };
-  const grants = resolveAgentPluginMcpPorts(options).projections.readToolGrants(row, { strict: true });
+  const grants = projections.readToolGrants(row, { strict: true });
   return { enabled: row.enabled, allow: grants.allowedToolNames, write: grants.writeAllowedToolNames };
 }
 
 /** Bind Jini's grant decision to the existing store's name and 64-tool bounds before card/write.
- * @throws ToolInputError with the store's exact validation reason and a repair action.
+ * Production callers pass the composed ports; only the legacy no-ports Tovu signature binds Tovu's pair.
+ * @throws ToolInputError with the store's validation reason (core-redacted) and a repair action.
  * @complexity O(a+w) names; no I/O or schema changes.
  */
-export function validatedAgentPluginToolGrantWithPorts(
-  required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools; ports: AgentPluginMcpProjectionPorts },
-  options: { reason?: 'sign-in' | 'owner-enable' } = {},
+export function validatedAgentPluginToolGrant(
+  required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools },
+  options: { reason?: 'sign-in' | 'owner-enable'; ports?: AgentPluginMcpProjectionPorts } = {},
 ): AgentPluginToolGrant | null {
+  const ports = options.ports ?? agentPluginMcpProjectionPorts;
   const grant = planAgentPluginToolGrant(required, options);
   if (!grant) return null;
   try {
-    return { enabled: true, allow: required.ports.projections.validateToolNames({ names: grant.allow, field: 'allowedToolNames' }), write: required.ports.projections.validateToolNames({ names: grant.write, field: 'writeAllowedToolNames' }) };
+    return { enabled: true, allow: ports.projections.validateToolNames({ names: grant.allow, field: 'allowedToolNames' }), write: ports.projections.validateToolNames({ names: grant.write, field: 'writeAllowedToolNames' }) };
   } catch (error) {
-    if (required.ports.classifyError({ error }) !== 'validation') throw error;
-    throw new ToolInputError({ message: `The plugin's combined tool grant cannot be saved: ${(error as Error).message}. Review its tool selection with external_mcp_save before enabling it.` });
+    if (ports.classifyError({ error }) !== 'validation') throw error;
+    throw new ToolInputError({ message: `The plugin's combined tool grant cannot be saved: ${redactSecrets({ input: (error as Error).message }, { redactPii: false })}. Review its tool selection with external_mcp_save before enabling it.` });
   }
 }
 
@@ -45,7 +47,7 @@ function assertPluginSource({ row, pluginId, source }: { row: AgentPluginMcpReco
 async function previewSource({ workspaceId, pluginId, source, servers, repo, ports }: { workspaceId: string; pluginId: string; source: PlannedAgentPluginMcpUpsert; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo']; ports: AgentPluginMcpProjectionPorts }) {
   const row = await repo.findByServerId({ workspaceId, serverId: source.connectionId });
   assertPluginSource({ row, pluginId, source });
-  const current = storedAgentPluginGrants({ row }, ports);
+  const current = storedAgentPluginGrants({ row, projections: ports.projections });
   const declared = findAgentPluginMcpServerDefaults(servers, { serverId: source.connectionId, url: source.url });
   const grant = declared ? validatedAgentPluginToolGrant({ current, declared }, { reason: 'owner-enable', ports }) : null;
   const snapshot = { pluginId, connectionId: source.connectionId, url: source.url, revision: row ? ports.projections.admissionRevision(row) : null, expected: row ? ports.projections.accessSnapshot({ record: row }) : null, current, declared, grant };
@@ -64,7 +66,7 @@ export async function previewAgentPluginEnableAccess(
   { workspaceId, pluginId, servers, repo, ...context }: AgentPluginMcpContext & { workspaceId: string; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo'] },
   _options = {},
 ) {
-  const ports = resolveAgentPluginMcpPorts(context);
+  const ports = agentPluginMcpPortsOf(context);
   const planned = planAgentPluginMcpFederation({ servers });
   if (planned.skipped.length) throw new ToolInputError({ message: `The plugin connection cannot be enabled here: ${planned.skipped.map(entry => `${entry.serverKey}: ${entry.reason}`).join('; ')}` });
   const snapshots = [];
@@ -75,9 +77,4 @@ export async function previewAgentPluginEnableAccess(
     if (preview.resource) resources.push(preview.resource);
   }
   return { key: JSON.stringify(snapshots), snapshots, resources };
-}
-
-/** Same Tovu signature: legacy hosts bind original projections; explicit ports retain error identity. */
-export function validatedAgentPluginToolGrant(required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools }, options: { reason?: 'sign-in' | 'owner-enable'; ports?: AgentPluginMcpProjectionPorts } = {}): AgentPluginToolGrant | null {
-  return validatedAgentPluginToolGrantWithPorts({ ...required, ports: options.ports ?? resolveAgentPluginMcpPorts({}) }, options);
 }

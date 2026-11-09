@@ -3,7 +3,7 @@ import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMc
 import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '../../contracts/core/external-mcp-auth.js';
 import { ExternalMcpSecretStoreUnconfiguredError } from '../external-mcp/external-mcp-store.js';
 import { OAuthError } from '../../platform/oauth/errors.js';
-import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections, AgentPluginOAuthPort, AgentPluginSignInPort } from './service-ports.js';
+import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from './service-ports.js';
 
 export const agentPluginMcpProjections: AgentPluginMcpProjections = {
   accessSnapshot: externalMcpAccessSnapshot, admissionRevision: externalMcpAdmissionRevision,
@@ -14,17 +14,16 @@ export function classifyAgentPluginMcpError({ error }: { error: unknown }, _opti
   if (error instanceof ExternalMcpValidationError) return 'validation';
   return error instanceof ExternalMcpSecretStoreUnconfiguredError ? 'unconfigured' : 'other';
 }
-/** No I/O or cache: old signatures get the original functions; explicit host ports retain identity. */
-export function resolveAgentPluginMcpPorts(required: AgentPluginMcpContext, _optional: Record<string, never> = {}): AgentPluginMcpProjectionPorts {
-  return { projections: required.projections ?? agentPluginMcpProjections, classifyError: required.classifyError ?? classifyAgentPluginMcpError };
+/** Tovu's canonical pair, bound whole. Only legacy Tovu entry signatures that receive no ports use it. */
+export const agentPluginMcpProjectionPorts: AgentPluginMcpProjectionPorts = { projections: agentPluginMcpProjections, classifyError: classifyAgentPluginMcpError };
+/** Bind a host MCP port's pair once per binding/factory. Ports carrying projections keep both
+ * (function and error identity); only an old Tovu port without them gets Tovu's canonical
+ * projections, keeping its own classifier as before. O(1), no I/O. */
+export function agentPluginMcpPortsOf(context: AgentPluginMcpContext, _optional: Record<string, never> = {}): AgentPluginMcpProjectionPorts {
+  if (context.projections) return { projections: context.projections, classifyError: context.classifyError };
+  return { projections: agentPluginMcpProjections, classifyError: context.classifyError ?? classifyAgentPluginMcpError };
 }
 /** Discovery refusal and canonical OAuth errors both mean no card opened. Unknown faults propagate. */
 export function isAgentPluginSignInRefusal({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return error instanceof ExternalMcpValidationError || error instanceof OAuthError;
-}
-export function resolveAgentPluginSignInPort(required: AgentPluginOAuthPort | AgentPluginSignInPort, _optional: Record<string, never> = {}): AgentPluginSignInPort {
-  return { beginConnect: (input, options) => required.beginConnect(input, options),
-    isSignInRefusal: ({ error }) => required.isSignInRefusal ? required.isSignInRefusal({ error })
-      : ('isValidationError' in required && required.isValidationError({ error })) || error instanceof OAuthError,
-  };
 }

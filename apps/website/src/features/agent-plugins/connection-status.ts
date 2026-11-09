@@ -1,4 +1,4 @@
-import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
+import { agentPluginMcpPortsOf } from './mcp-host-bindings.js';
 import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from './service-ports.js';
 import type { LoadPluginCredentialCards } from '../custom-credentials/plugin-credential-card.js';
 import type { ApiConnectionHost } from '../api-connections/host.js';
@@ -21,7 +21,7 @@ export async function loadAgentPluginConnectionStatuses(required: AgentPluginMcp
     required.apiConnections?.listConnections({}) ?? [],
   ]);
   const states = new Map<string, AgentPluginConnectionStatus[]>();
-  addMcpStatuses({ rows, states, projections: resolveAgentPluginMcpPorts(required).projections });
+  addMcpStatuses({ rows, states, projections: agentPluginMcpPortsOf(required).projections });
   await addApiStatuses({ connections, host: required.apiConnections, states });
   // A never-provisioned sign-in is still visibly absent. Plugins with no account declaration
   // (skills/local tools) get no badge; an unrelated manual MCP server cannot sign them in.

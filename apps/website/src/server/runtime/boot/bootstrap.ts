@@ -6,6 +6,7 @@ import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bund
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
 import { grantDeclaredToolsAtBoot } from "#src/features/agent-plugins/grant-signed-in-defaults";
+import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
 import { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
@@ -352,6 +353,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
             applyAccess: deps.mcp.applyAccess,
             clock: deps.clock,
             notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
+            ...agentPluginMcpPortsOf(deps.mcp),
           },
           bootLog,
         );

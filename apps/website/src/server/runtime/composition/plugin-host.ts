@@ -18,6 +18,7 @@ import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#s
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
 import { recordAgentPluginAccessDeclined } from '#src/features/agent-plugins/apply-connect-defaults';
 import { previewAgentPluginEnableAccess } from '#src/features/agent-plugins/enable-access';
+import { agentPluginMcpPortsOf } from '#src/features/agent-plugins/mcp-host-bindings';
 
 /** Preserve best-effort diagnostics for background provisioning; an approved card must instead
  * report a partial failure to its caller. O(s) in failed declared servers, no extra I/O.
@@ -37,7 +38,7 @@ export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly pluginActivationRepo: PluginActivationRepoPort;
   readonly clock: Clock;
-  readonly mcp: import("#src/features/agent-plugins/service-ports").AgentPluginMcpPort;
+  readonly mcp: import("#src/features/agent-plugins/service-ports").AgentPluginMcpPort & import("#src/features/agent-plugins/service-ports").AgentPluginMcpContext;
   readonly listInstalledAgentPlugins?: typeof listInstalledPlugins;
   readonly setAgentPluginEnabled?: typeof setAgentPluginEnabled;
   readonly assertAgentPluginActivationsWritable?: typeof agentPluginActivations.assertAgentPluginActivationsWritable;
@@ -148,13 +149,15 @@ export function createTovuPluginHost(
   };
   const lookup = createPluginLookup({ listPlugins: listProviders }, { warn });
 
+  // Resolved once per host binding: preview, provisioning grant and status share the composed pair.
+  const mcpPorts = agentPluginMcpPortsOf(deps.mcp);
   const agentPlugins: AgentPluginHostCapability = {
     inactivePluginIds: async () => {
       const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: resolveWorkspaceRoot() });
       return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
     },
     previewEnableAccess: async ({ pluginId }) => previewAgentPluginEnableAccess({
-      workspaceId: deps.workspaceId, pluginId, repo: deps.mcp.repo,
+      workspaceId: deps.workspaceId, pluginId, repo: deps.mcp.repo, ...mcpPorts,
       servers: await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId }),
     }),
     recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ applyAccess: deps.mcp.applyAccess, workspaceId: deps.workspaceId, accessKey }),
@@ -176,7 +179,7 @@ export function createTovuPluginHost(
         // Same as the admin toggle: an account signed in while the plugin was off gets the plugin's
         // declared tools now (bug 2026-11-04, `grant-signed-in-defaults.ts`).
         await grantDeclaredToolsToSignedInRows({
-          deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock,
+          deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, ...mcpPorts,
             notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
           pluginId,
           servers,

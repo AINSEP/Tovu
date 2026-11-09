@@ -1,6 +1,6 @@
 import type { AgentPluginMcpPort } from "./service-ports.js";
-import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from "./service-ports.js";
-import { resolveAgentPluginMcpPorts } from "./mcp-host-bindings.js";
+import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections, AgentPluginMcpProjectionPorts } from "./service-ports.js";
+import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import type { AgentPluginLayout } from "./layout.js";
@@ -417,7 +417,7 @@ function buildProvisioningSaveInput(
  *  most, a registered OAuth client minted for the OLD endpoint, which must not carry over to the new
  *  one. It is re-provisioned from the current declaration (rule 1b in this file's header).
  *  @complexity O(1) plus two short JSON parses. */
-function isStaleUntouchedProvisioning(existing: AgentPluginMcpRecord, planned: PlannedAgentPluginMcpUpsert, projections: AgentPluginMcpProjections): boolean {
+function isStaleUntouchedProvisioning({ existing, planned, projections }: { existing: AgentPluginMcpRecord; planned: PlannedAgentPluginMcpUpsert; projections: AgentPluginMcpProjections }, _options = {}): boolean {
   // Saved tokens (OAuth or a pasted access token) mean someone signed in: the row may differ from
   // the declaration because an operator edited its URL or auth mode, and deleting it would throw
   // away those edits and the sign-in (Gemini triage T15).
@@ -451,7 +451,7 @@ export function isEmptyJsonList(raw: string | null): boolean {
  *  try/catch inline.
  *  @complexity O(1) plus at most one `repo.upsert` for the adoption case. */
 async function adoptOrRecognizeExistingAgentPluginMcpServer(
-  deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo">,
+  deps: AgentPluginMcpProjectionPorts & Pick<AgentPluginMcpPort, "repo">,
   existing: AgentPluginMcpRecord,
   planned: PlannedAgentPluginMcpUpsert,
   pluginId: string,
@@ -462,7 +462,7 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
   | { readonly kind: "failed"; readonly reason: string }
 > {
   if (existing.provisionedByPluginId === pluginId) {
-    return { kind: isStaleUntouchedProvisioning(existing, planned, resolveAgentPluginMcpPorts(deps).projections) ? "stale" : "alreadyProvisioned" };
+    return { kind: isStaleUntouchedProvisioning({ existing, planned, projections: deps.projections }) ? "stale" : "alreadyProvisioned" };
   }
   // The connection id is unnamespaced and normalized, so a row already owned by a DIFFERENT plugin
   // may belong to a different server whose key merely sanitized to the same id. Adopting it would
@@ -521,9 +521,11 @@ export async function provisionAgentPluginMcpServers(
   const alreadyProvisioned: string[] = [];
   const adopted: string[] = [];
   const failed: SkippedAgentPluginMcpServer[] = [];
+  // Resolved once per call: every stale-row check uses the host's own projections.
+  const bound = { repo: deps.repo, saveServer: (save: Parameters<AgentPluginMcpPort['saveServer']>[0]) => deps.saveServer(save), ...agentPluginMcpPortsOf(deps) };
 
   for (const planned of plan.toUpsert) {
-    const outcome = await provisionPlannedServer({ deps, input, planned });
+    const outcome = await provisionPlannedServer({ deps: bound, input, planned });
     if (outcome.kind === "failed") failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
     else if (outcome.kind === "provisioned") provisioned.push(planned.connectionId);
     else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
@@ -539,7 +541,7 @@ export async function provisionAgentPluginMcpServers(
 /** Execute one planned write, keeping lookup, adoption and replacement failures isolated. */
 async function provisionPlannedServer(
   required: {
-    readonly deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer">;
+    readonly deps: AgentPluginMcpProjectionPorts & Pick<AgentPluginMcpPort, "repo" | "saveServer">;
     readonly input: ProvisionAgentPluginMcpServersInput;
     readonly planned: PlannedAgentPluginMcpUpsert;
   },

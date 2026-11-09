@@ -8,7 +8,8 @@ import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
 import type { AgentPluginLayout } from "./layout.js";
 import type { McpServerConfig } from "./mcp-metadata.js";
-import type { AgentPluginMcpPort } from "./service-ports.js";
+import type { AgentPluginMcpContext, AgentPluginMcpPort, AgentPluginMcpProjectionPorts } from "./service-ports.js";
+import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
 
 /**
  * @file "Plugin on + account connected" grants the plugin's declared tools, whichever of the two
@@ -42,7 +43,7 @@ import type { AgentPluginMcpPort } from "./service-ports.js";
  * connection's tools without a restart (Jini `federation/reload.ts` admits a not-yet-admitted row).
  */
 
-export interface GrantSignedInDefaultsDeps {
+export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly repo: AgentPluginMcpPort["repo"];
@@ -54,7 +55,7 @@ export interface GrantSignedInDefaultsDeps {
   readonly onConnected?: (serverId: string) => Promise<void>;
   /** Defaults to `console.warn`. A failed grant is reported with its real cause, never thrown. */
   readonly warn?: (message: string) => void;
-}
+};
 
 interface GrantDeclaredToolsOptions {
   readonly onlyNeverGranted?: boolean;
@@ -67,16 +68,16 @@ interface GrantDeclaredToolsOptions {
 /** Bind the existing sign-in grant to its explicit approval occasion; test ports retain precedence.
  * @complexity O(1) construction, no I/O.
  */
-function connectGrantFor({ deps, options }: { deps: GrantSignedInDefaultsDeps; options: GrantDeclaredToolsOptions }): (serverId: string) => Promise<void> {
-  return deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, applyAccess: deps.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged }, options.approvedEnable ? { approvedEnable: options.approvedEnable } : {});
+function connectGrantFor({ deps, options, ports }: { deps: GrantSignedInDefaultsDeps; options: GrantDeclaredToolsOptions; ports: AgentPluginMcpProjectionPorts }): (serverId: string) => Promise<void> {
+  return deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, applyAccess: deps.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged, ...ports }, options.approvedEnable ? { approvedEnable: options.approvedEnable } : {});
 }
 
 /** Run the existing grant owner for one eligible row, then report its actual durable change.
  * @complexity Two indexed row reads plus the existing grant's own point read/write and reload.
  */
-async function grantConnection({ deps, pluginId, connectionId, onConnected, options }: { deps: GrantSignedInDefaultsDeps; pluginId: string; connectionId: string; onConnected: (serverId: string) => Promise<void>; options: GrantDeclaredToolsOptions }): Promise<boolean> {
+async function grantConnection({ deps, pluginId, connectionId, onConnected, options, ports }: { deps: GrantSignedInDefaultsDeps; pluginId: string; connectionId: string; onConnected: (serverId: string) => Promise<void>; options: GrantDeclaredToolsOptions; ports: AgentPluginMcpProjectionPorts }): Promise<boolean> {
   const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
-  if (!row || !eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined })) return false;
+  if (!row || !eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined, ports })) return false;
   if (!options.approvedEnable && row.writeGrantsUpdatedByPrincipalId === CONNECT_DECLINED_ACTOR) return false;
   if (options.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) return false;
   await onConnected(connectionId);
@@ -108,13 +109,15 @@ export async function grantDeclaredToolsToSignedInRows(
 ): Promise<readonly string[]> {
   const { deps, pluginId, servers } = required;
   const warn = deps.warn ?? ((message: string) => console.warn(message));
-  const onConnected = connectGrantFor({ deps, options: optional });
+  // Resolved once per call: the eligibility check and the grant use the host's same pair.
+  const ports = agentPluginMcpPortsOf(deps);
+  const onConnected = connectGrantFor({ deps, options: optional, ports });
   const granted: string[] = [];
   for (const [serverKey, config] of Object.entries(servers)) {
     const connectionId = config.type === "stdio" || optional.skipServerKeys?.includes(serverKey) ? null : deriveAgentPluginConnectionId(serverKey);
     if (connectionId === null) continue;
     try {
-      if (await grantConnection({ deps, pluginId, connectionId, onConnected, options: optional })) granted.push(connectionId);
+      if (await grantConnection({ deps, pluginId, connectionId, onConnected, options: optional, ports })) granted.push(connectionId);
     } catch (error) {
       grantFailure({ error, pluginId, connectionId, approved: optional.approvedEnable !== undefined, warn });
     }
@@ -124,9 +127,9 @@ export async function grantDeclaredToolsToSignedInRows(
 
 /** Explicit activation consent can precede sign-in; automatic healing still requires credentials.
  * @complexity O(1), no I/O. */
-function eligibleGrantRow({ row, pluginId, approvedEnable }: { row: NonNullable<Awaited<ReturnType<GrantSignedInDefaultsDeps['repo']['findByServerId']>>>; pluginId: string; approvedEnable: boolean }, _options = {}): boolean {
+function eligibleGrantRow({ row, pluginId, approvedEnable, ports }: { row: NonNullable<Awaited<ReturnType<GrantSignedInDefaultsDeps['repo']['findByServerId']>>>; pluginId: string; approvedEnable: boolean; ports: AgentPluginMcpProjectionPorts }, _options = {}): boolean {
   if (row.provisionedByPluginId !== pluginId) return false;
-  return approvedEnable || hasStoredAgentPluginCredential(row);
+  return approvedEnable || hasStoredAgentPluginCredential(row, ports);
 }
 
 /**

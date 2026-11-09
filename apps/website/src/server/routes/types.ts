@@ -391,7 +391,7 @@ export interface CredentialsDeps {
    * used by /internal/tool-executions; an unwired preparation build answers unavailable. */
   externalMcpAdmissions?: import("../../features/external-mcp/operations-tools.js").ExternalMcpOperations["admissions"];
   bundledSourceRoot: string;
-  mcp: import("../../features/agent-plugins/service-ports.js").AgentPluginMcpPort;
+  mcp: import("../../features/agent-plugins/service-ports.js").AgentPluginMcpPort & import("../../features/agent-plugins/service-ports.js").AgentPluginMcpContext;
   preferences: import("../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;
   providerFaces: import("../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
   notifyRosterChanged: import("../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;

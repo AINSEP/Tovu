@@ -1,6 +1,6 @@
 import { ToolInputError } from '@jini-ai/core';
-import { resolveAgentPluginMcpPorts } from './mcp-host-bindings.js';
-import type { AgentPluginMcpAccessSnapshot, AgentPluginMcpRecord, AgentPluginMcpContext } from './service-ports.js';
+import { agentPluginMcpPortsOf } from './mcp-host-bindings.js';
+import type { AgentPluginMcpAccessSnapshot, AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `defaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
@@ -73,7 +73,7 @@ export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: stri
   return result.enabled;
 }
 
-export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo" | "applyAccess">, AgentPluginMcpContext {
+export type ApplyConnectDefaultsDeps = Pick<AgentPluginMcpPort, "repo" | "applyAccess"> & AgentPluginMcpContext & {
   readonly clock: ClockPort;
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
@@ -86,12 +86,12 @@ export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo
   readonly notifyRosterChanged: () => Promise<void>;
   /** Injected for tests. Defaults to {@link isPluginOffByOperator} on this workspace's activations. */
   readonly isPluginOffByOperator?: (pluginId: string) => Promise<boolean>;
-}
+};
 
 /** Read one matching plugin row and delegate the grant decision to Jini.
  * @complexity One indexed row read plus that plugin's existing manifest resolution; O(a+w) lists.
  */
-async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable }: { deps: ApplyConnectDefaultsDeps; serverId: string; resolveServers: NonNullable<ApplyConnectDefaultsDeps['resolveServers']>; approvedEnable: boolean }) {
+async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable, ports }: { deps: ApplyConnectDefaultsDeps; serverId: string; resolveServers: NonNullable<ApplyConnectDefaultsDeps['resolveServers']>; approvedEnable: boolean; ports: AgentPluginMcpProjectionPorts }) {
   const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
   if (!row) return null;
   const pluginId = row.provisionedByPluginId;
@@ -100,7 +100,7 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
   const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
   // A read-only declaration is classification, not permission to change sign-in grants.
   if (!defaults?.allow) return null;
-  const grant = validatedAgentPluginToolGrant({ current: storedAgentPluginGrants({ row }, resolveAgentPluginMcpPorts(deps)), declared: defaults }, { reason: approvedEnable ? 'owner-enable' : 'sign-in', ports: resolveAgentPluginMcpPorts(deps) });
+  const grant = validatedAgentPluginToolGrant({ current: storedAgentPluginGrants({ row, projections: ports.projections }), declared: defaults }, { reason: approvedEnable ? 'owner-enable' : 'sign-in', ports });
   return grant ? { row, pluginId, grant } : null;
 }
 
@@ -122,14 +122,16 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
   const enablePlugin =
     deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }));
+  // Resolved once per factory: preview, grant and revalidation all compare with the same projections.
+  const ports = agentPluginMcpPortsOf(deps);
 
   return async (serverId) => {
     assertApprovedSnapshot(options.approvedEnable);
-    const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined });
+    const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined, ports });
     if (!prepared) return;
     const { row, pluginId, grant } = prepared;
     const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId, pluginId });
-    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }, resolveAgentPluginMcpPorts(deps)), url: row.url, expected: resolveAgentPluginMcpPorts(deps).projections.accessSnapshot({ record: row }) });
+    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row, projections: ports.projections }), url: row.url, expected: ports.projections.accessSnapshot({ record: row }) });
     // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
     // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
     if (await isOff(pluginId)) return;
@@ -138,7 +140,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     // write is the step that makes a retry a no-op, so it goes last. The check above is only a cheap
     // early exit: an operator's "off" landing after it is caught again under the activations lock.
     if (await enablePlugin({ workspaceId: deps.workspaceId, pluginId, actor: CONNECT_DEFAULTS_ACTOR }) === false) return;
-    const expected = approved?.expected ?? resolveAgentPluginMcpPorts(deps).projections.accessSnapshot({ record: row });
+    const expected = approved?.expected ?? ports.projections.accessSnapshot({ record: row });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
     await deps.applyAccess({ workspaceId: deps.workspaceId, serverId,

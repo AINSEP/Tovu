@@ -9,8 +9,6 @@ import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 /** Roster persistence and safe classification; sealing/keyring dependencies stay in composition. */
 export interface AgentPluginMcpPort {
   readonly repo: AgentPluginMcpRepo;
-  /** Old Tovu hosts may omit projections; composition and new seams supply all six. */
-  readonly projections?: AgentPluginMcpProjections;
   /** Atomically save exactly the approved source and previous grants through the store owner. */
   applyAccess(input: import("../../contracts/core/external-mcp-access.js").ExternalMcpApprovedAccess, options?: Record<string, never>): Promise<void>;
   saveServer(input: AgentPluginMcpSave, options?: Record<string, never>): Promise<AgentPluginMcpView>;
@@ -21,9 +19,9 @@ export interface AgentPluginMcpPort {
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */
 export interface AgentPluginOAuthPort {
   beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted" }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
-  /** Compatibility entry for existing Tovu hosts; new consumers use isSignInRefusal. */
-  isValidationError(input: { error: unknown }, options?: Record<string, never>): boolean;
-  isSignInRefusal?(input: { error: unknown }, options?: Record<string, never>): boolean;
+  /** @agent-note Same rule as {@link AgentPluginSignInPort.isSignInRefusal}: true only for a refusal
+   * that opened no card (the key-card fallback is offered); every other fault propagates unchanged. */
+  isSignInRefusal(input: { error: unknown }, options?: Record<string, never>): boolean;
 }
 
 /** Plugin-declared credential cards and the guarded, read-only token probe. */
@@ -64,23 +62,43 @@ export type AgentPluginMcpSave = SaveExternalMcpServerInput;
 export type AgentPluginMcpView = ExternalMcpServerView;
 export type AgentPluginMcpRepo = Pick<ExternalMcpServerRepoPort, 'findByServerId' | 'upsert' | 'deleteByServerId' | 'updateAccessIfCurrent'>;
 export type AgentPluginMcpAccessSnapshot = import('../../contracts/core/external-mcp-access.js').ExternalMcpAccessSnapshot;
+/** @agent-note A second host supplies all six projections together with the paired
+ * {@link AgentPluginMcpProjectionPorts.classifyError}; preview, provisioning, sign-in revalidation and
+ * status reads must all receive the SAME object, never a per-call default. */
 export interface AgentPluginMcpProjections {
+  /** @agent-note The canonical saved representation of a row's admitted source. The snapshot must be
+   * JSON-serializable with a stable key order: approval revalidation compares JSON.stringify of the
+   * previewed and re-read snapshots byte-for-byte, so any reordering refuses a valid approval. */
   readonly accessSnapshot: typeof import('../../contracts/core/external-mcp-access.js').externalMcpAccessSnapshot;
+  /** @agent-note Canonical saved admission revision; same stability rule as `accessSnapshot`. */
   readonly admissionRevision: typeof import('../../contracts/core/external-mcp-access.js').externalMcpAdmissionRevision;
+  /** @agent-note With `{ strict: true }` an unreadable stored list throws; it never reads as an empty
+   * or fresh grant, which would silently widen or drop an existing grant. */
   readonly readToolGrants: typeof import('../../contracts/core/external-mcp-access.js').readExternalMcpToolGrants;
+  /** @agent-note Throws an error the paired `classifyError` reports as `'validation'`; its message is
+   * the public repair reason shown to the model, so it must never carry credential material. */
   readonly validateToolNames: typeof import('../../contracts/core/external-mcp-access.js').validateExternalMcpToolNames;
+  /** @agent-note Pure: no I/O, no cache, never opens sealed credential material (status reads stay token-free). */
   readonly oauthStatus: typeof import('../../contracts/core/external-mcp-auth.js').resolveExternalMcpOAuthStatus;
+  /** @agent-note Pure: no I/O, no cache, never opens sealed credential material (status reads stay token-free). */
   readonly hasStaticAccessToken: typeof import('../../contracts/core/external-mcp-auth.js').externalMcpRecordHasStaticAccessToken;
 }
+/** @agent-note Bound once per binding/factory and passed whole: a host never supplies one half. */
 export interface AgentPluginMcpProjectionPorts {
   readonly projections: AgentPluginMcpProjections;
+  /** @agent-note Paired with `projections.validateToolNames`: whatever it throws classifies as
+   * `'validation'`. Classification alone does not redact; consumers redact before model text. */
   readonly classifyError: AgentPluginMcpPort['classifyError'];
 }
-export type AgentPluginMcpContext = Partial<AgentPluginMcpProjectionPorts>;
-/** New composition must fulfill the full contract; optional projection defaults exist only for old Tovu entry signatures. */
-export interface AgentPluginMcpServicesPort extends Omit<AgentPluginMcpPort, 'projections' | 'classifyError'>, AgentPluginMcpProjectionPorts {}
+/** Old Tovu entry signatures only: custom projections always come with their classifier. */
+export type AgentPluginMcpContext = AgentPluginMcpProjectionPorts | { readonly projections?: undefined; readonly classifyError?: AgentPluginMcpPort['classifyError'] };
+/** New composition must fulfill the full contract. */
+export interface AgentPluginMcpServicesPort extends Omit<AgentPluginMcpPort, 'classifyError'>, AgentPluginMcpProjectionPorts {}
 export interface AgentPluginSignInPort {
   readonly beginConnect: AgentPluginOAuthPort['beginConnect'];
+  /** @agent-note True only for a refusal that opened NO card, so chat offers the key-card fallback;
+   * any other fault returns false and propagates unchanged. Matching does not make a message safe:
+   * the consumer passes model-facing text through the core redaction boundary. */
   isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
 }
 /** Resource stays concrete through waitAtSignInCard's card callback. */

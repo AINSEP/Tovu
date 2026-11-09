@@ -10,7 +10,7 @@ import { requireToolPermission, type LegacyToolAuthorizeFn as AuthorizeFn } from
 import { ToolInputError, redactSecrets, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { resolveAgentPluginMcpPorts, resolveAgentPluginSignInPort } from "./mcp-host-bindings.js";
+import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
 
 import { chooseApiConnectionDestination } from './connect-destination.js';
 import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
@@ -166,8 +166,9 @@ async function beginSignIn(
     start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin), delivery: 'hosted' });
   } catch (err) {
     // Discovery runs before rendering. A failed start must not leave chat promising a missing card.
-    if (!resolveAgentPluginSignInPort(oauth).isSignInRefusal({ error: err })) throw err;
-    throw new ToolInputError({ message: `${(err as Error).message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.` });
+    if (!oauth.isSignInRefusal({ error: err })) throw err;
+    // A matching classifier does not make the message safe: model text crosses core redaction.
+    throw new ToolInputError({ message: `${redactSecrets({ input: (err as Error).message }, { redactPii: false })}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.` });
   }
   if (start.kind !== "redirect_required") {
     throw new Error(`agent_plugin_connect: '${start.kind}' sign-in is not supported by the connect card yet.`);
@@ -265,7 +266,7 @@ interface PendingOAuthServer {
  *  old env var's boot import, and create-site onboarding all write; `sealedEnv` is a stdio row's env
  *  block and never holds it). Such a row needs no sign-in, and a token import must never overwrite it. */
 export function hasStoredAgentPluginCredential(row: Pick<AgentPluginMcpRecord, "authMode" | "sealedOAuth" | "oauthStatus">, options: AgentPluginMcpContext = {}): boolean {
-  const { projections } = resolveAgentPluginMcpPorts(options);
+  const { projections } = agentPluginMcpPortsOf(options);
   return projections.oauthStatus(row) === "connected" || projections.hasStaticAccessToken(row);
 }
 
@@ -474,7 +475,7 @@ async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, serve
   routeDeps: AgentPluginConnectToolDeps; surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext;
   pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
 }, optional: ToolExecutionOptions = {}): Promise<{ approved: true } | { approved: false; result: AgentPluginConnectResult }> {
-  const preview = () => previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers, repo: routeDeps.mcp.repo, ...resolveAgentPluginMcpPorts(routeDeps.mcp) });
+  const preview = () => previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers, repo: routeDeps.mcp.repo, ...agentPluginMcpPortsOf(routeDeps.mcp) });
   const handler = approvalToolHandler({ surfaces,
     prepare: preview,
     describe: ({ ctx: bound, prepared }) => ({ toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, errorCode: 'AGENT_PLUGIN', title: `Allow access for ${pluginId}?`,
@@ -521,7 +522,7 @@ async function currentSignedInAccess({ routeDeps, pluginId, servers }: {
     if (!config) throw new ToolInputError({ message: `The '${pluginId}' connection declaration changed after approval. Request the access change again. Nothing was granted.` });
     current[key] = config;
   }
-  return { servers: current, preview: await previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers: current, repo: routeDeps.mcp.repo, ...resolveAgentPluginMcpPorts(routeDeps.mcp) }) };
+  return { servers: current, preview: await previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers: current, repo: routeDeps.mcp.repo, ...agentPluginMcpPortsOf(routeDeps.mcp) }) };
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */
@@ -566,7 +567,7 @@ async function waitForMcpConnection(
   const deadline = Date.now() + waitTimeoutMs;
   while (Date.now() < deadline && !ctx.signal.aborted) {
     const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: server.connectionId });
-    if (row && resolveAgentPluginMcpPorts(routeDeps.mcp).projections.oauthStatus(row) === "connected") {
+    if (row && agentPluginMcpPortsOf(routeDeps.mcp).projections.oauthStatus(row) === "connected") {
       return true;
     }
     await sleepOrAbort(Math.min(pollIntervalMs, Math.max(deadline - Date.now(), 0)), ctx.signal);
