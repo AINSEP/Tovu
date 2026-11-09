@@ -1,0 +1,54 @@
+== F2 emitted declaration proof (comment immediately precedes the member/declaration in dist .d.ts)
+-- packages/agent-plugins/dist/connect/executable/ports.d.ts
+116-    readonly apiOrigins: AgentPluginApiOriginsFor;
+117-    /**
+118-     * The token memory that withholds issued tokens from plugin output.
+119-     * @agent-note Pass the host's ONE `IssuedTokenMemories`, the same instance the admin-surface
+120-     * handler host uses: a plugin's tools and its admin-surface handlers share module scope, so a token
+121-     * either path obtained must be withheld from both. A second instance leaks tokens across the paths.
+122-     */
+123:    readonly issuedTokens: IssuedTokenMemories;
+124-    /**
+125-     * The accounts confirmations freeze, keyed by each call's abort signal.
+126-     * @agent-note Pass the SAME `FrozenConnectionAccounts` object the admin-surface connections port
+127-     * uses, so an admin action run as a tool is pinned to the account its confirmation showed, like any
+128-     * tool call; a separate map loses those pins. Omitted, the registrar keeps its own map (tool calls
+129-     * are still pinned, admin actions run as tools are not shared with the admin-surface port).
+130-     */
+131:    readonly frozen?: FrozenConnectionAccounts;
+-- packages/integrations/dist/api-connections/host-ports.d.ts
+139-/**
+140- * What a host binds once for the API-connection runtime.
+141- * @agent-note The host binds its one storage owner, fresh declaration loader, guarded HTTP,
+142- * credential projection and application identity. These ports never construct a host or store.
+143- */
+144:export interface ApiConnectionHostPorts {
+-- floating note gone from file head:
+import type { Clock } from '@jini-ai/core/primitives';
+import type { OAuthAppOptions, OAuthClient, OAuthHttpPorts } from '@jini-ai/core/contracts/oauth';
+import type { ApiConnectionDeclaration, ApiConnectionHooksModule } from './declarations.js';
+-- F3 deferred allowedOrigins note:
+58-    /**
+59-     * The saved credential's allowed origins, projected only when called.
+60-     * @agent-note Deferred on purpose: `resolveByoClient` calls it after the read has resolved and
+61-     * outside the read's "unreadable" catch, so a projection failure (e.g. a malformed saved base URL)
+62-     * rejects with the host's own raw error instead of being reported as an unreadable credential.
+63-     */
+64:    readonly allowedOrigins: () => readonly string[];
+-- F1 toolPermission note:
+171-    readonly applyApproval: ApplyAgentPluginApproval;
+172-    /**
+173-     * The RBAC permission `authorize` must grant before any plugin tool runs (checked per call, scoped
+174-     * to the plugin entity). Host vocabulary: each host names its own permission.
+175-     * @agent-note A second host passes the permission its own RBAC grants to assistant operators; no
+176-     * default exists, so a host never silently inherits another product's permission name.
+177-     */
+178:    readonly toolPermission: string;
+-- F4 ParseMailSetup note:
+2-/**
+3- * Validates a v2 descriptor's declared setup against its credential keys.
+4- * @agent-note Setup validation is supplied by the host runtime (e.g. `@jini-ai/platform/mail`'s
+5- * `parseMailProviderSetupProperty`); this package keeps no copy. Without one, every schemaVersion 2
+6- * descriptor is refused with "this host supplies no mail setup validator"; schemaVersion 1 needs none.
+7- */
+8:export type ParseMailSetup = (required: {
