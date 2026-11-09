@@ -1,6 +1,8 @@
 # EXTRACT-S9
 
-In progress. No extraction gate has passed yet. This inventory is recorded before implementation.
+**STOPPED before C3 — prior frozen Tovu overlay-test drift at the supplied integrated pins. No extraction completed. This is not a time-cap stop.**
+
+The inventory below was committed before implementation. The approved R1 relocation resolves the old S8 layout conflict, but does not authorize edits to the two additional failing overlay tests.
 
 ## Inputs and clock
 
@@ -10,7 +12,7 @@ In progress. No extraction gate has passed yet. This inventory is recorded befor
 - Conservative UTC start `2026-11-09T17:14:00Z`; reserve starts `20:54:00Z`; deadline `21:14:00Z`. Setup is inside the four-hour cap.
 - Actual tools: Node `v24.2.0`, npm `11.3.0`, pnpm `10.33.2`; installed under `/workspace/work/extract-s9/toolchain`, outside tracked source.
 - Jini bootstrap and honest-testing instructions loaded. Missing Tovu AI-Dev-Shop and planning chapters are expected and explicitly waived by the dispatch. No helper agents.
-- Original declaration snapshot is being reproduced from clean `35c4961af718f0f30591c46d2ea2756c4484a731`. No gate substitutes a later baseline.
+- Original declaration snapshot reproduced from clean `35c4961af718f0f30591c46d2ea2756c4484a731` and verified at the end. No gate substitutes a later baseline.
 - S4/S5/S6/S8 are already merged in the supplied integrated base. The trim's historical statement that they are unmerged is superseded by that base. S7 remains unbuilt. C-d is reserved for an independent reviewer.
 
 ## Setup evidence before inventory
@@ -19,7 +21,7 @@ Jini frozen install, core build and recursive build: exit 0. Tovu npm ci, SDK bu
 
 Initial tool installation hit the read-only default npm cache; setting a task-local npm cache fixed setup. One untracked `packages/plugin-ui-ux-design` directory left by the original `work` checkout was proven absent from the integrated Git tree and moved intact to task scratch storage. No tracked or other user file was deleted.
 
-## C3 inventory (before implementation)
+## C3 inventory (recorded before implementation; move not started)
 
 Source provenance is the full Tovu pin above, under `apps/website/src/features/custom-credentials/`. AST extraction identified 29 handler declarations and six copy declarations. The former `isCredentialedRequestShapeRejection` is already absent following the integration repair; it is not recreated. The 15 frozen closure function names still exist. Searches of every Jini package and example found no existing declaration/caller of any moving API, so the existing-Jini-test input allowance remains NONE.
 
@@ -161,4 +163,135 @@ All destinations below are within `packages/integrations/src/credentialed-http/t
 
 ## Baseline and batch results
 
-Pending: fresh original declaration snapshot verification, named tests and full real guard/layer/isolation baseline. No implementation is authorized until the baseline is assessed. No G-deploy/C4 implementation has started.
+Baseline assessed below. The two prior overlay failures invoke the brief's test-drift stop. No C3/G-deploy/C4 implementation started.
+
+### Core dependencies of the moved consumer declarations
+
+All imports below are type-only. Source file:line is at the integrated Tovu pin. No runtime dependency is introduced.
+
+| Source file:line | Types | Resolved defining core subpath | Vocabulary |
+| --- | --- | --- | --- |
+| `credential-tool-host.ts:9` | `AgentToolDefinition`, `DerivedRiskByToolId`, `SurfaceAskThenReport`, `ToolMetadataById` | `@jini-ai/core` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-host.ts:10` | `SurfaceCardApp`, `SurfaceCardFormSpec`, `SurfaceCardsPort` | `@jini-ai/core/contracts/cards` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-host.ts:11` | `CredentialedRequestPort`, `SourceControlWritePort` | `@jini-ai/core/contracts/credentials` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-operations.ts:7` | `ApprovalAnswer`, `ApprovalSteps`, `DerivedRiskByToolId`, `LegacyToolAuthorizeFn`, `SurfaceExchangeStore`, `ToolExecutionContext`, `ToolExecutionOptions`, `ToolHandler` | `@jini-ai/core` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-operations.ts:8` | `SecretCardForm`, `SurfaceDetail`, `SurfaceOutcomeSpec` | `@jini-ai/core/contracts/cards` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-operations.ts:9` | `CredentialAuthSchemeRule`, `CredentialSetConnectionInput`, `CredentialSetSummary`, `CredentialSetTokenHint`, `PluginCredentialCard` | `@jini-ai/core/contracts/credentials` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-operations.ts:10` | `VaultRepoPort` | `@jini-ai/core/contracts/vault` | Shared types; host values remain required declaration inputs. |
+| `credential-tool-operations.ts:11` | `CallerSafeErrorRule`, `ModelFacingErrorRule` | `@jini-ai/core/model-facing-tool-errors` | Shared types; host values remain required declaration inputs. |
+
+Dependency import sites for the runtime closure are its original import declarations in `tool-registrations.ts:2–75` and `credential-copy-tool.ts:1–9`; the symbol-by-symbol owner table above resolves those specifiers. Property names such as `cards.defineSecretCardTool` and `cards.askThenReport` are required inputs, not imports of UI/daemon values into the moved implementation.
+
+## Actual baseline and stop evidence
+
+[Complete gate receipt](extract-s9-gates.json) contains exact commands, exits, PIDs/timestamps, all 99 raw Tovu outputs, exact Jini selections, raw guard output and every isolation finding. Results apply to the unchanged paired source pins listed above; Tovu descendants are report-only. No last fully green extraction pair exists.
+
+### Why this is a mandatory prior-drift stop
+
+Both failing Tovu tests at line 36 require literal `credential_save { kind: "plugin-provider", target: "railway" }` / `target: "render"` in the selected plugin skill. The real resolver points to the pinned Jini `packages/agent-plugins/{railway,render}` directories. Their current instructions instead say `open the secure connection card; it saves as` the API label, without those literal tool calls. Each failing file is 2/3; no extraction or setup edit changed any input.
+
+| Frozen test / failing case | Baseline | Exact pinned dependency |
+| --- | --- | --- |
+| `content/agent-plugin-overlays/railway/__tests__/credential-card.test.mjs:36`: Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement | exit 1, 2 pass / 1 fail | Jini `packages/agent-plugins/railway/skills/railway/SKILL.md:19` |
+| `content/agent-plugin-overlays/render/__tests__/credential-card.test.mjs:36`: Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement | exit 1, 2 pass / 1 fail | Jini `packages/agent-plugins/render/skills/render/SKILL.md:27` |
+
+All four working files were compared byte-for-byte to their full supplied Git pins, not merely to a local source snapshot:
+
+| Repository / path | Git blob at supplied pin | Working bytes |
+| --- | --- | --- |
+| Tovu `content/agent-plugin-overlays/railway/__tests__/credential-card.test.mjs` | `200e5e761ebe23ad2567b843b6d45202a209175d` | identical |
+| Tovu `content/agent-plugin-overlays/render/__tests__/credential-card.test.mjs` | `f0d00933af80bb395e3ce042b9080295788ae6b3` | identical |
+| Jini `packages/agent-plugins/railway/skills/railway/SKILL.md` | `0c91c9d34fe9b457c3fc728026471eac73514f8a` | identical |
+| Jini `packages/agent-plugins/render/skills/render/SKILL.md` | `a34a138ca17d8eb419f9bfde08e84828d9ba3483` | identical |
+
+These tests are explicitly required by R7 and are outside R1's two-file allowance. Neither failure is a waived baseline exclusion. The brief forbids fixing prior behavior or changing another frozen test, so implementation stops rather than adding a waiver. The next assignee is the coordinator/owner to decide how to reconcile these frozen literal assertions with the already-neutral plugin guidance. No repair or assertion change is made here.
+
+The MCP-UI file retains its separately approved two failures: `cli/commands/import-local.ts:151: file` is unresolved and `agent_plugin_connect` is allowlisted without a local opener. The integrated scan reports one unresolved binding plus one unexplained id (rather than the trim's older two-unresolved wording). Neither is counted green. Existing S8-2 additive entries were not duplicated.
+
+### Gates actually run
+
+| Gate | Exit / result |
+| --- | --- |
+| Jini frozen install, core build, full recursive bootstrap | 0 each |
+| Tovu npm ci, SDK build, local Jini link, contracts build | 0 each |
+| Tovu main `npx tsc -p tsconfig.json --noEmit` | 0 |
+| Jini core / integrations / devops / neutral-host `tsc --noEmit` | 0 each |
+| Jini named credential HTTP + package surface + sets | 8 files, 217/217; exit 0 |
+| Jini named deploy + fetch/integration contracts | 22 files, 163/163; exit 0 |
+| Neutral-host credential sets | 1 file, 1/1; exit 0 |
+| Three named checker test files | 3 files, 70/70; exit 0 |
+| Tovu exact named matrix, including all required overlays | 99 files, 1,244 tests: 1,240 pass, 4 fail, 0 cancelled/skipped; aggregate exit 1 |
+| Tovu unchanged C0 stored-row/G-cred recording | 11/11; exit 0 |
+| XP1–XP5 `pnpm check:cross-package` with original snapshot | 0, clean |
+| Full `pnpm guard` after residue removal | 1, only inherited R2/R10; full output below |
+| `pnpm guard:plugins` | 0 |
+| Layer CLI + actual exported `checkPackageLayers` | 0 / `[]` |
+| Isolation CLI + actual exported audit | 0 blocking; 578 closures, SI-c 9 / SI-d 7, all paths/reasons in receipt |
+
+Guard output was personally read in full, including all HW families and all six R13 lines. No scratch finding filter is used as guard evidence:
+
+```text
+2026-11-09T17:29:45.499406+00:00 cwd=/workspace/Jini command=pnpm guard
+
+> jini@ guard /workspace/Jini
+> node --import tsx ./scripts/guard.ts
+
+[hardwiring] HW1-env-default: 17 total; 0 new
+[hardwiring] HW2-vendor-adapter: 16 total; 0 new
+[hardwiring] HW3-module-state: 135 total; 0 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[guard] R13-model-fallback-freshness claude: MF3 SKIPPED — no readable ~/.claude.json and the CLI initialize handshake found nothing (Claude Code not installed/usable here). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness codex: MF3 compared 9 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import "../../agent-plugins/src/core/identity-namespace.js" reaches into another package's src (agent-plugins) — import by package name instead
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports "Icon" from "../../../components/Icon.js" (resolves outside features/chat-pane/**), but "Icon" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+
+2 guard violation(s).
+ ELIFECYCLE  Command failed with exit code 1.
+
+END 2026-11-09T17:30:18.848642+00:00 EXIT 1
+```
+
+Before cleanup, the same guard additionally found exactly five R8 missing-manifest directories: `plugin-ai-trace-langfuse`, `plugin-analytics-posthog`, `plugin-observability-opentelemetry`, `plugin-observability-sentry`, `plugin-payments-stripe`. Each was proven untracked and contained only ignored node_modules and generated plugin payloads; each was moved intact outside the checkout. The sixth earlier residue was `plugin-ui-ux-design`. This was setup cleanup, not a stop or a new waiver.
+
+Tooling corrections: the first full exported audit used ESM named imports against scripts loaded as CommonJS; inspecting the real exports and rerunning with `require` produced the complete audit. The initial matrix summary expected TAP but Node selected the spec reporter; all 99 raw spec summaries were reparsed and verified, giving the actual 1,244/1,240/4 totals above. No test was edited or rerun merely to alter a count.
+
+### Original declaration baseline
+
+Fresh detached scratch checkout at `35c4961af718f0f30591c46d2ea2756c4484a731`; frozen install, core and recursive builds all exit 0. The unchanged S9 checker and verified tsx 4.23.1 loader wrote the snapshot using their own mapping: 3,308 mappings / 3,320 declarations. Tracked original source remained clean before/after/finally.
+
+- Manifest SHA256: `d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459`.
+- Sorted declaration aggregate SHA256: `48f6d4223224dc975edfbdebf1a01a25bf12044dfd1d4f872624571266452d24`.
+- Both reverified at shutdown; the receipt includes raw final hash/count output and original HEAD/cleanliness. Every gate command inherited `JINI_DECLARATION_BASELINE_DIR=/workspace/work/extract-s9/xp3-snapshot`. No snapshot regeneration.
+
+## Preservation, unrun work and delivery
+
+No production, existing test, fixture, pin, metadata, migration, lock, guard, checker, layer, debt or waiver file changed in either repository. No new dependency, runtime layer or package import was added. The only tracked S9 additions are this report and its gate receipt. Existing C0/golden/mail/cost/saved-state tests ran unchanged; no serialization, ciphertext, key, grant, custody or cost behavior was modified.
+
+R1 diffs in full: both are empty. `extract-s8-x-contracts.test.ts` remains in Tovu and passed 4/4; re-homing belongs to the unstarted C3 move. The MCP-UI completeness test is unchanged. No new second-host/vocabulary/declaration test listed in the prospective inventory was written or claimed as evidence.
+
+Remaining work, in order:
+
+1. C3 move, approved test re-home, new public-subpath/second-host/vocabulary tests and its full gate. Inventory only is complete.
+2. G-deploy immutable real-tool recording; no fixture/recording SHA exists for S9.
+3. C4 seam, inventory and its tests/gate.
+4. C4 move, inventories/provenance/new tests and full accumulated gate.
+5. Independent C-d review after the work is eligible; not produced or self-approved in this session. X1/X2/X3 remain later work.
+
+Because no implementation began, new-code lint/complexity, moved emitted JS/d.ts/note inspection, mutation tests, G-deploy hashes and post-move accumulated gate were not run. Baseline builds/types do not stand in for any of those gates. No C3 or later batch passed.
+
+Baseline-only paired source: Tovu `2c9c1a65c0c0bcf8993d6a6b774c37de94ca92aa` / Jini `46cd558de9c6b4fa882b46349450ce3bcf0a378d`. There is no fully green S9 source pair, because the required baseline itself has the additional prior drift above. Source pins have not advanced.
+
+Initial inventory commit pushed on Tovu `cloud/extract-s9`: `0d1f39c0492bfa06ab56537ca617a0ba33fc6820`. Jini `cloud/extract-s9` was pushed and verified at `46cd558de9c6b4fa882b46349450ce3bcf0a378d`; no Jini tracked write/commit. Subsequent Tovu report-only commit/ref verification follows at actual close.
+
+Evidence/shutdown UTC: `2026-11-09T17:39:18.296485+00:00`; elapsed `0.4217` hours of 4. This is an early prior-drift stop, not a cap stop. All 133 recorded child commands have matching exits. Exact process-group inspection found no running task child; remaining defunct entries have already exited and were not killed. No test/server was left running, no broad kill was used, and unrelated processes were untouched.
+
+Session scratch stays under `/workspace/work/extract-s9/`, outside both tracked trees. Prepared move scripts were never executed. No brief or plan was committed. There are no uncommitted source/test changes to hand off.
