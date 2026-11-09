@@ -3,9 +3,9 @@ import { homedir } from 'node:os';
 import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
 import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial, siteKeySourcesForSiteDir } from '#src/features/webhooks/index';
 import { bindDeployOpsRuntime, type DeployOpsToolDeps } from './run-ops.js';
-import * as portable from './portable/ops-secrets.js';
+import * as portable from '@jini-ai/devops/deploy';
 export type { SecretValueSource, SecretTargetInput, SetSecretInput, UnsetSecretInput, SecretComparison, SecretConfirmRequest, SecretNotConfirmed, SecretConfirm, SetSecretResult, UnsetSecretResult } from '@jini-ai/devops/deploy';
-export { SECRET_NAME_PATTERN } from './portable/ops-secrets.js';
+export { SECRET_NAME_PATTERN } from '@jini-ai/devops/deploy';
 const sha256 = (value:string)=>createHash('sha256').update(value,'utf8').digest();
 /** A site-key-shaped value gets the Security page's own fingerprint, so the two can be compared by eye. O(n). */
 export function secretFingerprint(value: string): { fingerprint: string; fingerprintKind: "site-key" | "sha256" } {

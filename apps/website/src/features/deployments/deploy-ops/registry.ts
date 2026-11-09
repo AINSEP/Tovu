@@ -1,4 +1,4 @@
-import { requireDeployPlatform } from './portable/ops-registry.js';
+import { requireDeployPlatform } from '@jini-ai/devops/deploy';
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";

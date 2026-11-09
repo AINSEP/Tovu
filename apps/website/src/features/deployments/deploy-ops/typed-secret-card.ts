@@ -6,7 +6,7 @@ import { askThenReport, type AssistantSurfaceDeps } from '@jini-ai/daemon/surfac
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { DeployOpsSecretCards, SetSecretInput, SecretConfirm } from '@jini-ai/devops/deploy';
 import { bindDeployOpsRuntime, type DeployOpsToolDeps } from './run-ops.js';
-import { collectTypedDeploySecret as collect } from './portable/ops-secret-card.js';
+import { collectTypedDeploySecret as collect } from '@jini-ai/devops/deploy';
 export function bindDeploySecretCards(deps:DeployOpsToolDeps,surfaces?:AssistantSurfaceDeps):DeployOpsSecretCards {
  return {defineSecretCardTool,askThenReport,surfaceExchanges:surfaces?.surfaceExchanges,uriHost:'tovu',defaultLocale:'en',noEmitter:'A typed deployment secret requires an interactive secure card. Nothing was changed.',
  locale:({ctx})=>resolveOperatorLocale({deps,workspaceId:deps.workspaceId,principalId:ctx.principal.id}),
