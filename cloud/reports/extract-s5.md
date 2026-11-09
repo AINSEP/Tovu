@@ -1097,3 +1097,58 @@ Independent Claude verdict and next-session owner approval happen outside this b
 - DONE means the build is complete. It is not Claude approval: the independent Claude review and next-session owner approval happen outside this build.
 
 EXTRACT-S5-C DONE
+
+
+## EXTRACT-S5-X
+
+Follow-up on the existing `cloud/extract-s5` branches. Starting tips verified exactly: Tovu `8f3088ea0d95d2afe849c189dc5925ff4bfb5667`, Jini `c9d06913a35740b4e413d7465cbac1a3a9a20961`. The earlier tested Tovu source `624f769c0a96b9e4564d3068f05efca95e712f57` differs from the starting Tovu tip only by the prior report. First timestamp captured in this executor: 2026-11-09T15:03:50Z; conservative shutdown deadline used: 16:24Z (within the 90-minute cap, including bootstrap). No publication or main-branch changes.
+
+### Five findings and red/green evidence
+
+1. **Provider error codes:** `oauth/src/token-endpoint.ts` now permits only recognized OAuth token/device/error protocol codes in error text. Unrecognized values get a plain unrecognized-error message plus the existing recovery action; their metadata also becomes the safe `invalid_provider_error` sentinel. Known codes retain the old exact message/action bytes. The canary is constructed as concatenated strings, including its value in `error`, not just descriptions/URIs. Existing token-endpoint baseline: **49/49 green** before the fix. New regression first: **3 failures / 13 passes**, exposing the secret in the message at HTTP 200/400/503. Fixed: **65/65** across the old endpoint suite and the new file. A further real-OAuth conformance case proved the actual `ApiConnectionError.message` path: **1 failure / 7 passes** against the old built OAuth output, then **8/8** after rebuilding the fix. No error identity, retry state or retry count changed for recognized codes. Three existing sentinel-message assertions were updated only for the approved unknown-code security behavior.
+2. **Owner workspace:** `SharedExternalMcpOwner.ownerWorkspaceId` is required and supplies both key derivation and the lifecycle record workspace. Tovu's composition and existing shared-sign-in test bind `"project"`. New second-host cases first both failed because the owner store received `"project"` instead of its own workspace; both now pass, including restart/resume for device and redirect grants. Existing Tovu shared-sign-in cases remain green; key construction/order and persisted values for Tovu are unchanged.
+3. **Persisted context:** the `@agent-note` attached to `SharedSignInIssuingContext` explicitly requires lossless storage of the full supplied object, including `mcp: { provider, scopes, url, grant }` and any additional fields. The JSON-round-trip restart cases above verify both completion paths. No serialization or field order changed.
+4. **Deleted scratch dependency:** the existing copy case was reproduced at **5 pass / 1 fail**, with `ENOENT` for its deleted `/home/user/s5/base/Tovu` source. It now reads committed immutable `.txt` source fixtures under `__tests__/fixtures/sign-in-copy-baseline`, derived directly from the original pinned git objects, retaining every old copy assertion and adding exact SHA256 assertions. Focused Tovu run: **17/17** (six port/copy cases plus eleven existing shared-sign-in cases). Fixture provenance records pin `c3801c833a191be51753dcdecd133b0cad6f8945`, blobs `bd997b3ee10e7fffce962eb31fb921ddaa9b38db` and `fc964786bb702c99a2fd0b0948fa447838feaa77`; SHA256 `37403ba581a374961e1435bfe86cafc1abe4db479869107fc3dd45e762811415` / `acec0a97bad6443817cf56ab6df38da02db00d9bedd063d4c4e36bc783b4cc32`. Both fixtures reverified byte-for-byte against those git objects.
+5. **Neutral-host dependencies:** declared `@jini-ai/mcp` and `@jini-ai/oauth` as workspace devDependencies, updated only their importer entries (six lockfile lines), deleted the complete nineteen-line Vitest alias config. The pre-change typecheck showed both missing modules; the standalone hosted sign-in test subsequently passes **2/2** through declared public package exports without aliases. Final full neutral-host typecheck and accumulated two-file result are recorded below.
+
+### Additional vocabulary and contract sweep
+
+Searched all moved production hosted-MCP/store/sign-in modules and core hosted-MCP contracts for host names, UI paths, workspace literals, database/ADR assumptions, original source paths and logger assumptions. Fixed the additional instances found:
+
+- `mcp/.../hosted/store.ts`: host-specific Settings wording, portable database/ADR/keyring references, old OAuth/source/UI-hook paths; neutral descriptions preserve the original reasons and policies.
+- `mcp/.../hosted/{auth,access,revocation,vocabulary,store.memory,connection-gate}.ts`: obsolete host paths and ADR references, stale old gate links, and the claim that the package logs through `console.warn`; the actual host logging port is now named.
+- `integrations/.../hosted-mcp/{sign-in,contracts}.ts`: host routing/database paths and assumed adapters. Contracts now explicitly require sealed durable device codes and the host's authenticated, browser-bound, escaped/origin-checked and bounded browser routes.
+- Shared-owner notes now spell out owner transaction serialization, trusted owner/actor identity and token-free bounded inventory; the lossless context and injected workspace rules are attached to the contracts.
+- Both logging contracts explicitly require non-throwing operator diagnostics which never forward provider details to model text, preserving the service/gate guarantees.
+- `core/contracts/hosted-mcp/{record,config}.ts`: old schema/route/tool implementation references replaced with the host's obligations; provisioning attribution is trusted and set only on creation, and sealed-payload updates preserve other members.
+- Preserved stable persisted protocol identifiers (`external-mcp`, `oauth`, `mcp:`, `shared`) and documented their role; none selects an owner workspace. No new package-to-package dependency was added in moved production code.
+
+The eleven files in the documentation sweep commits compare equal through the TypeScript AST printer with comments removed. The sweep changed no executable/type tokens. Final targeted search found no remaining host vocabulary/path matches in those production areas. Strict changed-production lint passes. Existing fixtures: **26 Tovu / 4 Jini files** byte-identical against the follow-up starting tips, plus the two new pinned fixtures verified independently. Tool metadata remains `a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6`.
+
+### Commits (all on cloud/extract-s5, pulled with rebase before each non-force push)
+
+Tovu:
+
+- `033ba1b8cfc43a919045e55f6a2025f236ae0e95` — fix(external-mcp): bind shared owner workspace to project
+- `1d1e211f73d11bee53a493d00f0a1c8764d165ca` — test(external-mcp): retain pinned sign-in copy fixtures in the repository
+
+Jini:
+
+- `0093e3c28209bdb557027786714430fa453e34a1` — fix(oauth): allow only protocol error codes in token failures
+- `d7bf3bfd74de6ca7f8f2ca1849cfc6f291d13f3a` — fix(integrations): inject shared MCP owner workspace and document persistence
+- `878c822899e47a6819b286e01469ef85fe47fcb4` — fix(examples): declare hosted MCP OAuth dependencies without aliases
+- `89eb5365149957a80d2c6ef2eba275bb3de53eb1` — docs(hosted-mcp): remove host vocabulary and spell out adapter obligations
+- `8b74983de0938798802e99915f9561865b317903` — test(integrations): cover provider error-code secret through real OAuth
+- `1f2d31062fc3ff797b110e3ac7ce9b25e800c44a` — docs(core): make hosted MCP persistence and provisioning rules explicit
+
+- `324103f25d1d87b9b0e497cdd2ed71eee9b34c8b` — docs(hosted-mcp): finish host-neutral storage contract wording
+
+### Verification progress (2026-11-09T15:36Z)
+
+- Four Jini focused builds and four no-emit typechecks pass, as do the full neutral-host typecheck and its two named files (4/4). The final wording-only follow-up has been re-emitted, with AST comparison confirming unchanged code/types; current-tip verification is being completed.
+- XP snapshot rebuilt from the clean ORIGINAL pin with frozen install and complete builds: 3308 mappings, 3320 declarations, 3321 files; manifest SHA256 matches the original report exactly. The snapshot is read-only, write-open refused, and its checksums reverify. Current `check:cross-package` passes XP1–XP5.
+- Three source/JS/declaration entry closures are CLEAN. Negative control rejects 33 forbidden import/export/dynamic/import-type references. Package layers and isolation: 0 violations each; 576 closures, SI-c9/SI-d7 audit entries.
+- Real raw guard read personally: exactly R2-deep-path and R10-chatpane-public-surface, with unchanged HW totals and 0 new; plugin guards pass. The final tip guard is being rerun after the final wording-only commit.
+- Tovu main typecheck passes after cold build completion. Test typecheck is exactly the documented 13-error set; no new error.
+- The original H3 scratch scripts and exact 50-path Tovu list were deleted and were not committed. Reconstructed coverage uses a documented conservative **195-file superset**: both moved domains and S5 tests, relevant caller/connect tests, the exact accumulated nine recovered from the S2 report, and the complete S3 final matrix recovered from its report. No test/assertion was skipped or weakened. This extra scope also runs unrelated bundled-content/seed tests: sixteen failures in six unchanged files have already been reproduced against ORIGINAL S5 pins Tovu c3801c833 / Jini 4044fe3c0. They are prior drift, not repaired or counted green. Full accumulated results and baseline comparison will follow when the run completes.
+- Frozen database replay, full final test totals, commands and shutdown verification remain in progress.
