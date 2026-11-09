@@ -123,10 +123,10 @@ test("plugin.json's keywords reach someone who just says they need a database", 
   }
 });
 
-test("plugin.json's description tells the model to start with agent_plugin_connect", async () => {
+test("plugin.json's description tells the model to start by connecting the Supabase account", async () => {
   const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.ok(parsed.ok);
-  assert.match(parsed.manifest.description ?? "", /agent_plugin_connect/);
+  assert.match(parsed.manifest.description ?? "", /Always start by connecting the Supabase account/);
 });
 
 test("the package packs through the real installer's packer, the eponymous skill and its reference included", async () => {
@@ -144,22 +144,22 @@ test("SKILL.md points at every reference file that exists", async () => {
   for (const reference of references) assert.ok(skill.includes(`references/${reference}`));
 });
 
-test("SKILL.md calls agent_plugin_connect before any Supabase tool", async () => {
+test("SKILL.md connects the account before any Supabase tool", async () => {
   const skill = await readSkill();
-  const connect = skill.indexOf('agent_plugin_connect { pluginId: "supabase" }');
+  const connect = skill.indexOf('Connect the account before any Supabase tool, every time');
   const firstSupabaseTool = skill.search(/mcp__supabase__/);
-  assert.ok(connect >= 0, "SKILL.md must name the agent_plugin_connect call");
-  assert.ok(firstSupabaseTool > connect, "no Supabase tool may come before agent_plugin_connect");
+  assert.ok(connect >= 0, "SKILL.md must require connecting the account first");
+  assert.ok(firstSupabaseTool > connect, "no Supabase tool may come before connecting the account");
 });
 
 test("SKILL.md drops the old setup: no Settings trip, no restart, no chat-pasted token, no project scoping", async () => {
   const skill = await readSkill();
   const connectStep = skill.split("## Step 1. Connect (always first)\n")[1]?.split("## Step 2.")[0];
   assert.ok(connectStep, "the actual first step must exist");
-  assert.ok(connectStep.includes('Call `agent_plugin_connect { pluginId: "supabase" }` before any Supabase tool, every time'));
+  assert.ok(connectStep.includes('Connect the account before any Supabase tool, every time'));
   assert.ok(connectStep.includes("It shows the person a card with a sign-in button."));
   // 8c0ecc58e added a secure card fallback; tokens still never belong in chat or old setup flows.
-  assert.match(skill, /Only if browser sign-in cannot start, open `credential_save \{kind:"plugin-provider",target:"supabase"\}`/);
+  assert.match(skill, /Only if browser sign-in cannot start, open the secure connection card for the plugin’s access-token fallback/);
   assert.match(skill, /never saves a project anon or service-role key/);
   const failureModes = await readFailureModes();
   assert.match(failureModes, /Never ask for the key in chat/);
@@ -203,7 +203,7 @@ test("failure-modes.md covers every failure the plan lists", async () => {
     /asleep/i,
     /mcp__supabase__restore_project/,
     /INIT_FAILED/,
-    /external_mcp_reauth_prompt/,
+    /Request renewed browser sign-in for `supabase`/,
     /429/,
     /change|delete.*data/i,
   ]) {
@@ -217,7 +217,7 @@ test("SKILL.md (G3): small database changes go through execute_sql, the SQL is s
   assert.match(skill, /mcp__supabase__execute_sql/);
   assert.match(skill, /show the SQL/i);
   assert.match(skill, /\*\*Allow\*\* \/ \*\*Allow for this chat\*\* \/ \*\*Cancel\*\*/);
-  assert.match(skill, /Do NOT ask first with `assistant_ask_choice`/);
+  assert.match(skill, /Do NOT offer choices first or in words/);
   assert.doesNotMatch(skill, /ask first before any change/i);
   assert.match(skill, /cancel/i);
   assert.doesNotMatch(skill, /not available yet/i);

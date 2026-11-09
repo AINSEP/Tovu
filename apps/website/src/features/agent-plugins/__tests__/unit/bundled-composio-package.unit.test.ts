@@ -76,7 +76,7 @@ test("SKILL.md names the meta-tools the flow uses and the connection's real tool
   }
   assert.match(skill, /mcp__composio__/);
   // 46a03a47d routes sign-in through the plugin connection owner, which selects its card.
-  assert.match(skill, /agent_plugin_connect \{ pluginId: "composio" \}/);
+  assert.match(skill, /Connecting the account opens the plugin-declared \*\*Connect Composio\*\* card/);
   assert.doesNotMatch(skill, /external_mcp_oauth_connect/);
 });
 

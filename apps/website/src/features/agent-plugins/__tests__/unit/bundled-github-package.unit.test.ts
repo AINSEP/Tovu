@@ -220,8 +220,8 @@ test("SKILL.md distinguishes pushing app source from committing a rendered stati
   const skill = await readSkill();
   assert.match(skill, /app source/i);
   assert.match(skill, /rendered static export|static export/i);
-  assert.match(skill, /source_control_execute_commit/);
-  assert.match(skill, /custom_credential_write_files/);
+  assert.match(skill, /commit through source control/);
+  assert.match(skill, /write named repository files with confirmation/);
 
   const sourceControl = await readReference("source-control.md");
   // The two facts that make the distinction real rather than a naming quibble: the export tool
@@ -239,8 +239,8 @@ test("site-backup.md: a site backup is plan-then-push, private-only, and never f
 
   // The three-way choice is the thing a model gets wrong: a backup of the site itself is neither
   // the rendered export nor a handful of named files.
-  assert.match(skill, /site_backup_plan/);
-  for (const tool of ["site_backup_plan", "site_backup_push", "source_control_execute_commit", "custom_credential_write_files"]) {
+  assert.match(skill, /preview a site backup/);
+  for (const tool of ["preview a site backup", "publish the site backup", "commit through source control", "write named repository files with confirmation"]) {
     assert.ok(backup.includes(tool), `site-backup.md must name ${tool} — the choice between them is the reason it exists`);
   }
 

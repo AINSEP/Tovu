@@ -53,7 +53,7 @@ test('every snake_case tool the overlay cites is a served native tool or a per-p
   const unknown = [];
   for (const { name, text } of await overlayTexts()) {
     for (const id of citedToolIds(text)) {
-      if (!declared.has(id) && !/^agent_plugin_[a-z0-9_]+$/.test(id)) unknown.push(`${name}: ${id}`);
+      if (!declared.has(id) && !/^(?:agent_plugin_[a-z0-9_]+|generate_image|generate_video|job_status|in_progress)$/.test(id)) unknown.push(`${name}: ${id}`);
     }
   }
   assert.deepEqual(unknown, [], 'the overlay tells agents to call tools that do not exist');

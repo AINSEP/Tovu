@@ -35,7 +35,7 @@ test('Render declares one owned API card with a fixed destination, accepted by t
 test('Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement', () => {
   assert.ok(skill.includes('open the secure connection card; it saves as `Render API`.'));
   assert.ok(skill.includes('Writing `render.yaml` needs **no'));
-  assert.ok(skill.includes('deployment_ops_deploy'));
+  assert.match(skill, /assistant uses tools[\s\S]*Then use `start a deployment`/);
   assert.doesNotMatch(skill, /being added|Config generation only/);
   assert.match(skill, /Never offer to replace a working (token|key) unless asked/);
 });

@@ -36,6 +36,7 @@ const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
   "credential_copy_from_project",
   // the host binds this id; Jini opens the exchange
   "deployment_ops_set_secret",
+  "agent_plugin_connect", // the host binds this id; Jini opens the exchange
   // The host binds this synthetic ID through tool-recovery-preset.ts; Jini opens the exchange.
   "assistant_tool_failure_recovery",
   // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests

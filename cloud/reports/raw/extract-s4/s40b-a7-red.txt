@@ -96,12 +96,12 @@ not ok 1 - a host-classified refusal carrying provider secrets reaches the model
   error: |-
     The input was expected to not match the regular expression /abcdefghijklmnopqrstuvwxyz0123456789|A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/. Input:
     
-    "discovery refused for Bearer abcdefghijklmnopqrstuvwxyz0123456789 using ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu."
+    "discovery refused for Bearer abcdefghijklmnopqrstuvwxyz0123456789 using [REDACTED-TEST-VALUE]. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu."
     
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
-  actual: "discovery refused for Bearer abcdefghijklmnopqrstuvwxyz0123456789 using ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu."
+  actual: "discovery refused for Bearer abcdefghijklmnopqrstuvwxyz0123456789 using [REDACTED-TEST-VALUE]. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu."
   operator: 'doesNotMatch'
   stack: |-
     Object.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:46:12)
@@ -134,12 +134,12 @@ not ok 4 - the grant repair reason is redacted too; wording and repair action ar
   error: |-
     The input was expected to not match the regular expression /A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/. Input:
     
-    "The plugin's combined tool grant cannot be saved: tool list rejected near ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Review its tool selection with external_mcp_save before enabling it."
+    "The plugin's combined tool grant cannot be saved: tool list rejected near [REDACTED-TEST-VALUE]. Review its tool selection with external_mcp_save before enabling it."
     
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
-  actual: "The plugin's combined tool grant cannot be saved: tool list rejected near ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8. Review its tool selection with external_mcp_save before enabling it."
+  actual: "The plugin's combined tool grant cannot be saved: tool list rejected near [REDACTED-TEST-VALUE]. Review its tool selection with external_mcp_save before enabling it."
   operator: 'doesNotMatch'
   stack: |-
     Object.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:75:12)

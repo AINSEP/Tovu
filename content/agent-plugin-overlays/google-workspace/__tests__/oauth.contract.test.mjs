@@ -26,6 +26,7 @@ import { createGoogleClient } from '@jini-ai/agent-plugins/google-workspace/lib/
 import accountInfo from '@jini-ai/agent-plugins/google-workspace/tools/account-info.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
+import { apiConnectionCallbackFieldRules } from '../../../../apps/website/src/features/api-connections/oauth-bindings.ts';
 
 // Moved from content/agent-plugins/google-workspace (D-W8): the plugin ships as @jini-ai/agent-plugins/google-workspace.
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
@@ -50,7 +51,7 @@ beforeEach(() => { fake.reset(); });
 async function declaredDescriptor() {
   const file = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
   const { id, module: _module, clients: _clients, ...descriptor } = file.connections[0];
-  return parseApiConnectionDescriptor({ value: { ...descriptor, pluginId: 'google-workspace', connectionId: id } });
+  return parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { ...descriptor, pluginId: 'google-workspace', connectionId: id } });
 }
 
 function memoryRecordStore() {

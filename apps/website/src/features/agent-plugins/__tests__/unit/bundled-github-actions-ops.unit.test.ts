@@ -37,8 +37,8 @@ test("the github skill routes source control/backup apart from deploying with Gi
   const routing = skill.slice(skill.indexOf("## Which job is this?"), skill.indexOf("## What you are allowed to use"));
   assert.match(routing, /Source control and backup/);
   assert.match(routing, /Deploying the host's server with GitHub Actions/);
-  assert.match(routing, /`deployment_ops_deploy`/);
+  assert.match(routing, /`start a deployment`/);
   assert.match(routing, /platform\s+`github-actions`/);
-  assert.match(routing, /`deployment_ops_wait`/);
-  assert.match(skill, /\| Deploy the host's server through its deploy workflow \| `deployment_ops_deploy` with platform `github-actions`/);
+  assert.match(routing, /`wait for deployment completion`/);
+  assert.match(skill, /\| Deploy the host's server through its deploy workflow \| `start a deployment` with platform `github-actions`/);
 });
