@@ -1,0 +1,11 @@
+M	apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+M	apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+M	apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+A	apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts
+A	apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts
+M	apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
+M	apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+A	apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts
+A	apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts
+M	apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+A	apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts

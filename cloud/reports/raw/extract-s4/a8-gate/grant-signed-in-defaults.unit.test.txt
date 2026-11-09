@@ -1,0 +1,48 @@
+TAP version 13
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot turns on a signed-in connection of an on plugin with exactly its declared tools and writes — no restart, no Settings trip
+ok 1 - boot turns on a signed-in connection of an on plugin with exactly its declared tools and writes — no restart, no Settings trip
+  ---
+  duration_ms: 103.016461
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot never switches a plugin on: the seeder's default-off and an operator's off both leave the row and the plugin alone
+ok 2 - boot never switches a plugin on: the seeder's default-off and an operator's off both leave the row and the plugin alone
+  ---
+  duration_ms: 99.082064
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot grants nothing to a connection that is not signed in
+ok 3 - boot grants nothing to a connection that is not signed in
+  ---
+  duration_ms: 61.273851
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot leaves a row whose write grants someone already set (an operator emptied it on purpose)
+ok 4 - boot leaves a row whose write grants someone already set (an operator emptied it on purpose)
+  ---
+  duration_ms: 100.81645
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1622.271424

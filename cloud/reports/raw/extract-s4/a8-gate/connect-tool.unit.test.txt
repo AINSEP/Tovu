@@ -1,0 +1,335 @@
+TAP version 13
+# Subtest: agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token
+ok 1 - agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token
+  ---
+  duration_ms: 68.380397
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' }
+ok 2 - agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' }
+  ---
+  duration_ms: 20.963987
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a plugin with no OAuth server is refused
+ok 3 - agent_plugin_connect: a plugin with no OAuth server is refused
+  ---
+  duration_ms: 3.814542
+  type: 'test'
+  ...
+# Subtest: connect_token_only_uses_plugin_card_without_oauth
+ok 4 - connect_token_only_uses_plugin_card_without_oauth
+  ---
+  duration_ms: 2.943685
+  type: 'test'
+  ...
+# Subtest: token-only card cancelled is never reported connected
+ok 5 - token-only card cancelled is never reported connected
+  ---
+  duration_ms: 2.91578
+  type: 'test'
+  ...
+# Subtest: token-only card expired is never reported connected
+ok 6 - token-only card expired is never reported connected
+  ---
+  duration_ms: 2.963287
+  type: 'test'
+  ...
+# Subtest: token-only card abandoned is never reported connected
+ok 7 - token-only card abandoned is never reported connected
+  ---
+  duration_ms: 14.17371
+  type: 'test'
+  ...
+# Subtest: token-only card refused is never reported connected
+ok 8 - token-only card refused is never reported connected
+  ---
+  duration_ms: 7.750198
+  type: 'test'
+  ...
+# Subtest: token-only card invalid is never reported connected
+ok 9 - token-only card invalid is never reported connected
+  ---
+  duration_ms: 3.166073
+  type: 'test'
+  ...
+# Subtest: token-only card unavailable is never reported connected
+ok 10 - token-only card unavailable is never reported connected
+  ---
+  duration_ms: 2.859147
+  type: 'test'
+  ...
+# Subtest: token-only card error is never reported connected
+ok 11 - token-only card error is never reported connected
+  ---
+  duration_ms: 3.210677
+  type: 'test'
+  ...
+# Subtest: token-only connect reuses a stored credential without prompting or changing grants
+ok 12 - token-only connect reuses a stored credential without prompting or changing grants
+  ---
+  duration_ms: 14.311189
+  type: 'test'
+  ...
+# Subtest: a retained access token uses one fixed access card without replacing credentials: confirm
+ok 13 - a retained access token uses one fixed access card without replacing credentials: confirm
+  ---
+  duration_ms: 19.736671
+  type: 'test'
+  ...
+# Subtest: a retained access token uses one fixed access card without replacing credentials: cancel
+ok 14 - a retained access token uses one fixed access card without replacing credentials: cancel
+  ---
+  duration_ms: 7.672417
+  type: 'test'
+  ...
+# Subtest: oauth_with_token_fallback_still_starts_oauth
+ok 15 - oauth_with_token_fallback_still_starts_oauth
+  ---
+  duration_ms: 7.016318
+  type: 'test'
+  ...
+# Subtest: a saved token with a different owner cannot report this plugin connected
+ok 16 - a saved token with a different owner cannot report this plugin connected
+  ---
+  duration_ms: 9.631002
+  type: 'test'
+  ...
+# Subtest: a saved token with a different endpoint cannot report this plugin connected
+ok 17 - a saved token with a different endpoint cannot report this plugin connected
+  ---
+  duration_ms: 5.912632
+  type: 'test'
+  ...
+# Subtest: token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter
+ok 18 - token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter
+  ---
+  duration_ms: 7.760396
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts
+ok 19 - agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts
+  ---
+  duration_ms: 7.151647
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a skipped stdio helper does not block its OAuth server
+ok 20 - agent_plugin_connect: a skipped stdio helper does not block its OAuth server
+  ---
+  duration_ms: 5.362814
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a device-code grant is refused rather than showing a link with no code
+ok 21 - agent_plugin_connect: a device-code grant is refused rather than showing a link with no code
+  ---
+  duration_ms: 4.555615
+  type: 'test'
+  ...
+# Subtest: OAuth metadata failure reports that no card opened and points to the plugin key card
+ok 22 - OAuth metadata failure reports that no card opened and points to the plugin key card
+  ---
+  duration_ms: 6.119704
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure
+ok 23 - agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure
+  ---
+  duration_ms: 8.830291
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: refuses unknown-plugin before starting sign-in
+ok 24 - agent_plugin_connect: refuses unknown-plugin before starting sign-in
+  ---
+  duration_ms: 4.591942
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: refuses two-servers before starting sign-in
+ok 25 - agent_plugin_connect: refuses two-servers before starting sign-in
+  ---
+  duration_ms: 8.853425
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: refuses no-oauth before starting sign-in
+ok 26 - agent_plugin_connect: refuses no-oauth before starting sign-in
+  ---
+  duration_ms: 3.160252
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: refuses no-surface before starting sign-in
+ok 27 - agent_plugin_connect: refuses no-surface before starting sign-in
+  ---
+  duration_ms: 6.893658
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: abort closes the exchange and returns waiting
+ok 28 - agent_plugin_connect: abort closes the exchange and returns waiting
+  ---
+  duration_ms: 6.943112
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: denied permission provisions no row and emits no card
+ok 29 - agent_plugin_connect: denied permission provisions no row and emits no card
+  ---
+  duration_ms: 0.737304
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row
+ok 30 - agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row
+  ---
+  duration_ms: 7.724805
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row
+ok 31 - agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row
+  ---
+  duration_ms: 9.530721
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, after one access approval and with no new sign-in
+ok 32 - agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, after one access approval and with no new sign-in
+  ---
+  duration_ms: 10.325721
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/connect-installed-CQ40WO/ws/77777777-7777-4777-8777-777777777777
+# Subtest: agent_plugin_connect resolves the installed package without an injected resolver
+ok 33 - agent_plugin_connect resolves the installed package without an injected resolver
+  ---
+  duration_ms: 2587.218324
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in
+ok 34 - agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in
+  ---
+  duration_ms: 12.365142
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect aborts during the polling sleep and cleans up promptly
+ok 35 - agent_plugin_connect aborts during the polling sleep and cleans up promptly
+  ---
+  duration_ms: 7.54753
+  type: 'test'
+  ...
+# Subtest: connect pre-card behavior: unknown
+ok 36 - connect pre-card behavior: unknown
+  ---
+  duration_ms: 4.158479
+  type: 'test'
+  ...
+# Subtest: connect pre-card behavior: no-oauth-service
+ok 37 - connect pre-card behavior: no-oauth-service
+  ---
+  duration_ms: 3.227367
+  type: 'test'
+  ...
+# Subtest: connect pre-card behavior: already-connected
+ok 38 - connect pre-card behavior: already-connected
+  ---
+  duration_ms: 6.501187
+  type: 'test'
+  ...
+# Subtest: connect pre-card behavior: multiple
+ok 39 - connect pre-card behavior: multiple
+  ---
+  duration_ms: 6.636945
+  type: 'test'
+  ...
+# Subtest: connect pre-card behavior: no-emitter
+ok 40 - connect pre-card behavior: no-emitter
+  ---
+  duration_ms: 12.036882
+  type: 'test'
+  ...
+# Subtest: connect closes its exchange when the initial waiting card fails
+ok 41 - connect closes its exchange when the initial waiting card fails
+  ---
+  duration_ms: 7.060491
+  type: 'test'
+  ...
+# Subtest: connect refuses a different plugin's endpoint before OAuth: provisioning-refused
+ok 42 - connect refuses a different plugin's endpoint before OAuth: provisioning-refused
+  ---
+  duration_ms: 8.187494
+  type: 'test'
+  ...
+# Subtest: connect refuses a different plugin's endpoint before OAuth: ownership-changed
+ok 43 - connect refuses a different plugin's endpoint before OAuth: ownership-changed
+  ---
+  duration_ms: 6.673136
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin
+ok 44 - agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin
+  ---
+  duration_ms: 7.341884
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent
+ok 45 - agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent
+  ---
+  duration_ms: 11.404947
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service
+ok 46 - agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service
+  ---
+  duration_ms: 7.192447
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged
+ok 47 - agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged
+  ---
+  duration_ms: 21.947199
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: a server key with no usable connection id is refused before any sign-in
+ok 48 - agent_plugin_connect: a server key with no usable connection id is refused before any sign-in
+  ---
+  duration_ms: 5.743237
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping
+ok 49 - agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping
+  ---
+  duration_ms: 7.769414
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect: default poll timing still reports a connection observed on the first poll
+ok 50 - agent_plugin_connect: default poll timing still reports a connection observed on the first poll
+  ---
+  duration_ms: 9.967442
+  type: 'test'
+  ...
+# Subtest: defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed
+ok 51 - defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed
+  ---
+  duration_ms: 8.479977
+  type: 'test'
+  ...
+# Subtest: agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card
+ok 52 - agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card
+  ---
+  duration_ms: 9.751252
+  type: 'test'
+  ...
+# Subtest: OAuth card copy comes only from the trusted merged loader and the declaring plugin
+ok 53 - OAuth card copy comes only from the trusted merged loader and the declaring plugin
+  ---
+  duration_ms: 18.821114
+  type: 'test'
+  ...
+# Subtest: OAuth validation classification is supplied by the port before any card opens
+ok 54 - OAuth validation classification is supplied by the port before any card opens
+  ---
+  duration_ms: 11.037179
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 54
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7116.061514

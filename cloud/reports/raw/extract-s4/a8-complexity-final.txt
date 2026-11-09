@@ -1,0 +1,6 @@
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-host.ts
+  23:131  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 1 problem (0 errors, 1 warning)
+
