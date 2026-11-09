@@ -1286,3 +1286,122 @@ existing branch/path/size/.git rules and canonical validation errors before perm
 provider-specific owner/repo validation already goes through SourceControlWritePort. Consequently
 the prospective handler closure imports neither the Tovu source-control validator type nor its
 policy module; no source-control implementation or limits move in this batch.
+
+### Fresh baseline and original declarations
+
+Baseline completed on unchanged production/test source before implementation, 15:28:15Z:
+Tovu **54 files / 799 tests / 799 pass / 0 fail, skipped, todo or cancelled**; main tsc exit 0.
+Jini core build/types, integrations build/types, eight integration files **217/217**, neutral-host
+credential-sets **1/1** plus typecheck, three checker files **70/70**, original-snapshot XP1–XP5,
+plugins, layers and isolation all exit 0. Full recursive Jini build and original recursive build
+both exit 0. Raw `pnpm guard` exits 1 with exactly the two inherited findings described below.
+No baseline red was waived. The first dependent Tovu typecheck was accidentally started before
+the full Jini build finished; after correcting that ordering, all declarations and baseline checks
+passed. The first link attempt also used the checkout rather than its `packages/` directory;
+the corrected invocation is `JINI_PACKAGES_DIR=<Jini>/packages npm run link:jini`.
+
+The original XP3 snapshot was reproduced once from clean detached Jini
+**35c4961af718f0f30591c46d2ea2756c4484a731**, with frozen install, core build, recursive build,
+then S8's unmodified checker invoked by absolute path using the verified S8 tsx loader
+(`tsx@4.23.1/dist/loader.mjs`). `--write-baseline` exited 0 with **3308 mappings / 3320 d.ts**.
+Tracked source was clean before/after. The manifest SHA256 is
+**d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459**;
+the sorted declaration aggregate, using the earlier report's exact `find`/`sort`/`sha256sum` method,
+is **48f6d4223224dc975edfbdebf1a01a25bf12044dfd1d4f872624571266452d24**.
+Both match the inherited record. Every formal gate exports this immutable original snapshot;
+it has not been regenerated. All 12 recorded artifacts were hashed and matched before edits.
+
+Additional manifestless ignored residue, inspected and confirmed to have no tracked files before
+removal: `Jini/packages/plugin-{ai-trace-langfuse,analytics-posthog,observability-opentelemetry,observability-sentry,payments-stripe}`.
+These were stale ignored plugin outputs/node_modules, not source. Together with the previously
+listed UI plugin residue, these removals changed no Git blob, guard or waiver.
+
+### Remaining C2 part 2 groups implemented
+
+| Group | Status / actual binding |
+|---|---|
+| Approval handler and human confirm | Complete. `CredentialApprovalDescription` contains only consumed core-shaped fields. Required `approval.handler`, `askHuman`, `describeDelete` are separate inputs. Tovu binds the same core `createApprovalHandler` that its old `approvalToolHandler` used, with the exact always-ask/no-remembered subset this DELETE consumes, and the unchanged Tovu `requireHumanConfirm` over the existing answer-route store. Target resolves before dialog, permission is rechecked after confirmation, abort prevents send, decline sends nothing. No human-confirm/server types leak into the consumer contract. |
+| Plugin cards, forms, recovery/setup diagnostics | Complete. Required `pluginCards.load/find/readValues`, `credentialCardForms.buildPlugin/applyPlugin/create/createOutcome/rotate/rotateOutcome` and `recovery.withSetup`. Tovu binds its existing safe loader/exact-label selection, public-field validation, UI builders and issued diagnostics. Optional loader failures, ownership, fixed destinations, origin-before-probe-before-seal, plaintext custody and safe outputs remain intact. Recovery preserves the issued diagnostic object, not a reconstruction. |
+| Catalog, publish/cache invalidation, locale/translation | Complete. Required `publish.loadProviders/prepareInvalidation` and `locale.resolve/text/hint/translate`. Tovu's optional catalog enrichment is unchanged. Invalidation callback closes over the existing registry/cache and runs after save, never on a failure; it neither reloads nor publishes/deploys anything. Real-binding tests verify registry/cache receiver identity, load counts, same repo/guard and optional failures. |
+| Guard/token/field/worksFor/rules/messages/ids | Complete. Required `policy.guardRepo/cleanToken/assertFreeField/normalizeWorksFor/defaultCategory/isProjectConflict/validateWriteFiles`, canonical model/form allowlists, safe fallback/messages and diagnostic callbacks. Required ids drive every registration handler key, request schema decorator, write-files decorator and save-card routing; risk comes from the supplied map. Category defaults and every interpolated product sentence are host inputs. C1 store operations close over the existing host store through `sets`, so the injected entries accept only narrow core-based actor/surface/store contracts. |
+| Open documentation issue | Fixed. The existing credential-port JSDoc is directly attached to `CustomCredentialToolPorts`. Added missing declaration-local notes to the aggregate host/messages and internal result/submission/context contracts. Both source and real emitted declarations retain their notes. |
+
+New fully injected entries: `createCredentialToolRegistrations` and `createCredentialSaveHandlers`.
+The old `build*`, `createCustomCredentialsRegistrations`, `createCustomCredentialsToolRegistrations`,
+`createApiCredentialSaveHandlers` and `createApiCredentialSaveToolHandlers` retain their signatures;
+they bind Tovu operations explicitly. `bindTovuCredentialToolOperations` is the compatibility binder.
+No C3 handler or other runtime code moves to Jini. No deployment/source-control/server/HTTP/policy
+implementation is extracted. No new package, dependencies, exports, lock changes or changeset is
+needed for these Tovu-local seams; earlier S8 public entries/changesets remain unchanged.
+
+Declaration obligations cover provider/plan identity, same store/vault/transaction, current scope
+and grants, authenticated actor, target/dialog/decrypt/save ordering, compare-and-swap/private context,
+issued-diagnostic provenance, secret custody and trusted metadata. Field names
+`label/baseUrl/category/username/token/worksFor`, lifecycle statuses, the scope `site`, DELETE and
+the secret-card path layout are existing neutral/persisted protocol, not product defaults. The API
+adapter return keys `create/rotate/pluginProvider` are private composition roles, not tool ids.
+All tool ids, permissions, entity/domain/catalog path, namespace/apps, category defaults, product
+words, errors, descriptions, examples and URLs consumed by the injected closure are supplied.
+
+### Commits, tests, repairs and C2 gate
+
+Tovu `cloud/extract-s8`, every commit pushed after a pre-push pull/rebase and ls-remote verified:
+
+| Kind | Full SHA |
+|---|---|
+| First inventory | 463e647447a3cd0929b145be4860c58a2fcdc6e7 |
+| Actor/store closure inventory | 3538f2467364601f54c36274197a72ff80a03caf |
+| Write-validation closure inventory | 51270fd10ee1aebb5f8e6509ae0d36f52981e513 |
+| Implementation (preserved before validation) | de3134c97d3d25f7252d02c8f0b4d6b44550c1c9 |
+| Independent host/declaration tests and notes | f64bf3d32c1216bc5e07169173c8aec84193c7e4 |
+| Real binding tests | 2a061288765a9470812487780ec588fd869d073c |
+
+Jini stays **a266ba82144d9c7d8078ef7d056ff8c748d607e6**. No Jini source commit in this continuation.
+
+New tests, all named in the pre-implementation inventory:
+- `apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts`: **14 tests**. Independent host with foreign permissions/entity/domain/ids/catalog path, namespace/apps/approval path, URLs, category, copy and locale. Exercises list hints/owned labels, issued recovery identity, actual human answer exchange, decline, approval/revocation, creation/defaults/cleanup/worksFor, plugin form/read/probe refusal, current username on rotation, safe model/form errors, duplicate and public-field errors, provider/plan identity, missing channels/cards, plus real Tovu catalog/cache/repo/guard and optional-loader bindings.
+- `apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts`: **4 tests**. Pure core type imports, declaration-local notes preserved through declaration emission, correct attachment of the port note, and AST inspection of the intended handler/helper closure for product literal defaults and broad Tovu dependency types.
+
+Repairs: initial strict lint rejected three redundant optional/undefined annotations; removed them
+without a suppression. The first new duplicate test submitted `label` through a test form declaring
+only `token`; declared the public label/origin/username fields in that independent test form and
+retained the original assertion. No pre-existing test/input/assertion was edited. The isolated old
+reader initially ran as `.ts` outside an ESM package and failed before reading data; using `.mts`
+fixed the harness, with the old checkout untouched. Setup/cache/link/order repairs are above.
+No production behavior bug was waived or repaired by changing an expectation.
+
+Mutation proof: temporarily hard-coded the list handler key instead of `operations.ids.list`.
+The independent-host file failed **7 tests / 14**, exit 1, naming the supplied
+`acme/catalog/keys.ts` drift; restoring the exact source produced the full green C2 gate below.
+The mutation was never committed and left no diff. No fixture/golden was minted or reminted.
+The four byte hashes are the already-recorded original S8 values.
+
+C2 completion gate at source pair **Tovu 2a061288765a9470812487780ec588fd869d073c /
+Jini a266ba82144d9c7d8078ef7d056ff8c748d607e6**, completed 15:55:12Z:
+
+| Check | Actual result |
+|---|---|
+| Tovu relink / contracts build / main tsc | 0 / 0 / 0 |
+| Explicit compile of all 11 S8 test/pin/support files, including both new files | 0 |
+| Actual `tsc --declaration --emitDeclarationOnly` on both consumer contract modules, comments retained | 0; notes inspected in emitted d.ts |
+| Tovu named accumulated matrix, all C0/C1/C2/new tests | **56 files / 817 tests / 817 pass**, every file exit 0; no skipped/todo |
+| Tovu eslint, every S3-to-tip added/modified TS file (24 files), max-warnings 0 | 0 |
+| Explicit no-inline-config cyclomatic and cognitive ceiling 10 on all three changed production TS files | 0 |
+| Jini core build/types, integrations build/types | 0 / 0 / 0 / 0 |
+| Jini eight integration files / neutral host + types / three checker files | 217/217 / 1/1 + 0 / 70/70; all exits 0 |
+| Jini eslint, all seven S8 changed TS files, max-warnings 0 | 0 |
+| Original-snapshot XP1–XP5 | 0, clean |
+| Raw guard / plugin guard | 1 (exact inherited two findings) / 0 |
+| Layers / isolation commands and actual exported-checker audit | 0 / 0 / 0; layers [], blocking isolation 0, SI-c=9/SI-d=7 |
+| C0 replay / isolated old reader at Tovu 3f19a8bdb | 11/11, exit 0 / **3/3 rows accepted**, exit 0 |
+
+The layer/isolation files export checker functions: merely loading those files is not independent
+proof. The full guard invokes them, and this continuation additionally calls `checkPackageLayers`
+and `auditSubpathIsolation` directly against the checkout and reads their full findings. The only
+audit findings are the same c/d asset/aggregate advisories, nine/seven respectively.
+Core `contracts/credentials.js`, `cards.js` and `vault.js` each contain only `export {};` plus the
+source-map comment. No contracts gain runtime/Node imports.
+
+UTC progress: baseline 15:28:15Z (25m15s elapsed); implementation/new tests 15:45:50Z (42m50s);
+C2 gate complete 15:55:12Z (**52m12s elapsed, 127m48s remaining**). The original deadline stays
+18:03:00Z. F8 is next; no C3/G-deploy/C4 work is authorized here.
