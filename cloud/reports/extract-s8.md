@@ -286,15 +286,15 @@ No background process left running (the single test loop exited 0).
 
 ## C2 part2
 
-## F8
+## F8 — see end of report
 
-## Shared-lane files
+## Shared-lane files — see end of report
 
-## Processes
+## Processes — see end of report
 
 Setup/baseline: all background runners (install/build, link/tsc, original-checkout build, per-file test loop) exited; none left running.
 
-## Final status
+## Final status — see end of report
 
 ## C1 seam — inventory
 
@@ -847,3 +847,231 @@ Gate (T run from Tovu root; Node 24.2.0; raw outputs kept in the session scratch
 
 XP: no Jini change in this part, so no new/modified J specifiers, declarations or dependencies. Advance caller search: the new inputs are behind new T functions; the old T entries keep their signatures, so no J caller (none exists) and no T caller needs edits. Shared-lane files touched: none. No process left running (both background runners exited 0).
 Remaining for C3 (not seamed here): see the "Remains for C3" column of the plan above — tool ids/handler keys, model-facing error rules and form messages, locale/translation, `defineSecretCardTool`/`askThenReport`/approval injection in tool-registrations, part 1 port consumption in handlers, deploy/publish/cache ports, abort guard, pluginCards/credentialCardForms/recovery, cleanCardToken/assertCredentialFreeField/worksFor.
+
+## F8
+
+Final accumulated gate, run 08:12Z–08:20Z against the final source pair: **Tovu 463f56a8f0fdcc8703badaf5c6fd0fbafd2bf2de (source; tip 3862f79b is report-only) / Jini a266ba82144d9c7d8078ef7d056ff8c748d607e6**. Every result below comes from this run. No earlier green result was reused. Toolchain node 24.2.0 / npm 11.3.0 / pnpm 10.33.2.
+
+### 1. Start-to-tip diffs (git only)
+
+`git diff --name-status <start pin> <tip>`:
+- Tovu c3801c83..463f56a8: 25 paths. Every one is an addition except these five modified production files: `features/custom-credentials/{credential-copy-tool,store,tool-registrations,types,vault-repo}.ts`, plus the report. No pre-session test or fixture shows M, D or R: each non-A path was checked against `git cat-file -e <pin>:<path>`, and no `__tests__`/fixture path is among them. No migration, package.json, lockfile, guard, checker, layer or debt path changed.
+- Jini 4044fe3c..a266ba82: 11 paths. Additions: three changesets, `examples/neutral-host/src/credential-sets.test.ts`, `packages/integrations/src/credentialed-http/sets/{host,index,store,vault-repo}.ts`, and `sets/__tests__/extract-s8-sets.unit.test.ts`. Modified: `packages/core/src/contracts/credentials.ts`, which only adds types (+318 lines; the only new import is `import type … from "./vault.js"`), and `packages/integrations/package.json`. The package.json diff touches only the `./credentialed-http/sets` export, the runtime map and the typesVersions entries. `dependencies`, `peerDependencies` and `optionalDependencies` are unchanged. No guard, checker, layer, debt or server change, and no pre-session J test changed.
+- New session tests and fixtures, with the commits that touched each one:
+  - T `extract-s8-g-cred.integration.test.ts`: 3e3eaa1d, then 2730484e (typing/lint)
+  - the four `fixtures/extract-s8/*.json` files: recorded at 3e3eaa1d and never touched again
+  - `extract-s8-c1-old-shape.types.test.ts`: af4c1cdd
+  - `extract-s8-c1-second-host.test.ts`: af4c1cdd, then 1a8e1bd4 (lint)
+  - `extract-s8-c1-source-scan.test.ts`: af4c1cdd, 98212b56, and afa3b2c3. The afa3b2c3 change is the coordinator-approved retarget recorded under C1 move. It is a session-new test, not an old one.
+  - `extract-s8-c2p1-credential-ports.test.ts` and `extract-s8-c2p1-ports.type-pin.ts`: 09317cc0
+  - `extract-s8-c2p2-host-inputs.test.ts` and `extract-s8-c2p2-pins.support.ts`: f71c8de6, then 463f56a8
+  - J `extract-s8-sets.unit.test.ts` and neutral-host `credential-sets.test.ts`: b86e8a76
+
+### 2. Hashes
+
+Base fixtures and inherited pins are compared with the start pin. New C0 fixtures are compared with their recording commit, 3e3eaa1d. Each hash below was computed at the reference commit and is byte-equal to the tip and to the working tree. Nothing was reminted.
+
+| T-relative file | reference | sha256 (reference = tip) | result |
+|---|---|---|---|
+| assistant/__tests__/fixtures/tool-metadata.baseline.json | c3801c83 | a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6 | MATCH |
+| assistant/__tests__/fixtures/moved-tools.golden.json | c3801c83 | 3583bc14fa8c596d64a2e97a274166f87a0ea278aed3f8c12b926552b7fc5f66 | MATCH |
+| assistant/__tests__/fixtures/moved-tools.access-token.golden.json | c3801c83 | 61e018a56d59eee3a4b44055136c9a7c6144c5a6b13a948c8f90ebb8b14ca16e | MATCH |
+| assistant/__tests__/fixtures/moved-tools.credential-cards.golden.json | c3801c83 | 3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01 | MATCH |
+| server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json | c3801c83 | 2be1488c8e4556b71b759536dccac88c78612a22200aa6843748f62cb78e736c | MATCH |
+| features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts | c3801c83 | 57a312280c8e890a00683ab3ce7419bc245e9aebe82821c18a6715698f96e902 | MATCH |
+| server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts | c3801c83 | 63af6d71b754bb755035f8777570cc340834c783d7a28477467000169b879d80 | MATCH |
+| features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts | c3801c83 | f31899fa0d573d28ae1540ec12ddb45f91efcb89a83ee0798adcbbca085fb88e | MATCH |
+| features/custom-credentials/__tests__/fixtures/extract-s8/expected-open.json | 3e3eaa1d | d39fd19a727e6a53fe056d78d94acc1ca7901695e01f167eb978291485ee74fe | MATCH |
+| features/custom-credentials/__tests__/fixtures/extract-s8/expected-summaries.json | 3e3eaa1d | 49ed30a958a5ea747142efe621ccb9d8a38abf71aa660832541e6672cabcd5fc | MATCH |
+| features/custom-credentials/__tests__/fixtures/extract-s8/stored-rows.json | 3e3eaa1d | 45f7a3839cb1bdb9cfef586c4bc63994e8f8111f1fdb247f7bf3c3faccaf60a2 | MATCH |
+| features/custom-credentials/__tests__/fixtures/extract-s8/synthetic-key.json | 3e3eaa1d | 83e9ca08c77be7c3329d09ad598dea5ad23104322aeedbc39ed8e715b0343e5a | MATCH |
+
+The metadata baseline equals the start hash. The golden tests passed against these unchanged fixtures (moved-tools golden ×3, the tool-registrations contracts 36/36, mail-send golden, cost-counters baseline 4/4). Tool schemas, text, approvals and cards are therefore byte-equal to the start. No migration file is in either diff.
+
+### 3. Jini gates (cwd Jini; commands as in the setup ledger)
+
+| step | command | exit | result |
+|---|---|---|---|
+| core build | `pnpm --filter @jini-ai/core run build` | 0 | |
+| core tsc | `pnpm --filter @jini-ai/core exec tsc --noEmit` | 0 | |
+| integrations build | `pnpm --filter @jini-ai/integrations run build` | 0 | |
+| integrations tsc | `pnpm --filter @jini-ai/integrations exec tsc --noEmit` | 0 | |
+| integrations vitest | credentialed-http auth-failure-diagnostic 17, credentialed-request 99, credential-probe 49, auth-schemes 23, response-redaction 17, ports.contract 6; package-surface 1; sets extract-s8-sets 5 (`--maxWorkers=2 --minWorkers=1`) | 0 | 8 files / 217 pass |
+| neutral host | `pnpm --filter @jini-example/neutral-host exec vitest run src/credential-sets.test.ts` ; `run typecheck` | 0 / 0 | 1/1 |
+| scripts | `vitest run scripts/__tests__/{check-no-cross-package,extract-s3-checker,extract-s3-source-contracts}.test.ts` (with baseline dir) | 0 | 3 files / 70 pass |
+| XP | `JINI_DECLARATION_BASELINE_DIR=<original snapshot> pnpm check:cross-package` | 0 | "XP1–XP5 clean" |
+| guard | `pnpm guard` | 1 | exactly 2 = baseline (below) |
+| guard:plugins | `pnpm guard:plugins` | 0 | clean |
+| layers | `node --import tsx scripts/check-package-layers.ts` | 0 | no failures |
+| isolation | `node --import tsx scripts/check-subpath-isolation.ts` | 0 | no failures; SI audit c=9 d=7 |
+| eslint | `pnpm exec eslint <every A/M .ts since pin>` | 0 | 0 problems |
+
+The original declaration snapshot was checked before use and is unchanged: manifest.json sha256 d836eba0…d459, aggregate d.ts hash 48f6d422…2d24 (both equal the setup record).
+
+Guard families (complete output read; 25 lines): R2-deep-path 1 (`packages/plugin-catalog/scripts/generate.ts` → agent-plugins src, pre-existing), R10-chatpane-public-surface 1 (`ChatPane.tsx` Icon, pre-existing). HW1/2/3/4/5/6/7/8/9 = 17/16/135/1/0/0/0/49/0, 0 new each. R13 informational only, as at baseline. No N1, R8 or other family. This is identical to baseline.
+
+Emitted output inspection:
+- `core/dist/contracts/credentials.js` is exactly `export {};` (XP4: types only). `credentials.d.ts` carries 18 `@agent-note`s.
+- The `integrations/dist/credentialed-http/sets/*.d.ts` files carry their notes: host 6, index 1, store 6, vault-repo 3. The source store.ts has 7. The extra source note sits on a non-exported internal and is not part of the public declarations.
+- Every import in the sets d.ts/js is either `@jini-ai/core/{primitives,contracts/credentials,contracts/vault}` (type-only) or a same-package relative import. No other Jini package is imported, and core imports no Jini package.
+
+Manual vocabulary review of all moved and added J code:
+- No `tovu`, `ui://`, custom-credentials, Shared Keys/Access Tokens, P25_*, site-chat or example.com strings.
+- Owner key, categories, token policy, wording, scopes and errors are host inputs. The neutral host proves this with its own owner `library-host` and categories `books|tools`.
+- The `saveKind`/`category` strings already in core are pre-session text.
+
+### 4. Tovu gates (cwd Tovu root)
+
+| step | command | exit |
+|---|---|---|
+| relink | `JINI_PACKAGES_DIR=/home/user/Jini/packages npm run link:jini` | 0 (0 links changed; already linked) |
+| contracts | `npm --prefix packages/contracts run build` | 0 |
+| main tsc | `npx tsc -p tsconfig.json --noEmit` | 0 (25 s) |
+| explicit pins | `npx tsc -p <tsconfig extending tsconfig.tests.json, files = …>` for C0 (g-cred), C1 (old-shape/second-host/source-scan), C2p1 (credential-ports + ports.type-pin), C2p2 (host-inputs + pins.support), and one all-pins config covering all 8 new files | 0 ×5 |
+| eslint | `npx eslint --max-warnings 0 <20 A/M .ts since pin>` | 0 |
+| biome (repo `lint`) | `npx biome lint <same 20>` | 0 errors |
+
+The biome run reports 55 warnings, all pre-existing in style or in new tests. They are mostly `noNonNullAssertion` in the new tests. The modified production files have no new warnings: tool-registrations.ts 2 at pin and 2 now, vault-repo.ts 5 at pin and 1 now. There are no suppressions.
+
+Tests were run one file at a time:
+```sh
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx \
+  --import ./development/test-support/composed-bundle-env.ts \
+  --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/<file>
+```
+The run covered 53 files: the C1 matrix, the C2 matrix, the accumulated nine, the three inherited S3 tests and all six new session test files. **Every file exited 0. 790 tests, 790 pass, 0 fail.** The C2 part 1 total was 780; the extra 10 are the new C2 part 2 host-input test.
+
+| file (T-relative) | exit | tests | pass | fail |
+|---|---|---|---|---|
+| assistant/__tests__/custom-credential-tools-search-discoverability.test.ts | 0 | 9 | 9 | 0 |
+| assistant/__tests__/moved-tools.access-token.golden.test.ts | 0 | 1 | 1 | 0 |
+| assistant/__tests__/moved-tools.credential-cards.golden.test.ts | 0 | 1 | 1 | 0 |
+| assistant/__tests__/moved-tools.golden.test.ts | 0 | 1 | 1 | 0 |
+| assistant/__tests__/tool-registrations.contracts.test.ts | 0 | 36 | 36 | 0 |
+| assistant/__tests__/tool-registrations.custom-credentials-egress-refusal.integration.test.ts | 0 | 6 | 6 | 0 |
+| features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts | 0 | 12 | 12 | 0 |
+| features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts | 0 | 1 | 1 | 0 |
+| features/custom-credentials/__tests__/auth-failure-diagnostic.unit.test.ts | 0 | 27 | 27 | 0 |
+| features/custom-credentials/__tests__/auth-schemes.unit.test.ts | 0 | 21 | 21 | 0 |
+| features/custom-credentials/__tests__/create-agent-tool.unit.test.ts | 0 | 39 | 39 | 0 |
+| features/custom-credentials/__tests__/credential-copy-tool.test.ts | 0 | 6 | 6 | 0 |
+| features/custom-credentials/__tests__/credential-recovery.unit.test.ts | 0 | 6 | 6 | 0 |
+| features/custom-credentials/__tests__/credential-save-probe.test.ts | 0 | 22 | 22 | 0 |
+| features/custom-credentials/__tests__/credential-save-tool.unit.test.ts | 0 | 31 | 31 | 0 |
+| features/custom-credentials/__tests__/credential-works-for-form.unit.test.ts | 0 | 6 | 6 | 0 |
+| features/custom-credentials/__tests__/credentialed-request.unit.test.ts | 0 | 63 | 63 | 0 |
+| features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts | 0 | 1 | 1 | 0 |
+| features/custom-credentials/__tests__/extract-s8-c1-second-host.test.ts | 0 | 8 | 8 | 0 |
+| features/custom-credentials/__tests__/extract-s8-c1-source-scan.test.ts | 0 | 6 | 6 | 0 |
+| features/custom-credentials/__tests__/extract-s8-c2p1-credential-ports.test.ts | 0 | 7 | 7 | 0 |
+| features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts | 0 | 10 | 10 | 0 |
+| features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts | 0 | 11 | 11 | 0 |
+| features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts | 0 | 7 | 7 | 0 |
+| features/custom-credentials/__tests__/list-agent-tool.unit.test.ts | 0 | 15 | 15 | 0 |
+| features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts | 0 | 23 | 23 | 0 |
+| features/custom-credentials/__tests__/project-scope.unit.test.ts | 0 | 11 | 11 | 0 |
+| features/custom-credentials/__tests__/resolve-by-label.unit.test.ts | 0 | 71 | 71 | 0 |
+| features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts | 0 | 26 | 26 | 0 |
+| features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts | 0 | 12 | 12 | 0 |
+| features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts | 0 | 13 | 13 | 0 |
+| features/custom-credentials/__tests__/update-username.unit.test.ts | 0 | 8 | 8 | 0 |
+| features/custom-credentials/__tests__/vault-repo.tw4.unit.test.ts | 0 | 13 | 13 | 0 |
+| features/custom-credentials/__tests__/write-files-confirmation.test.ts | 0 | 11 | 11 | 0 |
+| features/custom-credentials/__tests__/write-files-network-failure.model-facing.test.ts | 0 | 5 | 5 | 0 |
+| features/custom-credentials/__tests__/write-files-validation.unit.test.ts | 0 | 50 | 50 | 0 |
+| features/project-keys/__tests__/attached-vault.unit.test.ts | 0 | 2 | 2 | 0 |
+| features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts | 0 | 3 | 3 | 0 |
+| features/source-control/__tests__/provider-registry.unit.test.ts | 0 | 16 | 16 | 0 |
+| features/source-control/__tests__/repository-target.unit.test.ts | 0 | 4 | 4 | 0 |
+| features/source-control/__tests__/tool-registrations.dry-run.test.ts | 0 | 8 | 8 | 0 |
+| features/source-control/__tests__/tool-registrations.unit.test.ts | 0 | 33 | 33 | 0 |
+| platform/secrets/__tests__/store-vault-guards.unit.test.ts | 0 | 10 | 10 | 0 |
+| platform/secrets/__tests__/vault-kinds.unit.test.ts | 0 | 79 | 79 | 0 |
+| platform/secrets/__tests__/vault-meta-rules.unit.test.ts | 0 | 11 | 11 | 0 |
+| server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts | 0 | 5 | 5 | 0 |
+| server/runtime/boot/__tests__/mail-send.golden.test.ts | 0 | 1 | 1 | 0 |
+| server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts | 0 | 1 | 1 | 0 |
+| server/runtime/composition/__tests__/cost-counters.baseline.test.ts | 0 | 4 | 4 | 0 |
+| server/runtime/composition/__tests__/site-saved-keys.integration.test.ts | 0 | 1 | 1 | 0 |
+| server/runtime/composition/__tests__/vault-plugin-state.integration.test.ts | 0 | 2 | 2 | 0 |
+| server/runtime/composition/__tests__/vault-unified-credentials.integration.test.ts | 0 | 8 | 8 | 0 |
+| server/runtime/composition/__tests__/wiring-identity.test.ts | 0 | 6 | 6 | 0 |
+
+### 5. C0 new→old replay (against final code)
+
+1. `EXTRACT_S8_G_CRED_REPLAY_DIR=<dir>` was set on the unchanged C0 test at the final code: 11/11 pass, exit 0. The run dumped the rows the moved code wrote.
+2. The pinned old reader re-read those rows from a detached Tovu worktree at 3f19a8bd (C0 code, before any move). It used the same synthetic key and the same SQL facade: **3/3 rows accepted, exit 0.**
+
+New-format rows written by moved code stay readable by the pre-move reader.
+
+### 6. Shared-lane check method
+
+`git fetch origin cloud/extract-s4 cloud/extract-s5 cloud/extract-s6` was run in both repos. Each lane descends from the S8 start pins: merge-base = pin. For each lane, `git diff --name-only <pin> origin/cloud/extract-sN` was intersected with S8's pin..tip name list. Results are in "Shared-lane files" below.
+
+Lane tips: Tovu s4 e74957c8, s5 01928354, s6 f0ae77a5; Jini s4 92b4eb7d, s5 183915bb, s6 7fd1ab74.
+
+## Shared-lane files
+
+The intersections below were checked against actual diffs (method above). This list supersedes the "Shared-lane files: none" lines in the C1 move and C2 part 1 sections: those lines were about Tovu only, and the Jini overlap below was not listed there.
+
+| repo | file | other lane | S8 reason and hunk | other lane's hunk | conflict |
+|---|---|---|---|---|---|
+| Jini | `packages/integrations/package.json` | S5 (cloud/extract-s5, H0–H3) | C1 move public entry. It adds `"./credentialed-http/sets": "node"` to the `jini` runtime map after `./credentialed-http`. It also adds an `exports["./credentialed-http/sets"]` block (types/import/default → `dist/credentialed-http/sets/index.*`) and a `typesVersions` `credentialed-http/sets` entry. | Adds `./api-connections/hosted-mcp` to the runtime map after `./api-connections`, plus its `exports` block. | Different keys, so the hunks are disjoint. Their context lines are near each other (runtime map at lines 16–21), so a later merge may need a trivial textual resolve. There is no semantic overlap and no dependency field is touched. |
+
+- Tovu: **none.** S8 touched 25 paths and none intersects the S4 (233), S5 (26) or S6 (20) path lists. The S8 changes to `tool-registrations.ts` and `credential-copy-tool.ts` are not in any lane diff. S8 did not touch `server/runtime/composition/deps.ts` (S4), `tool-catalog-manifest.ts`, `features/external-mcp/**` (S5) or `features/plugin-runtime/**` (S6).
+- Jini: the S4 and S6 lanes have no intersection. The only S5 intersection is the row above.
+
+## Processes
+
+| owner | recorded PIDs / runners | state |
+|---|---|---|
+| Setup | 1045, 1046, 3681, 3682, 5014 | all exited |
+| C0 | single test loop | exited 0 |
+| C1 seam | full rerun PID 22384 | exited |
+| C1 move, C2 part 1, C2 part 2 | per-file loops and Jini gate scripts, foreground or awaited | all exited |
+| F8 | gate chain PID 18363 (Jini gate, then Tovu gate); replay and old reader in the foreground | chain exited (JDONE-0 / TDONE-0) |
+
+After F8, `ps` shows no node, vitest, tsc, npm or pnpm process. **Nothing is left running.** These scratch worktrees remain on disk and run nothing: the original Jini checkout at 35c4961a and the Tovu C0 worktree at 3f19a8bd.
+
+## Final status
+
+- **Tips:** Tovu cloud/extract-s8 = the commit that adds this F8 section (report-only; see the verified ls-remote below). Before that it was 3862f79bf4e61fe4d790a550805acb2fc715f33d. Jini cloud/extract-s8 = a266ba82144d9c7d8078ef7d056ff8c748d607e6, unchanged since C2 part 1.
+- **Last verified GREEN source pair (F8):**
+  - Tovu source 463f56a8f0fdcc8703badaf5c6fd0fbafd2bf2de. The report-only commits after it are 3862f79b and this F8 commit.
+  - Jini a266ba82144d9c7d8078ef7d056ff8c748d607e6.
+- **Batches:**
+  - C0: complete and green (Tovu 3e3eaa1d, 2730484e, report 3f19a8bd).
+  - C1 seam: complete and green (Tovu af4c1cdd, 1a8e1bd4, 98212b56, report 43a0e5d4; Jini 23c19e2a, 41ff2ffe).
+  - C1 move: complete and green (Tovu 610441e9 inventory, cc12641d, afa3b2c3; Jini 63e11c5d, b86e8a76).
+  - C2 part 1: complete and green (Tovu 82d0058c inventory, 09317cc0, report 0dbf0072; Jini a266ba82).
+  - **C2 part 2: PARTIAL.** It is a green subset: Tovu 3aa67be7 plan, f71c8de6 seams and tests, 463f56a8 test fix, 3862f79b report; Jini unchanged.
+  - **F8: GREEN** on the pushed work. Diffs are clean, 12/12 hashes match, all Jini builds/tsc/tests (217+1+70) pass, XP is clean, guard equals baseline, plugins/layers/isolation exit 0, Tovu tsc and 5 pin compiles exit 0, lint passes, the Tovu tests pass 790/790 across 53 files, and the new→old replay accepted 3/3 rows.
+- **Recovery branches:** `git ls-remote origin 'refs/heads/cloud/extract-s8*'` lists only `refs/heads/cloud/extract-s8` in both repos. There are no fallback or recovery branches.
+- **Remaining work (numbered):**
+  1. The C2 part 2 remainder. Rows still to seam:
+     1. pluginCards {load, find, readValues};
+     2. credentialCardForms build/apply, plus the recovery and setup diagnostics;
+     3. injecting defineSecretCardTool, askThenReport, approvalToolHandler and human-confirm into tool-registrations;
+     4. making the handlers consume the part 1 CredentialedRequestPort and SourceControlWritePort;
+     5. the deployment catalog, publish and cache-invalidation ports;
+     6. the locale and translation ports;
+     7. abortGuardedCredentialRepo;
+     8. cleanCardToken, assertCredentialFreeField and worksFor;
+     9. the model-facing error rules and form messages;
+     10. tool ids and handler keys as host inputs.
+  2. C3 tools move.
+  3. G-deploy.
+  4. C4.
+  5. Packed-consumer/desktop checks (out of scope for this session).
+- **Stale-path corrections:** none. Every cited matrix path existed at the pin, and the C0, C1 and C2p1 line-range checks found no stale path. One inventory correction is recorded under C1 seam: the zero-argument `activeKey` keyring shape. One doc-note correction is recorded under C1 move: the core `CredentialSetKeyringPort` note.
+- **Limits:**
+  - The C0 old-data replay is SQLite only. Postgres/PGlite paths are not covered by C0; they stay with the existing dialect suite `platform/db/repos/__tests__/custom-credential-repo.test.ts`.
+  - Abort with no commit is pinned at handler level only, by an existing test (not re-derived in F8). No new abort-guard seam exists yet (remaining item 1.7).
+  - The S3 prior reds stay excluded and are not counted green: T plugin-host-bundled-identity, J sign-in-card jsdom, and T test-tsconfig.
+  - Biome warnings are as listed in F8 §4: pre-existing or style-only, with no suppressions.
+- **Old-input allowance: NONE**, confirmed. No pre-session test or fixture in either repo was modified, deleted or renamed, as F8 §1 shows.
+- Coordinator boundary C2 part 2→F8: 2026-11-09T08:13:06Z, elapsed 77m45s; running token total ≈ 1.41M + F8 of 1.9M cap.
+- F8 boundary: 2026-11-09T08:20:35Z, elapsed 85m14s (F8 ≈ 70k tokens).
+
+Stop reason: C2 part 2 only partially seamed (remaining rows listed above); finishing it plus a final F8 rerun would exceed the 1.9M-token job cap — not a behavior, design or import-rule stop.
+EXTRACT-S8 STOPPED AT CAP
