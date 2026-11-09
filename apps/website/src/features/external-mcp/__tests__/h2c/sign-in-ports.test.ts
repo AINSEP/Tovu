@@ -98,6 +98,12 @@ function secondHost() {
   return { ports, calls, seen, messages };
 }
 
+/** The rejection of a call that must fail (fails the test when it resolves). */
+async function rejection<E>(pending: Promise<unknown>): Promise<E> {
+  try { await pending; } catch (error) { return error as E; }
+  return assert.fail("expected the call to be refused");
+}
+
 function noTovuWords(text: string): void {
   for (const word of TOVU_WORDS) assert.ok(!text.includes(word), `second-host output carries Tovu vocabulary "${word}": ${text}`);
 }
@@ -130,16 +136,16 @@ test("a second host signs in through its own ports and fake flow operations; no 
   const payload = await tovuSignInPorts.store.openPayload(f.sealer, row as never);
   assert.equal(payload.tokens?.accessToken, "at-1");
 
-  const noOrigin = await service.beginConnect({ serverId: SERVER }).catch((error: unknown) => error as Error & { field?: string; kind?: string });
+  const noOrigin = await rejection<Error & { field?: string; kind?: string }>(service.beginConnect({ serverId: SERVER }));
   assert.equal(noOrigin.message, "acme: docs needs ACME_ORIGIN");
   assert.equal(noOrigin.field, "redirectUri");
   assert.equal(noOrigin.kind, "acme-validation");
 
-  const noDevice = await service.pollDeviceAuthorization({ serverId: SERVER }).catch((error: unknown) => error as Error & { operatorAction?: string });
+  const noDevice = await rejection<Error & { operatorAction?: string }>(service.pollDeviceAuthorization({ serverId: SERVER }));
   assert.equal(noDevice.operatorAction, "acme: restart the device sign-in at /admin/links");
   assert.ok(host.calls.includes("oauth-error:OAUTH_INVALID_STATE"));
 
-  const sharedRefusal = await service.beginConnect({ serverId: SERVER, destination: "shared" }).catch((error: unknown) => error as Error);
+  const sharedRefusal = await rejection<Error>(service.beginConnect({ serverId: SERVER, destination: "shared" }));
   assert.equal(sharedRefusal.message, "acme: shared sign-in is not offered here");
 
   for (const text of [JSON.stringify(started), JSON.stringify(hostedStart), noOrigin.message, noDevice.message, String(noDevice.operatorAction), sharedRefusal.message]) noTovuWords(text);
