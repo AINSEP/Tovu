@@ -34,17 +34,15 @@ import { describeUninstallApproval } from "../../uninstall-confirmation-ui.js";
 import { PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, noDialog, siteRecord } from "./plugins-tool-harness.js";
 import { requiredPostReader } from "./plugin-post-read.js";
 
-type Json = unknown;
-
 /** A thrown value as stable data: its class, name, message and (when present) code. */
-export function describeError(error: unknown): Json {
+export function describeError(error: unknown): unknown {
   if (!(error instanceof Error)) return { thrown: String(error) };
   const code = (error as { code?: unknown }).code;
   return { class: error.constructor.name, name: error.name, message: error.message, ...(code === undefined ? {} : { code }) };
 }
 
 /** Settle `run` into `{ value }` or `{ error }` so refusals are recorded, not thrown. */
-export async function settle(run: () => unknown): Promise<Json> {
+export async function settle(run: () => unknown): Promise<unknown> {
   try {
     return { value: await run() };
   } catch (error) {
@@ -53,11 +51,11 @@ export async function settle(run: () => unknown): Promise<Json> {
 }
 
 /** JSON round trip: drops functions/undefined exactly like the wire would. */
-function plain(value: unknown): Json {
-  return JSON.parse(JSON.stringify(value)) as Json;
+function plain(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value)) as unknown;
 }
 
-function descriptorOf(registration: ToolRegistration): Json {
+function descriptorOf(registration: ToolRegistration): unknown {
   return plain(registration.descriptor);
 }
 
@@ -66,19 +64,19 @@ function withoutExchangeId(html: string): string {
   return html.replace(EXCHANGE_ID, '"<surface-exchange-id>"');
 }
 
-async function cardRun(h: ReturnType<typeof harness>, toolId: string, input: unknown, decision: "confirm" | "cancel"): Promise<Json> {
+async function cardRun(h: ReturnType<typeof harness>, toolId: string, input: unknown, decision: "confirm" | "cancel"): Promise<unknown> {
   const { html, outcome } = await answerCard({ tool: h.tool(toolId), surfaceExchanges: h.surfaceExchanges, input, decision });
   return { cardHtml: withoutExchangeId(html), outcome: await settle(() => outcome) };
 }
 
-async function activationRows(repo: InMemoryPluginActivationRepo, pluginIds: readonly string[]): Promise<Json> {
+async function activationRows(repo: InMemoryPluginActivationRepo, pluginIds: readonly string[]): Promise<unknown> {
   return plain(await Promise.all(pluginIds.map((pluginId) => repo.getActivation({ workspaceId: WORKSPACE_ID, pluginId }))));
 }
 
 const ENABLED_ROW: PluginActivationRecord = { pluginId: PLUGIN_ID, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: true, updatedAt: "2026-11-04T00:00:00.000Z" };
 
 /** Item 1: the three `plugins_*` registrations, the install/source catalogs, and their result shapes. */
-export async function observePluginsTools(): Promise<Json> {
+export async function observePluginsTools(): Promise<unknown> {
   const descriptors = harness();
   const listed = harness({ discovery: () => [siteRecord(), siteRecord({ id: "quiet", name: "Quiet" })], initialRows: [ENABLED_ROW] });
   const listDenied = harness({ authorize: () => false });
@@ -89,8 +87,8 @@ export async function observePluginsTools(): Promise<Json> {
   const uninstallBuiltIn = harness({ discovery: () => [siteRecord({ source: "built-in" })] });
   const uninstallEnabled = harness({ initialRows: [ENABLED_ROW] });
   const removed: string[] = [];
-  const uninstallConfirm = harness({ removePlugin: async ({ id }) => { removed.push(id); return { ok: true, version: "1.0.0" }; } });
-  const uninstallCancel = harness({ removePlugin: async ({ id }) => { removed.push(`cancel:${id}`); return { ok: true, version: "1.0.0" }; } });
+  const uninstallConfirm = harness({ removePlugin: async ({ id }) => { removed.push(id); return { ok: true, version: null }; } });
+  const uninstallCancel = harness({ removePlugin: async ({ id }) => { removed.push(`cancel:${id}`); return { ok: true, version: null }; } });
   const site = { family: "site-runtime", pluginId: PLUGIN_ID };
   const results = {
     listNormal: await settle(() => listed.tool("plugins_list").handler(context({}), {})),
@@ -154,7 +152,7 @@ function capPost(overrides: Partial<PostRecord> = {}): PostRecord {
 const ALL_CAPABILITY_MANIFESTS = [WORD_COUNT_MANIFEST, CONTENT_ANALYZER_MANIFEST, NO_DESCRIPTION_MANIFEST];
 
 /** The executor's answer for one call, keeping only the stable outcome fields. */
-async function executeCapability(registry: ReturnType<typeof createToolRegistry>, toolId: string, input: unknown): Promise<Json> {
+async function executeCapability(registry: ReturnType<typeof createToolRegistry>, toolId: string, input: unknown): Promise<unknown> {
   const executor = createToolExecutor({ registry });
   const result = await executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId, input }) as unknown as Record<string, unknown>;
   return plain({ status: result["status"], output: result["output"], error: result["error"] });
@@ -177,7 +175,7 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
 }
 
 /** Item 2: real ids/names/descriptions/schemas/risk/permission/entity scope and call results. */
-export async function observeCapabilityTools(): Promise<Json> {
+export async function observeCapabilityTools(): Promise<unknown> {
   const allEnabled = ALL_CAPABILITY_MANIFESTS.map((manifest) => capActivation(manifest.id));
   const sources = await loadEnabledPluginCapabilityToolSources({ workspaceId: CAP_WORKSPACE, discoverPlugins: async () => ALL_CAPABILITY_MANIFESTS.map(discoveryRecord), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) });
   const registrations = buildPluginCapabilityToolRegistrations({ sources, deps: { authorize: async () => ({ allowed: true }) as never, workspaceId: CAP_WORKSPACE, postRead: requiredPostReader({ repo: new InMemoryPostRepo() }), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) }, withExtensionApprovalPolicy });
@@ -187,7 +185,7 @@ export async function observeCapabilityTools(): Promise<Json> {
   const denied = await bootCapabilityRegistry(allEnabled, { authorize: async () => ({ allowed: false, reason: "nope" }) as never });
   const revocable = await bootCapabilityRegistry(allEnabled);
   const call = (boot: { registry: ReturnType<typeof createToolRegistry> }, toolId: string, input: unknown) => executeCapability(boot.registry, toolId, input);
-  const gate: Record<string, Json> = {};
+  const gate: Record<string, unknown> = {};
   await revocable.repo.save(capActivation("word-count", { enabled: false }));
   gate["disabled"] = await call(revocable, "plugin_capability_word_count", { postId: "post-1" });
   await revocable.repo.save(capActivation("word-count", { enabled: false, quarantinedAt: "2026-08-27T00:00:00.000Z", quarantineReason: "fixture quarantine", quarantineFailureCount: 3 } as Partial<PluginActivationRecord>));
@@ -197,14 +195,14 @@ export async function observeCapabilityTools(): Promise<Json> {
   revocable.repo.getActivation = async () => { throw new Error("activation store offline"); };
   gate["activationReadThrows"] = await call(revocable, "plugin_capability_word_count", { postId: "post-1" });
   const bootSubsets = {
-    onlyDisabled: [...(await bootCapabilityRegistry([capActivation("word-count", { enabled: false })])).registry.list()].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
-    none: [...(await bootCapabilityRegistry([])).registry.list()].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
+    onlyDisabled: [...(await bootCapabilityRegistry([capActivation("word-count", { enabled: false })])).registry.list({})].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
+    none: [...(await bootCapabilityRegistry([])).registry.list({})].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
   };
   return {
     sources: plain(sources),
     derivedRisk: [...pluginCapabilityToolDerivedRisk(sources)],
     descriptors: registrations.map(descriptorOf),
-    bootRegistered: [...stored.registry.list()].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
+    bootRegistered: [...stored.registry.list({})].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
     bootSubsets,
     calls: {
       storedWordCount: await call(stored, "plugin_capability_word_count", { postId: "post-1" }),
@@ -250,9 +248,9 @@ function declHarness(race: RaceWinner = "none") {
   const activationRepo = new InMemoryPluginActivationRepo();
   const contentTypeRepo = new InMemoryContentTypeRepo();
   let next = 0;
-  const real = createDeclaredContentTypePorts({ repo: contentTypeRepo, clock: declClock, ids: { newId: () => `id-${++next}` }, outbox: { enqueue: async () => {} } });
+  const real = createDeclaredContentTypePorts({ repo: contentTypeRepo, clock: declClock, ids: { newId: () => { next += 1; return `id-${next}`; } }, outbox: { enqueue: async () => {} } });
   let raced = false;
-  const competitor: Json[] = [];
+  const competitor: unknown[] = [];
   const declaredContentTypes = race === "none" ? real : {
     findByKey: real.findByKey,
     async register(input: Parameters<typeof real.register>[0]) {
@@ -287,12 +285,12 @@ function declHarness(race: RaceWinner = "none") {
   return { setEnabled, state, ownerType, contentTypeRepo, activationRepo };
 }
 
-function invalidIdentity(outcome: Json, run: () => Promise<unknown>): Promise<Json> {
+function invalidIdentity(outcome: unknown, run: () => Promise<unknown>): Promise<unknown> {
   return run().then(() => ({ outcome, canonicalPluginInvalidError: null }), (error: unknown) => ({ outcome, error: describeError(error), canonicalPluginInvalidError: error instanceof PluginInvalidError }));
 }
 
 /** Keep with an owner-made type that holds every declared field plus one of the owner's own. */
-async function observeOwnerAddedFieldsKept(): Promise<Json> {
+async function observeOwnerAddedFieldsKept(): Promise<unknown> {
   const h = declHarness();
   const ownerType = await h.ownerType([...FAQ.fields, { name: "rating", kind: "integer", required: false }]);
   const result = await settle(() => h.setEnabled("testimonials-faq", true));
@@ -300,7 +298,7 @@ async function observeOwnerAddedFieldsKept(): Promise<Json> {
 }
 
 /** Item 3: create / keep / conflict / tombstone, and the three lost-race winners. */
-export async function observeDeclarativeEnable(): Promise<Json> {
+export async function observeDeclarativeEnable(): Promise<unknown> {
   const create = declHarness();
   const createResult = await settle(() => create.setEnabled("testimonials-faq", true));
   const afterCreate = await create.state();
@@ -326,7 +324,7 @@ export async function observeDeclarativeEnable(): Promise<Json> {
   const rivalResult = await settle(() => claimConflict.setEnabled("faq-rival", true));
   const afterRival = await claimConflict.state();
 
-  const races: Record<string, Json> = {};
+  const races: Record<string, unknown> = {};
   for (const winner of ["compatible", "tombstoned", "incompatible", "unrelated-error"] as const) {
     const raced = declHarness(winner);
     const result = await invalidIdentity(winner, () => raced.setEnabled("testimonials-faq", true));
@@ -346,7 +344,7 @@ export async function observeDeclarativeEnable(): Promise<Json> {
 // --- Item 5: admin DTO ----------------------------------------------------------------------
 
 /** Item 5: the pure admin DTO for enabled / disabled / quarantined / invalid / conflicting rows. */
-export function observeAdminDto(): Json {
+export function observeAdminDto(): unknown {
   const quarantined = { ...ENABLED_ROW, enabled: false, quarantinedAt: "2026-11-05T00:00:00.000Z", quarantineReason: "hook threw", quarantineFailureCount: 3 } as PluginActivationRecord;
   const invalid = siteRecord({ status: "invalid", manifest: undefined, errors: [{ code: "MANIFEST_INVALID", file: "tovu.plugin.json", message: "bad" }] } as Partial<PluginDiscoveryRecord>);
   const conflict = { kind: "hook", key: "content.entry.beforeSave", heldBy: "other", heldByName: "Other", heldKey: "content.entry.beforeSave" } as const;
