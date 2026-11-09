@@ -1,7 +1,8 @@
 /** A8 seam proofs for the portable plugin host: the required grant port runs after provisioning
  * and its failure warnings, with the failed servers skipped and the approved enable passed through;
  * an approved enable with failures refuses before any grant; and no portable A8 file has an import
- * edge into the A10 connect cycle. */
+ * edge into the A10 connect cycle, and none falls back to Tovu's projections (legacy fallback lives
+ * only in the T shims at the old paths and the T binder). */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -70,7 +71,8 @@ test("approved enable whose provisioning failed refuses with host copy before an
 const here = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(here, "../../../..");
 const agentPlugins = path.join(srcRoot, "features/agent-plugins");
-const A8_PORTABLE = [path.resolve(here, "../portable-plugin-host.ts"), ...["federate-mcp", "enable-access", "apply-connect-defaults", "switch-on-saved-token", "connection-status", "service-ports"].map(name => path.join(agentPlugins, `${name}.ts`))];
+const A8_PORTABLE = [path.resolve(here, "../portable-plugin-host.ts"), path.join(agentPlugins, "service-ports.ts"), ...["federate-mcp", "enable-access", "apply-connect-defaults", "switch-on-saved-token", "connection-status"].map(name => path.join(agentPlugins, "portable", `${name}.ts`))];
+const TOVU_PROJECTION_FALLBACK = path.join(agentPlugins, "mcp-host-bindings.ts");
 const A10_CYCLE = new Set(["connect-tool", "access-token-tool", "connect-card-ui", "connect-destination", "connect-sign-in-wait", "grant-signed-in-defaults", "token-sign-in", "import-access-token", "apply-tool-renames"].map(name => path.join(agentPlugins, `${name}.ts`)));
 
 /** Every static, dynamic and type import specifier that resolves to a source file under `src/`. */
@@ -98,4 +100,8 @@ test("portable plugin host imports no Jini package other than core and its own a
   const jini = [...text.matchAll(/from\s+["'](@jini-ai\/[^"']+)["']/g)].map(match => match[1]!);
   assert.deepEqual(jini.filter(specifier => !specifier.startsWith("@jini-ai/core") && specifier !== "@jini-ai/agent-plugins/lifecycle"), []);
   assert.equal(/contracts\/headless|@jini-ai\/plugins|@jini-ai\/platform|mcp-host-bindings|node:/.test(text), false, "no headless barrel, plugins/platform package, Tovu projection fallback or node built-in");
+});
+
+test("portable A8 bodies take required projection ports: none imports Tovu's projection fallback", () => {
+  for (const file of A8_PORTABLE) assert.equal(importedFiles(file).includes(TOVU_PROJECTION_FALLBACK), false, `${path.relative(srcRoot, file)} imports mcp-host-bindings`);
 });

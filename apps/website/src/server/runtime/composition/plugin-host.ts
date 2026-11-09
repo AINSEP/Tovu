@@ -88,7 +88,9 @@ export function createTovuPluginHost(
       uninstall: input => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
     },
     withLock: ({ run }) => withFileLock({ lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'), run }, { createParent: true }),
-    mcp: deps.mcp, mcpPorts: agentPluginMcpPortsOf(deps.mcp),
+    // Production ports already carry their pair (same instance passes through); only a legacy port
+    // without projections gets Tovu's canonical pair here, never inside the portable bodies.
+    mcp: deps.mcp.projections ? deps.mcp : { ...deps.mcp, ...agentPluginMcpPortsOf(deps.mcp) }, mcpPorts: agentPluginMcpPortsOf(deps.mcp),
     grantSignedInDefaults: grantDeclaredToolsToSignedInRows,
     warn, messages: tovuPluginHostMessages,
   } }, {

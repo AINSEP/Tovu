@@ -8,10 +8,10 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { redactSecrets, ToolInputError, type AccessApprovalResource } from '@jini-ai/core';
 import { createPluginLookup, readPluginIdentity, assertPluginIdentityAvailable, type PluginIdentityCandidate, type PluginLookupPort, type PluginProvider } from '@jini-ai/core/plugin-directory';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledInput, SetAgentPluginEnabledResult } from '@jini-ai/agent-plugins/lifecycle';
-import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
-import { recordAgentPluginAccessDeclined } from '#src/features/agent-plugins/apply-connect-defaults';
-import { previewAgentPluginEnableAccess } from '#src/features/agent-plugins/enable-access';
-import type { AgentPluginMcpContext, AgentPluginMcpPort, AgentPluginMcpProjectionPorts } from '#src/features/agent-plugins/service-ports';
+import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/portable/federate-mcp';
+import { recordAgentPluginAccessDeclined } from '#src/features/agent-plugins/portable/apply-connect-defaults';
+import { previewAgentPluginEnableAccess } from '#src/features/agent-plugins/portable/enable-access';
+import type { AgentPluginMcpPort, AgentPluginMcpProjectionPorts } from '#src/features/agent-plugins/service-ports';
 import type { McpServerConfig } from '#src/features/agent-plugins/mcp-metadata';
 
 type AgentPluginLayoutInput = Parameters<typeof resolveAgentPluginMcpServers>[0]['agentPluginLayout'];
@@ -99,8 +99,9 @@ export interface PluginHostDeps<UninstallInput> {
    * is the host's job). Every install path of every family must take the same lock. */
   readonly withLock: <T>(required: { run: () => Promise<T> }) => Promise<T>;
   /** @agent-note The host's MCP store port: ONE repo/vault/private context shared with the admin
-   * toggle and the sign-in callback; never a wrapped or re-sealed copy. */
-  readonly mcp: AgentPluginMcpPort & AgentPluginMcpContext;
+   * toggle and the sign-in callback; never a wrapped or re-sealed copy. It must carry the host's
+   * projection pair: portable bodies never fall back to another host's projections. */
+  readonly mcp: AgentPluginMcpPort & AgentPluginMcpProjectionPorts;
   /** @agent-note The projection/error pair, resolved ONCE per binding by the host and shared by
    * preview, provisioning grant and status (same function and error identity as `mcp`'s owner). */
   readonly mcpPorts: AgentPluginMcpProjectionPorts;
