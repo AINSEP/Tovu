@@ -255,7 +255,7 @@ export const tovuConnectionGateVocabulary: Omit<HostedMcpConnectionGatePorts, ke
 };
 
 /** Tovu's gate: {@link createHostedMcpConnectionGate} bound to {@link tovuConnectionGateVocabulary}. Signature unchanged. */
-export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void | FederatedGateVerdict> {
+export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): ReturnType<typeof createHostedMcpConnectionGate> {
   return createHostedMcpConnectionGate({ ...deps, ...tovuConnectionGateVocabulary });
 }
 
