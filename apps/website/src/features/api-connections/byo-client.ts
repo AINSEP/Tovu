@@ -20,7 +20,7 @@ export function createByoCredentials(required: { credentials: ByoClientCredentia
   return {
     async read(input) {
       const saved = await resolveCustomCredentialByLabel(required.credentials, input);
-      return saved ? { connection: saved.connection, allowedOrigins: allowedOriginsFor(saved) } : null;
+      return saved ? { connection: saved.connection, allowedOrigins: () => allowedOriginsFor(saved) } : null;
     },
     refuse(input: ApiConnectionByoRefusal) {
       const problem = input.problem === 'wrong-origin' ? `has the wrong base URL: its base URL must be on ${input.tokenOrigin}`

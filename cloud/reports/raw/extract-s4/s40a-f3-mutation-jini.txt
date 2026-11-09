@@ -1,0 +1,38 @@
+MUTATION (Jini): origin projection caught as unreadable
+
+ RUN  v2.1.9 /home/user/Jini/packages/integrations
+
+ ❯ src/api-connections/__tests__/byo-origin-order.unit.test.ts (3 tests | 1 failed) 14ms
+   × a malformed saved origin escapes raw with its own identity, never as an unreadable refusal 11ms
+     → promise resolved "ApiConnectionError: refused { …(1) }" instead of rejecting
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/api-connections/__tests__/byo-origin-order.unit.test.ts > a malformed saved origin escapes raw with its own identity, never as an unreadable refusal
+AssertionError: promise resolved "ApiConnectionError: refused { …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ [ApiConnectionError: refused]
+
+ ❯ src/api-connections/__tests__/byo-origin-order.unit.test.ts:23:102
+     21|     refuse: input => { refusals.push(input.problem); return new ApiCon…
+     22|   };
+     23|   await expect(resolveByoClient({ connection: declaration(), workspace…
+       |                                                                                                      ^
+     24|   expect(refusals).toEqual([]);
+     25| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  06:42:44
+   Duration  1.04s (transform 548ms, setup 0ms, collect 787ms, tests 14ms, environment 0ms, prepare 71ms)
+
+undefined
+/home/user/Jini/packages/integrations:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/api-connections/__tests__/byo-origin-order.unit.test.ts --maxWorkers=2 --minWorkers=1
+exit=1

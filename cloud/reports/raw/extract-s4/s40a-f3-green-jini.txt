@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/integrations
+
+ ✓ src/api-connections/__tests__/byo-origin-order.unit.test.ts (3 tests) 7ms
+ ✓ src/api-connections/__tests__/host-seams.unit.test.ts (4 tests) 16ms
+
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+   Start at  06:42:23
+   Duration  1.34s (transform 733ms, setup 0ms, collect 2.03s, tests 23ms, environment 1ms, prepare 177ms)
+
+exit=0

@@ -1,0 +1,52 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/integrations
+
+ ❯ src/api-connections/__tests__/byo-origin-order.unit.test.ts (3 tests | 2 failed) 14ms
+   × a malformed saved origin escapes raw with its own identity, never as an unreadable refusal 11ms
+     → expected TypeError: saved.allowedOrigins.includes … to be TypeError: Invalid URL // Object.is equality
+   × origins are projected once, only after the read has resolved 1ms
+     → saved.allowedOrigins.includes is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/api-connections/__tests__/byo-origin-order.unit.test.ts > a malformed saved origin escapes raw with its own identity, never as an unreadable refusal
+AssertionError: expected TypeError: saved.allowedOrigins.includes … to be TypeError: Invalid URL // Object.is equality
+
+- Expected
++ Received
+
+- [TypeError: Invalid URL]
++ [TypeError: saved.allowedOrigins.includes is not a function]
+
+ ❯ src/api-connections/__tests__/byo-origin-order.unit.test.ts:23:3
+     21|     refuse: input => { refusals.push(input.problem); return new ApiCon…
+     22|   };
+     23|   await expect(resolveByoClient({ connection: declaration(), workspace…
+       |   ^
+     24|   expect(refusals).toEqual([]);
+     25| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/api-connections/__tests__/byo-origin-order.unit.test.ts > origins are projected once, only after the read has resolved
+TypeError: saved.allowedOrigins.includes is not a function
+ ❯ Module.resolveByoClient src/api-connections/byo-client.ts:47:29
+     45|   if (saved === null || saved instanceof ApiConnectionError) return sa…
+     46|   const tokenOrigin = new URL(connection.descriptor.tokenEndpoint).ori…
+     47|   if (!saved.allowedOrigins.includes(tokenOrigin)) return required.byo…
+       |                             ^
+     48|   const clientId = saved.connection.username?.trim();
+     49|   if (!clientId) return required.byoCredentials.refuse({ connection, l…
+ ❯ src/api-connections/__tests__/byo-origin-order.unit.test.ts:44:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  06:41:48
+   Duration  1.20s (transform 634ms, setup 0ms, collect 924ms, tests 14ms, environment 0ms, prepare 79ms)
+
+undefined
+/home/user/Jini/packages/integrations:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/api-connections/__tests__/byo-origin-order.unit.test.ts --maxWorkers=2 --minWorkers=1
+exit=1
