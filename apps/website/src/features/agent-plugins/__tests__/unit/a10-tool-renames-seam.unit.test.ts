@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AgentPluginMcpRecord, AgentPluginMcpRepo } from '@jini-ai/agent-plugins/connect';
+import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 import { applyAgentPluginToolRenames, renameToolNames } from '../../portable/apply-tool-renames.js';
 import { applyAgentPluginToolRenames as tovuApply } from '../../apply-tool-renames.js';
 
@@ -13,7 +14,7 @@ function harness() {
     findByServerId: async () => row, upsert: async (next: AgentPluginMcpRecord) => { saved.push(next); return next; },
     deleteByServerId: async () => false, updateAccessIfCurrent: async () => null,
   } as unknown as AgentPluginMcpRepo;
-  const servers = { main: { type: 'http' as const, url: URL_, renamedTools: { old_read: 'new_read', old_write: 'new_write' } } };
+  const servers: Record<string, McpServerConfig> = { main: { type: 'streamable-http', url: URL_, renamedTools: { old_read: 'new_read', old_write: 'new_write' } } };
   return { repo, saved, servers, logs: [] as string[] };
 }
 

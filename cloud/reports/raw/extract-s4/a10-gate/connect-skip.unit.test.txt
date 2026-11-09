@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: Skip on an OAuth sign-in card lets the assistant continue without stopping the run
+ok 1 - Skip on an OAuth sign-in card lets the assistant continue without stopping the run
+  ---
+  duration_ms: 30.358371
+  type: 'test'
+  ...
+# Subtest: Skip also releases a plugin API-connection wait and aborts only that wait
+ok 2 - Skip also releases a plugin API-connection wait and aborts only that wait
+  ---
+  duration_ms: 4.611435
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1633.536306

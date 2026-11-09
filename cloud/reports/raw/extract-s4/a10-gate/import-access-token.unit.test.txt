@@ -1,0 +1,165 @@
+TAP version 13
+# Subtest: a token is sealed onto a row with no credential, and the plugin is switched on
+ok 1 - a token is sealed onto a row with no credential, and the plugin is switched on
+  ---
+  duration_ms: 15.818913
+  type: 'test'
+  ...
+# Subtest: a row that already holds a saved token is never overwritten
+ok 2 - a row that already holds a saved token is never overwritten
+  ---
+  duration_ms: 3.467054
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off gets the token but stays off
+ok 3 - a plugin an operator turned off gets the token but stays off
+  ---
+  duration_ms: 6.486799
+  type: 'test'
+  ...
+# Subtest: a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)
+ok 4 - a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)
+  ---
+  duration_ms: 3.073856
+  type: 'test'
+  ...
+# Subtest: hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not
+ok 5 - hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not
+  ---
+  duration_ms: 0.22367
+  type: 'test'
+  ...
+# Subtest: env import copies the declared env token once, logs once, and is silent on the next boot
+ok 6 - env import copies the declared env token once, logs once, and is silent on the next boot
+  ---
+  duration_ms: 2.345817
+  type: 'test'
+  ...
+# Subtest: env import uses the declared URL when its connection lookup returns no row
+ok 7 - env import uses the declared URL when its connection lookup returns no row
+  ---
+  duration_ms: 3.303726
+  type: 'test'
+  ...
+# Subtest: env import saves a token without retiredEnv and continues to the next plugin
+ok 8 - env import saves a token without retiredEnv and continues to the next plugin
+  ---
+  duration_ms: 6.199368
+  type: 'test'
+  ...
+# Subtest: env import with no token set writes nothing
+ok 9 - env import with no token set writes nothing
+  ---
+  duration_ms: 0.798897
+  type: 'test'
+  ...
+# Subtest: set retired env vars are named as no longer used; unset ones are not
+ok 10 - set retired env vars are named as no longer used; unset ones are not
+  ---
+  duration_ms: 0.799903
+  type: 'test'
+  ...
+# Subtest: env import never throws: a failed save is a warning
+ok 11 - env import never throws: a failed save is a warning
+  ---
+  duration_ms: 1.525458
+  type: 'test'
+  ...
+# Subtest: env import never logs importer text that echoes an opaque access token
+ok 12 - env import never logs importer text that echoes an opaque access token
+  ---
+  duration_ms: 0.940328
+  type: 'test'
+  ...
+# Subtest: env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret
+ok 13 - env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret
+  ---
+  duration_ms: 1.610087
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-test-site-layout-ElKBOS/agent-plugins/ws/ws-token-import
+# Subtest: listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded
+ok 14 - listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded
+  ---
+  duration_ms: 2289.588787
+  type: 'test'
+  ...
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Subtest: listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests
+ok 15 - listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests
+  ---
+  duration_ms: 18.08498
+  type: 'test'
+  ...
+# Subtest: env import never sends the token to a row pointed at a URL the bundled plugin does not declare
+ok 16 - env import never sends the token to a row pointed at a URL the bundled plugin does not declare
+  ---
+  duration_ms: 1.434698
+  type: 'test'
+  ...
+# Subtest: manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server
+ok 17 - manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server
+  ---
+  duration_ms: 0.401218
+  type: 'test'
+  ...
+# Subtest: env import skips a plugin that still has a token pending from create-site onboarding
+ok 18 - env import skips a plugin that still has a token pending from create-site onboarding
+  ---
+  duration_ms: 0.959843
+  type: 'test'
+  ...
+# Subtest: a save whose switch-on failed is switched on by the next import, without touching the saved token
+ok 19 - a save whose switch-on failed is switched on by the next import, without touching the saved token
+  ---
+  duration_ms: 3.883976
+  type: 'test'
+  ...
+# Subtest: an already-connected row is not switched on when an operator turned the plugin off
+ok 20 - an already-connected row is not switched on when an operator turned the plugin off
+  ---
+  duration_ms: 2.793696
+  type: 'test'
+  ...
+# Subtest: a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on
+ok 21 - a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on
+  ---
+  duration_ms: 4.653728
+  type: 'test'
+  ...
+# Subtest: env import warns on listing failure and logs plural retirement notices even without an import declaration
+ok 22 - env import warns on listing failure and logs plural retirement notices even without an import declaration
+  ---
+  duration_ms: 1.462838
+  type: 'test'
+  ...
+# Subtest: env import logs an operator-off save once and remains silent on its credential-preserving retry
+ok 23 - env import logs an operator-off save once and remains silent on its credential-preserving retry
+  ---
+  duration_ms: 2.475259
+  type: 'test'
+  ...
+# Subtest: without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing
+ok 24 - without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing
+  ---
+  duration_ms: 8.278781
+  type: 'test'
+  ...
+# Subtest: an Error thrown while listing plugins is reported by its message
+ok 25 - an Error thrown while listing plugins is reported by its message
+  ---
+  duration_ms: 1.063923
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5910.135528

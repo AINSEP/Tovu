@@ -1,0 +1,237 @@
+TAP version 13
+# Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+# Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+# Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+# Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+# Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+# Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+# Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+# Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+# Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+# Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+# Subtest: MCP resolution keeps each workspace's bundled declaration despite competing digests and plugins
+ok 1 - MCP resolution keeps each workspace's bundled declaration despite competing digests and plugins
+  ---
+  duration_ms: 224.816031
+  type: 'test'
+  ...
+# Subtest: deriveAgentPluginConnectionId sanitizes the server key verbatim, without hashing or namespacing by plugin
+ok 2 - deriveAgentPluginConnectionId sanitizes the server key verbatim, without hashing or namespacing by plugin
+  ---
+  duration_ms: 0.533823
+  type: 'test'
+  ...
+# Subtest: deriveAgentPluginConnectionId matches the trust tier's own CONNECTION_ID_PATTERN
+ok 3 - deriveAgentPluginConnectionId matches the trust tier's own CONNECTION_ID_PATTERN
+  ---
+  duration_ms: 0.312159
+  type: 'test'
+  ...
+# Subtest: deriveAgentPluginConnectionId returns null when the key sanitizes to nothing usable
+ok 4 - deriveAgentPluginConnectionId returns null when the key sanitizes to nothing usable
+  ---
+  duration_ms: 0.121118
+  type: 'test'
+  ...
+# Subtest: deriveAgentPluginConnectionId truncates to 40 characters and stays a valid id
+ok 5 - deriveAgentPluginConnectionId truncates to 40 characters and stays a valid id
+  ---
+  duration_ms: 0.300038
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: a stdio server is skipped, never planned for upsert
+ok 6 - planAgentPluginMcpFederation: a stdio server is skipped, never planned for upsert
+  ---
+  duration_ms: 0.404134
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: a remote streamable-http server is planned, authMode defaults to 'none'
+ok 7 - planAgentPluginMcpFederation: a remote streamable-http server is planned, authMode defaults to 'none'
+  ---
+  duration_ms: 0.216559
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: authMode: 'oauth' on the server carries through to authMode
+ok 8 - planAgentPluginMcpFederation: authMode: 'oauth' on the server carries through to authMode
+  ---
+  duration_ms: 0.160331
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: an sse server is skipped as an unsupported transport, not silently dropped
+ok 9 - planAgentPluginMcpFederation: an sse server is skipped as an unsupported transport, not silently dropped
+  ---
+  duration_ms: 0.218897
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: a remote server declaring headers is skipped as unsupported, never planned with its headers dropped
+ok 10 - planAgentPluginMcpFederation: a remote server declaring headers is skipped as unsupported, never planned with its headers dropped
+  ---
+  duration_ms: 0.339338
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: a remote server declaring headers produces no row rather than one silently missing them
+ok 11 - provisionAgentPluginMcpServers: a remote server declaring headers produces no row rather than one silently missing them
+  ---
+  duration_ms: 1.266885
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: a mixed set resolves each server independently
+ok 12 - planAgentPluginMcpFederation: a mixed set resolves each server independently
+  ---
+  duration_ms: 0.232897
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: enabling a plugin with one auto-admitted remote server creates a real, DISABLED row
+ok 13 - provisionAgentPluginMcpServers: enabling a plugin with one auto-admitted remote server creates a real, DISABLED row
+  ---
+  duration_ms: 5.958856
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: an oauth-mode server is saved with authMode oauth and an authorization_code grant
+ok 14 - provisionAgentPluginMcpServers: an oauth-mode server is saved with authMode oauth and an authorization_code grant
+  ---
+  duration_ms: 1.919676
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: stdio and sse servers never produce a row even when enabling
+ok 15 - provisionAgentPluginMcpServers: stdio and sse servers never produce a row even when enabling
+  ---
+  duration_ms: 1.579719
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alreadyProvisioned, not a second row or an adoption
+ok 16 - provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alreadyProvisioned, not a second row or an adoption
+  ---
+  duration_ms: 1.563352
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-provisioned at the plugin's NEW url, dropping its old sign-in state
+ok 17 - provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-provisioned at the plugin's NEW url, dropping its old sign-in state
+  ---
+  duration_ms: 3.132502
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: a disabled row holding a saved access token is kept when the plugin declares token sign-in
+ok 18 - provisionAgentPluginMcpServers: a disabled row holding a saved access token is kept when the plugin declares token sign-in
+  ---
+  duration_ms: 9.038853
+  type: 'test'
+  ...
+# Subtest: T15: re-enabling preserves an operator-edited disabled connection and its OAuth tokens
+ok 19 - T15: re-enabling preserves an operator-edited disabled connection and its OAuth tokens
+  ---
+  duration_ms: 3.490957
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted
+ok 20 - provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted
+  ---
+  duration_ms: 1.9501
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: an operator's pre-existing row with a live allowlist, write grants and OAuth tokens survives enabling completely untouched — only provisionedByPluginId changes
+ok 21 - provisionAgentPluginMcpServers: an operator's pre-existing row with a live allowlist, write grants and OAuth tokens survives enabling completely untouched — only provisionedByPluginId changes
+  ---
+  duration_ms: 5.202
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: two different plugins declaring the same server key share one row via adoption, not two independent rows
+ok 22 - provisionAgentPluginMcpServers: two different plugins declaring the same server key share one row via adoption, not two independent rows
+  ---
+  duration_ms: 0.979516
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: a different plugin declaring the same server key at a DIFFERENT endpoint is refused, never adopted or rebound
+ok 23 - provisionAgentPluginMcpServers: a different plugin declaring the same server key at a DIFFERENT endpoint is refused, never adopted or rebound
+  ---
+  duration_ms: 0.897058
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: a per-server existence-read rejection is reported and does not abort the remaining servers
+ok 24 - provisionAgentPluginMcpServers: a per-server existence-read rejection is reported and does not abort the remaining servers
+  ---
+  duration_ms: 2.321269
+  type: 'test'
+  ...
+# Subtest: provisioning reports created, recognized, adopted, refused, and failed servers independently
+ok 25 - provisioning reports created, recognized, adopted, refused, and failed servers independently
+  ---
+  duration_ms: 3.753941
+  type: 'test'
+  ...
+# Subtest: provisioning isolates adoption write failure (object) and continues
+ok 26 - provisioning isolates adoption write failure (object) and continues
+  ---
+  duration_ms: 1.606693
+  type: 'test'
+  ...
+# Subtest: provisioning isolates adoption write failure (string) and continues
+ok 27 - provisioning isolates adoption write failure (string) and continues
+  ---
+  duration_ms: 1.331069
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: a remote server the trust rule does not auto-admit is skipped, never planned
+ok 28 - planAgentPluginMcpFederation: a remote server the trust rule does not auto-admit is skipped, never planned
+  ---
+  duration_ms: 0.339475
+  type: 'test'
+  ...
+# Subtest: planAgentPluginMcpFederation: a server key with no usable characters is skipped with a reason
+ok 29 - planAgentPluginMcpFederation: a server key with no usable characters is skipped with a reason
+  ---
+  duration_ms: 0.136752
+  type: 'test'
+  ...
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Subtest: resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded digest supplies servers
+ok 30 - resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded digest supplies servers
+  ---
+  duration_ms: 75.298925
+  type: 'test'
+  ...
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read names for its exact endpoint; nothing otherwise
+ok 31 - resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read names for its exact endpoint; nothing otherwise
+  ---
+  duration_ms: 67.022209
+  type: 'test'
+  ...
+# Subtest: findAgentPluginMcpServerDefaults matches stored identity and exact endpoint only
+ok 32 - findAgentPluginMcpServerDefaults matches stored identity and exact endpoint only
+  ---
+  duration_ms: 0.510199
+  type: 'test'
+  ...
+# Subtest: isEmptyJsonList treats null, blank, non-array and unreadable lists as empty
+ok 33 - isEmptyJsonList treats null, blank, non-array and unreadable lists as empty
+  ---
+  duration_ms: 0.207696
+  type: 'test'
+  ...
+# Subtest: provisionAgentPluginMcpServers: a refused rebind of a plugin-owned row with no stored url names an empty url
+ok 34 - provisionAgentPluginMcpServers: a refused rebind of a plugin-owned row with no stored url names an empty url
+  ---
+  duration_ms: 1.008454
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3699.767016
