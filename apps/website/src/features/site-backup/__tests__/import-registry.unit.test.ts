@@ -280,16 +280,19 @@ test("expiry skips unreadable records and foreign files", t => {
   assert.deepEqual(fs.readdirSync(registry.directory).sort(), [".import.lock", `${ID_A}.json`, "notes.json"]);
 });
 
-test("expiry crashes on a null upload row (reported, not fixed)", t => {
+test("expiry removes a null upload row with its payload: it can never be claimed", t => {
   const registry = registryIn(t);
   raw(registry, `${ID_B}.upload.json`, "null");
-  assert.throws(() => registry.expire({}), { name: "TypeError", message: /Cannot read properties of null \(reading 'createdAt'\)/ });
+  raw(registry, `${ID_B}.upload.zip`, "PK");
+  registry.expire({});
+  assert.deepEqual(fs.readdirSync(registry.directory), []);
 });
 
-test("expiry crashes on a null import record (reported, not fixed)", t => {
+test("expiry leaves a null import record in place, as history does", t => {
   const registry = registryIn(t);
   raw(registry, `${ID_A}.json`, "null");
-  assert.throws(() => registry.expire({}), { name: "TypeError", message: /Cannot read properties of null \(reading 'status'\)/ });
+  registry.expire({});
+  assert.deepEqual(fs.readdirSync(registry.directory), [`${ID_A}.json`]);
 });
 
 for (const status of ["ready", "failed"] as const) {

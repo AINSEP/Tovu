@@ -109,7 +109,10 @@ export class SiteImportRegistry {
   private expireUpload(required: { id: string }): void {
     if (!ID.test(required.id)) return;
     const read = this.store(required.id, UPLOAD_METADATA_SUFFIX).read({});
-    if (read.state !== "ok" || (read.value as SiteImportUpload).createdAt + UPLOAD_TTL_MS >= Date.now()) return;
+    if (read.state !== "ok") return;
+    const row = read.value as SiteImportUpload | null;
+    // A null row can never be claimed (getUpload refuses it), so it expires like an old one.
+    if (row !== null && row.createdAt + UPLOAD_TTL_MS >= Date.now()) return;
     fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
     fs.rmSync(this.file(required.id, UPLOAD_METADATA_SUFFIX), { force: true });
   }
@@ -117,7 +120,8 @@ export class SiteImportRegistry {
   private expireOwnerSetup(required: { importId: string }): void {
     const read = this.store(required.importId, ".json").read({});
     if (read.state !== "ok") return;
-    const row = read.value as SiteImportRecord;
+    const row = read.value as SiteImportRecord | null;
+    if (row === null) return;
     if (row.status === "needs-owner" && row.expiresAt < Date.now()) {
       fs.rmSync(this.stagePath(row), { recursive: true, force: true });
       this.put({ row: { ...row, status: "failed", error: "Owner setup expired. Import the archive again." } });
