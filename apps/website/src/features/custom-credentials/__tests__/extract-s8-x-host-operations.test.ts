@@ -11,11 +11,12 @@ import { buildConfirmationSurface } from '@jini-ai/ui/mcp-ui/surfaces';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
-import { customCredentialsDerivedRisk, createCredentialSaveHandlers, createCredentialToolRegistrations } from '../tool-registrations.js';
+import { bindTovuCredentialToolOperations, customCredentialsDerivedRisk, createCredentialSaveHandlers, createCredentialToolRegistrations } from '../tool-registrations.js';
+import type { DeployTargetRegistry, LoadedDeployTarget } from '../../deployments/contracts.js';
 import { CustomCredentialDuplicateLabelError, CustomCredentialValidationError, CustomCredentialSecretStoreUnconfiguredError } from '../store.js';
 import type { CustomCredentialToolHost } from '../credential-tool-host.js';
 import type { CredentialToolActorDeps, CredentialToolOperations } from '../credential-tool-operations.js';
-import { ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';
+import { credentialToolDeps, ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';
 
 const ids = { list: 'acme_inventory', verify: 'acme_check', setUsername: 'acme_username', makeRequest: 'acme_request', writeFiles: 'acme_files', save: 'acme_save' };
 const oldNames = ['custom_credential_list', 'custom_credential_verify', 'custom_credential_set_username', 'custom_credential_make_request', 'custom_credential_write_files'];
@@ -45,7 +46,7 @@ const PLAN: SourceControlFileWritePlan = { parentCommitSha: 'parent', baseTreeSh
 function fixture() {
   const log: string[] = [];
   const exchanges = fixedExchanges('acme-x');
-  const state = { approve: true, allowed: true, plugin: undefined as PluginCredentialCard | undefined, saveError: undefined as Error | undefined,
+  const state = { allowed: true, plugin: undefined as PluginCredentialCard | undefined, saveError: undefined as Error | undefined,
     probe: 'ok' as 'ok' | 'refused' | 'unavailable', replaced: undefined as { token: string; username?: string } | undefined,
     created: undefined as Parameters<CredentialToolOperations['sets']['create']>[0] | undefined };
   const actor: CredentialToolActorDeps = {
@@ -193,6 +194,7 @@ test('foreign handler keys, catalog path, permissions and plugin-owned labels ar
   assert.deepEqual(result, { credentials: [{ ...safe, pluginId: PLUGIN.pluginId, usedFor: PLUGIN.usedFor }] });
   assert.deepEqual(f.log, ['permit:acme.inspect:acme-secret-set', 'list', 'plugin-load']);
   assert.equal(JSON.stringify(result).includes('HINT'), false);
+  assert.throws(() => createCredentialToolRegistrations({ routeDeps: f.actor, host: { ...HOST, vocabulary: { ...HOST.vocabulary, catalog: new Map() } }, ports: f.ports, operations: f.operations }), /acme\/catalog\/keys\.ts/);
 });
 
 test('injected recovery preserves the host-issued diagnostic object without decrypting', async () => {
@@ -291,4 +293,44 @@ test('missing interactive channel and plugin card use required foreign messages'
   await assert.rejects(f.save().rotate(context({ label: SUMMARY.label })), /ACME rotate needs human/);
   await assert.rejects(f.save().pluginProvider(context({ provider: 'absent' })), /ACME missing card absent/);
   await assert.rejects(f.handlers().get(ids.makeRequest)!(context({ label: SUMMARY.label, method: 'DELETE', url: 'https://api.acme.test/item' })), /ACME delete needs human/);
+});
+
+test('real Tovu bindings retain the current registry/cache/repo and guard, with invalidation only after save', async () => {
+  const base = credentialToolDeps({ authorizeCalls: [] });
+  const target: LoadedDeployTarget = { pluginId: 'acme-plugin', module: { create: () => { throw new Error('unused provider'); } },
+    descriptor: { id: 'acme-target', label: 'Acme target', module: 'acme/target.mjs', configFields: [],
+      credential: { vendorId: 'acme-vendor', tokenField: 'token', fields: [{ name: 'token', label: 'Acme token', required: true, secret: true }] } } };
+  const registry: DeployTargetRegistry = { list() { assert.equal(this, registry); return [target]; }, get: () => target, refusals: [] };
+  let loads = 0;
+  const deleted: { workspaceId: string; target: string }[] = [];
+  const cache = { delete(input: { workspaceId: string; target: string }) { assert.equal(this, cache); deleted.push(input); } };
+  const deps = { ...base, loadDeployTargets: async (workspaceId: string) => { assert.equal(workspaceId, base.workspaceId); loads++; return registry; }, publishCredentialVerificationCache: cache };
+  const operations = bindTovuCredentialToolOperations({ routeDeps: deps, surfaces: { surfaceExchanges: fixedExchanges('tovu-real') } });
+  assert.deepEqual(await operations.publish.loadProviders({}), [{ id: 'acme-target', vendorId: 'acme-vendor' }]);
+  const invalidate = await operations.publish.prepareInvalidation({});
+  assert.deepEqual(deleted, []); assert.equal(loads, 2);
+  let guards = 0;
+  const saved = await operations.sets.create({ label: 'Acme real key', worksFor: ['acme-target'], category: 'hosting', baseUrl: 'https://api.acme.test',
+    connection: { token: 'synthetic-acme-real-key' }, signal: new AbortController().signal,
+    guardRepo: required => { assert.equal(required.store, deps.customCredentialSetRepo); guards++; return operations.policy.guardRepo(required); } });
+  assert.equal(guards, 1); assert.deepEqual(deleted, []);
+  invalidate({ after: saved });
+  assert.equal(loads, 2, 'invalidation must not reload the provider registry');
+  assert.deepEqual(deleted, [{ workspaceId: deps.workspaceId, target: 'acme-target' }]);
+  assert.equal((await operations.sets.list({})).length, 1);
+});
+
+test('real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup', async () => {
+  const base = credentialToolDeps({ authorizeCalls: [] });
+  let deployLoads = 0; let sourceLoads = 0;
+  const deps = { ...base,
+    loadDeployTargets: async () => { deployLoads++; throw new Error('optional deployment unavailable'); },
+    loadSourceControlProviders: async () => { sourceLoads++; throw new Error('optional source-control unavailable'); },
+  };
+  const operations = bindTovuCredentialToolOperations({ routeDeps: deps, surfaces: { surfaceExchanges: fixedExchanges('tovu-optional') } });
+  assert.deepEqual(await operations.publish.loadProviders({}), []);
+  assert.equal(deployLoads, 1); assert.equal(sourceLoads, 1);
+  const invalidate = await operations.publish.prepareInvalidation({});
+  invalidate({ after: SUMMARY });
+  assert.equal(deployLoads, 1); assert.equal(sourceLoads, 1);
 });
