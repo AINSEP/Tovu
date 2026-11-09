@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 1 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 1.477916
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 2 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.485937
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 3 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 0.486203
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 4 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 0.946788
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 5 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 1.331198
+  type: 'test'
+  ...
+# Subtest: other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports
+ok 6 - other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports
+  ---
+  duration_ms: 2.627197
+  type: 'test'
+  ...
+# Subtest: other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved
+ok 7 - other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved
+  ---
+  duration_ms: 0.703328
+  type: 'test'
+  ...
+# Subtest: other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy
+ok 8 - other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy
+  ---
+  duration_ms: 0.92108
+  type: 'test'
+  ...
+# Subtest: Tovu shim: same validator error identity/rule, probe classification and host bytes
+ok 9 - Tovu shim: same validator error identity/rule, probe classification and host bytes
+  ---
+  duration_ms: 0.436762
+  type: 'test'
+  ...
+# Subtest: token sign-in: object API uses the host token rule and installed reads
+ok 10 - token sign-in: object API uses the host token rule and installed reads
+  ---
+  duration_ms: 0.839597
+  type: 'test'
+  ...
+# Subtest: parse: absent is none; blanks are dropped; values are trimmed
+ok 11 - parse: absent is none; blanks are dropped; values are trimmed
+  ---
+  duration_ms: 2.120027
+  type: 'test'
+  ...
+# Subtest: parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused
+ok 12 - parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused
+  ---
+  duration_ms: 0.485652
+  type: 'test'
+  ...
+# Subtest: refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not
+ok 13 - refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not
+  ---
+  duration_ms: 0.525586
+  type: 'test'
+  ...
+# Subtest: firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token
+ok 14 - firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token
+  ---
+  duration_ms: 0.69802
+  type: 'test'
+  ...
+# Subtest: a permission refusal stops onboarding without calling the token invalid
+ok 15 - a permission refusal stops onboarding without calling the token invalid
+  ---
+  duration_ms: 0.496409
+  type: 'test'
+  ...
+# Subtest: bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty
+ok 16 - bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty
+  ---
+  duration_ms: 16.989296
+  type: 'test'
+  ...
+# Subtest: the token sign-in list over bundled plugins offers only plugins that declare tokenAuth
+ok 17 - the token sign-in list over bundled plugins offers only plugins that declare tokenAuth
+  ---
+  duration_ms: 2.251123
+  type: 'test'
+  ...
+# Subtest: a missing supplied bundled root never falls back to the shipped plugins
+ok 18 - a missing supplied bundled root never falls back to the shipped plugins
+  ---
+  duration_ms: 0.963268
+  type: 'test'
+  ...
+# Subtest: the new-site sign-in list reads the given bundled root
+ok 19 - the new-site sign-in list reads the given bundled root
+  ---
+  duration_ms: 5.74327
+  type: 'test'
+  ...
+# Subtest: a bundled dir whose manifest name is not a valid plugin id is skipped
+ok 20 - a bundled dir whose manifest name is not a valid plugin id is skipped
+  ---
+  duration_ms: 3.631615
+  type: 'test'
+  ...
+# Subtest: a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header
+ok 21 - a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header
+  ---
+  duration_ms: 2.128911
+  type: 'test'
+  ...
+# Subtest: 401 and 403 are refused; any other failure or an unreachable vendor is unavailable
+ok 22 - 401 and 403 are refused; any other failure or an unreachable vendor is unavailable
+  ---
+  duration_ms: 0.927135
+  type: 'test'
+  ...
+# Subtest: unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one
+ok 23 - unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one
+  ---
+  duration_ms: 0.507083
+  type: 'test'
+  ...
+# Subtest: a stdio server never counts as the token-auth server
+ok 24 - a stdio server never counts as the token-auth server
+  ---
+  duration_ms: 0.251203
+  type: 'test'
+  ...
+# Subtest: the sign-in list names each token plugin once, sorted by id, with its tokens page
+ok 25 - the sign-in list names each token plugin once, sorted by id, with its tokens page
+  ---
+  duration_ms: 9.35476
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3377.465139

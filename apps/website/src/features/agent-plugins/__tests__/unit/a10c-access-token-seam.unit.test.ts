@@ -13,6 +13,7 @@ import {
 } from '../../portable/access-token-tool.js';
 import { probeToken, tovuAgentPluginAccessTokenHost, tovuTokenValidator } from '../../access-token-tool.js';
 import { CredentialInputError } from '../../../../contracts/core/credential-token.js';
+import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '../../portable/token-sign-in.js';
 
 class AcmeTokenError extends Error { constructor(readonly acmeRule: string) { super('acme bad token'); } }
 type Prep = { target: TokenAuthTarget; principalId: string; locale: string };
@@ -130,4 +131,18 @@ test('Tovu shim: same validator error identity/rule, probe classification and ho
   assert.equal(tovuAgentPluginAccessTokenHost.cardIdentity.uriNamespace, 'tovu');
   assert.equal(tovuAgentPluginAccessTokenHost.permission, 'admin.integrations.manage');
   assert.equal(tovuAgentPluginAccessTokenHost.entityType, 'agent-plugin');
+});
+
+test('token sign-in: object API uses the host token rule and installed reads', async () => {
+  const seen: string[] = [];
+  const servers = { a: { type: 'streamable-http' as const, url: 'https://mcp.acme.test/mcp', tokenAuth: { helpUrl: 'https://acme.test/t', probeUrl: 'https://acme.test/me' } } };
+  const listed = await listTokenSignInPlugins({ workspaceId: 'w', listPlugins: async (id) => { seen.push(`list:${id}`); return [{ pluginId: 'acme-crm', servers }, { pluginId: 'none', servers: {} }]; } });
+  assert.deepEqual(listed, [{ pluginId: 'acme-crm', displayName: 'Acme Crm', helpUrl: 'https://acme.test/t' }]);
+  const deps = {
+    workspaceId: 'w', credentials: { probe: async () => { seen.push('probe'); return 'ok' as const; } }, resolveInstalledPlugin: async () => ({ servers }),
+    tokenValidator: { assertToken: ({ value }: { value: unknown }) => { seen.push(`assert:${String(value)}`); if (value !== 'acme_ok') throw new AcmeTokenError('x'); } },
+  };
+  assert.equal(await checkAgentPluginAccessToken({ deps, input: { pluginId: 'acme-crm', token: 'longenoughbutnotacme' } }), 'invalid');
+  assert.equal(await checkAgentPluginAccessToken({ deps, input: { pluginId: 'acme-crm', token: 'acme_ok' } }), 'ok');
+  assert.deepEqual(seen, ['list:w', 'assert:longenoughbutnotacme', 'assert:acme_ok', 'probe']);
 });

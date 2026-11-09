@@ -1,59 +1,25 @@
+/** Tovu compatibility shim (A10c seam). The portable body lives in `./portable/token-sign-in.ts`; these
+ * entries keep their positional signatures and bind Tovu's credential token rule (R1). */
 import type { PluginCredentialsPort } from "./service-ports.js";
+import { tovuTokenValidator } from "./access-token-tool.js";
+import type { ResolvedAgentPluginForConnect } from "./connect-tool.js";
+import type { InstalledAgentPluginServers } from "./import-access-token.js";
+import {
+  listTokenSignInPlugins as listWithPorts, checkAgentPluginAccessToken as checkWithPorts,
+  type TokenSignInPlugin, type TokenCheckOutcome,
+} from "./portable/token-sign-in.js";
+export type { TokenSignInPlugin, TokenCheckOutcome } from "./portable/token-sign-in.js";
 
-import { probeToken } from "./access-token-tool.js";
-import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
-import { type InstalledAgentPluginServers } from "./import-access-token.js";
-import type { AgentPluginTokenAuth } from "@jini-ai/agent-plugins/lifecycle";
-import type { McpServerConfig } from "./mcp-metadata.js";
-
-/**
- * @file Which installed Agent Plugins can be connected with a pasted access token, and a check of one
- * token before anything is saved — for create-site onboarding, which offers "connect <plugin> now"
- * next to the site's name. Generic: a plugin qualifies by declaring `tokenAuth` on exactly one
- * remote server in its `mcp.json`; the tokens page and the probe URL both come from there.
- */
-
-/** One plugin the onboarding form can offer a token field for. */
-export interface TokenSignInPlugin {
-  readonly pluginId: string;
-  readonly displayName: string;
-  /** Where the person creates a token (the plugin's own `tokenAuth.helpUrl`). */
-  readonly helpUrl: string;
-}
-
-/** The plugin's one token-auth declaration, or `null` for none or more than one (the same rule
- *  `agent_plugin_set_access_token` refuses on). */
-function soleTokenAuth(servers: Readonly<Record<string, McpServerConfig>>): AgentPluginTokenAuth | null {
-  const declared = Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tokenAuth ? [config.tokenAuth] : []));
-  // Exactly one element was just checked, so `declared[0]` is present; the cast only narrows the
-  // index type (no fallback branch can ever run).
-  return declared.length === 1 ? (declared[0] as AgentPluginTokenAuth) : null;
-}
-
-/**
- * The installed plugins that take a pasted token, sorted by id.
- * @complexity O(p·s) over installed plugins and their servers.
- */
-export async function listTokenSignInPlugins(
+/** Same signature as the pre-seam entry. */
+export function listTokenSignInPlugins(
   workspaceId: string,
   listPlugins: (workspaceId: string) => Promise<readonly InstalledAgentPluginServers[]>,
 ): Promise<readonly TokenSignInPlugin[]> {
-  const plugins = await listPlugins(workspaceId);
-  return plugins
-    .flatMap(({ pluginId, servers }) => {
-      const auth = soleTokenAuth(servers);
-      return auth ? [{ pluginId, displayName: titleCaseFromPluginId(pluginId), helpUrl: auth.helpUrl }] : [];
-    })
-    .sort((a, b) => a.pluginId.localeCompare(b.pluginId));
+  return listWithPorts({ workspaceId, listPlugins });
 }
 
-export type TokenCheckOutcome = "ok" | "invalid" | "refused" | "unavailable" | "unsupported";
-
-/**
- * Checks `token` against the plugin's declared probe URL (one GET; 401/403 refused). Never throws,
- * never returns or logs the token. `unsupported`: the plugin is not installed or takes no token.
- */
-export async function checkAgentPluginAccessToken(
+/** Same signature as the pre-seam entry; never throws, never returns or logs the token. */
+export function checkAgentPluginAccessToken(
   deps: {
     readonly workspaceId: string;
     readonly credentials: Pick<PluginCredentialsPort, "probe">;
@@ -61,14 +27,5 @@ export async function checkAgentPluginAccessToken(
   },
   input: { readonly pluginId: string; readonly token: string },
 ): Promise<TokenCheckOutcome> {
-  const resolvePlugin = deps.resolveInstalledPlugin;
-  let plugin: ResolvedAgentPluginForConnect | null;
-  try {
-    plugin = await resolvePlugin(input.pluginId);
-  } catch {
-    return "unsupported";
-  }
-  const auth = plugin ? soleTokenAuth(plugin.servers) : null;
-  if (!auth) return "unsupported";
-  return probeToken({ probeUrl: auth.probeUrl, token: input.token, credentials: deps.credentials });
+  return checkWithPorts({ deps: { workspaceId: deps.workspaceId, credentials: deps.credentials, resolveInstalledPlugin: deps.resolveInstalledPlugin, tokenValidator: tovuTokenValidator }, input });
 }
