@@ -104,7 +104,7 @@ test('U1: every bundled public export template passes the single CMS fragment va
     let manifest;
     try { manifest = JSON.parse(readFileSync(new URL('plugin.json', pluginRoot), 'utf8')); }
     catch (error) { if (error.code === 'ENOENT') continue; throw error; }
-    for (const definition of Object.values(manifest.extensions?.tovu?.exports ?? {})) {
+    for (const definition of Object.values(manifest.extensions?.jini?.exports ?? {})) {
       count += 1;
       const host = Object.fromEntries(Object.keys(definition.hostLinks ?? {}).map(key => [key, '/fixture/start']));
       host.assets = Object.fromEntries(Object.keys(definition.assets ?? {}).map(key => [key, '/fixture/mark.svg']));
