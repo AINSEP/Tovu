@@ -13,7 +13,7 @@ import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugin
 import type { InstalledAgentPlugin, SetAgentPluginEnabledResult } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginProviderFacesPort } from './service-ports.js';
 import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from '@jini-ai/plugins/host/tools';
-import { bindPluginManagementTools } from './host-tool-binding.js';
+import { bindPluginApprovalIdentity, bindPluginManagementTools } from './host-tool-binding.js';
 import type { PluginFamily } from './agent-tools.js';
 export { describeEnableApproval, type EnableConfirmationSubject } from './enable-confirmation-ui.js';
 
@@ -58,7 +58,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
   return buildPluginManagementRegistrations(bindPluginManagementTools({ deps: routeDeps, surfaces }));
 }
 export function pluginApprovalIdentity(required: { deps: PluginsToolDeps; request: { family: PluginFamily; pluginId: string } }, _optional = {}) {
-  return portableApprovalIdentity({ deps: bindPluginManagementTools({ deps: required.deps }), request: required.request });
+  return portableApprovalIdentity({ deps: bindPluginApprovalIdentity({ deps: required.deps }), request: required.request });
 }
 
 

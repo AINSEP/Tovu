@@ -20,25 +20,30 @@ function safeRevision(plugin: InstalledAgentPlugin): InstalledPluginRevision {
     skills: plugin.skills.map(({ name }) => ({ name })), displayName: plugin.displayName, summary: plugin.summary, description: plugin.description,
     hostRange: plugin.hostRange, requires: plugin.requires };
 }
-export function bindAgentPluginTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces?: AssistantSurfaceDeps }): PluginLifecycleToolsPort {
-  function capability() {
-    const value = deps.pluginHost?.getHostCapability({ capability: 'agent-plugin-lifecycle' });
-    if (!value) throw new ToolInputError({ message: 'The host does not provide agent-plugin lifecycle operations.' });
-    return value;
-  }
+function capability(deps: PluginsToolDeps) {
+  const value = deps.pluginHost?.getHostCapability({ capability: 'agent-plugin-lifecycle' });
+  if (!value) throw new ToolInputError({ message: 'The host does not provide agent-plugin lifecycle operations.' });
+  return value;
+}
+/** The approval-identity shim reads revisions without constructing destructive operations. */
+export function bindAgentPluginIdentity({ deps }: { deps: PluginsToolDeps }): Pick<PluginLifecycleToolsPort, 'listInstalled' | 'previewEnableAccess'> {
   return {
-    inactivePluginIds: ({ strict }) => (strict ? capability() : deps.pluginHost?.getHostCapability({ capability: 'agent-plugin-lifecycle' }))?.inactivePluginIds?.({}, {}) ?? Promise.resolve(undefined),
-    previewEnableAccess: input => capability().previewEnableAccess?.(input, {}) ?? Promise.resolve(undefined),
-    recordDeclinedAccess: async input => { await capability().recordDeclinedAccess?.(input); },
+    previewEnableAccess: input => capability(deps).previewEnableAccess?.(input, {}) ?? Promise.resolve(undefined),
     listInstalled: async () => (await (deps.listInstalledAgentPlugins
       ? deps.listInstalledAgentPlugins(deps.agentPluginLayout.forWorkspace(deps.workspaceId).root)
-      : capability().listInstalled({}, {}))).map(safeRevision),
+      : capability(deps).listInstalled({}, {}))).map(safeRevision),
+  };
+}
+export function bindAgentPluginTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces: AssistantSurfaceDeps }): PluginLifecycleToolsPort {
+  return {
+    ...bindAgentPluginIdentity({ deps }),
+    inactivePluginIds: ({ strict }) => (strict ? capability(deps) : deps.pluginHost?.getHostCapability({ capability: 'agent-plugin-lifecycle' }))?.inactivePluginIds?.({}, {}) ?? Promise.resolve(undefined),
+    recordDeclinedAccess: async input => { await capability(deps).recordDeclinedAccess?.(input); },
     assertWritable: () => deps.assertAgentPluginActivationsWritable
-      ? deps.assertAgentPluginActivationsWritable({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }) : capability().assertWritable({}, {}),
-    setEnabled: input => deps.setAgentPluginEnabled ? deps.setAgentPluginEnabled({ ...input, agentPluginLayout: deps.agentPluginLayout }) : capability().setEnabled(input),
-    provisionMcp: (input, optional) => capability().provisionMcp(input, optional),
-    uninstall: (input, optional) => { if (!surfaces) { throw new ToolInputError({ message: 'An authenticated confirmation transport is required.' }); }
-      return capability().uninstall({ ...input, surfaces }, optional); },
+      ? deps.assertAgentPluginActivationsWritable({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }) : capability(deps).assertWritable({}, {}),
+    setEnabled: input => deps.setAgentPluginEnabled ? deps.setAgentPluginEnabled({ ...input, agentPluginLayout: deps.agentPluginLayout }) : capability(deps).setEnabled(input),
+    provisionMcp: (input, optional) => capability(deps).provisionMcp(input, optional),
+    uninstall: (input, optional) => capability(deps).uninstall({ ...input, surfaces }, optional),
     searchCandidate: agentVisiblePluginCandidate,
     classifyError,
     compatibility: ({ revisions }) => revisions.some(revision => !checkAgentPluginCompatibility({ manifest: revision, hostVersion: AGENT_PLUGIN_CONTRACT_VERSION, activeProvides: [] }).hostOk)

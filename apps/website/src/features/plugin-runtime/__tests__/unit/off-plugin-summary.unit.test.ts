@@ -9,7 +9,7 @@ test('OFF installed plugin text prefers its public summary over the description'
     agentPluginLayout: { forWorkspace: () => ({ root: '/private/plugin-root' }) },
     listInstalledAgentPlugins: async () => [{ pluginId: 'image-maker', displayName: 'Image maker', summary: 'Short public purpose', description: 'Long fallback description', archiveDigest: 'a'.repeat(64), packageRoot: '/private/plugin-root', files: [], skills: [] }],
   } as unknown as PluginsToolDeps;
-  const lifecycle = bindAgentPluginTools({ deps });
+  const lifecycle = bindAgentPluginTools({ deps, surfaces: { surfaceExchanges: {} } as Parameters<typeof bindAgentPluginTools>[0]['surfaces'] });
   const installed = await lifecycle.listInstalled({}, {});
   const visible = lifecycle.searchCandidate({ candidate: { ...installed[0]!, enabled: false, keywords: [], skills: [], mcpServerIds: [] } });
   assert.equal(visible.description, 'installed, off: Image maker: Short public purpose — read guidance; tools unavailable');
