@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import { sql } from "kysely";
 import { FixedRootKeyKeyring } from "@jini-ai/platform/secrets";
-import { buildVaultAad, InMemoryVaultRepo, VaultError, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, InMemoryVaultRepo, VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
@@ -158,7 +158,7 @@ function projectStore(siteId: string) {
   const scope = (extra: Partial<CustomCredentialProjectScope> = {}): CustomCredentialProjectScope =>
     ({ workspaceId: PROJECT_WS, repo: view, sealer, keyring, ...extra });
   let next = 0;
-  const ownerDeps: CustomCredentialWriteDeps = { repo: owner, sealer, keyring, clock: { nowMs: () => Date.parse(LATER) }, idGen: { newId: () => `project-key-${++next}` } };
+  const ownerDeps: CustomCredentialWriteDeps = { repo: owner, sealer, keyring, clock: { nowMs: () => Date.parse(LATER) }, idGen: { newId: () => { next += 1; return `project-key-${next}`; } } };
   return { counts, raw, attachments, owner, scope, ownerDeps };
 }
 
@@ -210,7 +210,7 @@ test("wrong context, wrong kind AAD and foreign ownership fail with the canonica
     await assert.rejects(customService.get(identity(VENDOR, "custom")), isCanonical("context"));
     await assert.rejects(customService.get(identity(LEGACY, "vendor")), isCanonical("context"));
     const record = (await site.deps.repo.findById({ workspaceId: WS, id: LEGACY }))!;
-    for (const wrong of [{ ownerKey: "foreign" }, { principalId: "person" }, { binding: "bound" }, { provider: "provider" }, { kind: "source-control" }]) {
+    for (const wrong of [{ ownerKey: "foreign" }, { principalId: "person" }, { binding: "bound" }, { provider: "provider" }, { kind: "source-control" }] satisfies Partial<VaultRecord>[]) {
       assert.throws(() => customVaultRecord({ row: { ...record.vaultRecord!, ...wrong } }), isCanonical("context"));
     }
     assert.equal(site.counts.opens, 0);
