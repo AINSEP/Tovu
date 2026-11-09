@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: portable renames: object API, host actor and host plugin listing are used
+not ok 1 - portable renames: object API, host actor and host plugin listing are used
+  ---
+  duration_ms: 5.931723
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts:1:976'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'system:tool-renames'
+    - 'acme:renames'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'acme:renames'
+  actual: 'system:tool-renames'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts:30:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes
+ok 2 - Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes
+  ---
+  duration_ms: 1.705069
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1004.167172
