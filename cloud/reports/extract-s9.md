@@ -1,6 +1,6 @@
 # EXTRACT-S9
 
-**Continuation D in progress. The coordinator approved the single additive F1 trace expectation; the C3 gate is being completed before G-deploy and C4. Historical stop sections below are superseded.**
+**Continuation D completed F1, C3, G-deploy, C4 seam, C4 move and the accumulated gate on the same branches and original clock. Final Tovu gate: 101 files /1,258 cases, 1,254 pass and exactly four known baseline failures. Final Jini named cases: 461 pass. Historical stop sections below are superseded; C-d independent review remains pending.**
 
 The input, inventory and initial-stop sections retain historical first-delivery evidence. The Continuation and closing sections below describe the current source and supersede that initial stop.
 
@@ -841,3 +841,129 @@ Dependency `ops-tools.ts`: `import { DeployCredentialSetupRequired, MAX_WAIT_SEC
 Types moved in seam remain in ops-tool-contracts.ts with declaration-local obligations; existing ops-contracts shared shapes are reused unchanged. New neutral protocol constant for HTTPS may be needed to satisfy the literal vocabulary test without embedding an example URL. The existing neutral `[deploy-ops]` log tag remains byte-identical. SECRET_KEYS role names list/set/unset retain the exact allowed-field lists; source kinds site-key/secret/typed and ledger kind/status/trigger are saved neutral protocol.
 
 R1 move allowance: add only `deployment_ops_set_secret` to PARAMETERISED_EXCHANGE_TOOL_IDS with the approved host-binds/Jini-opens comment; change no assertion. Keep the exact SECRET_FORM_CARD_DEFINITIONS.deployment_ops_set_secret?.secretField expression in Tovu. No additional existing-test wiring allowance used in C4 seam.
+
+### C4 move and accumulated gate completed
+
+The runtime closure now lives in `@jini-ai/devops/deploy`: ops-runner, ops-secrets, ops-secret-card, ops-tools and the same-job ops-registry leaf. The existing deploy entry exports them; no new subpath, package dependency, optional peer or isolation entry was added. Same-package production imports use defining relative files; all external Jini imports are core. Consumer-only contracts remain in ops-tool-contracts; its emitted runtime is only `export {};` and a source-map comment. Existing shared ops-contracts stay in the same package. Core is unchanged.
+
+The explicit-undefined adaptation is type-only: `DeployOpsInput`'s credentialLabel/runId/branch/org and `DeployOpsModule.listTargets`'s org admit the undefined properties the original runtime already passed. The new local SecretTargetInput and WaitClock option do likewise. This preserves the exact original adapter objects instead of dropping keys to satisfy `exactOptionalPropertyTypes`. No required input or runtime shape changed. The vocabulary test initially rejected the neutral HTTPS prefix; protocol syntax is now factored as HTTPS_PROTOCOL/HTTPS_AUTHORITY, used for the same origin strings and prefix check. This is neutral HTTPS grammar, no provider endpoint or host default. One initial new neutral-host test imported UI without that example declaring it; the supplied unused-card capability now throws for an unexpected typed-card call, as that example only dispatches deployments. No dependency/lock edit was made. The real typed-card second host in Tovu uses public UI/daemon and proves custom form/outcome app bindings.
+
+Tovu retains the same credential adapters, late-send boundedDeps wrapper and its original comments, site key environment/files/runtime/home/cwd lookup and Security fingerprint, recovery issuer/message, locale/forms/field definitions, catalog/metadata/risk, registry trust loading and contributor. `TAKES_EFFECT` and the complete `secretConfirm` declaration are byte-identical to the pre-seam source. The typed-card binder still contains the exact required `SECRET_FORM_CARD_DEFINITIONS.deployment_ops_set_secret?.secretField` expression. Old positional feature APIs remain thin bindings. No route was moved or invented.
+
+Final accumulated replay: **101 files /1,258 tests; 1,254 pass /4 known fail; zero skips/cancellations**. This includes the full C3/C4 named selections, all 28 overlays, both MCP-UI scans, unchanged card/descriptor metadata goldens, saved-format/custody/C0 pins, the 19 F1 cross-host cases, immutable G-deploy and 13 new deployment public-port cases. The separate 13-case replay after strengthening declaration-local/app assertions also passes. Foreign host checks exercise every new runtime export, differing ids/permissions/domain/catalog path/card namespace/text/form+outcome app identities, same actor-bound exchange, untrimmed typed bytes, no leaks, read/fingerprint/write counts, approval reauthorization, changed-snapshot denial, bounded truncation, canonical error/diagnostic identity and waiting/cancellation. Every new public runtime declaration is inspected in real emitted d.ts for its own @agent-note and two object arguments. Tests inspect only published subpaths/dist resolved with import.meta.resolve; no Tovu test reads Jini source, environment, sibling checkout or scratch path.
+
+The four failures are never counted green: MCP-UI unresolved `cli/commands/import-local.ts:151: file`; unexplained `agent_plugin_connect`; Railway and Render credential-card line36 exact skill-text literals. Each overlay still passes its other two cases and fails exactly its original `credential_save { kind: "plugin-provider", target: "railway"/"render" }` assertion in G, seam and final gates. Neither overlay test nor either plugin skill changed. No other runtime or frozen-test drift occurred.
+
+Final Jini named tests: integrations **218**, devops **164**, neutral host **5**, checkers **70**, plus re-homed node:test closure **4** = **461 passed**. Core/integrations/devops/neutral types pass. Touched builds and main Tovu plus every new/amended test/support explicit type check pass. Strict complexity and cognitive limits10, no-inline-config and zero-warning lint pass for changed production and new tests. The same Jini build is exercised by plain Node without tsx: all 11 function exports and diagnostic identity pass. Tovu's required relink exits0 with **0 links changed**; the accumulated gate already consumed those exact linked packages. No packed/install/X1/X2/X3 proof is claimed.
+
+XP1–XP5 pass against the immutable original snapshot. Original clean checkout remains `35c4961af718f0f30591c46d2ea2756c4484a731`; final hashes remain manifest `d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459`, sorted declarations `48f6d4223224dc975edfbdebf1a01a25bf12044dfd1d4f872624571266452d24`. No regeneration. Full layer audit is []; isolation has579 closures/0 blocking and the same SI-c9/SI-d7 advisory findings. Every finding was personally read. No checker, debt/waiver, layer, baseline or guard change.
+
+### Exact comment exception and preservation
+
+AST comment-range comparison of all five pre-seam source files against final host plus moved sources finds only the multiline comment containing the following real N1 rejection. All other original comments occur byte-identically. Raw `c4m-guard-first` reports `N1-consumer-identity packages/devops/src/deploy/ops-secrets.ts: forbidden source reference "TOVU" (comments included)`. Only this one rejected line is neutralized:
+
+```diff
+- * @example await runSetSecret({ deps, input: { platform: "my-host", target: "my-app", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm });
++ * @example await runSetSecret({ deps, input: { platform: "my-host", target: "my-app", name: "APP_SITE_KEY", source: { kind: "site-key" } } }, { confirm });
+```
+
+Full source provenance is in Jini integrations/source-map.md and devops/source-map.md, including exact cross-repo source SHAs/paths. The neutral dispatch-history console.warn remains unchanged. Stable neutral source kinds, request fields, ledger/status/trigger fields and HTTPS syntax are justified in the vocabulary inventories. No existing golden/fixture was regenerated; G-deploy still hashes to its pre-seam literal SHA. No saved row, ciphertext/AAD/key id/null scope/CAS, migration, grant, owner, provider schema, lock or core contract implementation changed. G-deploy replay preserves HTTP/decrypt/seal/write/site-key/registry/history counts, accepted-only ledger bytes and no retry on ledger failure.
+
+### Approved existing-test allowances, final full additive diffs
+
+R1's four-test relocation remains as reported in full above, with the exact 15 function names/eight types/regexes; only own-package source reads changed. The integrated base already contains the C3 dynamic-binding and credential-copy additive entries, so none was duplicated. The only C4 allowance is the new set-secret entry below. The latest coordinator separately approves the one F1 expected-call addition below. F1's two appended DELETE cross-host tests were expressly requested. No other existing test/fixture assertion, expected value or input changed; no further additive wiring allowance was needed.
+
+```diff
+diff --git a/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts b/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts
+index 4a988f9b2..7092bf4cc 100644
+--- a/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts
++++ b/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts
+@@ -34,6 +34,8 @@ const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
+   ...POLICY_CONFIRMATION_TOOL_IDS,
+   // the host binds this id; Jini opens the exchange
+   "credential_copy_from_project",
++  // the host binds this id; Jini opens the exchange
++  "deployment_ops_set_secret",
+   // The host binds this synthetic ID through tool-recovery-preset.ts; Jini opens the exchange.
+   "assistant_tool_failure_recovery",
+   // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests
+diff --git a/apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts b/apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+index bb6a2fc76..ab6afa27d 100644
+--- a/apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
++++ b/apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+@@ -232,7 +232,7 @@ test('DELETE: approved → exactly one request, after the dialog; a refused targ
+   await refusedTools.get('custom_credential_make_request')!.handler({ ...ctx('delete'), input: { label: 'nope', method: 'DELETE', url: ACME_URL } }, { emitSurface: async () => { emitted += 1; } })
+     .catch(() => undefined);
+   assert.equal(emitted, 0, 'a refused target opens no dialog');
+-  assert.deepEqual(refusedLog, ['resolveTarget']);
++  assert.deepEqual(refusedLog, ['resolveTarget', 'classifyError']);
+ });
+
+ const WRITE_INPUT = { label: 'acme-git', owner: 'acme', repo: 'shop', branch: 'main', commitMessage: 'ACME update readme', files: [{ path: 'README.md', content: 'acme' }] };
+```
+
+### Final raw real guard output (not a green guard)
+
+```text
+2026-11-09T18:50:28.139324+00:00 cwd=/workspace/Jini command=pnpm guard
+
+> jini@ guard /workspace/Jini
+> node --import tsx ./scripts/guard.ts
+
+[hardwiring] HW1-env-default: 17 total; 0 new
+[hardwiring] HW2-vendor-adapter: 16 total; 0 new
+[hardwiring] HW3-module-state: 135 total; 0 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[guard] R13-model-fallback-freshness claude: MF3 SKIPPED — no readable ~/.claude.json and the CLI initialize handshake found nothing (Claude Code not installed/usable here). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness codex: MF3 compared 9 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import "../../agent-plugins/src/core/identity-namespace.js" reaches into another package's src (agent-plugins) — import by package name instead
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports "Icon" from "../../../components/Icon.js" (resolves outside features/chat-pane/**), but "Icon" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+
+2 guard violation(s).
+ ELIFECYCLE  Command failed with exit code 1.
+
+END 2026-11-09T18:51:20.131868+00:00 EXIT 1
+```
+
+### Paired source and evidence receipts
+
+Final tested source/test tips: Tovu `ae439a0006960c2736ad43fc5dd6c1e24642a8bb` / Jini `c744b6e689a007b5fbe59638afbe43e51ead64f4`, branch `cloud/extract-s9` in both. Runtime move pair: Tovu `d2c43042683273f7d768cf83e27b3f1129f92bb6` / Jini `11e814e66784aa9fe43c515395c4c515d9c4817d`. Later source commits strengthen new tests only, apart from removal of one unused host import. Remote refs verified at those tips before this report-only close; the closing report SHA is provided in the final response and verified after push.
+
+All Continuation D commands (exact cwd/command/start/end/exit/log hash), each Tovu file/count, Jini gate counts and process evidence are committed in `cloud/reports/extract-s9-d-gates.json`. Earlier receipts remain historical. Raw logs are preserved at `/workspace/work/extract-s9/logs/`; report above includes the full real guard and exact baseline failure meanings.
+
+```text
+c872fcce3c189f78affdc2df257f44d53274ea9f docs(extraction): close C3 gate and inventory G-deploy recording
+0286aba1811ea180bb7c01c4fb495bfbef7b90f8 test(deploy): freeze G-deploy tool cards results and custody counters
+67ae377e9200503d767aa7c3a0e65d9ea2e6ba78 test(deploy): satisfy strict recording-harness lint without changing bytes
+4b0ee25d0bd4ea2770ab74a612943205c7f66bd0 docs(extraction): pin G-deploy gate and inventory C4 seam
+69a8f3625f7963a8bcf09682b77b165339968881 refactor(deploy): bind explicit C4 ports with runtime still in host
+9a5e423f08e096b267dd39bfed9ce0182f9d29e4 test(deploy): verify foreign host contracts and emitted notes
+63a620faa9dd197c689daf3d81029e3edadb16cb test(deploy): narrow foreign classifier error types
+2492a012294e8b1953691ef135347ecd8a4ba5df docs(extraction): close C4 seam and inventory mechanical deployment move
+d2c43042683273f7d768cf83e27b3f1129f92bb6 refactor(deploy): consume public Jini orchestration and retain host policy
+bebd46616961653fb4ebf10aef78894fde74b609 test(deploy): inspect declaration-local notes and canonical public recovery
+ae439a0006960c2736ad43fc5dd6c1e24642a8bb test(deploy): prove foreign form and outcome app bindings
+1e2763a61d09255e7cd4de6abb13e01cf004f685 feat(devops): declare explicit deployment tool host ports
+7cba72951c9a31b12f3245248cf38c8b41f0e1c0 docs(devops): preserve C4 provenance and release note
+11e814e66784aa9fe43c515395c4c515d9c4817d feat(devops): move deployment tool runtime with explicit host ports
+c744b6e689a007b5fbe59638afbe43e51ead64f4 test(devops): wire neutral host cards without adding a UI dependency
+```
+
+### Continuation D outcome and limits
+
+F1, C3, G-deploy, C4 seam, C4 move and the accumulated gate are complete in the requested order. No new failure remains. The owner-approved four baseline Tovu failures and two existing guard findings remain visible and unchanged. S4/S5/S6/S8 are already present in the supplied integrated base (the brief's initial override controls the trim's older unmerged wording); S7 remains unbuilt. C-d is **pending an independent reviewer**, not produced or self-approved by this builder. Next assignee: independent reviewer for accumulated plugin/extraction evidence; later packed/full-suite/desktop sessions remain outside this job. No branch integration, main edit, force push, publication or helper agent.
+
+Shutdown evidence at 2026-11-09T18:58:08.306238+00:00: all 776 tracked command parents have recorded exits; no live exact task process group. Defunct entries are already exited, not running tests. No server was started, no broad kill or unrelated process action. Original UTC start 17:14Z, reserve20:54Z and hard deadline21:14Z never reset; the final closing timestamp/elapsed time is appended only at the real end. Both source trees are clean before report-only changes.
+
+Final close at 2026-11-09T19:04:19.494553+00:00; elapsed 1.8387 hours from the original start. Final snapshot and recording hashes were rechecked at 19:03Z and match the originals; the original checkout is clean. All 779 tracked command parents have recorded exits, with no live task process group. Report-only preservation and remote verification are the final operations.
+
+EXTRACT-S9-D DONE
