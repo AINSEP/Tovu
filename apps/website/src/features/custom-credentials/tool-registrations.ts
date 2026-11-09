@@ -1,5 +1,4 @@
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
-import { probeCredentialConnection } from "./credentialed-request.js";
 import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { invalidatePublishCredentialCompatibility } from "../deployments/publish-credentials/index.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
@@ -563,16 +562,16 @@ type SetTokenResult = { saved: true } | { saved: false; reason: "cancelled" | "e
  * @throws CustomCredentialValidationError for refusal/unavailability or an origin mismatch.
  * @complexity One bounded GET plus the installed auth-scheme load; no persistence.
  */
-async function probeCardBeforeSave({ card, baseUrl, connection, routeDeps, signal }: {
+async function probeCardBeforeSave({ card, baseUrl, connection, routeDeps, probe, signal }: {
   card?: PluginCredentialCard; baseUrl: string; connection: { token: string; username?: string };
-  routeDeps: CustomCredentialsToolDeps; signal: AbortSignal;
+  routeDeps: CustomCredentialsToolDeps; probe: CredentialedRequestPort["probe"]; signal: AbortSignal;
 }, { replacing = false }: { replacing?: boolean } = {}): Promise<void> {
   if (!card?.probeUrl) return;
   // Rotation must not send a key to a card's old origin after the saved row was re-pointed.
   if (new URL(card.probeUrl).origin !== new URL(baseUrl).origin) throw new CustomCredentialValidationError('The saved origin no longer matches this key card. Nothing was saved.');
   const schemes = await routeDeps.loadAuthSchemes({ workspaceId: routeDeps.workspaceId });
   signal.throwIfAborted();
-  const status = await probeCredentialConnection({ connection, url: card.probeUrl, schemes }, { httpClient: routeDeps.customCredentialsHttpClient });
+  const status = await probe({ connection, url: card.probeUrl, schemes });
   signal.throwIfAborted();
   const hint = card.keyHint ? ' This card needs: ' + card.keyHint : '';
   const kept = replacing ? ' The previous key was kept.' : '';
@@ -586,6 +585,7 @@ async function probeCardBeforeSave({ card, baseUrl, connection, routeDeps, signa
  *  `PublishConfirmationContext` uses for the identical reason. */
 interface SetTokenAnswerContext {
   readonly routeDeps: CustomCredentialsToolDeps;
+  readonly probe: CredentialedRequestPort["probe"];
   readonly existing: CustomCredentialSummary;
   readonly pluginCard?: PluginCredentialCard;
 }
@@ -614,7 +614,7 @@ interface SetTokenAnswerContext {
  */
 // Lifecycle classification and outcome delivery now belong to Jini; this function is only the save port.
 async function saveSetToken(
-  { token, signal, routeDeps, existing, pluginCard, principalId }: SetTokenAnswerContext & { token: string; signal: AbortSignal; principalId: string }, _optional = {},
+  { token, signal, routeDeps, probe, existing, pluginCard, principalId }: SetTokenAnswerContext & { token: string; signal: AbortSignal; principalId: string }, _optional = {},
 ): Promise<CustomCredentialSummary> {
   // Paste artifacts are dropped before anything is read or written; see card-token.ts.
   const cleanedToken = cleanCardToken({ token });
@@ -636,7 +636,7 @@ async function saveSetToken(
   const username = current.username ?? resolved?.connection.username;
   if (signal.aborted) throw new ToolInputError({ message: "The run ended. Nothing was changed." });
   const connection = { token: cleanedToken, ...(username !== undefined ? { username } : {}) };
-  await probeCardBeforeSave({ card: pluginCard, baseUrl: current.baseUrl, connection, routeDeps, signal }, { replacing: true });
+  await probeCardBeforeSave({ card: pluginCard, baseUrl: current.baseUrl, connection, routeDeps, probe, signal }, { replacing: true });
   return await updateCustomCredential(
     {
       repo: abortGuardedCredentialRepo({ store: routeDeps.customCredentialSetRepo, signal }),
@@ -843,11 +843,11 @@ function mapCreateCredentialError(
  * @complexity O(1) locally, an optional bounded GET, and one createCustomCredential call (validate, seal, insert).
  */
 async function saveCreateCard(
-  required: { submission: CreateCredentialSubmission; routeDeps: CustomCredentialsToolDeps; signal: AbortSignal }, _optional = {}
+  required: { submission: CreateCredentialSubmission; routeDeps: CustomCredentialsToolDeps; probe: CredentialedRequestPort["probe"]; signal: AbortSignal }, _optional = {}
 ): Promise<CustomCredentialSummary> {
-  const { routeDeps, submission, signal } = required;
+  const { routeDeps, probe, submission, signal } = required;
   await probeCardBeforeSave({ card: submission.pluginCard, baseUrl: submission.baseUrl,
-    connection: { token: cleanCardToken({ token: submission.token }), ...(submission.username !== undefined ? { username: submission.username } : {}) }, routeDeps, signal });
+    connection: { token: cleanCardToken({ token: submission.token }), ...(submission.username !== undefined ? { username: submission.username } : {}) }, routeDeps, probe, signal });
   // Reuse the existing guard, including vault writes after asynchronous sealing.
   const repo = abortGuardedCredentialRepo({ store: routeDeps.customCredentialSetRepo, signal });
   // Only persistence sits in the engine's save boundary, so failure copy stays truthful.
@@ -883,10 +883,10 @@ async function saveCreateCard(
  */
 async function openCreateCard(required: {
   ctx: ToolExecutionContext; emitSurface: ToolExecutionOptions["emitSurface"];
-  routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; locale: string; initialLabel: string; cardIdentity: CredentialCardIdentity;
+  routeDeps: CustomCredentialsToolDeps; probe: CredentialedRequestPort["probe"]; surfaces: AssistantSurfaceDeps; locale: string; initialLabel: string; cardIdentity: CredentialCardIdentity;
   form: () => SecretCardForm; submissionOf: (values: Readonly<Record<string, unknown>>) => CreateCredentialSubmission;
 }, _optional = {}): Promise<CreateCredentialResult> {
-  const { ctx, emitSurface, routeDeps, surfaces, locale, initialLabel, cardIdentity, form, submissionOf } = required;
+  const { ctx, emitSurface, routeDeps, probe, surfaces, locale, initialLabel, cardIdentity, form, submissionOf } = required;
   // Fail closed rather than degrade — the only place a token can enter is the rendered form.
   // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.
   // The engine checks pre-dialog aborts and uses askThenReport so the save completes before Done.
@@ -902,7 +902,7 @@ async function openCreateCard(required: {
       // The shared save-result path attaches a submitted project key to this site.
       const submission = submissionOf(values);
       displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
-      return saveCreateCard({ submission, routeDeps, signal });
+      return saveCreateCard({ submission, routeDeps, probe, signal });
     },
     result: ({ run }) => {
       if (run.status === 'saved') {
@@ -961,6 +961,19 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
  *   `host.cardIdentity` names every card URI and app. The outcome replaces the same URI after the save.
  */
 export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
+  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }) } });
+}
+
+/**
+ * The API credential save handlers over a host-supplied request port.
+ * @agent-note A plugin card's key is probed ONLY through `ports.credentialedRequest.probe`, after the
+ *   saved-origin check and before sealing; a refused or unreachable probe saves nothing. The key
+ *   reaches the probe only from the human's card (browser → answer route → exchange → seal), never
+ *   from model input.
+ * @complexity O(1) binding; each adapter performs the existing bounded store operations.
+ */
+export function createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost; ports: Pick<CustomCredentialToolPorts, "credentialedRequest"> }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
+  const probe: CredentialedRequestPort["probe"] = (input) => ports.credentialedRequest.probe(input);
   const handlers: { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } = {
     // An MCP-UI surface for the SECRET itself — see this file's header, "custom_credential_set_token",
     // for the full mechanism and why it holds up "a token must never pass through the model's
@@ -1000,7 +1013,7 @@ export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: {
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ label }),
         form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: withCardApp({ spec: setTokenForm(prep), app: host.cardIdentity.appNames.setToken }) }),
-        save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, existing, pluginCard, principalId: ctx.principal.id }),
+        save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, probe, existing, pluginCard, principalId: ctx.principal.id }),
         result: ({ run }) => {
           // Token hints belong on the human's card, never in the model-facing result or audit output.
           if (run.status === "saved") return { saved: true };
@@ -1048,7 +1061,7 @@ export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: {
 
       const providers = await loadCreateCredentialProviders({ routeDeps });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: prefill.label ?? '', cardIdentity: host.cardIdentity,
+      return openCreateCard({ ctx, emitSurface, routeDeps, probe, surfaces, locale, initialLabel: prefill.label ?? '', cardIdentity: host.cardIdentity,
         form: () => withCardApp({ spec: buildCreateForm({ prefill, providers }), app: host.cardIdentity.appNames.create }),
         submissionOf: values => deriveCreateCredentialSubmission(readRawCreateCredentialFields(values)) });
     },
@@ -1063,7 +1076,7 @@ export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: {
       const card = (await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId })).find(entry => entry.providerId === providerId);
       if (!card) throw new ToolInputError({ message: `No installed plugin declares a key card for '${providerId}'. Use credential_save with kind api instead.` });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: card.label, cardIdentity: host.cardIdentity,
+      return openCreateCard({ ctx, emitSurface, routeDeps, probe, surfaces, locale, initialLabel: card.label, cardIdentity: host.cardIdentity,
         form: () => buildPluginCredentialForm({ card }),
         submissionOf: values => {
           const fields = readPluginCredentialValues({ card, values });
