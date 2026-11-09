@@ -1,0 +1,127 @@
+TAP version 13
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+not ok 1 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 4.849946
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts:1:1140'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        connect: {
+          app: {
+            appName: 'tovu-agent-plugins-connect',
+            appVersion: '1'
+          },
+          toolId: 'agent_plugin_connect',
+    +     uriNamespace: 'tovu/connect'
+    -     uriNamespace: 'tovu/agent-plugins-connect'
+        },
+        destination: {
+          toolId: 'agent_plugin_connect',
+          uriNamespace: 'tovu/sign-in-destination'
+        },
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    connect:
+      uriNamespace: 'tovu/agent-plugins-connect'
+      toolId: 'agent_plugin_connect'
+      app:
+        appName: 'tovu-agent-plugins-connect'
+        appVersion: '1'
+    token:
+      formApp:
+        appName: 'tovu-agent-plugins-access-token'
+        appVersion: '1'
+      outcomeApp:
+        appName: 'tovu-agent-plugins-access-token-outcome'
+        appVersion: '1'
+    destination:
+      uriNamespace: 'tovu/sign-in-destination'
+      toolId: 'agent_plugin_connect'
+  actual:
+    connect:
+      uriNamespace: 'tovu/connect'
+      toolId: 'agent_plugin_connect'
+      app:
+        appName: 'tovu-agent-plugins-connect'
+        appVersion: '1'
+    token:
+      formApp:
+        appName: 'tovu-agent-plugins-access-token'
+        appVersion: '1'
+      outcomeApp:
+        appName: 'tovu-agent-plugins-access-token-outcome'
+        appVersion: '1'
+    destination:
+      uriNamespace: 'tovu/sign-in-destination'
+      toolId: 'agent_plugin_connect'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts:27:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.start (node:internal/test_runner/test:959:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:332:17)
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+not ok 2 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.762334
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts:1:1800'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'ui://acme/connect/p%201'
+    - 'ui://acme/agent-plugins-connect/p%201'
+                 ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ui://acme/agent-plugins-connect/p%201'
+  actual: 'ui://acme/connect/p%201'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts:39:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+    Test.postRun (node:internal/test_runner/test:1191:19)
+    Test.run (node:internal/test_runner/test:1119:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 3 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 0.520212
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 4 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 1.10003
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 5 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 1.195093
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 3
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 619.084698

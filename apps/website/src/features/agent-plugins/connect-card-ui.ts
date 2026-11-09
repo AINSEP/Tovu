@@ -1,132 +1,34 @@
+/** Tovu compatibility shim (A10 seam). The portable card bodies live in `./portable/connect-card-ui.ts`
+ * and take the card runtime, identity and product copy as required inputs; these entries keep their
+ * original signatures and bind Tovu's UI builders, card identity and wording (bytes unchanged). */
+import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
-import type { PluginCredentialsPort, AgentPluginCardBuilders } from "./service-ports.js";
-import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardUri as UIResourceUri, SurfaceCardApp } from "@jini-ai/core/contracts/cards";
-import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
+import type { PluginCredentialsPort } from "./service-ports.js";
 import { agentPluginCardHost } from "./card-host-bindings.js";
+import {
+  buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts,
+  type AgentPluginConnectCardSpec, type AgentPluginAccessTokenFormMessages,
+} from "./portable/connect-card-ui.js";
+export {
+  buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts, resolveAgentPluginCardIdentity,
+  type AgentPluginConnectCardSpec, type AgentPluginCardIdentity, type AgentPluginCredentialCardForms, type AgentPluginAccessTokenFormMessages,
+} from "./portable/connect-card-ui.js";
 
-/**
- * @file The card `agent_plugin_connect` shows while it parks on a human's sign-in (`connect-tool.ts`).
- *
- * Built on `@jini-ai/ui`'s `buildOutcomeSurface`, not `buildConfirmationSurface`: there is nothing
- * here for a human to confirm by tool call — the sign-in element is a link that
- * opens the authenticated host sign-in link, then the plugin's real sign-in page in a new tab
- * (`outcome.ts`'s `openLinkUrl`, wired to the
- * bridge's `openLink` — an outbound navigation, never a delivery through `mcp-ui-tool-calls-route.ts`).
- * Skip answers the existing surface exchange so the assistant can continue the turn.
- * `state: "partial"` is the honest read of "waiting on the human, not failed, not done yet" —
- * `outcome.ts`'s own header explains why that needs to be a real third state, not a boolean folded
- * into success or failure.
- *
- * Plain words only: copy comes from the plugin's explicit credential-card declaration, never its
- * raw plugin.json description, which can contain transport jargon. Older plugins retain the
- * display-name fallback so an absent declaration never blocks a real sign-in.
- * plugin.json has no display-name field; uninstall-confirmation-ui.ts makes the identical choice.
- */
-
-function agentPluginConnectSurfaceUri({ pluginId, uriNamespace }: { pluginId: string; uriNamespace: string }): UIResourceUri {
-  return `ui://${uriNamespace}/${encodeURIComponent(pluginId)}`;
-}
-
-export type AgentPluginConnectCardSpec =
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly exchangeId?: string; readonly credentialCard?: PluginCredentialCard }
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" }
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "skipped" };
-
-/**
- * Renders the connect card. Re-sent under the SAME `ui://` URI (keyed by `pluginId`) when the state
- * flips from `"waiting"` to `"connected"`, so the transcript replaces the sign-in link in place —
- * see `outcome.ts`'s own header for why URI reuse is the whole mechanism.
- *
- * @complexity O(1).
- */
-export function buildAgentPluginConnectCardWithPorts<Resource>(required: { spec: AgentPluginConnectCardSpec; cards: AgentPluginCardBuilders<Resource>; identity: { uriNamespace: string; toolId: string; app: SurfaceCardApp } }, _optional: Record<string, never> = {}): Resource {
-  const { spec, cards, identity } = required;
-  const credentialCard = spec.state === "waiting" ? spec.credentialCard : undefined;
-  return cards.buildSignInCard({
-    uri: agentPluginConnectSurfaceUri({ pluginId: spec.pluginId, uriNamespace: identity.uriNamespace }), toolId: identity.toolId,
-    app: identity.app,
-    waiting: {
-      title: credentialCard?.title ?? `Let's connect ${spec.pluginDisplayName}`,
-      description: credentialCard ? `${credentialCard.intro ?? ""} ${credentialCard.permissions ?? credentialCard.keyHint ?? ""}`.trim() : "It's free and takes about two minutes.",
-      message: "Waiting for you to sign in...", openLinkLabel: `Sign in to ${spec.pluginDisplayName}`, cancelLabel: "Skip",
-    },
-    connected: { title: `${spec.pluginDisplayName} connected`, message: "Connected ✓" },
-    skipped: { title: "Sign-in skipped", message: `Skipped connecting ${spec.pluginDisplayName}. The assistant can continue without this plugin.` },
-    ...spec,
-  });
-}
-
-/**
- * The masked access-token form `agent_plugin_set_access_token` shows (`access-token-tool.ts`), for a
- * plugin whose server declares `tokenAuth`; its tokens page comes from the plugin metadata.
- *
- * Its one field is the only place the token exists outside the sealed ciphertext it becomes: it is
- * posted straight to the tool-calls route, never through chat. Never pre-filled — every render starts
- * empty. The engine's URI carries the tool/exchange identity, and the outcome reuses it so it
- * replaces the form. This builder supplies domain copy only; the engine owns routing and dismissal.
- *
- * @returns A secret-card form spec without routing parameters or prefilled credentials.
- * @example buildAgentPluginAccessTokenFormWithPorts({ app, spec: { credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" } });
- * @complexity O(1).
- */
-export function buildAgentPluginAccessTokenFormWithPorts(required: { readonly app: SurfaceCardApp; readonly spec: {
-  readonly credentials: Pick<PluginCredentialsPort, "apply">;
-  readonly pluginDisplayName: string;
-  readonly helpUrl: string;
-  readonly credentialCard?: PluginCredentialCard;
-} }, _optional: Record<string, never> = {}): SecretCardForm {
-  const { spec } = required;
-  const { pluginDisplayName, helpUrl } = spec;
-  return spec.credentials.apply({ card: spec.credentialCard, form: {
-    title: `Connect ${pluginDisplayName} with an access token`,
-    description:
-      `Create a personal access token at ${helpUrl}, then paste it below. Tovu checks it with ` +
-      `${pluginDisplayName} and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.`,
-    submitLabel: "Save token",
-    fields: [
-      {
-        kind: "string",
-        name: "token",
-        label: `${pluginDisplayName} access token`,
-        hint: "Pasted here only. Never shown to the assistant.",
-        required: true,
-        secret: true,
-      },
-    ],
-    cancelLabel: "Cancel",
-    app: required.app,
-  } });
-}
-
-/**
- * The result that replaces the token form. `message` is caller-controlled and must never carry a
- * token — every call site passes a fixed sentence.
- *
- * @returns Outcome copy; the engine supplies the form's URI when rendering it.
- * @complexity O(1).
- */
-export function buildAgentPluginAccessTokenOutcomeWithPorts(required: { readonly app: SurfaceCardApp; readonly spec: {
-  readonly pluginDisplayName: string;
-  readonly state: "success" | "failure";
-  readonly title: string;
-  readonly message: string;
-} }, _optional: Record<string, never> = {}): SurfaceOutcomeSpec {
-  const { spec } = required;
-  return {
-    title: spec.title,
-    details: [{ label: "Connection", value: spec.pluginDisplayName }],
-    state: spec.state,
-    message: spec.message,
-    app: required.app,
-  };
-}
+/** Tovu's token-form wording (bytes unchanged from the pre-seam body). */
+export const tovuAccessTokenFormMessages: AgentPluginAccessTokenFormMessages = {
+  description: ({ pluginDisplayName, helpUrl }) =>
+    `Create a personal access token at ${helpUrl}, then paste it below. Tovu checks it with ` +
+    `${pluginDisplayName} and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.`,
+};
 
 /** Same host card signatures and bytes; new seams receive builders and identities explicitly. */
 export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec, optional: Record<string, never> = {}) {
   return buildAgentPluginConnectCardWithPorts({ spec, cards: agentPluginCardHost.cards, identity: agentPluginCardHost.connect }, optional);
 }
-export function buildAgentPluginAccessTokenForm(spec: Parameters<typeof buildAgentPluginAccessTokenFormWithPorts>[0]['spec'], optional: Record<string, never> = {}): SecretCardForm {
-  return buildAgentPluginAccessTokenFormWithPorts({ spec, app: agentPluginCardHost.token.formApp }, optional);
+export function buildAgentPluginAccessTokenForm(spec: {
+  readonly credentials: Pick<PluginCredentialsPort, "apply">; readonly pluginDisplayName: string; readonly helpUrl: string; readonly credentialCard?: PluginCredentialCard;
+}, optional: Record<string, never> = {}): SecretCardForm {
+  return buildAgentPluginAccessTokenFormWithPorts({ spec, app: agentPluginCardHost.token.formApp, messages: tovuAccessTokenFormMessages }, optional);
 }
 export function buildAgentPluginAccessTokenOutcome(spec: Parameters<typeof buildAgentPluginAccessTokenOutcomeWithPorts>[0]['spec'], optional: Record<string, never> = {}): SurfaceOutcomeSpec {
   return buildAgentPluginAccessTokenOutcomeWithPorts({ spec, app: agentPluginCardHost.token.outcomeApp }, optional);

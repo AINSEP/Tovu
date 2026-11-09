@@ -1,6 +1,6 @@
 /** Consumer-owned service boundaries. Composition binds concrete services and secret stores. */
 import type { ChatAgentPlugins } from "@jini-ai/agent-plugins/lifecycle";
-import type { SurfaceCardsPort, SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
+import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { ExternalMcpConnectStart } from "../external-mcp/contracts.js";
 import type { AgentPluginMcpPort as PortableAgentPluginMcpPort, AgentPluginMcpProjectionPorts, AgentPluginMcpServicesPort as PortableAgentPluginMcpServicesPort } from "@jini-ai/agent-plugins/connect";
 /** The MCP ports moved to `@jini-ai/agent-plugins/connect` (A9); re-exported so Tovu callers keep this path,
@@ -61,6 +61,5 @@ export interface AgentPluginSignInPort {
    * the consumer passes model-facing text through the core redaction boundary. */
   isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
 }
-/** Resource stays concrete through waitAtSignInCard's card callback. */
-export type AgentPluginCardsPort<Resource> = SurfaceCardsPort<Resource>;
-export type AgentPluginCardBuilders<Resource> = Omit<AgentPluginCardsPort<Resource>, 'waitAtSignInCard'>;
+/** Card ports moved to the portable card body (A10); re-exported so Tovu callers keep this path. */
+export type { AgentPluginCardsPort, AgentPluginCardBuilders } from "./portable/connect-card-ui.js";

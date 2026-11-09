@@ -1,30 +1,24 @@
+/** Tovu compatibility shim (A10 seam). The portable waiter lives in `./portable/connect-sign-in-wait.ts`
+ * (generic over the card `Resource` and the connect result); these entries keep their signatures and
+ * bind Tovu's UI, card identity, SAME process exchange store and missing-emitter/skip copy. */
 import { agentPluginCardHost } from './card-host-bindings.js';
 import type { AgentPluginCardsPort } from './service-ports.js';
 import type { SurfaceCardSecretDeps } from '@jini-ai/core/contracts/cards';
-import { type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { PluginCredentialCard } from '@jini-ai/core/contracts/credentials';
 import { buildAgentPluginConnectCard, type AgentPluginConnectCardSpec } from './connect-card-ui.js';
+import { waitAtAgentPluginSignInCardWithPorts as waitWithPorts } from './portable/connect-sign-in-wait.js';
 import type { AgentPluginConnectResult } from './connect-tool.js';
 
-/** The plugin's MCP and API sign-ins share one card/exchange lifecycle. Skip cancels only the
- * sign-in watcher; the enclosing agent run continues. OAuth callback/token custody stays with
- * each connection owner. @complexity One bounded connection wait and one exchange per sign-in. */
-export async function waitAtAgentPluginSignInCardWithPorts<Resource>(required: {
+/** Old seam signature (connect result fixed to Tovu's `AgentPluginConnectResult`). */
+export function waitAtAgentPluginSignInCardWithPorts<Resource>(required: {
   surfaceExchanges: SurfaceCardSecretDeps['surfaceExchanges']; cards: AgentPluginCardsPort<Resource>;
   buildCard: (spec: AgentPluginConnectCardSpec) => Resource; toolId: string; missingEmitterMessage: string; skippedResult: () => AgentPluginConnectResult; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string;
   credentialCard?: PluginCredentialCard;
   connect: (input: { signal: AbortSignal; showSignIn: (input: { signInUrl: string }) => Promise<void> }) => Promise<AgentPluginConnectResult>;
 }, optional: ToolExecutionOptions = {}): Promise<AgentPluginConnectResult> {
-  const { cards, ctx, pluginId, pluginDisplayName, credentialCard, connect } = required;
-  return cards.waitAtSignInCard<AgentPluginConnectResult>({
-    surfaceExchanges: required.surfaceExchanges, ctx, toolId: required.toolId, connect,
-    card: state => required.buildCard(state.state === 'waiting'
-      ? { pluginId, pluginDisplayName, credentialCard, ...state }
-      : { pluginId, pluginDisplayName, ...state }),
-    missingEmitterMessage: required.missingEmitterMessage,
-    skippedResult: required.skippedResult,
-  }, optional);
+  return waitWithPorts<Resource, AgentPluginConnectResult>(required, optional);
 }
 
 /** The original Tovu entry binds the actual UI and SAME process exchange store. */
