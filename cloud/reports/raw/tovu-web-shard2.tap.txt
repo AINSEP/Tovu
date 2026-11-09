@@ -72,3 +72,207 @@ ok 1 - SiteAssistantHeader
   duration_ms: 363.703864
   type: 'suite'
   ...
+# Subtest: loader host binds react assets only on demand and preserves open intent
+ok 2 - loader host binds react assets only on demand and preserves open intent
+  ---
+  duration_ms: 106.227314
+  type: 'test'
+  ...
+# Subtest: loader host binds vanilla assets only on demand and preserves open intent
+ok 3 - loader host binds vanilla assets only on demand and preserves open intent
+  ---
+  duration_ms: 19.643173
+  type: 'test'
+  ...
+# Subtest: explicit deep link /\#open-chat opens lazily
+ok 4 - explicit deep link /\#open-chat opens lazily
+  ---
+  duration_ms: 11.581683
+  type: 'test'
+  ...
+# Subtest: explicit deep link /?open-chat=1 opens lazily
+ok 5 - explicit deep link /?open-chat=1 opens lazily
+  ---
+  duration_ms: 30.759925
+  type: 'test'
+  ...
+# Subtest: react: pending destination effects preload only the lightweight widget while closed
+ok 6 - react: pending destination effects preload only the lightweight widget while closed
+  ---
+  duration_ms: 12.299485
+  type: 'test'
+  ...
+# Subtest: vanilla: pending destination effects preload only the lightweight widget while closed
+ok 7 - vanilla: pending destination effects preload only the lightweight widget while closed
+  ---
+  duration_ms: 9.480633
+  type: 'test'
+  ...
+# Subtest: React chat with queued=false inserts no assets until open, then loads CSS and the bundle once
+ok 8 - React chat with queued=false inserts no assets until open, then loads CSS and the bundle once
+  ---
+  duration_ms: 65.299664
+  type: 'test'
+  ...
+# Subtest: React chat with queued=true inserts no assets until open, then loads CSS and the bundle once
+ok 9 - React chat with queued=true inserts no assets until open, then loads CSS and the bundle once
+  ---
+  duration_ms: 50.185718
+  type: 'test'
+  ...
+# Subtest: an open-chat anchor activates after loading even when its hash is already selected
+ok 10 - an open-chat anchor activates after loading even when its hash is already selected
+  ---
+  duration_ms: 16.035795
+  type: 'test'
+  ...
+# Subtest: host passes the root as the mount-readiness boundary
+ok 11 - host passes the root as the mount-readiness boundary
+  ---
+  duration_ms: 10.485982
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: <button data-jini-chat-loader></button>
+ok 12 - loader requires both mount and button: <button data-jini-chat-loader></button>
+  ---
+  duration_ms: 13.72145
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: <div id="tovu-site-assistant-root"></div>
+ok 13 - loader requires both mount and button: <div id="tovu-site-assistant-root"></div>
+  ---
+  duration_ms: 9.235704
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: 
+ok 14 - loader requires both mount and button: 
+  ---
+  duration_ms: 7.717176
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false}
+ok 15 - loader pins widget precedence and open intent: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false}
+  ---
+  duration_ms: 8.977248
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+ok 16 - loader pins widget precedence and open intent: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+  ---
+  duration_ms: 6.801327
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"\#other","expected":"site-assistant","deep":false}
+ok 17 - loader pins widget precedence and open intent: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"\#other","expected":"site-assistant","deep":false}
+  ---
+  duration_ms: 7.161182
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true}
+ok 18 - loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true}
+  ---
+  duration_ms: 8.342261
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+ok 19 - loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+  ---
+  duration_ms: 6.886405
+  type: 'test'
+  ...
+# Subtest: loader defaults use the browser document, location, events and session state
+ok 20 - loader defaults use the browser document, location, events and session state
+  ---
+  duration_ms: 7.274713
+  type: 'test'
+  ...
+# Subtest: a later hash change to \#open-chat activates the loader; any other hash does not
+ok 21 - a later hash change to \#open-chat activates the loader; any other hash does not
+  ---
+  duration_ms: 6.952091
+  type: 'test'
+  ...
+# Subtest: a focused open still announces itself in a document with no window of its own
+ok 22 - a focused open still announces itself in a document with no window of its own
+  ---
+  duration_ms: 8.764516
+  type: 'test'
+  ...
+# Subtest: only a bounded typed server directive narrows; text, malformed data and executable objects do not
+ok 23 - only a bounded typed server directive narrows; text, malformed data and executable objects do not
+  ---
+  duration_ms: 1.616835
+  type: 'test'
+  ...
+# Subtest: a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry
+ok 24 - a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry
+  ---
+  duration_ms: 26.519748
+  type: 'test'
+  ...
+# Subtest: two widget instances supply their own live confirmation credentials
+ok 25 - two widget instances supply their own live confirmation credentials
+  ---
+  duration_ms: 2.316149
+  type: 'test'
+  ...
+# Subtest: live challenges stay out of events, completed transcripts and the next provider history
+ok 26 - live challenges stay out of events, completed transcripts and the next provider history
+  ---
+  duration_ms: 7.118598
+  type: 'test'
+  ...
+# Subtest: without a renderer a challenge remains non-persistent, and late challenges after end stay silent
+ok 27 - without a renderer a challenge remains non-persistent, and late challenges after end stay silent
+  ---
+  duration_ms: 2.461941
+  type: 'test'
+  ...
+# Subtest: visitor navigation uses normalized, same-site public paths and never arbitrary query state
+ok 28 - visitor navigation uses normalized, same-site public paths and never arbitrary query state
+  ---
+  duration_ms: 1.676911
+  type: 'test'
+  ...
+# Subtest: access always asks once, binds person and tool, and applies only after the exact click
+ok 29 - access always asks once, binds person and tool, and applies only after the exact click
+  ---
+  duration_ms: 16.400589
+  type: 'test'
+  ...
+# Subtest: deactivation while reading the access card prevents effects
+ok 30 - deactivation while reading the access card prevents effects
+  ---
+  duration_ms: 5.111499
+  type: 'test'
+  ...
+# Subtest: cancel never writes access
+ok 31 - cancel never writes access
+  ---
+  duration_ms: 2.745618
+  type: 'test'
+  ...
+# Subtest: abort never writes access
+ok 32 - abort never writes access
+  ---
+  duration_ms: 1.73216
+  type: 'test'
+  ...
+# Subtest: an access card cannot address another person or omit the live approver check
+ok 33 - an access card cannot address another person or omit the live approver check
+  ---
+  duration_ms: 1.42076
+  type: 'test'
+  ...
+# Subtest: expiry closes the access card without writes
+ok 34 - expiry closes the access card without writes
+  ---
+  duration_ms: 3.688795
+  type: 'test'
+  ...
+# Subtest: every schema field title on an approval card is translated in every supported locale
+ok 35 - every schema field title on an approval card is translated in every supported locale
+  ---
+  duration_ms: 547.408814
+  type: 'test'
+  ...

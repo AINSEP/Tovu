@@ -112,3 +112,74 @@ Directory workspace: removed 1 test/temporary catalog entries: dead-temp
  ✓ src/http/guarded/__tests__/transport-boundaries.test.ts (1 test) 32ms
  ✓ src/fs/__tests__/directory-running-lock.boundaries.test.ts (33 tests) 10ms
  ✓ src/__tests__/aws-sigv4.test.ts (15 tests) 29ms
+ ✓ src/fs/__tests__/boot-identity.test.ts (12 tests) 77ms
+ ✓ src/secrets/__tests__/provider-matches.test.ts (6 tests) 5ms
+ ✓ src/fs/__tests__/directory-home.boundaries.test.ts (25 tests) 21ms
+ ✓ src/fs/__tests__/guarded-reader.traversal-budget.test.ts (11 tests) 21ms
+ ✓ src/http/guarded/__tests__/transport-request-port.test.ts (4 tests) 453ms
+ ✓ src/mail/__tests__/engine-contracts.test.ts (4 tests) 6ms
+ ✓ src/secrets/__tests__/credential-token.test.ts (28 tests) 81ms
+ ✓ src/http/guarded/__tests__/fetch-adapter.test.ts (14 tests) 20ms
+ ✓ src/secrets/__tests__/vault-archive.test.ts (4 tests) 17ms
+ ✓ src/fs/__tests__/app-data-profile.test.ts (7 tests) 87ms
+ ✓ src/mail/__tests__/domain-read.test.ts (6 tests) 22ms
+stdout | src/net/__tests__/unit/address.property.unit.test.ts
+[fast-check platform/address] seed=20261020, numRuns=150
+
+ ✓ src/net/__tests__/unit/address.property.unit.test.ts (10 tests) 1573ms
+ ✓ src/__tests__/aws-sigv4.f1.test.ts (8 tests) 13ms
+ ✓ src/net/__tests__/api-host.agent-runtime.test.ts (14 tests) 9ms
+ ✓ src/secrets/__tests__/exports.test.ts (2 tests) 6ms
+ ✓ src/net/__tests__/address.test.ts (17 tests) 18ms
+ ✓ src/secrets/__tests__/keyring-defaults.test.ts (12 tests) 56ms
+ ✓ src/fs/__tests__/file-lock.hostname-variants.test.ts (16 tests) 159ms
+ ✓ src/__tests__/asset-cache-ports.test.ts (4 tests) 59ms
+ ✓ src/http/guarded/__tests__/own-origin.test.ts (6 tests) 19ms
+ ✓ src/__tests__/shell.test.ts (9 tests) 446ms
+ ✓ src/fs/__tests__/directory-running-lock.characterization.test.ts (64 tests) 41ms
+ ✓ src/mail/__tests__/sender-identity.test.ts (3 tests) 4ms
+ ✓ src/net/__tests__/address.boundaries.test.ts (86 tests) 50ms
+ ✓ src/mail/__tests__/mail-status-cache.test.ts (5 tests) 5ms
+ ✓ src/web/__tests__/optional-peers.test.ts (1 test) 1306ms
+   ✓ root and default dispatcher use installed dependencies; web entry needs opt-in peers 1305ms
+ ✓ src/__tests__/asset-cache-dispatcher.test.ts (7 tests) 8ms
+ ✓ src/mail/__tests__/purpose-gate-predicate.test.ts (4 tests) 9ms
+ ✓ src/net/__tests__/endpoint-policy.contract.test.ts (56 tests) 31ms
+ ✓ src/fs/__tests__/atomic-write.test.ts (4 tests | 1 skipped) 8ms
+ ✓ src/secrets/__tests__/vault.api-connection-kind.test.ts (4 tests) 10ms
+ ✓ src/net/__tests__/endpoint-policy.parity.test.ts (26 tests) 99ms
+ ✓ src/fs/__tests__/durable-json-transaction.test.ts (5 tests) 14ms
+ ✓ src/mail/__tests__/provider-error.test.ts (13 tests) 21ms
+ ✓ src/__tests__/atomic-copy.unit.test.ts (3 tests) 48ms
+ ✓ src/__tests__/integration-contracts.test.ts (4 tests) 7ms
+ ✓ src/http/__tests__/multipart.test.ts (4 tests) 12ms
+ ✓ src/fs/__tests__/reviewed-file.test.ts (9 tests) 18ms
+ ✓ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests) 7ms
+ ✓ src/http/guarded/__tests__/render-rebinding.test.ts (4 tests) 17ms
+ ✓ src/net/__tests__/ssrf-regressions.test.ts (48 tests) 25ms
+ ✓ src/fs/__tests__/strict-containment.test.ts (7 tests) 5ms
+ ✓ src/__tests__/response-limit-exceeded.test.ts (5 tests) 33ms
+ ✓ src/mail/__tests__/rate-limit.test.ts (5 tests) 5ms
+ ✓ src/fs/__tests__/env-text.test.ts (8 tests) 4ms
+ ✓ src/__tests__/messages.test.ts (3 tests) 5ms
+ ✓ src/net/__tests__/endpoint-policy.boundaries.test.ts (49 tests) 15ms
+ ✓ src/mail/__tests__/purpose-gate-defaults.test.ts (8 tests) 11ms
+ ✓ src/http/guarded/__tests__/timeouts.test.ts (4 tests) 3556ms
+   ✓ a progressing body outlives its socket idle timeout without a total deadline 1425ms
+   ✓ the legacy timeoutMs also remains a socket idle timeout 1408ms
+   ✓ an explicit total deadline cuts off even a progressing body 608ms
+ ✓ src/secrets/__tests__/keyring.env.generate-errors.test.ts (6 tests) 8ms
+ ✓ src/__tests__/home-expansion.test.ts (6 tests) 4ms
+ ✓ src/mail/__tests__/delivery-observer-w2g.unit.test.ts (1 test) 18ms
+ ✓ src/__tests__/entry-barrels.test.ts (3 tests) 6ms
+ ✓ src/secrets/__tests__/sealing-wire-format.pinned.test.ts (3 tests) 5ms
+ ✓ src/web/__tests__/strip-html-presentation.test.ts (3 tests) 41ms
+ ✓ src/secrets/__tests__/envelope-validation-w2g.unit.test.ts (6 tests) 14ms
+ ✓ src/__tests__/response-cleanup-w2g.unit.test.ts (4 tests) 9ms
+ ✓ src/__tests__/unit/download-reuse-m2.unit.test.ts (2 tests) 58ms
+ ✓ src/net/__tests__/loopback-hostname.test.ts (6 tests) 17ms
+ ✓ src/mail/__tests__/resolver-defaults-w2g.unit.test.ts (2 tests) 11ms
+ ✓ src/net/__tests__/local-probe-tls.test.ts (2 tests) 7ms
+ ✓ src/secrets/__tests__/site-key-exports.test.ts (2 tests) 8ms
+ ✓ src/__tests__/shell-path.unit.test.ts (1 test) 4ms
+ ✓ src/fs/__tests__/file-digest.test.ts (1 test) 6ms
