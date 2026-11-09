@@ -1,0 +1,7 @@
+typecheck-root exit=0 secs=38
+typecheck-e2e exit=0 secs=30
+typecheck-tests exit=2 secs=78
+lint exit=1 secs=12
+check-architecture exit=1 secs=29
+check-boundaries exit=15 secs=31
+LANE-DONE

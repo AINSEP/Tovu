@@ -1,0 +1,957 @@
+# tovu-static digest
+
+Run 2026-11-09 ~07:46-07:50 UTC. Report only, nothing fixed. Raw: tovu-static-*.txt in this dir.
+
+| step | exit | result | secs |
+|---|---|---|---|
+| typecheck-root (tsconfig.json) | 0 | 0 errors | 38 |
+| typecheck-e2e (development/tsconfig.e2e.json) | 0 | 0 errors | 30 |
+| typecheck-tests (tsconfig.tests.json) | 2 | 10 error TS | 78 |
+| lint (biome lint .) | 1 | 607 errors, 10222 warnings, 996 infos (6979 files) | 12 |
+| check-architecture | 1 | FAILED: 4 hard metrics regressed | 29 |
+| check-boundaries (depcruise) | 15 | 98 violations: 15 errors, 83 warnings | 31 |
+
+typecheck-root passes with Jini linked (no errors inside @jini-ai/* types or Tovu code).
+
+## Type errors (typecheck-tests) - all 10
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(27,16): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(28,32): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(30,40): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(31,40): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(33,35): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,13): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,119): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(45,30): error TS18047: 'result' is possibly 'null'.
+- apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts(41,266): error TS2353: Object literal may only specify known properties, and 'scope' does not exist in type 'Omit<AccessApprovalResource, "scope">'.
+- apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(70,9): error TS2741: Property 'tidy' is missing in type '{ list: (input: { principalId: string; }) => Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owne
+
+Classes: the 8 TS18047 in import-local.integration.test.ts (lines 27-45: `result` possibly null) = stale test (source return type now nullable; unclear which side changed, tests never narrowed). set-enabled-confirmation-ui.unit.test.ts:41 TS2353 = stale test (AccessApprovalResource type no longer takes `scope` in that Omit position). site-imports.integration.test.ts:70 TS2741 = stale test (SiteImportBackend now requires `tidy`, test stub lacks it). Evidence is only the message text; I did not inspect git history. All three are in apps/website tests, not in @jini-ai types.
+
+## Lint errors (biome) - 607 errors, listed individually
+Full list, one per line `file:line:col rule message`: /home/user/Tovu/cloud/reports/raw/tovu-static-lint-errors-list.txt (607 lines, regenerated with `biome lint . --max-diagnostics=none --diagnostic-level=error`; the lane's own raw file is truncated by biome's 20-diagnostic default limit). Class for all: product bug/code-quality (lint rule violations in source), not environment.
+
+Errors by rule:
+- lint/correctness/useExhaustiveDependencies: 109
+- lint/a11y/useButtonType: 70
+- lint/suspicious/noAssignInExpressions: 64
+- lint/a11y/noSvgWithoutTitle: 57
+- lint/suspicious/useIterableCallbackReturn: 49
+- lint/correctness/useHookAtTopLevel: 38
+- lint/suspicious/noControlCharactersInRegex: 29
+- lint/suspicious/noImplicitAnyLet: 25
+- lint/correctness/noUnsafeOptionalChaining: 24
+- lint/a11y/useKeyWithClickEvents: 23
+- lint/a11y/useSemanticElements: 19
+- lint/suspicious/noArrayIndexKey: 17
+- lint/a11y/noStaticElementInteractions: 13
+- lint/a11y/noAutofocus: 11
+- lint/correctness/useJsxKeyInIterable: 8
+- lint/suspicious/noEmptyInterface: 7
+- lint/correctness/noChildrenProp: 7
+- lint/correctness/useYield: 5
+- lint/correctness/noEmptyCharacterClassInRegex: 5
+- lint/correctness/noUnsafeFinally: 4
+- lint/a11y/useAriaPropsSupportedByRole: 4
+- lint/suspicious/noShadowRestrictedNames: 3
+- lint/correctness/noConstantCondition: 2
+- lint/a11y/useMediaCaption: 2
+- lint/suspicious/noThenProperty: 1
+- lint/suspicious/noExportsInTest: 1
+- lint/correctness/noVoidTypeReturn: 1
+- lint/correctness/noSwitchDeclarations: 1
+- lint/correctness/noEmptyPattern: 1
+- lint/correctness/noConstructorReturn: 1
+- lint/a11y/useValidAnchor: 1
+- lint/a11y/useFocusableInteractive: 1
+- lint/a11y/useAriaPropsForRole: 1
+- lint/a11y/noNoninteractiveTabindex: 1
+- lint/a11y/noNoninteractiveElementToInteractiveRole: 1
+- lint/a11y/noInteractiveElementToNoninteractiveRole: 1
+
+### Every lint error
+```
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on location.
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on sessionApi.me.
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on sessionApi.redeemBootSession.
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on sessionApi.
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on history.
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on location.hostname.
+apps/admin/src/App.hooks.ts:171:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on subscribeUnauthenticated.
+apps/admin/src/App.hooks.ts:198:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on subscribeSettingsChanges.
+apps/admin/src/App.hooks.ts:649:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: routePath.
+apps/admin/src/App.hooks.ts:1164:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: routeLocation.
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on acceptSession.
+apps/admin/src/App.tsx:782:24 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/App.tsx:782:24 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/App.tsx:269:7 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/__tests__/fetch-query-render.tsx:10:48 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/__tests__/unit/sidebar-labels.unit.test.tsx:32:5 lint/a11y/useValidAnchor Provide a href attribute for the a element.
+apps/admin/src/admin-themes/__tests__/admin-themes.unit.test.ts:168:49 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/admin/src/admin-themes/__tests__/use-admin-theme.hooks.unit.test.tsx:46:15 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/AgentFailureCard.tsx:11:21 lint/correctness/useExhaustiveDependencies This hook specifies a dependency more specific than its captures: failure?.details
+apps/admin/src/components/AssistantDock/AgentFailureCard.tsx:11:21 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on failure.
+apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx:96:18 lint/a11y/useFocusableInteractive The HTML element with the interactive role "separator" is not focusable.
+apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx:96:23 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<hr>
+apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx:96:23 lint/a11y/useAriaPropsForRole The element with the separator ARIA role does not have the required ARIA attributes.
+apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx:97:10 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx:125:5 lint/a11y/useAriaPropsSupportedByRole The ARIA attribute 'aria-checked' is not supported by this element.
+apps/admin/src/components/AssistantDock/MessageOverflowModal.tsx:60:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/components/AssistantDock/__tests__/agent-failure.unit.test.ts:8:1 lint/suspicious/noExportsInTest Do not export from a test file.
+apps/admin/src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx:123:30 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx:77:12 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx:128:11 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/composer-selected-skills.unit.test.tsx:100:24 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/admin/src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx:138:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx:142:22 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/unit/commit-approval.integration.test.tsx:14:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/unit/commit-approval.integration.test.tsx:15:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts:21:15 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts:79:35 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/use-chat-display-preferences.hooks.unit.test.ts:57:30 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/use-chat-display-preferences.hooks.unit.test.ts:123:37 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx:13:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx:14:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx:15:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx:18:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx:20:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/AssistantDock/__tests__/use-dock-renderer-registry.hooks.unit.test.tsx:55:25 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:635:3 lint/correctness/useExhaustiveDependencies This hook specifies a dependency more specific than its captures: executionConfig.localCli
+apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:635:3 lint/correctness/useExhaustiveDependencies This hook specifies a dependency more specific than its captures: executionConfig.localCli
+apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:635:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on executionConfig.
+apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1943:34 lint/correctness/useHookAtTopLevel This hook is being called conditionally, but all hooks must be called in the exact same order in every component render.
+apps/admin/src/components/AssistantDock/hooks/composer-skills.hooks.ts:73:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: prompt.
+apps/admin/src/components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts:160:29 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks.ts:56:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: agentId.
+apps/admin/src/components/CodeView/CodeView.tsx:24:24 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/DevicePreview/DevicePreviewToggle.tsx:30:32 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/components/InstallTabCard/InstallTabCard.tsx:147:7 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/components/MediaEditDialog/MediaEditDialog.tsx:125:30 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.tsx:148:14 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/components/PlainTextBlocks.tsx:17:20 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/PlainTextBlocks.tsx:18:60 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/PlainTextBlocks.tsx:21:19 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/PlainTextBlocks.tsx:23:30 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/Select/Select.tsx:15:36 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/components/TemplateSource/TemplateSourceModal.tsx:113:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/admin/src/components/WidgetConfigFields/HtmlAttributeRows.tsx:32:19 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx:151:50 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<input type="radio">
+apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx:182:63 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx:116:24 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx:289:14 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx:81:36 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/components/__tests__/AssistantDock.runtime-access.unit.test.tsx:46:36 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/components/__tests__/AssistantDock.unit.test.tsx:57:36 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/components/__tests__/ComingSoonPanel.unit.test.tsx:9:85 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/components/device-preview-icons.tsx:40:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/components/device-preview-icons.tsx:51:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/components/device-preview-icons.tsx:61:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/admin-themes/AdminThemes.tsx:75:15 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<input type="radio">
+apps/admin/src/features/admin-themes/AdminThemes.tsx:124:15 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<input type="radio">
+apps/admin/src/features/ai-assistant/AiAssistant.tsx:132:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/ai-assistant/__tests__/AdminExecutionMode.unit.test.tsx:13:65 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/ai-assistant/__tests__/AssistantDaemonRestart.unit.test.tsx:11:69 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/ai-assistant/hooks/use-assistant-daemon-restart.hooks.ts:90:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on checkStatus.
+apps/admin/src/features/auth/Login.tsx:40:191 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/auth/Login.tsx:44:105 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/auth/Login.tsx:53:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/auth/OwnerRecoverySignIn.tsx:36:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/authentication/Authentication.tsx:54:9 lint/a11y/useAriaPropsSupportedByRole The ARIA attribute 'aria-label' is not supported by this element.
+apps/admin/src/features/collections/Collections.tsx:165:5 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/collections/Collections.tsx:283:89 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/collections/Collections.tsx:382:37 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts:194:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on navigate.
+apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts:194:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on seedExistingWorkingCopy.
+apps/admin/src/features/comments/index.ts:15:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/consent/ConsentOverviewTab.tsx:63:84 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/consent/ConsentOverviewTab.tsx:76:83 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/consent/CookieConsent.tsx:100:71 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:147:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:182:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:182:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: refresh.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:69:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: loadNonce.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:69:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:69:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on delayMs.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:69:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on timers.
+apps/admin/src/features/database/database-visuals.tsx:28:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/database/database-visuals.tsx:42:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/deployment/StaticSiteTab.tsx:280:59 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/deployment/StaticSiteTab.tsx:292:42 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/deployment/deployment-visuals.tsx:40:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/deployment/deployment-visuals.tsx:52:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/deployment/deployment-visuals.tsx:63:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/deployment/deployment-visuals.tsx:74:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/deployment/deployment-visuals.tsx:84:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/email/EmailActivityTab.tsx:102:68 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/email/EmailTemplateEditor.tsx:74:55 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/email/hooks/email-load.hooks.ts:35:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: attempt.
+apps/admin/src/features/email/hooks/use-email-activity.hooks.ts:137:24 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on refusal.
+apps/admin/src/features/email/hooks/use-email-activity.hooks.ts:152:25 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on refusal.
+apps/admin/src/features/email/hooks/use-email-provider.hooks.ts:48:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: attempt.
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts:82:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on detail.
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts:82:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on detail.html.
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts:82:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: loadedId.
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts:82:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on detail.fields.map.
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts:82:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on detail.name.
+apps/admin/src/features/email/hooks/use-email.hooks.ts:62:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: attempt.
+apps/admin/src/features/forms/index.ts:18:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/forms/index.ts:24:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/import-export/import-export-tabs.tsx:27:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/library/Library.hooks.tsx:24:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/library/Library.hooks.tsx:33:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/library/Library.tsx:216:11 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/library/Library.tsx:347:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/library/Library.tsx:347:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/library/Library.tsx:366:124 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/library/rules.ts:99:42 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/admin/src/features/library/rules.ts:99:49 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/admin/src/features/media/Media.hooks.tsx:75:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/media/Media.hooks.tsx:84:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/media/Media.hooks.tsx:37:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/media/Media.hooks.tsx:49:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/media/Media.hooks.tsx:60:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/media/Media.tsx:283:11 lint/a11y/useMediaCaption Provide a track for captions when using audio or video elements.
+apps/admin/src/features/media/Media.tsx:713:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/media/__tests__/use-edit-media-modal.hooks.unit.test.tsx:16:10 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/media/__tests__/use-edit-media-modal.hooks.unit.test.tsx:35:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/menus/MenuEditor.tsx:275:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/menus/MenuEditor.tsx:278:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/menus/MenuEditor.tsx:281:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/menus/MenuEditor.tsx:284:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/menus/Menus.tsx:62:29 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/menus/__tests__/MenuEditor.unit.test.tsx:481:44 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/admin/src/features/observability/observability-visuals.tsx:67:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/observability-visuals.tsx:56:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/observability-visuals.tsx:27:10 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/observability-visuals.tsx:76:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/observability-visuals.tsx:86:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/observability-visuals.tsx:36:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/observability-visuals.tsx:45:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/observability/recent-errors-panel.tsx:137:26 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/pages/ThemePageDetailsModal.tsx:241:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/pages/__tests__/editor-html-jump.unit.test.ts:7:23 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:706:24 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:706:24 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: routeSlug.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:945:19 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1044:35 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on readPage.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1044:35 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: port.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1063:18 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1146:27 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on interactiveEditorRef.current.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1183:3 lint/correctness/useExhaustiveDependencies This hook specifies a dependency more specific than its captures: page?.id
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1183:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on previewMatchesLive.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1183:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on page.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1183:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: status, contentDirty, templateChoice, savedTemplateChoice, html, contentRevision.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1233:29 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on interactiveEditorRef.current.
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1246:39 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on interactiveEditorRef.current.
+apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx:78:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx:96:13 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx:79:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx:78:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/plugins/AgentPluginRow.tsx:249:19 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/plugins/AgentPluginRow.tsx:249:19 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/plugins/PackageFilesModal.tsx:139:11 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/plugins/PackageFilesModal.tsx:65:20 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx:106:35 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx:37:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx:37:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx:38:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx:53:13 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/plugins/PluginRow.tsx:64:5 lint/a11y/noInteractiveElementToNoninteractiveRole Interactive elements should not be assigned non-interactive roles.
+apps/admin/src/features/plugins/PluginRow.tsx:64:38 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx:54:13 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/plugins/__tests__/confirm-dialogs-focus-trap.unit.test.tsx:24:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/plugins/__tests__/confirm-dialogs-focus-trap.unit.test.tsx:43:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/plugins/__tests__/confirm-dialogs-focus-trap.unit.test.tsx:72:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/plugins/__tests__/confirm-dialogs-focus-trap.unit.test.tsx:92:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/plugins/__tests__/plugin-zip-install.unit.test.tsx:103:20 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/admin/src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts:165:27 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts:228:27 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:65:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:75:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:86:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:98:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:109:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:131:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:141:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/agent-plugins-visuals.tsx:52:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts:38:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: pluginId, port.
+apps/admin/src/features/plugins/hooks/use-package-file-tree.hooks.ts:71:16 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on paths.
+apps/admin/src/features/plugins/hooks/use-package-file-tree.hooks.ts:71:16 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: pathsKey.
+apps/admin/src/features/plugins/hooks/use-plugin-provider-settings.hooks.ts:77:27 lint/correctness/useHookAtTopLevel This hook is being called conditionally, but all hooks must be called in the exact same order in every component render.
+apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:143:22 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/plugins/plugins-visuals.tsx:44:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/posts/PostEditor.tsx:264:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:236:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:237:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:238:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:239:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:258:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:260:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:265:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:266:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:267:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:285:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:290:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:310:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:321:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:332:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:343:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:356:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:357:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:388:11 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:399:11 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:488:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:500:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:536:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:621:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:622:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:623:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:624:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:625:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/PostEditor.tsx:1304:13 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/posts/PostEditor.tsx:234:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/__tests__/PostUrlDialog.chromecheck.unit.test.tsx:22:14 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/__tests__/post-author.unit.test.tsx:90:66 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/posts/__tests__/use-post-editor-ui.hooks.unit.test.tsx:6:77 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/posts/hooks/use-post-editor-ui.hooks.ts:189:58 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/posts/hooks/use-post-editor-ui.hooks.ts:194:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: shown, open.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:879:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on applyLoadedPost.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:879:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on port.getPost.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:879:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:879:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on navigate.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:879:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on port.getPresentation.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:1053:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on post?.id.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:1053:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: loadedId, bodyJson, templateChoice.
+apps/admin/src/features/providers/Providers.tsx:109:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/providers/hooks/use-always-allow.hooks.ts:60:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: list.data.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:986:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on applyOverwriteKeys.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:1003:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on peers.find.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:1003:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on props.onPlanned.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:1003:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on selectedPeerId.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:986:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on props.criteria.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:569:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on t.
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts:85:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on locale.
+apps/admin/src/features/redirects/index.ts:15:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/redirects/redirects-i18n.tsx:739:7 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/redirects/redirects-i18n.tsx:739:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/roles/Roles.hooks.tsx:60:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/roles/Roles.hooks.tsx:70:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/roles/hooks/use-roles.hooks.ts:448:60 lint/correctness/noUnsafeFinally Unsafe usage of 'return'.
+apps/admin/src/features/security/AccessTokensTab.tsx:688:33 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/security/AccessTokensTab.tsx:890:5 lint/a11y/useAriaPropsSupportedByRole The ARIA attribute 'aria-label' is not supported by this element.
+apps/admin/src/features/security/OtherCredentialsSection.tsx:124:11 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/security/RecoveryCodesCard.tsx:55:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/security/RecoveryCodesCard.tsx:101:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/security/__tests__/CopyKeysDialog.unit.test.tsx:9:12 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts:496:27 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on settlement.isCurrent.
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts:496:27 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on settlement.next.
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts:552:13 lint/correctness/useHookAtTopLevel This hook is being called conditionally, but all hooks must be called in the exact same order in every component render.
+apps/admin/src/features/security/security-visuals.tsx:28:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/security/security-visuals.tsx:39:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/security/security-visuals.tsx:50:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/seo/index.ts:17:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/settings/AdminAppearance.tsx:70:15 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<input type="radio">
+apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx:77:13 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx:59:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx:60:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx:59:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx:206:74 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<section>
+apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx:22:17 lint/correctness/useHookAtTopLevel This hook is being called conditionally, but all hooks must be called in the exact same order in every component render.
+apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx:34:17 lint/correctness/useHookAtTopLevel This hook is being called conditionally, but all hooks must be called in the exact same order in every component render.
+apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx:40:106 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx:40:184 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx:50:131 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/settings/ExternalMcpToolPicker.hooks.tsx:45:10 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on names.
+apps/admin/src/features/settings/ExternalMcpToolPicker.hooks.tsx:45:10 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: names.join(" ").
+apps/admin/src/features/settings/ExternalMcpToolsModal.tsx:72:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/settings/ExternalMcpToolsModal.tsx:72:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/settings/ExternalMcpToolsModal.tsx:73:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/settings/SettingsUi.tsx:154:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/settings/__tests__/SettingsUi.unit.test.tsx:20:57 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/settings/__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx:38:7 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/settings/__tests__/use-settings-active-tab-scroll.hooks.unit.test.tsx:11:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/settings/__tests__/use-settings-active-tab-scroll.hooks.unit.test.tsx:12:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/settings/ai-agent-presentation.ts:15:3 lint/correctness/noEmptyPattern Unexpected empty object pattern.
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts:409:9 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts:463:9 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/admin/src/features/settings/hooks/__tests__/use-settings-ui.unit.test.ts:36:35 lint/correctness/useHookAtTopLevel This hook is being called conditionally, but all hooks must be called in the exact same order in every component render.
+apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts:155:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: attempts.
+apps/admin/src/features/settings/hooks/use-external-mcp-tool-picker.hooks.ts:147:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: signature.
+apps/admin/src/features/settings/hooks/use-external-mcp-tool-picker.hooks.ts:157:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: declarations.
+apps/admin/src/features/settings/hooks/use-settings-active-tab-scroll.hooks.ts:19:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: tabId.
+apps/admin/src/features/settings/hooks/use-settings-ui.hooks.ts:164:5 lint/correctness/useExhaustiveDependencies This dependencies list is not an array literal.
+apps/admin/src/features/sites/AllSitesTab.tsx:315:35 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/sites/CreateSiteOnboarding.tsx:123:54 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/sites/CreateSiteOnboarding.tsx:150:7 lint/a11y/useAriaPropsSupportedByRole The ARIA attribute 'aria-expanded' is not supported by this element.
+apps/admin/src/features/sites/SiteTrashTab.tsx:15:38 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/sites/SitesHomeSetting.tsx:130:15 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/sites/SitesHomeSetting.tsx:37:102 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/sites/SitesHomeSetting.tsx:38:144 lint/correctness/useHookAtTopLevel This hook is being called from a nested function, but all hooks must be called unconditionally from the top-level component.
+apps/admin/src/features/sites/SitesHomeSetting.tsx:128:20 lint/suspicious/noArrayIndexKey Avoid using the index of an array as key property in an element.
+apps/admin/src/features/sites/StaticExportPicker.tsx:51:15 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/sites/__tests__/site-card-view.unit.test.tsx:156:105 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/sites/__tests__/site-card-view.unit.test.tsx:153:11 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/sites/__tests__/sites-idle-requests.unit.test.tsx:35:14 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts:95:15 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on handleSwitchResult.
+apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts:92:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: identity, canManageSavedKeys.
+apps/admin/src/features/sites/sites-visuals.tsx:30:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/sites/sites-visuals.tsx:39:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/sites/sites-visuals.tsx:49:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/sites/sites-visuals.tsx:59:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/sites/sites-visuals.tsx:72:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/skills/SkillInstallConfirmation.tsx:23:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/skills/SkillInstallConfirmation.tsx:23:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/skills/SkillInstallConfirmation.tsx:24:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx:7:5 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx:7:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx:8:7 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx:106:16 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/source-control/source-control-visuals.tsx:38:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/taxonomy/Taxonomy.tsx:134:11 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/taxonomy/Taxonomy.tsx:821:23 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<button>
+apps/admin/src/features/taxonomy/Taxonomy.tsx:821:23 lint/a11y/noNoninteractiveElementToInteractiveRole The HTML element li is non-interactive and should not have an interactive role.
+apps/admin/src/features/taxonomy/Taxonomy.tsx:868:23 lint/a11y/noStaticElementInteractions Unexpected event handler on static element.
+apps/admin/src/features/taxonomy/Taxonomy.tsx:868:23 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts:60:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on close.
+apps/admin/src/features/taxonomy/__tests__/TaxonomyRowMenu.hooks.unit.test.tsx:96:11 lint/suspicious/noShadowRestrictedNames Do not shadow the global "escape" property.
+apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts:145:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: props.contentType, props.contentId.
+apps/admin/src/features/themes/ThemeExplore.tsx:360:11 lint/a11y/noAutofocus Avoid the autoFocus attribute.
+apps/admin/src/features/themes/ThemeExplore.tsx:1077:48 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<section>
+apps/admin/src/features/themes/ThemeExplore.tsx:1122:5 lint/a11y/useKeyWithClickEvents Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+apps/admin/src/features/themes/ThemeExplore.tsx:836:9 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/features/themes/Themes.tsx:102:11 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/themes/Themes.tsx:434:35 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<fieldset>
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1099:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on textLoader.load.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1379:58 lint/correctness/noUnsafeFinally Unsafe usage of 'return'.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1008:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on listingLoader.load.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1008:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: port.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1099:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: port, fileReadNonce.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1162:32 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on listingLoader.load.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1162:32 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: port.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1208:31 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on cachedReads.getThemeFile.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1208:31 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: port.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1235:16 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1266:17 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1304:24 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on cachedReads.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1304:24 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1341:25 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on cachedReads.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1341:25 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1469:20 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on cachedReads.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1469:20 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1538:25 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on cachedReads.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1538:25 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1616:28 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on write.mutate.
+apps/admin/src/features/themes/hooks/use-themes.hooks.ts:253:60 lint/correctness/noUnsafeFinally Unsafe usage of 'return'.
+apps/admin/src/features/themes/themes-visuals.tsx:27:5 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/voice-input/PushToTalkMicButton.tsx:76:9 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/features/voice-input/__tests__/mic-capture.unit.test.ts:22:57 lint/correctness/noConstructorReturn The constructor should not return a value.
+apps/admin/src/features/voice-input/hooks/mic-capture.ts:76:27 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/voice-input/hooks/mic-capture.ts:88:25 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/features/webmcp/BrowserAgentSettingsPanel.tsx:15:11 lint/a11y/useSemanticElements The elements with this role can be changed to the following elements:%0A<input type="checkbox">
+apps/admin/src/features/widgets/index.ts:15:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/widgets/index.ts:20:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/widgets/index.ts:25:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/features/widgets/index.ts:32:10 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/hooks/__tests__/use-dock-auto-rail.hooks.test.tsx:30:17 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:186:35 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:180:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:216:22 lint/a11y/noNoninteractiveTabindex The HTML element span is non-interactive. Do not use tabIndex.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:199:24 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:199:24 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:200:20 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:200:54 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:201:25 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:201:25 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:202:22 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:202:34 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:213:12 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:214:14 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:215:16 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:216:16 lint/correctness/useJsxKeyInIterable Missing key property for this element in iterable.
+apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx:179:5 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/hooks/__tests__/use-interface-preferences.hooks.test.ts:37:30 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/hooks/__tests__/use-sidebar-empty-click-toggle.hooks.test.tsx:26:11 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/hooks/__tests__/use-sidebar-empty-click-toggle.hooks.test.tsx:32:11 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/hooks/__tests__/use-sidebar-empty-click-toggle.hooks.test.tsx:41:11 lint/a11y/noSvgWithoutTitle Alternative text title element cannot be empty
+apps/admin/src/hooks/use-admin-appearance.hooks.ts:60:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: root.
+apps/admin/src/hooks/use-list-table-cell-labels.hooks.ts:26:8 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/hooks/use-sites-sidebar-nav.hooks.ts:84:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: target, siteName, collapsed.
+apps/admin/src/integrations/chart-providers/use-chart-registry.hooks.ts:37:10 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on query.data.
+apps/admin/src/integrations/chart-providers/use-chart-registry.hooks.ts:37:10 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: generation.
+apps/admin/src/integrations/jini-admin/AdminModulesProvider.tsx:4:19 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/integrations/jini-admin/AdminModulesProvider.tsx:5:19 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/integrations/jini-admin/ModulePanel.tsx:3:14 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/integrations/jini-admin/__tests__/kit.unit.test.tsx:45:55 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/integrations/jini-admin/__tests__/kit.unit.test.tsx:22:104 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/integrations/jini-admin/__tests__/kit.unit.test.tsx:46:67 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/integrations/jini-admin/__tests__/kit.unit.test.tsx:54:55 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/integrations/jini-admin/__tests__/kit.unit.test.tsx:79:82 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx:130:16 lint/a11y/useButtonType Provide an explicit type prop for the button element.
+apps/admin/src/integrations/jini-admin/modules.hooks.ts:44:3 lint/correctness/useExhaustiveDependencies This hook does not specify its dependency on permissions.
+apps/admin/src/integrations/jini-admin/modules.hooks.ts:44:3 lint/correctness/useExhaustiveDependencies This hook specifies more dependencies than necessary: key.
+apps/admin/src/integrations/jini-admin/modules.hooks.ts:74:77 lint/correctness/noChildrenProp Avoid passing children using a prop
+apps/admin/src/integrations/jini-admin/widgets-module.hooks.ts:17:22 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/integrations/jini-admin/widgets-module.hooks.ts:49:18 lint/correctness/useHookAtTopLevel This hook is being called from within a function or method that is not a hook or component.
+apps/admin/src/lib/__tests__/admin-literal-copy.test-helper.ts:42:61 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/__tests__/assistant-transport.run-status.unit.test.ts:120:27 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/__tests__/block-atom-insert.unit.test.ts:42:20 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/__tests__/escape-owned-by-inner-layer.unit.test.ts:18:7 lint/suspicious/noShadowRestrictedNames Do not shadow the global "escape" property.
+apps/admin/src/lib/__tests__/server-reconnect.unit.test.ts:13:63 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/admin/src/lib/__tests__/shared-stream-adapters.unit.test.ts:79:11 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/__tests__/shared-stream-adapters.unit.test.ts:96:13 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/__tests__/shared-stream-adapters.unit.test.ts:100:13 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/__tests__/visible-interval.unit.test.ts:36:36 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/admin/src/lib/media-embed-extension.tsx:112:5 lint/a11y/useMediaCaption Provide a track for captions when using audio or video elements.
+apps/admin/src/styles/__tests__/external-mcp-tool-picker-css.unit.test.ts:57:11 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/__tests__/no-first-party-require.boundary.test.ts:262:11 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/assistant/__tests__/content-read-post-filters.test.ts:73:45 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/assistant/__tests__/run-scoped-credential.test.ts:414:30 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/assistant/__tests__/tool-registrations.trash-item.test.ts:146:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts:428:26 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/assistant/agents.ts:266:10 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/assistant/site/__tests__/visitor-confirmation-gate.unit.test.ts:125:72 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/assistant/site/__tests__/visitor-confirmation-gate.unit.test.ts:125:79 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/assistant/site/__tests__/visitor-frontend-control.unit.test.ts:160:29 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/contracts/core/__tests__/tool-surface-exchanges.test.ts:568:27 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/contracts/core/commands/revert.ts:103:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:133:57 lint/correctness/noEmptyCharacterClassInRegex The regular expression includes this negated empty character class.
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:133:88 lint/correctness/noEmptyCharacterClassInRegex The regular expression includes this negated empty character class.
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:135:73 lint/correctness/noEmptyCharacterClassInRegex The regular expression includes this negated empty character class.
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:210:72 lint/correctness/noEmptyCharacterClassInRegex The regular expression includes this negated empty character class.
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:279:43 lint/correctness/noEmptyCharacterClassInRegex The regular expression includes this negated empty character class.
+apps/website/src/features/agent-plugins/__tests__/unit/install-upload.unit.test.ts:143:27 lint/correctness/useYield This generator function doesn't contain yield.
+apps/website/src/features/agent-plugins/__tests__/unit/memory-tools.unit.test.ts:28:17 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/agent-plugins/__tests__/unit/uninstall-dwell.unit.test.ts:33:56 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/delivery-bindings.unit.test.ts:58:58 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts:93:12 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/agent-plugins/connect-tool.ts:167:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/agent-plugins/credential-cards.ts:194:47 lint/correctness/noVoidTypeReturn The function should not return a value because its return type is void.
+apps/website/src/features/agent-plugins/host-signals.ts:14:93 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/agent-plugins/host-signals.ts:14:98 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/consent/config.ts:74:41 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/deployments/__tests__/dockerignore-security.unit.test.ts:67:30 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/deployments/__tests__/dockerignore-security.unit.test.ts:67:51 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/deployments/__tests__/dockerignore-security.unit.test.ts:68:30 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/deployments/__tests__/dockerignore-security.unit.test.ts:68:46 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/deployments/deploy-ops/run-ops.ts:138:9 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/deployments/publish-credentials/__tests__/account-label-heal-scheduler.unit.test.ts:105:79 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/deployments/publish-credentials/__tests__/store.unit.test.ts:69:36 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/deployments/static-publish/__tests__/adapter.plugin-targets.unit.test.ts:192:33 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/deployments/static-publish/__tests__/credentials.unit.test.ts:36:36 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/deployments/static-publish/__tests__/verify.unit.test.ts:41:36 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/email-templates/render.ts:183:38 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts:50:81 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/form-destinations/registry.ts:110:12 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/fs-files/__tests__/write-files.test.ts:146:26 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/media/__tests__/library-tools.test.ts:84:12 lint/correctness/noConstantCondition This condition always evaluates to the same value.
+apps/website/src/features/media/__tests__/view-video-tool.test.ts:273:19 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/media/promote-chat-attachment.ts:87:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/members/__tests__/mailer.console.test.ts:43:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/members/__tests__/mailer.console.test.ts:156:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/members/__tests__/mailer.console.test.ts:188:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/members/__tests__/mailer.console.test.ts:223:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/members/write-service.ts:263:49 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/members/write-service.ts:263:54 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/navigation/__tests__/publish-content.test.ts:431:37 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/navigation/__tests__/publish-content.test.ts:463:37 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/navigation/__tests__/publish-content.test.ts:499:37 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/navigation/__tests__/reverters.test.ts:87:49 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/navigation/__tests__/reverters.test.ts:102:39 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/navigation/render-entry.ts:26:35 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/pages/__tests__/tool-registrations.test.ts:116:11 lint/suspicious/noShadowRestrictedNames Do not shadow the global "escape" property.
+apps/website/src/features/pages/tool-registrations.ts:530:11 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts:174:50 lint/correctness/useYield This generator function doesn't contain yield.
+apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts:179:52 lint/correctness/useYield This generator function doesn't contain yield.
+apps/website/src/features/post/__tests__/post.trashed-slug-release.test.ts:188:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/post/__tests__/tool-registrations.schedule-featured.test.ts:206:30 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/post/post.ts:593:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/post/post.ts:694:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/post/post.ts:752:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/post/post.ts:856:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/post/post.ts:2048:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/post/search.ts:224:8 lint/suspicious/noEmptyInterface An empty interface is equivalent to {}.
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts:1519:35 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts:1520:35 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts:1555:35 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts:1470:35 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/publish-content/__tests__/no-dead-apply-stub.boundary.test.ts:30:9 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/publish-content/backstop-policy.ts:51:11 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/publish-content/backstop-policy.ts:51:16 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/publish-content/peer-transport.ts:245:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/publish-content/publish-backstop-file.ts:121:71 lint/correctness/noUnsafeFinally Unsafe usage of 'throw'.
+apps/website/src/features/server-logs/tool-registrations.ts:36:11 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/settings/__tests__/form-delivery.security.test.ts:113:51 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/settings/__tests__/form-delivery.unit.test.ts:44:53 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/site-backup/__tests__/import-verifier-refusals.unit.test.ts:210:86 lint/correctness/useYield This generator function doesn't contain yield.
+apps/website/src/features/site-backup/__tests__/import-verifier-refusals.unit.test.ts:242:120 lint/correctness/useYield This generator function doesn't contain yield.
+apps/website/src/features/site-backup/__tests__/import.fixture.ts:96:14 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:239:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/site-backup/backup-service.ts:351:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts:41:18 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts:40:19 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/site-backup/share-file-policy.ts:84:16 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/site-backup/share-file-policy.ts:84:11 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/site-backup/sources.ts:182:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/site-backup/sources.ts:320:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/skills/__tests__/integration/skill-tool-search-ranking.integration.test.ts:147:8 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/skills/tool-registrations.ts:173:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/skills/tool-registrations.ts:299:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/source-control/__tests__/store.resolve.unit.test.ts:53:40 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/source-control/__tests__/store.unit.test.ts:72:36 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/taxonomy/__tests__/repo.dialects.test.ts:60:30 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/taxonomy/__tests__/repo.dialects.test.ts:160:30 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/taxonomy/__tests__/repo.dialects.test.ts:305:30 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/taxonomy/__tests__/repo.dialects.test.ts:425:30 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/theme/__tests__/heading-phone-overflow.test.ts:23:21 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/features/theme/__tests__/theme-compiled-load-gate.test.ts:98:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/theme/__tests__/theme-read-file-window.test.ts:80:12 lint/correctness/noConstantCondition This condition always evaluates to the same value.
+apps/website/src/features/theme/__tests__/theme-trash.test.ts:72:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/theme/duplicate-theme.ts:123:9 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/theme/duplicate-theme.ts:123:16 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/theme/preview-refresh.ts:20:61 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/theme/validation/webmcp-markup.ts:28:113 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/trash/__tests__/directory-adapter.test.ts:150:58 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/directory-adapter.test.ts:190:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/follow-ups.test.ts:81:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/form-adapter.test.ts:217:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/form-trash-flow.test.ts:54:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/menu-trash-flow.test.ts:70:40 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/move-to-trash.test.ts:52:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/on-changed.contract.test.ts:58:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/post-delete-undo-index.test.ts:82:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/prior-marker.contract.test.ts:56:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/table-adapter.test.ts:368:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/table-adapter.test.ts:452:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/term-trash-flow.test.ts:121:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/trash.contract.test.ts:65:39 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/trash/__tests__/widget-trash-flow.test.ts:74:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/web-screenshot/web-screenshot.ts:149:77 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/web-screenshot/web-screenshot.ts:149:84 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/features/webhooks/__tests__/delivery.test.ts:331:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/features/webhooks/secret-scan-guard.ts:187:13 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1306:23 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/features/widgets/media-html.ts:134:23 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/platform/db/repos/__tests__/form-delivery-repo.dialects.test.ts:44:38 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:92:67 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/platform/db/sqlite/__tests__/import-database.unit.test.ts:43:49 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/platform/html/slug.ts:22:27 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/server/__tests__/admin-post-update-rollback-ledger.test.ts:85:56 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/__tests__/admin-trash-items-blocker.test.ts:62:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/__tests__/admin-trash-routes.test.ts:205:37 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/__tests__/admin-widgets-routes.test.ts:666:26 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/server/__tests__/assistant-byok-routes.test.ts:239:11 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/__tests__/assistant-run-finalizer.observability.test.ts:313:40 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/server/__tests__/assistant-run-finalizer.test.ts:50:69 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/__tests__/routes/site-profile-route.test.ts:317:25 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/server/__tests__/site-assistant-routes.test.ts:224:25 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:122:9 lint/suspicious/noThenProperty This object defines a then property.
+apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/destination.routes.test.ts:96:36 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/inbound/admin-http/routes/settings/__tests__/preview-feed-access.test.ts:119:17 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/inbound/admin-http/routes/system/credential-copy.ts:37:98 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/server/inbound/admin-http/routes/system/credential-copy.ts:37:103 lint/suspicious/noControlCharactersInRegex Unexpected control character in a regular expression.
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-consent-protocol.unit.test.ts:24:23 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:44:13 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:45:17 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts:179:50 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/inbound/public-http/routes/site/__tests__/capture-commerce-strip-golden.ts:32:4 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts:239:8 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/boot/__tests__/site-boot-readiness.unit.test.ts:24:33 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/runtime/composition/__tests__/agent-plugin-search-discovery.integration.test.ts:73:8 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/runtime/composition/__tests__/agent-plugin-tool-search-ranking.integration.test.ts:193:8 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.fixture.ts:160:39 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-subscribers.test.ts:28:42 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-subscribers.test.ts:51:39 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-subscribers.test.ts:84:39 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts:62:42 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts:88:116 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery.test.ts:26:42 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-delivery.test.ts:59:89 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/form-submissions.test.ts:61:60 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/__tests__/provider-revision-watch.unit.test.ts:69:25 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/runtime/composition/__tests__/publish-content-seed-hash.test.ts:59:14 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/app.ts:443:23 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/composition/commerce.ts:253:64 lint/suspicious/useIterableCallbackReturn This callback passed to forEach() iterable method should not return a value.
+apps/website/src/server/runtime/composition/domain-dns-adapters.ts:149:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-access-lowering.unit.test.ts:11:26 lint/correctness/noUnsafeOptionalChaining Unsafe usage of optional chaining.
+apps/website/src/server/runtime/composition/modules/site-assistant.ts:761:15 lint/correctness/noSwitchDeclarations Other switch clauses can erroneously access this declaration.%0AWrap the declaration in a block to restrict its access to the switch clause.
+apps/website/src/server/runtime/composition/site-consent.ts:68:7 lint/suspicious/noImplicitAnyLet This variable implicitly has the any type.
+apps/website/src/server/runtime/lifecycle/__tests__/close-store-on-shutdown-boot-work.test.ts:93:65 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/lifecycle/__tests__/close-store-on-shutdown-boot-work.test.ts:77:46 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts:577:14 lint/suspicious/noAssignInExpressions The assignment should not be in an expression.
+```
+
+Warnings by rule (count only; list: tovu-static-lint-warn-counts.txt):
+- lint/style/noNonNullAssertion: 9069
+- lint/suspicious/noExplicitAny: 427
+- lint/style/useImportType: 176
+- lint/correctness/noUnusedImports: 151
+- lint/complexity/noBannedTypes: 82
+- lint/correctness/noUnusedVariables: 72
+- lint/correctness/noUnusedFunctionParameters: 72
+- lint/complexity/useOptionalChain: 52
+- lint/complexity/noCommaOperator: 38
+- lint/suspicious/noTemplateCurlyInString: 28
+- lint/suspicious/noConfusingVoidType: 14
+- lint/suspicious/noPrototypeBuiltins: 12
+- lint/suspicious/noTsIgnore: 8
+- lint/complexity/noAdjacentSpacesInRegex: 5
+- lint/suspicious/noProto: 4
+- lint/style/useExportType: 3
+- lint/suspicious/noUselessEscapeInString: 2
+- lint/style/useConst: 2
+- lint/complexity/useArrowFunction: 2
+- lint/performance/noDynamicNamespaceImportAccess: 1
+- lint/performance/noAccumulatingSpread: 1
+- lint/complexity/noStaticOnlyClass: 1
+
+## check-architecture (2139 files, 73 modules) - FAILED
+Regressed vs baseline:
+- back-edges into composition root: 0 -> 5 (hard)
+- module API surface (files exposed): 821 -> 868 (hard)
+- module cycles / SCC runtime-only: +3 pairs, -2 pairs, largest SCC 22 -> 61 (hard)
+- propagation cost runtime-only: 3.06 -> 3.16 (warning, non-blocking)
+- bidirectional hub count: 335 -> 372 (warning, non-blocking)
+- improved: propagation cost all-import 15.52 -> 12.60
+- Tool says "TRADE DETECTED"; exit 1 because 4 metrics hit hard constraints.
+
+Module-level cycles (check-architecture, runtime-only mutual pairs: 6 total now)
+New pairs: assistant <-> server; features/site-backup <-> features/source-control; platform <-> server
+Removed pairs: assistant <-> features/agent-plugins; features/agent-plugins <-> features/api-connections
+
+118 "NEW cross-feature edge" lines (cross-feature import edges total 463); full list:
+```
+apps/website/src/features/agent-plugins/access-token-tool.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/apply-connect-defaults.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/apply-tool-renames.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/connect-tool.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/connection-status.ts -> apps/website/src/features/api-connections/host.ts
+apps/website/src/features/agent-plugins/connection-status.ts -> apps/website/src/features/custom-credentials/plugin-credential-card.ts
+apps/website/src/features/agent-plugins/connection-status.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/enable-access.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/federate-mcp.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/connect.ts
+apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/contribution.ts
+apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/attachments.ts
+apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/site-references.ts
+apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/custom-credentials/credential-copy-tool.ts -> apps/website/src/features/project-keys/service.ts
+apps/website/src/features/custom-credentials/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+apps/website/src/features/custom-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/custom-credentials/vault-repo.ts -> apps/website/src/features/project-keys/attached-vault.ts
+apps/website/src/features/database-transfer/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/deployments/deploy-ops/secrets.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/deployments/publish-agent-tools.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+apps/website/src/features/deployments/static-publish/publish-consent.ts -> apps/website/src/features/consent/service.ts
+apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+apps/website/src/features/entries/repo.ts -> apps/website/src/features/media/access-evidence.ts
+apps/website/src/features/entries/trash-aware-memory-repo.ts -> apps/website/src/features/media/access-evidence.ts
+apps/website/src/features/entries/unreadable-owner-entries-repair.ts -> apps/website/src/features/content-types/index.ts
+apps/website/src/features/external-mcp/external-mcp-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts -> apps/website/src/features/api-connections/shared-owner.ts
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts -> apps/website/src/features/project-keys/attachments.ts
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts -> apps/website/src/features/project-keys/site-references.ts
+apps/website/src/features/external-mcp/external-mcp-store.memory.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/external-mcp/external-mcp-store.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/external-mcp/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/forms/form-file-maintenance.ts -> apps/website/src/features/media/purge-media.ts
+apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/mail-status/test-send.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+apps/website/src/features/mail/attempts.repo.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/media-generation/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+apps/website/src/features/media-import/agent-tools.ts -> apps/website/src/features/fs-files/site-file-request.ts
+apps/website/src/features/media-import/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+apps/website/src/features/media/access-evidence.ts -> apps/website/src/features/post/post.ts
+apps/website/src/features/media/import-media-entity.ts -> apps/website/src/features/publish-content/type-registry.ts
+apps/website/src/features/media/where-used.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/member-login/link-policy.ts -> apps/website/src/features/members/index.ts
+apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+apps/website/src/features/plugin-runtime/service-ports.ts -> apps/website/src/features/post/index.ts
+apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+apps/website/src/features/post/repo.memory.ts -> apps/website/src/features/media/access-evidence.ts
+apps/website/src/features/post/repo.ts -> apps/website/src/features/media/access-evidence.ts
+apps/website/src/features/project-keys/shared-oauth-disconnect.ts -> apps/website/src/features/api-connections/shared-owner.ts
+apps/website/src/features/project-keys/site-references.ts -> apps/website/src/features/api-connections/vault-stores.ts
+apps/website/src/features/project-keys/site-sealer.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/publish-content/file-tree-policy.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+apps/website/src/features/publish-content/push-plan.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts
+apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/entries/contracts.ts
+apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/taxonomy/contracts.ts
+apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/theme/catalog.ts
+apps/website/src/features/seo/cover-image.ts -> apps/website/src/features/post/rendering.ts
+apps/website/src/features/site-backup/bundled-export-file-policy.ts -> apps/website/src/features/agent-plugins/bundled-catalog.ts
+apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/theme/active-theme.ts
+apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/widgets/media-html.ts
+apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+apps/website/src/features/site-backup/package-file-inventory.ts -> apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+apps/website/src/features/site-backup/share-backend.ts -> apps/website/src/features/theme/index.ts
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts -> apps/website/src/features/settings/contracts.ts
+apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/export-html-policy.ts
+apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/site-exporter.ts
+apps/website/src/features/site-backup/static-download-landing.ts -> apps/website/src/features/post/html-plain-text.ts
+apps/website/src/features/site-backup/static-download-layout.ts -> apps/website/src/features/site-export/export-html-policy.ts
+apps/website/src/features/site-export/export-html-policy.ts -> apps/website/src/features/webmcp/published-html.ts
+apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/active-theme.ts
+apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/theme-id-aliases.ts
+apps/website/src/features/site-search/access.ts -> apps/website/src/features/members/index.ts
+apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+apps/website/src/features/site-search/settings.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/sites/site-admin.ts -> apps/website/src/features/agent-plugins/service-ports.ts
+apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-policy.ts
+apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-zip.ts
+apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-copy.ts
+apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-layout.ts
+apps/website/src/features/source-control/credential-setup.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/source-control/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+apps/website/src/features/source-control/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/custom-credentials/index.ts
+apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+apps/website/src/features/theme/preview-switcher-tools.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/render-entry.ts
+apps/website/src/features/trash/adapters/redirect.ts -> apps/website/src/features/redirects/index.ts
+apps/website/src/features/widgets/deps.ts -> apps/website/src/features/content-types/write-service.ts
+apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post.ts
+```
+
+Class: product bug (architecture regression); depcruise/architecture evidence is the metric diff itself.
+
+## check-boundaries (dependency-cruiser): 98 violations = 15 errors, 83 warnings
+### Errors (all 15, rule: from -> to)
+```
+no-deep-imports:platform/site-dir:^apps/website/src/server/runtime/lifecycle/local-site-process\.ts$: apps/website/src/server/runtime/lifecycle/local-site-process.ts → apps/website/src/platform/site-dir/local-admin-bundle.ts
+no-deep-imports:platform/site-dir: apps/website/src/server/runtime/lifecycle/warm-site-agent.ts → apps/website/src/platform/site-dir/local-site-supervisor.ts
+no-deep-imports:platform/site-dir: apps/website/src/features/site-backup/archive-manifest.ts → apps/website/src/platform/site-dir/schema-guard.ts
+no-deep-imports:features/theme: apps/website/src/server/inbound/public-http/middleware/published-webmcp.ts → apps/website/src/features/theme/visitor-publication.ts
+no-deep-imports:features/theme: apps/website/src/assistant/site/visitor-page-tools.ts → apps/website/src/features/theme/visitor-publication.ts
+no-deep-imports:features/theme: apps/website/src/assistant/site/visitor-frontend-control.ts → apps/website/src/features/theme/visitor-publication.ts
+no-deep-imports:features/theme: apps/website/src/assistant/site/visitor-confirmation-gate.ts → apps/website/src/features/theme/visitor-publication.ts
+no-deep-imports:features/seo: apps/website/src/server/inbound/public-http/routes/site/pages.ts → apps/website/src/features/seo/page-head-contributor.ts
+no-deep-imports:features/post: apps/website/src/features/site-backup/static-download-landing.ts → apps/website/src/features/post/html-plain-text.ts
+no-deep-imports:features/media: apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts → apps/website/src/features/media/access-evidence.ts
+no-deep-imports:features/media: apps/website/src/features/post/repo.ts → apps/website/src/features/media/access-evidence.ts
+no-deep-imports:features/media: apps/website/src/features/post/repo.memory.ts → apps/website/src/features/media/access-evidence.ts
+no-deep-imports:features/media: apps/website/src/features/forms/form-file-maintenance.ts → apps/website/src/features/media/purge-media.ts
+no-deep-imports:features/media: apps/website/src/features/entries/trash-aware-memory-repo.ts → apps/website/src/features/media/access-evidence.ts
+no-deep-imports:features/media: apps/website/src/features/entries/repo.ts → apps/website/src/features/media/access-evidence.ts
+```
+Errors by rule: no-deep-imports:platform/site-dir x3, features/theme x4, features/seo x1, features/post x1, features/media x6.
+
+### Warnings by rule
+- no-deep-imports:assistant: 40
+- no-circular: 12
+- no-deep-imports:contracts/headless: 11
+- no-deep-imports:platform/mail: 4
+- only-composition-constructs-concrete-adapters: 3
+- no-deep-imports:features/settings: 3
+- no-deep-imports:features/taxonomy: 2
+- no-deep-imports:features/entries: 2
+- no-deep-imports:features/analytics: 2
+- no-non-seam-deep-imports-from-tool-registration-caller:platform/http: 1
+- no-non-seam-deep-imports-from-tool-registration-caller:assistant: 1
+- no-deep-imports:features/webhooks: 1
+- no-deep-imports:features/navigation: 1
+
+### File-level cycles (depcruise no-circular, 12 warnings)
+```
+  warn no-circular: apps/website/src/features/external-mcp/contracts.ts → 
+      apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts →
+      apps/website/src/features/external-mcp/contracts.ts
+  warn no-circular: apps/website/src/features/api-connections/host.ts → 
+      apps/website/src/features/api-connections/shared-api.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts
+  warn no-circular: apps/website/src/features/api-connections/host.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts
+  warn no-circular: apps/website/src/features/api-connections/hook-http.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts →
+      apps/website/src/features/api-connections/hook-http.ts
+  warn no-circular: apps/website/src/features/api-connections/connect.ts → 
+      apps/website/src/features/api-connections/host.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts
+  warn no-circular: apps/website/src/features/api-connections/byo-client.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts →
+      apps/website/src/features/api-connections/byo-client.ts
+  warn no-circular: apps/website/src/features/agent-plugins/service-ports.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts
+  warn no-circular: apps/website/src/features/agent-plugins/lifecycle.ts → 
+      apps/website/src/features/agent-plugins/supersession.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts
+  warn no-circular: apps/website/src/features/agent-plugins/lifecycle.ts → 
+      apps/website/src/features/agent-plugins/memory.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts
+  warn no-circular: apps/website/src/features/agent-plugins/layout.ts → 
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts
+  warn no-circular: apps/website/src/features/agent-plugins/customize-tool.ts → 
+      apps/website/src/features/agent-plugins/install-tool.ts →
+      apps/website/src/features/agent-plugins/customize-tool.ts
+  warn no-circular: apps/website/src/features/agent-plugins/connect-sign-in-wait.ts → 
+      apps/website/src/features/agent-plugins/connect-tool.ts →
+      apps/website/src/features/agent-plugins/connect-sign-in-wait.ts
+```
+
+Cluster summary: (a) features/external-mcp/contracts.ts <-> external-mcp-shared-oauth.ts; (b) big ring api-connections/{host,shared-api,contribution,connect,hook-http,byo-client} <-> agent-plugins/{lifecycle,layout,service-ports,supersession,memory} (9 reports of one SCC); (c) agent-plugins/customize-tool.ts <-> install-tool.ts; (d) connect-sign-in-wait.ts <-> connect-tool.ts.
+
+## Did not run
+Nothing skipped; all six steps completed within budget. No test suites in this lane.

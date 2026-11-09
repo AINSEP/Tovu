@@ -1,0 +1,375 @@
+apps/admin/src/App.hooks.ts:1102:14 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    1100 │     execute: ({ id, args }) => {
+    1101 │       if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
+  > 1102 │       return executors["admin."]!(id, args);
+         │              ^^^^^^^^^^^^^^^^^^^^
+    1103 │     },
+    1104 │   }, { signal });
+  
+  i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+  
+    1100 1100 │       execute: ({ id, args }) => {
+    1101 1101 │         if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
+    1102      │ - ······return·executors["admin."]!(id,·args);
+         1102 │ + ······return·executors["admin."]?.(id,·args);
+    1103 1103 │       },
+    1104 1104 │     }, { signal });
+  
+
+apps/admin/src/App.hooks.ts:1:8 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! This import is unused.
+  
+  > 1 │ import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
+      │        ^^^^^^^^^^^^^^^^^^^^
+    2 │ import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
+    3 │ import { adminFailureChannel } from "./lib/admin-failure-channel";
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+    1 │ import·{·directPageAction·}·from·"../../website/src/assistant/assistant-tool-approval-policy.js";
+      │ -------------------------------------------------------------------------------------------------
+
+apps/admin/src/App.hooks.ts:2:8 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! This import is unused.
+  
+    1 │ import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
+  > 2 │ import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
+      │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    3 │ import { adminFailureChannel } from "./lib/admin-failure-channel";
+    4 │ import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+       1    1 │   import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
+       2      │ - import·{·PAGE_CAPABILITIES·as·APPROVAL_PAGE_CAPABILITIES·}·from·"@jini-ai/agentic";
+       3    2 │   import { adminFailureChannel } from "./lib/admin-failure-channel";
+       4    3 │   import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
+  
+
+apps/admin/src/App.tsx:121:19 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    119 │   // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
+    120 │   // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
+  > 121 │   const rawPath = routePath.split("?", 1)[0]!;
+        │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    122 │   const parts = rawPath.split("/").filter(Boolean);
+    123 │ 
+  
+
+apps/admin/src/App.tsx:221:17 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    219 │   // `"dashboard"`, or `null` (mapped to `"dashboard"` here) — and `panels.tsx` registers
+    220 │   // `dashboard`. The legacy `/section/:id` branch returns early above for an unregistered id.
+  > 221 │   const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard")!;
+        │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    222 │   return panel.render({ view: route.view, params: route.params, query: route.query, Placeholder });
+    223 │ }
+  
+
+apps/admin/src/App.tsx:10:8 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! This import is unused.
+  
+     8 │ import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
+     9 │ import { AdminBootScopeContext } from "./lib/admin-boot-scope";
+  > 10 │ import { api } from "./lib/api";
+       │        ^^^^^^^
+    11 │ import { useMemo, type ReactNode } from "react";
+    12 │ import type { FrontendSessionBridge } from "@jini-ai/chat/react";
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+      8   8 │   import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
+      9   9 │   import { AdminBootScopeContext } from "./lib/admin-boot-scope";
+     10     │ - import·{·api·}·from·"./lib/api";
+     11  10 │   import { useMemo, type ReactNode } from "react";
+     12  11 │   import type { FrontendSessionBridge } from "@jini-ai/chat/react";
+  
+
+apps/admin/src/__tests__/admin-boot-readers.test.tsx:73:36 lint/style/noNonNullAssertion ━━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    71 │     expect(settings).toHaveBeenCalledTimes(1);
+    72 │     expect(content).toHaveBeenCalledTimes(1);
+  > 73 │     act(() => result.current([{ ...history[0]!, runStatus: "running", events: [] }]));
+       │                                    ^^^^^^^^^^^
+    74 │     act(() => result.current(history));
+    75 │     expect(settings).toHaveBeenCalledTimes(2);
+  
+
+apps/website/src/server/runtime/services/__tests__/external-mcp-operations.unit.test.ts:71:18 lint/style/noNonNullAssertion ━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    69 │ test("OAuth refresh errors never send provider credentials to the model", async () => {
+    70 │   const deps = await fixture({ authMode: "oauth", oauth: { grant: "authorization_code", clientId: "client" } });
+  > 71 │   const record = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "hosted" }))!;
+       │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    72 │   await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "connected" });
+    73 │   let connected = false;
+  
+
+apps/website/src/server/runtime/services/__tests__/external-mcp-operations.unit.test.ts:91:18 lint/style/noNonNullAssertion ━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    89 │ test("typed OAuth revocation remains a safe, actionable 409", async () => {
+    90 │   const deps = await fixture({ authMode: "oauth", oauth: { grant: "authorization_code", clientId: "client" } });
+  > 91 │   const record = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "hosted" }))!;
+       │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    92 │   await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "connected" });
+    93 │   const externalMcpOAuth = { tokenResolver: { resolveAccessToken: async () => { throw new ExternalMcpReauthRequiredError({ serverId: "hosted" }); } } } as never;
+  
+
+apps/website/src/server/runtime/services/__tests__/external-mcp-operations.unit.test.ts:172:18 lint/style/noNonNullAssertion ━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    170 │ test("an OAuth server already marked needs_reauth is a 409 with its settings link, answered before any connect or token resolution", async () => {
+    171 │   const deps = await fixture({ authMode: "oauth", oauth: { grant: "authorization_code", clientId: "client" }, label: "Hosted" });
+  > 172 │   const record = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "hosted" }))!;
+        │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    173 │   await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "needs_reauth" });
+    174 │   let touched = false;
+  
+
+apps/website/src/server/runtime/services/external-mcp-probe.ts:8:8 lint/style/useImportType  FIXABLE  ━━━━━━━━━━
+
+  ! All these imports are only used as types.
+  
+     6 │ import { resolveExternalMcpOAuthStatus } from "../../../contracts/core/external-mcp-auth.js";
+     7 │ import { resolveExternalMcpAuthMode } from "../../../contracts/core/external-mcp-auth.js";
+   > 8 │ import { type ExternalMcpOAuthService, type ExternalMcpServerRecord } from "../../../features/external-mcp/contracts.js";
+       │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     9 │ import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
+    10 │ import { McpAuthFailedError, McpProtocolError, describeRemoteToolSurface } from "@jini-ai/mcp/federation";
+  
+  i Importing the types with import type ensures that they are removed by the compilers and avoids loading unnecessary modules.
+  
+  i Safe fix: Use import type.
+  
+      6   6 │   import { resolveExternalMcpOAuthStatus } from "../../../contracts/core/external-mcp-auth.js";
+      7   7 │   import { resolveExternalMcpAuthMode } from "../../../contracts/core/external-mcp-auth.js";
+      8     │ - import·{·type·ExternalMcpOAuthService,·type·ExternalMcpServerRecord·}·from·"../../../features/external-mcp/contracts.js";
+          8 │ + import·type·{·ExternalMcpOAuthService,·ExternalMcpServerRecord·}·from·"../../../features/external-mcp/contracts.js";
+      9   9 │   import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
+     10  10 │   import { McpAuthFailedError, McpProtocolError, describeRemoteToolSurface } from "@jini-ai/mcp/federation";
+  
+
+scripts/forms-maintenance.ts:65:65 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    63 │     console.log('Usage: node --import tsx scripts/forms-maintenance.ts --database <existing content....
+    64 │   } else {
+  > 65 │     const report = await runFormsMaintenanceCommand({ database: args.database!, workspace: args.workspace!, after: args.after, apply: args.apply });
+       │                                                                 ^^^^^^^^^^^^^^
+    66 │     console.log(JSON.stringify({ ...report, results: report.results.map(result => ({ ...result, explanation: explanations[result.reason] })) }, null, 2));
+    67 │   }
+  
+
+scripts/forms-maintenance.ts:65:92 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    63 │     console.log('Usage: node --import tsx scripts/forms-maintenance.ts --database <existing content....
+    64 │   } else {
+  > 65 │     const report = await runFormsMaintenanceCommand({ database: args.database!, workspace: args.workspace!, after: args.after, apply: args.apply });
+       │                                                                                            ^^^^^^^^^^^^^^^
+    66 │     console.log(JSON.stringify({ ...report, results: report.results.map(result => ({ ...result, explanation: explanations[result.reason] })) }, null, 2));
+    67 │   }
+  
+
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies  FIXABLE  ━━━━━━━━━━━━━
+
+  × This hook does not specify its dependency on acceptSession.
+  
+    130 │   }
+    131 │ 
+  > 132 │   useEffect(() => {
+        │   ^^^^^^^^^
+    133 │     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
+    134 │     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
+  
+  i This dependency is being used here, but is not specified in the hook dependency list.
+  
+    149 │       .then((r) => {
+    150 │         if (sessionEpoch.current !== readEpoch) return;
+  > 151 │         acceptSession(r);
+        │         ^^^^^^^^^^^^^
+    152 │       })
+    153 │       .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
+  
+  i React relies on hook dependencies to determine when to re-compute Effects.
+    Failing to specify dependencies can result in Effects not updating correctly when state changes.
+    These "stale closures" are a common source of surprising bugs.
+  
+  i Either include it or remove the dependency array.
+  
+  i Unsafe fix: Add the missing dependency acceptSession to the list.
+  
+    160 │ ··},·[acceptSession]);
+        │       +++++++++++++   
+
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies  FIXABLE  ━━━━━━━━━━━━━
+
+  × This hook does not specify its dependency on location.
+  
+    130 │   }
+    131 │ 
+  > 132 │   useEffect(() => {
+        │   ^^^^^^^^^
+    133 │     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
+    134 │     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
+  
+  i This dependency is being used here, but is not specified in the hook dependency list.
+  
+    138 │     const readEpoch = sessionEpoch.current;
+    139 │     if (initialSession.current === null) {
+  > 140 │       const bootToken = takeBootToken(location, history);
+        │                                       ^^^^^^^^
+    141 │       if (bootToken) {
+    142 │         initialSession.current = sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me());
+  
+  i React relies on hook dependencies to determine when to re-compute Effects.
+    Failing to specify dependencies can result in Effects not updating correctly when state changes.
+    These "stale closures" are a common source of surprising bugs.
+  
+  i Either include it or remove the dependency array.
+  
+  i Unsafe fix: Add the missing dependency location to the list.
+  
+    160 │ ··},·[location]);
+        │       ++++++++   
+
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies  FIXABLE  ━━━━━━━━━━━━━
+
+  × This hook does not specify its dependency on sessionApi.me.
+  
+    130 │   }
+    131 │ 
+  > 132 │   useEffect(() => {
+        │   ^^^^^^^^^
+    133 │     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
+    134 │     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
+  
+  i This dependency is being used here, but is not specified in the hook dependency list.
+  
+    140 │       const bootToken = takeBootToken(location, history);
+    141 │       if (bootToken) {
+  > 142 │         initialSession.current = sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me());
+        │                                                                                                            ^^^^^^^^^^^^^
+    143 │       } else {
+    144 │         initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
+  
+  i React relies on hook dependencies to determine when to re-compute Effects.
+    Failing to specify dependencies can result in Effects not updating correctly when state changes.
+    These "stale closures" are a common source of surprising bugs.
+  
+  i Either include it or remove the dependency array.
+  
+  i Unsafe fix: Add the missing dependency sessionApi.me to the list.
+  
+    160 │ ··},·[sessionApi.me]);
+        │       +++++++++++++   
+
+apps/admin/src/App.hooks.ts:132:3 lint/correctness/useExhaustiveDependencies  FIXABLE  ━━━━━━━━━━━━━
+
+  × This hook does not specify its dependency on sessionApi.redeemBootSession.
+  
+    130 │   }
+    131 │ 
+  > 132 │   useEffect(() => {
+        │   ^^^^^^^^^
+    133 │     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
+    134 │     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
+  
+  i This dependency is being used here, but is not specified in the hook dependency list.
+  
+    140 │       const bootToken = takeBootToken(location, history);
+    141 │       if (bootToken) {
+  > 142 │         initialSession.current = sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me());
+        │                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    143 │       } else {
+    144 │         initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
+  
+  i React relies on hook dependencies to determine when to re-compute Effects.
+    Failing to specify dependencies can result in Effects not updating correctly when state changes.
+    These "stale closures" are a common source of surprising bugs.
+  
+  i Either include it or remove the dependency array.
+  
+  i Unsafe fix: Add the missing dependency sessionApi.redeemBootSession to the list.
+  
+    160 │ ··},·[sessionApi.redeemBootSession]);
+        │       ++++++++++++++++++++++++++++   
+
+apps/admin/src/App.tsx:269:7 lint/a11y/noSvgWithoutTitle ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Alternative text title element cannot be empty
+  
+    267 │   return (
+    268 │     <button className="cms-logout" onClick={props.onLogout} {...railTooltipProps(logOutLabel)}>
+  > 269 │       <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    270 │         <path d="M7 15H4a1.5 1.5 0 01-1.5-1.5v-9A1.5 1.5 0 014 3h3M11.5 12L15 9l-3.5-3M15 9H7" />
+    271 │       </svg>
+  
+  i For accessibility purposes, SVGs should have an alternative text, provided via title element. If the svg element has role="img", you should add the aria-label or aria-labelledby attribute.
+  
+
+apps/admin/src/App.tsx:782:24 lint/a11y/noStaticElementInteractions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Unexpected event handler on static element.
+  
+    780 │             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
+    781 │             page, intercepting clicks, whenever the drawer is closed). */}
+  > 782 │         {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
+        │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    783 │         <div className="admin-main-col">
+    784 │           {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
+  
+  i Static elements should not be interactive. To add interactivity such as a mouse or key event listener to a static element, give the element an appropriate role value.
+  
+
+apps/admin/src/App.tsx:782:24 lint/a11y/useKeyWithClickEvents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+  
+    780 │             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
+    781 │             page, intercepting clicks, whenever the drawer is closed). */}
+  > 782 │         {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
+        │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    783 │         <div className="admin-main-col">
+    784 │           {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
+  
+  i Actions triggered using mouse events should have corresponding keyboard events to account for keyboard-only navigation.
+  
+
+The number of diagnostics exceeds the limit allowed. Use --max-diagnostics to increase it.
+Diagnostics not shown: 11805.
+Checked 6979 files in 10s. No fixes applied.
+Found 607 errors.
+Found 10222 warnings.
+Found 996 infos.
+lint ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+
