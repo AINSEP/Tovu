@@ -1,0 +1,3 @@
+build:preload exit=0
+part1(main) exit=1 secs=100
+part2(renderer+contracts) exit=1 secs=118
