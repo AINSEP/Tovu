@@ -129,4 +129,16 @@ Pushed commits before the final report-only descendant:
 3. Complete L3's mechanical move, public node entry, contract notes, vocabulary/public-install proofs, changeset and paired gate.
 4. Run accumulated F7 from the recorded post-S7-0 diff bases, including the untouched C0/G-cred and other additional goldens; verify/push the final pair.
 
-EXTRACT-S7 DONE
+## Continuation
+
+Resumed in this thread at 2026-11-09T18:03:06Z, on the same branches. The original start/deadline remain 17:40/21:40 UTC; no cap reset. The coordinator superseded the earlier stop: guidance remains an explicitly red known failure at every gate; boundary and uninstall warning regressions are S7-0b. Earlier “prior” meant prior to this session, not prior to extraction. F7's diff bases will be the source commits after S7-0b.
+
+### S7-0b inventory
+
+| Symbol/helper | Kind | Source | Resolution | Host vocabulary |
+| --- | --- | --- | --- | --- |
+| classifyAgentPluginMcpError | value | T features/agent-plugins/mcp-host-bindings.ts:13 | Inject the canonical unconfigured-error predicate; remove cross-feature value edge; retain legacy canonical public-class fallback | No name/code duck typing; original safe error categories unchanged |
+| composeAgentPluginMcp | value | T server/runtime/composition/agent-plugin-service-ports.ts:22 | Bind the same canonical external-MCP error through the predicate port | Composition owns runtime class identity |
+| Uninstall console warnings | runtime evidence | T features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts:318,345 | Trace every warning before deciding repair versus coordinator-permitted known drift | No test edit; no removal of required compatibility diagnostics |
+
+S7-0b investigation is active. No continuation terminal marker has been written.
