@@ -9,17 +9,14 @@
  * `content.read`/`content.extend` are bound to the filter invocation that is currently running
  * (AsyncLocalStorage), never to load time: a plugin that calls them from `setup()` or from a timer
  * after its filter returned gets a named error instead of another save's entry.
+ *
+ * Extract-s6 L1b: the algorithm lives in `@jini-ai/plugins/host/node` (`createPluginInvocationBinding`).
+ * This binder supplies Tovu's SDK hook id and keeps the rich `@tovu/sdk` typing on the old exports.
  */
-import { AsyncLocalStorage } from "node:async_hooks";
-
-import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type BeforeSaveFilter, type ContentEntryDraft } from "@tovu/sdk";
+import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type BeforeSaveFilter } from "@tovu/sdk";
 
 import type { CapabilityScopedSdkCoreDeps } from "@jini-ai/plugins/host";
-
-interface InvocationState {
-  readonly entry: Readonly<ContentEntryDraft>;
-  readonly writes: Record<string, string | number | boolean>;
-}
+import { createPluginInvocationBinding } from "@jini-ai/plugins/host/node";
 
 export interface CreatePluginInvocationCoreDepsRequired {
   readonly pluginId: string;
@@ -48,40 +45,8 @@ export function createPluginInvocationCoreDeps(
   required: CreatePluginInvocationCoreDepsRequired,
   _optional: CreatePluginInvocationCoreDepsOptional = {},
 ): PluginInvocationCoreDeps {
-  const { pluginId, declaredHooks } = required;
-  const invocation = new AsyncLocalStorage<InvocationState>();
-  let capturedFilter: BeforeSaveFilter | null = null;
-
-  const coreDeps: CapabilityScopedSdkCoreDeps = {
-    getCurrentEntry(): Readonly<ContentEntryDraft> {
-      const state = invocation.getStore();
-      if (!state) throw new Error(`plugin '${pluginId}' called content.read outside a beforeSave hook`);
-      return state.entry;
-    },
-    writeExtField(field: string, value: string | number | boolean): void {
-      const state = invocation.getStore();
-      if (!state) throw new Error(`plugin '${pluginId}' called content.extend outside a beforeSave hook`);
-      state.writes[field] = value;
-    },
-    attachFilter(hookName: typeof HOOK_CONTENT_ENTRY_BEFORE_SAVE, filter: BeforeSaveFilter): void {
-      if (hookName !== HOOK_CONTENT_ENTRY_BEFORE_SAVE || !declaredHooks.includes(hookName)) {
-        throw new Error(`plugin '${pluginId}' attempted to attach undeclared hook '${String(hookName)}'`);
-      }
-      if (capturedFilter) {
-        throw new Error(`plugin '${pluginId}' attempted to attach more than one beforeSave filter`);
-      }
-
-      capturedFilter = async (entry, ctx) => {
-        const state: InvocationState = { entry, writes: {} };
-        return invocation.run(state, async () => {
-          const returned = await filter(entry, ctx);
-          if (Object.keys(state.writes).length === 0) return returned;
-          if (typeof returned !== "object" || returned === null || Array.isArray(returned)) return returned;
-          return { ...state.writes, ...returned };
-        });
-      };
-    },
-  };
-
-  return { coreDeps, capturedFilter: () => capturedFilter };
+  const binding = createPluginInvocationBinding({ ...required, beforeSaveHook: HOOK_CONTENT_ENTRY_BEFORE_SAVE }, {});
+  // The SDK filter is the plugin-domain filter over Tovu's richer entry; the wrapper passes the
+  // SDK entry object through untouched, so the SDK type is the honest view of what callers get.
+  return { coreDeps: binding.coreDeps, capturedFilter: () => binding.capturedFilter() as BeforeSaveFilter | null };
 }
