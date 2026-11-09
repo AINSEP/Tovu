@@ -94,7 +94,7 @@ export async function observePluginsTools(): Promise<Json> {
   const site = { family: "site-runtime", pluginId: PLUGIN_ID };
   const results = {
     listNormal: await settle(() => listed.tool("plugins_list").handler(context({}), {})),
-    listNormalAuthorizeCalls: listed.authorizeCalls,
+    listNormalAuthorizeCalls: plain(listed.authorizeCalls),
     listDenied: await settle(() => listDenied.tool("plugins_list").handler(context({}), {})),
     listMalformedInput: await settle(() => descriptors.tool("plugins_list").handler(context({ unexpected: true }), {})),
     setEnabledDisable: await settle(() => disable.tool("plugins_set_enabled").handler(context({ ...site, enabled: false }), { emitSurface: noDialog })),
@@ -102,12 +102,12 @@ export async function observePluginsTools(): Promise<Json> {
     setEnabledDisableRows: await activationRows(disable.activationRepo, [PLUGIN_ID]),
     setEnabledEnableConfirm: await cardRun(enableConfirm, "plugins_set_enabled", { ...site, enabled: true }, "confirm"),
     setEnabledEnableConfirmEvents: enableConfirm.events,
-    setEnabledEnableConfirmPolicyCalls: enableConfirm.policyCalls,
+    setEnabledEnableConfirmPolicyCalls: plain(enableConfirm.policyCalls),
     setEnabledEnableConfirmRows: await activationRows(enableConfirm.activationRepo, [PLUGIN_ID]),
     setEnabledEnableCancel: await cardRun(enableCancel, "plugins_set_enabled", { ...site, enabled: true }, "cancel"),
     setEnabledEnableCancelRows: await activationRows(enableCancel.activationRepo, [PLUGIN_ID]),
     setEnabledDenied: await settle(() => enableDenied.tool("plugins_set_enabled").handler(context({ ...site, enabled: true }), { emitSurface: noDialog })),
-    setEnabledDeniedAuthorizeCalls: enableDenied.authorizeCalls,
+    setEnabledDeniedAuthorizeCalls: plain(enableDenied.authorizeCalls),
     setEnabledMalformedFamily: await settle(() => descriptors.tool("plugins_set_enabled").handler(context({ family: "other", pluginId: PLUGIN_ID, enabled: true }), { emitSurface: noDialog })),
     uninstallBuiltIn: await settle(() => uninstallBuiltIn.tool("plugins_uninstall").handler(context(site), { emitSurface: noDialog })),
     uninstallStillEnabled: await settle(() => uninstallEnabled.tool("plugins_uninstall").handler(context(site), { emitSurface: noDialog })),
@@ -218,7 +218,7 @@ export async function observeCapabilityTools(): Promise<Json> {
       freshPreviewFails: await call(freshFails, "plugin_capability_content_analyzer", { postId: "post-1" }),
       permissionDenied: await call(denied, "plugin_capability_word_count", { postId: "post-1" }),
     },
-    authorizeCalls: stored.authorizeCalls,
+    authorizeCalls: plain(stored.authorizeCalls),
     activationGate: gate,
   };
 }
