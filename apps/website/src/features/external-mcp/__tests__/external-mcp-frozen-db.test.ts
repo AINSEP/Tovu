@@ -285,6 +285,12 @@ test("frozen fixture: a foreign kind is refused before the parser; invalid AAD a
       (error: unknown) => error instanceof VaultError && error.code === "context");
   }
   assert.deepEqual(nonZero(h.io.sealer), {}, "foreign kinds never reach the parser or the sealer");
+  // The seal path refuses a foreign kind before its metadata parser, the keyring or the sealer runs.
+  resetCounts(h.io.sealer, h.io.keyring);
+  await assert.rejects(sealExternalMcpVaultPayload({ deps: { sealer: h.sealer, keyring: h.keyring }, identity: envRecord,
+    kind: "api-connection" as "mcp-env", payload: { FAKE_API_KEY: "fake-foreign" } }), (error: unknown) => error instanceof VaultError && error.code === "context");
+  assert.deepEqual(nonZero(h.io.sealer), {});
+  assert.deepEqual(nonZero(h.io.keyring), {});
 
   // Invalid AAD: the static row's ciphertext transplanted into the OAuth row's own, context-valid envelope.
   const vault = snapshotFrozenRows({ db }).secrets_vault as Row[];
