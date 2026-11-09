@@ -1,0 +1,22 @@
+import os,sys,hashlib,sqlite3,json
+root=sys.argv[1]; out=sys.argv[2]
+files={}
+for base in (root+'/site', root+'/home'):
+  for dp,dn,fn in os.walk(base):
+    for f in fn:
+      p=os.path.join(dp,f); r=os.path.relpath(p,root)
+      files[r]={'size':os.path.getsize(p),'sha256':hashlib.sha256(open(p,'rb').read()).hexdigest()}
+dbs={}
+for name in ('site/data.nosync/content.db','site/data.nosync/chat.db','home/.local/share/Tovu/project.db'):
+  p=os.path.join(root,name)
+  if not os.path.exists(p): continue
+  c=sqlite3.connect(f'file:{p}?mode=ro',uri=True)
+  t={}
+  for (tn,) in c.execute("select name from sqlite_master where type='table' order by name"):
+    rows=c.execute(f'select * from "{tn}"').fetchall()
+    h=hashlib.sha256(json.dumps(sorted(map(repr,rows))).encode()).hexdigest()
+    t[tn]={'rows':len(rows),'sha256':h}
+  schema=hashlib.sha256('\n'.join(r[0] or '' for r in c.execute("select sql from sqlite_master order by name")).encode()).hexdigest()
+  dbs[name]={'tables':t,'schema_sha256':schema}
+json.dump({'files':files,'dbs':dbs,'total_bytes':sum(v['size'] for v in files.values())},open(out,'w'),indent=1,sort_keys=True)
+print(len(files),'files',sum(v['size'] for v in files.values()),'bytes')

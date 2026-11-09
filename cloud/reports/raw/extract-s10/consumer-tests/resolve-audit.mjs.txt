@@ -1,0 +1,6 @@
+// Records every resolved module URL; reports any that leave the allowed old roots.
+import { registerHooks } from 'node:module';
+import fs from 'node:fs';
+const out = process.env.RESOLVE_AUDIT_OUT; const seen = new Set();
+registerHooks({ resolve(specifier, context, next) { const r = next(specifier, context); if (r.url.startsWith('file:')) seen.add(r.url); return r; } });
+process.on('exit', () => fs.writeFileSync(out, [...seen].sort().join('\n') + '\n'));

@@ -1,0 +1,5 @@
+apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts	1	2026-11-09T22:57:12Z	tests=3	pass=2	fail=1	cancelled=0	skipped=0	todo=0
+apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts	1	2026-11-09T22:57:43Z	tests=2	pass=1	fail=1	cancelled=0	skipped=0	todo=0
+apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts	1	2026-11-09T22:57:44Z	tests=10	pass=9	fail=1	cancelled=0	skipped=0	todo=0
+apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts	1	2026-11-09T22:57:48Z	tests=7	pass=6	fail=1	cancelled=0	skipped=0	todo=0
+DONE

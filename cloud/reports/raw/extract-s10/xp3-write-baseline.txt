@@ -1,0 +1,2 @@
+declaration baseline: 35c4961af718f0f30591c46d2ea2756c4484a731; 3308 source mappings; /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/xp3-baseline-out
+exit 0

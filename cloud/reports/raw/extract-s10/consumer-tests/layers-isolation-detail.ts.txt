@@ -1,0 +1,9 @@
+import { checkPackageLayers } from '/home/user/Jini/scripts/check-package-layers.ts';
+import { auditSubpathIsolation } from '/home/user/Jini/scripts/check-subpath-isolation.ts';
+const layers = checkPackageLayers({ repoRoot: '/home/user/Jini' } as never);
+console.log(`layers violations: ${layers.length}`); for (const v of layers) console.log(`  L ${v.rule} ${v.file} ${v.reason}`);
+const audit = auditSubpathIsolation({ repoRoot: '/home/user/Jini' });
+const byKind: Record<string, number> = {};
+for (const f of audit.findings) byKind[f.kind] = (byKind[f.kind] ?? 0) + 1;
+console.log(`isolation closures: ${audit.closures.length}; findings by kind: ${JSON.stringify(byKind)}`);
+for (const f of audit.findings) console.log(`  I kind=${f.kind} rule=${f.rule} file=${f.file.replace('/home/user/Jini/', '')} reason=${f.reason}`);

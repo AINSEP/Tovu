@@ -1,0 +1,61 @@
+// Disposable S10 S8 old reader (scratch, never committed). Reads rows written by the CURRENT code
+// (EXTRACT_S8_G_CRED_REPLAY_DIR/new-operations-rows.json) with the OLD Tovu facade/repo/sealer from
+// --base, and the OLD @jini-ai/platform resolved from --base's own node_modules. Mirrors case 11 of
+// extract-s8-g-cred.integration.test.ts: three labels resolve to `expected`; list summaries match.
+//   cd <old-tovu> && TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx s8-old-reader.mjs --base <old-tovu> --rows <json>
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const arg = (name) => { const i = process.argv.indexOf(`--${name}`); if (i < 0) throw new Error(`missing --${name}`); return process.argv[i + 1]; };
+const base = path.resolve(arg("base"));
+const rowsFile = path.resolve(arg("rows"));
+const load = (relative) => import(pathToFileURL(path.join(base, "apps/website/src", relative)).href);
+function loadPkg(pkg, sub) {
+  const pjPath = path.join(fs.realpathSync(path.join(base, "node_modules", pkg)), "package.json");
+  const pj = JSON.parse(fs.readFileSync(pjPath, "utf8"));
+  let t = pj.exports[sub];
+  while (t && typeof t === "object") t = t.import ?? t.default ?? t.node;
+  return { mod: import(pathToFileURL(path.join(path.dirname(pjPath), t)).href), real: fs.realpathSync(path.dirname(pjPath)) };
+}
+
+const { rows, expected } = JSON.parse(fs.readFileSync(rowsFile, "utf8"));
+const keyFixture = JSON.parse(fs.readFileSync(path.join(base, "apps/website/src/features/custom-credentials/__tests__/fixtures/extract-s8/synthetic-key.json"), "utf8"));
+const platform = loadPkg("@jini-ai/platform", "./secrets");
+const { FixedRootKeyKeyring } = await platform.mod;
+const { openContentDb } = await load("platform/db/sqlite/content-db.ts");
+const { contentKernel } = await load("platform/db/content-kernel.ts");
+const { sqliteKernel } = await load("platform/db/kernel/drivers/sqlite.ts");
+const { insertFixture } = await load("platform/db/migrations/__tests__/secrets-vault.fixture.ts");
+const { HKDF_EXTRACTION_SALT } = await load("features/webhooks/keyring.env.ts");
+const { AesGcmSecretSealer } = await load("features/webhooks/secret-sealer.aesgcm.ts");
+const { SqlCustomCredentialSetRepo } = await load("features/custom-credentials/custom-credential-repo.ts");
+const { listCustomCredentials, resolveCustomCredentialByLabel } = await load("features/custom-credentials/store.ts");
+
+const out = { base, rowsFile, platformRealpath: platform.real, checks: [] };
+try {
+  const db = openContentDb(":memory:");
+  const kernel = contentKernel(db);
+  const fk = sqliteKernel(db);
+  const WS = keyFixture.workspaceId;
+  await insertFixture(fk, "workspaces", { id: WS, name: WS, slug: WS, created_at: keyFixture.clock });
+  for (const row of rows) await insertFixture(fk, "secrets_vault", row);
+  const root = new FixedRootKeyKeyring({ hex: keyFixture.hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: keyFixture.keyId });
+  const keyring = { activeKey: () => root.activeKey({}), derive: (i) => root.derive(i), deriveSigningSecret: (i) => root.deriveSigningSecret(i) };
+  const reader = { repo: new SqlCustomCredentialSetRepo(kernel), sealer: new AesGcmSecretSealer(keyring) };
+  for (const [label, value] of Object.entries(expected)) {
+    assert.deepEqual(await resolveCustomCredentialByLabel(reader, { workspaceId: WS, label }), value, label);
+    out.checks.push(`resolve ${label}`);
+  }
+  const summaries = (await listCustomCredentials(reader, { workspaceId: WS })).map((row) => [row.label, row.username ?? null, row.tokenHint]);
+  const syn = (n) => `synthetic-${n}-token-${"0".repeat(12)}`;
+  assert.deepEqual(summaries, [["Created later", "created-login", { length: syn("created").length, last4: "0000" }],
+    ["Legacy updated", null, { length: syn("legacy-new").length, last4: "0000" }], ["Vendor bridge", "vendor-login", { length: 35, last4: "0001" }]]);
+  out.checks.push("list summaries/token hints");
+  out.ok = true; out.accepted = Object.keys(expected).length;
+} catch (error) {
+  out.ok = false; out.failure = String(error?.message ?? error); process.exitCode = 1;
+}
+process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);

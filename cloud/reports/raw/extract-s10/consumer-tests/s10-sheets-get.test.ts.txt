@@ -1,0 +1,43 @@
+// S10 disposable consumer assertion: the shipped google-workspace `sheets_get` tool, loaded from the
+// installed package's public subpaths, run through the public tool projection against a fake Google.
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { expect, it } from 'vitest';
+import { createAgentPluginToolProjection, createIssuedTokenMemories, parseAgentPluginToolsFile } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
+
+const PLUGIN = 'google-workspace';
+const shipped = (file: string) => pathToFileURL(createRequire(import.meta.url).resolve(`@jini-ai/agent-plugins/${PLUGIN}/${file}`)).href;
+const TOKEN = `fake-access-${'c'.repeat(24)}`;
+
+it('sheets_get sends the signed-in token to the fake Google and returns its answer; a rejected sign-in refuses', async () => {
+  const parsed = parseAgentPluginToolsFile({ raw: await readFile(new URL(shipped('tovu-agent-tools.json')), 'utf8') });
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  const loaded = await Promise.all(parsed.descriptors.map(async descriptor => ({ pluginId: PLUGIN, descriptor, module: (await import(shipped(descriptor.module))).default })));
+  const requests: { url: string; authorization: string | undefined }[] = [];
+  let status = 200;
+  const registry = createPluginContributionRegistry({});
+  const projection = createAgentPluginToolProjection({ registry, toolIdFor: pluginToolIdFor, issuedTokens: createIssuedTokenMemories(),
+    capabilities: () => ({
+      connections: { getAccessToken: async () => TOKEN },
+      http: { fetch: async ({ url }: { url: string }, init: { headers?: Record<string, string> } = {}) => {
+        requests.push({ url, authorization: init.headers?.authorization });
+        if (!url.startsWith('https://sheets.googleapis.com/')) throw new Error('only the fake Google is reachable');
+        return new Response(JSON.stringify(status === 200 ? { spreadsheetId: 'sheet-one-0001', properties: { title: 'Leads' } } : { error: { code: status } }), { status, headers: { 'content-type': 'application/json' } });
+      } },
+      limiter: { check: async () => ({ allowed: true }) },
+      state: { get: async ({ key }: { key: string }) => (key === 'products' ? { sheets: true } : null) },
+    }) } as never);
+  expect(projection.sync({ loaded, refusals: [] } as never).refusals).toEqual([]);
+  const tool = registry.list({}).find(snapshot => snapshot.pluginId === PLUGIN)!.tools.find(entry => entry.name === 'sheets_get')!;
+  const call = () => tool.handler({ pluginId: PLUGIN, auth: { workspaceId: 'studio', principalId: 'editor-1' }, input: { connectionRef: 'conn-1', spreadsheetId: 'sheet-one-0001' } } as never);
+  expect(JSON.parse(JSON.stringify(await call()))).toEqual({ spreadsheetId: 'sheet-one-0001', properties: { title: 'Leads' } });
+  expect(requests).toHaveLength(1);
+  expect(new URL(requests[0]!.url).pathname).toBe('/v4/spreadsheets/sheet-one-0001');
+  expect(requests[0]!.authorization).toBe(`Bearer ${TOKEN}`);
+  status = 401;
+  await expect(call()).rejects.toThrow();
+  expect(requests.length).toBeGreaterThan(1);
+});

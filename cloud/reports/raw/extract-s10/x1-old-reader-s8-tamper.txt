@@ -1,0 +1,9 @@
+{
+  "base": "/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/old/tovu-s8",
+  "rowsFile": "/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/replay/s8-rows.tampered.json",
+  "platformRealpath": "/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/old/jini-4044/packages/platform",
+  "checks": [],
+  "ok": false,
+  "failure": "The credential could not be saved or unlocked. Check the site credential store."
+}
+exit 1

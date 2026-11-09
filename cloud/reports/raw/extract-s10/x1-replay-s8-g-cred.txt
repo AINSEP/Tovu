@@ -1,0 +1,77 @@
+TAP version 13
+# Subtest: frozen fixtures: bytes match the C0 hashes and seed exactly the frozen stored rows
+ok 1 - frozen fixtures: bytes match the C0 hashes and seed exactly the frozen stored rows
+  ---
+  duration_ms: 132.12345
+  type: 'test'
+  ...
+# Subtest: exact workspace/owner=tovu/AAD/null principal-binding-provider context opens both kinds without rewriting the stored row
+ok 2 - exact workspace/owner=tovu/AAD/null principal-binding-provider context opens both kinds without rewriting the stored row
+  ---
+  duration_ms: 149.226272
+  type: 'test'
+  ...
+# Subtest: wrong context, wrong kind AAD and foreign ownership fail with the canonical VaultError (same class/code)
+ok 3 - wrong context, wrong kind AAD and foreign ownership fail with the canonical VaultError (same class/code)
+  ---
+  duration_ms: 214.856962
+  type: 'test'
+  ...
+# Subtest: summary bytes omit token/sealed/private context; username absent or clear, hints, meta, scope and timestamps exact
+ok 4 - summary bytes omit token/sealed/private context; username absent or clear, hints, meta, scope and timestamps exact
+  ---
+  duration_ms: 370.092475
+  type: 'test'
+  ...
+# Subtest: vaultRecord/vaultExpectedRevision are non-enumerable yet carry the exact CAS revision
+ok 5 - vaultRecord/vaultExpectedRevision are non-enumerable yet carry the exact CAS revision
+  ---
+  duration_ms: 134.462871
+  type: 'test'
+  ...
+# Subtest: metadata list/describe perform 0 opens; resolve opens only the selected authorized row with SAME-read origins/username
+ok 6 - metadata list/describe perform 0 opens; resolve opens only the selected authorized row with SAME-read origins/username
+  ---
+  duration_ms: 113.87457
+  type: 'test'
+  ...
+# Subtest: site precedence then granted project fallback; revoked and unattached project rows stay inaccessible
+ok 7 - site precedence then granted project fallback; revoked and unattached project rows stay inaccessible
+  ---
+  duration_ms: 113.893416
+  type: 'test'
+  ...
+# Subtest: trusted owner create/replace is unchanged: project create, read-only grant, trusted replacement only
+ok 8 - trusted owner create/replace is unchanged: project create, read-only grant, trusted replacement only
+  ---
+  duration_ms: 120.150037
+  type: 'test'
+  ...
+# Subtest: CAS writes keep each row's compatibility kind, envelope and safe hints on both kinds
+ok 9 - CAS writes keep each row's compatibility kind, envelope and safe hints on both kinds
+  ---
+  duration_ms: 117.798328
+  type: 'test'
+  ...
+# Subtest: duplicate, stale and failed-transaction writes overwrite nothing and roll back for real
+ok 10 - duplicate, stale and failed-transaction writes overwrite nothing and roll back for real
+  ---
+  duration_ms: 239.123335
+  type: 'test'
+  ...
+# Subtest: old reader accepts new operations' stored rows (C0: old==new; the post-move gate replays them)
+ok 11 - old reader accepts new operations' stored rows (C0: old==new; the post-move gate replays them)
+  ---
+  duration_ms: 135.748557
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3627.290368
+exit 0

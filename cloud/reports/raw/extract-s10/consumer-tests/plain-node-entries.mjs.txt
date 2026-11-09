@@ -1,0 +1,50 @@
+// S10 disposable: plain Node (no loader) imports every extracted public entry from the installed tarballs.
+import { createRequire } from 'node:module';
+const require = createRequire(`${process.cwd()}/package.json`);
+const ENTRIES = {
+  '@jini-ai/agent-plugins': ['manifest', 'lifecycle', 'lifecycle/node', 'lifecycle/yauzl', 'lifecycle/tools', 'lifecycle/host-tools', 'lifecycle/mail', 'admin-surfaces', 'admin-surfaces/connections', 'connect', 'connect/executable', 'connect/plugin-host'],
+  '@jini-ai/core': ['contracts/cards', 'contracts/credentials', 'contracts/mail', 'contracts/vault', 'contracts/oauth', 'contracts/content-types', 'contracts/hosted-mcp'],
+  '@jini-ai/ui': ['mcp-ui/credential-card', 'mcp-ui/secret-card', 'mcp-ui/sign-in-card'],
+  '@jini-ai/integrations': ['api-connections', 'api-connections/hosted-mcp', 'credentialed-http', 'credentialed-http/sets', 'credentialed-http/tools'],
+  '@jini-ai/mcp': ['federation/hosted'],
+  '@jini-ai/plugins': ['host', 'host/node', 'host/worker', 'host/sql', 'host/tools'],
+  '@jini-ai/devops': ['deploy', 'deploy/node'],
+  '@jini-ai/platform': ['secrets/credential-sets'],
+};
+const out = { ok: [], fail: [], requireIdentity: [], exportsCount: 0 };
+const mods = {};
+for (const [pkg, subs] of Object.entries(ENTRIES)) for (const sub of subs) {
+  const spec = `${pkg}/${sub}`;
+  try {
+    const m = await import(spec); mods[spec] = m;
+    const resolved = require.resolve(spec);
+    if (!resolved.includes('/node_modules/@jini-ai/') || /\/src\//.test(resolved)) throw new Error(`resolved outside installed dist: ${resolved}`);
+    out.ok.push(`${spec} (${Object.keys(m).length} exports)`); out.exportsCount += Object.keys(m).length;
+  } catch (e) { out.fail.push(`${spec}: ${e.code ?? ''} ${e.message.split('\n')[0]}`); }
+}
+// import/require identity where a 'require' condition is exported
+import fs from 'node:fs'; import path from 'node:path';
+for (const [pkg, subs] of Object.entries(ENTRIES)) {
+  const dir = path.join(process.cwd(), 'node_modules', pkg);
+  const pj = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  for (const sub of subs) {
+    const e = pj.exports[`./${sub}`];
+    if (e && typeof e === 'object' && 'require' in e) {
+      const r = require(`${pkg}/${sub}`); const m = mods[`${pkg}/${sub}`];
+      const same = Object.keys(m).filter((k) => k !== 'default').every((k) => r[k] === m[k]);
+      out.requireIdentity.push(`${pkg}/${sub}: require-condition present; identical=${same}`);
+    }
+  }
+}
+// canonical error classes shared across entries (same constructor object reached through different entries)
+const byName = new Map();
+for (const [spec, m] of Object.entries(mods)) for (const [k, v] of Object.entries(m)) {
+  if (typeof v === 'function' && /Error$/.test(k)) { const list = byName.get(k) ?? []; list.push([spec, v]); byName.set(k, list); }
+}
+out.sharedErrors = [];
+for (const [k, list] of byName) if (list.length > 1) {
+  const distinct = new Set(list.map(([, v]) => v)).size;
+  out.sharedErrors.push(`${k}: exported by ${list.length} entries (${list.map(([s]) => s).join(', ')}); distinct constructors=${distinct}`);
+}
+console.log(JSON.stringify(out, null, 1));
+process.exitCode = out.fail.length ? 1 : 0;

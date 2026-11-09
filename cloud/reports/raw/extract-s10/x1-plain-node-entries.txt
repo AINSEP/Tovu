@@ -1,0 +1,48 @@
+{
+ "ok": [
+  "@jini-ai/agent-plugins/manifest (16 exports)",
+  "@jini-ai/agent-plugins/lifecycle (59 exports)",
+  "@jini-ai/agent-plugins/lifecycle/node (1 exports)",
+  "@jini-ai/agent-plugins/lifecycle/yauzl (1 exports)",
+  "@jini-ai/agent-plugins/lifecycle/tools (5 exports)",
+  "@jini-ai/agent-plugins/lifecycle/host-tools (20 exports)",
+  "@jini-ai/agent-plugins/lifecycle/mail (8 exports)",
+  "@jini-ai/agent-plugins/admin-surfaces (27 exports)",
+  "@jini-ai/agent-plugins/admin-surfaces/connections (1 exports)",
+  "@jini-ai/agent-plugins/connect (47 exports)",
+  "@jini-ai/agent-plugins/connect/executable (11 exports)",
+  "@jini-ai/agent-plugins/connect/plugin-host (1 exports)",
+  "@jini-ai/core/contracts/cards (0 exports)",
+  "@jini-ai/core/contracts/credentials (0 exports)",
+  "@jini-ai/core/contracts/mail (0 exports)",
+  "@jini-ai/core/contracts/vault (0 exports)",
+  "@jini-ai/core/contracts/oauth (0 exports)",
+  "@jini-ai/core/contracts/content-types (0 exports)",
+  "@jini-ai/core/contracts/hosted-mcp (0 exports)",
+  "@jini-ai/ui/mcp-ui/credential-card (2 exports)",
+  "@jini-ai/ui/mcp-ui/secret-card (1 exports)",
+  "@jini-ai/ui/mcp-ui/sign-in-card (2 exports)",
+  "@jini-ai/integrations/api-connections (28 exports)",
+  "@jini-ai/integrations/api-connections/hosted-mcp (3 exports)",
+  "@jini-ai/integrations/credentialed-http (12 exports)",
+  "@jini-ai/integrations/credentialed-http/sets (16 exports)",
+  "@jini-ai/integrations/credentialed-http/tools (3 exports)",
+  "@jini-ai/mcp/federation/hosted (43 exports)",
+  "@jini-ai/plugins/host (73 exports)",
+  "@jini-ai/plugins/host/node (35 exports)",
+  "@jini-ai/plugins/host/worker (4 exports)",
+  "@jini-ai/plugins/host/sql (4 exports)",
+  "@jini-ai/plugins/host/tools (9 exports)",
+  "@jini-ai/devops/deploy (40 exports)",
+  "@jini-ai/devops/deploy/node (3 exports)",
+  "@jini-ai/platform/secrets/credential-sets (16 exports)"
+ ],
+ "fail": [],
+ "requireIdentity": [],
+ "exportsCount": 491,
+ "sharedErrors": [
+  "PluginInstallError: exported by 2 entries (@jini-ai/plugins/host/node, @jini-ai/plugins/host/tools); distinct constructors=1",
+  "PluginSourceError: exported by 2 entries (@jini-ai/plugins/host/node, @jini-ai/plugins/host/tools); distinct constructors=1"
+ ]
+}
+exit 0

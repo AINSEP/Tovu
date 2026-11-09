@@ -1,0 +1,6 @@
+$ pnpm guard:plugins:packed
+
+> jini@ guard:plugins:packed /home/user/Jini
+> node --import tsx ./scripts/check-plugin-packages.ts --packed
+
+exit 0

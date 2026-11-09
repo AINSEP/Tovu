@@ -1,0 +1,152 @@
+// Disposable S10 declared-import scan over PACKED bytes (unpacked tarballs).
+// usage: node scan-imports.mjs <unpackedRoot> <typescriptModulePath> <out.json>
+// <unpackedRoot>/<pkgdir>/package/{package.json,...}
+import fs from 'node:fs';
+import path from 'node:path';
+import { builtinModules, createRequire } from 'node:module';
+
+const [root, tsPath, outPath] = process.argv.slice(2);
+const ts = createRequire(import.meta.url)(tsPath);
+const builtins = new Set([...builtinModules, ...builtinModules.map(m => `node:${m}`)]);
+
+const pkgs = {};
+for (const d of fs.readdirSync(root)) {
+  const dir = path.join(root, d, 'package');
+  const pj = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  pkgs[pj.name] = { dir, pj };
+}
+
+const ENTRIES = {
+  '@jini-ai/agent-plugins': ['./manifest', './lifecycle', './lifecycle/node', './lifecycle/yauzl', './lifecycle/tools', './lifecycle/host-tools', './lifecycle/mail', './admin-surfaces', './admin-surfaces/connections', './connect', './connect/executable', './connect/plugin-host'],
+  '@jini-ai/core': ['./contracts/cards', './contracts/credentials', './contracts/mail', './contracts/vault', './contracts/oauth', './contracts/content-types', './contracts/hosted-mcp'],
+  '@jini-ai/ui': ['./mcp-ui/credential-card', './mcp-ui/secret-card', './mcp-ui/sign-in-card'],
+  '@jini-ai/integrations': ['./api-connections', './api-connections/hosted-mcp', './credentialed-http', './credentialed-http/sets', './credentialed-http/tools'],
+  '@jini-ai/mcp': ['./federation/hosted'],
+  '@jini-ai/plugins': ['./host', './host/node', './host/worker', './host/sql', './host/tools'],
+  '@jini-ai/devops': ['./deploy', './deploy/node'],
+};
+
+function targets(value, out = []) {
+  if (typeof value === 'string') out.push(value);
+  else if (value && typeof value === 'object') for (const [cond, v] of Object.entries(value)) targets(v, out);
+  return out;
+}
+function exportTargets(pj, sub) {
+  const ex = pj.exports;
+  if (!ex) return null;
+  if (sub in ex) return targets(ex[sub]);
+  return null;
+}
+
+function specifiers(file) {
+  const text = fs.readFileSync(file, 'utf8');
+  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.d.ts') || file.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+  const found = [];
+  const add = (spec, typeOnly) => found.push({ spec, typeOnly });
+  const visit = (node) => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      const typeOnly = file.endsWith('.d.ts') || node.isTypeOnly || (node.importClause && node.importClause.isTypeOnly);
+      add(node.moduleSpecifier.text, !!typeOnly);
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
+      add(node.moduleReference.expression.text, file.endsWith('.d.ts'));
+    } else if (ts.isCallExpression(node) && node.arguments.length >= 1 && ts.isStringLiteralLike(node.arguments[0])) {
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require')) add(node.arguments[0].text, file.endsWith('.d.ts'));
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+      add(node.argument.literal.text, true);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return { found, text };
+}
+
+function resolveRel(from, spec) {
+  const base = path.resolve(path.dirname(from), spec);
+  const cands = [base];
+  if (from.endsWith('.d.ts') || from.endsWith('.d.mts') || from.endsWith('.d.cts')) {
+    cands.push(base.replace(/\.(m|c)?js$/, '.d.$1ts').replace('.d.ts', '.d.ts'), base.replace(/\.js$/, '.d.ts'), base.replace(/\.mjs$/, '.d.mts'), base.replace(/\.cjs$/, '.d.cts'), base + '.d.ts', path.join(base, 'index.d.ts'));
+  } else cands.push(base + '.js', base + '.mjs', path.join(base, 'index.js'));
+  for (const c of cands) if (fs.existsSync(c) && fs.statSync(c).isFile()) return c;
+  return null;
+}
+const pkgName = (spec) => spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0];
+
+const result = { entries: [], misses: [], unresolved: [], missingTargets: [], optionalPeerReach: [] };
+function scanClosure(owner, startFiles, label) {
+  const { pj, dir } = pkgs[owner];
+  const declared = new Set([...Object.keys(pj.dependencies || {}), ...Object.keys(pj.peerDependencies || {})]);
+  const optional = new Set(Object.entries(pj.peerDependenciesMeta || {}).filter(([, m]) => m && m.optional).map(([n]) => n));
+  const seen = new Set();
+  const queue = startFiles.map(f => ({ f, value: !f.endsWith('.d.ts') }));
+  const bare = new Map();
+  const valueOptional = new Set();
+  while (queue.length) {
+    const { f, value } = queue.shift();
+    const key = f + (value ? '#v' : '#t');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const { found } = specifiers(f);
+    for (const { spec, typeOnly } of found) {
+      if (spec.startsWith('.')) {
+        const r = resolveRel(f, spec);
+        if (!r) { result.unresolved.push({ label, from: path.relative(dir, f), spec }); continue; }
+        queue.push({ f: r, value: value && !typeOnly });
+      } else {
+        const name = pkgName(spec);
+        if (!bare.has(spec)) bare.set(spec, path.relative(dir, f));
+        if (builtins.has(spec) || builtins.has(name) || spec.startsWith('node:')) continue;
+        if (name === owner) continue;
+        if (!declared.has(name)) result.misses.push({ label, owner, spec, from: path.relative(dir, f) });
+        else if (optional.has(name) && value && !typeOnly) valueOptional.add(name);
+      }
+    }
+  }
+  const files = [...new Set([...seen].map(k => k.replace(/#[vt]$/, '')))];
+  if (valueOptional.size) result.optionalPeerReach.push({ label, peers: [...valueOptional] });
+  result.entries.push({ label, files: files.length, bareSpecifiers: [...bare.keys()].sort() });
+}
+
+for (const [owner, subs] of Object.entries(ENTRIES)) {
+  const { pj, dir } = pkgs[owner];
+  for (const sub of subs) {
+    const t = exportTargets(pj, sub);
+    if (!t) { result.missingTargets.push({ owner, sub, reason: 'not in exports' }); continue; }
+    const files = [];
+    for (const rel of t) {
+      const abs = path.join(dir, rel);
+      if (!fs.existsSync(abs)) result.missingTargets.push({ owner, sub, target: rel });
+      else if (/\.(m|c)?js$|\.d\.(m|c)?ts$/.test(abs)) files.push(abs);
+    }
+    scanClosure(owner, files, `${owner}/${sub.slice(2)}`);
+  }
+}
+// bundled plugin subpaths + every shipped agent-plugins .mjs outside tests
+{
+  const owner = '@jini-ai/agent-plugins';
+  const { pj, dir } = pkgs[owner];
+  const mjs = [];
+  const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (!/__tests__|^test$|^tests$/.test(e.name)) walk(p); } else if (e.name.endsWith('.mjs') && !/\.test\.mjs$/.test(e.name)) mjs.push(p); } };
+  walk(dir);
+  for (const f of mjs) scanClosure(owner, [f], `${owner}:${path.relative(dir, f)}`);
+  for (const sub of Object.keys(pj.exports || {})) {
+    if (!/plugin|bundled/.test(sub) || ENTRIES[owner].includes(sub)) continue;
+    const t = exportTargets(pj, sub) || [];
+    const files = t.map(r => path.join(dir, r)).filter(p => { if (p.includes('*')) return false; if (!fs.existsSync(p)) { result.missingTargets.push({ owner, sub, target: path.relative(dir, p) }); return false; } return /\.(m|c)?js$|\.d\.(m|c)?ts$/.test(p); });
+    if (files.length) scanClosure(owner, files, `${owner}/${sub.slice(2)}`);
+  }
+}
+// every exports target of every package exists (nested exports runtime/types/require)
+for (const [name, { pj, dir }] of Object.entries(pkgs)) {
+  for (const [sub, v] of Object.entries(pj.exports || {})) {
+    for (const t of targets(v)) {
+      if (t.includes('*')) {
+        const prefix = path.join(dir, t.split('*')[0]);
+        if (!fs.existsSync(path.dirname(prefix))) result.missingTargets.push({ owner: name, sub, target: t, reason: 'wildcard dir missing' });
+        continue;
+      }
+      if (!fs.existsSync(path.join(dir, t))) result.missingTargets.push({ owner: name, sub, target: t });
+    }
+  }
+}
+fs.writeFileSync(outPath, JSON.stringify(result, null, 1));
+console.log(JSON.stringify({ entries: result.entries.length, misses: result.misses.length, unresolved: result.unresolved.length, missingTargets: result.missingTargets.length, optionalPeerReach: result.optionalPeerReach.length }));

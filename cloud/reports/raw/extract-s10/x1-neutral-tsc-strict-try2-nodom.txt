@@ -1,0 +1,3 @@
+node_modules/.pnpm/@jini-ai+cookie-consent@file+..+..+tgz+jini-ai-cookie-consent-0.6.19.tgz/node_modules/@jini-ai/cookie-consent/dist/contract.d.ts(196,14): error TS2304: Cannot find name 'Document'.
+node_modules/.pnpm/vite@5.4.21_@types+node@24.19.2/node_modules/vite/types/importGlob.d.ts(38,11): error TS2304: Cannot find name 'Worker'.
+exit 2

@@ -1,0 +1,23 @@
+total bytes before 5035002 after 5154335 growth 119333
+ADDED:
+   site/agent-plugins/ws/workspace-local/how-tovu-works/package/sha256/ffdc98a62e02102c80a467dbae90e22c6390447dd529327a42669b80dd3ef9bc/mcp.json 95
+   site/agent-plugins/ws/workspace-local/how-tovu-works/package/sha256/ffdc98a62e02102c80a467dbae90e22c6390447dd529327a42669b80dd3ef9bc/plugin.json 1017
+   site/agent-plugins/ws/workspace-local/how-tovu-works/package/sha256/ffdc98a62e02102c80a467dbae90e22c6390447dd529327a42669b80dd3ef9bc/skills/build-agent-plugin/SKILL.md 10810
+   site/agent-plugins/ws/workspace-local/how-tovu-works/package/sha256/ffdc98a62e02102c80a467dbae90e22c6390447dd529327a42669b80dd3ef9bc/skills/how-tovu-works/SKILL.md 1710
+   site/agent-plugins/ws/workspace-local/how-tovu-works/package/sha256/ffdc98a62e02102c80a467dbae90e22c6390447dd529327a42669b80dd3ef9bc/tovu-site-guide.json 15344
+   site/agent-plugins/ws/workspace-local/tovu-theme/package/sha256/b1bdcaea785cf10cf3459cb05d3d547dd265ea6e6323a74689d7e1d700bc6d6f/mcp.json 95
+   site/agent-plugins/ws/workspace-local/tovu-theme/package/sha256/b1bdcaea785cf10cf3459cb05d3d547dd265ea6e6323a74689d7e1d700bc6d6f/plugin.json 1193
+   site/agent-plugins/ws/workspace-local/tovu-theme/package/sha256/b1bdcaea785cf10cf3459cb05d3d547dd265ea6e6323a74689d7e1d700bc6d6f/skills/tovu-theme/SKILL.md 61309
+   site/agent-plugins/ws/workspace-local/tovu-theme/package/sha256/b1bdcaea785cf10cf3459cb05d3d547dd265ea6e6323a74689d7e1d700bc6d6f/skills/tovu-theme/references/kuinetic-worked-example.md 7960
+   site/agent-plugins/ws/workspace-local/tovu-theme/package/sha256/b1bdcaea785cf10cf3459cb05d3d547dd265ea6e6323a74689d7e1d700bc6d6f/skills/tovu-theme/references/motion.md 5897
+   site/agent-plugins/ws/workspace-local/tovu-theme/package/sha256/b1bdcaea785cf10cf3459cb05d3d547dd265ea6e6323a74689d7e1d700bc6d6f/skills/tovu-theme/references/theme-v2-contract.md 7681
+REMOVED:
+CHANGED:
+   home/.local/share/Tovu/sites.json 346 -> 346
+   site/agent-plugins/ws/workspace-local/bundled-digests.json 374 -> 374
+   site/data.nosync/content.db 1462272 -> 1462272
+   site/ops/logs/server.log 5873 -> 12095
+DB home/.local/share/Tovu/project.db: schema same=True; tables 3->3
+DB site/data.nosync/chat.db: schema same=True; tables 6->6
+DB site/data.nosync/content.db: schema same=True; tables 114->114
+   table origin_settings: {'rows': 1, 'sha256': '27efcdaa44cc1e9f833431619093a6e1d059bf7d85083b2449739ce2ec3b8df1'} -> {'rows': 1, 'sha256': 'd366f15d0ff53716d6af0e7488d5424ebd9e7c50dc75e2217055a8e1482edb87'}

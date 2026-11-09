@@ -1,0 +1,95 @@
+TAP version 13
+# Subtest: the parser enumerates alternate opener shapes and reports unresolved bindings
+ok 1 - the parser enumerates alternate opener shapes and reports unresolved bindings
+  ---
+  duration_ms: 2.623276
+  type: 'test'
+  ...
+# Subtest: the parser follows identity dialogs to prepared confirmation IDs and fails closed for unknown flows
+ok 2 - the parser follows identity dialogs to prepared confirmation IDs and fails closed for unknown flows
+  ---
+  duration_ms: 0.741006
+  type: 'test'
+  ...
+# Subtest: the federated card adapter permits only its reviewed dynamic spec expression
+ok 3 - the federated card adapter permits only its reviewed dynamic spec expression
+  ---
+  duration_ms: 0.383566
+  type: 'test'
+  ...
+# Subtest: the sealer adapter exemption leaves other unresolved open calls visible
+ok 4 - the sealer adapter exemption leaves other unresolved open calls visible
+  ---
+  duration_ms: 0.347302
+  type: 'test'
+  ...
+# Subtest: reviewed non-exchange open calls do not hide new surface bindings in the same file
+ok 5 - reviewed non-exchange open calls do not hide new surface bindings in the same file
+  ---
+  duration_ms: 1.59208
+  type: 'test'
+  ...
+# Subtest: every surfaceExchanges.open(...) call names a toolId constant this scan can resolve
+not ok 6 - every surfaceExchanges.open(...) call names a toolId constant this scan can resolve
+  ---
+  duration_ms: 3.618199
+  type: 'test'
+  location: '/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/old/tovu-combine/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts:48:480'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'cli/commands/import-local.ts:151: file'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'cli/commands/import-local.ts:151: file'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/old/tovu-combine/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts:315:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: the scan finds the known exchange openers (guards against a scan that silently matches nothing)
+ok 7 - the scan finds the known exchange openers (guards against a scan that silently matches nothing)
+  ---
+  duration_ms: 0.280173
+  type: 'test'
+  ...
+# Subtest: every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS
+ok 8 - every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS
+  ---
+  duration_ms: 0.226481
+  type: 'test'
+  ...
+# Subtest: the completeness check reports a tool whose allowlist entry is missing
+ok 9 - the completeness check reports a tool whose allowlist entry is missing
+  ---
+  duration_ms: 0.333899
+  type: 'test'
+  ...
+# Subtest: every allowlisted id opens an exchange or is a named carve-out
+ok 10 - every allowlisted id opens an exchange or is a named carve-out
+  ---
+  duration_ms: 0.358544
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4044.616215

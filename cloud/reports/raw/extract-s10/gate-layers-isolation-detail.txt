@@ -1,0 +1,19 @@
+layers violations: 0
+isolation closures: 580; findings by kind: {"c":9,"d":7}
+  I kind=c rule=SI-c file=packages/admin/package.json reason=sideEffects is an asset allowlist (./src/themes/**/*.css); retain CSS effects, JS must stay isolated
+  I kind=d rule=SI-d file=packages/agent-runtime/src/index.ts reason=. is an aggregate barrel for ai-trace, model-catalog, model-discovery, model-selection, native-tool-policy, providers; independent subpaths must stand alone
+  I kind=c rule=SI-c file=packages/chat/package.json reason=sideEffects is an asset allowlist (./dist/**/*.css); retain CSS effects, JS must stay isolated
+  I kind=c rule=SI-c file=packages/cookie-consent/package.json reason=sideEffects is an asset allowlist (./dist/client.min.js, ./dist/extensions.min.js); retain CSS effects, JS must stay isolated
+  I kind=d rule=SI-d file=packages/core/src/index.ts reason=. is an aggregate barrel for contribution-registry, gated-mutations, model-facing-tool-errors, naming, providers; independent subpaths must stand alone
+  I kind=d rule=SI-d file=packages/http-kit/src/index.ts reason=. is an aggregate barrel for middleware, observability, rate-limit, verified-origin; independent subpaths must stand alone
+  I kind=d rule=SI-d file=packages/oauth/src/index.ts reason=. is an aggregate barrel for discovery-policy, dns-pinned-transport; independent subpaths must stand alone
+  I kind=d rule=SI-d file=packages/platform/src/index.ts reason=. is an aggregate barrel for asset-cache, fs, http, mail, os, secrets; independent subpaths must stand alone
+  I kind=c rule=SI-c file=packages/plugin-fixture-provider/package.json reason=missing sideEffects: false; inspect module initialization before marking JS side-effect free
+  I kind=c rule=SI-c file=packages/provider-plugins/plugins/charts-echarts/0.6.24/client/provider.js reason=module top-level effect: line 14: Math.log
+  I kind=c rule=SI-c file=packages/provider-plugins/plugins/charts-echarts/0.6.24/client/provider.js reason=module top-level effect: line 14: Math.log
+  I kind=c rule=SI-c file=packages/provider-plugins/package.json reason=missing sideEffects: false; inspect module initialization before marking JS side-effect free
+  I kind=d rule=SI-d file=packages/sidecar/src/index.ts reason=. is an aggregate barrel for respawn-policy, supervisor; independent subpaths must stand alone
+  I kind=d rule=SI-d file=packages/ui/src/index.ts reason=. is an aggregate barrel for admin-widgets, panel-kit, renderers; independent subpaths must stand alone
+  I kind=c rule=SI-c file=packages/ui/package.json reason=sideEffects is an asset allowlist (./dist/features/admin-widgets/styles/admin-widgets.css, ./dist/styles/*.css, ./dist/features/tabbed-dialog/styles/tabbed-dialog.css, ./dist/features/settings/dialog/styles/settings-dialog.css, ./dist/features/interactive-ui/interactive-ui.css, ./dist/**/*.css); retain CSS effects, JS must stay isolated
+  I kind=c rule=SI-c file=packages/ui-kit/package.json reason=sideEffects is an asset allowlist (**/*.css); retain CSS effects, JS must stay isolated
+exit 0

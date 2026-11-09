@@ -1,0 +1,39 @@
+// S10 disposable consumer assertion: a tier-2 call in a real worker_threads Worker through the
+// public @jini-ai/plugins/host/worker entry, one result and one host-enforced timeout.
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { Worker } from 'node:worker_threads';
+import { expect, it } from 'vitest';
+import { decodeTier2Reply } from '@jini-ai/plugins/host/worker';
+
+const ENTRY = new URL('./s10-tier2-entry.mjs', import.meta.url);
+const PLUGIN = (setup: string) => `export default { [Symbol.for('another-studio.plugin')]: true, definition: { setup: ${setup} } };\n`;
+
+async function call(request: unknown, timeoutMs: number): Promise<unknown> {
+  const worker = new Worker(ENTRY, { workerData: request, execArgv: [], resourceLimits: { maxOldGenerationSizeMb: 64 } });
+  try {
+    return await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve('timeout'), timeoutMs);
+      worker.once('message', (message) => { clearTimeout(timer); resolve(message); });
+      worker.once('error', (error) => { clearTimeout(timer); reject(error); });
+    });
+  } finally { await worker.terminate(); }
+}
+
+it('runs a beforeSave hook in a worker and returns its patch; a hung setup is cut at the host timeout', async () => {
+  const root = await mkdtemp(join(tmpdir(), 's10-tier2-'));
+  try {
+    await mkdir(join(root, 'stamp/server'), { recursive: true });
+    await mkdir(join(root, 'hang/server'), { recursive: true });
+    await writeFile(join(root, 'stamp/server/index.mjs'), PLUGIN(`(sdk) => { sdk.addFilter('entry.beforeSave', async (entry) => ({ stamped: entry.title + '!' })); }`));
+    await writeFile(join(root, 'hang/server/index.mjs'), PLUGIN('() => new Promise(() => {})'));
+    const plugin = (id: string) => ({ pluginId: id, entryPath: pathToFileURL(join(root, id, 'server/index.mjs')).href, capabilities: ['hooks.attach'], hooks: ['entry.beforeSave'] });
+    const reply = await call({ kind: 'beforeSave', plugin: plugin('stamp'), entry: { workspaceId: 'studio', title: 'Draft', ext: {} }, ctx: { pluginId: 'stamp', workspaceId: 'studio' } }, 10_000);
+    expect(decodeTier2Reply({ message: reply, expectedKind: 'beforeSave' })).toEqual({ ok: true, kind: 'beforeSave', patch: { stamped: 'Draft!' } });
+    const started = Date.now();
+    expect(await call({ kind: 'probe', plugin: plugin('hang') }, 300)).toBe('timeout');
+    expect(Date.now() - started).toBeLessThan(5_000);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

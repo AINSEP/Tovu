@@ -1,0 +1,489 @@
+Legend: production dependency, optional only, dev only
+
+@jini-example/neutral-host@0.0.0 /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral (PRIVATE)
+│
+│   dependencies:
+├─┬ @jini-ai/agent-plugins@0.6.24
+│ ├── @cfworker/json-schema@4.1.6 peer
+│ ├── @jini-ai/core@0.6.23 peer
+│ └─┬ @jini-ai/platform@0.6.23 peer
+│   ├── @jini-ai/core@0.6.23
+│   └── undici@7.30.2
+├─┬ @jini-ai/cms@0.6.22
+│ ├── @jini-ai/core@0.6.23
+│ ├─┬ @jini-ai/db@0.6.19 peer
+│ │ ├── @jini-ai/core@0.6.23
+│ │ ├── @jini-ai/platform@0.6.23 peer [deduped]
+│ │ └── kysely@0.29.8
+│ ├─┬ @jini-ai/http-kit@0.6.22 peer
+│ │ ├── @jini-ai/core@0.6.23
+│ │ ├── @jini-ai/platform@0.6.23 [deduped]
+│ │ └─┬ @jini-ai/protocol@0.6.19
+│ │   └── zod@3.25.76
+│ ├── @jini-ai/platform@0.6.23 peer [deduped]
+│ ├─┬ express@5.3.0 peer
+│ │ ├─┬ accepts@2.0.0
+│ │ │ ├─┬ mime-types@3.0.2
+│ │ │ │ └── mime-db@1.54.0
+│ │ │ └─┬ negotiator@1.1.0
+│ │ │   └── content-type@2.1.0
+│ │ ├─┬ body-parser@2.4.0
+│ │ │ ├── bytes@3.1.2
+│ │ │ ├── content-type@2.1.0
+│ │ │ ├─┬ debug@4.4.3
+│ │ │ │ └── ms@2.1.3
+│ │ │ ├─┬ http-errors@2.0.1
+│ │ │ │ ├── depd@2.0.0
+│ │ │ │ ├── inherits@2.0.4
+│ │ │ │ ├── setprototypeof@1.2.0
+│ │ │ │ ├── statuses@2.0.2
+│ │ │ │ └── toidentifier@1.0.1
+│ │ │ ├─┬ iconv-lite@0.7.3
+│ │ │ │ └── safer-buffer@2.1.2
+│ │ │ ├─┬ on-finished@2.4.2
+│ │ │ │ └── ee-first@1.1.1
+│ │ │ ├─┬ qs@6.17.1
+│ │ │ │ ├── es-define-property@1.0.1
+│ │ │ │ └─┬ side-channel@1.1.1
+│ │ │ │   ├── es-errors@1.3.0
+│ │ │ │   ├── object-inspect@1.13.4
+│ │ │ │   ├─┬ side-channel-list@1.0.1
+│ │ │ │   │ ├── es-errors@1.3.0
+│ │ │ │   │ └── object-inspect@1.13.4
+│ │ │ │   ├─┬ side-channel-map@1.0.1
+│ │ │ │   │ ├─┬ call-bound@1.0.4
+│ │ │ │   │ │ ├─┬ call-bind-apply-helpers@1.0.2
+│ │ │ │   │ │ │ ├── es-errors@1.3.0
+│ │ │ │   │ │ │ └── function-bind@1.1.2
+│ │ │ │   │ │ └─┬ get-intrinsic@1.3.0
+│ │ │ │   │ │   ├── call-bind-apply-helpers@1.0.2 [deduped]
+│ │ │ │   │ │   ├── es-define-property@1.0.1
+│ │ │ │   │ │   ├── es-errors@1.3.0
+│ │ │ │   │ │   ├─┬ es-object-atoms@1.1.2
+│ │ │ │   │ │   │ └── es-errors@1.3.0
+│ │ │ │   │ │   ├── function-bind@1.1.2
+│ │ │ │   │ │   ├─┬ get-proto@1.0.1
+│ │ │ │   │ │   │ ├─┬ dunder-proto@1.0.1
+│ │ │ │   │ │   │ │ ├── call-bind-apply-helpers@1.0.2 [deduped]
+│ │ │ │   │ │   │ │ ├── es-errors@1.3.0
+│ │ │ │   │ │   │ │ └── gopd@1.2.0
+│ │ │ │   │ │   │ └── es-object-atoms@1.1.2 [deduped]
+│ │ │ │   │ │   ├── gopd@1.2.0
+│ │ │ │   │ │   ├── has-symbols@1.1.0
+│ │ │ │   │ │   ├─┬ hasown@2.0.4
+│ │ │ │   │ │   │ └── function-bind@1.1.2
+│ │ │ │   │ │   └── math-intrinsics@1.1.0
+│ │ │ │   │ ├── es-errors@1.3.0
+│ │ │ │   │ ├── get-intrinsic@1.3.0 [deduped]
+│ │ │ │   │ └── object-inspect@1.13.4
+│ │ │ │   └─┬ side-channel-weakmap@1.0.2
+│ │ │ │     ├── call-bound@1.0.4 [deduped]
+│ │ │ │     ├── es-errors@1.3.0
+│ │ │ │     ├── get-intrinsic@1.3.0 [deduped]
+│ │ │ │     ├── object-inspect@1.13.4
+│ │ │ │     └── side-channel-map@1.0.1 [deduped]
+│ │ │ ├─┬ raw-body@3.0.2
+│ │ │ │ ├── bytes@3.1.2
+│ │ │ │ ├── http-errors@2.0.1 [deduped]
+│ │ │ │ ├── iconv-lite@0.7.3 [deduped]
+│ │ │ │ └── unpipe@1.0.0
+│ │ │ └─┬ type-is@2.1.0
+│ │ │   ├── content-type@2.1.0
+│ │ │   ├── media-typer@1.1.1
+│ │ │   └── mime-types@3.0.2 [deduped]
+│ │ ├── content-disposition@2.0.1
+│ │ ├── content-type@2.1.0
+│ │ ├── cookie@0.7.2
+│ │ ├── cookie-signature@1.2.2
+│ │ ├── debug@4.4.3 [deduped]
+│ │ ├── depd@2.0.0
+│ │ ├── encodeurl@2.0.1
+│ │ ├── escape-html@1.0.3
+│ │ ├── etag@1.8.1
+│ │ ├─┬ finalhandler@2.1.1
+│ │ │ ├── debug@4.4.3 [deduped]
+│ │ │ ├── encodeurl@2.0.1
+│ │ │ ├── escape-html@1.0.3
+│ │ │ ├── on-finished@2.4.2 [deduped]
+│ │ │ ├── parseurl@1.3.3
+│ │ │ └── statuses@2.0.2
+│ │ ├── fresh@2.0.0
+│ │ ├── http-errors@2.0.1 [deduped]
+│ │ ├── merge-descriptors@2.0.0
+│ │ ├── mime-types@3.0.2 [deduped]
+│ │ ├── on-finished@2.4.2 [deduped]
+│ │ ├─┬ once@1.4.0
+│ │ │ └── wrappy@1.0.2
+│ │ ├── parseurl@1.3.3
+│ │ ├─┬ proxy-addr@2.0.8
+│ │ │ ├── forwarded@0.2.0
+│ │ │ └── ipaddr.js@1.9.1
+│ │ ├── qs@6.17.1 [deduped]
+│ │ ├── range-parser@1.3.0
+│ │ ├─┬ router@2.2.0
+│ │ │ ├── debug@4.4.3 [deduped]
+│ │ │ ├── depd@2.0.0
+│ │ │ ├── is-promise@4.0.0
+│ │ │ ├── parseurl@1.3.3
+│ │ │ └── path-to-regexp@8.4.2
+│ │ ├─┬ send@1.2.1
+│ │ │ ├── debug@4.4.3 [deduped]
+│ │ │ ├── encodeurl@2.0.1
+│ │ │ ├── escape-html@1.0.3
+│ │ │ ├── etag@1.8.1
+│ │ │ ├── fresh@2.0.0
+│ │ │ ├── http-errors@2.0.1 [deduped]
+│ │ │ ├── mime-types@3.0.2 [deduped]
+│ │ │ ├── ms@2.1.3
+│ │ │ ├── on-finished@2.4.2 [deduped]
+│ │ │ ├── range-parser@1.3.0
+│ │ │ └── statuses@2.0.2
+│ │ ├─┬ serve-static@2.2.1
+│ │ │ ├── encodeurl@2.0.1
+│ │ │ ├── escape-html@1.0.3
+│ │ │ ├── parseurl@1.3.3
+│ │ │ └── send@1.2.1 [deduped]
+│ │ ├── statuses@2.0.2
+│ │ ├── type-is@2.1.0 [deduped]
+│ │ └── vary@1.1.2
+│ ├── kysely@0.29.8 peer
+│ ├─┬ mammoth@1.13.0
+│ │ ├── @xmldom/xmldom@0.8.15
+│ │ ├─┬ argparse@1.0.10
+│ │ │ └── sprintf-js@1.0.3
+│ │ ├── base64-js@1.5.1
+│ │ ├── dingbat-to-unicode@1.0.2
+│ │ ├─┬ jszip@3.10.2
+│ │ │ ├─┬ lie@3.3.0
+│ │ │ │ └── immediate@3.0.6
+│ │ │ ├── pako@1.0.11
+│ │ │ ├─┬ readable-stream@2.3.8
+│ │ │ │ ├── core-util-is@1.0.3
+│ │ │ │ ├── inherits@2.0.4
+│ │ │ │ ├── isarray@1.0.0
+│ │ │ │ ├── process-nextick-args@2.0.1
+│ │ │ │ ├── safe-buffer@5.1.2
+│ │ │ │ ├─┬ string_decoder@1.1.1
+│ │ │ │ │ └── safe-buffer@5.1.2
+│ │ │ │ └── util-deprecate@1.0.2
+│ │ │ └── setimmediate@1.0.5
+│ │ ├─┬ lop@0.4.2
+│ │ │ ├─┬ duck@0.1.12
+│ │ │ │ └── underscore@1.13.8
+│ │ │ ├── option@0.2.4
+│ │ │ └── underscore@1.13.8
+│ │ ├── underscore@1.13.8
+│ │ └── xmlbuilder@10.1.1
+│ └── unpdf@1.9.1
+├── @jini-ai/cookie-consent@0.6.19
+├── @jini-ai/core@0.6.23
+├─┬ @jini-ai/daemon@0.6.23
+│ ├─┬ @jini-ai/agent-runtime@0.6.23
+│ │ ├── @jini-ai/core@0.6.23
+│ │ ├─┬ @jini-ai/integrations@0.6.19
+│ │ │ ├── @cfworker/json-schema@4.1.6 peer
+│ │ │ ├── @jini-ai/core@0.6.23
+│ │ │ ├── @jini-ai/db@0.6.19 peer [deduped]
+│ │ │ ├─┬ @jini-ai/oauth@0.6.19 peer
+│ │ │ │ ├── @jini-ai/core@0.6.23
+│ │ │ │ ├── oauth4webapi@3.8.8
+│ │ │ │ └─┬ openid-client@6.8.8
+│ │ │ │   ├── jose@6.2.17
+│ │ │ │   └── oauth4webapi@3.8.8
+│ │ │ └── @jini-ai/platform@0.6.23 peer [deduped]
+│ │ ├── @jini-ai/oauth@0.6.19 [deduped]
+│ │ ├── @jini-ai/platform@0.6.23 [deduped]
+│ │ └── @jini-ai/protocol@0.6.19 [deduped]
+│ ├── @jini-ai/core@0.6.23
+│ ├── @jini-ai/db@0.6.19 [deduped]
+│ ├── @jini-ai/http-kit@0.6.22 [deduped]
+│ ├── @jini-ai/platform@0.6.23 [deduped]
+│ ├── @jini-ai/protocol@0.6.19 [deduped]
+│ ├── express@5.3.0 peer [deduped]
+│ ├── kysely@0.29.8
+│ └── smol-toml@1.9.1
+├─┬ @jini-ai/devops@0.6.22
+│ ├── @jini-ai/core@0.6.23
+│ ├── @jini-ai/platform@0.6.23 peer [deduped]
+│ ├── typescript@5.9.3 peer
+│ └── undici@7.30.2 peer
+├── @jini-ai/http-kit@0.6.22 [deduped]
+├── @jini-ai/integrations@0.6.19 [deduped]
+├─┬ @jini-ai/mcp@0.6.23
+│ ├── @cfworker/json-schema@4.1.6
+│ ├── @jini-ai/core@0.6.23
+│ ├── @jini-ai/platform@0.6.23 [deduped]
+│ ├── @jini-ai/protocol@0.6.19 [deduped]
+│ └─┬ @modelcontextprotocol/sdk@1.32.2
+│   ├── @cfworker/json-schema@4.1.6 peer
+│   ├─┬ @hono/node-server@2.1.6
+│   │ └── hono@4.13.17 peer
+│   ├─┬ ajv@8.20.0
+│   │ ├── fast-deep-equal@3.1.3
+│   │ ├── fast-uri@3.1.9
+│   │ ├── json-schema-traverse@1.0.0
+│   │ └── require-from-string@2.0.2
+│   ├─┬ ajv-formats@3.0.1
+│   │ └── ajv@8.20.0 peer [deduped]
+│   ├── content-type@1.0.5
+│   ├─┬ cors@2.8.6
+│   │ ├── object-assign@4.1.1
+│   │ └── vary@1.1.2
+│   ├─┬ cross-spawn@7.0.6
+│   │ ├── path-key@3.1.1
+│   │ ├─┬ shebang-command@2.0.0
+│   │ │ └── shebang-regex@3.0.0
+│   │ └─┬ which@2.0.2
+│   │   └── isexe@2.0.0
+│   ├─┬ eventsource@3.0.7
+│   │ └── eventsource-parser@3.1.1
+│   ├── eventsource-parser@3.1.1
+│   ├── express@5.3.0 [deduped]
+│   ├─┬ express-rate-limit@8.7.4
+│   │ ├── debug@4.4.3 [deduped]
+│   │ ├── express@5.3.0 peer [deduped]
+│   │ └── ip-address@10.7.6
+│   ├── hono@4.13.17
+│   ├── jose@6.2.17
+│   ├── json-schema-typed@8.0.2
+│   ├── pkce-challenge@5.0.1
+│   ├── raw-body@3.0.2 [deduped]
+│   ├── zod@3.25.76 peer
+│   └─┬ zod-to-json-schema@3.25.2
+│     └── zod@3.25.76 peer
+├── @jini-ai/oauth@0.6.19 [deduped]
+├── @jini-ai/platform@0.6.23 [deduped]
+├─┬ @jini-ai/plugins@0.6.22
+│ ├── @jini-ai/core@0.6.23
+│ ├── @jini-ai/db@0.6.19 peer [deduped]
+│ ├── @jini-ai/platform@0.6.23 peer [deduped]
+│ └── kysely@0.29.8 peer
+├─┬ @jini-ai/search@0.6.19
+│ ├── @jini-ai/agent-plugins@0.6.24 peer [deduped]
+│ └── @jini-ai/core@0.6.23
+├─┬ @jini-ai/user-management@0.6.22
+│ ├── @jini-ai/core@0.6.23
+│ ├── @jini-ai/oauth@0.6.19 peer [deduped]
+│ ├── @simplewebauthn/browser@14.0.0
+│ ├─┬ @simplewebauthn/server@14.0.3
+│ │ ├── @hexagon/base64@1.1.28
+│ │ ├── @levischuck/tiny-cbor@0.2.11
+│ │ ├─┬ @peculiar/asn1-android@2.11.1
+│ │ │ ├─┬ @peculiar/asn1-schema@2.11.1
+│ │ │ │ ├─┬ @peculiar/utils@2.0.3
+│ │ │ │ │ └── tslib@2.9.1
+│ │ │ │ ├─┬ asn1js@3.1.0
+│ │ │ │ │ ├─┬ pvtsutils@1.3.6
+│ │ │ │ │ │ └── tslib@2.9.1
+│ │ │ │ │ ├── pvutils@1.2.0
+│ │ │ │ │ └── tslib@2.9.1
+│ │ │ │ └── tslib@2.9.1
+│ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ └── tslib@2.9.1
+│ │ ├─┬ @peculiar/asn1-ecc@2.11.1
+│ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ ├─┬ @peculiar/asn1-x509@2.11.1
+│ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/utils@2.0.3 [deduped]
+│ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ └── tslib@2.9.1
+│ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ └── tslib@2.9.1
+│ │ ├─┬ @peculiar/asn1-rsa@2.11.1
+│ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ └── tslib@2.9.1
+│ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ ├─┬ @peculiar/asn1-x509-post-quantum@2.11.1
+│ │ │ ├─┬ @peculiar/asn1-asym-key@2.11.1
+│ │ │ │ ├─┬ @peculiar/asn1-pkcs8@2.11.1
+│ │ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ │ └── tslib@2.9.1
+│ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ └── tslib@2.9.1
+│ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ └── tslib@2.9.1
+│ │ ├─┬ @peculiar/x509@2.2.0
+│ │ │ ├─┬ @peculiar/asn1-cms@2.11.1
+│ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ │ ├─┬ @peculiar/asn1-x509-attr@2.11.1
+│ │ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ │ └── tslib@2.9.1
+│ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ └── tslib@2.9.1
+│ │ │ ├─┬ @peculiar/asn1-csr@2.11.1
+│ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ └── tslib@2.9.1
+│ │ │ ├── @peculiar/asn1-ecc@2.11.1 [deduped]
+│ │ │ ├─┬ @peculiar/asn1-pkcs9@2.11.1
+│ │ │ │ ├── @peculiar/asn1-cms@2.11.1 [deduped]
+│ │ │ │ ├─┬ @peculiar/asn1-pfx@2.11.1
+│ │ │ │ │ ├── @peculiar/asn1-cms@2.11.1 [deduped]
+│ │ │ │ │ ├── @peculiar/asn1-pkcs8@2.11.1 [deduped]
+│ │ │ │ │ ├── @peculiar/asn1-rsa@2.11.1 [deduped]
+│ │ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ │ └── tslib@2.9.1
+│ │ │ │ ├── @peculiar/asn1-pkcs8@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ │ ├── @peculiar/asn1-x509-attr@2.11.1 [deduped]
+│ │ │ │ ├── asn1js@3.1.0 [deduped]
+│ │ │ │ └── tslib@2.9.1
+│ │ │ ├── @peculiar/asn1-rsa@2.11.1 [deduped]
+│ │ │ ├── @peculiar/asn1-schema@2.11.1 [deduped]
+│ │ │ ├── @peculiar/asn1-x509@2.11.1 [deduped]
+│ │ │ ├── @peculiar/asn1-x509-post-quantum@2.11.1 [deduped]
+│ │ │ ├── pvtsutils@1.3.6 [deduped]
+│ │ │ ├── tslib@2.9.1
+│ │ │ └─┬ tsyringe@4.10.0
+│ │ │   └── tslib@1.14.1
+│ │ └── reflect-metadata@0.2.2
+│ └─┬ otplib@13.6.0
+│   ├── @otplib/core@13.6.0
+│   ├─┬ @otplib/hotp@13.6.0
+│   │ ├── @otplib/core@13.6.0
+│   │ └─┬ @otplib/uri@13.6.0
+│   │   └── @otplib/core@13.6.0
+│   ├─┬ @otplib/plugin-base32-scure@13.6.0
+│   │ ├── @otplib/core@13.6.0
+│   │ └── @scure/base@2.4.0
+│   ├─┬ @otplib/plugin-crypto-noble@13.6.0
+│   │ ├── @noble/hashes@2.4.0
+│   │ └── @otplib/core@13.6.0
+│   ├─┬ @otplib/totp@13.6.0
+│   │ ├── @otplib/core@13.6.0
+│   │ ├── @otplib/hotp@13.6.0 [deduped]
+│   │ └── @otplib/uri@13.6.0 [deduped]
+│   └── @otplib/uri@13.6.0 [deduped]
+├─┬ @types/node@24.19.2
+│ └── undici-types@7.24.6
+├── typescript@5.9.3
+└─┬ vitest@2.1.9
+  ├── @types/node@24.19.2 peer [deduped]
+  ├─┬ @vitest/expect@2.1.9
+  │ ├─┬ @vitest/spy@2.1.9
+  │ │ └── tinyspy@3.0.2
+  │ ├─┬ @vitest/utils@2.1.9
+  │ │ ├─┬ @vitest/pretty-format@2.1.9
+  │ │ │ └── tinyrainbow@1.2.0
+  │ │ ├── loupe@3.2.1
+  │ │ └── tinyrainbow@1.2.0
+  │ ├─┬ chai@5.3.3
+  │ │ ├── assertion-error@2.0.1
+  │ │ ├── check-error@2.1.3
+  │ │ ├── deep-eql@5.0.2
+  │ │ ├── loupe@3.2.1
+  │ │ └── pathval@2.0.1
+  │ └── tinyrainbow@1.2.0
+  ├─┬ @vitest/mocker@2.1.9
+  │ ├── @vitest/spy@2.1.9 [deduped]
+  │ ├─┬ estree-walker@3.0.3
+  │ │ └── @types/estree@1.0.10
+  │ ├─┬ magic-string@0.30.21
+  │ │ └── @jridgewell/sourcemap-codec@1.6.0
+  │ └─┬ vite@5.4.21 peer
+  │   ├── @types/node@24.19.2 peer [deduped]
+  │   ├─┬ esbuild@0.21.5
+  │   │ ├── @esbuild/aix-ppc64@0.21.5
+  │   │ ├── @esbuild/android-arm@0.21.5
+  │   │ ├── @esbuild/android-arm64@0.21.5
+  │   │ ├── @esbuild/android-x64@0.21.5
+  │   │ ├── @esbuild/darwin-arm64@0.21.5
+  │   │ ├── @esbuild/darwin-x64@0.21.5
+  │   │ ├── @esbuild/freebsd-arm64@0.21.5
+  │   │ ├── @esbuild/freebsd-x64@0.21.5
+  │   │ ├── @esbuild/linux-arm@0.21.5
+  │   │ ├── @esbuild/linux-arm64@0.21.5
+  │   │ ├── @esbuild/linux-ia32@0.21.5
+  │   │ ├── @esbuild/linux-loong64@0.21.5
+  │   │ ├── @esbuild/linux-mips64el@0.21.5
+  │   │ ├── @esbuild/linux-ppc64@0.21.5
+  │   │ ├── @esbuild/linux-riscv64@0.21.5
+  │   │ ├── @esbuild/linux-s390x@0.21.5
+  │   │ ├── @esbuild/linux-x64@0.21.5
+  │   │ ├── @esbuild/netbsd-x64@0.21.5
+  │   │ ├── @esbuild/openbsd-x64@0.21.5
+  │   │ ├── @esbuild/sunos-x64@0.21.5
+  │   │ ├── @esbuild/win32-arm64@0.21.5
+  │   │ ├── @esbuild/win32-ia32@0.21.5
+  │   │ └── @esbuild/win32-x64@0.21.5
+  │   ├── fsevents@2.3.3
+  │   ├─┬ postcss@8.5.32
+  │   │ ├── nanoid@3.3.20
+  │   │ ├── picocolors@1.1.1
+  │   │ └── source-map-js@1.2.2
+  │   └─┬ rollup@4.68.2
+  │     ├── @rollup/rollup-android-arm-eabi@4.68.2
+  │     ├── @rollup/rollup-android-arm64@4.68.2
+  │     ├── @rollup/rollup-android-x64@4.68.2
+  │     ├── @rollup/rollup-darwin-arm64@4.68.2
+  │     ├── @rollup/rollup-darwin-x64@4.68.2
+  │     ├── @rollup/rollup-freebsd-arm64@4.68.2
+  │     ├── @rollup/rollup-freebsd-x64@4.68.2
+  │     ├── @rollup/rollup-linux-arm-gnueabihf@4.68.2
+  │     ├── @rollup/rollup-linux-arm-musleabihf@4.68.2
+  │     ├── @rollup/rollup-linux-arm64-gnu@4.68.2
+  │     ├── @rollup/rollup-linux-arm64-musl@4.68.2
+  │     ├── @rollup/rollup-linux-loong64-gnu@4.68.2
+  │     ├── @rollup/rollup-linux-loong64-musl@4.68.2
+  │     ├── @rollup/rollup-linux-ppc64-gnu@4.68.2
+  │     ├── @rollup/rollup-linux-ppc64-musl@4.68.2
+  │     ├── @rollup/rollup-linux-riscv64-gnu@4.68.2
+  │     ├── @rollup/rollup-linux-riscv64-musl@4.68.2
+  │     ├── @rollup/rollup-linux-s390x-gnu@4.68.2
+  │     ├── @rollup/rollup-linux-x64-gnu@4.68.2
+  │     ├── @rollup/rollup-linux-x64-musl@4.68.2
+  │     ├── @rollup/rollup-openbsd-x64@4.68.2
+  │     ├── @rollup/rollup-openharmony-arm64@4.68.2
+  │     ├── @rollup/rollup-win32-arm64-msvc@4.68.2
+  │     ├── @rollup/rollup-win32-ia32-msvc@4.68.2
+  │     ├── @rollup/rollup-win32-x64-gnu@4.68.2
+  │     ├── @rollup/rollup-win32-x64-msvc@4.68.2
+  │     ├── @types/estree@1.0.10
+  │     └── fsevents@2.3.3
+  ├── @vitest/pretty-format@2.1.9 [deduped]
+  ├─┬ @vitest/runner@2.1.9
+  │ ├── @vitest/utils@2.1.9 [deduped]
+  │ └── pathe@1.1.2
+  ├─┬ @vitest/snapshot@2.1.9
+  │ ├── @vitest/pretty-format@2.1.9 [deduped]
+  │ ├── magic-string@0.30.21 [deduped]
+  │ └── pathe@1.1.2
+  ├── @vitest/spy@2.1.9 [deduped]
+  ├── @vitest/utils@2.1.9 [deduped]
+  ├── chai@5.3.3 [deduped]
+  ├── debug@4.4.3 [deduped]
+  ├── expect-type@1.4.0
+  ├── magic-string@0.30.21 [deduped]
+  ├── pathe@1.1.2
+  ├── std-env@3.10.0
+  ├── tinybench@2.9.0
+  ├── tinyexec@0.3.2
+  ├── tinypool@1.1.1
+  ├── tinyrainbow@1.2.0
+  ├── vite@5.4.21 [deduped]
+  ├─┬ vite-node@2.1.9
+  │ ├── cac@6.7.14
+  │ ├── debug@4.4.3 [deduped]
+  │ ├── es-module-lexer@1.7.0
+  │ ├── pathe@1.1.2
+  │ └── vite@5.4.21 [deduped]
+  └─┬ why-is-node-running@2.3.0
+    ├── siginfo@2.0.0
+    └── stackback@0.0.2
+
+482 packages

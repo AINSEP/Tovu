@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "base": "/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/old/tovu-s5",
+  "source": "/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/replay/post-write.copy-for-s5.db",
+  "checks": [
+    "workspace row unchanged",
+    "server rows updated in place (rowid/created_at/identity unchanged)",
+    "untouched envelopes byte-identical",
+    "rewritten envelopes keep the original format columns",
+    "baseline code opens all three credentials"
+  ]
+}
+exit 0

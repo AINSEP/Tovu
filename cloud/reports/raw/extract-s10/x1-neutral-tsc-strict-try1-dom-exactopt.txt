@@ -1,0 +1,24 @@
+npm warn Unknown project config "node-linker". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "auto-install-peers". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+node_modules/.pnpm/@jini-ai+agent-runtime@file+..+..+tgz+jini-ai-agent-runtime-0.6.23.tgz_@cfworker+json-s_05e4e8c17d7db42fd9ab6082b9531084/node_modules/@jini-ai/agent-runtime/dist/providers/connection-test.d.ts(36,37): error TS2344: Type '"dispatcher"' does not satisfy the constraint 'keyof RequestInit'.
+node_modules/.pnpm/@jini-ai+agent-runtime@file+..+..+tgz+jini-ai-agent-runtime-0.6.23.tgz_@cfworker+json-s_05e4e8c17d7db42fd9ab6082b9531084/node_modules/@jini-ai/agent-runtime/dist/providers/elevenlabs.d.ts(48,37): error TS2344: Type '"dispatcher"' does not satisfy the constraint 'keyof RequestInit'.
+node_modules/.pnpm/@jini-ai+agent-runtime@file+..+..+tgz+jini-ai-agent-runtime-0.6.23.tgz_@cfworker+json-s_05e4e8c17d7db42fd9ab6082b9531084/node_modules/@jini-ai/agent-runtime/dist/providers/model-catalog.d.ts(20,37): error TS2344: Type '"dispatcher"' does not satisfy the constraint 'keyof RequestInit'.
+node_modules/.pnpm/@jini-ai+oauth@file+..+..+tgz+jini-ai-oauth-0.6.19.tgz/node_modules/@jini-ai/oauth/dist/dns-pinned-transport.d.ts(21,50): error TS2339: Property 'dispatcher' does not exist on type 'RequestInit'.
+node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.d.ts(1127,22): error TS2420: Class 'Configuration' incorrectly implements interface 'ConfigurationProperties'.
+  Types of property 'timeout' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+node_modules/.pnpm/vite@5.4.21_@types+node@24.19.2/node_modules/vite/dist/node/index.d.ts(3069,11): error TS2430: Interface 'import("/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/node_modules/.pnpm/vite@5.4.21_@types+node@24.19.2/node_modules/vite/dist/node/index", { with: { "resolution-mode": "import" } }).Plugin<A>' incorrectly extends interface 'import("/tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/node_modules/.pnpm/rollup@4.68.2/node_modules/rollup/dist/rollup").Plugin<A>'.
+  Types of property 'load' are incompatible.
+    Type 'ObjectHook<(this: PluginContext, id: string, options?: { ssr?: boolean; } | undefined) => LoadResult | Promise<LoadResult>>' is not assignable to type 'ObjectHook<(this: PluginContext, id: string, options?: { ssr?: boolean | undefined; attributes?: Record<string, string>; } | undefined) => LoadResult | Promise<...>, { ...; }>'.
+      Type '(this: PluginContext, id: string, options?: { ssr?: boolean; } | undefined) => LoadResult | Promise<LoadResult>' is not assignable to type 'ObjectHook<(this: PluginContext, id: string, options?: { ssr?: boolean | undefined; attributes?: Record<string, string>; } | undefined) => LoadResult | Promise<...>, { ...; }>'.
+        Type '(this: PluginContext, id: string, options?: { ssr?: boolean; } | undefined) => LoadResult | Promise<LoadResult>' is not assignable to type '(this: PluginContext, id: string, options?: { ssr?: boolean | undefined; attributes?: Record<string, string>; } | undefined) => LoadResult | Promise<...>'.
+          Types of parameters 'options' and 'options' are incompatible.
+            Type '{ ssr?: boolean | undefined; attributes?: Record<string, string>; } | undefined' is not assignable to type '{ ssr?: boolean; } | undefined'.
+              Type '{ ssr?: boolean | undefined; attributes?: Record<string, string>; }' is not assignable to type '{ ssr?: boolean; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+                Types of property 'ssr' are incompatible.
+                  Type 'boolean | undefined' is not assignable to type 'boolean'.
+                    Type 'undefined' is not assignable to type 'boolean'.
+exit 2

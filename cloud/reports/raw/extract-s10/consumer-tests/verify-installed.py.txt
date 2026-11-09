@@ -1,0 +1,34 @@
+import json,os,sys,hashlib,glob
+S=os.environ['S']; root=sys.argv[1]; lockf=sys.argv[2] if len(sys.argv)>2 else None
+unp={}
+for d in glob.glob(S+'/unpacked/*/package'):
+  pj=json.load(open(d+'/package.json')); unp[pj['name']]=d
+def tree(d):
+  out={}
+  for dp,dn,fn in os.walk(d):
+    dn[:]=[x for x in dn if x!='node_modules']
+    for f in fn:
+      p=os.path.join(dp,f); out[os.path.relpath(p,d)]=hashlib.sha256(open(p,'rb').read()).hexdigest()
+  return out
+found=[]; bad=[]
+for dp,dn,fn in os.walk(root):
+  if '.git' in dn: dn.remove('.git')
+  if os.path.basename(dp)=='@jini-ai' and os.path.basename(os.path.dirname(dp))=='node_modules':
+    for n in sorted(dn):
+      p=os.path.join(dp,n); real=os.path.realpath(p)
+      name='@jini-ai/'+n
+      rec={'path':os.path.relpath(p,root),'symlink':os.path.islink(p),'real_inside_root':real.startswith(os.path.realpath(root))}
+      if name not in unp: rec['err']='no tarball'; bad.append(rec); found.append(rec); continue
+      a=tree(real); b=tree(unp[name])
+      rec['identical']= a==b
+      if a!=b: rec['diff']=sorted(set(a.items())^set(b.items()))[:5]
+      if not rec['identical'] or not rec['real_inside_root']: bad.append(rec)
+      found.append(rec)
+lock={}
+if lockf:
+  L=json.load(open(lockf))
+  for k,v in L.get('packages',{}).items():
+    if '@jini-ai/' in k: lock[k]=v.get('resolved') or v.get('version')
+  nonfile=[k for k,v in lock.items() if not str(v).startswith('file:') and not str(v).startswith(S)]
+else: nonfile=[]
+print(json.dumps({'installed_copies':len(found),'bad':bad,'symlinks':[f['path'] for f in found if f['symlink']],'lock_entries':len(lock),'lock_nonfile':nonfile[:10],'lock_sample':list(lock.items())[:3]},indent=1))

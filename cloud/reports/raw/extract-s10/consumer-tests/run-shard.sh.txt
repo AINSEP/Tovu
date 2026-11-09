@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# usage: run-shard.sh <shard-name> <file-list> <repo> <outdir>
+name=$1; list=$2; repo=$3; out=$4
+mkdir -p $out/tap; cd $repo
+echo "$$" > $out/$name.pid
+: > $out/$name.results.tsv
+i=0
+while read -r f; do
+  [ -z "$f" ] && continue
+  i=$((i+1)); tag=$(echo "$f" | sed 's|[/.]|_|g' | tail -c 150)
+  start=$(date -u +%FT%TZ)
+  TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json timeout -k 10 600 node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 --test-reporter=tap "$f" > $out/tap/$tag.tap.txt 2>&1
+  ec=$?
+  g(){ grep -E "^# $1 [0-9]+" $out/tap/$tag.tap.txt | tail -1 | awk '{print $3}'; }
+  printf "%s\t%s\t%s\ttests=%s\tpass=%s\tfail=%s\tcancelled=%s\tskipped=%s\ttodo=%s\n" "$f" "$ec" "$start" "$(g tests)" "$(g pass)" "$(g fail)" "$(g cancelled)" "$(g skipped)" "$(g todo)" >> $out/$name.results.tsv
+done < $list
+echo DONE >> $out/$name.results.tsv

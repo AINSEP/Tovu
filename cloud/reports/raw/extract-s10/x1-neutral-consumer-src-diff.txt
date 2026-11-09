@@ -1,0 +1,27 @@
+diff -r examples/neutral-host/src/api-host-moves.test.ts /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src/api-host-moves.test.ts
+1a2
+> import { installedRoot } from './s10-installed.ts';
+11,12c12,13
+<   const integrations = JSON.parse(readFileSync(new URL('../../../packages/integrations/package.json', import.meta.url), 'utf8'));
+<   const plugins = JSON.parse(readFileSync(new URL('../../../packages/agent-plugins/package.json', import.meta.url), 'utf8'));
+---
+>   const integrations = JSON.parse(readFileSync(`${installedRoot('@jini-ai/integrations', './api-connections')}/package.json`, 'utf8'));
+>   const plugins = JSON.parse(readFileSync(`${installedRoot('@jini-ai/agent-plugins', './admin-surfaces')}/package.json`, 'utf8'));
+diff -r examples/neutral-host/src/contribution-contracts.test.ts /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src/contribution-contracts.test.ts
+13a14
+> import { installedRoot } from './s10-installed.ts';
+36c37
+< const pluginsDir = fileURLToPath(new URL('../../../packages/agent-plugins/', import.meta.url));
+---
+> const pluginsDir = `${installedRoot('@jini-ai/agent-plugins', './manifest')}/`;
+diff -r examples/neutral-host/src/executable-surface-entries.test.ts /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src/executable-surface-entries.test.ts
+1a2
+> import { installedRoot } from './s10-installed.ts';
+26c27
+<   const root = fileURLToPath(new URL('../../../packages/agent-plugins/', import.meta.url));
+---
+>   const root = `${installedRoot('@jini-ai/agent-plugins', './connect/executable')}/`;
+Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-installed.ts
+Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-sheets-get.test.ts
+Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-tier2-entry.mjs
+Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-tier2-worker.test.ts

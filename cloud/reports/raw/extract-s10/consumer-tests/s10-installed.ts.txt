@@ -1,0 +1,14 @@
+// S10 disposable consumer helper: the installed package root, found through public resolution of
+// one of its exported entries (never a checkout path).
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
+export function installedRoot(name: string, entry: string): string {
+  let dir = dirname(createRequire(import.meta.url).resolve(`${name}/${entry.replace(/^\.\//, '')}`));
+  while (!(existsSync(join(dir, 'package.json')) && JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).name === name)) {
+    const up = dirname(dir);
+    if (up === dir) throw new Error(`no installed root for ${name}`);
+    dir = up;
+  }
+  return dir;
+}

@@ -1,0 +1,15 @@
+// S10 disposable: this host's own tier-2 worker entry (neutral binding, public entry only).
+import { parentPort, workerData } from 'node:worker_threads';
+import { startTier2Worker } from '@jini-ai/plugins/host/worker';
+const MARK = Symbol.for('another-studio.plugin');
+const HOOK = 'entry.beforeSave';
+const pluginSdkBinding = { hookIds: [HOOK], beforeSaveHook: HOOK, hookSemantics: { [HOOK]: 'shared' }, runtimeSdkVersion: '0.0.1',
+  readDefinedPlugin: ({ moduleValue }) => (moduleValue?.default?.[MARK] ? moduleValue.default : null),
+  buildSdk: ({ sdk }) => sdk, definePlugin: (definition) => ({ [MARK]: true, definition }) };
+const createInvocationCoreDeps = ({ declaredHooks }) => {
+  let captured = null;
+  return { coreDeps: { getCurrentEntry() { throw new Error('no entry'); }, writeExtField() {},
+    attachFilter(hook, filter) { if (!declaredHooks.includes(hook)) throw new Error(`undeclared hook ${hook}`); captured = filter; } },
+  capturedFilter: () => captured };
+};
+await startTier2Worker({ workerData, parentPort, binding: { pluginSdkBinding, createInvocationCoreDeps }, registerSdkResolver() {}, realImport: (entry) => import(entry) });

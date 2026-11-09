@@ -1,0 +1,2 @@
+$ node --import tsx scripts/check-package-layers.ts
+exit 0

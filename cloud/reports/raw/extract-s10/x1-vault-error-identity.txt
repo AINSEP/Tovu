@@ -1,0 +1,9 @@
+@jini-ai/core/contracts/vault []
+@jini-ai/core/contracts/credentials []
+@jini-ai/integrations/credentialed-http ["CredentialNotFoundError","CredentialedRequestTransportError","CredentialedRequestValidationError"]
+@jini-ai/integrations/credentialed-http/sets ["CredentialSetVaultRepo","CustomCredentialConcurrentModificationError","CustomCredentialDuplicateLabelError","CustomCredentialNotFoundError","CustomCredentialSecretStoreUnconfiguredError","CustomCredentialValidationError","credentialSetVaultRecord","credentialSetVaultScope"]
+@jini-ai/integrations/credentialed-http/tools []
+@jini-ai/integrations/api-connections ["ApiConnectionError","ConnectionBudgetExceededError","createVaultOAuthTokenStore","parseOAuthTokenVaultMeta"]
+@jini-ai/agent-plugins/admin-surfaces ["AdminSurfaceActionError"]
+platform ["InMemoryVaultRepo","SecretsVaultService","VaultError","assertVaultReplacement","buildVaultAad","captureVaultArchive","createVaultMetaParsers","isInVaultQueryScope","prepareVaultArchiveRestore","vaultGroupKey"]
+exit 0
