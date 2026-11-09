@@ -161,6 +161,7 @@ export function createApiConnectionVaultTokenStore(
   return createVaultOAuthTokenStore({
     vault: required.vault, vaultScope: apiConnectionVaultScope({ workspaceId: required.owner.workspaceId }), owner: required.owner,
     readGeneration: createApiConnectionGenerationReader({ records: required.records }), clock: required.clock,
+    isVaultConflict: isConflict,
   });
 }
 
