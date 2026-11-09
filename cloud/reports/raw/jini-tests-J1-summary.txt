@@ -1,0 +1,20 @@
+ui exit=0 secs=405
+cms exit=0 secs=124
+core exit=0 secs=32
+mcp exit=0 secs=31
+integrations exit=0 secs=25
+commerce exit=0 secs=48
+plugins exit=0 secs=29
+vibecoding exit=0 secs=14
+search exit=0 secs=4
+sidecar exit=0 secs=7
+sqlite exit=0 secs=24
+registry exit=0 secs=8
+protocol exit=0 secs=3
+analytics exit=0 secs=5
+artifacts exit=0 secs=4
+infra exit=0 secs=7
+plugin-catalog exit=0 secs=2
+plugin-fixture-provider exit=0 secs=3
+memory exit=0 secs=5
+LANE-DONE

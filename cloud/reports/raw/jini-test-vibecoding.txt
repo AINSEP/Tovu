@@ -1,0 +1,38 @@
+ DEPRECATED  "environmentMatchGlobs" is deprecated. Use `test.projects` to define different configurations instead.
+
+ RUN  v3.2.7 /home/user/Jini/packages/vibecoding
+
+ ✓ src/node/__tests__/unit/project-contracts.unit.test.ts (18 tests) 1904ms
+   ✓ project sessions discard cached bytes after redo and snapshot restore, including a no-op restore  325ms
+ ✓ src/node/__tests__/project-history.test.ts (7 tests) 2113ms
+   ✓ npm-style drift is captured before undo, so undo first reverses the external revision  359ms
+   ✓ snapshot restore is undoable and objects shared by revisions are retained  399ms
+   ✓ garbage collection expires unpinned snapshots without pruning a pinned redo  424ms
+   ✓ injected session shares pointer history and invalidates caches across delete/undo and drift  334ms
+ ✓ src/node/__tests__/project-turn.test.ts (12 tests) 1115ms
+ ✓ src/node/__tests__/unit/store-corruption.unit.test.ts (39 tests) 1173ms
+ ✓ src/session/__tests__/session-exports.test.ts (2 tests) 1144ms
+   ✓ packed ./session imports and runs with every React resolution forbidden  1141ms
+ ✓ src/node/__tests__/store-recovery.test.ts (9 tests) 1026ms
+ ✓ src/html/__tests__/edit.test.ts (58 tests) 46ms
+ ✓ src/html/__tests__/regions.test.ts (23 tests) 30ms
+ ✓ src/html/node/__tests__/scan.test.ts (29 tests) 58ms
+ ✓ src/html/node/__tests__/parse5-region-parser.test.ts (17 tests) 28ms
+ ✓ src/node/__tests__/paths.test.ts (32 tests) 37ms
+ ✓ src/html/node/__tests__/parse5-region-parser.l189.characterization.test.ts (22 tests) 31ms
+ ✓ src/core/__tests__/apply.test.ts (13 tests) 12ms
+ ✓ src/__tests__/integration.test.ts (2 tests) 20ms
+ ✓ src/core/__tests__/history.test.ts (24 tests) 29ms
+ ✓ src/html/node/__tests__/unit/scanner-contracts.unit.test.ts (2 tests) 14ms
+ ✓ src/react/__tests__/use-vibecoding-session.test.ts (4 tests) 413ms
+ ✓ src/react/__tests__/components/VibecodingWorkbench.test.tsx (6 tests) 538ms
+ ✓ src/react/__tests__/components/DocumentPreview.test.tsx (4 tests) 209ms
+ ✓ src/react/__tests__/components/PartsViewer.test.tsx (6 tests) 192ms
+ ✓ src/react/__tests__/session.test.ts (17 tests) 15ms
+ ✓ src/react/__tests__/tools.test.ts (14 tests) 9ms
+
+ Test Files  22 passed (22)
+      Tests  360 passed (360)
+   Start at  06:07:31
+   Duration  13.50s (transform 1.65s, setup 1.06s, collect 4.40s, tests 10.16s, environment 2.77s, prepare 2.34s)
+

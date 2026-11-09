@@ -1,0 +1,4 @@
+chat exit=1 secs=488
+admin exit=0 secs=152
+daemon exit=0 secs=106
+agent-runtime exit=0 secs=53

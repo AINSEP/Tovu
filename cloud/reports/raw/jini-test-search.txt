@@ -1,0 +1,21 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/search
+
+ ✓ src/__tests__/indexer.test.ts (44 tests) 69ms
+ ✓ src/testkit/__tests__/conformance-failures.test.ts (58 tests) 89ms
+ ✓ src/testkit/__tests__/memory-provider.test.ts (12 tests) 9ms
+ ✓ src/__tests__/tools.test.ts (15 tests) 17ms
+ ✓ src/__tests__/service.test.ts (15 tests) 31ms
+ ✓ src/testkit/__tests__/fakes.test.ts (12 tests) 10ms
+ ✓ src/__tests__/registry.test.ts (24 tests) 7ms
+ ✓ src/__tests__/contract-keys.test.ts (4 tests) 13ms
+ ✓ src/__tests__/contribution.test.ts (25 tests) 16ms
+ ✓ src/testkit/__tests__/conformance.test.ts (106 tests) 40ms
+ ✓ src/__tests__/exports.test.ts (3 tests) 5ms
+ ✓ src/__tests__/digest.test.ts (2 tests) 10ms
+
+ Test Files  12 passed (12)
+      Tests  320 passed (320)
+   Start at  06:07:46
+   Duration  3.69s (transform 1.57s, setup 0ms, collect 2.88s, tests 317ms, environment 3ms, prepare 980ms)
+
