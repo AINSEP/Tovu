@@ -52,7 +52,7 @@ export interface CredentialPluginCardsPort {
   load(required: { workspaceId: string }, optional?: Record<string, never>): Promise<readonly PluginCredentialCard[]>;
   find(required: { workspaceId: string; saveKind: PluginCredentialCard['saveKind']; target: string }, optional?: Record<string, never>): Promise<PluginCredentialCard | undefined>;
   readValues(required: { card: PluginCredentialCard; values: Readonly<Record<string, unknown>> }, optional?: Record<string, never>): {
-    label: string; category: string; baseUrl: string; username?: string | undefined; token: string; additionalHosts?: readonly string[];
+    label: string; category: string; baseUrl: string; username?: string; token: string; additionalHosts?: readonly string[];
   };
 }
 
@@ -76,7 +76,7 @@ export interface CredentialCreatePrefill {
  */
 export interface CredentialCardFormsPort {
   buildPlugin(required: { card: PluginCredentialCard }, optional?: Record<string, never>): SecretCardForm;
-  applyPlugin(required: { card?: PluginCredentialCard | undefined; form: SecretCardForm }, optional?: Record<string, never>): SecretCardForm;
+  applyPlugin(required: { card?: PluginCredentialCard; form: SecretCardForm }, optional?: Record<string, never>): SecretCardForm;
   create(required: { prefill: CredentialCreatePrefill; providers: readonly { id: string; vendorId: string }[] }, optional?: Record<string, never>): SecretCardForm;
   createOutcome(required: { label: string; state: 'success' | 'failure'; message: string }, optional?: Record<string, never>): SurfaceOutcomeSpec;
   rotate(required: { label: string }, optional?: Record<string, never>): SecretCardForm;
@@ -186,7 +186,7 @@ export interface CredentialToolMessages {
   duplicateLabel(required: { label: string }, optional?: Record<string, never>): string;
   missingPluginCard(required: { providerId: string }, optional?: Record<string, never>): string;
   writeFailure(required: { message: string }, optional?: Record<string, never>): string;
-  probeFailure(required: { status: 'refused' | 'unavailable'; keyHint?: string | undefined; replacing: boolean }, optional?: Record<string, never>): string;
+  probeFailure(required: { status: 'refused' | 'unavailable'; keyHint?: string; replacing: boolean }, optional?: Record<string, never>): string;
 }
 
 /**

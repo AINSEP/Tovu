@@ -1,5 +1,5 @@
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
-import type { PluginCredentialCard, CredentialSetSummary as CustomCredentialSummary } from "@jini-ai/core/contracts/credentials";
+import type { PluginCredentialCard, CredentialSetSummary as CustomCredentialSummary, CredentialSetConnectionInput as CustomProviderConnectionInput } from "@jini-ai/core/contracts/credentials";
 import { invalidatePublishCredentialCompatibility } from "../deployments/publish-credentials/index.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
@@ -11,7 +11,7 @@ import { credentialText, formatCredentialHint, translateCredentialMessage } from
 import { resolveOperatorLocale } from '../settings/index.js';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
-import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
+import { buildAuthorizationHeader, type CredentialedRequestOutcome } from "@jini-ai/integrations/credentialed-http";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { createApprovalHandler, redactSecrets, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // The same permission helpers `@jini-ai/cms/core` re-exports, taken from their defining core package.
@@ -47,7 +47,6 @@ import {
   CredentialedRequestValidationError,
   type CredentialedRequestAuditPort,
   type CredentialedRequestDeps,
-  type CredentialedRequestOutcome,
 } from "./credentialed-request.js";
 import type { CredentialedRequestPort, CredentialedRequestRequired, CredentialedRequestOptional, CredentialedRequestResult, SourceControlFileWritePlan, SourceControlFileWriter, SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import { bindCredentialedRequestPort, bindSourceControlWritePort } from "./credential-ports.js";
@@ -70,7 +69,7 @@ import {
   resolveCustomCredentialByLabel,
   updateCustomCredential,
 } from "./store.js";
-import type { CustomCredentialSetRepoPort, CustomProviderConnectionInput } from "./types.js";
+import type { CustomCredentialSetRepoPort } from "./types.js";
 import { validateWriteFilesInput } from "./write-files-validation.js";
 import type { CredentialCardIdentity, CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts } from "./credential-tool-host.js";
 import type { CredentialCreatePrefill as CreateCredentialPrefill, CredentialToolActorDeps, CredentialToolOperations, CredentialToolSurfaces, CredentialToolSetupFailure, CredentialWriteFilesRequest } from "./credential-tool-operations.js";
@@ -561,7 +560,8 @@ function reportRepositoryWriteFailure({ routeDeps, ...input }: { routeDeps: Cust
 /** `custom_credential_set_token`'s ENTIRE agent-facing result shape — deliberately boolean-plus-reason
  *  and nothing richer, so there is no field this type could ever be widened to carry the submitted
  *  token in (contrast `CustomCredentialSummary`, which `custom_credential_set_username` safely returns
- *  in full because none of its fields are secret). */
+ *  in full because none of its fields are secret).
+ * @agent-note Return lifecycle status and caller-safe text only; hints stay on human outcomes. */
 type SetTokenResult = { saved: true } | { saved: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "error"; message?: string };
 
 /** Probe only plugin-owned API cards before sealing, keeping every failure value-free.
@@ -585,7 +585,9 @@ async function probeCardBeforeSave({ card, baseUrl, connection, routeDeps, opera
 /** Every dependency {@link saveSetToken} needs to seal the submitted token and report the
  *  outcome — bundled so `custom_credential_set_token`'s own `askThenReport` call passes one object
  *  rather than the handler's whole closure, same shape `features/deployments/publish-agent-tools.ts`'s
- *  `PublishConfirmationContext` uses for the identical reason. */
+ *  `PublishConfirmationContext` uses for the identical reason.
+ * @agent-note The captured summary identifies a row only. Re-read current username/metadata at
+ * replacement and retain current authorization, owner/grant and CAS checks. */
 interface SetTokenAnswerContext {
   readonly routeDeps: CredentialToolActorDeps;
   readonly operations: CredentialToolOperations;
@@ -689,7 +691,9 @@ function readCreateCredentialPrefill({ input, operations }: { input: Record<stri
  *  failure branch is boolean-plus-reason, the same shape {@link SetTokenResult} uses and for the
  *  identical reason: nothing here could ever be widened to carry the submitted token.
  *  `'duplicate-label'` is this tool's own addition — `custom_credential_set_token` has no equivalent
- *  case, since it always targets a row that is already known to exist. */
+ *  case, since it always targets a row that is already known to exist.
+ * @agent-note Strip human-only hints from success; failures carry safe status/reason/text,
+ * never submitted values, sealed/private context or raw exceptions. */
 type CreateCredentialResult =
   | { created: true; credential: Omit<CustomCredentialSummary, "tokenHint"> }
   | { created: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "duplicate-label" | "error"; message?: string };
@@ -700,6 +704,8 @@ type CreateCredentialResult =
  *  defaulting yet (see {@link deriveCreateCredentialSubmission} for that stage). Split from it so each
  *  function's own complexity is measured independently: this one is pure shape-narrowing, that one is
  *  pure decision-making, and neither has to read the other's reasoning to verify its own.
+ *  @agent-note These are the existing saved-card field names. Values arrive only from the human
+ *  secure-card answer, never a model-issued secret input; retain them only through probe/seal.
  *  @complexity O(1) — five fixed field reads. */
 interface RawCreateCredentialFields {
   readonly worksFor: unknown;
@@ -729,7 +735,9 @@ function readRawCreateCredentialFields(params: Record<string, unknown>): RawCrea
 }
 
 /** {@link deriveCreateCredentialSubmission}'s output — the fully-defaulted shape the rest of
- *  {@link saveCreateCard} actually acts on. */
+ *  {@link saveCreateCard} actually acts on.
+ * @agent-note Category/display defaults are host inputs. Fixed plugin destinations cannot be
+ * widened by submitted fields; the token remains local to probe and sealing. */
 interface CreateCredentialSubmission {
   readonly additionalHosts?: readonly string[];
   readonly pluginCard?: PluginCredentialCard;
@@ -788,7 +796,9 @@ function deriveCreateCredentialSubmission({ raw, operations }: { raw: RawCreateC
 }
 
 /** Shared safe failure metadata drives both the model result and the human outcome. Cancel,
- * expiry and abandonment emit no outcome because their state is already rendered locally. */
+ * expiry and abandonment emit no outcome because their state is already rendered locally.
+ * @agent-note Both projections receive only a message passed through host caller-safe rules;
+ * never retain submitted tokens or raw exceptions in this state. */
 interface CreateCardFailure {
   readonly reason: 'invalid' | 'duplicate-label' | 'error';
   readonly message: string;
