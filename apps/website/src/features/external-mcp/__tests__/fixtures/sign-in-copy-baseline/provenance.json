@@ -1,0 +1,18 @@
+{
+  "commit": "c3801c833a191be51753dcdecd133b0cad6f8945",
+  "instruction": "Immutable pre-extraction source evidence. Do not regenerate to match current output. Reproduce bytes with git show <commit>:<path>.",
+  "files": [
+    {
+      "fixture": "external-mcp-oauth.txt",
+      "path": "apps/website/src/features/external-mcp/external-mcp-oauth.ts",
+      "blob": "bd997b3ee10e7fffce962eb31fb921ddaa9b38db",
+      "sha256": "37403ba581a374961e1435bfe86cafc1abe4db479869107fc3dd45e762811415"
+    },
+    {
+      "fixture": "external-mcp-shared-oauth.txt",
+      "path": "apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts",
+      "blob": "fc964786bb702c99a2fd0b0948fa447838feaa77",
+      "sha256": "acec0a97bad6443817cf56ab6df38da02db00d9bedd063d4c4e36bc783b4cc32"
+    }
+  ]
+}

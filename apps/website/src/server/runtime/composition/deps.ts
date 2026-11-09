@@ -2880,7 +2880,7 @@ async function composeSiteRouteDeps(
   /** Bind OAuth to the optional project transaction owner; no service exists without a site id.
    * @complexity O(1) service construction; no network or storage calls. */
   function compositionSharedOAuth() {
-    return projectStore && projectSiteId ? { shared: { owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
+    return projectStore && projectSiteId ? { shared: { ownerWorkspaceId: 'project', owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
         bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
           vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
         attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,

@@ -3,6 +3,7 @@ import type { OAuthHttpPorts } from '@jini-ai/core/contracts/oauth';
 import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
 import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
 import { startLoopbackAuthorizationReceiver } from '@jini-ai/oauth';
+import { apiConnectionOAuthCapabilities } from './oauth-bindings.js';
 import type { ApiConnectionHostPorts, ApiConnectionHostMessages, ApiConnectionRuntime, ApiConnectionSharedFactoryInput, PluginHttp } from '@jini-ai/integrations/api-connections';
 import type { LoadPluginContributions } from '../agent-plugins/lifecycle.js';
 import type { CustomCredentialSetRepoPort } from '../custom-credentials/index.js';
@@ -63,7 +64,7 @@ export function bindApiConnectionHost({ required, optional }: { required: ApiCon
   const createLimiter: ApiConnectionHostPorts['createLimiter'] = ({ profile, clock }) => createRateLimiter({ profile, clock });
   return {
     required: {
-      workspaceId: required.workspaceId, clock: required.clock, oauthHttp: required.oauthHttp,
+      workspaceId: required.workspaceId, clock: required.clock, oauthHttp: required.oauthHttp, oauth: apiConnectionOAuthCapabilities,
       pluginHttp: required.pluginHttp, runtime: required.runtime, env: required.env, publicOrigin: required.publicOrigin,
       apiConnectionStorage: { records, tokensFor: ({ owner }: Parameters<ApiConnectionHostPorts['apiConnectionStorage']['tokensFor']>[0]) => createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }) },
       loadDeclaredConnections: ({ workspaceId }: { workspaceId: string }) => loadDeclaredApiConnections({ workspaceId, loadContributions: required.loadContributions }),

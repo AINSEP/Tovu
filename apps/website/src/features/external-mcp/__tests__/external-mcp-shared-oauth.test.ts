@@ -57,7 +57,7 @@ async function harness() {
       oauth: { providerId: provider.providerId, grant, clientId, clientSecret: `${clientId}-secret`, scopes: 'read' } });
     const service = createExternalMcpOAuthService({ workspaceId: 'workspace-local', repo, keyring, sealer, clock,
       devices: createDeviceAuthorizationStore(), lookupProvider: id => id === 'provider-b' ? { ...provider, providerId: id, tokenEndpoint: 'https://other-auth.example/token' } : provider, httpPorts: { guard: createTovuOAuthGuard({}), fetchFn },
-      shared: { owner, bindings, attachments, siteId, siteName: siteId, ownerPrincipalId: 'owner', transaction } });
+      shared: { ownerWorkspaceId: 'project', owner, bindings, attachments, siteId, siteName: siteId, ownerPrincipalId: 'owner', transaction } });
     return { repo, bindings, service, sealer, keyring };
   }
   return { clock, owner, ownerRepo, attachments, requests, site, advance: (ms: number) => { now += ms; }, onRefresh: (handler: () => Promise<void>) => { onRefresh = handler; }, onAttach: (handler: () => Promise<void>) => { beforeAttach = handler; } };

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import test, { type TestContext } from 'node:test';
 import { createSharedOAuthConsumer, deriveApiConnectionKey, parseApiConnectionDescriptor, type ApiConnectionRecord } from '@jini-ai/integrations/api-connections';
+import { apiConnectionCallbackFieldRules } from '../oauth-bindings.js';
 import { createTokenRefresher, type OAuthTokenSet, type TokenRefreshPort } from '@jini-ai/oauth';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
@@ -19,7 +20,7 @@ import { createSharedOAuthOwnerStorage, type SharedOAuthIssuingContext } from '.
 import { apiConnectionVaultScope, createApiConnectionVault } from '../vault-stores.js';
 
 const clock = { nowMs: () => Date.parse('2026-11-05T19:00:00Z') };
-const descriptor = parseApiConnectionDescriptor({ value: { pluginId: 'shared-fixture', connectionId: 'account',
+const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { pluginId: 'shared-fixture', connectionId: 'account',
   label: 'Shared fixture account', authorizationEndpoint: 'https://issuer.example/authorize', tokenEndpoint: 'https://issuer.example/token' } });
 const credentialId = deriveApiConnectionKey({ workspaceId: 'project', pluginId: descriptor.pluginId, connectionId: descriptor.connectionId });
 const identity = { pluginId: descriptor.pluginId, connectionId: descriptor.connectionId,
