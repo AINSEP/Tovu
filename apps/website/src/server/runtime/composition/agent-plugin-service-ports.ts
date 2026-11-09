@@ -5,7 +5,7 @@ import { resolveDefinitionRaw, type SetValueRequired } from '@jini-ai/core/setti
 import { getEffective, set } from '#src/features/settings/index';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { HttpClientPort } from '#src/platform/http/ports';
-import { ExternalMcpSecretStoreUnconfiguredError, applyExternalMcpAccess, saveExternalMcpServer } from '#src/features/external-mcp/external-mcp-store';
+import { applyExternalMcpAccess, saveExternalMcpServer } from '#src/features/external-mcp/external-mcp-store';
 import type { ExternalMcpOAuthService, ExternalMcpStoreDeps } from '#src/features/external-mcp/contracts';
 import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-roster-change';
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
@@ -24,7 +24,7 @@ export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options =
     repo: required.repo, projections: agentPluginMcpProjections,
     applyAccess: (input, _options = {}) => applyExternalMcpAccess({ ...input, repo: required.repo, clock: required.clock }),
     saveServer: (input, _options = {}) => saveExternalMcpServer(required, input),
-    classifyError: input => classifyAgentPluginMcpError(input, { isUnconfigured: ({ error }) => error instanceof ExternalMcpSecretStoreUnconfiguredError }),
+    classifyError: classifyAgentPluginMcpError,
     notifyRosterChanged: (input, _options = {}) => notifyExternalMcpRosterChanged(input),
   };
 }

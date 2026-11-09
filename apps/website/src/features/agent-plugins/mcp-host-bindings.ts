@@ -10,13 +10,10 @@ export const agentPluginMcpProjections: AgentPluginMcpProjections = {
   readToolGrants: readExternalMcpToolGrants, validateToolNames: validateExternalMcpToolNames,
   oauthStatus: resolveExternalMcpOAuthStatus, hasStaticAccessToken: externalMcpRecordHasStaticAccessToken,
 };
-/** Host composition injects the owning error predicate. Legacy shims use the same canonical
- * published class; names/codes never establish error identity. */
-export function classifyAgentPluginMcpError({ error }: { error: unknown }, optional: {
-  readonly isUnconfigured?: (required: { error: unknown }) => boolean;
-} = {}): 'validation' | 'unconfigured' | 'other' {
+/** The published class is the store's canonical error; names/codes never establish identity. */
+export function classifyAgentPluginMcpError({ error }: { error: unknown }, _optional = {}): 'validation' | 'unconfigured' | 'other' {
   if (error instanceof ExternalMcpValidationError) return 'validation';
-  return (optional.isUnconfigured?.({ error }) ?? error instanceof ExternalMcpSecretStoreUnconfiguredError) ? 'unconfigured' : 'other';
+  return (error instanceof ExternalMcpSecretStoreUnconfiguredError) ? 'unconfigured' : 'other';
 }
 /** Tovu's canonical pair, bound whole. Only legacy Tovu entry signatures that receive no ports use it. */
 export const agentPluginMcpProjectionPorts: AgentPluginMcpProjectionPorts = { projections: agentPluginMcpProjections, classifyError: classifyAgentPluginMcpError };
