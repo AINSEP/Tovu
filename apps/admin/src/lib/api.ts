@@ -2733,7 +2733,9 @@ async function request<T>(path: string, init?: RequestInit, onOk?: (res: Respons
 export interface AdminCredentialCopySource {
   siteId: string;
   name: string;
-  keys: { kind: string; id: string; label: string; provider: string | null; worksFor?: string[]; publishHosts?: string[]; last4?: string }[];
+  keys: { kind: string; id: string; label: string; provider: string | null; worksFor?: string[]; publishHosts?: string[]; last4?: string;
+    /** Set for a key still saved only on a site; absent for a Shared Key. */
+    siteName?: string; locked?: string }[];
   reasonCode?: string;
   message?: string;
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
@@ -4338,7 +4340,7 @@ export const api = {
     authenticatedAdminRequest<{ sources: AdminCredentialCopySource[] }>({
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "GET",
     }, options),
-  /** Approve one Shared Keys reference for this site; sourceSiteId is the fixed shared-keys group. */
+  /** Approve one saved key for this site; a key saved on another site is added to Shared Keys first. sourceSiteId is the fixed shared-keys group. */
   copyCredentials: (input: { sourceSiteId: string; ids: string[]; overwrite: boolean }, options: AuthenticatedAdminRequestOptions = {}) =>
     authenticatedAdminRequest<{ results: AdminCredentialCopyResult[] }>({
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "POST", body: input,

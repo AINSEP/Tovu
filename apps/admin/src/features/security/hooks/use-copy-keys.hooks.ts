@@ -12,10 +12,10 @@ const GRANT_FAILED = 'Using the saved key failed. Reopen Shared Keys and choose 
 /** Present metadata-only key choices; this never reads or copies credential values. */
 function copyKeyRows({ source, credentialId }: { source: AdminCredentialCopySource | undefined; credentialId: string }) {
   return (source?.keys ?? []).map(key => ({ id: key.id, checked: key.id === credentialId,
-    text: `${key.label} · ${key.provider ?? key.kind}`, worksFor: (key.worksFor ?? []).join(', ') }));
+    text: key.siteName ? key.label : `${key.label} · ${key.provider ?? key.kind}`, worksFor: (key.worksFor ?? []).join(', '), locked: key.locked ?? '' }));
 }
 
-/** One metadata read per open, one reference per approval, no source-site discovery or key copies.
+/** One metadata read per open, one approval per key; a key saved on another site is added to Shared Keys first.
  * @returns The existing dialog controller with secret-free labels and outcomes.
  * @complexity O(k) time/space per open for at most 50 owner metadata rows; no background polling.
  */
@@ -39,7 +39,7 @@ export function useCopyKeys({ t }: { t: Translate }, { port = api }: { port?: Co
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [client, open]);
-  const selected = source?.keys.find(key => key.id === credentialId);
+  const selected = source?.keys.find(key => key.id === credentialId && !key.locked);
   const disabled = loading || pending || !selected;
   const show = (event: Pick<MouseEvent<HTMLButtonElement>, 'currentTarget'>) => {
     event.currentTarget.focus({ preventScroll: true });

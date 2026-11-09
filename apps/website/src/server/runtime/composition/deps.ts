@@ -99,6 +99,8 @@ import { setServerLogTraceReader } from '../../../platform/server-logs/index.js'
 import { withToolUseEvents } from "./tool-use-events.js";
 import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "./provider-config-source.js";
 import { localOwnerStoreEnabled, openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
+import { createOtherSiteKeys } from "./other-site-keys.js";
+import { isLocalTovuHost } from "./registered-sites.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { createTelemetryConsent } from "./telemetry-consent.js";
@@ -183,7 +185,7 @@ import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/content-db";
-import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { sqliteConnectionOf, closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { createSite } from "./site-dir.js";
@@ -1963,7 +1965,10 @@ async function composeSiteRouteDeps(
     return projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
       describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
       siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
-      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
+      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences,
+      // The site registry exists only on a desktop or self-hosted multi-site install.
+      ...(projectSiteId && isLocalTovuHost({}, {}) ? { siteKeys: createOtherSiteKeys({ target: { siteId: projectSiteId, name: resolvedSiteBinding.name, dir: resolvedSiteBinding.dir, file: sqliteConnectionOf(kernel)?.name }, project: projectStore.vault }) } : {}),
+      bindOAuth: input => {
         if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
         return bindSharedApiOAuth(input);
       } }) : undefined;

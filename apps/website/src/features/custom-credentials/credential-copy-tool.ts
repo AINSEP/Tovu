@@ -20,9 +20,9 @@ export interface CredentialCopyToolDeps {
   readonly projectKeys?: ProjectKeysPort;
 }
 export const catalog: AgentToolDefinition[] = [{ name: CREDENTIAL_COPY_TOOL_ID,
-  description: 'Use a saved key or OAuth connection on this site. Opens the owner-only Shared Keys picker and one approval card. ' +
-    'No key is copied. Choose Enter a new key to open the normal secure key card. ' +
-    'Accepts no selections, site identity or secrets from the model; returns only the approved credentialId.',
+  description: 'Use a saved key or OAuth connection on this site. Opens the owner-only picker of Shared Keys and keys saved on other sites of this install, with one approval card. ' +
+    'Choose Enter a new key to open the normal secure key card. Accepts no selections, site identity or secrets from the model. ' +
+    'Returns only the approved credentialId, or {granted:false, reason} where reason is dismissed (owner closed the card), interrupted (the run ended first) or nothing-to-pick (no saved keys exist).',
   sideEffects: 'mutates-durable-state', authorization: { permission: 'system.write' },
   inputSchema: { type: 'object', additionalProperties: false, properties: {} } }];
 export const credentialCopyDerivedRisk: DerivedRiskByToolId = new Map([[CREDENTIAL_COPY_TOOL_ID, 'mutates-durable-state']]);
@@ -62,6 +62,19 @@ function validateInput({ input }: { input: unknown }): void {
 }
 
 /** The fallback uses the normal secret card and the same successful-save attachment owner. */
+const OUTCOMES = {
+  dismissed: { granted: false, reason: 'dismissed', message: 'The owner closed the card without choosing a key.' },
+  interrupted: { granted: false, reason: 'interrupted', message: 'The run ended before the owner chose a key.' },
+  'nothing-to-pick': { granted: false, reason: 'nothing-to-pick', message: 'No saved keys were available to pick from.' },
+} as const;
+
+/** Locked keys are named on the card with what to do, grouped by reason; they are never selectable. */
+function lockedDetails({ rows }: { rows: readonly ProjectKeyRow[] }): { label: string; value: string }[] {
+  const byReason = new Map<string, string[]>();
+  for (const row of rows) if (row.locked) byReason.set(row.locked, [...(byReason.get(row.locked) ?? []), row.name]);
+  return [...byReason].map(([reason, names]) => ({ label: `Can't use yet: ${names.join('; ')}`, value: reason }));
+}
+
 async function normalKeyCard({ ctx, options, deps, saveNew }: {
   ctx: ToolExecutionContext; options: ToolExecutionOptions; deps: CredentialCopyToolDeps; saveNew: ToolHandler;
 }): Promise<unknown> {
@@ -97,11 +110,14 @@ export function buildCredentialCopyRegistrations({ deps, surfaces, saveNew }: {
       ctx.signal.addEventListener('abort', abort, { once: true });
       if (ctx.signal.aborted) abort();
       try {
-        const result = await askThenReport<{ granted: boolean; credentialId?: string; newKey?: boolean }>({ exchange,
+        const available = rows.filter(row => !row.locked);
+        const result = await askThenReport<{ granted: boolean; credentialId?: string; newKey?: boolean; reason?: string; message?: string }>({ exchange,
           confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildFormSurface({ uri,
-            title: 'Use a saved key or connection on this site', details: [{ label: 'Site', value: deps.projectKeys!.site?.name ?? 'This site' }], description: 'Nothing is copied. This site can use only the one you choose.',
+            title: 'Use a saved key or connection on this site', details: [{ label: 'Site', value: deps.projectKeys!.site?.name ?? 'This site' }, ...lockedDetails({ rows })],
+            // A site key is added to Shared Keys on approval; say so, the owner is approving it.
+            description: available.length ? 'A key saved on another site is added to Shared Keys first. This site can use only the one you choose.' : 'No saved keys yet on this computer. Enter a new key to save one.',
             fields: [{ kind: 'enum', name: 'credentialId', label: 'Shared Keys', required: true, placeholder: 'Choose a key',
-              options: [...rows.map(row => ({ value: row.keyId, label: row.name })), { value: NEW_KEY, label: 'Enter a new key' }] }],
+              options: [...available.map(row => ({ value: row.keyId, label: row.name })), { value: NEW_KEY, label: 'Enter a new key' }] }],
             // Keys and OAuth accounts stay in the owner store; shared OAuth keeps its original sign-in account and client.
             // The label fits both a saved key and Enter a new key, which goes on to the normal key card.
             // Start compact; Jini's shared bridge fits the body on load and content changes.
@@ -111,8 +127,9 @@ export function buildCredentialCopyRegistrations({ deps, surfaces, saveNew }: {
             cancel: { label: 'Cancel', toolName: CREDENTIAL_COPY_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
           }) } },
           handle: async answer => {
-            if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true || ctx.signal.aborted) return { result: { granted: false } };
-            const row = selectedKey({ params: answer.params, rows });
+            if (answer.status !== 'received' || ctx.signal.aborted) return { result: OUTCOMES.interrupted };
+            if (answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: available.length ? OUTCOMES.dismissed : OUTCOMES['nothing-to-pick'] };
+            const row = selectedKey({ params: answer.params, rows: available });
             if (row === 'new') {
               await admit({ deps, principalId: ctx.principal.id });
               return { result: { granted: false, newKey: true } };
@@ -120,8 +137,9 @@ export function buildCredentialCopyRegistrations({ deps, surfaces, saveNew }: {
             await admit({ deps, principalId: ctx.principal.id, permission: await deps.projectKeys!.permissionFor({ keyId: row.keyId }) });
             ctx.signal.throwIfAborted();
             // Re-resolution inside use refuses entries deleted while the person was reading the card.
-            await deps.projectKeys!.use({ keyId: row.keyId, use: true });
-            return { result: { granted: true, credentialId: row.keyId } };
+            // A key picked from another site gets its Shared Keys id here; that id is what the model receives.
+            const used = await deps.projectKeys!.use({ keyId: row.keyId, use: true });
+            return { result: { granted: true, credentialId: used.keyId } };
           } });
         if (result.newKey && saveNew) return normalKeyCard({ ctx, options, deps, saveNew });
         return result;

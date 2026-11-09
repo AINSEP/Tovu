@@ -12,7 +12,22 @@ export const providerKeyId = ({ pluginId }: { pluginId: string }, _optional = {}
 export const providerPluginOf = ({ keyId }: { keyId: string }, _optional = {}) => /^plugin-state:([a-z0-9-]+):provider\.config$/.exec(keyId)?.[1];
 export const isSharedOAuthKey = ({ row }: { row: Pick<VaultRecord, 'kind' | 'meta'> }, _optional = {}) =>
   row.kind === 'api-connection' && row.meta.credentialFormat === 'oauth-token-set';
-export interface ProjectKeyRow { keyId: string; name: string; kind: string; usedByThisSite: boolean; usedBy: readonly string[] }
+export interface ProjectKeyRow { keyId: string; name: string; kind: string; usedByThisSite: boolean; usedBy: readonly string[];
+  /** Set for a key still saved only on a site; absent for a Shared Key. */
+  siteName?: string;
+  /** Plain words: why this site key can't be used yet and what to do. A locked row is never approved. */
+  locked?: string }
+/** Marks a picker choice as a key still saved only on a site; never a Shared Keys row id. */
+export const SITE_KEY_ID_PREFIX = "saved-on-site:";
+/** Keys saved in site vaults on this install. Host-provided; deployed single sites have none. */
+export interface SiteKeyChoice { keyId: string; name: string; kind: string; siteName: string; locked?: string }
+export interface SiteKeySource {
+  list(required: Record<string, never>, optional?: Record<string, never>): Promise<SiteKeyChoice[]>;
+  /** Metadata only: the row a permission check needs. Never opens the key. */
+  find(required: { keyId: string }, optional?: Record<string, never>): Promise<VaultRecord | null>;
+  /** After owner approval: move the secret into Shared Keys and return its Shared Keys id. */
+  adopt(required: { keyId: string }, optional?: Record<string, never>): Promise<{ keyId: string }>;
+}
 export interface ProjectKeysPort {
   readonly site?: { readonly id: string; readonly name: string };
   list(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
@@ -35,8 +50,10 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
 /** Bounded project inventory; OAuth labels may project the selected sealed account identity.
  * Token payloads never enter the picker. A failed attachment propagates instead of reporting success.
  */
-export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth, describeOAuth }: {
+export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth, describeOAuth, siteKeys }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
+  /** Multi-site installs only: keys still saved only in a site vault, offered next to Shared Keys. */
+  siteKeys?: SiteKeySource;
   providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
   reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   transaction: ProjectKeyTransaction;
@@ -62,8 +79,10 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   /** Shared attachment lifecycle for a submitted card or an explicit project-key choice.
    * Commit the reference before reapplying a provider; restart/failure status retains the reference.
    */
-  const use: ProjectKeysPort["use"] = async (input, _optional = {}) => {
+  const use: ProjectKeysPort["use"] = async (selected, _optional = {}) => {
     if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
+    // Adoption runs after the card's approval and before the grant; a site key becomes a Shared Key here.
+    const input = isSiteKey(selected) ? { ...selected, ...(await siteKeys!.adopt(selected)) } : selected;
     await transaction({ run: async () => {
       const row = await find(input);
       if (input.use) {
@@ -83,6 +102,7 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       ...(input.use ? {} : { message: "Access is revoked within 30 seconds." }),
       ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
   };
+  const isSiteKey = ({ keyId }: { keyId: string }) => Boolean(siteKeys) && keyId.startsWith(SITE_KEY_ID_PREFIX);
   const granted = attachedOnlyVault({ vault, attachments, siteId });
   async function listRows({ cards = [], owner = false }: { cards?: readonly PluginCredentialCard[]; owner?: boolean }) {
       const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
@@ -97,9 +117,14 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   }
   return {
     site: { id: siteId, name: siteName },
-    list: input => listRows({ ...input, owner: true }),
+    list: async input => [...await listRows({ ...input, owner: true }), ...(await siteKeys?.list({}) ?? []).map(row => ({ ...row, usedByThisSite: false, usedBy: [] }))],
     listGranted: async input => (await listRows(input)).map(row => ({ ...row, usedBy: [] })),
-    permissionFor: async input => projectKeyPermission({ row: await find(input) }),
+    permissionFor: async input => {
+      if (!isSiteKey(input)) return projectKeyPermission({ row: await find(input) });
+      const row = await siteKeys!.find(input);
+      if (!row) throw new ToolInputError({ message: "This saved key is no longer on that site. Open Use a saved key again." });
+      return projectKeyPermission({ row });
+    },
     use,
     async savedResult({ result }, _optional = {}) {
       const identity = savedKeyIdentity({ result });

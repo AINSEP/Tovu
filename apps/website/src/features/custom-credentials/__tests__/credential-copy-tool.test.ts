@@ -69,9 +69,72 @@ test('cancel, expiry and forged site identity never create a grant', async () =>
       f.deliver(answer === 'cancel' ? { [SURFACE_DISMISSED_PARAM]: true } : { credentialId: 'key-a', siteId: 'victim' });
     } });
     if (answer === 'forged') await assert.rejects(pending, /No site identity/);
-    else assert.deepEqual(await pending, { granted: false });
+    else assert.deepEqual(await pending, answer === 'cancel'
+      ? { granted: false, reason: 'dismissed', message: 'The owner closed the card without choosing a key.' }
+      : { granted: false, reason: 'interrupted', message: 'The run ended before the owner chose a key.' });
     assert.deepEqual(await f.attachments.usersOf({ keyId: 'key-a' }), []);
   }
+});
+
+test('an interrupted run reports interrupted, never a choice by the owner', async () => {
+  const f = await fixture();
+  const controller = new AbortController();
+  const pending = f.tool.handler({ ...f.ctx, signal: controller.signal }, { emitSurface: async () => { controller.abort(); } });
+  assert.deepEqual(await pending, { granted: false, reason: 'interrupted', message: 'The run ended before the owner chose a key.' });
+});
+
+test('nothing to pick says so; the card still offers a new key', async () => {
+  const f = await fixture();
+  await f.vault.delete({ workspaceId: 'project', id: 'key-a', expectedRevision: 1 });
+  let html = '';
+  const result = await f.tool.handler(f.ctx, { emitSurface: async emission => { html = JSON.stringify(emission); f.deliver({ [SURFACE_DISMISSED_PARAM]: true }); } });
+  assert.deepEqual(result, { granted: false, reason: 'nothing-to-pick', message: 'No saved keys were available to pick from.' });
+  assert.match(html, /Enter a new key/);
+  assert.match(html, /No saved keys yet/);
+});
+
+test('a key saved on another site is offered by name, adopted after approval, and the secret never returns', async () => {
+  const f = await fixture();
+  const SITE_KEY = 'saved-on-site:site-b:row-1';
+  let adopted = 0;
+  const keys = createProjectKeys({ vault: f.vault, attachments: f.attachments, siteId: 'server-bound-site', siteName: 'Site A',
+    siteKeys: {
+      list: async () => [
+        { keyId: SITE_KEY, name: 'Vercel, thetayway', kind: 'vendor', siteName: 'thetayway' },
+        { keyId: 'saved-on-site:locked:row-2', name: 'Vercel, old-site', kind: 'vendor', siteName: 'old-site', locked: 'Open old-site in Tovu and recover its key, then try again.' },
+      ],
+      find: async () => vaultRow({ id: 'row-1' }),
+      adopt: async () => { adopted++; return { keyId: 'key-a' }; },
+    },
+    providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now', transaction: async ({ run }) => run() });
+  const tool = buildCredentialCopyRegistrations({ deps: { workspaceId: 'workspace-local', ownerPrincipalId: Promise.resolve('owner'),
+    projectKeys: keys, authorize: async () => ({ allowed: true, reason: 'fixture' }), gatedMutations: { gatewayDeps: {} } },
+    surfaces: { surfaceExchanges: f.exchanges } })[0]!;
+  let cardText = '';
+  const result = await tool.handler(f.ctx, { emitSurface: async emission => {
+    cardText = JSON.stringify(emission);
+    assert.equal(adopted, 0, 'nothing is opened before the owner approves');
+    assert.match(cardText, /Vercel, thetayway/);
+    assert.doesNotMatch(cardText, /value=.{0,4}saved-on-site:locked/, 'a locked key is never selectable');
+    assert.match(cardText, /recover its key/, 'locked rows say why, on the card');
+    assert.equal(f.deliver({ credentialId: SITE_KEY }, 'someone-else').ok, false, 'only the owner can answer');
+    assert.equal(f.deliver({ credentialId: SITE_KEY }).ok, true);
+  } });
+  assert.deepEqual(result, { granted: true, credentialId: 'key-a' }, 'only the approved reference reaches the model');
+  assert.equal(adopted, 1);
+  assert.equal(await f.attachments.isAttached({ siteId: 'server-bound-site', keyId: 'key-a' }), true);
+  assert.doesNotMatch(JSON.stringify(result), /token/i);
+});
+
+test('a non-owner session is refused before any site is read', async () => {
+  const f = await fixture();
+  let listed = 0;
+  const keys = { ...f.keys, list: async () => { listed++; return []; } };
+  const tool = buildCredentialCopyRegistrations({ deps: { workspaceId: 'workspace-local', ownerPrincipalId: Promise.resolve('owner'),
+    projectKeys: keys, authorize: async () => ({ allowed: true, reason: 'fixture' }), gatedMutations: { gatewayDeps: {} } },
+    surfaces: { surfaceExchanges: f.exchanges } })[0]!;
+  await assert.rejects(tool.handler({ ...f.ctx, principal: { id: 'not-owner' } }, { emitSurface: async () => {} }), /installation owner/);
+  assert.equal(listed, 0);
 });
 
 test('permissions are rechecked after approval and deleted entries cannot be granted', async () => {

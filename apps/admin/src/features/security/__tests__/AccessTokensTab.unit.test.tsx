@@ -203,9 +203,8 @@ describe("AccessTokensTab empty categories", () => {
 });
 
 describe("AccessTokensTab project copy entry", () => {
-  // Entry hidden per owner 2026-10-11; `CopyKeysDialog`/`useCopyKeys` stay wired behind
-  // `SHOW_COPY_KEYS_ENTRY` in `AccessTokensTab.tsx`.
-  it("renders no copy-keys entry and never lists copy sources", () => {
+  // Owner 2026-11-08: the entry is back; listing still waits until the owner opens it.
+  it("renders the entry and lists copy sources only when opened", () => {
     const listCredentialCopySources = vi.fn().mockResolvedValue({ sources: [] });
     const copyCredentials = vi.fn();
     render(<AccessTokensTab
@@ -213,8 +212,7 @@ describe("AccessTokensTab project copy entry", () => {
       useOtherCredentialsHook={() => makeOtherCredentials()}
       useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials } })}
     />);
-    expect(screen.queryByRole("button", { name: "Use a saved key" })).toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Use a saved key" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Use a saved key" })).toBeTruthy();
     expect(listCredentialCopySources).not.toHaveBeenCalled();
   });
 });

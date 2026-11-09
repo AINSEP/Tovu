@@ -52,6 +52,7 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     const rows = await deps.projectKeys!.list({});
     res.json({ sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: rows.map(row => ({
       kind: row.kind, id: row.keyId, label: row.name, provider: null, worksFor: [],
+      ...(row.siteName ? { siteName: row.siteName } : {}), ...(row.locked ? { locked: row.locked } : {}),
     })) }] });
   }));
   app.post(BASE, handle(async (req, res) => {
@@ -65,7 +66,7 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     const keyId = body.ids[0] as string;
     const permission = await deps.projectKeys!.permissionFor({ keyId });
     if (!await authorizedCopy({ res, deps, actorId: getAuthedPrincipal(res).id, permission })) return;
-    await deps.projectKeys!.use({ keyId, use: true });
-    res.json({ results: [{ kind: "reference", id: keyId, status: "granted" }] });
+    const used = await deps.projectKeys!.use({ keyId, use: true });
+    res.json({ results: [{ kind: "reference", id: used.keyId, status: "granted" }] });
   }));
 }
