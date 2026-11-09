@@ -89,9 +89,7 @@ import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/
 // business-rule module, same deps shape). See `agent-tools.ts`'s header for why this is NOT wrapped
 // in `executeCommand`, matching that route's own deliberate choice. `uninstallPlugin`'s own thrown
 // errors (`PluginNotFoundError`/`PluginNotUninstallableError`/`PluginEnabledError`) are propagated
-// undecorated, same as every other error this domain's `plugins_set_enabled` handler already lets
-// through unreclassified — this file has never used the `ToolInputError`/`withSchemaOnRejection`
-// convention other domains use, and this addition does not introduce it unilaterally. The one
+// undecorated. The one
 // exception is `PluginChangedSincePreviewError`, which `uninstallConfirmedPlugin` turns into a
 // not-removed result: it is not a refusal of the caller's input but a change while the confirmation
 // dialog was open (t91 F2.2).
