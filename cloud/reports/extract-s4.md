@@ -306,3 +306,87 @@ Full SHAs: J 92b4eb7dc455f5dae3e7693a73cb08385c9b8947; T bcee732ff666d0ba6e32920
 | Custody | s40a-gate-custody.txt | 28/28 pinned fixtures sha256 unchanged; tool-metadata.baseline.json a0d6b428…; XP3 snapshot listing diff empty, manifest d836eba0…; test diffs only the listed exceptions |
 
 Token/time: ~07:05Z finish, ≈28 minutes elapsed; about 60 tool calls; context well under the 230k target.
+
+## S4-0b (builder S4-0b, 07:06–07:35Z) — A7 F1–F4, A/* cuts, isValidationError retirement
+
+Programmer skills file `AI-Dev-Shop/agents/programmer/skills.md` (Jini) loaded (header/base-skill list). Bases: Tovu 8b2ef5a6, Jini 92b4eb7d (no Jini edit in S4-0b). Raw files: `cloud/reports/raw/extract-s4/s40b-*.txt`. Line numbers below verified at the S4-0a tip before editing.
+
+### A7 F1 — projection seam wired at all 8 sites (fix 85e14f0b; tests d2f1ac27)
+
+Design: `resolveAgentPluginMcpPorts` (per-member `??` fallback, a host could supply one half) is **deleted**; no consumer imports it. Portable internals now take the full required `AgentPluginMcpProjectionPorts` (`storedAgentPluginGrants({ row, projections })`, `readConnectGrant`, `assertApprovedSource` inputs, `previewSource`, `adoptOrRecognizeExistingAgentPluginMcpServer`, `provisionPlannedServer`, `eligibleGrantRow`, `connectGrantFor`, `isStaleUntouchedProvisioning`). `AgentPluginMcpContext` is now "both or neither" (`AgentPluginMcpProjectionPorts | { projections?: undefined; classifyError?: … }`), so custom projections can never be paired with Tovu's classifier. The only remaining canonical binding is the T host shim `agentPluginMcpPortsOf` in `A/mcp-host-bindings.ts` (pair kept whole; a legacy Tovu port without projections gets Tovu's projections and keeps its own classifier, as before) — kept only because frozen tests call the old entry signatures without ports (`previewAgentPluginEnableAccess`, `createApplyConnectDefaults`, `loadAgentPluginConnectionStatuses`, `hasStoredAgentPluginCredential`, `validatedAgentPluginToolGrant`). Every production path now passes the composed port's own pair, resolved once per binding/factory.
+
+| # | Site (S3 pin → now) | Before | After |
+|---|---|---|---|
+| 1 | C/plugin-host.ts:156 → :159–160 | `previewAgentPluginEnableAccess({ workspaceId, pluginId, repo, servers })` (Tovu defaults) | `...mcpPorts` where `const mcpPorts = agentPluginMcpPortsOf(deps.mcp)` once per host (:153); same pair also into the provision grant deps (:182) |
+| 2 | C/deps.ts:2364 → :2366 | `createApplyConnectDefaults({ …, applyAccess: input => routeDeps.mcp.applyAccess(input), … })` | `+ projections: agentPluginMcp.projections, classifyError: agentPluginMcp.classifyError`; ONE `const agentPluginMcp = composeAgentPluginMcp(…)` hoisted (:2224) and used as `mcp: agentPluginMcp` (same instance as `routeDeps.mcp`) |
+| 3 | C/app.ts:1340 → :1342 | same as 2 | same as 2 (hoist :1186) |
+| 4 | A/grant-signed-in-defaults.ts:71 → :72 | `createApplyConnectDefaults({ … })` | `{ …, ...ports }`; `ports = agentPluginMcpPortsOf(deps)` once per `grantDeclaredToolsToSignedInRows` call; `GrantSignedInDefaultsDeps` = `AgentPluginMcpContext & {…}`. Indirect callers now pass the composed pair: C/plugin-host.ts:182, T routes/agent-plugins/set-enabled.ts:163, T server/runtime/boot/bootstrap.ts:356 (`grantDeclaredToolsAtBoot`) |
+| 5 | A/switch-on-saved-token.ts:66 → :67 | `createApplyConnectDefaults({ …, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, … })` | `+ ...agentPluginMcpPortsOf(deps.mcp)`; `SwitchOnSavedTokenDeps.mcp` carries `AgentPluginMcpContext`; callers (access-token tool, import, boot) pass `routeDeps`/`deps` whose `mcp` is the composed port |
+| 6 | T routes/agent-plugins/list.ts:57 → :58–59 | `loadAgentPluginConnectionStatuses({ workspaceId, mcp: deps.externalMcpServerRepo, loadCards, apiConnections })` | `+ ...agentPluginMcpPortsOf(deps.mcp)` (route stays Tovu) |
+| 7 | A/grant-signed-in-defaults.ts:129 → :132 | `hasStoredAgentPluginCredential(row)` | `hasStoredAgentPluginCredential(row, ports)` (same pair as site 4) |
+| 8 | A/import-access-token.ts:64 | `hasStoredAgentPluginCredential(row)` | `hasStoredAgentPluginCredential(row, deps.mcp)` (the composed port in production: bootstrap passes `deps`) |
+
+Also: `createApplyConnectDefaults` resolves once per factory (was 5× per call, cut row A/apply-connect-defaults.ts:103,132,141); `provisionAgentPluginMcpServers` binds once per call; connect-tool's internal preview/oauthStatus reads use `agentPluginMcpPortsOf(routeDeps.mcp)`. Type changes for the composed instance to carry its pair: `RouteDeps.mcp` (T server/routes/types.ts:394) and `TovuPluginHostDeps.mcp` = `AgentPluginMcpPort & AgentPluginMcpContext` (test fixtures returning `AgentPluginMcpPort` still type-check: broad tsconfig stays at 13).
+
+New test `A/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts` (4): a second host's DISTINCT projections (same meaning, reversed snapshot key order, recording calls) and classifier. (1) real `createTovuPluginHost` + a really installed plugin package: preview (site 1) produces the host-ordered snapshot, then `provisionMcp` with the approved key runs provisioning (stale check), `grantDeclaredToolsToSignedInRows` and `createApplyConnectDefaults` revalidation with the host snapshot (byte-for-byte JSON) — row granted `['existing','models','generate']`, attributed to the owner; (2) classifier/error identity: host `validateToolNames` throws `HostValidation`, the composed classifier makes it the exact ToolInputError repair text; (3) sign-in eligibility (site 7) uses the host credential projection (control: Tovu's says no credential); (4) status (site 6 entry) and stored-credential (site 8 entry) reads use the host pure projections (controls with Tovu's).
+- Red: `s40b-a7-red.txt` (production diff bb12cfb1..85e14f0b reverse-applied, then restored): 3/4 fail (test 4 passes — the entries already honoured explicit ports; the defect was the call sites).
+- Mutations: `s40b-a7-mutations.txt`, each reverting ONE wiring, all red: M1 plugin-host preview drops `...mcpPorts` (tests 1, 2), M2 plugin-host provision grant drops them (1), M3 `connectGrantFor` drops `...ports` (1), M4 eligibility drops ports (3), M5 factory ignores supplied ports (1), M6 status entry ignores them (4). Files restored byte-identical after each (script writes back the original content).
+- Green: `s40b-a7-green.txt` 4/4.
+- Not covered at runtime (source proof only, table above): the deps.ts/app.ts `onConnected` argument lines (2, 3), switch-on (5) and list route (6) and import (8) call lines; their factory/entry bodies are covered by tests 1/3/4 and M5/M6.
+
+### A7 F2 — five rules + safe public error text (fix 85e14f0b, notes 85e14f0b + 5e4bf9d9; test d2f1ac27)
+- `@agent-note`s on the actual contracts in `A/service-ports.ts`: `AgentPluginMcpProjections` (interface: one object for every path) and its members — rule 3 `accessSnapshot`/`admissionRevision` (canonical saved representation, JSON-serializable, stable key order, compared byte-for-byte), rule 2 `validateToolNames` (throws what the paired classifier calls validation; message is the public repair reason), rule 4 `readToolGrants` (strict throws, never empty/fresh grant), rule 5 `oauthStatus`/`hasStaticAccessToken` (pure, no I/O, no sealed opens); `AgentPluginMcpProjectionPorts` (bound once, passed whole; `classifyError` paired, classification does not redact); `AgentPluginSignInPort.isSignInRefusal` and `AgentPluginOAuthPort.isSignInRefusal` rule 1 (true = no card opened, key-card fallback; others propagate unchanged; matching does not make text safe). T `contracts/core/external-mcp-access.ts`: notes on `externalMcpAccessSnapshot` (rule 3), `readExternalMcpToolGrants` (rule 4), `validateExternalMcpToolNames` (rule 2).
+- Safe text: `connect-tool.ts` `beginSignIn` refusal and `enable-access.ts` grant repair now pass the error message through the EXISTING core boundary `redactSecrets({ input }, { redactPii: false })` (already used for the source label in the same file). Ordinary wording, punctuation and the fallback suffix are byte-identical (all existing assertions unchanged and green, e.g. connect-tool.unit "redirect URI is not allowed", oauth-sign-in-refusal, mcp-ports.error-identity).
+- New test `A/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts` (4): classifier=true + `Bearer …`/`ghp_…` message → ToolInputError without the secret, exact suffix, NO card; ordinary text unchanged; an unclassified non-Error object propagates with identity; grant repair text redacted with unchanged wording/repair action. Red 2/4 (`s40b-a7-red.txt`), mutations M7 (refusal skips redaction) and M8 (repair skips redaction) red, green 4/4.
+
+### A7 F3 / F4
+- F3 (85e14f0b): `isStaleUntouchedProvisioning({ existing, planned, projections }, _options = {})`; its one caller (A/federate-mcp.ts `adoptOrRecognize…`) passes `projections: deps.projections`. No helper/behaviour change: federate-mcp.unit 34/34, apply-connect-defaults 15/15 unchanged; T main tsc exit 0.
+- F4 (5e4bf9d9): A/connect-card-ui.ts `@example` now shows the real `buildAgentPluginAccessTokenFormWithPorts({ app, spec: { credentials, pluginDisplayName, helpUrl } })` on the WithPorts declaration; rationale text unchanged. Compile proof `s40b-f4-example-compile.txt`: a temporary file (removed) compiled the example under the main tsconfig (exit 0) with `@ts-expect-error` on the old flat shape; negative control without it → TS2353 (exit 2).
+
+### Cuts (85e14f0b)
+| Row | Change |
+|---|---|
+| A/mcp-host-bindings.ts:26 | `resolveAgentPluginSignInPort` (beginConnect wrapper + legacy branch) deleted; connect-tool calls the required `oauth.isSignInRefusal` directly |
+| A/service-ports.ts:12–13,81 | `AgentPluginMcpPort.projections?` and its comment deleted; `AgentPluginMcpServicesPort` Omit key `'projections'` dropped (now `Omit<AgentPluginMcpPort,'classifyError'>`) |
+| A/enable-access.ts:21,80–83 | `validatedAgentPluginToolGrantWithPorts` + wrapper merged into ONE `validatedAgentPluginToolGrant` body; production callers supply ports; the no-ports legacy call (frozen enable-access.regression:115) binds `agentPluginMcpProjectionPorts` |
+| A/apply-connect-defaults.ts:103,132,141 | resolved once in `createApplyConnectDefaults`, threaded into `readConnectGrant`/revalidation |
+| isValidationError | FIRST bb12cfb1 replaced exactly the listed fixtures (diff below), THEN 85e14f0b dropped C/agent-plugin-service-ports.ts:86 member (+ now-unused `ExternalMcpValidationError` import), A/service-ports.ts:24–26 (member + compat comment; `isSignInRefusal` now required), A/mcp-host-bindings.ts:28 `'isValidationError' in required` branch (whole binder deleted). Repo search: zero remaining references (timeline.ts has an unrelated local variable). |
+
+### Exact diffs to frozen tests (listed exceptions only; full text `s40b-frozen-test-diffs.txt`)
+- connect-skip.unit.test.ts:27, enable-access.regression.test.ts:131,163,197,252, tool-registrations.unit.test.ts:674: `isValidationError: () => false` → `isSignInRefusal: () => false` (these fixtures' `beginConnect` never throws an OAuthError: it succeeds, `assert.fail`s or throws a plain Error, so outcomes are identical).
+- connect-tool.unit.test.ts:68: `isValidationError: ({ error }) => error instanceof ExternalMcpValidationError` → `isSignInRefusal: ({ error }) => error instanceof ExternalMcpValidationError || error instanceof OAuthError` (the legacy binder's full truth table; `OAuthError` already imported in that file).
+- connect-tool.unit.test.ts:920: `isValidationError: ({ error }) => { classifiedErrors.push(error); return classified; }` → `isSignInRefusal: ({ error }) => { classifiedErrors.push(error); return classified || error instanceof OAuthError; }` (same tracker and return).
+- No assertion/case/test deleted. No other existing test M/D/R (`s40b-gate-custody.txt`).
+
+### Outside-A files touched (reason / hunk / S5 overlap vs `origin/cloud/extract-s5` ddf430cc)
+| File | Reason / hunk | S5 diff s3→s5 |
+|---|---|---|
+| C/app.ts, C/deps.ts | hoist ONE `agentPluginMcp` composed port; `mcp: agentPluginMcp`; `onConnected` gets its pair | none |
+| C/plugin-host.ts | `mcpPorts` once per host; preview + provision-grant deps; `mcp` type | none |
+| C/agent-plugin-service-ports.ts | drop `isValidationError` member + unused import | none |
+| T server/routes/types.ts:394 | `mcp` type `AgentPluginMcpPort & AgentPluginMcpContext` | none |
+| T server/runtime/boot/bootstrap.ts | boot grant deps `...agentPluginMcpPortsOf(deps.mcp)` + import | none |
+| T routes/agent-plugins/set-enabled.ts, list.ts | grant deps / status read get the composed pair + import | none |
+| T contracts/core/external-mcp-access.ts | three `@agent-note` comment hunks only | **S5 OVERLAP**: S5 9355bd8c replaces this whole file with a re-export shim of `@jini-ai/mcp/federation/hosted`; at merge, S5's version wins and these three notes must be carried onto S5's canonical declarations in J mcp (S5-owned; S4 did not edit J mcp) |
+No Jini file touched in S4-0b. Excluded item `features/api-connections/plugin-state.ts:3` untouched.
+
+### Known red / pre-existing hang
+- T plugin-host.integration test 9 (bundled identity) only, as at baseline.
+- Extra (not in the named matrix) `features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts`: 3/3 `ok` but the process never exits (timeout). Pre-existing: it also times out with the whole S4-0b production diff reverse-applied (`s40b-plugin-enable-access-base.txt`, exit 124). Not fixed, not counted.
+
+### S4-0 gate (07:20–07:33Z, Jini 92b4eb7d, Tovu 5e4bf9d9 + safe-text typing fix)
+| Item | Command / raw | Result |
+|---|---|---|
+| J named tests | s40b-gate-j-{scripts,agent-plugins,integrations,platform,ui,neutral-host}.txt (incl. S4-0a new F3/F4/F5 tests) | 76/76, 100/100, 60/60, 3/3, 2/2, 35/35 — equal to S4-0a gate |
+| J tsc | s40b-gate-j-tsc.txt (agent-plugins, integrations), s40b-gate-j-neutral-host-tsc.txt, s40b-gate-j-scripts-tsc.txt | exit 0 ×4 (no J source change since S4-0a build; dist current) |
+| Checker | `JINI_DECLARATION_BASELINE_DIR=<s4>/declaration-baseline pnpm check:cross-package` s40b-gate-j-checker.txt | XP1–XP5 clean, exit 0 |
+| Full guard (whole output read) | s40b-gate-j-guard.txt (25 lines) | exit 1 = record exactly: R2-deep-path(1) plugin-catalog/scripts/generate.ts, R10-chatpane-public-surface(1) ChatPane.tsx, R13 informational; HW1 17/HW2 16/HW3 135/HW4 1/HW8 49 all 0 new; HW5/6/7/9 0; no N1, no R8, no other family; "2 guard violation(s)." |
+| guard:plugins / layers+isolation | s40b-gate-j-guard-plugins.txt / s40b-gate-j-layers-isolation.txt | exit 0 / `{"layers":[],"isolation":[],"SI_c":9,"SI_d":7}` |
+| T relink / contracts / main tsc | s40b-gate-t-relink.txt / -contracts.txt / -main-tsc.txt | exit 0 / 0 / 0 |
+| Pin compile | s40b-gate-t-pin.txt | exit 0 |
+| Broad test tsconfig | s40b-gate-t-broad-tsc.txt | exactly the 13 baseline errors (first run had 2 in my new safe-text test fixture typing; fixed in the test, rerun 13) |
+| Complexity ≤10 (20 changed T prod files) | s40b-gate-t-complexity.txt | 0 errors (6 warnings: nested template/functions, duplicate-string — none complexity, on pre-existing lines) |
+| T matrix | s40b-gate-t-matrix-summary.txt (+ raw summary) | 77 files: all 70 named + grant-signed-in-defaults + 4 new S4 tests + declined-access → 790 tests, 789 pass + known red; all 71 baseline files' tests/pass/fail IDENTICAL to setup baseline; plus the pre-existing-hang extra above |
+| Custody | s40b-gate-custody.txt | 28/28 pins sha256 unchanged; tool-metadata a0d6b428…; XP3 snapshot listing unchanged, manifest d836eba0…; existing-test M/D/R only the listed exceptions (S4-0a's + the isValidationError fixtures) |
+
+Processes: background runner PIDs 4240 and 6964 finished; the hung extra test's exact PIDs 13824/13825/13831 were killed by PID; nothing left running.

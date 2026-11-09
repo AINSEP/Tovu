@@ -1,4 +1,4 @@
-# S4-0b RED: new tests at pre-fix code (production diff bb12cfb1..85e14f0b reverse-applied)
+# S4-0b RED: new tests (final) at pre-fix code (production diff bb12cfb1..85e14f0b reverse-applied, restored after)
 TAP version 13
 # Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
 # Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
@@ -6,7 +6,7 @@ TAP version 13
 # Subtest: composition preview and the approved provision grant revalidate with the host projections
 not ok 1 - composition preview and the approved provision grant revalidate with the host projections
   ---
-  duration_ms: 76.675643
+  duration_ms: 74.256207
   type: 'test'
   location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:1:5404'
   failureType: 'testCodeFailure'
@@ -30,7 +30,7 @@ not ok 1 - composition preview and the approved provision grant revalidate with 
 # Subtest: the composed classifier keeps host validation identity through the preview
 not ok 2 - the composed classifier keeps host validation identity through the preview
   ---
-  duration_ms: 8.35694
+  duration_ms: 8.722393
   type: 'test'
   location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:1:6462'
   failureType: 'testCodeFailure'
@@ -45,7 +45,7 @@ not ok 2 - the composed classifier keeps host validation identity through the pr
 # Subtest: sign-in eligibility uses the host credential projection, not Tovu default
 not ok 3 - sign-in eligibility uses the host credential projection, not Tovu default
   ---
-  duration_ms: 3.831974
+  duration_ms: 5.929105
   type: 'test'
   location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:1:7017'
   failureType: 'testCodeFailure'
@@ -72,7 +72,7 @@ not ok 3 - sign-in eligibility uses the host credential projection, not Tovu def
 # Subtest: status and stored-credential reads use the host pure projections
 ok 4 - status and stored-credential reads use the host pure projections
   ---
-  duration_ms: 1.015301
+  duration_ms: 1.462375
   type: 'test'
   ...
 1..4
@@ -83,15 +83,15 @@ ok 4 - status and stored-credential reads use the host pure projections
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1564.551642
+# duration_ms 1255.946044
 exit=1
 TAP version 13
 # Subtest: a host-classified refusal carrying provider secrets reaches the model redacted, with no card
 not ok 1 - a host-classified refusal carrying provider secrets reaches the model redacted, with no card
   ---
-  duration_ms: 15.188236
+  duration_ms: 16.267165
   type: 'test'
-  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:1:2917'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:1:2799'
   failureType: 'testCodeFailure'
   error: |-
     The input was expected to not match the regular expression /abcdefghijklmnopqrstuvwxyz0123456789|A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/. Input:
@@ -115,21 +115,21 @@ not ok 1 - a host-classified refusal carrying provider secrets reaches the model
 # Subtest: ordinary refusal wording, punctuation and fallback suffix are unchanged
 ok 2 - ordinary refusal wording, punctuation and fallback suffix are unchanged
   ---
-  duration_ms: 3.095587
+  duration_ms: 3.201183
   type: 'test'
   ...
 # Subtest: an unclassified non-Error object propagates with identity and is never rewritten
 ok 3 - an unclassified non-Error object propagates with identity and is never rewritten
   ---
-  duration_ms: 2.504919
+  duration_ms: 2.592534
   type: 'test'
   ...
 # Subtest: the grant repair reason is redacted too; wording and repair action are unchanged
 not ok 4 - the grant repair reason is redacted too; wording and repair action are unchanged
   ---
-  duration_ms: 0.937982
+  duration_ms: 0.997982
   type: 'test'
-  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:1:4182'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts:1:4064'
   failureType: 'testCodeFailure'
   error: |-
     The input was expected to not match the regular expression /A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/. Input:
@@ -161,5 +161,5 @@ not ok 4 - the grant repair reason is redacted too; wording and repair action ar
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1457.1115
+# duration_ms 1365.724137
 exit=1

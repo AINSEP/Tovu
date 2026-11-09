@@ -30,7 +30,7 @@ function harness(fault: unknown, refusal: boolean) {
   const run = () => runAgentPluginConnect({ routeDeps: {
     workspaceId: 'workspace', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/extract-s4-safe-refusal-no-io' }),
     authorize: async () => ({ allowed: true, reason: 'test' }), mcp: { ...mcp, notifyRosterChanged: async () => {} },
-    credentials: { apply: ({ form }) => form, loadSafe: async () => [], find: async () => undefined, probe: async () => 'unavailable' },
+    credentials: { loadSafe: async () => [] },
     isPluginEnabled: async () => true,
     resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
     externalMcpOAuth: { beginConnect: async () => { throw fault; }, isSignInRefusal: ({ error }) => { seen.push(error); return refusal; } },

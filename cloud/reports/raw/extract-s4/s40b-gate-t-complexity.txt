@@ -1,0 +1,18 @@
+
+/home/user/Tovu/apps/website/src/features/agent-plugins/enable-access.ts
+  71:145  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+/home/user/Tovu/apps/website/src/features/agent-plugins/service-ports.ts
+  13:29  warning  Define a constant instead of duplicating this literal 6 times  sonarjs/no-duplicate-string
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/deps.ts
+  1495:47  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+  1498:91  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+  1507:47  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-host.ts
+  28:175  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 6 problems (0 errors, 6 warnings)
+
+exit=0

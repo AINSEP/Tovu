@@ -1,0 +1,35 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 9257ms
+   ✓ XP1 rejects a new source with type-only import 358ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 2460ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 445ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 386ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 899ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 17102ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 1024ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 1133ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 969ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 925ms
+   ✓ F1 writer refuses dirty tracked source 904ms
+   ✓ F1 writer refuses a missing emitted declaration 930ms
+   ✓ F1 writer refuses unsafe source destination 818ms
+   ✓ F1 writer refuses unsafe ancestor destination 878ms
+   ✓ F1 writer refuses unsafe relative destination 887ms
+   ✓ F1 writer refuses unsafe symlink destination 992ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 1774ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 1162ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 864ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 979ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 1050ms
+   ✓ F6 XP5 preserves an unchanged old optionalDependencies edge 312ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 7ms
+
+ Test Files  4 passed (4)
+      Tests  76 passed (76)
+   Start at  07:19:58
+   Duration  18.88s (transform 240ms, setup 0ms, collect 2.40s, tests 28.83s, environment 1ms, prepare 376ms)
+
+exit=0

@@ -1,0 +1,79 @@
+# S4-0b T gate matrix vs setup baseline (per file tests/pass/fail)
+SAME ('34', '34', '0') ('34', '34', '0') apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts
+SAME ('30', '30', '0') ('30', '30', '0') apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+SAME ('15', '15', '0') ('15', '15', '0') apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts
+SAME ('10', '10', '0') ('10', '10', '0') apps/website/src/features/agent-plugins/__tests__/unit/switch-on-saved-token.unit.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/features/agent-plugins/__tests__/unit/connection-status.unit.test.ts
+SAME ('54', '54', '0') ('54', '54', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+SAME ('12', '12', '0') ('12', '12', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+SAME ('31', '31', '0') ('31', '31', '0') apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts
+SAME ('7', '7', '0') ('7', '7', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-destination.unit.test.ts
+SAME ('3', '3', '0') ('3', '3', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-destination-flow.unit.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-card-state.unit.test.ts
+SAME ('3', '3', '0') ('3', '3', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-card-open-link.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/agent-plugins/__tests__/unit/connect-card-theme.unit.test.ts
+SAME ('5', '5', '0') ('5', '5', '0') apps/website/src/features/agent-plugins/__tests__/unit/token-sign-in.unit.test.ts
+SAME ('25', '25', '0') ('25', '25', '0') apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts
+SAME ('20', '20', '0') ('20', '20', '0') apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/agent-plugins/__tests__/unit/mcp-ports.error-identity.unit.test.ts
+SAME ('4', '4', '0') ('4', '4', '0') apps/website/src/features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/agent-plugins/__tests__/unit/cards-port.generic.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/agent-plugins/__tests__/unit/plugin-enable-reload.unit.test.ts
+SAME ('10', '10', '0') ('10', '10', '0') apps/website/src/features/agent-plugins/__tests__/unit/new-site-agent-plugin-tokens.unit.test.ts
+SAME ('26', '26', '0') ('26', '26', '0') apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
+SAME ('25', '24', '1') ('25', '24', '1') apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.preview-port.test.ts
+SAME ('6', '6', '0') ('6', '6', '0') apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts
+SAME ('9', '9', '0') ('9', '9', '0') apps/website/src/features/api-connections/__tests__/host.unit.test.ts
+SAME ('11', '11', '0') ('11', '11', '0') apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts
+SAME ('18', '18', '0') ('18', '18', '0') apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts
+SAME ('14', '14', '0') ('14', '14', '0') apps/website/src/features/api-connections/__tests__/connect.unit.test.ts
+SAME ('5', '5', '0') ('5', '5', '0') apps/website/src/features/api-connections/__tests__/surface-connections.unit.test.ts
+SAME ('20', '20', '0') ('20', '20', '0') apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+SAME ('26', '26', '0') ('26', '26', '0') apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+SAME ('14', '14', '0') ('14', '14', '0') apps/website/src/features/project-keys/__tests__/tools.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/server/runtime/composition/__tests__/api-connection-state-vault.identity.test.ts
+SAME ('10', '10', '0') ('10', '10', '0') apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts
+SAME ('10', '10', '0') ('10', '10', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/admin-action-tools.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts
+SAME ('18', '18', '0') ('18', '18', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.security.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts
+SAME ('2', '2', '0') ('2', '2', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+SAME ('10', '10', '0') ('10', '10', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/approval.unit.test.ts
+SAME ('18', '18', '0') ('18', '18', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/host-capabilities.unit.test.ts
+SAME ('9', '9', '0') ('9', '9', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/register.unit.test.ts
+SAME ('4', '4', '0') ('4', '4', '0') apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-id-collision.unit.test.ts
+SAME ('9', '9', '0') ('9', '9', '0') apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/capabilities.unit.test.ts
+SAME ('22', '22', '0') ('22', '22', '0') apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/delivery-bindings.unit.test.ts
+SAME ('3', '3', '0') ('3', '3', '0') apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/forms.unit.test.ts
+SAME ('7', '7', '0') ('7', '7', '0') apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/handlers.unit.test.ts
+SAME ('7', '7', '0') ('7', '7', '0') apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/same-origin.unit.test.ts
+SAME ('8', '8', '0') ('8', '8', '0') apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/surfaces.unit.test.ts
+SAME ('9', '9', '0') ('9', '9', '0') apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts
+SAME ('7', '7', '0') ('7', '7', '0') apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts
+SAME ('13', '13', '0') ('13', '13', '0') apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts
+SAME ('8', '8', '0') ('8', '8', '0') apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts
+SAME ('35', '35', '0') ('35', '35', '0') apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts
+SAME ('31', '31', '0') ('31', '31', '0') apps/website/src/features/custom-credentials/__tests__/credential-save-tool.unit.test.ts
+SAME ('12', '12', '0') ('12', '12', '0') apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/assistant/__tests__/moved-tools.golden.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts
+SAME ('36', '36', '0') ('36', '36', '0') apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+SAME ('1', '1', '0') ('1', '1', '0') apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts
+SAME ('5', '5', '0') ('5', '5', '0') apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts
+SAME ('4', '4', '0') ('4', '4', '0') apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts
+SAME ('6', '6', '0') ('6', '6', '0') apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts
+SAME ('3', '3', '0') ('3', '3', '0') apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts
+SAME ('4', '4', '0') ('4', '4', '0') apps/website/src/features/agent-plugins/__tests__/unit/grant-signed-in-defaults.unit.test.ts
+NEW ('3', '3', '0') None apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts
+NEW ('3', '3', '0') None apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts
+NEW ('4', '4', '0') None apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts
+NEW ('4', '4', '0') None apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts
+NEW ('5', '5', '0') None apps/website/src/features/agent-plugins/__tests__/unit/declined-access.unit.test.ts
+NEW ('', '', '') None apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts
+files 77 baseline-files-compared 71 diffs 0

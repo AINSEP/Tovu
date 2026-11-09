@@ -1,0 +1,2 @@
+agent-plugins exit=0
+integrations exit=0

@@ -1,0 +1,40 @@
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+index bc92c946..6def909e 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+@@ -27 +27 @@ test('Skip on an OAuth sign-in card lets the assistant continue without stopping
+-    externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isValidationError: () => false },
++    externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isSignInRefusal: () => false },
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+index ece7e69e..00df2e84 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+@@ -68 +68 @@ function fakeOAuth(repo: InMemoryExternalMcpServerRepo, authorizationUrl: string
+-    isValidationError: ({ error }) => error instanceof ExternalMcpValidationError,
++    isSignInRefusal: ({ error }) => error instanceof ExternalMcpValidationError || error instanceof OAuthError,
+@@ -920 +920 @@ test("OAuth validation classification is supplied by the port before any card op
+-      isValidationError: ({ error }) => { classifiedErrors.push(error); return classified; },
++      isSignInRefusal: ({ error }) => { classifiedErrors.push(error); return classified || error instanceof OAuthError; },
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+index b62e7879..0e28cfb1 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+@@ -131 +131 @@ test('already signed-in connect declines without granting or calling the sign-in
+-      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
++      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isSignInRefusal: () => false },
+@@ -163 +163 @@ for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
+-        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
++        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isSignInRefusal: () => false },
+@@ -197 +197 @@ for (const separate of [false, true]) {
+-        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isValidationError: () => false },
++        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isSignInRefusal: () => false },
+@@ -252 +252 @@ async function retainedCall({ separate = false, second = false, action = 'confir
+-    }, isValidationError: () => false },
++    }, isSignInRefusal: () => false },
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
+index 464c2cb7..6689e833 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
+@@ -674 +674 @@ test("the registered connect handler resolves a real installed plugin and reuses
+-      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isValidationError: () => false },
++      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isSignInRefusal: () => false },
