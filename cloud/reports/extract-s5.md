@@ -35,7 +35,7 @@ Scratch worktrees: base/{Jini,Tovu} at the S5 pins (H0 rollback baseline; frozen
 | 07:04 | 54 | H1a done — LAST GREEN PAIR Tovu 5162e3db / Jini 883db690 | ~805k (H1a 274k) |
 | 07:34 | 84 | H1b done — LAST GREEN PAIR Tovu ddf430cc / Jini 07766d6e | ~1.10M (H1b 279k; >1.4x? no batch estimate exceeded in time) |
 | 07:40 | 90 | H2a stopped after inventory (test-contract drift); coordinator ruling (c) | ~1.26M |
-| 07:45 | 95 | OWNER override → ruling (a); H2a resumed | — |
+| 07:45 | 95 | Coordinator ruling (a) replaces ruling (c); H2a resumed | — |
 | 08:00 | 110 | H2a items 2–5 landed — green for its gates Tovu 2c717cfb / Jini 183915bb | ~1.35–1.50M (H2a 150k first run, 255k resumed run) |
 | 08:26 | 136 | H2b done (H2 gate green for H2b scope) — LAST GREEN PAIR Tovu f88953d8 / Jini 575b95e4 | ~1.60–1.75M (H2b 228k) |
 
@@ -577,9 +577,9 @@ OAuthFlowOperations closure (core/contracts/oauth, type-only): the 11 named func
 
 ## H2a
 
-Rulings applied: coordinator (c) (core leaf move) was implemented and pushed in Jini 6ab1d818. The owner override then chose (a), so (c) was hand-reverted in 183915bb: core package.json and oauth loopback-callback.ts are byte-identical to 07766d6e again, and the core subpath and its changeset text are removed. `parseApiConnectionDescriptor` now takes a REQUIRED `callbackFieldRules` input, bound from the real oauth `MAX_CALLBACK_FIELDS`/`MAX_CALLBACK_FIELD_LENGTH`/`isCallbackFieldName`.
+Rulings applied: coordinator (c) (core leaf move) was implemented and pushed in Jini 6ab1d818. The coordinator then replaced it with ruling (a), so (c) was hand-reverted in 183915bb: core package.json and oauth loopback-callback.ts are byte-identical to 07766d6e again, and the core subpath and its changeset text are removed. `parseApiConnectionDescriptor` now takes a REQUIRED `callbackFieldRules` input, bound from the real oauth `MAX_CALLBACK_FIELDS`/`MAX_CALLBACK_FIELD_LENGTH`/`isCallbackFieldName`.
 
-**The single allowed Tovu test wiring edit (owner ruling, same kind of exception as earlier sessions' newly-required inputs)**, `apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts`:
+**The single allowed Tovu test wiring edit (coordinator ruling (a), same kind of exception as earlier sessions' newly-required inputs)**, `apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts`:
 ```
 +import { apiConnectionCallbackFieldRules } from '../oauth-bindings.js';
 -const descriptor = parseApiConnectionDescriptor({ value: { pluginId: 'shared-fixture', connectionId: 'account',
@@ -747,7 +747,7 @@ Seam lines truly edited: T oauth +76/−22, shared +3/−1; J 4+1 doc/type lines
 | xp-gate h2 | XP1–XP5 clean |
 | strict lint changed production | J eslint EXIT 0; T biome = baseline counts |
 | hashes | T OK; J only the 3 allowance fixtures differ (harness.ts, unit-deps.ts, token-store fixtures.ts), as expected |
-| existing-test audit vs pins | T: only M `shared-owner.integration.test.ts` (owner-allowed). J: only the 12 allowance-table files M. Everything else is A |
+| existing-test audit vs pins | T: only M `shared-owner.integration.test.ts` (coordinator ruling (a)). J: only the 12 allowance-table files M. Everything else is A |
 
 Not part of this gate: the full H2 closure requirement for the sign-in half. The INT `hosted-mcp` entry is types-only; the sign-in runtime is still in T until H2c/H3.
 
@@ -762,7 +762,7 @@ Tovu: 39c1c7c8ddc214cc514cd944a3d7971d900db382 (inventory), e8080710aafc1871e652
 
 ### Coordinator decisions (later)
 - ~07:42Z H2a stopped after inventory (Tovu 8496ae73): frozen T test features/api-connections/__tests__/shared-owner.integration.test.ts:10/22 imports and calls J parseApiConnectionDescriptor({value}) directly (caller outside the brief's packages/+examples/ search). Making callback rules a REQUIRED input would add a 14th typecheck:tests error. RULING (c): keep the public signature; MOVE the pure leaves isCallbackFieldName/MAX_CALLBACK_FIELDS/MAX_CALLBACK_FIELD_LENGTH from oauth loopback-callback.ts to a @jini-ai/core root subpath (brief lists "core root" as a legal destination); oauth re-exports same identity; integrations imports from core. Deliberate deviation from seam item 3's "inject via typed input" for these 3 leaves only; no copy, no optional fallback, frozen test untouched. Flagged for independent review.
-- ~07:45Z OWNER OVERRIDE (supersedes ruling (c) above): option (a). descriptor callback rules become a REQUIRED input (descriptor oauth edge removed, no fallback/copy); ONE-line wiring edit in T features/api-connections/__tests__/shared-owner.integration.test.ts passes Tovu's real callback-rule binding; no assertion change. Listed as the single allowed Tovu test wiring edit (owner ruling). Owner: continue H2, H3, gates, C-c within original caps; rest of stop rule applies.
+- ~07:45Z COORDINATOR RULING (a) (supersedes ruling (c) above): option (a). descriptor callback rules become a REQUIRED input (descriptor oauth edge removed, no fallback/copy); ONE-line wiring edit in T features/api-connections/__tests__/shared-owner.integration.test.ts passes Tovu's real callback-rule binding; no assertion change. Listed as the single allowed Tovu test wiring edit (coordinator ruling (a)). The instruction to continue H2, H3, gates and C-c within the original caps, with the rest of the stop rule applying, came with it.
 
 ## Shutdown (coordinator) — STOPPED AT CAP (token cap projection)
 
@@ -786,7 +786,7 @@ Jini (oldest first): 27063efc, 0b7183c3, 60f59307, 883db690, 02032562, fabc0b09,
 | H0 | DONE, green (SQLite mandatory green; PostgreSQL replay also proven for the main flow) |
 | H1a | DONE, green |
 | H1b | DONE, green |
-| H2 | PARTIAL. H2a items 2–5 done: all 14 reviewed imports removed, closure-check CLEAN on src/JS/.d.ts, owner ruling (a) applied. H2b items 6 and part of 7 done: gate split in place, one reauth factory, registration identity. **H2c NOT DONE**: item 1 for the sign-in half and the rest of item 7, see H2B-HANDOFF list in "## H2b". |
+| H2 | PARTIAL. H2a items 2–5 done: all 14 reviewed imports removed, closure-check CLEAN on src/JS/.d.ts, coordinator ruling (a) applied. H2b items 6 and part of 7 done: gate split in place, one reauth factory, registration identity. **H2c NOT DONE**: item 1 for the sign-in half and the rest of item 7, see H2B-HANDOFF list in "## H2b". |
 | H3 | NOT STARTED |
 | C-c | NOT STARTED: no packed consumer smoke and no C-c handoff section |
 
@@ -803,4 +803,19 @@ Jini (oldest first): 27063efc, 0b7183c3, 60f59307, 883db690, 02032562, fabc0b09,
 ### Processes
 No test, server or PostgreSQL processes remain (`ps` checked at 08:26Z). The H0 PostgreSQL scratch cluster (PID 16820) and the H1a one (PID 24407) were stopped by their builders. Scratch worktrees /home/user/s5/{base,xp3-orig} and the read-only XP3 snapshot are left in place in the container, untracked, for a continuation session.
 
-EXTRACT-S5 STOPPED AT CAP
+
+EXTRACT-S5 STOPPED AT CAP (first session; superseded by the continuation below)
+
+## Continuation — EXTRACT-S5-C
+
+This continuation is owner-approved, in the same session and on the same branches. The caps are raised by 700k tokens in total (coordinator plus subagents) and by 1.5 hours.
+- Continuation start: 2026-11-09T08:37:55Z. Continuation deadline: 10:07:55Z, read conservatively as 1.5 hours from the continuation start. Shutdown reserve begins 09:52Z.
+- Starting tips: Tovu d6b3d102 (report only; tested source f88953d8), Jini 575b95e4. LAST GREEN PAIR at start: Tovu f88953d8 / Jini 575b95e4.
+- Wording correction: the one-line wiring edit in shared-owner.integration.test.ts was the **coordinator's** ruling (a), not the owner's. Every earlier "owner ruling/override/owner-allowed" mention of it in this report has been corrected to "coordinator ruling (a)". Commit messages that already say "owner ruling (a)" (Tovu 776e5226, Jini 183915bb) cannot be rewritten without a force-push, so this note corrects them.
+- Plan: H2c (sign-in half of seam item 1 + rest of item 7) with the full H2 gate rerun and closure-check on all three entries → H3 → C-c. One fresh Opus builder per batch, each pushed before the next.
+
+| UTC | Elapsed in continuation (min) | Event | Continuation tokens (approx) |
+|---|---|---|---|
+| 08:38 | 0 | continuation start; report wording corrected | — |
+
+EXTRACT-S5-C STOPPED AT CAP
