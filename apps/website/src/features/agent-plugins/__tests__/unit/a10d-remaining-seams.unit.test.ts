@@ -17,7 +17,7 @@ async function fixture() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring(); const clock = createSystemClock();
   const store = { repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) };
-  await saveExternalMcpServer(store, { workspaceId: 'acme', serverId: 'crm', label: null, transport: 'streamable_http', authMode: 'oauth', enabled: false, command: '', args: '', url: 'https://crm.acme.test/mcp', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' }, principalId: 'owner', provisionedByPluginId: 'crm-plugin' });
+  await saveExternalMcpServer(store, { workspaceId: 'acme', serverId: 'crm', label: 'Acme', transport: 'streamable_http', authMode: 'oauth', enabled: false, command: '', args: '', url: 'https://crm.acme.test/mcp', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' }, principalId: 'owner', provisionedByPluginId: 'crm-plugin' });
   const row = (await repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
   await repo.upsert({ ...row, oauthStatus: 'connected' });
   const saved: AgentPluginMcpSave[] = []; const calls: string[] = []; const warnings: string[] = []; const infos: string[] = [];
@@ -31,10 +31,12 @@ async function fixture() {
 test('other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline', async () => {
   const f = await fixture();
   assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }, { skipServerKeys: ['crm'] }), []);
-  assert.deepEqual(f.calls, []);
+  assert.equal(f.calls.length, 0);
   const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
   await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: 'acme:declined' });
-  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }), []);
+  let declinedCalls = 0;
+  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: { ...f.grant, onConnected: async () => { declinedCalls += 1; } }, pluginId: 'crm-plugin', servers }), []);
+  assert.equal(declinedCalls, 0, 'a declined row is withheld even from the supplied grant callback');
   assert.ok(f.calls.includes('acme:oauth')); assert.ok(!f.calls.includes('activate'));
   await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: null });
   assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }), ['crm']);
@@ -56,11 +58,11 @@ test('boot reads one host snapshot after listing and never grants an off plugin 
   const f = await fixture(); const order: string[] = [];
   const deps = { ...f.grant, listPlugins: async () => { order.push('list'); return [{ pluginId: 'crm-plugin', servers }]; }, readActivations: async () => { order.push('activations'); return { plugins: { 'crm-plugin': { enabled: false } } }; } };
   await grantDeclaredToolsAtBoot({ deps, log: f.log });
-  assert.deepEqual(order, ['list', 'activations']); assert.deepEqual(f.calls, []);
+  assert.deepEqual(order, ['list', 'activations']); assert.equal(f.calls.length, 0);
   const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
   await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: 'acme:operator' });
   await grantDeclaredToolsAtBoot({ deps: { ...deps, readActivations: async () => ({ plugins: {} }) }, log: f.log });
-  assert.ok(!f.calls.includes('activate')); assert.deepEqual(f.infos, []);
+  assert.ok(!f.calls.includes('activate')); assert.equal(f.infos.length, 0);
 });
 
 test('import keeps an existing credential and finishes switch-on without replacement', async () => {
@@ -76,9 +78,9 @@ test('env import requires the seeded digest, honors pending tokens, uses host ac
   await f.repo.upsert({ ...row, oauthStatus: null });
   const env = { ACME_TOKEN: '  acme-secret-token  ', ACME_OLD: '1' };
   await importAgentPluginAccessTokensFromEnv({ deps: { ...f.deps, listPlugins: async () => [{ pluginId: 'crm-plugin', servers, bundled: false }] }, env, log: f.log });
-  assert.deepEqual(f.calls, []); assert.deepEqual(f.infos, []);
+  assert.equal(f.calls.length, 0); assert.equal(f.infos.length, 0);
   await importAgentPluginAccessTokensFromEnv({ deps: f.deps, env, log: f.log }, { skipPluginIds: new Set(['crm-plugin']) });
-  assert.deepEqual(f.calls, []); assert.equal(f.infos.length, 1);
+  assert.equal(f.calls.length, 0); assert.equal(f.infos.length, 1);
   await importAgentPluginAccessTokensFromEnv({ deps: { ...f.deps, switchOnSavedToken: async () => ({ state: 'plugin-off-by-operator' }) }, env, log: f.log });
   const after = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
   assert.equal(f.saved.at(-1)?.principalId, 'acme:import'); assert.equal(after.authMode, 'static_env');
