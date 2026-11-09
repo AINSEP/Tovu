@@ -12,7 +12,7 @@ function harness() {
   const host: AdminSurfaceConnectionsHost = {
     workspaceId: 'workspace', nowMs: () => 0, connectionKey: () => 'opaque-key',
     listConnections: async () => { reads.push('list'); return [connection]; }, requestedScopes: async () => ['read'],
-    readRecord: async () => { reads.push('record'); return view; },
+    readRecord: async () => { reads.push('record'); return { ...view, staged: null }; },
     getAccessToken: async (input, options) => { assert.deepEqual(input, { workspaceId: 'workspace', pluginId: 'plugin', connectionRef: 'opaque-key' }); assert.deepEqual(options, { expectedAccountId: 'pinned' }); return 'host-token'; },
     startSignIn: async () => { throw new Error('not used'); },
     service: () => ({ confirmSwitchAccount: async () => view, cancelSwitchAccount: async () => view, disconnect: async () => ({ ...view, remoteRevocation: 'confirmed' }) }),

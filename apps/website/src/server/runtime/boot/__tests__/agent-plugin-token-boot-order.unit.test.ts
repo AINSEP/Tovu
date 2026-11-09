@@ -69,8 +69,8 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
   const repo = new InMemoryExternalMcpServerRepo();
   const clock = { nowMs: () => 0, nowIso: () => "2026-09-29T00:00:00.000Z" };
   const servers: Record<string, McpServerConfig> = {
-    supabase: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "oauth",
-      tovuTokenAuth: { helpUrl: "https://example.com/tokens", probeUrl: "https://example.com/probe", importFromEnv: envName } },
+    supabase: { type: "streamable-http", url: "https://mcp.example.com/mcp", authMode: "oauth",
+      tokenAuth: { helpUrl: "https://example.com/tokens", probeUrl: "https://example.com/probe", importFromEnv: envName } },
   };
   await saveExternalMcpServer({ repo, sealer, keyring, clock }, {
     workspaceId: "ws-boot-token", serverId: "supabase", transport: "streamable_http", authMode: "oauth",
