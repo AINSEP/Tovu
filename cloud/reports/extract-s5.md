@@ -955,4 +955,20 @@ Not covered until H3: the hosted-mcp entry's runtime closure. The sign-in runtim
 
 **LAST GREEN PAIR: Tovu f9631ad5 / Jini 2cdeae0f** (the full H2 gate including H2c; the report commit follows).
 
+## H3 — inventory
+
+Source pins: Tovu a2af906e; T = apps/website/src/features/external-mcp/. Blobs: `external-mcp-oauth.ts` 243cf0762dfc807701de57e52409f326e3e11279 (1333 lines), `external-mcp-shared-oauth.ts` 3d8cf04a92de595bcd29c3631e0be6b80c57a5ea (326 lines). Copies are literal line-range copies (sed), plus necessary import rewrites only.
+
+| symbol | source T file:line | runtime closure | destination | host vocabulary |
+|---|---|---|---|---|
+| `ExternalMcpConnectionGateDeps` (now exported), `HostedMcpConnectionGatePorts` (+@agent-note) | oauth.ts:143-170 | types: core UUID, core/contracts/hosted-mcp repo/revocation reason | J mcp/src/federation/hosted/connection-gate.ts | none: recovery text/tool ids/reauth/revoked/log are ports |
+| `createHostedMcpConnectionGate` (+why-doc) | oauth.ts:172-222 | `rosterRefusalFor` (./revocation.js), mcp/federation ports types (../ports.js) | same | returns protocol value `"current-grants-checked"` (J federation contract) |
+| `offerPluginAccessCard`, `assertProvisioningPluginEnabled`, `readConnectionRowOrRefuse`, `assertNotAwaitingReauth` (+docs) | oauth.ts:248-294 | core `ToolInputError`; ./auth.js projections | same | refusal ids `turned-off`/`tool-not-allowed`/`write-not-allowed` = core revocation-reason protocol values |
+| header why-doc, `CONNECT_TIMEOUT_MS`, `REFRESH_LEASE_MS`, `CLEAR_TOKEN_RESEAL_ATTEMPTS` (+docs) | oauth.ts:22-64 | none | J integrations/src/api-connections/hosted-mcp/sign-in.ts | none (timeouts are protocol bounds, unchanged values) |
+| `createDeviceAuthorizationStore` (+doc) | oauth.ts:127-142 | Map only | same | none |
+| `SignInDeps`, `ExternalMcpOAuthServiceDeps` | oauth.ts:296-297 | types | same | none |
+| `oauthClientOptions` … `createHostedMcpSignInService` (all private helpers) | oauth.ts:366-1333 | node:crypto randomBytes; core primitives nowIso/UUID; core/contracts/{oauth,hosted-mcp} types; ./contracts.js; ./shared-sign-in.js | same | registration identity, link, messages, copy, errors, AAD format, store seal/open all via `HostedMcpSignInPorts` (H2c); grant ids/`urn:ietf:params:oauth:grant-type:device_code`/auth methods = RFC protocol values; AAD kind bytes come from the host `aad.format` port |
+| `external-mcp-shared-oauth.ts` WHOLE (`createSharedExternalMcpOAuth`, `SharedExternalMcpOwner`, Shared* narrow ports) | shared-oauth.ts:1-326 | node:crypto; `../index.js` (api-connections); `./contracts.js`; core types | J integrations/src/api-connections/hosted-mcp/shared-sign-in.ts | owner/client name/copy via ports (H2c) |
+| stays T: `ExternalMcpReauthRequiredError`, `createExternalMcpReauthRequiredError`, `externalMcpSettingsDeepLink`, `tovuConnectionGateVocabulary`, `createExternalMcpConnectionGate`, `tovuRegistrationIdentity`, `tovuSignInPorts`, `createExternalMcpOAuthService` | oauth.ts:66-125, 224-246, 298-364 | T | T (thin shims + re-exports of `createDeviceAuthorizationStore`, `createHostedMcpSignInService`, `createHostedMcpConnectionGate`, `HostedMcpConnectionGatePorts`; shared-oauth.ts re-exports) | Tovu bytes unchanged |
+
 EXTRACT-S5-C STOPPED AT CAP
