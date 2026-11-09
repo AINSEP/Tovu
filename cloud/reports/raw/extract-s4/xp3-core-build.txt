@@ -1,0 +1,5 @@
+
+> @jini-ai/core@0.6.23 build /tmp/claude-0/-home-user/a10819e9-12f8-5f7a-b1c1-5dc224b62b52/scratchpad/s4/xp3-base/packages/core
+> tsc -p tsconfig.json
+
+exit=0

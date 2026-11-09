@@ -1,0 +1,2 @@
+declaration baseline: 35c4961af718f0f30591c46d2ea2756c4484a731; 3308 source mappings; /tmp/claude-0/-home-user/a10819e9-12f8-5f7a-b1c1-5dc224b62b52/scratchpad/s4/declaration-baseline
+exit=0

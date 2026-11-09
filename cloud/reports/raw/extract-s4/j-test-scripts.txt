@@ -1,0 +1,30 @@
+06:27:06
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 7040ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 13428ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 742ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 891ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 746ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 763ms
+   ✓ F1 writer refuses dirty tracked source 775ms
+   ✓ F1 writer refuses a missing emitted declaration 716ms
+   ✓ F1 writer refuses unsafe source destination 657ms
+   ✓ F1 writer refuses unsafe ancestor destination 687ms
+   ✓ F1 writer refuses unsafe relative destination 758ms
+   ✓ F1 writer refuses unsafe symlink destination 738ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 1209ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 822ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 774ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 858ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 764ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 6ms
+
+ Test Files  3 passed (3)
+      Tests  70 passed (70)
+   Start at  06:27:07
+   Duration  14.91s (transform 150ms, setup 0ms, collect 1.50s, tests 20.48s, environment 1ms, prepare 208ms)
+
+exit=0
