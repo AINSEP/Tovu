@@ -141,6 +141,8 @@ export function runDeployOps(required:{deps:DeployOpsRuntime;input:DeployOpsInpu
 /** @agent-note Fresh registry and metadata-only target validation before I/O; host ports enforce late abort. */
 /** @agent-note Fresh registry per invocation; resolve metadata without decrypt before bounded I/O, honor signal. */
 export function runDeployOps(required:{deps:DeployOpsRuntime;input:DeployOpsInput;operation:"listTargets"}, optional:{signal?:OptionalAbortSignal}):Promise<DeployOpsTargets>;
+/** @agent-note Union overload for thin host bindings; same fresh registry and bounded facade. */
+export function runDeployOps(required:{deps:DeployOpsRuntime;input:DeployOpsInput;operation:Operation}, optional:{signal?:OptionalAbortSignal}):Promise<DeployOpsStatus|DeployOpsLogs|DeployOpsTargets>;
 /**
  * Read through a freshly gated installed adapter, passing only a bound GET facade to the module.
  * @param deps - Saved-credential ports, audited HTTP client with redirects disabled, and test seams.

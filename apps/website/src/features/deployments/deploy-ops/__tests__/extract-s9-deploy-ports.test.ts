@@ -133,5 +133,29 @@ test('published deploy declarations retain second-host contract notes and types-
   const declarations=await readFile(fileURLToPath(new URL('ops-tool-contracts.d.ts',root)),'utf8');
   for(const name of ['DeployOpsBoundedRequest','DeployOpsRuntime','DeployOpsSecretCards','DeployOpsRegistrationHost','DeployCredentialDiagnostic','DeployOpsToolIds','SecretConfirm']) assert.match(declarations,new RegExp('@agent-note[^]*?export (?:interface|type) '+name+'[ <={]'));
   for(const obligation of ['I/O','maxResponseBytes','same actor-bound exchange','non-enumerable','rechecks write permission','exact UTF-8','truncation']) assert.ok(declarations.includes(obligation),obligation);
-  assert.equal((await readFile(fileURLToPath(new URL('ops-tool-contracts.js',root)),'utf8')).trim(),'export {};');
+  assert.equal((await readFile(fileURLToPath(new URL('ops-tool-contracts.js',root)),'utf8')).trim(),'export {};\n//# sourceMappingURL=ops-tool-contracts.js.map');
+});
+
+
+test('foreign site-key and credential refusal messages and status/check tool ids are required inputs',async()=>{
+ const f=wire();f.deps.siteKey.read=()=>undefined;
+ await assert.rejects(runSetSecret({deps:f.deps,input},{}),{message:'Library key unavailable'});
+ const raw=new Error('private library transport detail');
+ f.deps.credentials.resolveTarget=async()=>{throw raw;};f.deps.credentials.classifyError=({error})=>({category:'not-found',error,callerSafeMessage:'Library key absent'});
+ const ctx=await boundContext({deps:f.deps,platform:f.platform},{});
+ await assert.rejects(ctx.get('https://api.library.test/state'),{message:'Library key absent'});
+ f.deps.credentials.resolveTarget=async({label,url})=>({label,url:new URL(url)});
+ f.deps.credentials.request=async()=>{throw raw;};f.deps.credentials.classifyError=({error})=>({category:'transport',error});
+ await assert.rejects(ctx.send({method:'POST',url:'https://api.library.test/start'}),/Check library_state before retrying/);
+ f.deps.credentials.request=async()=>({executed:true,status:401,headers:{},bodyText:'private body',bodyTruncated:false});
+ await assert.rejects(ctx.get('https://api.library.test/state'),/Run library_check with label/);
+});
+
+test('foreign approval binding is used for overwrite and write permission is checked again after answer',async()=>{
+ const f=wire();f.values.set('BOOK_KEY','old library secret');
+ f.host.approvals.confirmFor=({ctx,permit})=>async request=>{assert.equal(ctx.principal.id,'librarian');assert.equal(request.action,'overwrite');assert.equal(request.name,'BOOK_KEY');f.events.push('library-human');await permit(f.host.permissions.write);return {confirmed:true};};
+ const tool=buildDeployOpsRegistrations({deps:f.deps,host:f.host},{}).find(r=>r.descriptor.id===ids.setSecret)!;
+ const result=await tool.handler(execution(input));assert.equal((result as {changed:boolean}).changed,true);
+ assert.equal(f.values.get('BOOK_KEY'),' library private value\n');
+ assert.deepEqual(f.events,['library.change','library.key','registry','site-key','inventory','fingerprint','library-human','library.change','write']);
 });
