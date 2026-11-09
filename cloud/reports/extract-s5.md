@@ -818,6 +818,8 @@ This continuation is owner-approved, in the same session and on the same branche
 |---|---|---|---|
 | 08:38 | 0 | continuation start; report wording corrected | — |
 | 09:07 | 29 | H2c done + full H2 gate rerun green (closure-check CLEAN on 3 entries) — LAST GREEN PAIR Tovu f9631ad5 / Jini 2cdeae0f | ~290k (H2c 270k) |
+| 09:31 | 53 | H3 done, H3 gate green (union of named groups + all new S5 tests; prior-debt case only) — LAST GREEN PAIR Tovu 624f769c / Jini c9d06913 | ~530k (H3 223k) |
+| 09:36 | 58 | C-c section + packed smoke pushed (Tovu 681e8568); scratch worktrees removed; no processes running | ~650k (C-c 109k, coordinator ~45k) — within the 700k raise |
 
 ## H2c — inventory
 
@@ -1079,4 +1081,19 @@ Not done (this is out of scope for C-c): the full X1 Tovu tarball replay and des
 
 Independent Claude verdict and next-session owner approval happen outside this build.
 
-EXTRACT-S5-C STOPPED AT CAP
+
+### Continuation shutdown
+- Finished 2026-11-09T09:36Z, 58 minutes into the 90-minute continuation. About 650k of the 700k continuation tokens were used. Neither cap was reached.
+- Every batch is complete and pushed: H0, H1a, H1b, H2 (H2a+H2b+H2c, with the full H2 gate rerun and closure-check CLEAN on all three entries), H3 with its accumulated gate, and the C-c handoff.
+- Final tips, verified with git ls-remote: **Tovu cloud/extract-s5 = this report commit** (the tested source is 624f769c0a96b9e4564d3068f05efca95e712f57; later commits are report-only), **Jini cloud/extract-s5 = c9d06913a35740b4e413d7465cbac1a3a9a20961**.
+- **LAST GREEN PAIR: Tovu 624f769c / Jini c9d06913.**
+- Disclosed and not counted green:
+  - the named prior-debt loopback case;
+  - the 13-error typecheck:tests baseline set;
+  - PostgreSQL replay, which was not rerun after H1a;
+  - packed smoke: strict tsc without skipLibCheck fails on unchanged packed oauth `dns-pinned-transport.d.ts` (prior debt); `@jini-ai/protocol` came from the registry during the smoke install;
+  - the neutral-host devDependency (lockfile) change still needs an owner ruling.
+- Scratch worktrees /home/user/s5/{base,xp3-orig} were removed after the final BASELINE rollback replay. No test, server or PostgreSQL processes remain.
+- DONE means the build is complete. It is not Claude approval: the independent Claude review and next-session owner approval happen outside this build.
+
+EXTRACT-S5-C DONE
