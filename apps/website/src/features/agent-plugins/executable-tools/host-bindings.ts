@@ -91,6 +91,7 @@ export function bindExecutableToolRegistration(required: AgentPluginExecutableRe
   return { ...required, host: runtimeHost,
     contributions: { definition: toolContribution, createRegistry: createPluginContributionRegistry, buildRegistrations: buildPluginContributionToolRegistrations, toolIdFor: pluginToolIdFor },
     connectionKey: deriveApiConnectionKey,
+    toolPermission: 'admin.assistant.use',
     readApproval: EXTENSION_TOOL_APPROVAL_POLICY[APPROVAL_FAMILY_BY_EFFECT.read],
     disclosureMessages: agentPluginDisclosureMessages,
   };

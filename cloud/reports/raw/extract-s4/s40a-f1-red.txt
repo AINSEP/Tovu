@@ -1,0 +1,78 @@
+TAP version 13
+# Subtest: another host authorizes plugin tools with its own RBAC permission name
+not ok 1 - another host authorizes plugin tools with its own RBAC permission name
+  ---
+  duration_ms: 5.500207
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:1:2842'
+  failureType: 'testCodeFailure'
+  error: "principal 'operator' is not authorized for 'admin.assistant.use' (no_grant)"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    requireToolPermission (/home/user/Jini/packages/core/src/tool-permissions.ts:79:30)
+    async Object.resolveAuth (/home/user/Jini/packages/agent-plugins/src/connect/executable/register.ts:73:7)
+    async Object.authorize (/home/user/Jini/packages/plugins/src/host/tool-contributions.ts:27:22)
+    async registerWith (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:47:22)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:52:36)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: the host permission still denies a principal who lacks it
+not ok 2 - the host permission still denies a principal who lacks it
+  ---
+  duration_ms: 3.322926
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:1:3268'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'allow' !== 'deny'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'deny'
+  actual: 'allow'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:62:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: Tovu binds exactly admin.assistant.use as the tool permission
+not ok 3 - Tovu binds exactly admin.assistant.use as the tool permission
+  ---
+  duration_ms: 0.806104
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:1:3540'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'admin.assistant.use'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'admin.assistant.use'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts:74:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+    Test.postRun (node:internal/test_runner/test:1191:19)
+    Test.run (node:internal/test_runner/test:1119:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 943.513961
+exit=1

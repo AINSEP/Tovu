@@ -14,7 +14,7 @@ test('the registrar consumes the host definition and contribution builders witho
   let registryCalls = 0;
   let buildCalls = 0;
   const registered = await registerAgentPluginExecutableToolsWithPorts({
-    registry, workspaceId: 'other-workspace',
+    registry, workspaceId: 'other-workspace', toolPermission: 'admin.assistant.use',
     host: {
       loadContributions: async (input, options) => { assert.equal(input.definition, definition); assert.equal(options.orderByPluginId, true); return { items: [], refusals: ['host refusal'] }; },
       connections: { readAccount: async () => null, getAccessToken: async () => 'unused' },
