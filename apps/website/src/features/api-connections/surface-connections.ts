@@ -1,7 +1,6 @@
 import { createAdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces/connections';
 import type { AdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces';
 import { bindAdminSurfaceConnectionsHost, type SurfaceConnectionsDeps } from './surface-connection-bindings.js';
-export { createAdminSurfaceConnections };
 export type { IssuedSignIn } from '@jini-ai/agent-plugins/admin-surfaces/connections';
 export type { SurfaceConnectionsDeps } from './surface-connection-bindings.js';
 

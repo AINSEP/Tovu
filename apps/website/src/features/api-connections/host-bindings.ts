@@ -65,7 +65,7 @@ export function bindApiConnectionHost({ required, optional }: { required: ApiCon
     required: {
       workspaceId: required.workspaceId, clock: required.clock, oauthHttp: required.oauthHttp,
       pluginHttp: required.pluginHttp, runtime: required.runtime, env: required.env, publicOrigin: required.publicOrigin,
-      apiConnectionStorage: { vault, records, tokensFor: ({ owner }: Parameters<ApiConnectionHostPorts['apiConnectionStorage']['tokensFor']>[0]) => createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }) },
+      apiConnectionStorage: { records, tokensFor: ({ owner }: Parameters<ApiConnectionHostPorts['apiConnectionStorage']['tokensFor']>[0]) => createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }) },
       loadDeclaredConnections: ({ workspaceId }: { workspaceId: string }) => loadDeclaredApiConnections({ workspaceId, loadContributions: required.loadContributions }),
       createSharedConnections: (input: ApiConnectionSharedFactoryInput) => createSharedApiConnections({ ...optional.shared!, ...input }),
       appIdentity: { clientDisplayName: 'Tovu', softwareId: 'tovu' },

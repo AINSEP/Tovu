@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
 import { createPluginContributionRegistry, buildPluginContributionToolRegistrations, pluginToolIdFor } from '@jini-ai/plugins/host';
 import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
-import { registerAgentPluginExecutableToolsWithPorts } from '../register.js';
-import { createAgentPluginDisclosureWithPorts } from '../approval.js';
+import { registerAgentPluginExecutableTools as registerAgentPluginExecutableToolsWithPorts } from '@jini-ai/agent-plugins/connect/executable';
+import { createAgentPluginDisclosure as createAgentPluginDisclosureWithPorts } from '@jini-ai/agent-plugins/connect/executable';
 import { createFrozenConnectionAccounts } from '../host-capabilities.js';
 
 test('the registrar consumes the host definition and contribution builders without replacing their owner', async () => {

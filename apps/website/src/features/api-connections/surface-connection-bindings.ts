@@ -1,5 +1,5 @@
 import { ApiConnectionError, deriveApiConnectionKey, type DeclaredApiConnection } from '@jini-ai/integrations/api-connections';
-import type { AdminSurfaceConnectionsHost } from '@jini-ai/agent-plugins/admin-surfaces';
+import type { AdminSurfaceConnectionsHost } from '@jini-ai/agent-plugins/admin-surfaces/connections';
 import { startApiConnectionSignIn } from './connect.js';
 import type { ApiConnectionHost } from './host.js';
 import type { IssuedSignIn } from './surface-connections.js';

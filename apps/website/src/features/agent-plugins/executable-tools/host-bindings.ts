@@ -5,7 +5,7 @@ import type { HttpClientPort } from '@jini-ai/core/primitives';
 import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
 import { defineAgentPluginToolContribution, type IssuedTokenMemories, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { buildAdminSurfaceActionTools } from '@jini-ai/agent-plugins/admin-surfaces';
-import type { AgentPluginExecutableRuntimeHost } from '@jini-ai/agent-plugins/connect';
+import type { AgentPluginExecutableRuntimeHost } from '@jini-ai/agent-plugins/connect/executable';
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSurfaceSource } from '../admin-surfaces/surfaces.js';
 import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
@@ -61,11 +61,10 @@ export interface AgentPluginExecutableRegistrationHostInput {
 /** Wires the original contribution and approval owners without constructing a second registry or map. */
 export function bindExecutableToolRegistration(required: AgentPluginExecutableRegistrationHostInput, _optional: Record<string, never> = {}) {
   const host = required.host;
-  async function loadActionTools({ workspaceId, authorize, connectionKey }: Parameters<NonNullable<AgentPluginExecutableRuntimeHost['adminSurfaces']>['loadActionTools']>[0]) {
-    const admin = host.adminSurfaces;
-    const surfaces = admin ? await admin.source.list({ workspaceId }) : [];
-    if (admin) await admin.host.refresh();
-    const additionalTools = admin ? buildAdminSurfaceActionTools({
+  async function loadActionTools({ admin, workspaceId, authorize, connectionKey }: Parameters<NonNullable<AgentPluginExecutableRuntimeHost['adminSurfaces']>['loadActionTools']>[0] & { admin: NonNullable<AgentPluginExecutableToolHost['adminSurfaces']> }) {
+    const surfaces = await admin.source.list({ workspaceId });
+    await admin.host.refresh();
+    return buildAdminSurfaceActionTools({
       surfaces: surfaces.map(({ plugin, descriptor }) => ({ pluginId: plugin.pluginId, descriptor })),
       handlersFor: (input) => admin.host.handlersFor(input),
       authorize: async ({ context }) => {
@@ -81,12 +80,11 @@ export function bindExecutableToolRegistration(required: AgentPluginExecutableRe
     }, {
       run: ({ dispatch }) => withAdminSurfaceSignIns({ host: admin.host, run: dispatch }),
       connectionRefFor: ({ pluginId, connectionId }) => connectionKey({ workspaceId, pluginId, connectionId }),
-    }) : [];
-    return additionalTools;
+    });
   }
   const { adminSurfaces, ...capabilities } = host;
   const runtimeHost: AgentPluginExecutableRuntimeHost = { ...capabilities,
-    ...(adminSurfaces ? { adminSurfaces: { permission: ADMIN_SURFACE_ACTION_PERMISSION, loadActionTools } } : {}),
+    ...(adminSurfaces ? { adminSurfaces: { permission: ADMIN_SURFACE_ACTION_PERMISSION, loadActionTools: input => loadActionTools({ ...input, admin: adminSurfaces }) } } : {}),
   };
   return { ...required, host: runtimeHost,
     contributions: { definition: toolContribution, createRegistry: createPluginContributionRegistry, buildRegistrations: buildPluginContributionToolRegistrations, toolIdFor: pluginToolIdFor },
