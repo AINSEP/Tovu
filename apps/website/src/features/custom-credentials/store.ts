@@ -1,19 +1,19 @@
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { createCredentialSet, deleteCredentialSet, describeCredentialSet, describeCredentialSetByLabel, listCredentialSetInventory,
-  listCredentialSets, resolveCredentialSetByLabel, updateCredentialSet } from "./sets/store.js";
+  listCredentialSets, resolveCredentialSetByLabel, updateCredentialSet } from "@jini-ai/integrations/credentialed-http/sets";
 import { tovuCredentialSetHost as host } from "./tovu-credential-sets.js";
 import type { CustomCredentialCategoryId, CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
 
 /**
  * @file Tovu's custom-credential store: the historical exports, bound to Tovu's host inputs
- * (`./tovu-credential-sets.ts`). Validation and CRUD live in the host-wired `./sets/store.ts`; public
+ * (`./tovu-credential-sets.ts`). Validation and CRUD live in the host-wired `@jini-ai/integrations/credentialed-http/sets` store; public
  * summaries contain saved origins, usernames and safe hints only, and label selection and origin
- * checks never open unrelated credentials. The error classes are the same objects as `./sets/store.ts`.
+ * checks never open unrelated credentials. The error classes are the same objects as `@jini-ai/integrations/credentialed-http/sets`.
  */
 
 export { CustomCredentialValidationError, CustomCredentialDuplicateLabelError, CustomCredentialConcurrentModificationError,
-  CustomCredentialSecretStoreUnconfiguredError, CustomCredentialNotFoundError } from "./sets/store.js";
+  CustomCredentialSecretStoreUnconfiguredError, CustomCredentialNotFoundError } from "@jini-ai/integrations/credentialed-http/sets";
 
 /** Presence inventory never needs a sealer or write ports. */
 export interface CustomCredentialInventoryDeps {

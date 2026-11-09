@@ -5,11 +5,11 @@ import { isUniqueViolation } from "@jini-ai/db/kernel";
 import { byVaultLabel, createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { credentialCreateTarget, credentialScopes } from "../vendor-credentials/index.js";
 import { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
-import type { CredentialSetStoreHost, CredentialSetVaultPolicy } from "./sets/host.js";
-import { CustomCredentialSecretStoreUnconfiguredError } from "./sets/store.js";
+import type { CredentialSetStoreHost, CredentialSetVaultPolicy } from "@jini-ai/integrations/credentialed-http/sets";
+import { CustomCredentialSecretStoreUnconfiguredError } from "@jini-ai/integrations/credentialed-http/sets";
 
 /**
- * @file Tovu's wiring of the credential-set store (`./sets/`). Every product input lives here: the
+ * @file Tovu's wiring of the credential-set store (`@jini-ai/integrations/credentialed-http/sets`). Every product input lives here: the
  * `tovu` vault owner, Tovu's store vault and metadata rules, project/vendor scope policy, the
  * storage kernel's UNIQUE detector, Shared Keys conflict errors, token policy with Tovu's
  * application-key detector, the Access Tokens category list and Tovu wording. `store.ts` and

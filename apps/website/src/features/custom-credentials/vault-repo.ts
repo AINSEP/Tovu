@@ -1,14 +1,14 @@
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { SiteGrantedVault } from "../project-keys/attached-vault.js";
 import type { CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
-import { CredentialSetVaultRepo, credentialSetVaultRecord, credentialSetVaultScope } from "./sets/vault-repo.js";
+import { CredentialSetVaultRepo, credentialSetVaultRecord, credentialSetVaultScope } from "@jini-ai/integrations/credentialed-http/sets";
 import { tovuCredentialSetVaultPolicy as policy } from "./tovu-credential-sets.js";
 import type { CustomCredentialProjectScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
 /**
  * @file Tovu's custom-credential vault repository: the historical exports, bound to Tovu's owner
  * (`tovu`), metadata parser, label order and `VaultError` (`./tovu-credential-sets.ts`). The
- * repository logic lives in the host-wired `./sets/vault-repo.ts`.
+ * repository logic lives in the host-wired `@jini-ai/integrations/credentialed-http/sets` repository.
  */
 
 type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
