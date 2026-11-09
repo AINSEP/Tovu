@@ -803,3 +803,47 @@ New tests (named before edits): `features/custom-credentials/__tests__/extract-s
 — second host with different permissions/entity/domain/catalogModule/tool id/namespace/apps/path/
 messages/answer value; T old-entry byte pins (sha256 of emitted copy and create cards and the
 registration descriptors, recorded on the unmodified code before the seam edits).
+
+## C2 part 2
+
+Coordinator boundary C2 part 1→C2 part 2: 2026-11-09T08:00:57Z, elapsed 65m36s; running token total ≈ 1.17M (setup 131k, C0 241k, C1 seam 269k, C1 move 192k, C2 part 1 252k, coordinator ≈ 85k, plus C2 part 2 in progress) of 1.9M cap.
+
+Status: GREEN. Started 07:53Z (read-only drafting), implementation after the part 1 marker at 08:00Z, gate complete ≈08:13Z.
+
+Commits (Tovu `cloud/extract-s8`; Jini has NO C2 part 2 commit — Jini stays at `a266ba82144d9c7d8078ef7d056ff8c748d607e6`):
+- `3aa67be712d3093a8f773b9a8c0ab3178d1d73f2` docs: C2 part 2 inventory/plan (first commit, before implementation)
+- `f71c8de6f2f3055068acf136918ac914c16dddda` refactor: host inputs for the credential tools (seams + new tests)
+- `463f56a8f0fdcc8703badaf5c6fd0fbafd2bf2de` test: type the recorded authorize calls (explicit pin compile fix)
+- this report commit (SHA in the push record below)
+
+Files (all T = `apps/website/src/features/custom-credentials/`; none owned by S4/S5/S6 lanes; `server/runtime/composition/tool-catalog-manifest.ts`, connect tokenDeps :595, H/A/L areas untouched):
+- NEW `credential-tool-host.ts` (114 lines, types only, imports only `@jini-ai/core` and `@jini-ai/core/contracts/cards` types).
+- NEW `tovu-credential-card-identity.ts` (18): namespace `tovu`, apps `tovu-custom-credential-{create,create-outcome,set-token,set-token-outcome}` v`1`.
+- `credential-copy-tool.ts` (+151/−?): new `createCredentialCopyRegistrations({deps,surfaces,host},{saveNew})`; generic part imports only core (root, `gated-mutations`, `contracts/cards`) and the local types file; permission helpers now from `@jini-ai/core` root (same objects `@jini-ai/cms/core` re-exports); `ProjectKeyRow` import dropped (narrow port). Tovu values (`TOVU_CREDENTIAL_COPY_HOST`: tool id, domain `credential-copy`, catalog path, `system.write`, `:new-key`, `use-saved-key`, 16 sentences verbatim, daemon `askThenReport` + ui `buildFormSurface`) sit beside the old entry, which keeps its signature. Exports `catalog`, `CREDENTIAL_COPY_TOOL_ID`, `credentialCopyDerivedRisk`, `CredentialCopyToolDeps` unchanged.
+- `tool-registrations.ts` (hunks at old lines 18, 78, 175, 224-225, 871/874/905/907-908/913 openCreateCard, 943-946 doc+signature, 959/985/997/999-1000/1004/1030/1034-1035/1045/1049 API save handlers, 1061 new registrations entry, 1077/1091/1109/1142/1145/1173/1176/1185/1189 handlers, 1229-1232 buildDomainRegistrations, 1237 old entry): new `createCustomCredentialsRegistrations` / `createApiCredentialSaveHandlers` take `host: CustomCredentialToolHost`; `DOMAIN`/`READ_PERMISSION`/`WRITE_PERMISSION`/`CATALOG_BY_ID` and their why-comments stay in place and are bound once in `TOVU_CUSTOM_CREDENTIAL_HOST`; both `uriHost: 'tovu'` → `cardIdentity.uriNamespace`; host builder outputs get `cardIdentity.appNames.*` stamped via `withCardApp` (same key position → identical bytes for Tovu); `makeModelFacingCredentialedRequest` takes `{catalog}`. Old `buildCustomCredentialsRegistrations(routeDeps, surfaces)` and `buildApiCredentialSaveHandlers({routeDeps,surfaces})` are one-line bindings.
+- NEW tests `__tests__/extract-s8-c2p2-host-inputs.test.ts` (10 tests) + `__tests__/extract-s8-c2p2-pins.support.ts`.
+
+Repairs (own errors): capture helper delivered before the emit returned (hang) → deliver after emit via setImmediate with the fixed exchange id; two first-draft expectations were wrong about existing behaviour (permissionFor is evaluated before the post-answer re-admit, so the log is `list, permissionFor` with no `use`; an unknown request label is reported through the model-facing error path rather than a throw) → expectations corrected to the real unchanged behaviour; explicit pin compile found `AuthorizationRequired` not assignable to `Record<string,unknown>` → spread copy. Two sonarjs nested-increment warnings fixed. No production behaviour changed by any repair.
+
+Old-entry byte pins: sha256 of JSON of the emitted saved-key card, the emitted create card, and both descriptor lists, RECORDED on the unmodified tree (Tovu `3aa67be7`, deterministic over two runs) before the seam commit, then asserted after it: copyCard `cdf8d669…ecead`, createCard `63acf4f1…51a75`, credentialDescriptors `657345d5…df6cb`, copyDescriptors `b2a05ee1…6eea` — all equal.
+Second host ("acme") proves use of: tool id, domain + catalog path (drift error names `acme-keys`/`acme/keys/tools.ts` and `acme-creds`/`acme/creds/tools.ts`), owner permission `acme.owner` then key permission after the answer, read/write permissions `acme.creds.see`/`acme.creds.change` with entity `acme-entity`, URI `ui://acme/pick-key/<id>` and `ui://acme/secret-card/credential_save/<id>`, app `acme-key-create` v`7`, answer value `~fresh` (Tovu's `:new-key` is refused as not offered), all card/refusal sentences; grant revoke/recheck (permission lost while open → no `use`; revoked key → `use` refuses, no grant; dismissal → `{granted:false}`).
+
+Gate (T run from Tovu root; Node 24.2.0; raw outputs kept in the session scratch area):
+| check | result |
+|---|---|
+| T `npx tsc -p tsconfig.json --noEmit` | exit 0 (before and after the test fix) |
+| explicit pin compile (tsconfig.tests.json, files = all 8 new S8 T test/pin files incl. C0/C1/C2p1) | exit 0 |
+| eslint `--max-warnings 0` on the 6 changed/new T files | exit 0 |
+| T matrix: C1 + C2 matrices + accumulated nine + inherited S3 three + all new S8 tests (g-cred, c1-old-shape, c1-second-host, c1-source-scan, c2p1-credential-ports, c2p2-host-inputs) | 53 files, every file exit 0, 790/790 pass, 0 fail (part 1: 52/780; +1 file/+10 tests) |
+| J core tsc / integrations tsc | exit 0 / exit 0 (no J build: Jini unchanged since part 1's build) |
+| J integrations vitest (C2 matrix 6 + package-surface + extract-s8-sets) | 8 files, 217/217 |
+| J neutral-host credential-sets test / typecheck | 1/1 / exit 0 |
+| J scripts tests (check-no-cross-package, extract-s3-checker, extract-s3-source-contracts) with XP3 snapshot | 3 files, 70/70 |
+| `pnpm check:cross-package` (JINI_DECLARATION_BASELINE_DIR = original 35c4961a snapshot) | exit 0, XP1–XP5 clean |
+| `pnpm guard` | raw exit 1 = baseline: only R2-deep-path(1) plugin-catalog/scripts/generate.ts and R10-chatpane-public-surface(1) ChatPane.tsx; R13 informational; HW1 17/HW2 16/HW3 135/HW4 1/HW5 0/HW6 0/HW7 0/HW8 49/HW9 0, 0 new each; no N1/R8/other family |
+| guard:plugins / layers / isolation | exit 0 / 0 / 0; SI audit c=9 d=7 |
+| fixture hashes (tool-metadata.baseline, moved-tools ×3 goldens, cost-counters.baseline) + inherited S3 pins ×3 | all 8 unchanged |
+| old T/J tests/fixtures M/D/R since session start | none |
+
+XP: no Jini change in this part, so no new/modified J specifiers, declarations or dependencies. Advance caller search: the new inputs are behind new T functions; the old T entries keep their signatures, so no J caller (none exists) and no T caller needs edits. Shared-lane files touched: none. No process left running (both background runners exited 0).
+Remaining for C3 (not seamed here): see the "Remains for C3" column of the plan above — tool ids/handler keys, model-facing error rules and form messages, locale/translation, `defineSecretCardTool`/`askThenReport`/approval injection in tool-registrations, part 1 port consumption in handlers, deploy/publish/cache ports, abort guard, pluginCards/credentialCardForms/recovery, cleanCardToken/assertCredentialFreeField/worksFor.
