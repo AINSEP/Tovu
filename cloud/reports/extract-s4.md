@@ -1299,3 +1299,14 @@ The existing H0 adoption record is unchanged: adopted J **5c3235e615208f181ae2d6
 ### Shutdown preflight
 
 At 16:06Z the process audit checked **294 recorded command/test PIDs**: none remains present, no live test/build/repo-server process, and no termination was needed. No server was started for this extraction. Exact PIDs/exits are in commands and matrix logs; final shutdown/push attestation follows after saving this evidence. No publication, deployment, main merge, force push, S5 push, broad kill or helper-agent run occurred.
+
+### Final shutdown and push attestation
+
+- UTC start **2026-11-09T15:01:00Z**; hard deadline **2026-11-09T18:01:00Z**; final attestation **2026-11-09T16:11:32Z**, elapsed **70m 32s**. Finished before the shutdown reserve; no new batch began after its cutoff. Setup, waits, reproduction, failures/repairs, commits, pushes and reporting are included.
+- S4-0/A8/A9 were retained; remaining A10, A11, final accumulated gate and C-b evidence are complete. No unresolved S4 inventory or implementation item remains. Independent review and the after-merge note move remain deliberately outside this continuation.
+- **Last green implementation pair:** Tovu **00c1fd0ab91820e85461d3918ff48e023e0f54e9** / Jini **ade600935216d28694f31a6d4b04a1c3380bca58**, both on **cloud/extract-s4**, paired pushes verified. The final evidence/report-only T commit **36e2bb1312ce2615d220dc1001b81c39e4dcae9d** is pushed. This attestation is another report-only descendant; its full SHA is given in the final task response, avoiding a self-referential commit hash in its own contents. Jini's final pull/rebase/push is up-to-date at **ade600935216d28694f31a6d4b04a1c3380bca58**.
+- Latest read-only S5 observations: T **50e0867715a0e20782a6eaf82d6c71db4ee54310**, J **324103f25d1d87b9b0e497cdd2ed71eee9b34c8b**; zero continuation-path overlap, no S5 write/merge/adoption this run.
+- Final process audit: **294 recorded command/test PIDs, none present; zero live test/build/repo-server processes; zero termination actions**. Exact exits/PIDs retained. Source worktrees were clean before this final report-only attestation.
+- Final XP3 recheck still matches both historical hashes and all 3308 mappings/3320 declarations. Frozen/source/pin custody audits pass; no publication, deployment, main change, force push, helper agent or independent Claude run occurred. Known baseline failures are retained and reported, never counted as new passes.
+
+EXTRACT-S4-X DONE
