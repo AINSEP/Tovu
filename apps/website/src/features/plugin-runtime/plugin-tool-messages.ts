@@ -1,5 +1,4 @@
 import type { SetEnabledRequest } from '@jini-ai/plugins/host/tools';
-const AGENT_PLUGIN_FAMILY = 'agent-plugin' as const;
 export const familyRequired = "'family' is required and must be exactly one of: 'site-runtime' (a .tovu-plugin site plugin, as listed by " +
       "content_read.plugin) or 'agent-plugin' (an Agent Plugin, as returned by search_agent_plugin_local). Tovu has two " +
       "unrelated plugin systems and this tool never guesses between them — if you are unsure, call the matching list/search " +
@@ -32,7 +31,7 @@ export const familyRequired = "'family' is required and must be exactly one of: 
  * @complexity O(1).
  */
 export function restartNote(request: SetEnabledRequest): string {
-  if (request.family === AGENT_PLUGIN_FAMILY) {
+  if (request.family === 'agent-plugin') {
     return request.enabled
       ? `Enabled and saved. Read its guidance now with load_agent_plugin({pluginId:"${request.pluginId}"}) and use ` +
           `agent_plugin_connect for account sign-in when needed. Tool discovery refreshes without restarting; ` +
