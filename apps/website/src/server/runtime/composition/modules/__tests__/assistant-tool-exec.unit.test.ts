@@ -8,7 +8,7 @@ import express from "express";
 import { createRemoteToolExecutor } from "@jini-ai/daemon";
 import { createRouteDeps } from "../../app.js";
 import { createAssistantByokModule } from "../assistant-byok.js";
-import { createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader } from "../assistant-tool-exec.js";
+import { automaticGuidanceArgvHeadroom, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader } from "../assistant-tool-exec.js";
 import { runWithDaemonCallContext } from "../../../../../assistant/daemon-call-context.js";
 import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
@@ -90,4 +90,16 @@ test("plugin-install attachments: a daemon call reads only its message refs; a B
   assert.equal((await read(required, limits)).ok, true, "BYOK: owner-scoped, no message binding");
   assert.deepEqual(await runWithDaemonCallContext({ context: { attachmentRefs: [] }, fn: () => read(required, limits) }), { ok: false, refusal: "no-record" });
   assert.equal((await runWithDaemonCallContext({ context: { attachmentRefs: [ref] }, fn: () => read(required, limits) })).ok, true);
+});
+
+test("automatic guidance headroom follows the adapter's per-platform argv budget; Claude has none", () => {
+  const prompt = "p".repeat(15_000);
+  const pinnedPrefix = "q".repeat(1_000);
+  // Windows keeps DeepSeek's 30,000-byte limit; prompt, pins and the 4 KiB overlay reserve come off it.
+  assert.equal(automaticGuidanceArgvHeadroom({ agentId: "deepseek", prompt, pinnedPrefix }, { platform: "win32" }), 30_000 - 16_000 - 4_096);
+  // POSIX raises the guard to 100,000 bytes, so the same prompt leaves room for a 16 KiB primary.
+  assert.equal(automaticGuidanceArgvHeadroom({ agentId: "deepseek", prompt, pinnedPrefix }, { platform: "linux" }), 100_000 - 16_000 - 4_096);
+  // Over budget never goes negative: the controller then inlines nothing.
+  assert.equal(automaticGuidanceArgvHeadroom({ agentId: "aider", prompt: "p".repeat(40_000), pinnedPrefix: "" }, { platform: "win32" }), 0);
+  assert.equal(automaticGuidanceArgvHeadroom({ agentId: "claude", prompt, pinnedPrefix }, { platform: "win32" }), undefined);
 });

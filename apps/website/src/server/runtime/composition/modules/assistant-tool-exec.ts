@@ -37,7 +37,7 @@ import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import type { AutomaticPluginRun, createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
-import { getAgentDef } from "@jini-ai/agent-runtime";
+import { getAgentDef, resolveArgvPromptBudget } from "@jini-ai/agent-runtime";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 
 /** Publish one site-prepared consent/state event through the daemon's existing credential gate.
@@ -132,6 +132,25 @@ async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, res
   res.status(200).set("cache-control", "no-store").json({ prefix, refusalPrefix: plugins.refusalPrefix(), pluginIds: plugins.controller.guidanceIds?.({ runId }) ?? [] });
 }
 
+/** Bytes held back for what the daemon adds around the prompt and pinned guidance: the relevance
+ * note (at most 600), a deferred pointer, off-plugin pointers, the refusal prefix and page context. */
+const AUTOMATIC_GUIDANCE_OVERLAY_RESERVE_BYTES = 4 * 1024;
+
+/** Argv bytes left for automatic plugin guidance after the prompt, pinned guidance and overlay,
+ * using the same platform rule as the daemon's launch guard. Undefined for adapters with no argv
+ * prompt limit (Claude), which keeps their automatic path unchanged.
+ * @complexity O(prompt + prefix bytes) for the byte counts; one definition lookup.
+ */
+export function automaticGuidanceArgvHeadroom(
+  { agentId, prompt, pinnedPrefix }: { agentId: string; prompt: string; pinnedPrefix: string },
+  { platform = process.platform }: { platform?: NodeJS.Platform } = {},
+): number | undefined {
+  const maxPromptArgBytes = getAgentDef({ id: agentId })?.maxPromptArgBytes;
+  if (maxPromptArgBytes === undefined) return undefined;
+  const used = Buffer.byteLength(prompt) + Buffer.byteLength(pinnedPrefix) + AUTOMATIC_GUIDANCE_OVERLAY_RESERVE_BYTES;
+  return Math.max(0, resolveArgvPromptBudget({ maxPromptArgBytes }, { platform }) - used);
+}
+
 /** Bind the existing controller to durable identity and a log emitter that rechecks liveness.
  * Pinned failures remain explicit; automatic guidance preserves its existing fail-open contract.
  * @complexity One controller start, indexed checks per emitted event; O(prefix bytes) space.
@@ -160,7 +179,8 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   const pluginContext: AutomaticPluginRun = {
     principal: { id: run.principalId }, conversationId: run.conversationId, state: context.agentPluginState,
     query: context.userPrompt ?? context.prompt, pinned: context.pluginRefIds, signal: abort.signal,
-    maxPromptArgBytes: getAgentDef({ id: run.request.agentId ?? 'claude' })?.maxPromptArgBytes,
+    maxPromptArgBytes: automaticGuidanceArgvHeadroom({ agentId: run.request.agentId ?? 'claude',
+      prompt: [context.prompt, context.coldStartContext ?? ''].join('\n\n'), pinnedPrefix }),
     emitSurface: emission => emit({ ...emission.payload, type: emission.channel,
       ...(emission.channel === "mcp-ui" ? { toolUseId: `agent-plugins:${runId}` } : {}) }),
     publish: value => emit({ type: "agent_plugins", ...value }),

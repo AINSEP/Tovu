@@ -11,7 +11,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
-import { getAgentDef } from '@jini-ai/agent-runtime';
+import { getAgentDef, resolveArgvPromptBudget } from '@jini-ai/agent-runtime';
 import { assistantCliPermissions } from '../assistant-subagents-policy.js';
 import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
@@ -694,23 +694,26 @@ test('a rejected preflight promise is cleared so the same turn can retry', async
 
 
 
-for (const { agentId, pinned } of [{ agentId: 'deepseek', pinned: false }, { agentId: 'claude', pinned: false }, { agentId: 'deepseek', pinned: true }]) test(`accepted adapter prompt budget preserves preflight delivery (${agentId}, pinned=${pinned})`, async t => {
+// `fits`: a short prompt leaves argv headroom for the 16 KiB primary even under Windows' 30,000 bytes.
+// `full`: a prompt near the POSIX 100,000-byte guard leaves too little, so the primary becomes a pointer.
+for (const { agentId, pinned, prompt } of [
+  { agentId: 'deepseek', pinned: false, prompt: 'fits' }, { agentId: 'deepseek', pinned: false, prompt: 'full' },
+  { agentId: 'claude', pinned: false, prompt: 'full' }, { agentId: 'deepseek', pinned: true, prompt: 'fits' },
+] as const) test(`accepted adapter prompt budget preserves preflight delivery (${agentId}, pinned=${pinned}, prompt=${prompt})`, async t => {
   const f = await fixture(t);
   const body = `ARGV_BEGIN\n${'x'.repeat(15_920)}\nARGV_END`;
   await writeFile(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'), body);
   const full = await resolveAgentPluginGuidance({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
   assert.ok(full.ok);
   assert.ok(Buffer.byteLength(full.promptPrefix) >= 16_300 && Buffer.byteLength(full.promptPrefix) <= 16_384, `fixture bytes: ${Buffer.byteLength(full.promptPrefix)}`);
-  const context = { principalId: 'alice', conversationId: 'chat', prompt: `Design holography\n${'Tovu overlay and user request\n'.repeat(500)}`, pluginRefIds: pinned ? [f.pluginId] : [] };
+  const context = { principalId: 'alice', conversationId: 'chat', pluginRefIds: pinned ? [f.pluginId] : [],
+    prompt: `Design holography\n${'Tovu overlay and user request\n'.repeat(prompt === 'fits' ? 100 : 2_800)}` };
   const host = await pluginPreflightFixture({ t, context, agentId,
     plugins: { controller: f.runs, pinnedPrefix: async () => pinned ? full.promptPrefix : '', emit: async () => {}, refusalPrefix: () => '' } });
   await host.start({ runId: 'daemon-test-run', principalId: 'alice' });
   const result = await host.preflight({ runId: 'daemon-test-run' });
   if (agentId === 'deepseek' && !pinned) {
-    assert.equal(getAgentDef({ id: agentId })?.maxPromptArgBytes, 30_000);
-    assert.match(result.prefix ?? '', /load_agent_plugin/);
-    assert.doesNotMatch(result.prefix ?? '', /ARGV_BEGIN|ARGV_END/);
-    assert.deepEqual(result.pluginIds, []);
+    const budget = resolveArgvPromptBudget({ maxPromptArgBytes: getAgentDef({ id: agentId })!.maxPromptArgBytes! });
     const input = await captureDaemonRun(context, { request: { agentId },
       bindings: { siteTools: host,
         env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
@@ -719,9 +722,19 @@ for (const { agentId, pinned } of [{ agentId: 'deepseek', pinned: false }, { age
         waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
       } });
     assert.equal(input.agentId, agentId);
-    assert.doesNotMatch(input.prompt, /ARGV_BEGIN|ARGV_END/);
-    assert.ok(Buffer.byteLength(input.prompt) < 30_000);
-    assert.ok(Buffer.byteLength(`${input.prompt}\n${full.promptPrefix}`) > 30_000);
+    // Either way the composed argv prompt stays inside the launch guard's limit.
+    assert.ok(Buffer.byteLength(input.prompt) <= budget, `composed ${Buffer.byteLength(input.prompt)} > ${budget}`);
+    if (prompt === 'fits') {
+      assert.ok(result.prefix?.includes(full.promptPrefix));
+      assert.ok(input.prompt.includes(full.promptPrefix));
+      assert.deepEqual(result.pluginIds, [f.pluginId]);
+    } else {
+      assert.match(result.prefix ?? '', /load_agent_plugin/);
+      assert.doesNotMatch(result.prefix ?? '', /ARGV_BEGIN|ARGV_END/);
+      assert.doesNotMatch(input.prompt, /ARGV_BEGIN|ARGV_END/);
+      assert.deepEqual(result.pluginIds, []);
+      assert.ok(Buffer.byteLength(`${input.prompt}\n${full.promptPrefix}`) > budget);
+    }
   } else {
     assert.equal(result.prefix, full.promptPrefix);
     assert.deepEqual(result.pluginIds, [f.pluginId]);
