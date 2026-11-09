@@ -1,0 +1,4 @@
+
+> @jini-ai/provider-plugins@0.6.24 typecheck
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit
+

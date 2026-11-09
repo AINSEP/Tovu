@@ -1,0 +1,4 @@
+
+> @jini-ai/sidecar@0.6.22 typecheck
+> tsc -p tsconfig.json --noEmit
+

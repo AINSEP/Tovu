@@ -1,0 +1,4 @@
+
+> @jini-ai/server@0.6.19 typecheck
+> tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+
