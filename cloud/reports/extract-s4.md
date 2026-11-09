@@ -911,7 +911,7 @@ Stop reason: the token cap. After the A9 gate about 310k of the 1.7M job cap was
 
 EXTRACT-S4 STOPPED AT CAP
 
-## Continuation — A10 (builder A10, EXTRACT-S4-C, 08:38–08:58Z)
+## Continuation — A10 (builder A10, EXTRACT-S4-C, 08:38–08:51Z)
 
 Bases: Tovu 599774b8, Jini f774b9e5 (Jini **unchanged** by this batch). Skills file: Jini `AI-Dev-Shop/agents/programmer/skills.md` not loaded (dispatched task, budget). **Partial: 4 of 9 files seamed in place**; the rest is listed below with an exact plan. Stopped early on the budget rule: every remaining file value-imports `connect-tool.ts` (620 lines, R4 approvals port), which with `access-token-tool.ts` (R1) cannot be seamed and gated inside the remaining per-builder token cap.
 
@@ -955,7 +955,7 @@ Bases: Tovu 599774b8, Jini f774b9e5 (Jini **unchanged** by this batch). Skills f
 - A stray scratch file `/a10-tsc1.txt` (tsc output, 0 bytes of errors) was written at filesystem root by an unset shell variable; removal was refused by the safety check — harmless, outside both repos, left for the owner.
 
 ### Lines / time
-607 insertions, 320 deletions across 12 T files (4 portable bodies 402 lines, shims/bindings, 2 new tests 135 lines). 08:38–08:58Z.
+607 insertions, 320 deletions across 12 T files (4 portable bodies 402 lines, shims/bindings, 2 new tests 135 lines). 08:38–08:51Z.
 
 ### Remaining A10 work (exact, in DAG order) and what A11 must move
 1. connect-tool.ts → A/portable/connect-tool.ts (inventory rows 1–33): approvals port (R4: authority re-check in `run`, fingerprint `prepared.key`, principal, emitSurface; approve→provision→sign in→revalidate), SignIn/Lifecycle/API ports, `permissions`/`messages`/`publicUrl.redirectUri({serverId})`, catalog/risk builders keyed by injected toolId; it then imports `./connect-sign-in-wait.js`/`./connect-destination.js`/`./connect-card-ui.js` siblings.
