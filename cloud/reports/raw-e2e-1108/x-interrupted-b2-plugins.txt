@@ -1,0 +1,88 @@
+
+Running 12 tests using 1 worker
+
+  ✘   1 [chromium] › development/e2e/journeys/plugins.journey.ts:77:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › the install preview says no code runs, lists the content types, and installs switched off @unrun (2.1s)
+  -   2 [chromium] › development/e2e/journeys/plugins.journey.ts:92:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › enabling it adds the FAQ type; a page marker renders an accordion with FAQPage JSON-LD @unrun
+  -   3 [chromium] › development/e2e/journeys/plugins.journey.ts:135:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › a testimonials carousel is keyboard-scrollable and does not widen the page at phone width @unrun
+  -   4 [chromium] › development/e2e/journeys/plugins.journey.ts:164:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › a second plugin declaring the same 'faq' type is flagged in the install preview @unrun
+  -   5 [chromium] › development/e2e/journeys/plugins.journey.ts:175:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › the conflicting plugin's row names the clash, and enabling it is refused while the other is on @unrun
+  ✘   6 [chromium] › development/e2e/journeys/plugins.journey.ts:203:3 › AW-7 Tier 2: Content Analyzer › enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone @unrun (19.1s)
+  ✘   7 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:118:3 › Bug pin: plugin-install › isolated plugin installs › UI drop ZIP → Preview → Install appears switched off @isolated-site (2ms)
+
+
+  1) [chromium] › development/e2e/journeys/plugins.journey.ts:77:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › the install preview says no code runs, lists the content types, and installs switched off @unrun 
+
+    Error: A snapshot doesn't exist at /home/user/Tovu/development/e2e/journeys/plugins.journey.ts-snapshots/plugin-install-preview-tier1-chromium-linux.png.
+
+      82 |     await expect(dialog).toContainText("It stays off in every workspace until you turn it on.");
+      83 |     await expect(dialog.locator(".plugin-errors"), "a fresh workspace has no name conflicts").toHaveCount(0);
+    > 84 |     await expect(dialog).toHaveScreenshot("plugin-install-preview-tier1.png");
+         |                          ^
+      85 |     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
+      86 |     await expect(dialog).toContainText(`${SAMPLE_NAME} is installed and switched off. Turn it on in Downloaded.`);
+      87 |     expect((await pluginState(request, "testimonials-faq"))?.enabled).toBe(false);
+        at /home/user/Tovu/development/e2e/journeys/plugins.journey.ts:84:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-beee9-s-and-installs-switched-off-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-beee9-s-and-installs-switched-off-chromium/error-context.md
+
+    Error Context: development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-beee9-s-and-installs-switched-off-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-beee9-s-and-installs-switched-off-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-beee9-s-and-installs-switched-off-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › development/e2e/journeys/plugins.journey.ts:203:3 › AW-7 Tier 2: Content Analyzer › enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone @unrun 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /\/admin\/posts\/[^/]+$/
+    Received string:  "http://127.0.0.1:9202/admin/posts?create=1"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 15000ms
+        33 × unexpected value "http://127.0.0.1:9202/admin/posts?create=1"
+
+
+      209 |     await page.goto("/admin/posts");
+      210 |     await page.getByRole("button", { name: "New Post" }).click();
+    > 211 |     await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
+          |                        ^
+      212 |     const editorUrl = page.url();
+      213 |     await page.getByRole("textbox", { name: "Post title" }).fill("A reasonably long title for the analyzer to check");
+      214 |     await page.locator('[data-agent-element="post-body"] .ProseMirror').click();
+        at /home/user/Tovu/development/e2e/journeys/plugins.journey.ts:211:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-8a944-d-reopened-the-card-is-gone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-8a944-d-reopened-the-card-is-gone-chromium/error-context.md
+
+    Error Context: development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-8a944-d-reopened-the-card-is-gone-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-8a944-d-reopened-the-card-is-gone-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/plugins.journey.ts-AW-7-Ti-8a944-d-reopened-the-card-is-gone-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › development/e2e/journeys/plugins.journey.ts:77:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › the install preview says no code runs, lists the content types, and installs switched off @unrun 
+    [chromium] › development/e2e/journeys/plugins.journey.ts:203:3 › AW-7 Tier 2: Content Analyzer › enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone @unrun 
+  1 interrupted
+    [chromium] › development/e2e/journeys/plugins.pins.journey.ts:118:3 › Bug pin: plugin-install › isolated plugin installs › UI drop ZIP → Preview → Install appears switched off @isolated-site 
+  9 did not run
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-q7x035
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-tHDykz
+EXIT 130 SECS 78

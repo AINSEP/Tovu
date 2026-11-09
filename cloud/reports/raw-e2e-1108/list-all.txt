@@ -1,0 +1,34 @@
+
+Error: ADMIN_PANELS not found or empty; refusing to silently test nothing.
+
+   at smoke.journey.ts:35
+
+  33 |   }
+  34 |   visit(source);
+> 35 |   if (ids.length === 0) throw new Error("ADMIN_PANELS not found or empty; refusing to silently test nothing.");
+     |                               ^
+  36 |   return ids;
+  37 | }
+  38 |
+    at readPanelIds (/home/user/Tovu/development/e2e/journeys/smoke.journey.ts:35:31)
+    at /home/user/Tovu/development/e2e/journeys/smoke.journey.ts:104:20
+    at /home/user/Tovu/development/e2e/journeys/smoke.journey.ts:103:6
+Listing tests:
+
+Error: ADMIN_PANELS must be a literal array; update the visual manifest reader if its declaration changes.
+
+   at admin-visual.pins.journey.ts:121
+
+  119 |   visit(source);
+  120 |   if (!declaration?.initializer || !ts.isArrayLiteralExpression(declaration.initializer)) {
+> 121 |     throw new Error("ADMIN_PANELS must be a literal array; update the visual manifest reader if its declaration changes.");
+      |           ^
+  122 |   }
+  123 |   const captures = declaration.initializer.elements.map(element => {
+  124 |     if (!ts.isObjectLiteralExpression(element)) throw new Error("Unrecognized panel declaration; refusing to silently lose coverage.");
+    at readPanelCaptures (/home/user/Tovu/development/e2e/journeys/admin-visual.pins.journey.ts:121:11)
+    at /home/user/Tovu/development/e2e/journeys/admin-visual.pins.journey.ts:138:16
+    at /home/user/Tovu/development/e2e/journeys/admin-visual.pins.journey.ts:19:6
+Total: 0 tests in 0 files
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-OmZ358
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-462oQw
