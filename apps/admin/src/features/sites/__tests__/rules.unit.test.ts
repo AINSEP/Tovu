@@ -175,6 +175,7 @@ describe("siteWriteErrorKey", () => {
     ["SITE_LIMIT", "Stop a site before starting another."],
     ["SITE_RUNNING", "Stop this site before moving it to Trash."],
     ["SITE_SERVING", "The serving site cannot be stopped or moved to Trash."],
+    ["SITE_NO_SWITCH_TARGET", "No other site is running, so there is nothing to switch to. Start another site first."],
     ["SITE_STOP_FAILED", "The site could not be fully stopped. Try Stop again."],
     ["SITE_START_FAILED", "The site could not start."],
     ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],

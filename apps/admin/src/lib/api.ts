@@ -582,7 +582,7 @@ export interface AdminLocalSiteState {
   app?: string; external?: boolean;
 }
 export interface AdminTrashedSite { id: string; name: string; displayName: string }
-export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch";
+export type AdminLocalSiteAction = "start" | "stop" | "stop-serving" | "trash" | "restore" | "delete" | "switch";
 
 /** Machine-local config, shared with desktop. Runtime env overrides are displayed explicitly. */
 export interface SitesUserConfig {
@@ -596,6 +596,9 @@ export interface AdminSitesSnapshot {
   sitesHome?: string;
   localManagementEnabled?: boolean;
   canSwitchNow?: boolean;
+  /** Stopping the serving site hands its address to `target`, the most recently started site still
+   *  running; `null` means nothing can take over. `available` is false on a host that cannot restart. */
+  stopServing?: { available: boolean; target: string | null; chatRunning: boolean };
   localSites?: AdminLocalSiteState[];
   trash?: AdminTrashedSite[];
   /** The deployment capability flag (`TOVU_ENABLE_SITE_SWITCHER`) — Create/Activate 403 when off. */

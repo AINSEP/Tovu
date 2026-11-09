@@ -7,7 +7,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
-import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
+import { NO_SWITCH_TARGET_KEY, SERVING_CHAT_WARNING_KEY, siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 
@@ -407,8 +407,9 @@ export type SiteCardMenuAction = "make-default" | "switch" | "trash";
  * One visible lifecycle action (Start, or Stop for a live process) plus Open for a ready admin;
  * every other action lives in the overflow menu and is LEFT OUT when it does not apply, instead of
  * rendering disabled. The rules are the same ones the old disabled states encoded: the serving
- * site is never started, stopped, trashed, switched to or re-made default; a live process is never
- * trashed; Make default waits while another activation is in flight.
+ * site is never started, trashed, switched to or re-made default, and is stopped only by handing
+ * its address to another running site; a live process is never trashed; Make default waits while
+ * another activation is in flight.
  * @param input - The card's site, snapshot, busy/activating names, the capability flag, and
  *   `managed` (whether a local-sites controller is wired at all).
  * @returns The lifecycle button (or `null`), the Open URL (or `null`) and the menu actions.
@@ -424,19 +425,35 @@ export function resolveSiteCardView(
   const local = resolveLocalSiteCard({ site, snapshot, busyName });
   const lifecycle = managed && local.enabled;
   return {
-    lifecycle: resolveCardLifecycleButton({ local, lifecycle }),
+    lifecycle: resolveCardLifecycleButton({ local, lifecycle, stopServing: snapshot.stopServing }),
     openUrl: lifecycle || local.external ? local.openUrl : null,
     menu: resolveSiteCardMenu({ site, snapshot, local, lifecycle, switchingEnabled, activatingName }),
     ...(local.serving ? { disabledMenuTitleKey: "Stop or remove isn't available for the site you're using." } : {}),
+    ...resolveServingCardNote({ local, lifecycle, stopServing: snapshot.stopServing }),
   };
 }
 
 type LocalSiteCard = ReturnType<typeof resolveLocalSiteCard>;
+type StopServing = AdminSitesSnapshot["stopServing"];
 
-/** The one visible lifecycle button, or `null` for the serving site, an external process, or a
- *  card without local management. A live process gets a secondary Stop. @complexity O(1). */
-function resolveCardLifecycleButton({ local, lifecycle }: { local: LocalSiteCard; lifecycle: boolean }) {
-  if (!lifecycle || local.serving || local.external) return null;
+/** The serving card's one sentence: why it has no Stop, or that Stop would cut off a running chat.
+ *  Spread into the view, so a card with nothing to say carries no key at all. @complexity O(1). */
+function resolveServingCardNote({ local, lifecycle, stopServing }: { local: LocalSiteCard; lifecycle: boolean; stopServing: StopServing }): { noteKey?: string } {
+  if (!lifecycle || !local.serving || stopServing?.available !== true) return {};
+  if (stopServing.target === null) return { noteKey: NO_SWITCH_TARGET_KEY };
+  return stopServing.chatRunning ? { noteKey: SERVING_CHAT_WARNING_KEY } : {};
+}
+
+/** The one visible lifecycle button, or `null` for an external process, a card without local
+ *  management, or a serving site with no other site to take over. A live process gets a secondary
+ *  Stop; on the serving site that Stop hands its address over. @complexity O(1). */
+function resolveCardLifecycleButton({ local, lifecycle, stopServing }: { local: LocalSiteCard; lifecycle: boolean; stopServing: StopServing }) {
+  if (!lifecycle) return null;
+  if (local.serving) {
+    if (stopServing?.available !== true || stopServing.target === null) return null;
+    return { action: "stop-serving" as const, labelKey: "Stop", className: "btn-secondary", disabled: local.disabled };
+  }
+  if (local.external) return null;
   return { action: local.action, labelKey: local.actionLabel, className: local.action === "stop" ? "btn-secondary" : "btn-primary", disabled: local.disabled };
 }
 

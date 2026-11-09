@@ -217,6 +217,31 @@ describe("local site card controller", () => {
     expect([...polling.active.values()]).toEqual([]);
   });
 
+  it("Stop on the serving site names the site taking over, warns about a chat, and waits for the hand-over", async () => {
+    const snapshot = { ...fixture(), stopServing: { available: true, target: "beta", chatRunning: true } };
+    const confirms: Array<{ message: string; action: string }> = []; const writes: unknown[] = [];
+    const polling = pollingFakes();
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return { restarting: true }; } });
+    const { result } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: (message, { action }) => { confirms.push({ message, action }); return true; } }), { wrapper });
+    await act(async () => { await result.current.run("owner", "stop-serving"); });
+    expect(confirms).toEqual([{ action: "stop-serving", message:
+      "Stop owner and move this address to beta? beta restarts here, and anything running on either site stops. A chat is running on this site. Stopping it will interrupt that chat." }]);
+    expect(writes).toEqual([{ name: "owner", action: "stop-serving", confirmed: true, checked: false }]);
+    expect(result.current.error).toBeNull();
+    expect([...polling.active.values()]).toEqual([300]);
+  });
+
+  it("a cancelled Stop writes nothing, and Stop never runs without a site to hand over to", async () => {
+    const snapshot = { ...fixture(), stopServing: { available: true, target: "beta", chatRunning: false } };
+    const writes: unknown[] = [];
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return { restarting: true }; } });
+    const { result, rerender } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...pollingFakes(), confirm: () => false }), { wrapper });
+    await act(async () => { await result.current.run("owner", "stop-serving"); });
+    snapshot.stopServing = { available: true, target: null as unknown as string, chatRunning: false }; rerender();
+    await act(async () => { await result.current.run("owner", "stop-serving"); });
+    expect(writes).toEqual([]);
+  });
+
   it("invalidates the list every 300 ms after restart acceptance until the live site matches", async () => {
     const snapshot = fixture();
     const polling = pollingFakes();

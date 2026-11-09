@@ -42,6 +42,41 @@ describe("resolveSiteCardView — visible actions per state", () => {
       disabledMenuTitleKey: "Stop or remove isn't available for the site you're using." });
   });
 
+  it("serving with another running site: secondary Stop that hands the port over, still Open", () => {
+    const owner = { ...alpha, dir: "/sites/owner", name: "owner" };
+    const stopServing = { available: true, target: "beta", chatRunning: false };
+    expect(view({ site: owner, snapshot: snapshot({ stopServing }) })).toMatchObject({
+      lifecycle: { action: "stop-serving", labelKey: "Stop", className: "btn-secondary", disabled: false }, openUrl: "/admin/", menu: [] });
+    expect(view({ site: owner, snapshot: snapshot({ stopServing }) })).not.toHaveProperty("noteKey");
+  });
+
+  it("serving with nothing to switch to: no Stop, and the card says why in plain words", () => {
+    const owner = { ...alpha, dir: "/sites/owner", name: "owner" };
+    const result = view({ site: owner, snapshot: snapshot({ stopServing: { available: true, target: null, chatRunning: false } }) });
+    expect(result.lifecycle).toBeNull();
+    expect(result.noteKey).toBe("No other site is running, so there is nothing to switch to. Start another site first.");
+  });
+
+  it("serving with a chat running: Stop stays, and the card warns the chat will be interrupted", () => {
+    const owner = { ...alpha, dir: "/sites/owner", name: "owner" };
+    const result = view({ site: owner, snapshot: snapshot({ stopServing: { available: true, target: "beta", chatRunning: true } }) });
+    expect(result.lifecycle?.action).toBe("stop-serving");
+    expect(result.noteKey).toBe("A chat is running on this site. Stopping it will interrupt that chat.");
+  });
+
+  it("a host that cannot hand the port over keeps the serving card as it was, with no note", () => {
+    const owner = { ...alpha, dir: "/sites/owner", name: "owner" };
+    const result = view({ site: owner, snapshot: snapshot({ stopServing: { available: false, target: "beta", chatRunning: true } }) });
+    expect(result.lifecycle).toBeNull();
+    expect(result).not.toHaveProperty("noteKey");
+  });
+
+  it("only the serving card gets the hand-over Stop; another running site keeps its plain Stop", () => {
+    const running = snapshot({ stopServing: { available: true, target: "alpha", chatRunning: false },
+      localSites: [{ name: "alpha", status: "running", pid: 9, port: 3101, daemonPort: 3102, adminUrl: "https://localhost:3101/admin/" }] });
+    expect(view({ snapshot: running }).lifecycle?.action).toBe("stop");
+  });
+
   it("the saved default, an in-flight activation, or switching off each drop Make default", () => {
     expect(view({ snapshot: snapshot({ persistedSiteName: "alpha" }) }).menu).toEqual(["switch", "trash"]);
     expect(view({ activatingName: "beta" }).menu).toEqual(["switch", "trash"]);

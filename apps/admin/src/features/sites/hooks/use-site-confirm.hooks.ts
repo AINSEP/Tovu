@@ -11,6 +11,7 @@ const SITE_CONFIRM_PRESENTATION: Record<ConfirmableSiteAction, { titleKey: strin
   trash: { titleKey: "Move site to Trash?", confirmKey: "Move to Trash", tone: "danger" },
   delete: { titleKey: "Delete site permanently?", confirmKey: "Delete permanently", tone: "danger" },
   switch: { titleKey: "Switch to this site now?", confirmKey: "Switch now", tone: "warning" },
+  "stop-serving": { titleKey: "Stop this site?", confirmKey: "Stop", tone: "warning" },
 };
 
 /**
