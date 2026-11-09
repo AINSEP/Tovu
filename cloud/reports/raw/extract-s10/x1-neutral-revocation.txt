@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral
+
+ ✓ src/s10-hosted-revocation.test.ts (2 tests) 26ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  23:06:22
+   Duration  404ms (transform 52ms, setup 0ms, collect 135ms, tests 26ms, environment 0ms, prepare 65ms)
+
+exit 0

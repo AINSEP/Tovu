@@ -21,6 +21,7 @@ diff -r examples/neutral-host/src/executable-surface-entries.test.ts /tmp/claude
 <   const root = fileURLToPath(new URL('../../../packages/agent-plugins/', import.meta.url));
 ---
 >   const root = `${installedRoot('@jini-ai/agent-plugins', './connect/executable')}/`;
+Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-hosted-revocation.test.ts
 Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-installed.ts
 Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-sheets-get.test.ts
 Only in /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral/src: s10-tier2-entry.mjs

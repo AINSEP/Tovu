@@ -3,13 +3,15 @@
 
  ✓ src/hosted-mcp-sign-in.test.ts > a second host signs in to a Higgsfield-shaped hosted MCP provider through public entries only > signs in, calls the tool, gets a terminal do-not-retry error when refresh is denied, and reconnects
  ✓ src/hosted-mcp-sign-in.test.ts > a second host signs in to a Higgsfield-shaped hosted MCP provider through public entries only > the gate refuses with the host vocabulary when the provisioning plugin is off; provider text never surfaces
+ ✓ src/s10-hosted-revocation.test.ts > S10: a second host revokes a hosted MCP grant > disconnect forgets the stored token; the next call refuses in host vocabulary and never reaches the provider
+ ✓ src/s10-hosted-revocation.test.ts > S10: a second host lists its hosted MCP store, opening envelopes as counted > lists the signed-in server with no secret value and at most two envelope opens per row
+ ✓ src/credential-tools.test.ts > createCredentialToolRegistrations consumes the second host catalog, ids, permissions and metadata-only projection
+ ✓ src/credential-tools.test.ts > createCredentialSaveHandlers consumes foreign permissions, card namespace, app identities and required messages
+ ✓ src/credential-tools.test.ts > createCredentialCopyRegistrations uses the foreign card path and SAME actor-bound exchange before granting the selected reference
  ✓ src/neutral-host/neutral-host.test.ts > neutral host harness > boots as "Another Studio" from public entries, with nothing installed and nothing counted
  ✓ src/neutral-host/neutral-host.test.ts > neutral host harness > counts one trusted-package scan per scan, and none for a tool call
  ✓ src/neutral-host/neutral-host.test.ts > neutral host harness > counts vault listings and envelope opens through the memory ports
  ✓ src/neutral-host/neutral-host.test.ts > neutral host harness > names every §10 operation as a counter
- ✓ src/credential-tools.test.ts > createCredentialToolRegistrations consumes the second host catalog, ids, permissions and metadata-only projection
- ✓ src/credential-tools.test.ts > createCredentialSaveHandlers consumes foreign permissions, card namespace, app identities and required messages
- ✓ src/credential-tools.test.ts > createCredentialCopyRegistrations uses the foreign card path and SAME actor-bound exchange before granting the selected reference
  ✓ src/neutral-host/neutral-host.test.ts > test dispatcher, with moved tools as they arrive > denies a call before any I/O (no file read, vault listing or envelope open)
  ✓ src/neutral-host/neutral-host.test.ts > test dispatcher, with moved tools as they arrive > denies a revoked skill tool before its handler reads the skill
  ✓ src/neutral-host/neutral-host.test.ts > test dispatcher, with moved tools as they arrive > refuses malformed input before the handler runs
@@ -17,12 +19,8 @@
  ✓ src/neutral-host/neutral-host.test.ts > test dispatcher, with moved tools as they arrive > raises exactly one human card for a call that needs a person
  ✓ src/neutral-host/neutral-host.test.ts > test dispatcher, with moved tools as they arrive > asks for ordinary write approval for a write tool, and runs it once approved
  ✓ src/neutral-host/neutral-host.test.ts > test dispatcher, with moved tools as they arrive > cancels a call waiting on a person, with no effect left behind
- ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > skill tool: returns a plugin skill by reading one bounded file, for every skills-only plugin
- ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > skill tool: returns a plugin skill by reading one bounded file, for every skills-only plugin 774ms
  ✓ src/contribution-contracts.test.ts > contribution contracts > walks every contribution file, and each kind is in the contract table
  ✓ src/contribution-contracts.test.ts > contribution contracts > admin-surfaces: google-workspace parses through a public Jini export, and its modules pass that kind's contract
- ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > plugin search: finds installed plugins by the host's own names
- ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > plugin memory tools: read and write a plugin's own memory
  ✓ src/contribution-contracts.test.ts > contribution contracts > agent-tools: google-workspace parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > connections: google-workspace parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > consent: cloudflare parses through a public Jini export, and its modules pass that kind's contract
@@ -36,7 +34,6 @@
  ✓ src/contribution-contracts.test.ts > contribution contracts > deploy-ops: github parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > deploy-ops: railway parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > deploy-ops: render parses through a public Jini export, and its modules pass that kind's contract
- ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > write-note: saves a note under the plugin's own state, and the skill tool folds it in
  ✓ src/contribution-contracts.test.ts > contribution contracts > deploy-targets: cloudflare parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > deploy-targets: github-pages parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > deploy-targets: netlify parses through a public Jini export, and its modules pass that kind's contract
@@ -50,12 +47,17 @@
  ✓ src/contribution-contracts.test.ts > contribution contracts > object-stores: vercel parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > search-providers: meilisearch parses through a public Jini export, and its modules pass that kind's contract
  ✓ src/contribution-contracts.test.ts > contribution contracts > source-control: github parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > skill tool: returns a plugin skill by reading one bounded file, for every skills-only plugin
+ ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > skill tool: returns a plugin skill by reading one bounded file, for every skills-only plugin 963ms
+ ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > plugin search: finds installed plugins by the host's own names
  ✓ src/mail-host.test.ts > a neutral host sends real plugin and SMTP mail, applies policy, rotates keys and clears plugin lanes
+ ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > plugin memory tools: read and write a plugin's own memory
+ ✓ src/neutral-host/neutral-host.test.ts > moved classes in a neutral host > write-note: saves a note under the plugin's own state, and the skill tool folds it in
  ✓ src/connect-plugin-host.test.ts > moved plugin host provisions with the real bodies, warns, then grants with the failed server skipped
  ✓ src/connect-plugin-host.test.ts > declined access is attributed to the host actor, and skip reasons are the host copy
  ✓ src/credential-sets.test.ts > credential sets: a neutral host stores, lists, resolves and deletes through the public entry with its own owner and wording
- ✓ src/provider-status.test.ts > provider status: reports configured providers with no product names, shows the host settings card and saves through memory
  ✓ src/hosted-mcp-contracts.test.ts > a second host fulfills the canonical repository and device store with its own vocabulary
+ ✓ src/provider-status.test.ts > provider status: reports configured providers with no product names, shows the host settings card and saves through memory
  ✓ src/executable-surface-entries.test.ts > A6 exports both factories with universal runtime closures and declarations
  ✓ src/executable-surface-entries.test.ts > A6 public disclosure uses the caller frozen-account instance and host copy
  ✓ src/executable-surface-entries.test.ts > A6 public surface host preserves a host refusal before a foreign workspace can read
@@ -73,12 +75,12 @@ await startTier2Worker({ workerData, parentPort, binding: { pluginSdkBinding, cr
 
  ✓ src/api-host-moves.test.ts > A4 moved factories are reachable through real node API and universal state entries
  ✓ src/api-host-moves.test.ts > A4 moved state store uses host refusal wording and rejects a foreign scope before storage
- ✓ src/s10-tier2-worker.test.ts > runs a beforeSave hook in a worker and returns its patch; a hung setup is cut at the host timeout 455ms
+ ✓ src/s10-tier2-worker.test.ts > runs a beforeSave hook in a worker and returns its patch; a hung setup is cut at the host timeout 362ms
  ✓ src/mail-port-regression.test.ts > the real resend plugin sends through the neutral host object-request HTTP port
 
- Test Files  16 passed (16)
-      Tests  67 passed | 13 todo (80)
-   Start at  22:50:24
-   Duration  5.08s (transform 557ms, setup 0ms, collect 3.26s, tests 2.03s, environment 3ms, prepare 1.14s)
+ Test Files  17 passed (17)
+      Tests  69 passed | 13 todo (82)
+   Start at  23:06:32
+   Duration  5.34s (transform 760ms, setup 0ms, collect 4.64s, tests 2.26s, environment 3ms, prepare 955ms)
 
 exit 0

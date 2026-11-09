@@ -1,0 +1,34 @@
+
+ RUN  v2.1.9 /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral
+
+ ❯ src/s10-hosted-revocation.test.ts (2 tests | 1 failed | 1 skipped) 38ms
+   × S10: a second host lists its hosted MCP store, opening envelopes as counted > lists the signed-in server with no secret value and at most two envelope opens per row 37ms
+     → expected 1 to be +0 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/s10-hosted-revocation.test.ts > S10: a second host lists its hosted MCP store, opening envelopes as counted > lists the signed-in server with no secret value and at most two envelope opens per row
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ src/s10-hosted-revocation.test.ts:259:19
+    257|     const views = await hosted.listExternalMcpServerViews({ repo: host…
+    258|     expect(views.map(view => view.serverId)).toEqual([SERVER]);
+    259|     expect(opens).toBe(0);
+       |                   ^
+    260|     expect(opens).toBeLessThanOrEqual(2 * views.length);
+    261|     expect(JSON.stringify(views)).not.toContain('lf-at-1');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 skipped (2)
+   Start at  23:06:31
+   Duration  421ms (transform 69ms, setup 0ms, collect 154ms, tests 38ms, environment 0ms, prepare 65ms)
+
+mutated exit 1
