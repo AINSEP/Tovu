@@ -81,7 +81,7 @@ const tovuTokenFederation = { classifyTrust: classifyAgentPluginMcpServerTrust, 
 
 /** Old deps -> portable target deps. The installed read falls back to the on-disk walk as before;
  * `routeDeps.mcp` is read on first use (after the permission check), its projections bound once. */
-function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D) {
+export function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D) {
   let mcp: ReturnType<typeof withAgentPluginMcpPorts<D["mcp"]>> | undefined;
   const deps = withOverrides(routeDeps, {
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
