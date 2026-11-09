@@ -1,0 +1,137 @@
+
+Running 3 tests using 1 worker
+
+  ✘  1 [chromium] › development/e2e/journeys/users.journey.ts:88:3 › W8 users and roles › admin creates a user in the UI, grants editor, and the editor works with their own session but cannot manage users @unrun (3.5s)
+  ✘  2 [chromium] › development/e2e/journeys/users.journey.ts:152:3 › W8 users and roles › an editor's nav hides Users and Roles & Permissions but keeps Posts and Media @unrun (1.2s)
+  ✘  3 [chromium] › development/e2e/journeys/users.journey.ts:170:3 › W8 users and roles › a disabled editor cannot log in and gets a readable error @unrun (1.3s)
+
+
+  1) [chromium] › development/e2e/journeys/users.journey.ts:88:3 › W8 users and roles › admin creates a user in the UI, grants editor, and the editor works with their own session but cannot manage users @unrun 
+
+    Error: locator.waitFor: Error: strict mode violation: locator('.login-card') resolved to 2 elements:
+        1) <form class="login-card">…</form> aka getByText('TovuSign in to your')
+        2) <details class="login-card">…</details> aka getByText('Lost your owner password?Use')
+
+    Call log:
+      - waiting for locator('.login-card') to be visible
+
+
+       at ../auth-fixtures.ts:80
+
+      78 |     await page.goto("/admin/", { waitUntil: "domcontentloaded" });
+      79 |   }
+    > 80 |   await page.locator(LOGIN_CARD_SELECTOR).waitFor({ state: "visible", timeout: 10_000 });
+         |                                           ^
+      81 |
+      82 |   await page.getByLabel("Username").fill(username);
+      83 |   await page.getByLabel("Password").fill(password);
+        at attemptLoginAsAdmin (/home/user/Tovu/development/e2e/auth-fixtures.ts:80:43)
+        at loginAs (/home/user/Tovu/development/e2e/journeys/users.journey.ts:82:3)
+        at /home/user/Tovu/development/e2e/journeys/users.journey.ts:112:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--385b2-ion-but-cannot-manage-users-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--385b2-ion-but-cannot-manage-users-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/users.journey.ts-W8-users--385b2-ion-but-cannot-manage-users-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--385b2-ion-but-cannot-manage-users-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/users.journey.ts-W8-users--385b2-ion-but-cannot-manage-users-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › development/e2e/journeys/users.journey.ts:152:3 › W8 users and roles › an editor's nav hides Users and Roles & Permissions but keeps Posts and Media @unrun 
+
+    Error: locator.waitFor: Error: strict mode violation: locator('.login-card') resolved to 2 elements:
+        1) <form class="login-card">…</form> aka getByText('TovuSign in to your')
+        2) <details class="login-card">…</details> aka getByText('Lost your owner password?Use')
+
+    Call log:
+      - waiting for locator('.login-card') to be visible
+
+
+       at ../auth-fixtures.ts:80
+
+      78 |     await page.goto("/admin/", { waitUntil: "domcontentloaded" });
+      79 |   }
+    > 80 |   await page.locator(LOGIN_CARD_SELECTOR).waitFor({ state: "visible", timeout: 10_000 });
+         |                                           ^
+      81 |
+      82 |   await page.getByLabel("Username").fill(username);
+      83 |   await page.getByLabel("Password").fill(password);
+        at attemptLoginAsAdmin (/home/user/Tovu/development/e2e/auth-fixtures.ts:80:43)
+        at loginAs (/home/user/Tovu/development/e2e/journeys/users.journey.ts:82:3)
+        at /home/user/Tovu/development/e2e/journeys/users.journey.ts:156:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--7c6f6-s-but-keeps-Posts-and-Media-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--7c6f6-s-but-keeps-Posts-and-Media-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/users.journey.ts-W8-users--7c6f6-s-but-keeps-Posts-and-Media-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--7c6f6-s-but-keeps-Posts-and-Media-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/users.journey.ts-W8-users--7c6f6-s-but-keeps-Posts-and-Media-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › development/e2e/journeys/users.journey.ts:170:3 › W8 users and roles › a disabled editor cannot log in and gets a readable error @unrun 
+
+    Error: locator.waitFor: Error: strict mode violation: locator('.login-card') resolved to 2 elements:
+        1) <form class="login-card">…</form> aka getByText('TovuSign in to your')
+        2) <details class="login-card">…</details> aka getByText('Lost your owner password?Use')
+
+    Call log:
+      - waiting for locator('.login-card') to be visible
+
+
+       at ../auth-fixtures.ts:80
+
+      78 |     await page.goto("/admin/", { waitUntil: "domcontentloaded" });
+      79 |   }
+    > 80 |   await page.locator(LOGIN_CARD_SELECTOR).waitFor({ state: "visible", timeout: 10_000 });
+         |                                           ^
+      81 |
+      82 |   await page.getByLabel("Username").fill(username);
+      83 |   await page.getByLabel("Password").fill(password);
+        at attemptLoginAsAdmin (/home/user/Tovu/development/e2e/auth-fixtures.ts:80:43)
+        at /home/user/Tovu/development/e2e/journeys/users.journey.ts:176:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--3d6fa-n-and-gets-a-readable-error-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--3d6fa-n-and-gets-a-readable-error-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/users.journey.ts-W8-users--3d6fa-n-and-gets-a-readable-error-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/users.journey.ts-W8-users--3d6fa-n-and-gets-a-readable-error-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/users.journey.ts-W8-users--3d6fa-n-and-gets-a-readable-error-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    [chromium] › development/e2e/journeys/users.journey.ts:88:3 › W8 users and roles › admin creates a user in the UI, grants editor, and the editor works with their own session but cannot manage users @unrun 
+    [chromium] › development/e2e/journeys/users.journey.ts:152:3 › W8 users and roles › an editor's nav hides Users and Roles & Permissions but keeps Posts and Media @unrun 
+    [chromium] › development/e2e/journeys/users.journey.ts:170:3 › W8 users and roles › a disabled editor cannot log in and gets a readable error @unrun 
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-BgHNTl
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-Spsz8w
+EXIT 1 SECS 50
