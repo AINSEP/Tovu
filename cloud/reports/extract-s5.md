@@ -338,3 +338,85 @@ Every changed path, compared against the S4-owned set (T `features/agent-plugins
 - Tovu cloud/extract-s5: 1472d1c26ea74c8ab2a2d4258dde6c926906c401 (inventory), 9355bd8caa68ef6ee928f2a917debddc6c98e967, d075d1e44528f6d2651022473f89321f694b8be7, 5162e3db150286cd8806bd780e18bfcbfe445afe, plus this report commit.
 
 **LAST GREEN PAIR: Tovu 5162e3db150286cd8806bd780e18bfcbfe445afe (tested source; the report commit adds only this file) / Jini 883db6908a72947b81fe7c9ce6000893bdf1e4bb.**
+
+## H1b — inventory
+
+Recorded before any production move (H1b builder, Tovu tip 559cbb43, Jini tip 883db690). Source blobs (T `features/external-mcp/`): `external-mcp-store.ts` 23042de1 (1652 lines; pin c3801c833 blob 2bac5b32, differs only at H1a's lines 64–66), `external-mcp-store.memory.ts` 87595f9e (163), `external-mcp-vault.ts` 5d77eda7 (114), `external-mcp-revocation.ts` 8b806a7b (129). **HOSTED** = J `mcp/src/federation/hosted/` (node subpath `@jini-ai/mcp/federation/hosted`, H1a). **PORT** = injected host port, typed in new HOSTED `store-ports.ts` from core contracts (`@jini-ai/core/contracts/vault`, `/hosted-mcp`) only. **T** = stays Tovu (old path becomes a thin bound wrapper with the same names/signatures). Runtime closure "type" = erased. Vocabulary column: `—` = none; otherwise the literal and its resolution.
+
+### external-mcp-vault.ts → HOSTED `vault.ts` (the ONE envelope module)
+| symbol | line | closure | destination | host vocabulary |
+|---|---|---|---|---|
+| imports `randomUUID` | 1 | node:crypto | HOSTED (node entry) | — |
+| imports `InMemoryVaultRepo`, `SecretsVaultService`, `VaultError` (platform values) | 2 | @jini-ai/platform | **PORT** `vault.createMemoryRepo()`, `vault.createService(deps)`, `vaultErrors.create({code})` (T binds the real constructors once) | — |
+| imports `VaultMeta`, `VaultRecord`, `VaultRepoPort` (types) | 2–3 | type | core `@jini-ai/core/contracts/vault` | — |
+| imports `KeyringPort`, `SealedSecret`, `SecretSealerPort` | 4 | type | core `contracts/vault` | — |
+| imports `createTovuVaultKinds` | 5 | T platform/secrets/vault-kinds | **PORT** `metaParsers({validateMeta})` → `VaultMetaParsers`. T binds `createTovuVaultKinds({policy:{validateMeta, legacyPublishCredential:()=>undefined, tokenField:()=>undefined}}).metaParsers` (the two stubs are host-registry fields, moved byte-exact into the T binding) | `createTovuVaultKinds` name = host; injected |
+| `Identity` type | 7 | type | HOSTED | — |
+| `Kind` = `"mcp-env"\|"mcp-auth"` | 8 | type | HOSTED | saved vault kinds (persisted AAD/format: core `VaultKind` members) — neutral persisted format |
+| `contextKey` Symbol("external-mcp-vault-context") | 9 | value | HOSTED, private; the single instance the SQL repo/memory repo/store/shims all reach | description string is debug-only, never persisted |
+| `stagedKey` Symbol("external-mcp-staged") | 10 | value | HOSTED, private, single instance | same |
+| `Envelope` type | 11 | type | HOSTED | — |
+| `externalMcpVaultEnvelope` | 15 | pure | HOSTED, unchanged signature | — |
+| `externalMcpVaultRecord` | 22 | throws `VaultError` ×2 (26, 29) | HOSTED; both throws → `vaultErrors.create({code:"context"})`; required object gains `vaultErrors` | — |
+| `service` (private) | 33 | `VaultError` ×2 (37, 40), `createTovuVaultKinds`, `SecretsVaultService`, `randomUUID`, `Date` | HOSTED; 37/40 → `vaultErrors.create`; metadata policy (validateMeta foreign-kind refusal) and `authorize` stay byte-exact in HOSTED, same order; foreign kind refused (line 37) before the parser factory or any crypto runs; `now`/`newId` unchanged (`new Date().toISOString()`, `randomUUID()`) | — |
+| `sealExternalMcpVaultPayload` | 54 | `InMemoryVaultRepo` (64? no: 60), `VaultError` (64) | HOSTED; memory repo via `vault.createMemoryRepo()`; 64 → factory; id generated at the same point (before put) | — |
+| `openExternalMcpVaultPayload` | 71 | `InMemoryVaultRepo` (76), `VaultError` (79, 84) | HOSTED; 79/84 → factory; fail-closed seal/keyring ports unchanged | — |
+| `persistExternalMcpVaultEnvelope` | 91 | `VaultError` (99, 102) | HOSTED; 99/102 → factory; carried-envelope JSON equality unchanged | — |
+| `deleteExternalMcpVaultEnvelope` | 108 | repo only | HOSTED unchanged | — |
+All ten constructions 26, 29, 37, 40, 47, 64, 79, 84, 99, 102 are `new VaultError({ code })` (47 is the validateMeta policy refusal) → `vaultErrors.create({ code })`. `classifyVaultError`: **not referenced** by any of the four files (nor defined in T/J platform) → not added (smallest change). `aad.format`: AAD is built only inside the injected vault service (`buildVaultAad`); none of the four files formats AAD → not added.
+
+### external-mcp-store.memory.ts → HOSTED `store.memory.ts`
+| symbol | line | closure | destination | vocabulary |
+|---|---|---|---|---|
+| `isDeepStrictEqual` | 1 | node:util | HOSTED | — |
+| `InMemoryVaultRepo` value / `VaultRecord` type | 2 | platform | **PORT** `vault.createMemoryRepo()` (the `stage` construction, line 60); type → core `VaultRecord`/`VaultRepoPort` | — |
+| `SealedSecret` | 3 | type | core | — |
+| vault envelope fns | 4 | HOSTED vault.ts | relative import of the same module | — |
+| `ISODateTime`, `UUID` | 5 | type | core primitives | — |
+| `externalMcpAccessSnapshot` | 7 | HOSTED access.ts (H1a) | relative | — |
+| repo/record/access-update types | 8 | type | core `contracts/hosted-mcp` | — |
+| `keyOf`, `EnvelopeKind`, `ENVELOPE_FIELDS`, `EnvelopeField`, `storedEnvelopes`, `envelopeAt` | 24–45 | pure/vault | HOSTED; `storedEnvelopes` passes `vaultErrors` to `externalMcpVaultRecord` | field names `sealedEnv`/`sealedOAuth` = core record fields |
+| `InMemoryExternalMcpServerRepo` + members (rows, vaults, pending, write, stage, hydrate, listByWorkspaceId, findByServerId, upsert, updateAccessIfCurrent, deleteByServerId, tryClaimOAuthRefreshLease, releaseOAuthRefreshLease) | 47–162 | — | HOSTED; constructor gains required `({vault, vaultErrors})`; T subclass keeps `new InMemoryExternalMcpServerRepo()` binding the T ports once | — |
+
+### external-mcp-revocation.ts → HOSTED `revocation.ts` (decision + class), messages stay T
+| symbol | line | closure | destination | vocabulary |
+|---|---|---|---|---|
+| `ExternalMcpRevocationReason` | 23 | type | core (H1a) | reason literals = neutral protocol |
+| `ToolInputError` | 24 | @jini-ai/core | HOSTED | — |
+| admission revision / grants | 26 | HOSTED access.ts | relative | — |
+| oauth status / auth mode | 27–28 | HOSTED auth.ts | relative | — |
+| `FederatedCallTarget`, `refusalForAdmittedToolUnderCurrentGrants` | 30–31 | same package `../` | relative | — |
+| `RevocationMessageInput` | 34 | type | HOSTED (exported as `ExternalMcpRevocationMessageInput`) | — |
+| `REVOCATION_MESSAGES` + its doc comment | 41–62 | value | **T** (host input): every string names the host settings path "Integrations → External MCP" and "the assistant" | model-facing product wording → injected as `messages` |
+| `revocationMessage` | 64 | — | HOSTED, reads injected `messages` | — |
+| `ExternalMcpConnectionRevokedError` | 74 | ToolInputError | HOSTED; constructor `(input & {messages})`; T subclass keeps `new ExternalMcpConnectionRevokedError(input)` binding `REVOCATION_MESSAGES`; `code` "EXTERNAL_MCP_CONNECTION_REVOKED"/name/retryable unchanged | error code = neutral persisted identity |
+| `isOAuthDisconnected`, `grantRefusalFor`, `rosterRefusalFor` | 91, 100, 122 | pure | HOSTED unchanged | — |
+
+### external-mcp-store.ts → HOSTED `store.ts`
+Imports: access/auth values (1–2, 4, 56) → relative HOSTED `access.js`/`auth.js`/`vocabulary.js` (H1a); `ToolInputError` (3) core; `SUPPORTED_EXTERNAL_MCP_TRANSPORTS`, `EXTERNAL_MCP_OAUTH_GRANTS` (46) → HOSTED vocabulary.ts; record types (47) → core `contracts/hosted-mcp`; `nowIso`/`ISODateTime`/`UUID` (50) core primitives; `SealedSecret`/`SecretSealerPort` (52, T webhooks re-export) → core `contracts/vault`; `FEDERATED_CONNECTION_DEFAULTS`, `ResolvedFederatedConnection`, `McpLaunchSpec`, `assertValidConnectionId` (53–55) → same package relative `../`; unconfigured error (65) relative; vault fns (72) relative vault.ts.
+
+**credential-token.ts (48) — each read becomes a PORT row** (T binds the real `contracts/core/credential-token.ts` exports once):
+| dependency | store lines | port |
+|---|---|---|
+| `assertCredentialFreeField` | 1550 | `assertFreeField(required)` (top level; T binds the application-key detector wrapper) |
+| `normalizeCredentialToken` | 1440, 1450 | `credential.normalize(required)` |
+| `assertCredentialToken` | 614 | `credential.assert(required)` |
+| `credentialTokenHint` / `CredentialTokenHint` | 380, 385, 391, 396 | `credential.hint({token})` → `HostedMcpTokenHint` = `{length:number; last4:string\|null}` (structurally = platform `CredentialTokenHint`) |
+| `CREDENTIAL_MESSAGES` (.env .ascii .storage .blank .url) | 192, 199, 200, 615, 1186, 1198, 1227, 1372 | `credential.messages` (only those 5 keys) |
+| `CREDENTIAL_TOKEN_LIMIT` | 183, 194 | `credential.limit` |
+| `CredentialInputError` (`instanceof`) | 615, 1442, 1452, 1552 | `credential.InputError` (constructor reference; same `instanceof` semantics) |
+
+**Store symbols (all → HOSTED `store.ts` unless stated):** `EXTERNAL_MCP_VAULT_VERSION` 70 (saved format 1), `ExternalMcpIdentity` 71, `MAX_SERVERS_PER_WORKSPACE` 74, `MAX_ENV_VARS` 75, `MAX_ARGS` 76, `ENV_NAME_PATTERN` 79, `MAX_OAUTH_SCOPES` 81, `MAX_OAUTH_FIELD_LENGTH` 84, `OAUTH_PROVIDER_ID_PATTERN` 87, `parseJsonObject` 92, `applyExternalMcpAccess` 107, `parseEnvLine` 141, `parseEnvBlock` 164 (+credential), `assertJsonEnvEntry` 191 (+credential), `parseJsonEnvBlock` 197 (+credential), `parseArgs` 223, `readBareArg` 242, `readQuotedArg` 250, `parseToolNameList` 275, `parseAllowedToolNames` 291 (**unchanged**), `parseWriteAllowedToolNames` 305, `assertWriteAllowlistSubset` 318, `toolNameSetsEqual` 335, `externalMcpRecordHasStoredToken` 372, `externalMcpEnvHints` 379, `externalMcpAccessTokenHint` 390, `toView` 402, `listExternalMcpServerViews` 445, `openExternalMcpEnv` 469, `oauthStatusFailure` 490, `resolveExternalMcpAccessToken` 509 (prior complexity 11), `externalMcpFailure` 534, `resolveStdioTarget` 546, `resolveHttpTarget` 582, `hostedTokenFailure` 613 (+credential), `withStaticAccessToken` 627, `openExternalMcpStaticAccessToken` 645, `resolveExternalMcpConfig` 661, `readEnabledExternalMcpConfigs` 703, `toResolvedFederatedConnections` 733, `toFederatedLaunchSpec` 759, `assertValidExternalMcpServerId` 788, `assertSupportedExternalMcpTransport` 796, `resolveSavedAuthMode` 808, `parseOAuthScopes` 828, `buildOAuthEndpoints` 838, `oauthBindingFingerprint` 863, `ResolvedOAuthFields` 876, `NO_OAUTH_FIELDS` 899, `firstTrimmed` 919, `assertOAuthGrant` 943, `assertOAuthClientId` 971, `resolveOAuthEndpoints` 1002, `DYNAMIC_REGISTRATION_ENDPOINT_KEYS` 1017 (saved endpoint keys), `assertOAuthProviderIdentity` 1025, `resolveOAuthProviderIdentity` 1040, `resolveOAuthTokenEnvName` 1064, `resolveSavedOAuthScopes` 1089, `resolveOAuthFields` 1094, `assertNonEmptyExternalMcpCommand` 1120, `assertUnderExternalMcpServerCap` 1131, `carryForwardExternalMcpSealedEnv` 1158, `sealFreshExternalMcpEnv` 1172, `resolveExternalMcpSealedEnv` 1191, `LOOPBACK_HOSTNAMES` 1205 (neutral protocol), `assertSafeRemoteMcpUrl` 1218, `resolveTransportTarget` 1240, `carryOAuthRuntimeState` 1259, `EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION` 1300 (saved format), `hydrateExternalMcpOAuthPayload` 1315, `openExternalMcpOAuthPayload` 1338, `sealExternalMcpOAuthPayload` 1356, `resolveSealedOAuthBlob` 1386, `resolveWriteGrantAttribution` 1422, `normalizeOAuthClientSecret` 1439, `normalizeExternalMcpAccessToken` 1447, `resolveSealedStaticAccessToken` 1469, `resolveStaticAccessTokenEnvName` 1494, `resolveSavedCredentialColumns` 1525, `assertExternalMcpPlainField` 1549, `assertExternalMcpPlainInput` 1557, `saveExternalMcpServer` 1566, `deleteExternalMcpServer` 1646. Re-exports at 2 and 66 stay in the T shim (same identities).
+
+**Host vocabulary in the store:**
+| literal | lines | resolution |
+|---|---|---|
+| "Settings → External MCP" inside model/admission-facing reasons | 479, 494, 496, 516, 528, 529, 607, 655 | **PORT** `settingsLink` (string), interpolated at the same place; T binds `"Settings → External MCP"` so bytes are identical |
+| "site credential store", "this site" | 479, 516, 607 | generic English for the deployment (not a product name); kept, flagged for review |
+| "The token exceeds the 8192-character limit…" | 183, 194 | literal kept byte-exact (neutral; mirrors `credential.limit`); listed |
+| `@file` comment: "Settings → External MCP", `TOVU_<VENDOR>_MCP_*`, "Tovu obtains the token", "Tovu's call" (6, 10, 43, 726), "Tovu error adapter" (1438) | comments | move byte-exact; reworded ONLY on real N1 rejection (before/after recorded) |
+| OAuth endpoint keys, transports, grants, auth modes, statuses | various | saved formats/protocol (core literal unions, H1a) |
+
+**Store port (types in HOSTED `store-ports.ts`, core types only):** per-call `repo/sealer/keyring/clock` (unchanged core `ExternalMcpStoreDeps`) + host-bound `HostedMcpStorePorts` = `{ vault:{createService,createMemoryRepo}, vaultErrors:{create({code}:{code:VaultErrorCode}, optionalArgs?:Record<string,never>):Error}, metaParsers, assertFreeField, credential:{normalize,assert,hint,messages,limit,InputError}, settingsLink }`. `classifyVaultError`/`aad.format`: not used → omitted. T binds once in `external-mcp-vault.ts` (vault ports) and `external-mcp-store.ts` (store ports); old exports keep names/signatures: `saveExternalMcpServer(deps,input)`, `readEnabledExternalMcpConfigs`, `listExternalMcpServerViews`, `applyExternalMcpAccess`, `deleteExternalMcpServer`, `openExternalMcpOAuthPayload(sealer,record)`, `sealExternalMcpOAuthPayload(deps,identity,payload)`, `parseEnvBlock(text)`, `normalizeExternalMcpAccessToken(value,transport)`, vault fns (same required-object shapes), `new InMemoryExternalMcpServerRepo()`, `new ExternalMcpConnectionRevokedError(input)`.
+
+**Stays Tovu:** `external-mcp-repo.ts` (SQL repo; imports envelope fns through the T vault shim = the HOSTED module instance), `external-mcp-repo.sqlite.ts`, `REVOCATION_MESSAGES`, the T bindings. S4-owned files: not touched.
