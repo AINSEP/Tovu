@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import type { SurfaceAskThenReport } from '@jini-ai/core';
 import type { SurfaceCardSecretForm } from '@jini-ai/core/contracts/cards';
@@ -78,13 +79,26 @@ test('destination: host channel and copy are used, with an opaque resource', asy
   assert.doesNotMatch(JSON.stringify(spec), /Mac|Tovu|mcp-ui/);
 });
 
+function importedSpecifiers(source: string): readonly string[] {
+  return ts.preProcessFile(source, true, true).importedFiles.map(file => file.fileName);
+}
+
+test('boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require', () => {
+  const source = `// env import's rule is rationale, not an import\nimport type { X } from '@jini-ai/ui';
+import cards = require('@jini-ai/daemon');
+export type Y = import('@jini-ai/integrations').Y;
+const a = import('@jini-ai/mcp');
+const b = require('@jini-ai/cms');`;
+  assert.deepEqual(importedSpecifiers(source), ['@jini-ai/ui', '@jini-ai/daemon', '@jini-ai/integrations', '@jini-ai/mcp', '@jini-ai/cms']);
+});
+
 test('no portable A10 body imports Tovu code (value or type) or a non-core Jini package', () => {
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../../portable');
   const files = readdirSync(dir).filter(name => name.endsWith('.ts'));
   assert.ok(files.length >= 3);
   for (const name of files) {
     const source = readFileSync(join(dir, name), 'utf8');
-    for (const [, spec] of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
+    for (const spec of importedSpecifiers(source)) {
       const ok = /^@jini-ai\/core(\/|$)/.test(spec!) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec!) || /^\.\/[^/]+\.js$/.test(spec!);
       assert.ok(ok, `${name} imports ${spec}`);
     }
