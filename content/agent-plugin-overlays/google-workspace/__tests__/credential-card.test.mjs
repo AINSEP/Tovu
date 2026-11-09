@@ -28,7 +28,7 @@ test('Google sign-in card matches the existing OAuth connection and its selected
   assert.equal(card.baseUrl, new URL(connection.authorizationEndpoint).origin);
   assert.deepEqual(products.baseScopes, ['https://www.googleapis.com/auth/drive.file']);
   assert.match(card.permissions, /https:\/\/www.googleapis.com\/auth\/drive.file/);
-  assert.match(card.permissions, /only to files you choose or Tovu creates/);
+  assert.match(card.permissions, /only to files you choose or the application creates/);
   assert.match(card.permissions, /does not grant access to your whole Drive, Gmail or Calendar/);
   assert.equal(card.fields, undefined, 'Google receives account sign-in, not a token form');
   // Exercise supported rendering metadata directly; the host's API-connection path does not pass it yet.
