@@ -89,6 +89,9 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
   return env.TOVU_AGENT_PLUGIN_DELIVERY === "pointer" ? "pointer" : "inject";
 }
 
+// Preview and write paths reindex the same package; preserve its first diagnostic per process.
+const reportedIdentityWarnings = new Set<string>();
+
 /** Bind once per host; DI permits real-filesystem failure tests without replacing modules.
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
@@ -98,7 +101,14 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   const policy: AgentPluginLifecycleOptional = {
     onActivationChanged: ({ pluginId, actor, enabled }) => optional.productTracker?.().capture({ name: enabled ? "agent_plugin_enabled" : "agent_plugin_disabled", userId: actor }, { properties: { pluginId, pluginKind: "agent", source: "shared" } }),
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
-    onEvent: ({ event, message }) => console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message),
+    onEvent: ({ event, message, pluginId }) => {
+      if (event === 'agent-plugin-identity-warning' && pluginId !== undefined) {
+        const key = JSON.stringify([pluginId, message]);
+        if (reportedIdentityWarnings.has(key)) return;
+        reportedIdentityWarnings.add(key);
+      }
+      console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message);
+    },
     // Layout first, then preserve explicit Cloudflare rename decisions before seeding.
     // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
     // `owner` is bound below; this runs only at seed time, after it exists.
