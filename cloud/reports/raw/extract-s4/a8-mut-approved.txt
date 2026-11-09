@@ -1,0 +1,68 @@
+TAP version 13
+# Subtest: grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+ok 1 - grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+  ---
+  duration_ms: 6.851036
+  type: 'test'
+  ...
+# Subtest: approved enable passes principal and approved snapshot key to the grant port
+not ok 2 - approved enable passes principal and approved snapshot key to the grant port
+  ---
+  duration_ms: 3.325334
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:1:3418'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    -   approvedEnable: {
+    -     accessKey: 'key-1',
+    -     principalId: 'u'
+    -   },
+        skipServerKeys: []
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    skipServerKeys:
+    approvedEnable:
+      principalId: 'u'
+      accessKey: 'key-1'
+  actual:
+    skipServerKeys:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:59:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: approved enable whose provisioning failed refuses with host copy before any grant
+ok 3 - approved enable whose provisioning failed refuses with host copy before any grant
+  ---
+  duration_ms: 3.910204
+  type: 'test'
+  ...
+# Subtest: no import edge from the portable A8 files into the A10 connect cycle
+ok 4 - no import edge from the portable A8 files into the A10 connect cycle
+  ---
+  duration_ms: 1.784919
+  type: 'test'
+  ...
+# Subtest: portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+ok 5 - portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+  ---
+  duration_ms: 0.4641
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 4
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 774.611125

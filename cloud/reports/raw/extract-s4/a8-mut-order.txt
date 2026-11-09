@@ -1,0 +1,87 @@
+TAP version 13
+# Subtest: grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+not ok 1 - grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+  ---
+  duration_ms: 9.451772
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:1:2437'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'resolve',
+        'provision',
+    +   'grant',
+        'warn',
+    -   'grant'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'resolve'
+    1: 'provision'
+    2: 'warn'
+    3: 'grant'
+  actual:
+    0: 'resolve'
+    1: 'provision'
+    2: 'grant'
+    3: 'warn'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:43:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: approved enable passes principal and approved snapshot key to the grant port
+ok 2 - approved enable passes principal and approved snapshot key to the grant port
+  ---
+  duration_ms: 0.376585
+  type: 'test'
+  ...
+# Subtest: approved enable whose provisioning failed refuses with host copy before any grant
+not ok 3 - approved enable whose provisioning failed refuses with host copy before any grant
+  ---
+  duration_ms: 4.336389
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:1:3846'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:67:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: no import edge from the portable A8 files into the A10 connect cycle
+ok 4 - no import edge from the portable A8 files into the A10 connect cycle
+  ---
+  duration_ms: 1.985306
+  type: 'test'
+  ...
+# Subtest: portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+ok 5 - portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+  ---
+  duration_ms: 0.442698
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 3
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 783.6206

@@ -1,0 +1,65 @@
+TAP version 13
+# Subtest: grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+ok 1 - grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+  ---
+  duration_ms: 7.453699
+  type: 'test'
+  ...
+# Subtest: approved enable passes principal and approved snapshot key to the grant port
+ok 2 - approved enable passes principal and approved snapshot key to the grant port
+  ---
+  duration_ms: 0.491858
+  type: 'test'
+  ...
+# Subtest: approved enable whose provisioning failed refuses with host copy before any grant
+ok 3 - approved enable whose provisioning failed refuses with host copy before any grant
+  ---
+  duration_ms: 4.886967
+  type: 'test'
+  ...
+# Subtest: no import edge from the portable A8 files into the A10 connect cycle
+not ok 4 - no import edge from the portable A8 files into the A10 connect cycle
+  ---
+  duration_ms: 4.336571
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:1:5566'
+  failureType: 'testCodeFailure'
+  error: |-
+    server/runtime/composition/portable-plugin-host.ts imports the A10 cycle
+    + actual - expected
+    
+    + [
+    +   '/home/user/Tovu/apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: '/home/user/Tovu/apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:92:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+    Test.postRun (node:internal/test_runner/test:1191:19)
+    Test.run (node:internal/test_runner/test:1119:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+ok 5 - portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+  ---
+  duration_ms: 0.58253
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 4
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 723.059109

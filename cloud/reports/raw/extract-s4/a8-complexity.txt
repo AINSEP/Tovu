@@ -1,0 +1,9 @@
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-host.ts
+  23:131  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/portable-plugin-host.ts
+  224:7  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+✖ 2 problems (0 errors, 2 warnings)
+

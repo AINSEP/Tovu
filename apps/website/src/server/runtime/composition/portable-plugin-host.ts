@@ -221,10 +221,12 @@ export function createPluginHost<UninstallInput>(
       warnings.forEach(warn);
       const provider: PluginProvider = { ...identity, version: plugin.version ?? null, enabled: false, family: 'agent-plugin', localId: plugin.pluginId };
       if (forAdmission) providers.push(provider);
-      else if (preferredKeys.has(`${plugin.pluginId}:${plugin.archiveDigest}`)) {
-        const revisions = agentProviders.get(plugin.pluginId) ?? [];
-        revisions.push(provider);
-        agentProviders.set(plugin.pluginId, revisions);
+      else {
+        if (preferredKeys.has(`${plugin.pluginId}:${plugin.archiveDigest}`)) {
+          const revisions = agentProviders.get(plugin.pluginId) ?? [];
+          revisions.push(provider);
+          agentProviders.set(plugin.pluginId, revisions);
+        }
       }
     }
     return providers.concat(await resolveAgentProviders({ agentProviders }));

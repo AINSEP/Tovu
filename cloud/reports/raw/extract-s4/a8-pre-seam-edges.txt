@@ -1,0 +1,6 @@
+6:import { withFileLock } from '@jini-ai/platform/fs/file-lock';
+9:import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
+10:import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
+11:import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/index';
+18:import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
+180:        // declared tools now (bug 2026-11-04, `grant-signed-in-defaults.ts`).
