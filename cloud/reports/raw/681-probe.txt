@@ -1,0 +1,17 @@
+✔ GET mail-providers returns the safe DTO; a wrong workspace 404s; no control is a 503 (846.832654ms)
+✔ each action has its own permission (537.734489ms)
+✔ credential plan, then a save that stores the key without switching, then a re-checked activation (265.083812ms)
+✔ refusals map to statuses and leave everything unchanged (285.439766ms)
+✔ mail card saves attach the project key immediately and re-saving rotates that same key (327.459681ms)
+✔ a non-object body reads as empty; an unexpected fault is a 500 without detail (541.173997ms)
+✔ mail-status ?refresh=1 (or true) asks for a rebuilt status; otherwise the cached one (283.495031ms)
+✔ credential races and vault failures keep typed safe envelopes and leave configuration unchanged (793.472445ms)
+✔ mail provider selection conflicts map to 409 with a caller-safe reason (290.70587ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10456.628493

@@ -590,15 +590,18 @@ test("L079: inverse availability is checked before any version read, including u
   assert.deepEqual(reads, []);
 });
 
-test("L079: force without principal kind bypasses stale versions (reported, not fixed)", async () => {
+test("L079: force without principal kind is refused before any write", async () => {
   const changeSets = new InMemoryChangeSetRepo([baseChangeSet()], [baseItem()]);
   const registry = createRevertRegistry();
   const applied: string[] = [];
   registry.register('widget', 'update', fakeReverter({ currentVersion: 2, onApplyInverse: item => { applied.push(item.id); } }));
-  const result = await revertChangeSet({ deps: { changeSets, registry, clock, idGen },
-    input: { workspaceId: WS, changeSetId: 'cs-1', force: true } });
-  assert.equal(result.status, 'reverted');
-  assert.deepEqual(applied, ['csi-1']);
+  await assert.rejects(revertChangeSet({ deps: { changeSets, registry, clock, idGen },
+    input: { workspaceId: WS, changeSetId: 'cs-1', force: true } }), (err: unknown) => {
+    assert.ok(err instanceof RevertForbiddenError);
+    assert.equal((err as RevertForbiddenError).reasonCode, 'FORCE_NEEDS_PRINCIPAL_KIND');
+    return true;
+  });
+  assert.deepEqual(applied, []);
 });
 
 
