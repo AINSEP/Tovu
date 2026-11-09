@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-runtime
+
+ ✓ src/__tests__/prompt-budget.test.ts (33 tests) 26ms
+
+ Test Files  1 passed (1)
+      Tests  33 passed (33)
+   Start at  06:38:52
+   Duration  497ms (transform 127ms, setup 0ms, collect 129ms, tests 26ms, environment 0ms, prepare 110ms)
+

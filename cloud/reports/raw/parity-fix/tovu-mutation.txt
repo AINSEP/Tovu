@@ -1,0 +1,95 @@
+✔ Auto preflight delivers full primary guidance once before guarded writes (71.398932ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (76.893099ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (43.467495ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (24.572313ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (26.585753ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (41.80228ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (16.466186ms)
+✔ CLI onStarted retains the Codex prompt carrier and explicit reads stay complete (554.944853ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (325.651494ms)
+✔ load_agent_plugin carries maturity untested (40.093197ms)
+✔ load_agent_plugin carries maturity soon (29.254898ms)
+✔ load_agent_plugin carries maturity (absent) (27.245332ms)
+✔ automatic tool guidance warns before actions for an untested plugin (51.294562ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (25.762337ms)
+✔ inactive plugin returns setup guidance and the activation call while tools remain off (66.83922ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (12.927018ms)
+✔ the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance (15.507489ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (10458.448028ms)
+✔ explicit loader and guarded write refuse ask through the real executor (13.80648ms)
+✔ explicit loader and guarded write refuse off through the real executor (5.521262ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (16.585247ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (13.742777ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (4.121664ms)
+✔ a tool without guidance capabilities loads no plugin guidance (8.789899ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (12.778097ms)
+✔ load_agent_plugin refuses unknown input keys (10.500045ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (10.583821ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (27.421157ms)
+✔ pending plugin use cannot override a newer personal Off preference (7.641716ms)
+✔ pending plugin auto cannot override a newer personal Off preference (7.635578ms)
+✔ automatic plugin access rechecks the real active person after the answer (8.079981ms)
+✔ a real Auto CAS failure after the post-card read retains no consent on the same controller (14.536775ms)
+✔ fresh child reads complete guidance after parent pinned delivery (24.362348ms)
+✔ fresh child reads complete guidance after parent explicit delivery (28.71526ms)
+✔ replacement preflight retains the exact prepared bytes without another resolution (10.168339ms)
+✔ a rejected preflight promise is cleared so the same turn can retry (12.924309ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false, prompt=fits) (282.561487ms)
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false, prompt=full) (354.746412ms)
+✔ accepted adapter prompt budget preserves preflight delivery (claude, pinned=false, prompt=full) (212.992954ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true, prompt=fits) (227.176233ms)
+✔ preflight carries only delivered plugin ids through real RPC (automatic) (280.959741ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned) (266.314682ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned-off) (232.316648ms)
+✔ later chat turns retain delivered IDs without repeating primary text (24.325585ms)
+[tool-failure] ERR-7D79-AFA3-C5F1-2E09 tool=chat_list_pending_attachments run=att-run execution=f41b19b0-a2f2-4b8a-a707-4a2fc1a7443f principal=1228ccd5-53a7-4689-853f-e9ec38ff914d redactions=0: attachment store is not ready
+✔ the chat-attachment tools read the daemon's store over the lookup, and only inside a daemon call (594.095841ms)
+✔ approval memory reads and grants against the daemon's conversation, and is inert outside a daemon call (0.864785ms)
+✔ plugin-install attachments: a daemon call reads only its message refs; a BYOK turn reads by owner (7.78781ms)
+✖ automatic guidance headroom follows the adapter's per-platform argv budget; Claude has none (1.726089ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 46
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20068.914238
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:6:42589
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false, prompt=full) (354.746412ms)
+  AssertionError [ERR_ASSERTION]: composed 100387 > 100000
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:726:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.unit.test.ts:1:4749
+✖ automatic guidance headroom follows the adapter's per-platform argv budget; Claude has none (1.726089ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  24904 !== 9904
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.unit.test.ts:99:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 24904,
+    expected: 9904,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
