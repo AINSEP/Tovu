@@ -7,11 +7,11 @@ import type { AgentToolDefinition, ToolExecutionContext } from '@jini-ai/core';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { askThenReport, createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import type { DeployOpsRuntime, DeployOpsRegistrationHost, LoadedDeployOps, DeployOpsStatus } from '@jini-ai/devops/deploy';
-import { boundContext, runDeployOps, runDeploy, waitForDeployOps, aborted, DeployCredentialSetupRequired, MAX_RESPONSE_CHARS } from '../portable/ops-runner.js';
-import { requireDeployPlatform } from '../portable/ops-registry.js';
-import { runListSecrets, runSetSecret, runUnsetSecret } from '../portable/ops-secrets.js';
-import { collectTypedDeploySecret } from '../portable/ops-secret-card.js';
-import { buildDeployOpsRegistrations } from '../portable/ops-tools.js';
+import { boundContext, runDeployOps, runDeploy, waitForDeployOps, aborted, DeployCredentialSetupRequired, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
+import { requireDeployPlatform } from '@jini-ai/devops/deploy';
+import { runListSecrets, runSetSecret, runUnsetSecret } from '@jini-ai/devops/deploy';
+import { collectTypedDeploySecret } from '@jini-ai/devops/deploy';
+import { buildDeployOpsRegistrations } from '@jini-ai/devops/deploy';
 
 const ids = { status:'library_state',logs:'library_output',wait:'library_watch',listTargets:'library_targets',deploy:'library_launch',listSecrets:'library_names',setSecret:'library_write',unsetSecret:'library_remove',credentialVerify:'library_check' };
 const input = { platform:'library',target:'catalog',name:'BOOK_KEY',source:{kind:'site-key' as const} };

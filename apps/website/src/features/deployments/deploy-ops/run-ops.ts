@@ -8,10 +8,10 @@ import { EgressRefusedError } from '../../../platform/http/index.js';
 import type { CredentialedRequestErrorClass } from '@jini-ai/core/contracts/credentials';
 import type { DeployOpsRegistry, DeployOpsInput, LoadedDeployOps, DeployOpsStatus, DeployOpsLogs, DeployOpsTargets, DeployOpsRuntime, WaitClock } from '@jini-ai/devops/deploy';
 import { readDeploySiteKey, secretFingerprint } from './secrets.js';
-import { aborted, MAX_RESPONSE_CHARS } from './portable/ops-runner.js';
-import * as portable from './portable/ops-runner.js';
-export { aborted, MAX_RESPONSE_CHARS, MAX_WAIT_SECONDS, MAX_MODULE_SLEEP_MS, DeployCredentialSetupRequired, waitForDeployOps } from './portable/ops-runner.js';
-export type { DeployRequest } from './portable/ops-runner.js';
+import { aborted, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
+import * as portable from '@jini-ai/devops/deploy';
+export { aborted, MAX_RESPONSE_CHARS, MAX_WAIT_SECONDS, MAX_MODULE_SLEEP_MS, DeployCredentialSetupRequired, waitForDeployOps } from '@jini-ai/devops/deploy';
+export type { DeployRequest } from '@jini-ai/devops/deploy';
 export type { WaitClock } from '@jini-ai/devops/deploy';
 export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   authorize: AuthorizeFn;

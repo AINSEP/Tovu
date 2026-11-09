@@ -8,7 +8,7 @@ import type { SecretConfirmRequest, SecretConfirm } from './secrets.js';
 import { getDeployOpsAgentToolCatalog } from './agent-tools.js';
 import { bindDeployOpsRuntime, type DeployOpsToolDeps } from './run-ops.js';
 import type { DeployOpsRegistry } from './types.js';
-import { buildDeployOpsRegistrations as build } from './portable/ops-tools.js';
+import { buildDeployOpsRegistrations as build } from '@jini-ai/devops/deploy';
 export type { DeployOpsToolDeps } from './run-ops.js';
 export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> gated installed registry, credential summaries, makeCredentialedRequest(GET), audit.
