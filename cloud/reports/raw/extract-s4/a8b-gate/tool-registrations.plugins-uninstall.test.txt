@@ -1,0 +1,115 @@
+TAP version 13
+# Subtest: plugins_uninstall is wired alongside plugins_list/plugins_set_enabled — 3 wired tools, catalog has exactly 3 entries
+ok 1 - plugins_uninstall is wired alongside plugins_list/plugins_set_enabled — 3 wired tools, catalog has exactly 3 entries
+  ---
+  duration_ms: 4.357127
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall's catalog says the plugin moves to the 60-day Trash
+ok 2 - plugins_uninstall's catalog says the plugin moves to the 60-day Trash
+  ---
+  duration_ms: 0.300251
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall requires admin.plugins.enable — the SAME permission plugins_set_enabled uses, no new grant introduced
+ok 3 - plugins_uninstall requires admin.plugins.enable — the SAME permission plugins_set_enabled uses, no new grant introduced
+  ---
+  duration_ms: 0.145676
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: calls authorize() with admin.plugins.enable and the run's principal before touching anything
+ok 4 - plugins_uninstall: calls authorize() with admin.plugins.enable and the run's principal before touching anything
+  ---
+  duration_ms: 10.941397
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: with no interactive confirmation channel, the call fails closed and nothing is removed
+ok 5 - plugins_uninstall: with no interactive confirmation channel, the call fails closed and nothing is removed
+  ---
+  duration_ms: 1.681719
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a cancelled confirmation removes nothing and reports cancelled:true, not an error
+ok 6 - plugins_uninstall: a cancelled confirmation removes nothing and reports cancelled:true, not an error
+  ---
+  duration_ms: 2.497342
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a denied principal is rejected and nothing is removed
+ok 7 - plugins_uninstall: a denied principal is rejected and nothing is removed
+  ---
+  duration_ms: 0.668761
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: refuses a built-in plugin — nothing to remove
+ok 8 - plugins_uninstall: refuses a built-in plugin — nothing to remove
+  ---
+  duration_ms: 0.579307
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: refuses a plugin still enabled in a workspace
+ok 9 - plugins_uninstall: refuses a plugin still enabled in a workspace
+  ---
+  duration_ms: 0.693902
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: refuses an unknown plugin id
+ok 10 - plugins_uninstall: refuses an unknown plugin id
+  ---
+  duration_ms: 0.608499
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: moves the on-disk artifact to Trash and retains activation rows
+ok 11 - plugins_uninstall: moves the on-disk artifact to Trash and retains activation rows
+  ---
+  duration_ms: 2.852004
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a plugin never activated anywhere moves to Trash cleanly
+ok 12 - plugins_uninstall: a plugin never activated anywhere moves to Trash cleanly
+  ---
+  duration_ms: 1.570598
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a plugin whose version changed while the dialog was open is NOT removed, and the result says so
+ok 13 - plugins_uninstall: a plugin whose version changed while the dialog was open is NOT removed, and the result says so
+  ---
+  duration_ms: 2.132834
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a plugin that disappeared from discovery while the dialog was open is refused on the fresh read, and nothing is removed
+ok 14 - plugins_uninstall: a plugin that disappeared from discovery while the dialog was open is refused on the fresh read, and nothing is removed
+  ---
+  duration_ms: 1.881454
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Subtest: plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm toolName is plugins_uninstall, and confirming removes the package dir
+ok 15 - plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm toolName is plugins_uninstall, and confirming removes the package dir
+  ---
+  duration_ms: 50.485756
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a call with no 'family' is rejected before any dialog, for either family's id
+ok 16 - plugins_uninstall: a call with no 'family' is rejected before any dialog, for either family's id
+  ---
+  duration_ms: 0.582354
+  type: 'test'
+  ...
+# Subtest: the registry this file builds has no agent_plugins_uninstall id — the standalone tool was deleted; both families redeem through plugins_uninstall now
+ok 17 - the registry this file builds has no agent_plugins_uninstall id — the standalone tool was deleted; both families redeem through plugins_uninstall now
+  ---
+  duration_ms: 0.282036
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2472.204659

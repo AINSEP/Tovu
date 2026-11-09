@@ -15,7 +15,7 @@ import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
-import { agentPluginMcpPortsOf } from '#src/features/agent-plugins/mcp-host-bindings';
+import { agentPluginMcpPortsOf, withAgentPluginMcpPorts } from '#src/features/agent-plugins/mcp-host-bindings';
 import { createPluginHost, type PluginHostMessages } from './portable-plugin-host.js';
 
 /** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
@@ -90,7 +90,7 @@ export function createTovuPluginHost(
     withLock: ({ run }) => withFileLock({ lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'), run }, { createParent: true }),
     // Production ports already carry their pair (same instance passes through); only a legacy port
     // without projections gets Tovu's canonical pair here, never inside the portable bodies.
-    mcp: deps.mcp.projections ? deps.mcp : { ...deps.mcp, ...agentPluginMcpPortsOf(deps.mcp) }, mcpPorts: agentPluginMcpPortsOf(deps.mcp),
+    mcp: withAgentPluginMcpPorts(deps.mcp), mcpPorts: agentPluginMcpPortsOf(deps.mcp),
     grantSignedInDefaults: grantDeclaredToolsToSignedInRows,
     warn, messages: tovuPluginHostMessages,
   } }, {

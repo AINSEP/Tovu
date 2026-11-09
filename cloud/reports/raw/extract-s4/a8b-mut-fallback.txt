@@ -1,0 +1,66 @@
+TAP version 13
+# Subtest: grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+ok 1 - grant port runs after provisioning and its failure warnings, skipping exactly the failed servers
+  ---
+  duration_ms: 7.027967
+  type: 'test'
+  ...
+# Subtest: approved enable passes principal and approved snapshot key to the grant port
+ok 2 - approved enable passes principal and approved snapshot key to the grant port
+  ---
+  duration_ms: 0.448507
+  type: 'test'
+  ...
+# Subtest: approved enable whose provisioning failed refuses with host copy before any grant
+ok 3 - approved enable whose provisioning failed refuses with host copy before any grant
+  ---
+  duration_ms: 4.01646
+  type: 'test'
+  ...
+# Subtest: no import edge from the portable A8 files into the A10 connect cycle
+ok 4 - no import edge from the portable A8 files into the A10 connect cycle
+  ---
+  duration_ms: 2.455722
+  type: 'test'
+  ...
+# Subtest: portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+ok 5 - portable plugin host imports no Jini package other than core and its own agent-plugins lifecycle types
+  ---
+  duration_ms: 0.437588
+  type: 'test'
+  ...
+# Subtest: portable A8 bodies take required projection ports: none imports Tovu's projection fallback
+not ok 6 - portable A8 bodies take required projection ports: none imports Tovu's projection fallback
+  ---
+  duration_ms: 3.520728
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:1:6575'
+  failureType: 'testCodeFailure'
+  error: |-
+    features/agent-plugins/portable/connection-status.ts imports mcp-host-bindings
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts:106:42)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+    Test.postRun (node:internal/test_runner/test:1191:19)
+    Test.run (node:internal/test_runner/test:1119:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 864.167595

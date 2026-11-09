@@ -27,3 +27,16 @@ export function agentPluginMcpPortsOf(context: AgentPluginMcpContext, _optional:
 export function isAgentPluginSignInRefusal({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return error instanceof ExternalMcpValidationError || error instanceof OAuthError;
 }
+/** Legacy Tovu entries only (A8 shims and the plugin-host binder): hand a portable body a context
+ * that carries a projection pair. A context that already has projections is returned as the same
+ * object. Otherwise a shallow copy keeps every own property descriptor — lazy getters stay lazy,
+ * methods keep their receiver shape — with Tovu's pair (`agentPluginMcpPortsOf`) added; spreading
+ * would evaluate fixture/host getters eagerly. O(k) own keys, no I/O. */
+export function withAgentPluginMcpPorts<T extends AgentPluginMcpContext>(context: T, _optional: Record<string, never> = {}): T & AgentPluginMcpProjectionPorts {
+  if (context.projections) return context as T & AgentPluginMcpProjectionPorts;
+  return withOverrides(context, agentPluginMcpPortsOf(context)) as T & AgentPluginMcpProjectionPorts;
+}
+/** Shallow copy preserving own property descriptors, then `overrides` assigned on top. */
+export function withOverrides<T extends object, O extends object>(target: T, overrides: O): Omit<T, keyof O> & O {
+  return Object.assign(Object.defineProperties({}, Object.getOwnPropertyDescriptors(target)), overrides) as Omit<T, keyof O> & O;
+}

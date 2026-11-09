@@ -2,7 +2,7 @@
  * host's projection pair; only this legacy entry, whose frozen callers may pass no ports, adds
  * Tovu's canonical pair via `agentPluginMcpPortsOf`. A caller that already carries projections keeps
  * its own pair (same function and error identity). Every other export is the portable module's. */
-import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
+import { withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import { switchOnSavedTokenConnection as switchWithPorts, type SavedTokenSwitchOutcome, type SwitchOnSavedTokenDeps as PortableSwitchOnSavedTokenDeps } from "./portable/switch-on-saved-token.js";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
 export * from "./portable/switch-on-saved-token.js";
@@ -15,6 +15,6 @@ export function switchOnSavedTokenConnection(
   deps: SwitchOnSavedTokenDeps,
   target: { readonly pluginId: string; readonly connectionId: string },
 ): Promise<SavedTokenSwitchOutcome> {
-  const mcp = deps.mcp.projections ? deps.mcp : { ...deps.mcp, ...agentPluginMcpPortsOf(deps.mcp) };
-  return switchWithPorts({ ...deps, mcp }, target);
+  const mcp = withAgentPluginMcpPorts(deps.mcp);
+  return switchWithPorts(mcp === deps.mcp ? deps as PortableSwitchOnSavedTokenDeps : withOverrides(deps, { mcp }), target);
 }

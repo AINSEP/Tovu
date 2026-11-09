@@ -1,0 +1,127 @@
+== apps/website/src/features/agent-plugins/federate-mcp.ts@6151805b (blob 26510ab3c1b8) -> apps/website/src/features/agent-plugins/portable/federate-mcp.ts
+1,3c1,2
+< import type { AgentPluginMcpPort } from "./service-ports.js";
+< import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections, AgentPluginMcpProjectionPorts } from "./service-ports.js";
+< import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
+---
+> import type { AgentPluginMcpPort } from "../service-ports.js";
+> import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections, AgentPluginMcpProjectionPorts } from "../service-ports.js";
+5,6c4,5
+< import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
+< import type { AgentPluginLayout } from "./layout.js";
+---
+> import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "../capability-projection.js";
+> import type { AgentPluginLayout } from "../layout.js";
+8,10c7,9
+< import type { McpServerConfig } from "./mcp-metadata.js";
+< import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
+< import { listInstalledPlugins } from "./lifecycle.js";
+---
+> import type { McpServerConfig } from "../mcp-metadata.js";
+> import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../lifecycle.js";
+> import { listInstalledPlugins } from "../lifecycle.js";
+516c515
+<   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
+---
+>   deps: AgentPluginMcpProjectionPorts & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
+524,525c523,525
+<   // Resolved once per call: every stale-row check uses the host's own projections.
+<   const bound = { repo: deps.repo, saveServer: (save: Parameters<AgentPluginMcpPort['saveServer']>[0]) => deps.saveServer(save), ...agentPluginMcpPortsOf(deps) };
+---
+>   // Resolved once per call: every stale-row check uses the host's own projections (required: a
+>   // portable body never falls back to one host's projections; Tovu's legacy shim adds its pair).
+>   const bound = { repo: deps.repo, saveServer: (save: Parameters<AgentPluginMcpPort['saveServer']>[0]) => deps.saveServer(save), projections: deps.projections, classifyError: deps.classifyError };
+== apps/website/src/features/agent-plugins/enable-access.ts@6151805b (blob 4b19c1598e31) -> apps/website/src/features/agent-plugins/portable/enable-access.ts
+4,6c4,5
+< import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from './service-ports.js';
+< import { agentPluginMcpProjectionPorts, agentPluginMcpPortsOf } from './mcp-host-bindings.js';
+< import type { AgentPluginMcpPort } from './service-ports.js';
+---
+> import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '../service-ports.js';
+> import type { AgentPluginMcpPort } from '../service-ports.js';
+8c7
+< import type { McpServerConfig } from './mcp-metadata.js';
+---
+> import type { McpServerConfig } from '../mcp-metadata.js';
+24c23
+<   options: { reason?: 'sign-in' | 'owner-enable'; ports?: AgentPluginMcpProjectionPorts } = {},
+---
+>   options: { reason?: 'sign-in' | 'owner-enable'; ports: AgentPluginMcpProjectionPorts },
+26c25
+<   const ports = options.ports ?? agentPluginMcpProjectionPorts;
+---
+>   const ports = options.ports;
+66c65
+<   { workspaceId, pluginId, servers, repo, ...context }: AgentPluginMcpContext & { workspaceId: string; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo'] },
+---
+>   { workspaceId, pluginId, servers, repo, ...context }: AgentPluginMcpProjectionPorts & { workspaceId: string; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo'] },
+69c68
+<   const ports = agentPluginMcpPortsOf(context);
+---
+>   const ports: AgentPluginMcpProjectionPorts = { projections: context.projections, classifyError: context.classifyError };
+== apps/website/src/features/agent-plugins/apply-connect-defaults.ts@6151805b (blob e3de4771e351) -> apps/website/src/features/agent-plugins/portable/apply-connect-defaults.ts
+2,3c2
+< import { agentPluginMcpPortsOf } from './mcp-host-bindings.js';
+< import type { AgentPluginMcpAccessSnapshot, AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
+---
+> import type { AgentPluginMcpAccessSnapshot, AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from '../service-ports.js';
+29c28
+< import type { AgentPluginMcpPort } from "./service-ports.js";
+---
+> import type { AgentPluginMcpPort } from "../service-ports.js";
+34c33
+< import { agentPluginActivations } from "./activation-effects.js";
+---
+> import { agentPluginActivations } from "../activation-effects.js";
+36,38c35,37
+< import type { McpServerConfig } from "./mcp-metadata.js";
+< import type { AgentPluginLayout } from "./layout.js";
+< import { setAgentPluginEnabled } from "./set-enabled.js";
+---
+> import type { McpServerConfig } from "../mcp-metadata.js";
+> import type { AgentPluginLayout } from "../layout.js";
+> import { setAgentPluginEnabled } from "../set-enabled.js";
+76c75
+< export type ApplyConnectDefaultsDeps = Pick<AgentPluginMcpPort, "repo" | "applyAccess"> & AgentPluginMcpContext & {
+---
+> export type ApplyConnectDefaultsDeps = Pick<AgentPluginMcpPort, "repo" | "applyAccess"> & AgentPluginMcpProjectionPorts & {
+126c125
+<   const ports = agentPluginMcpPortsOf(deps);
+---
+>   const ports: AgentPluginMcpProjectionPorts = { projections: deps.projections, classifyError: deps.classifyError };
+== apps/website/src/features/agent-plugins/switch-on-saved-token.ts@6151805b (blob b4be6bd02d1b) -> apps/website/src/features/agent-plugins/portable/switch-on-saved-token.ts
+4,5c4
+< import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
+< import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
+---
+> import type { AgentPluginMcpPort, AgentPluginMcpProjectionPorts } from "../service-ports.js";
+9c8
+< import type { AgentPluginLayout } from "./layout.js";
+---
+> import type { AgentPluginLayout } from "../layout.js";
+41c40
+<   readonly mcp: Pick<AgentPluginMcpPort, "repo" | "applyAccess"> & AgentPluginMcpContext;
+---
+>   readonly mcp: Pick<AgentPluginMcpPort, "repo" | "applyAccess"> & AgentPluginMcpProjectionPorts;
+67c66
+<   const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged, ...agentPluginMcpPortsOf(deps.mcp) });
+---
+>   const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged, projections: deps.mcp.projections, classifyError: deps.mcp.classifyError });
+== apps/website/src/features/agent-plugins/connection-status.ts@6151805b (blob 20d5a92e8f25) -> apps/website/src/features/agent-plugins/portable/connection-status.ts
+1,4c1,3
+< import { agentPluginMcpPortsOf } from './mcp-host-bindings.js';
+< import type { AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginMcpProjections } from './service-ports.js';
+< import type { LoadPluginCredentialCards } from '../custom-credentials/plugin-credential-card.js';
+< import type { ApiConnectionHost } from '../api-connections/host.js';
+---
+> import type { AgentPluginMcpRecord, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '../service-ports.js';
+> import type { LoadPluginCredentialCards } from '../../custom-credentials/plugin-credential-card.js';
+> import type { ApiConnectionHost } from '../../api-connections/host.js';
+13c12
+< export async function loadAgentPluginConnectionStatuses(required: AgentPluginMcpContext & {
+---
+> export async function loadAgentPluginConnectionStatuses(required: Pick<AgentPluginMcpProjectionPorts, 'projections'> & {
+24c23
+<   addMcpStatuses({ rows, states, projections: agentPluginMcpPortsOf(required).projections });
+---
+>   addMcpStatuses({ rows, states, projections: required.projections });

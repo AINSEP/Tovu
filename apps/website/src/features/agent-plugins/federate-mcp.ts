@@ -2,7 +2,7 @@
  * host's projection pair; only this legacy entry, whose frozen callers may pass no ports, adds
  * Tovu's canonical pair via `agentPluginMcpPortsOf`. A caller that already carries projections keeps
  * its own pair (same function and error identity). Every other export is the portable module's. */
-import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
+import { withAgentPluginMcpPorts } from "./mcp-host-bindings.js";
 import { provisionAgentPluginMcpServers as provisionWithPorts, type ProvisionAgentPluginMcpServersInput, type ProvisionAgentPluginMcpServersResult } from "./portable/federate-mcp.js";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
 export * from "./portable/federate-mcp.js";
@@ -11,5 +11,5 @@ export function provisionAgentPluginMcpServers(
   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
-  return provisionWithPorts(deps.projections ? deps : { ...deps, ...agentPluginMcpPortsOf(deps) }, input);
+  return provisionWithPorts(withAgentPluginMcpPorts(deps), input);
 }
