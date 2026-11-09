@@ -1,5 +1,5 @@
 {
-  "status": "BLOCKED before L2 by prior Tovu test drift",
+  "status": "Continuation: L3 gate complete; F7 pending",
   "all_batches_passed": false,
   "started_utc": "2026-11-09T17:40:00+00:00",
   "stopped_utc": "2026-11-09T18:00:54.693550+00:00",
@@ -1848,6 +1848,4984 @@
     "Jini": [
       "b78fa32dbc6aab6f79c2ba77b2bc7e8babb349c4 fix(oauth): remove superseded local allowlist declarations",
       "12d3579e6056867601a70eb98afaf754a82cca92 refactor(oauth): share protocol error vocabulary and correct public failure spec"
+    ]
+  },
+  "continuation": {
+    "original_clock_unchanged": true,
+    "f7_diff_base": {
+      "Tovu": "57ecbf6b3768df1e2dbf957841d9de846b6a7233",
+      "Jini": "b78fa32dbc6aab6f79c2ba77b2bc7e8babb349c4"
+    },
+    "s7_0b_tests": [
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "bundled cold-start guidance names the enable tool and Agent Plugin family"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/0.log",
+        "elapsed": 4.18
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/1.log",
+        "elapsed": 3.49
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 25,
+          "pass": 25,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/2.log",
+        "elapsed": 0.84
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/3.log",
+        "elapsed": 0.72
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/4.log",
+        "elapsed": 0.82
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 52,
+          "pass": 52,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/5.log",
+        "elapsed": 3.72
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/6.log",
+        "elapsed": 0.62
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/7.log",
+        "elapsed": 1.18
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/8.log",
+        "elapsed": 0.63
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-reload-result.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-reload-result.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/9.log",
+        "elapsed": 4.2
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-export.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-export.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/10.log",
+        "elapsed": 3.0
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/11.log",
+        "elapsed": 4.05
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/12.log",
+        "elapsed": 3.41
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/13.log",
+        "elapsed": 1.23
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/14.log",
+        "elapsed": 7.62
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/15.log",
+        "elapsed": 1.09
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/16.log",
+        "elapsed": 1.22
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/uninstall-confirmation-ui.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/uninstall-confirmation-ui.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/17.log",
+        "elapsed": 0.78
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/18.log",
+        "elapsed": 3.04
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/lower-tool-access.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/lower-tool-access.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/19.log",
+        "elapsed": 0.92
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/sealed-plugin-consent.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/sealed-plugin-consent.regression.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/20.log",
+        "elapsed": 1.37
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "--test-timeout=60000",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 1,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "a declined enable remains a choice when a seeded-off plugin signs in later"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/21.log",
+        "elapsed": 61.17
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/22.log",
+        "elapsed": 23.49
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/23.log",
+        "elapsed": 3.48
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/plugin-conflicts.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/plugin-conflicts.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/24.log",
+        "elapsed": 0.82
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 24,
+          "pass": 24,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/25.log",
+        "elapsed": 10.79
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/26.log",
+        "elapsed": 1.23
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/27.log",
+        "elapsed": 2.95
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/28.log",
+        "elapsed": 5.88
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/29.log",
+        "elapsed": 1.48
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/30.log",
+        "elapsed": 5.55
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/31.log",
+        "elapsed": 11.0
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/32.log",
+        "elapsed": 5.04
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/33.log",
+        "elapsed": 10.66
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/34.log",
+        "elapsed": 3.0
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/35.log",
+        "elapsed": 3.42
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/plugin-enable-federation.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/plugin-enable-federation.regression.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/36.log",
+        "elapsed": 1.62
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-guidance.live.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-guidance.live.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 0,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/37.log",
+        "elapsed": 1.72
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 36,
+          "pass": 36,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/38.log",
+        "elapsed": 19.02
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-metadata-projections.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-metadata-projections.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/39.log",
+        "elapsed": 8.34
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 10,
+          "pass": 8,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every surfaceExchanges.open(...) call names a toolId constant this scan can resolve",
+          "every allowlisted id opens an exchange or is a named carve-out"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/40.log",
+        "elapsed": 6.13
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/41.log",
+        "elapsed": 9.57
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/42.log",
+        "elapsed": 4.29
+      },
+      {
+        "path": "apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 22,
+          "pass": 22,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/43.log",
+        "elapsed": 1.49
+      },
+      {
+        "path": "apps/website/src/contracts/headless/__tests__/plugin-export-boundaries.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/contracts/headless/__tests__/plugin-export-boundaries.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/44.log",
+        "elapsed": 1.12
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 17,
+          "pass": 15,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "t91 \u00a77.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn",
+          "t91 \u00a77.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/45.log",
+        "elapsed": 3.63
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/46.log",
+        "elapsed": 2.68
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 25,
+          "pass": 24,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every bundled agent and site package declares a distinct publisher identity and discovery terms"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/47.log",
+        "elapsed": 5.59
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/48.log",
+        "elapsed": 0.57
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/49.log",
+        "elapsed": 0.92
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/50.log",
+        "elapsed": 2.53
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/51.log",
+        "elapsed": 1.17
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/52.log",
+        "elapsed": 1.32
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/53.log",
+        "elapsed": 5.64
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/extract-s7-error-port.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/unit/extract-s7-error-port.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-s7-0b/54.log",
+        "elapsed": 0.62
+      }
+    ],
+    "l2_tests": [
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "bundled cold-start guidance names the enable tool and Agent Plugin family"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/0.log",
+        "elapsed": 4.42
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/1.log",
+        "elapsed": 3.44
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 25,
+          "pass": 25,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/2.log",
+        "elapsed": 0.8
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/3.log",
+        "elapsed": 1.07
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/4.log",
+        "elapsed": 2.4
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 52,
+          "pass": 52,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/5.log",
+        "elapsed": 2.58
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/6.log",
+        "elapsed": 0.62
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/7.log",
+        "elapsed": 1.23
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/8.log",
+        "elapsed": 0.62
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-reload-result.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-reload-result.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/9.log",
+        "elapsed": 1.48
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-export.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-export.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/10.log",
+        "elapsed": 0.57
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/11.log",
+        "elapsed": 4.27
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/12.log",
+        "elapsed": 2.78
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/13.log",
+        "elapsed": 1.48
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/14.log",
+        "elapsed": 7.09
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/15.log",
+        "elapsed": 0.87
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/16.log",
+        "elapsed": 1.22
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/uninstall-confirmation-ui.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/uninstall-confirmation-ui.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/17.log",
+        "elapsed": 0.62
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/18.log",
+        "elapsed": 3.17
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-host-tools.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-host-tools.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/19.log",
+        "elapsed": 1.69
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/lower-tool-access.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/lower-tool-access.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/20.log",
+        "elapsed": 0.47
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/sealed-plugin-consent.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/sealed-plugin-consent.regression.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/21.log",
+        "elapsed": 1.07
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "--test-timeout=60000",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 1,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "a declined enable remains a choice when a seeded-off plugin signs in later"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/22.log",
+        "elapsed": 61.4
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/23.log",
+        "elapsed": 23.46
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/24.log",
+        "elapsed": 3.36
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/plugin-conflicts.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/plugin-conflicts.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/25.log",
+        "elapsed": 0.67
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 24,
+          "pass": 24,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/26.log",
+        "elapsed": 6.8
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/27.log",
+        "elapsed": 1.12
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/28.log",
+        "elapsed": 1.62
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/29.log",
+        "elapsed": 4.0
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/30.log",
+        "elapsed": 0.77
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/31.log",
+        "elapsed": 2.28
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/32.log",
+        "elapsed": 4.84
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/33.log",
+        "elapsed": 2.82
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/34.log",
+        "elapsed": 6.75
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/35.log",
+        "elapsed": 2.73
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/36.log",
+        "elapsed": 2.57
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/plugin-enable-federation.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/plugin-enable-federation.regression.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/37.log",
+        "elapsed": 1.12
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-guidance.live.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-guidance.live.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 0,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/38.log",
+        "elapsed": 1.48
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 36,
+          "pass": 36,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/39.log",
+        "elapsed": 14.45
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-metadata-projections.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-metadata-projections.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/40.log",
+        "elapsed": 6.93
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 10,
+          "pass": 8,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every surfaceExchanges.open(...) call names a toolId constant this scan can resolve",
+          "every allowlisted id opens an exchange or is a named carve-out"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/41.log",
+        "elapsed": 4.82
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/42.log",
+        "elapsed": 4.14
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/43.log",
+        "elapsed": 4.6
+      },
+      {
+        "path": "apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 22,
+          "pass": 22,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/44.log",
+        "elapsed": 1.27
+      },
+      {
+        "path": "apps/website/src/contracts/headless/__tests__/plugin-export-boundaries.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/contracts/headless/__tests__/plugin-export-boundaries.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/45.log",
+        "elapsed": 1.12
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 17,
+          "pass": 15,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "t91 \u00a77.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn",
+          "t91 \u00a77.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/46.log",
+        "elapsed": 3.33
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/47.log",
+        "elapsed": 2.98
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 25,
+          "pass": 24,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every bundled agent and site package declares a distinct publisher identity and discovery terms"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/48.log",
+        "elapsed": 3.08
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/49.log",
+        "elapsed": 0.52
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/50.log",
+        "elapsed": 0.72
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/51.log",
+        "elapsed": 1.12
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/52.log",
+        "elapsed": 0.57
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/53.log",
+        "elapsed": 1.27
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/54.log",
+        "elapsed": 5.95
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/extract-s7-error-port.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/unit/extract-s7-error-port.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l2-final/55.log",
+        "elapsed": 0.52
+      }
+    ],
+    "l3_tests": [
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "bundled cold-start guidance names the enable tool and Agent Plugin family"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l3/0.log",
+        "elapsed": 6.04
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/1.log",
+        "elapsed": 4.89
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-content-types.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 25,
+          "pass": 25,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/2.log",
+        "elapsed": 1.15
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/3.log",
+        "elapsed": 1.2
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/host-binding.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/4.log",
+        "elapsed": 1.11
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-archive.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 52,
+          "pass": 52,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/5.log",
+        "elapsed": 4.75
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-consent.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/6.log",
+        "elapsed": 0.72
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/7.log",
+        "elapsed": 1.33
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/invocation-core-deps.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/8.log",
+        "elapsed": 0.79
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-reload-result.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-reload-result.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/9.log",
+        "elapsed": 1.52
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-export.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-export.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/10.log",
+        "elapsed": 0.73
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/11.log",
+        "elapsed": 5.36
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/12.log",
+        "elapsed": 5.25
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/13.log",
+        "elapsed": 1.59
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 23,
+          "pass": 23,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/14.log",
+        "elapsed": 13.11
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 5,
+          "pass": 5,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/15.log",
+        "elapsed": 1.9
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/16.log",
+        "elapsed": 2.51
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/uninstall-confirmation-ui.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/uninstall-confirmation-ui.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/17.log",
+        "elapsed": 1.12
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/18.log",
+        "elapsed": 3.94
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-published-tools.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-published-tools.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/19.log",
+        "elapsed": 3.21
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-host-tools.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-host-tools.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/20.log",
+        "elapsed": 1.34
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/lower-tool-access.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/lower-tool-access.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/21.log",
+        "elapsed": 0.83
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/sealed-plugin-consent.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/sealed-plugin-consent.regression.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/22.log",
+        "elapsed": 0.88
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "--test-timeout=60000",
+          "apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 1,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "a declined enable remains a choice when a seeded-off plugin signs in later"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l3/23.log",
+        "elapsed": 61.57
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/extract-s6-g-plug.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/24.log",
+        "elapsed": 23.56
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/25.log",
+        "elapsed": 3.18
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/plugin-conflicts.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/plugin-conflicts.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/26.log",
+        "elapsed": 0.77
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/activation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 24,
+          "pass": 24,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/27.log",
+        "elapsed": 6.91
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/28.log",
+        "elapsed": 1.07
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install-archive.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/29.log",
+        "elapsed": 1.77
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/install-declarative.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/30.log",
+        "elapsed": 3.09
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/31.log",
+        "elapsed": 0.82
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/32.log",
+        "elapsed": 2.07
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/33.log",
+        "elapsed": 5.15
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/34.log",
+        "elapsed": 2.88
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 28,
+          "pass": 28,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/35.log",
+        "elapsed": 7.21
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/36.log",
+        "elapsed": 2.72
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/37.log",
+        "elapsed": 2.63
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/plugin-enable-federation.regression.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/plugin-enable-federation.regression.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/38.log",
+        "elapsed": 0.97
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-guidance.live.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-guidance.live.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 2,
+          "pass": 0,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/39.log",
+        "elapsed": 1.43
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 36,
+          "pass": 36,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/40.log",
+        "elapsed": 13.93
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/tool-metadata-projections.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/tool-metadata-projections.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/41.log",
+        "elapsed": 5.64
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 10,
+          "pass": 8,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every surfaceExchanges.open(...) call names a toolId constant this scan can resolve",
+          "every allowlisted id opens an exchange or is a named carve-out"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l3/42.log",
+        "elapsed": 4.34
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/43.log",
+        "elapsed": 3.59
+      },
+      {
+        "path": "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/44.log",
+        "elapsed": 2.69
+      },
+      {
+        "path": "apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 22,
+          "pass": 22,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/45.log",
+        "elapsed": 1.47
+      },
+      {
+        "path": "apps/website/src/contracts/headless/__tests__/plugin-export-boundaries.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/contracts/headless/__tests__/plugin-export-boundaries.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/46.log",
+        "elapsed": 1.17
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 17,
+          "pass": 15,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "t91 \u00a77.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn",
+          "t91 \u00a77.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l3/47.log",
+        "elapsed": 3.64
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/48.log",
+        "elapsed": 2.93
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts"
+        ],
+        "exit": 1,
+        "counts": {
+          "tests": 25,
+          "pass": 24,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [
+          "every bundled agent and site package declares a distinct publisher identity and discovery terms"
+        ],
+        "log": "/workspace/work/extract-s7/logs/t-l3/49.log",
+        "elapsed": 3.23
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/50.log",
+        "elapsed": 0.57
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-runtime.package-paths.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/51.log",
+        "elapsed": 0.67
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/server/runtime/composition/__tests__/plugin-runtime-l005-characterization.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/52.log",
+        "elapsed": 1.32
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/53.log",
+        "elapsed": 0.72
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/custom-credentials/__tests__/extract-s8-x-contracts.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/54.log",
+        "elapsed": 1.22
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/unit/portable-host-guidance.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/55.log",
+        "elapsed": 5.74
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/__tests__/unit/extract-s7-error-port.unit.test.ts",
+        "command": [
+          "node",
+          "--import",
+          "tsx",
+          "--import",
+          "./development/test-support/composed-bundle-env.ts",
+          "--test",
+          "--experimental-test-module-mocks",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/website/src/features/agent-plugins/__tests__/unit/extract-s7-error-port.unit.test.ts"
+        ],
+        "exit": 0,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "failed_cases": [],
+        "log": "/workspace/work/extract-s7/logs/t-l3/56.log",
+        "elapsed": 0.42
+      }
+    ],
+    "jini_l3": [
+      {
+        "name": "j-scripts",
+        "package": null,
+        "selected_paths": [
+          "scripts/__tests__/check-no-cross-package.test.ts",
+          "scripts/__tests__/extract-s3-checker.test.ts",
+          "scripts/__tests__/extract-s3-source-contracts.test.ts",
+          "scripts/__tests__/extract-s4-import-equals.test.ts"
+        ],
+        "file_runs": 4,
+        "tests": 76,
+        "exit": 0,
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "exec",
+          "vitest",
+          "run",
+          "scripts/__tests__/check-no-cross-package.test.ts",
+          "scripts/__tests__/extract-s3-checker.test.ts",
+          "scripts/__tests__/extract-s3-source-contracts.test.ts",
+          "scripts/__tests__/extract-s4-import-equals.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-scripts.log"
+      },
+      {
+        "name": "j-s6-new",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/l1c1.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/runtime-core.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts"
+        ],
+        "file_runs": 6,
+        "tests": 31,
+        "exit": 0,
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-ai/plugins",
+          "exec",
+          "vitest",
+          "run",
+          "src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/l1c1.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/runtime-core.extract-s6.unit.test.ts",
+          "src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-s6-new.log"
+      },
+      {
+        "name": "j-s6-entry",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/__tests__/host-entry-purity.test.ts"
+        ],
+        "file_runs": 1,
+        "tests": 1,
+        "exit": 0,
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-ai/plugins",
+          "exec",
+          "vitest",
+          "run",
+          "src/host/__tests__/host-entry-purity.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-s6-entry.log"
+      },
+      {
+        "name": "j-s6-worker",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/worker/__tests__/protocol.l237.characterization.test.ts",
+          "src/host/worker/__tests__/run-call.l237.characterization.test.ts"
+        ],
+        "file_runs": 2,
+        "tests": 54,
+        "exit": 0,
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-ai/plugins",
+          "exec",
+          "vitest",
+          "run",
+          "src/host/worker/__tests__/protocol.l237.characterization.test.ts",
+          "src/host/worker/__tests__/run-call.l237.characterization.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-s6-worker.log"
+      },
+      {
+        "name": "j-s6-architecture",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/__tests__/args-convention.contract.test.ts",
+          "src/__tests__/package-surface.integration.test.ts"
+        ],
+        "file_runs": 2,
+        "tests": 5,
+        "exit": 0,
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-ai/plugins",
+          "exec",
+          "vitest",
+          "run",
+          "src/__tests__/args-convention.contract.test.ts",
+          "src/__tests__/package-surface.integration.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-s6-architecture.log"
+      },
+      {
+        "name": "j-s6-plugin-reconstructed",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/__tests__/unit/activation.unit.test.ts",
+          "src/host/__tests__/unit/declarative-enable.unit.test.ts",
+          "src/host/__tests__/unit/manifest.unit.test.ts",
+          "src/host/__tests__/unit/plugin-claims.unit.test.ts",
+          "src/host/__tests__/unit/claim-conflicts.unit.test.ts",
+          "src/host/__tests__/unit/loader.unit.test.ts",
+          "src/host/__tests__/unit/discovery.unit.test.ts",
+          "src/host/__tests__/unit/contributions.unit.test.ts",
+          "src/host/__tests__/unit/hook-registry-preview.unit.test.ts",
+          "src/host/__tests__/unit/quarantine.unit.test.ts",
+          "src/host/__tests__/unit/bundled-initialization.test.ts",
+          "src/host/__tests__/unit/provider-contributions.unit.test.ts"
+        ],
+        "file_runs": 12,
+        "tests": 151,
+        "exit": 0,
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-ai/plugins",
+          "exec",
+          "vitest",
+          "run",
+          "src/host/__tests__/unit/activation.unit.test.ts",
+          "src/host/__tests__/unit/declarative-enable.unit.test.ts",
+          "src/host/__tests__/unit/manifest.unit.test.ts",
+          "src/host/__tests__/unit/plugin-claims.unit.test.ts",
+          "src/host/__tests__/unit/claim-conflicts.unit.test.ts",
+          "src/host/__tests__/unit/loader.unit.test.ts",
+          "src/host/__tests__/unit/discovery.unit.test.ts",
+          "src/host/__tests__/unit/contributions.unit.test.ts",
+          "src/host/__tests__/unit/hook-registry-preview.unit.test.ts",
+          "src/host/__tests__/unit/quarantine.unit.test.ts",
+          "src/host/__tests__/unit/bundled-initialization.test.ts",
+          "src/host/__tests__/unit/provider-contributions.unit.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-s6-plugin-reconstructed.log"
+      },
+      {
+        "name": "j-neutral-connect",
+        "package": "@jini-example/neutral-host",
+        "selected_paths": [
+          "src/connect-plugin-host.test.ts"
+        ],
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-example/neutral-host",
+          "exec",
+          "vitest",
+          "run",
+          "src/connect-plugin-host.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "exit": 0,
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-neutral-connect.log"
+      },
+      {
+        "name": "j-s7-new",
+        "package": "@jini-ai/plugins",
+        "selected_paths": [
+          "src/host/tools/__tests__/vocabulary.test.ts",
+          "src/host/tools/__tests__/public-entry.test.ts"
+        ],
+        "command": [
+          "node",
+          "/workspace/work/npm-cache/_npx/ed17c428e728397e/node_modules/pnpm/bin/pnpm.cjs",
+          "--filter",
+          "@jini-ai/plugins",
+          "exec",
+          "vitest",
+          "run",
+          "src/host/tools/__tests__/vocabulary.test.ts",
+          "src/host/tools/__tests__/public-entry.test.ts",
+          "--maxWorkers=2",
+          "--minWorkers=1"
+        ],
+        "exit": 0,
+        "log": "/workspace/work/extract-s7/logs/continuation/j-l3/j-s7-new.log"
+      }
+    ],
+    "l2_guard_raw": "[hardwiring] HW1-env-default: 17 total; 0 new\n[hardwiring] HW2-vendor-adapter: 16 total; 0 new\n[hardwiring] HW3-module-state: 135 total; 0 new\n[hardwiring] HW4-injected-fetch: 1 total; 0 new\n[hardwiring] HW5-jini-export: 0 total; 0 new\n[hardwiring] HW6-boot-default: 0 total; 0 new\n[hardwiring] HW7-public-react: 0 total; 0 new\n[hardwiring] HW8-provider-url: 49 total; 0 new\n[hardwiring] HW9-plugin-import: 0 total; 0 new\n[guard] R13-model-fallback-freshness claude: MF3 SKIPPED \u2014 no readable ~/.claude.json and the CLI initialize handshake found nothing (Claude Code not installed/usable here). Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness codex: MF3 compared 9 live id(s) against 20 fallback entr(ies).\n[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED \u2014 `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness pi: MF3 SKIPPED \u2014 MF3 does not apply to `pi` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness aider: MF3 SKIPPED \u2014 MF3 does not apply to `aider` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED \u2014 MF3 does not apply to `opencode` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import \"../../agent-plugins/src/core/identity-namespace.js\" reaches into another package's src (agent-plugins) \u2014 import by package name instead\n[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports \"Icon\" from \"../../../components/Icon.js\" (resolves outside features/chat-pane/**), but \"Icon\" is not in the public barrel's export list (packages/chat/src/react/index.ts) \u2014 a consumer of the published API could not reach this the same way ChatPane does\n\n2 guard violation(s).\n",
+    "l3_guard_raw": "[hardwiring] HW1-env-default: 17 total; 0 new\n[hardwiring] HW2-vendor-adapter: 16 total; 0 new\n[hardwiring] HW3-module-state: 135 total; 0 new\n[hardwiring] HW4-injected-fetch: 1 total; 0 new\n[hardwiring] HW5-jini-export: 0 total; 0 new\n[hardwiring] HW6-boot-default: 0 total; 0 new\n[hardwiring] HW7-public-react: 0 total; 0 new\n[hardwiring] HW8-provider-url: 49 total; 0 new\n[hardwiring] HW9-plugin-import: 0 total; 0 new\n[guard] R13-model-fallback-freshness claude: MF3 SKIPPED \u2014 no readable ~/.claude.json and the CLI initialize handshake found nothing (Claude Code not installed/usable here). Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness codex: MF3 compared 9 live id(s) against 20 fallback entr(ies).\n[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED \u2014 `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness pi: MF3 SKIPPED \u2014 MF3 does not apply to `pi` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness aider: MF3 SKIPPED \u2014 MF3 does not apply to `aider` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED \u2014 MF3 does not apply to `opencode` \u2014 only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).\n[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import \"../../agent-plugins/src/core/identity-namespace.js\" reaches into another package's src (agent-plugins) \u2014 import by package name instead\n[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports \"Icon\" from \"../../../components/Icon.js\" (resolves outside features/chat-pane/**), but \"Icon\" is not in the public barrel's export list (packages/chat/src/react/index.ts) \u2014 a consumer of the published API could not reach this the same way ChatPane does\n\n2 guard violation(s).\n",
+    "l3_isolation": {
+      "layers": [],
+      "isolation": [],
+      "closures": 579,
+      "findings": [
+        {
+          "package": "@jini-ai/admin",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/admin/package.json",
+          "reason": "sideEffects is an asset allowlist (./src/themes/**/*.css); retain CSS effects, JS must stay isolated"
+        },
+        {
+          "package": "@jini-ai/agent-runtime",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/agent-runtime/src/index.ts",
+          "reason": ". is an aggregate barrel for ai-trace, model-catalog, model-discovery, model-selection, native-tool-policy, providers; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/chat",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/chat/package.json",
+          "reason": "sideEffects is an asset allowlist (./dist/**/*.css); retain CSS effects, JS must stay isolated"
+        },
+        {
+          "package": "@jini-ai/cookie-consent",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/cookie-consent/package.json",
+          "reason": "sideEffects is an asset allowlist (./dist/client.min.js, ./dist/extensions.min.js); retain CSS effects, JS must stay isolated"
+        },
+        {
+          "package": "@jini-ai/core",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/core/src/index.ts",
+          "reason": ". is an aggregate barrel for contribution-registry, gated-mutations, model-facing-tool-errors, naming, providers; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/http-kit",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/http-kit/src/index.ts",
+          "reason": ". is an aggregate barrel for middleware, observability, rate-limit, verified-origin; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/oauth",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/oauth/src/index.ts",
+          "reason": ". is an aggregate barrel for discovery-policy, dns-pinned-transport; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/platform",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/platform/src/index.ts",
+          "reason": ". is an aggregate barrel for asset-cache, fs, http, mail, os, secrets; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/plugin-fixture-provider",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/plugin-fixture-provider/package.json",
+          "reason": "missing sideEffects: false; inspect module initialization before marking JS side-effect free"
+        },
+        {
+          "package": "@jini-ai/provider-plugins",
+          "subpath": "./charts-echarts/0.6.24/client/provider.js",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/provider-plugins/plugins/charts-echarts/0.6.24/client/provider.js",
+          "reason": "module top-level effect: line 14: Math.log"
+        },
+        {
+          "package": "@jini-ai/provider-plugins",
+          "subpath": "./plugins/charts-echarts/0.6.24/client/provider.js",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/provider-plugins/plugins/charts-echarts/0.6.24/client/provider.js",
+          "reason": "module top-level effect: line 14: Math.log"
+        },
+        {
+          "package": "@jini-ai/provider-plugins",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/provider-plugins/package.json",
+          "reason": "missing sideEffects: false; inspect module initialization before marking JS side-effect free"
+        },
+        {
+          "package": "@jini-ai/sidecar",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/sidecar/src/index.ts",
+          "reason": ". is an aggregate barrel for respawn-policy, supervisor; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/ui",
+          "subpath": ".",
+          "kind": "d",
+          "rule": "SI-d",
+          "file": "packages/ui/src/index.ts",
+          "reason": ". is an aggregate barrel for admin-widgets, panel-kit, renderers; independent subpaths must stand alone"
+        },
+        {
+          "package": "@jini-ai/ui",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/ui/package.json",
+          "reason": "sideEffects is an asset allowlist (./dist/features/admin-widgets/styles/admin-widgets.css, ./dist/styles/*.css, ./dist/features/tabbed-dialog/styles/tabbed-dialog.css, ./dist/features/settings/dialog/styles/settings-dialog.css, ./dist/features/interactive-ui/interactive-ui.css, ./dist/**/*.css); retain CSS effects, JS must stay isolated"
+        },
+        {
+          "package": "@jini-ai/ui-kit",
+          "subpath": "(all)",
+          "kind": "c",
+          "rule": "SI-c",
+          "file": "packages/ui-kit/package.json",
+          "reason": "sideEffects is an asset allowlist (**/*.css); retain CSS effects, JS must stay isolated"
+        }
+      ]
+    },
+    "transport_body_hashes": {
+      "contract": "5afeac0fb15d9fd292a716856d54e8281379f3a1b28b92e1c6a76fc76b4c663a",
+      "management": "7423c397cb31d2641f44f5bb1e7c6a5630ed279dd9341ffd42ae8d485539cdc1",
+      "install": "6db2b4d09a8a7050d94d9f56faaf848c39626f14f121f2198c8d97d67795e8cf",
+      "source": "de35e1e64f0d62a98ca7674824309242767045d2fa1f86205ff8e1492fcfcb17"
+    },
+    "comment_neutralization_diff": "--- transported management.ts\n+++ N1-neutral management.ts\n@@ -325,7 +325,7 @@\n \n /**\n  * Pre-flight for an Agent Plugin ENABLE, run before the confirmation dialog: the host-incompatible result when any\n- * installed revision of the plugin declares a host range this Tovu does not satisfy, otherwise `undefined`.\n+ * installed revision of the plugin declares a host range this host does not satisfy, otherwise `undefined`.\n  *\n  * Same reason as {@link unwritableAgentPluginActivationsResult}: the write would refuse it anyway, but only after a\n  * human had approved something that cannot happen. Uses the lifecycle owner's own compatibility check against the\n@@ -390,7 +390,7 @@\n }\n \n \n-/** The plugin declares a host range this Tovu does not satisfy, so it cannot be enabled: the same\n+/** The plugin declares a host range this host does not satisfy, so it cannot be enabled: the same\n  *  refusal the admin switch answers with 409 `PLUGIN_HOST_INCOMPATIBLE`. Nothing changed, so it is\n  *  an ADR-055 Decision 6 result, not a failure. @complexity O(1). */\n function hostIncompatibleResult<Description>(routeDeps: PluginManagementToolsRequired<Description>, request: SetEnabledRequest, error: { \n@@ -429,7 +429,7 @@\n }\n \n \n-/** t91 R2 (2026-09-16): another Tovu process held the cross-process activations.json write lock and\n+/** t91 R2 (2026-09-16): another host process held the cross-process activations.json write lock and\n  *  the wait timed out, or this process lost the lock before it could commit. Same ADR-055 Decision 6\n  *  shape as {@link activationsUnreadableResult}: nothing changed, so it is a RESULT the model can\n  *  relay. The host lock path stays in the server log via `console.warn`; `note` is fixed and\n@@ -467,7 +467,7 @@\n \n \n /**\n- * The `.tovu-plugin` site/runtime branch \u2014 unchanged in mechanism from before this file grew a\n+ * The `site plugin` site/runtime branch \u2014 unchanged in mechanism from before this file grew a\n  * second family: the SAME `executeCommand` composition `routes/admin/plugins/set-enabled.ts` uses,\n  * with the same `captureInverse`/`rollback` pair.\n  * @complexity O(p) in discovered-plugin count, plus the command gateway's own writes.\n@@ -567,7 +567,7 @@\n }\n \n \n-/** What the owner's consent to a site-package enable rests on. Only a site-sourced `.tovu-plugin`\n+/** What the owner's consent to a site-package enable rests on. Only a site-sourced `site plugin`\n  * that is being enabled can carry a capability set; every other call has none. */\n interface SiteConsent {\n   \n@@ -801,7 +801,7 @@\n      * got on 2026-09-09, for the identical reason: two near-identically-named uninstall tools\n      * (`plugins_uninstall` and the now-deleted `agent_plugins_uninstall`) is the exact confusion this\n      * catalog exists to prevent, and the operator asking to \"uninstall the Higgsfield plugin\" does not\n-     * know which of Tovu's two plugin systems that word means either.\n+     * know which of the host's two plugin systems that word means either.\n      *\n      * The 'site-runtime' branch is UNCHANGED: mirrors `routes/admin/plugins/uninstall.ts`'s own\n      * business rules exactly \u2014 same permission, same `uninstallPlugin()` module, same pre-bound Trash\n",
+    "warning_diagnostic_trace": [
+      {
+        "message": "Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.",
+        "stack": "Error\n    at console.implementation (file:///workspace/work/extract-s7/warn-observer.mjs:9:155)\n    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n    at Object.onEvent (/workspace/Tovu/apps/website/src/features/agent-plugins/lifecycle.ts:101:46)\n    at indexInstalledRoot (/workspace/Jini/packages/agent-plugins/src/lifecycle/installed-package-index.ts:111:59)\n    at async listInstalledPlugins (/workspace/Jini/packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts:209:24)\n    at async resolveUninstallTargets (/workspace/Jini/packages/agent-plugins/src/lifecycle/uninstall.ts:422:23)\n    at async Object.previewAgentPluginUninstall (/workspace/Jini/packages/agent-plugins/src/lifecycle/uninstall.ts:225:25)\n    at async previewOrRefusal (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:173:23)\n    at async runAgentPluginUninstall (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:255:21)\n    at async <anonymous> (/workspace/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)"
+      },
+      {
+        "message": "[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused \u2014 agent-plugin activation: activations.json is not valid JSON (Expected property name or '}' in JSON at position 2 (line 1 column 3)) (/tmp/tovu-agent-plugin-uninstall-tool-test-DA45iG/ws/77777777-7777-4777-8777-777777777777/activations.json). The file was left untouched and nothing was written, so no recorded enable/disable decision was lost. Until it is repaired, this workspace's Agent Plugin tool calls and plugin-pinned runs are refused, and no Agent Plugin can be enabled, disabled, seeded or uninstalled. To recover, fix the JSON by hand; or stop the host, move the file aside and start the host again \u2014 bundled plugins are then recorded as disabled again, but every operator-installed plugin you had disabled starts enabled and must be disabled again.",
+        "stack": "Error\n    at console.implementation (file:///workspace/work/extract-s7/warn-observer.mjs:9:155)\n    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n    at uninstallRefusedResult (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:152:11)\n    at previewOrRefusal (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:175:23)\n    at async runAgentPluginUninstall (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:255:21)\n    at async <anonymous> (/workspace/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)\n    at async runHandler (/workspace/Jini/packages/daemon/src/tool-executor.ts:643:25)\n    at async Object.execute (/workspace/Jini/packages/daemon/src/tool-executor.ts:737:20)\n    at async Object.execute (/workspace/Jini/packages/daemon/src/delegated-tool-bridge.ts:284:26)\n    at async Object.handle (/workspace/Jini/packages/daemon/src/http/delegated-tools.ts:368:22)"
+      },
+      {
+        "message": "Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.",
+        "stack": "Error\n    at console.implementation (file:///workspace/work/extract-s7/warn-observer.mjs:9:155)\n    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n    at Object.onEvent (/workspace/Tovu/apps/website/src/features/agent-plugins/lifecycle.ts:101:46)\n    at indexInstalledRoot (/workspace/Jini/packages/agent-plugins/src/lifecycle/installed-package-index.ts:111:59)\n    at async listInstalledPlugins (/workspace/Jini/packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts:209:24)\n    at async resolveUninstallTargets (/workspace/Jini/packages/agent-plugins/src/lifecycle/uninstall.ts:422:23)\n    at async Object.previewAgentPluginUninstall (/workspace/Jini/packages/agent-plugins/src/lifecycle/uninstall.ts:225:25)\n    at async previewOrRefusal (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:173:23)\n    at async runAgentPluginUninstall (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:255:21)\n    at async Object.handler (/workspace/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)"
+      },
+      {
+        "message": "Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.",
+        "stack": "Error\n    at console.implementation (file:///workspace/work/extract-s7/warn-observer.mjs:9:155)\n    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n    at Object.onEvent (/workspace/Tovu/apps/website/src/features/agent-plugins/lifecycle.ts:101:46)\n    at indexInstalledRoot (/workspace/Jini/packages/agent-plugins/src/lifecycle/installed-package-index.ts:111:59)\n    at async listInstalledPlugins (/workspace/Jini/packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts:209:24)\n    at async resolveUninstallTargets (/workspace/Jini/packages/agent-plugins/src/lifecycle/uninstall.ts:422:23)\n    at async uninstallAgentPluginUnlocked (/workspace/Jini/packages/agent-plugins/src/lifecycle/uninstall.ts:255:53)\n    at async runHeldAsync (/workspace/Jini/packages/platform/src/fs/file-lock.ts:327:19)\n    at async uninstallConfirmedAgentPlugin (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:195:20)\n    at async Object.handler (/workspace/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)"
+      },
+      {
+        "message": "[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused \u2014 agent-plugin activation: activations.json is not a schemaVersion 1 activations document (/tmp/tovu-agent-plugin-uninstall-tool-test-DxZ5EQ/ws/77777777-7777-4777-8777-777777777777/activations.json). The file was left untouched and nothing was written, so no recorded enable/disable decision was lost. Until it is repaired, this workspace's Agent Plugin tool calls and plugin-pinned runs are refused, and no Agent Plugin can be enabled, disabled, seeded or uninstalled. To recover, fix the JSON by hand; or stop the host, move the file aside and start the host again \u2014 bundled plugins are then recorded as disabled again, but every operator-installed plugin you had disabled starts enabled and must be disabled again.",
+        "stack": "Error\n    at console.implementation (file:///workspace/work/extract-s7/warn-observer.mjs:9:155)\n    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n    at uninstallRefusedResult (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:152:11)\n    at uninstallConfirmedAgentPlugin (/workspace/Tovu/apps/website/src/features/agent-plugins/uninstall-tool.ts:223:12)\n    at async Object.handler (/workspace/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)"
+      }
     ]
   }
 }
