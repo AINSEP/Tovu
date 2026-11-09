@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition
+ok 1 - vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition
+  ---
+  duration_ms: 298.595967
+  type: 'test'
+  ...
+# Subtest: vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it
+ok 2 - vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it
+  ---
+  duration_ms: 131.347776
+  type: 'test'
+  ...
+# Subtest: security: the shared connection port refuses another workspace's target and reads no account for it
+ok 3 - security: the shared connection port refuses another workspace's target and reads no account for it
+  ---
+  duration_ms: 44.806361
+  type: 'test'
+  ...
+# Subtest: security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)
+ok 4 - security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)
+  ---
+  duration_ms: 79.877847
+  type: 'test'
+  ...
+# Subtest: security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer
+ok 5 - security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer
+  ---
+  duration_ms: 62.675328
+  type: 'test'
+  ...
+# Subtest: security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output
+ok 6 - security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output
+  ---
+  duration_ms: 60.411779
+  type: 'test'
+  ...
+# Subtest: security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context
+ok 7 - security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context
+  ---
+  duration_ms: 16.243695
+  type: 'test'
+  ...
+# Subtest: security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself
+ok 8 - security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself
+  ---
+  duration_ms: 39.629596
+  type: 'test'
+  ...
+# Subtest: vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery
+ok 9 - vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery
+  ---
+  duration_ms: 124.639984
+  type: 'test'
+  ...
+# Subtest: security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned
+ok 10 - security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned
+  ---
+  duration_ms: 180.288331
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8650.992373

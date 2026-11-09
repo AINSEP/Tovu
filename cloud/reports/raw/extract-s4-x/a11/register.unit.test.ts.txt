@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: the contributions are loaded once for the workspace, from the tools file, ordered by plugin id
+ok 1 - the contributions are loaded once for the workspace, from the tools file, ordered by plugin id
+  ---
+  duration_ms: 9.237663
+  type: 'test'
+  ...
+# Subtest: a read tool runs directly: classified agent-plugin-read, never wrapped in the approval card, deadline kept
+ok 2 - a read tool runs directly: classified agent-plugin-read, never wrapped in the approval card, deadline kept
+  ---
+  duration_ms: 1.219162
+  type: 'test'
+  ...
+# Subtest: a write tool asks through the approval owner with a disclosure, as agent-plugin-write, with no executor deadline
+ok 3 - a write tool asks through the approval owner with a disclosure, as agent-plugin-write, with no executor deadline
+  ---
+  duration_ms: 0.741893
+  type: 'test'
+  ...
+# Subtest: a destructive tool asks as agent-plugin-destructive (a delete, danger styling)
+ok 4 - a destructive tool asks as agent-plugin-destructive (a delete, danger styling)
+  ---
+  duration_ms: 0.634216
+  type: 'test'
+  ...
+# Subtest: a tool whose loader reports no effect is treated as destructive (the most friction)
+ok 5 - a tool whose loader reports no effect is treated as destructive (the most friction)
+  ---
+  duration_ms: 1.253988
+  type: 'test'
+  ...
+# Subtest: loader refusals and projection refusals are both returned, and a refused tool is not registered
+ok 6 - loader refusals and projection refusals are both returned, and a refused tool is not registered
+  ---
+  duration_ms: 1.283651
+  type: 'test'
+  ...
+# Subtest: a bound artifact writer reaches the tool, scoped to the calling plugin and workspace
+ok 7 - a bound artifact writer reaches the tool, scoped to the calling plugin and workspace
+  ---
+  duration_ms: 13.140036
+  type: 'test'
+  ...
+# Subtest: dispose removes every plugin tool from the registry
+ok 8 - dispose removes every plugin tool from the registry
+  ---
+  duration_ms: 1.707694
+  type: 'test'
+  ...
+# Subtest: T14: an older refresh cannot restore tools withdrawn by a newer refresh
+ok 9 - T14: an older refresh cannot restore tools withdrawn by a newer refresh
+  ---
+  duration_ms: 10.461859
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3146.345704

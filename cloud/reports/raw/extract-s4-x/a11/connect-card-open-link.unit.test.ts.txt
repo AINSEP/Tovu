@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: the generic connect card's sign-in button sends ui/open-link as a request the Host answers
+ok 1 - the generic connect card's sign-in button sends ui/open-link as a request the Host answers
+  ---
+  duration_ms: 438.368669
+  type: 'test'
+  ...
+# Subtest: the sign-in card uses the plugin declaration to explain the connection and permissions
+ok 2 - the sign-in card uses the plugin declaration to explain the connection and permissions
+  ---
+  duration_ms: 1.503566
+  type: 'test'
+  ...
+# Subtest: plugin token decoration preserves the token app, cancel action and submission fields
+ok 3 - plugin token decoration preserves the token app, cancel action and submission fields
+  ---
+  duration_ms: 3.588536
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3411.438619

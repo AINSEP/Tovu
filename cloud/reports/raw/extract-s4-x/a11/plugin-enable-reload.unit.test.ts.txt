@@ -1,0 +1,16 @@
+TAP version 13
+# Subtest: enabling a guidance-only plugin announces a reload even when it has no MCP servers to provision
+ok 1 - enabling a guidance-only plugin announces a reload even when it has no MCP servers to provision
+  ---
+  duration_ms: 3.355057
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1301.065698

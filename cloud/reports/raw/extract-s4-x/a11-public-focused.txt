@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 1 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 5.129901
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 2 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.83399
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 3 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 2.005362
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 4 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 3.175539
+  type: 'test'
+  ...
+# Subtest: boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require
+ok 5 - boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require
+  ---
+  duration_ms: 4.988289
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 6 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 25.875395
+  type: 'test'
+  ...
+# Subtest: portable renames: object API, host actor and host plugin listing are used
+ok 7 - portable renames: object API, host actor and host plugin listing are used
+  ---
+  duration_ms: 5.652745
+  type: 'test'
+  ...
+# Subtest: Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes
+ok 8 - Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes
+  ---
+  duration_ms: 1.075111
+  type: 'test'
+  ...
+# Subtest: R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval
+ok 9 - R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval
+  ---
+  duration_ms: 26.151853
+  type: 'test'
+  ...
+# Subtest: R4: no provisioning, grant or sign-in start before consent; host not-confirmed bytes returned
+ok 10 - R4: no provisioning, grant or sign-in start before consent; host not-confirmed bytes returned
+  ---
+  duration_ms: 2.359855
+  type: 'test'
+  ...
+# Subtest: host copy and ids: other host refusals use its messages; Tovu bytes stay in the T shim
+ok 11 - host copy and ids: other host refusals use its messages; Tovu bytes stay in the T shim
+  ---
+  duration_ms: 2.838331
+  type: 'test'
+  ...
+# Subtest: other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports
+ok 12 - other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports
+  ---
+  duration_ms: 4.894517
+  type: 'test'
+  ...
+# Subtest: other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved
+ok 13 - other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved
+  ---
+  duration_ms: 0.805133
+  type: 'test'
+  ...
+# Subtest: other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy
+ok 14 - other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy
+  ---
+  duration_ms: 1.556429
+  type: 'test'
+  ...
+# Subtest: Tovu shim: same validator error identity/rule, probe classification and host bytes
+ok 15 - Tovu shim: same validator error identity/rule, probe classification and host bytes
+  ---
+  duration_ms: 0.72941
+  type: 'test'
+  ...
+# Subtest: token sign-in: object API uses the host token rule and installed reads
+ok 16 - token sign-in: object API uses the host token rule and installed reads
+  ---
+  duration_ms: 1.07078
+  type: 'test'
+  ...
+# Subtest: permission-denied connect never reads routeDeps.mcp (lazy, after the check)
+ok 17 - permission-denied connect never reads routeDeps.mcp (lazy, after the check)
+  ---
+  duration_ms: 10.396502
+  type: 'test'
+  ...
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+ok 18 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 14.636047
+  type: 'test'
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 19 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 13.308687
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 20 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 6.477107
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 21 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 4.578459
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+ok 22 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 29.995275
+  type: 'test'
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 23 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 2.29475
+  type: 'test'
+  ...
+# Subtest: a concrete non-UI resource flows through the generic card builder and wait callback unchanged
+ok 24 - a concrete non-UI resource flows through the generic card builder and wait callback unchanged
+  ---
+  duration_ms: 8.473061
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33072.815828

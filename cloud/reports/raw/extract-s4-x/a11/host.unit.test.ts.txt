@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: a legacy OAuth credential requires reconnect without deleting or rewriting its token row
+ok 1 - a legacy OAuth credential requires reconnect without deleting or rewriting its token row
+  ---
+  duration_ms: 192.270703
+  type: 'test'
+  ...
+# Subtest: desktop: a connection with no installed-app client is refused as not set up on this desktop app
+ok 2 - desktop: a connection with no installed-app client is refused as not set up on this desktop app
+  ---
+  duration_ms: 44.396358
+  type: 'test'
+  ...
+# Subtest: desktop: an installed-app client that names no secret setting signs in as a public client and never sends a secret
+ok 3 - desktop: an installed-app client that names no secret setting signs in as a public client and never sends a secret
+  ---
+  duration_ms: 48.572908
+  type: 'test'
+  ...
+# Subtest: honest record: a connected record whose connection is no longer declared is served as it stands
+ok 4 - honest record: a connected record whose connection is no longer declared is served as it stands
+  ---
+  duration_ms: 41.979913
+  type: 'test'
+  ...
+# Subtest: honest record: a connected record is left as it stands when this host has no usable client (its actions refuse on their own)
+ok 5 - honest record: a connected record is left as it stands when this host has no usable client (its actions refuse on their own)
+  ---
+  duration_ms: 105.792236
+  type: 'test'
+  ...
+# Subtest: honest record: a storage fault while opening the tokens propagates and never reads as a client change
+ok 6 - honest record: a storage fault while opening the tokens propagates and never reads as a client change
+  ---
+  duration_ms: 82.443338
+  type: 'test'
+  ...
+# Subtest: honest record: losing the revision race while marking reconnect-required returns the record that won
+ok 7 - honest record: losing the revision race while marking reconnect-required returns the record that won
+  ---
+  duration_ms: 74.896676
+  type: 'test'
+  ...
+# Subtest: refresh: a token read waits for another process's refresh lease on the host's real sleep, then serves the still-valid token
+ok 8 - refresh: a token read waits for another process's refresh lease on the host's real sleep, then serves the still-valid token
+  ---
+  duration_ms: 345.980665
+  type: 'test'
+  ...
+# Subtest: token read: tokens sealed for another client are refused as reconnect-required and the stored record is marked by that read itself
+ok 9 - token read: tokens sealed for another client are refused as reconnect-required and the stored record is marked by that read itself
+  ---
+  duration_ms: 37.946524
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3062.361853

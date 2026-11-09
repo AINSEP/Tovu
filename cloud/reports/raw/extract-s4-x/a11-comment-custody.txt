@@ -1,0 +1,10 @@
+{"file":"connect-tool.ts","originalComments":51,"retained":51,"missing":[]}
+{"file":"access-token-tool.ts","originalComments":21,"retained":21,"missing":[]}
+{"file":"connect-card-ui.ts","originalComments":10,"retained":10,"missing":[]}
+{"file":"connect-destination.ts","originalComments":3,"retained":3,"missing":[]}
+{"file":"connect-sign-in-wait.ts","originalComments":2,"retained":2,"missing":[]}
+{"file":"grant-signed-in-defaults.ts","originalComments":13,"retained":13,"missing":[]}
+{"file":"token-sign-in.ts","originalComments":10,"retained":10,"missing":[]}
+{"file":"import-access-token.ts","originalComments":17,"retained":17,"missing":[]}
+{"file":"apply-tool-renames.ts","originalComments":11,"retained":11,"missing":[]}
+{"originalComments":138,"missing":0}

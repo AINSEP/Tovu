@@ -1,0 +1,66 @@
+[
+  {
+    "path": "apps/website/src/features/agent-plugins/connect-tool.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/access-token-tool.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/connect-card-ui.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/connect-destination.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/connect-sign-in-wait.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/token-sign-in.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/import-access-token.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/apply-tool-renames.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/card-host-bindings.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/service-ports.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts",
+    "importEdits": 1
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts",
+    "importEdits": 2
+  },
+  {
+    "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts",
+    "importEdits": 2
+  }
+]

@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: write defaults to the existing confirmation card and returns the screen handler URL only after confirmation
+ok 1 - write defaults to the existing confirmation card and returns the screen handler URL only after confirmation
+  ---
+  duration_ms: 23.663252
+  type: 'test'
+  ...
+# Subtest: read/destructive discovery metadata follows declarations, with no confirmation for read
+ok 2 - read/destructive discovery metadata follows declarations, with no confirmation for read
+  ---
+  duration_ms: 3.017241
+  type: 'test'
+  ...
+# Subtest: assistant permission alone cannot invoke an admin action or request its confirmation
+ok 3 - assistant permission alone cannot invoke an admin action or request its confirmation
+  ---
+  duration_ms: 1.599869
+  type: 'test'
+  ...
+# Subtest: disable while confirmation is pending prevents execution; a refresh removes every admin tool
+ok 4 - disable while confirmation is pending prevents execution; a refresh removes every admin tool
+  ---
+  duration_ms: 9.702243
+  type: 'test'
+  ...
+# Subtest: invalid schema input cannot reach a handler or create a card
+ok 5 - invalid schema input cannot reach a handler or create a card
+  ---
+  duration_ms: 2.87743
+  type: 'test'
+  ...
+# Subtest: a surface whose declaration changed before confirmation is refused, and its handler never runs
+ok 6 - a surface whose declaration changed before confirmation is refused, and its handler never runs
+  ---
+  duration_ms: 3.894062
+  type: 'test'
+  ...
+# Subtest: a switched-off plugin denies its read admin action before the admin permission is checked
+ok 7 - a switched-off plugin denies its read admin action before the admin permission is checked
+  ---
+  duration_ms: 1.321148
+  type: 'test'
+  ...
+# Subtest: without assistant permission the admin gate is never consulted
+ok 8 - without assistant permission the admin gate is never consulted
+  ---
+  duration_ms: 0.785566
+  type: 'test'
+  ...
+# Subtest: refresh keeps still-listed admin tools; a disposed registration refuses to refresh
+ok 9 - refresh keeps still-listed admin tools; a disposed registration refuses to refresh
+  ---
+  duration_ms: 1.78056
+  type: 'test'
+  ...
+# Subtest: security: an admin action whose account is switched while its approval waits is refused at token time
+ok 10 - security: an admin action whose account is switched while its approval waits is refused at token time
+  ---
+  duration_ms: 5.97248
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2313.352933

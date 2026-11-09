@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: parity: complete serialized status DTO and failed-send projection
+ok 1 - parity: complete serialized status DTO and failed-send projection
+  ---
+  duration_ms: 33.749001
+  type: 'test'
+  ...
+# Subtest: parity: sign-in provider redaction survives domain verdicts, ToolInputError and throws
+ok 2 - parity: sign-in provider redaction survives domain verdicts, ToolInputError and throws
+  ---
+  duration_ms: 9.797905
+  type: 'test'
+  ...
+# Subtest: parity: indexed batch keys, original hashes, redirect headers and ordered partial results
+ok 3 - parity: indexed batch keys, original hashes, redirect headers and ordered partial results
+  ---
+  duration_ms: 2.656411
+  type: 'test'
+  ...
+# Subtest: parity: approval drift and capture without a sink refuse before any effects
+ok 4 - parity: approval drift and capture without a sink refuse before any effects
+  ---
+  duration_ms: 0.537647
+  type: 'test'
+  ...
+# Subtest: parity: only forbidden permits one account-key retry; sending context stays unchanged
+ok 5 - parity: only forbidden permits one account-key retry; sending context stays unchanged
+  ---
+  duration_ms: 0.765227
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1730.2011

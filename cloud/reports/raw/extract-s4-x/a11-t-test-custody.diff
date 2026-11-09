@@ -1,0 +1,1200 @@
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts
+new file mode 100644
+index 000000000..cef2dbd5f
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts
+@@ -0,0 +1,108 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { readdirSync, readFileSync } from 'node:fs';
++import { dirname, join, resolve } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import ts from 'typescript';
++import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
++import type { SurfaceAskThenReport } from '@jini-ai/core';
++import type { SurfaceCardSecretForm } from '@jini-ai/core/contracts/cards';
++import {
++  resolveAgentPluginCardIdentity, buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts,
++  type AgentPluginCardBuilders, type AgentPluginCredentialCardForms,
++} from '@jini-ai/agent-plugins/connect';
++import { chooseApiConnectionDestinationWithPorts } from '@jini-ai/agent-plugins/connect';
++import { agentPluginCardHost, tovuAgentPluginCardIdentity } from '../../card-host-bindings.js';
++import { buildAgentPluginAccessTokenForm } from '../../connect-card-ui.js';
++
++/** Opaque, non-UI card type: any cast or UI assumption in the portable bodies fails this compile. */
++interface OtherResource { readonly kind: 'other-resource'; readonly spec: unknown }
++const otherCards: AgentPluginCardBuilders<OtherResource> = {
++  defineSecretCardTool: () => { throw new Error('not used'); },
++  buildSignInCard: spec => ({ kind: 'other-resource', spec }),
++  buildFormSurface: spec => ({ kind: 'other-resource', spec }),
++  buildOutcomeSurface: spec => ({ kind: 'other-resource', spec }),
++};
++
++test('R3: Tovu card identity resolves to the exact pre-seam bytes', () => {
++  assert.deepEqual(resolveAgentPluginCardIdentity({ cardIdentity: tovuAgentPluginCardIdentity, toolId: 'agent_plugin_connect' }), {
++    connect: { uriNamespace: 'tovu/agent-plugins-connect', toolId: 'agent_plugin_connect', app: { appName: 'tovu-agent-plugins-connect', appVersion: '1' } },
++    token: { formApp: { appName: 'tovu-agent-plugins-access-token', appVersion: '1' }, outcomeApp: { appName: 'tovu-agent-plugins-access-token-outcome', appVersion: '1' } },
++    destination: { uriNamespace: 'tovu/sign-in-destination', toolId: 'agent_plugin_connect' },
++  });
++  assert.equal(agentPluginCardHost.connect.uriNamespace, 'tovu/agent-plugins-connect');
++});
++
++test('R3: an alternate host namespace flows into the URI and app with an opaque resource', () => {
++  const route = resolveAgentPluginCardIdentity({ cardIdentity: { uriNamespace: 'acme', appNames: { connect: 'acme-connect', tokenForm: 'acme-token', tokenOutcome: 'acme-token-outcome' } }, toolId: 'acme_connect' });
++  const card: OtherResource = buildAgentPluginConnectCardWithPorts({ spec: { pluginId: 'p 1', pluginDisplayName: 'P', state: 'connected' }, cards: otherCards, identity: route.connect });
++  const spec = card.spec as { uri: string; app: unknown; toolId: string };
++  assert.equal(spec.uri, 'ui://acme/agent-plugins-connect/p%201');
++  assert.deepEqual(spec.app, { appName: 'acme-connect', appVersion: '1' });
++  assert.equal(spec.toolId, 'acme_connect');
++  assert.equal(route.destination.uriNamespace, 'acme/sign-in-destination');
++});
++
++test('forms: the token form is built through the host credential forms port into its own form type', () => {
++  interface OtherForm { readonly wrapped: SurfaceCardSecretForm; readonly card?: unknown }
++  const forms: AgentPluginCredentialCardForms<OtherForm> = { apply: ({ card, form }) => ({ wrapped: form, card }) };
++  const out: OtherForm = buildAgentPluginAccessTokenFormWithPorts({ app: { appName: 'acme-token', appVersion: '1' },
++    messages: { description: ({ pluginDisplayName, helpUrl }) => `Acme checks ${pluginDisplayName} at ${helpUrl}` },
++    spec: { credentials: forms, pluginDisplayName: 'Office', helpUrl: 'https://example.test/tokens' } });
++  assert.equal(out.wrapped.description, 'Acme checks Office at https://example.test/tokens');
++  assert.equal(out.wrapped.fields[0]?.name, 'token');
++  assert.doesNotMatch(JSON.stringify(out), /Tovu/);
++  const tovu = buildAgentPluginAccessTokenForm({ credentials: { apply: ({ form }) => form }, pluginDisplayName: 'Office', helpUrl: 'https://example.test/tokens' });
++  assert.equal(tovu.description, 'Create a personal access token at https://example.test/tokens, then paste it below. Tovu checks it with Office and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.');
++  assert.deepEqual(tovu.app, { appName: 'tovu-agent-plugins-access-token', appVersion: '1' });
++});
++
++test('destination: host channel and copy are used, with an opaque resource', async () => {
++  const exchanges = createSurfaceExchangeStore({ clock: { nowMs: () => 0 }, idGenerator: { newId: () => 'x1' }, defaultChannel: 'other',
++    scheduler: { schedule: () => () => {} } });
++  const seen: { channel?: string; resource?: OtherResource } = {};
++  const askThenReport: SurfaceAskThenReport = async ({ confirmationEmission }) => {
++    seen.channel = confirmationEmission.channel;
++    seen.resource = (confirmationEmission.payload as { resource: OtherResource }).resource;
++    return null as never;
++  };
++  const ctx = { executionId: 'e', principal: { id: 'owner' }, run: { id: 'r' }, input: {}, signal: new AbortController().signal };
++  const chosen = await chooseApiConnectionDestinationWithPorts({ cards: otherCards, askThenReport, uriNamespace: 'acme/sign-in-destination', toolId: 'acme_connect',
++    host: { channel: 'other-channel', messages: { description: 'Acme description', sharedOptionLabel: 'Share on Acme' } },
++    surfaces: { surfaceExchanges: exchanges }, ctx, pluginDisplayName: 'Office', available: true }, { emitSurface: async () => {} });
++  assert.equal(chosen, null);
++  assert.equal(seen.channel, 'other-channel');
++  const spec = seen.resource?.spec as { uri: string; description: string; fields: [{ options: { label: string }[] }] };
++  assert.equal(spec.uri, 'ui://acme/sign-in-destination/x1');
++  assert.equal(spec.description, 'Acme description');
++  assert.equal(spec.fields[0].options[1]?.label, 'Share on Acme');
++  assert.doesNotMatch(JSON.stringify(spec), /Mac|Tovu|mcp-ui/);
++});
++
++function importedSpecifiers(source: string): readonly string[] {
++  return ts.preProcessFile(source, true, true).importedFiles.map(file => file.fileName);
++}
++
++test('boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require', () => {
++  const source = `// env import's rule is rationale, not an import\nimport type { X } from '@jini-ai/ui';
++import cards = require('@jini-ai/daemon');
++export type Y = import('@jini-ai/integrations').Y;
++const a = import('@jini-ai/mcp');
++const b = require('@jini-ai/cms');`;
++  assert.deepEqual(importedSpecifiers(source), ['@jini-ai/ui', '@jini-ai/daemon', '@jini-ai/integrations', '@jini-ai/mcp', '@jini-ai/cms']);
++});
++
++test('no portable A10 body imports Tovu code (value or type) or a non-core Jini package', () => {
++  const dir = resolve(dirname(fileURLToPath(import.meta.resolve('@jini-ai/agent-plugins/connect'))), '../../src/connect');
++  const expected = ['access-token-tool.ts', 'apply-tool-renames.ts', 'connect-card-ui.ts', 'connect-destination.ts', 'connect-sign-in-wait.ts', 'connect-tool.ts', 'grant-signed-in-defaults.ts', 'import-access-token.ts', 'token-sign-in.ts'];
++  const files = readdirSync(dir).filter(name => expected.includes(name)).sort();
++  assert.deepEqual(files, expected, 'all nine moved bodies are checked');
++  for (const name of files) {
++    const source = readFileSync(join(dir, name), 'utf8');
++    for (const spec of importedSpecifiers(source)) {
++      const ok = /^@jini-ai\/core(\/|$)/.test(spec!) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec!) || /^\.\/[^/]+\.js$/.test(spec!);
++      assert.ok(ok, `${name} imports ${spec}`);
++    }
++    assert.doesNotMatch(source, /\bTovu\b|ui:\/\/tovu|'mcp-ui'/, name);
++  }
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts
+new file mode 100644
+index 000000000..b3eabd9d3
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts
+@@ -0,0 +1,43 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import type { AgentPluginMcpRecord, AgentPluginMcpRepo } from '@jini-ai/agent-plugins/connect';
++import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
++import { applyAgentPluginToolRenames, renameToolNames } from '@jini-ai/agent-plugins/connect';
++import { applyAgentPluginToolRenames as tovuApply } from '../../apply-tool-renames.js';
++
++const URL_ = 'https://mcp.example.test/mcp';
++function harness() {
++  // Only the fields the rename reads; the rest of the saved row is irrelevant to this rule.
++  const row = { provisionedByPluginId: 'acme', url: URL_, allowedToolNames: '["old_read"]', writeAllowedToolNames: '["old_write"]' } as unknown as AgentPluginMcpRecord;
++  const saved: AgentPluginMcpRecord[] = [];
++  const repo = {
++    findByServerId: async () => row, upsert: async (next: AgentPluginMcpRecord) => { saved.push(next); return next; },
++    deleteByServerId: async () => false, updateAccessIfCurrent: async () => null,
++  } as unknown as AgentPluginMcpRepo;
++  const servers: Record<string, McpServerConfig> = { main: { type: 'streamable-http', url: URL_, renamedTools: { old_read: 'new_read', old_write: 'new_write' } } };
++  return { repo, saved, servers, logs: [] as string[] };
++}
++
++test('portable renames: object API, host actor and host plugin listing are used', async () => {
++  const h = harness();
++  let notified = 0;
++  await applyAgentPluginToolRenames({ log: { info: m => h.logs.push(m), warn: m => h.logs.push(m) }, deps: {
++    workspaceId: 'w', externalMcpServerRepo: h.repo, clock: { nowMs: () => 0 }, actor: 'acme:renames',
++    listPlugins: async () => [{ pluginId: 'acme', servers: h.servers }], notifyRosterChanged: async () => { notified++; },
++  } });
++  assert.equal(h.saved.length, 1);
++  assert.equal(h.saved[0]?.allowedToolNames, '["new_read"]');
++  assert.equal(h.saved[0]?.writeAllowedToolNames, '["new_write"]');
++  assert.equal(h.saved[0]?.writeGrantsUpdatedByPrincipalId, 'acme:renames');
++  assert.equal(notified, 1);
++  assert.deepEqual(renameToolNames({ names: ['a', 'b'], renames: { a: 'b' } }), ['b']);
++});
++
++test('Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes', async () => {
++  const h = harness();
++  await tovuApply({ workspaceId: 'w', get agentPluginLayout(): never { throw new Error('layout must stay lazy'); },
++    externalMcpServerRepo: h.repo, clock: { nowMs: () => 0 }, listPlugins: async () => [{ pluginId: 'acme', servers: h.servers }],
++    notifyRosterChanged: async () => {} }, { info: () => {}, warn: m => h.logs.push(m) });
++  assert.equal(h.saved[0]?.writeGrantsUpdatedByPrincipalId, 'system:tool-renames');
++  assert.deepEqual(h.logs, []);
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+new file mode 100644
+index 000000000..b8f4f4a37
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+@@ -0,0 +1,127 @@
++/**
++ * A10b seam: the portable `agent_plugin_connect` body driven by a second host's ports only (alternate
++ * tool id, permissions, approval owner, copy and card waiter). Proves R4: approve -> provision -> sign in
++ * -> revalidate, no provisioning/grant/sign-in before consent, one sign-in start, and the permission
++ * re-check inside the approval's `run`. Real in-memory external-MCP store, no on-disk install.
++ */
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import type { ToolExecutionContext, ToolHandler } from '@jini-ai/core';
++import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
++import { InMemoryKeyring } from '#src/features/webhooks/keyring.memory';
++import { AesGcmSecretSealer } from '#src/features/webhooks/secret-sealer.aesgcm';
++import { mcpTestPort } from '../fixtures/connection-service-ports.js';
++import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
++import { classifyAgentPluginMcpServerTrust } from '../../capability-projection.js';
++import { tovuEnableAccessMessages } from '../../enable-access.js';
++import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '@jini-ai/agent-plugins/connect';
++import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from '../../connect-tool.js';
++import type { McpServerConfig } from '../../mcp-metadata.js';
++
++const WORKSPACE_ID = '77777777-7777-4777-8777-777777777777';
++const CLOCK = { nowMs: () => Date.parse('2026-09-27T00:00:00.000Z'), nowIso: () => '2026-09-27T00:00:00.000Z' };
++const OAUTH_SERVER: McpServerConfig = { type: 'streamable-http', url: 'https://mcp.example.com/mcp', authMode: 'oauth' };
++
++/** A second host's opaque surfaces: the portable body only passes them through to host ports. */
++interface AcmeSurfaces { readonly acme: true }
++
++const acmeMessages: AgentPluginConnectMessages = {
++  signInRefused: ({ detail }) => `acme refused: ${detail}`, unsupportedSignIn: ({ kind }) => `acme unsupported ${kind}`,
++  connectionNotSetUp: ({ serverKey }) => `acme not set up ${serverKey}`, multipleTokenServers: () => 'acme many tokens',
++  noTokenCardAdapter: () => 'acme no adapter', pluginOff: ({ pluginId }) => `acme off ${pluginId}`, notInstalled: () => 'acme not installed',
++  noOAuthService: () => 'acme no oauth', multipleOAuthServers: () => 'acme many oauth', noConnection: () => 'acme none',
++  multipleApiConnections: () => 'acme many api', missingEmitter: () => 'acme no emitter',
++};
++
++function fixture({ decide }: { decide: 'approve' | 'expire' }) {
++  const log: string[] = [];
++  const permissions: string[] = [];
++  const repo = new InMemoryExternalMcpServerRepo();
++  const store = { repo, keyring: new InMemoryKeyring(), sealer: new AesGcmSecretSealer(new InMemoryKeyring()), clock: CLOCK };
++  const port = mcpTestPort(store);
++  const mcp = withAgentPluginMcpPorts({
++    ...port,
++    saveServer: async (input: Parameters<typeof port.saveServer>[0]) => { log.push('provision'); return port.saveServer(input); },
++    applyAccess: async (input: Parameters<typeof port.applyAccess>[0]) => { log.push('grant'); return port.applyAccess(input); },
++  });
++  const described: { toolId: string; errorCode: string }[] = [];
++  const host: AgentPluginConnectHost<AcmeSurfaces> = {
++    toolId: 'acme_connect', permissions: { connect: 'acme.connect', apiConnectionWrite: 'acme.write' }, entityType: 'acme-plugin', approvalErrorCode: 'ACME',
++    approvals: {
++      accessApprovalHandler: (required, optional): ToolHandler => async (ctx, options = {}) => {
++        assert.deepEqual(required.surfaces, { acme: true });
++        const prepared = await required.prepare({ ctx }, options);
++        log.push('approval:prepare');
++        described.push(required.describe({ ctx, prepared }));
++        optional.ask({ prepared });
++        if (decide === 'expire') { log.push('approval:expired'); return optional.declined({ reason: 'expired', prepared }); }
++        log.push('approval:run');
++        return required.run({ ctx, prepared }, options);
++      },
++      notConfirmedResult: ({ reason }) => ({ cancelled: false, note: `acme not confirmed: ${reason}` }),
++    },
++    messages: acmeMessages,
++    publicUrl: { redirectUri: ({ serverId }) => `https://acme.test/cb/${serverId}` },
++    federation: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages },
++    actors: { connectDeclined: 'acme:declined' },
++    waitAtSignInCard: async (required) => {
++      log.push('sign-in-card');
++      assert.equal(required.pluginDisplayName, 'Widget Store');
++      return required.connect({ signal: new AbortController().signal, showSignIn: async ({ signInUrl }) => {
++        log.push(`show:${signInUrl}`);
++        const row = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' });
++        await repo.upsert({ ...row!, oauthStatus: 'connected' });
++      } });
++    },
++    chooseDestination: async () => null,
++  };
++  const deps: AgentPluginConnectDeps<AcmeSurfaces, never> = {
++    workspaceId: WORKSPACE_ID, mcp, host,
++    authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: 'test' }; },
++    credentials: { loadSafe: async () => [] },
++    isPluginEnabled: async () => { log.push('activation'); return true; },
++    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
++    externalMcpOAuth: {
++      beginConnect: async ({ serverId, redirectUri }) => { log.push(`begin:${redirectUri}`); return { kind: 'redirect_required', authorizationUrl: `https://idp.test/${serverId}`, expiresAt: '2026-09-27T00:10:00.000Z' }; },
++      isSignInRefusal: () => false,
++    },
++    pollIntervalMs: 1, waitTimeoutMs: 200,
++  };
++  const ctx = { executionId: 'e', principal: { id: 'p1' }, run: { id: 'r' }, input: { pluginId: 'widget-store' }, signal: new AbortController().signal } as unknown as ToolExecutionContext;
++  return { log, permissions, described, deps, ctx, repo };
++}
++
++test('R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval', async () => {
++  const f = fixture({ decide: 'approve' });
++  const result = await runAgentPluginConnect({ routeDeps: f.deps, surfaces: { acme: true }, ctx: f.ctx, pluginId: 'widget-store' }, { emitSurface: async () => {} });
++  assert.equal(result.status, 'connected');
++  const flow = f.log.filter(entry => !entry.startsWith('grant'));
++  assert.deepEqual(flow, [
++    'activation', 'approval:prepare', 'approval:run', 'activation', 'provision',
++    'begin:https://acme.test/cb/widget', 'sign-in-card', 'show:https://idp.test/widget',
++    'approval:prepare', 'approval:run', 'activation',
++  ]);
++  assert.equal(f.log.filter(entry => entry.startsWith('begin:')).length, 1);
++  assert.ok(f.described.length === 2 && f.described.every(d => d.toolId === 'acme_connect' && d.errorCode === 'ACME'));
++  // The permission is checked up front AND re-checked inside each approval's run, with the host's name.
++  assert.deepEqual(f.permissions, ['acme.connect', 'acme.connect', 'acme.connect']);
++});
++
++test('R4: no provisioning, grant or sign-in start before consent; host not-confirmed bytes returned', async () => {
++  const f = fixture({ decide: 'expire' });
++  const result = await runAgentPluginConnect({ routeDeps: f.deps, surfaces: { acme: true }, ctx: f.ctx, pluginId: 'widget-store' }, { emitSurface: async () => {} });
++  assert.deepEqual(result, { status: 'not-connected', cancelled: false, note: 'acme not confirmed: expired' });
++  assert.deepEqual(f.log, ['activation', 'approval:prepare', 'approval:expired']);
++  assert.equal(await f.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }), null);
++});
++
++test('host copy and ids: other host refusals use its messages; Tovu bytes stay in the T shim', async () => {
++  const f = fixture({ decide: 'approve' });
++  const off = { ...f.deps, isPluginEnabled: async () => false };
++  await assert.rejects(runAgentPluginConnect({ routeDeps: off, surfaces: { acme: true }, ctx: f.ctx, pluginId: 'widget-store' }), { message: 'acme off widget-store' });
++  assert.equal(tovuAgentPluginConnectHost.toolId, 'agent_plugin_connect');
++  assert.deepEqual(tovuAgentPluginConnectHost.permissions, { connect: 'admin.integrations.manage', apiConnectionWrite: 'system.write' });
++  assert.equal(tovuAgentPluginConnectHost.messages.connectionNotSetUp({ pluginId: 'p', serverKey: 's' }), "agent_plugin_connect: 'p''s 's' connection could not be set up in this Tovu version.");
++  assert.equal(agentPluginConnectAgentToolCatalog[0]?.name, 'agent_plugin_connect');
++  assert.match(agentPluginConnectAgentToolCatalog[0]!.description, /Never ask the person to restart Tovu\./);
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts
+new file mode 100644
+index 000000000..f992760be
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts
+@@ -0,0 +1,148 @@
++/**
++ * A10c seam: the portable `agent_plugin_set_access_token` body driven by a second host's ports only
++ * (own card lifecycle id/namespace, permission, copy, token rule R1, saved-token switch). Proves the
++ * token save / cancel / invalid paths through the ports, that the host validator (not Tovu's) is used
++ * and that Tovu's error identity and bytes are unchanged behind the T shim.
++ */
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import type { ToolExecutionContext } from '@jini-ai/core';
++import type { SurfaceCardSecretSpec, SurfaceCardSecretOptions, SurfaceCardSecretDeps, SurfaceCardsPort } from '@jini-ai/core/contracts/cards';
++import {
++  saveAgentPluginToken, type AgentPluginAccessTokenToolDeps, type SetAccessTokenResult, type TokenAuthTarget,
++} from '@jini-ai/agent-plugins/connect';
++import { probeToken, tovuAgentPluginAccessTokenHost, tovuTokenValidator } from '../../access-token-tool.js';
++import { CredentialInputError } from '../../../../contracts/core/credential-token.js';
++import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '@jini-ai/agent-plugins/connect';
++
++class AcmeTokenError extends Error { constructor(readonly acmeRule: string) { super('acme bad token'); } }
++type Prep = { target: TokenAuthTarget; principalId: string; locale: string };
++
++const TARGET: TokenAuthTarget = {
++  pluginId: 'acme-crm', displayName: 'Acme Crm', connectionId: 'plugin-acme-crm',
++  config: { type: 'streamable-http', url: 'https://mcp.acme.test/mcp', tokenAuth: { helpUrl: 'https://acme.test/tokens', probeUrl: 'https://acme.test/me' } },
++};
++const ROW = { serverId: 'plugin-acme-crm', label: null, enabled: true, url: 'https://mcp.acme.test/mcp', allowedToolNames: '["a"]', writeAllowedToolNames: null };
++
++function acmeFixture({ probe = 'ok' as 'ok' | 'refused' | 'unavailable' } = {}) {
++  const log: string[] = [];
++  const saved: Record<string, unknown>[] = [];
++  let captured: { spec: SurfaceCardSecretSpec<Prep, SetAccessTokenResult, SetAccessTokenResult>; options?: SurfaceCardSecretOptions; deps?: SurfaceCardSecretDeps } | undefined;
++  const askThenReport = (async () => undefined) as unknown as SurfaceCardSecretDeps['askThenReport'];
++  const cards: Pick<SurfaceCardsPort, 'defineSecretCardTool'> = {
++    defineSecretCardTool: ((spec: SurfaceCardSecretSpec<Prep, SetAccessTokenResult, SetAccessTokenResult>, options?: SurfaceCardSecretOptions) => {
++      captured = { spec, options };
++      return { toolId: spec.toolId, secretFieldNames: () => ['token'], handler: (deps: SurfaceCardSecretDeps) => { captured!.deps = deps; return async () => ({ saved: false, reason: 'cancelled' }); } };
++    }) as unknown as SurfaceCardsPort['defineSecretCardTool'],
++  };
++  const deps = {
++    workspaceId: 'w-acme',
++    authorize: async ({ permission }: { permission: string }) => { log.push(`perm:${permission}`); return { allowed: false, reason: 'test' }; },
++    mcp: {
++      repo: { findByServerId: async () => ROW },
++      saveServer: async (input: Record<string, unknown>) => { saved.push(input); },
++      classifyError: () => 'other',
++    },
++    resolveInstalledPlugin: async () => null,
++    federation: { classifyTrust: () => 'trusted', messages: {} },
++    credentials: { apply: ({ form }: { form: unknown }) => form, find: async () => undefined, probe: async () => { log.push('probe'); return probe; } },
++    preferences: { locale: async () => 'en' },
++    tokenValidator: {
++      assertToken: ({ value, field }: { value: unknown; field: string }) => { log.push(`assert:${field}`); if (typeof value !== 'string' || !value.trim().startsWith('acme_')) throw new AcmeTokenError(typeof value === 'string' ? 'acme-shape' : 'acme-type'); },
++      inputErrorRule: ({ error }: { error: unknown }) => (error instanceof AcmeTokenError && error.acmeRule !== 'acme-type' ? error.acmeRule : null),
++    },
++    switchOnSavedToken: async ({ target }: { target: TokenAuthTarget }) => { log.push(`switch:${target.pluginId}`); return { state: 'on' as const }; },
++    messages: {
++      connectionNotSetUp: () => 'acme not set up', connectionRepointed: () => 'acme repointed', notInstalled: () => 'acme not installed',
++      noTokenSignIn: () => 'acme none', multipleTokenSignIns: () => 'acme many', serverNotSetUp: () => 'acme server',
++      onlyPluginId: () => 'acme only pluginId', pluginIdRequired: () => 'acme pluginId required',
++      credentialText: ({ id }: { id: string }) => `acme text ${id}`, translateCredentialMessage: ({ message }: { message: string }) => `acme tr ${message}`,
++      savedTokenSwitch: ({ outcome, target }: { outcome: { state: string }; target: TokenAuthTarget }) => `acme ${target.displayName} ${outcome.state}`,
++    },
++    host: {
++      toolId: 'acme_secret_save', permission: 'acme.tokens', entityType: 'acme-plugin',
++      cardIdentity: { uriNamespace: 'acme', appNames: { connect: 'acme-connect', tokenForm: 'acme-token', tokenOutcome: 'acme-token-outcome' } },
++      cards, askThenReport, formMessages: { description: ({ helpUrl }: { helpUrl: string }) => `Acme checks it. ${helpUrl}` },
++    },
++  } as unknown as AgentPluginAccessTokenToolDeps;
++  const ctx = { principal: { id: 'p-acme' }, run: {}, input: { pluginId: 'acme-crm' }, signal: new AbortController().signal } as unknown as ToolExecutionContext;
++  return { deps, ctx, log, saved, askThenReport, captured: () => captured! };
++}
++
++const prep: Prep = { target: TARGET, principalId: 'p-acme', locale: 'en' };
++
++test('other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports', async () => {
++  const f = acmeFixture();
++  await saveAgentPluginToken({ routeDeps: f.deps, surfaces: { surfaceExchanges: { open: (() => undefined) as never } }, ctx: f.ctx });
++  const { spec, options, deps } = f.captured();
++  assert.equal(spec.toolId, 'acme_secret_save');
++  assert.equal(options?.uriHost, 'acme');
++  assert.equal(deps?.askThenReport, f.askThenReport);
++  const form = spec.form({ prep }) as unknown as { app: unknown; description: string };
++  assert.deepEqual(form.app, { appName: 'acme-token', appVersion: '1' });
++  assert.equal(form.description, 'Acme checks it. https://acme.test/tokens');
++  const result = await spec.save({ values: { token: ' acme_123 ' }, prep, signal: new AbortController().signal });
++  assert.deepEqual(result, { saved: true, next: 'acme Acme Crm on' });
++  assert.deepEqual(f.log, ['assert:token', 'assert:token', 'probe', 'switch:acme-crm']);
++  assert.equal(f.saved.length, 1);
++  assert.equal(f.saved[0]!.accessToken, 'acme_123');
++  assert.equal(f.saved[0]!.authMode, 'static_env');
++  const outcome = spec.outcome({ prep, run: { status: 'saved', saved: result } }) as unknown as { app: unknown; message: string };
++  assert.deepEqual(outcome.app, { appName: 'acme-token-outcome', appVersion: '1' });
++  assert.equal(outcome.message, 'acme Acme Crm on');
++});
++
++test('other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved', async () => {
++  const f = acmeFixture();
++  await saveAgentPluginToken({ routeDeps: f.deps, surfaces: { surfaceExchanges: { open: (() => undefined) as never } }, ctx: f.ctx });
++  const { spec } = f.captured();
++  const signal = new AbortController().signal;
++  assert.deepEqual(await spec.save({ values: { token: 'nope' }, prep, signal }), { saved: false, reason: 'invalid', message: 'acme text acme-shape' });
++  await assert.rejects(spec.save({ values: { token: 42 }, prep, signal }), (err: unknown) => err instanceof AcmeTokenError && err.acmeRule === 'acme-type');
++  assert.equal(f.saved.length, 0);
++  assert.equal(f.log.includes('probe'), false);
++});
++
++test('other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy', async () => {
++  const f = acmeFixture({ probe: 'refused' });
++  await saveAgentPluginToken({ routeDeps: f.deps, surfaces: { surfaceExchanges: { open: (() => undefined) as never } }, ctx: f.ctx });
++  const { spec } = f.captured();
++  assert.deepEqual(spec.result({ prep, run: { status: 'cancelled' } }), { saved: false, reason: 'cancelled' });
++  assert.deepEqual(spec.result({ prep, run: { status: 'blank' } }), { saved: false, reason: 'invalid', message: 'acme text blank' });
++  assert.equal(spec.outcome({ prep, run: { status: 'cancelled' } }), undefined);
++  const refused = await spec.save({ values: { token: 'acme_1' }, prep, signal: new AbortController().signal });
++  assert.equal(refused.saved, false);
++  assert.equal(f.saved.length, 0);
++  await assert.rejects(spec.prepare({ ctx: f.ctx }), /not authorized for 'acme.tokens'/);
++  const g = acmeFixture();
++  await saveAgentPluginToken({ routeDeps: g.deps, surfaces: { surfaceExchanges: { open: (() => undefined) as never } }, ctx: { ...g.ctx, input: { pluginId: 'acme-crm', token: 'acme_x' } } as ToolExecutionContext });
++  await assert.rejects(g.captured().spec.prepare({ ctx: g.ctx }), /acme only pluginId/);
++  assert.deepEqual(f.log.filter((l) => l.startsWith('perm:')), ['perm:acme.tokens']);
++});
++
++test('Tovu shim: same validator error identity/rule, probe classification and host bytes', async () => {
++  let thrown: unknown;
++  try { tovuTokenValidator.assertToken({ value: '', field: 'token' }); } catch (err) { thrown = err; }
++  assert.ok(thrown instanceof CredentialInputError);
++  assert.equal(tovuTokenValidator.inputErrorRule({ error: thrown }), (thrown as CredentialInputError).rule);
++  assert.equal(tovuTokenValidator.inputErrorRule({ error: new Error('x') }), null);
++  assert.equal(await probeToken({ probeUrl: 'https://x.test', token: '', credentials: { probe: async () => 'ok' } }), 'invalid');
++  assert.equal(tovuAgentPluginAccessTokenHost.toolId, 'credential_save');
++  assert.equal(tovuAgentPluginAccessTokenHost.cardIdentity.uriNamespace, 'tovu');
++  assert.equal(tovuAgentPluginAccessTokenHost.permission, 'admin.integrations.manage');
++  assert.equal(tovuAgentPluginAccessTokenHost.entityType, 'agent-plugin');
++});
++
++test('token sign-in: object API uses the host token rule and installed reads', async () => {
++  const seen: string[] = [];
++  const servers = { a: { type: 'streamable-http' as const, url: 'https://mcp.acme.test/mcp', tokenAuth: { helpUrl: 'https://acme.test/t', probeUrl: 'https://acme.test/me' } } };
++  const listed = await listTokenSignInPlugins({ workspaceId: 'w', listPlugins: async (id) => { seen.push(`list:${id}`); return [{ pluginId: 'acme-crm', servers }, { pluginId: 'none', servers: {} }]; } });
++  assert.deepEqual(listed, [{ pluginId: 'acme-crm', displayName: 'Acme Crm', helpUrl: 'https://acme.test/t' }]);
++  const deps = {
++    workspaceId: 'w', credentials: { probe: async () => { seen.push('probe'); return 'ok' as const; } }, resolveInstalledPlugin: async () => ({ servers }),
++    tokenValidator: { assertToken: ({ value }: { value: unknown }) => { seen.push(`assert:${String(value)}`); if (value !== 'acme_ok') throw new AcmeTokenError('x'); } },
++  };
++  assert.equal(await checkAgentPluginAccessToken({ deps, input: { pluginId: 'acme-crm', token: 'longenoughbutnotacme' } }), 'invalid');
++  assert.equal(await checkAgentPluginAccessToken({ deps, input: { pluginId: 'acme-crm', token: 'acme_ok' } }), 'ok');
++  assert.deepEqual(seen, ['list:w', 'assert:longenoughbutnotacme', 'assert:acme_ok', 'probe']);
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts
+new file mode 100644
+index 000000000..0f02972b8
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts
+@@ -0,0 +1,25 @@
++/**
++ * A10c regression: the `agent_plugin_connect` T shim must not read `routeDeps.mcp` before the
++ * permission check (pre-A10b order: permission first, MCP store only on first use). A denied call
++ * therefore never touches the MCP getter.
++ */
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import type { ToolExecutionContext } from '@jini-ai/core';
++import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from '../../connect-tool.js';
++
++const WORKSPACE_ID = '77777777-7777-4777-8777-777777777777';
++
++test('permission-denied connect never reads routeDeps.mcp (lazy, after the check)', async () => {
++  const reads: string[] = [];
++  const permissions: string[] = [];
++  const routeDeps = {
++    workspaceId: WORKSPACE_ID,
++    authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: false, reason: 'denied in test' }; },
++    get mcp(): never { reads.push('mcp'); throw new Error('routeDeps.mcp read before the permission check'); },
++  } as unknown as AgentPluginConnectToolDeps;
++  const ctx = { principal: { id: 'p-1' }, run: {}, input: { pluginId: 'demo' } } as unknown as ToolExecutionContext;
++  await assert.rejects(runAgentPluginConnect({ routeDeps, surfaces: {} as never, ctx, pluginId: 'demo' }), (err: Error) => !/routeDeps\.mcp read/.test(err.message));
++  assert.deepEqual(permissions, ['admin.integrations.manage']);
++  assert.deepEqual(reads, []);
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts
+new file mode 100644
+index 000000000..05cdeed8d
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts
+@@ -0,0 +1,101 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { createSystemClock } from '@jini-ai/core/primitives';
++import { ToolInputError } from '@jini-ai/core';
++import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
++import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
++import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
++import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
++import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
++import { grantDeclaredToolsAtBoot, grantDeclaredToolsToSignedInRows, type GrantSignedInDefaultsDeps } from '@jini-ai/agent-plugins/connect';
++import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv, listInstalledAgentPluginServers, type ImportAgentPluginAccessTokensFromEnvDeps } from '@jini-ai/agent-plugins/connect';
++import type { AgentPluginMcpSave } from '@jini-ai/agent-plugins/connect';
++import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
++
++const servers: Readonly<Record<string, McpServerConfig>> = { crm: { type: 'streamable-http', url: 'https://crm.acme.test/mcp', authMode: 'oauth', defaultTools: { allow: ['read'], write: ['read'] }, tokenAuth: { helpUrl: 'https://crm.acme.test/token', probeUrl: 'https://crm.acme.test/me', importFromEnv: 'ACME_TOKEN', retiredEnv: ['ACME_OLD'] } } };
++async function fixture() {
++  const repo = new InMemoryExternalMcpServerRepo();
++  const keyring = new InMemoryKeyring(); const clock = createSystemClock();
++  const store = { repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) };
++  await saveExternalMcpServer(store, { workspaceId: 'acme', serverId: 'crm', label: 'Acme', transport: 'streamable_http', authMode: 'oauth', enabled: false, command: '', args: '', url: 'https://crm.acme.test/mcp', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' }, principalId: 'owner', provisionedByPluginId: 'crm-plugin' });
++  const row = (await repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await repo.upsert({ ...row, oauthStatus: 'connected' });
++  const saved: AgentPluginMcpSave[] = []; const calls: string[] = []; const warnings: string[] = []; const infos: string[] = [];
++  const projections = { ...agentPluginMcpProjections, oauthStatus: (input: { oauthStatus: string | null }) => { calls.push('acme:oauth'); return agentPluginMcpProjections.oauthStatus(input); } };
++  const grant: GrantSignedInDefaultsDeps = { workspaceId: 'acme', repo, clock, projections, classifyError: () => 'other', applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), resolveServers: async () => servers, enablePlugin: async () => { calls.push('activate'); }, isPluginOffByOperator: async () => false, actors: { connectDefaults: 'acme:defaults', connectDeclined: 'acme:declined' }, notifyRosterChanged: async () => { calls.push('roster'); }, warn: message => warnings.push(message), approvedFailure: ({ connectionId, detail }) => `acme enable ${connectionId}: ${detail}` };
++  const deps: ImportAgentPluginAccessTokensFromEnvDeps = { workspaceId: 'acme', mcp: { repo, projections, classifyError: () => 'other', saveServer: input => { saved.push(input); return saveExternalMcpServer(store, input); } }, resolveInstalledPlugin: async () => ({ servers }), federation: { classifyTrust: () => 'auto-admit', messages: { sseTransportUnsupported: () => 'acme no sse', headersUnsupported: () => 'acme no headers' } }, messages: { connectionNotSetUp: () => 'acme missing', connectionRepointed: () => 'acme repointed', notInstalled: () => 'acme not installed', noTokenSignIn: () => 'acme no token', multipleTokenSignIns: () => 'acme many tokens', serverNotSetUp: () => 'acme no server' }, importActor: 'acme:import', switchOnSavedToken: async () => { calls.push('switch'); return { state: 'on' }; }, listPlugins: async () => [{ pluginId: 'crm-plugin', bundled: true, servers }], importMessages: { pluginsScreen: 'Acme Connections', failed: ({ envName, pluginId }) => `acme could not copy ${envName} to ${pluginId}` } };
++  const log = { info: (message: string) => infos.push(message), warn: (message: string) => warnings.push(message) };
++  return { repo, calls, warnings, infos, grant, deps, log, saved };
++}
++
++test('other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline', async () => {
++  const f = await fixture();
++  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }, { skipServerKeys: ['crm'] }), []);
++  assert.equal(f.calls.length, 0);
++  const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: 'acme:declined' });
++  let declinedCalls = 0;
++  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: { ...f.grant, onConnected: async () => { declinedCalls += 1; } }, pluginId: 'crm-plugin', servers }), []);
++  assert.equal(declinedCalls, 0, 'a declined row is withheld even from the supplied grant callback');
++  assert.ok(f.calls.includes('acme:oauth')); assert.ok(!f.calls.includes('activate'));
++  await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: null });
++  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }), ['crm']);
++  const after = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  assert.equal(after.writeGrantsUpdatedByPrincipalId, 'acme:defaults');
++  assert.equal(after.allowedToolNames, '["read"]');
++  assert.deepEqual(f.calls.slice(-2), ['activate', 'roster']);
++});
++
++test('approved grant failure uses safe host guidance; advisory healing warns and continues', async () => {
++  const f = await fixture(); const fault = new Error('storage failed');
++  const deps = { ...f.grant, onConnected: async () => { throw fault; } };
++  await grantDeclaredToolsToSignedInRows({ deps, pluginId: 'crm-plugin', servers });
++  assert.equal(f.warnings.length, 1); assert.match(f.warnings[0]!, /storage failed/);
++  await assert.rejects(grantDeclaredToolsToSignedInRows({ deps, pluginId: 'crm-plugin', servers }, { approvedEnable: { principalId: 'owner', accessKey: 'approved' } }), error => error instanceof ToolInputError && error.message === 'acme enable crm: storage failed');
++});
++
++test('boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row', async () => {
++  const f = await fixture(); const order: string[] = [];
++  const deps = { ...f.grant, listPlugins: async () => { order.push('list'); return [{ pluginId: 'crm-plugin', servers }]; }, readActivations: async () => { order.push('activations'); return { plugins: { 'crm-plugin': { enabled: false } } }; } };
++  await grantDeclaredToolsAtBoot({ deps, log: f.log });
++  assert.deepEqual(order, ['list', 'activations']); assert.equal(f.calls.length, 0);
++  const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: 'acme:operator' });
++  await grantDeclaredToolsAtBoot({ deps: { ...deps, readActivations: async () => ({ plugins: {} }) }, log: f.log });
++  assert.ok(!f.calls.includes('activate')); assert.equal(f.infos.length, 0);
++});
++
++test('import keeps an existing credential and finishes switch-on without replacement', async () => {
++  const f = await fixture();
++  assert.equal(await importAgentPluginAccessToken({ deps: f.deps, input: { pluginId: 'crm-plugin', token: 'never-replace' } }), 'already-connected');
++  assert.deepEqual(f.calls, ['acme:oauth', 'switch']);
++  const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  assert.equal(row.authMode, 'oauth'); assert.deepEqual(f.saved, []);
++});
++
++test('env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret', async () => {
++  const f = await fixture(); const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await f.repo.upsert({ ...row, oauthStatus: null });
++  const env = { ACME_TOKEN: '  acme-secret-token  ', ACME_OLD: '1' };
++  await importAgentPluginAccessTokensFromEnv({ deps: { ...f.deps, listPlugins: async () => [{ pluginId: 'crm-plugin', servers, bundled: false }] }, env, log: f.log });
++  assert.equal(f.calls.length, 0); assert.equal(f.infos.length, 0);
++  await importAgentPluginAccessTokensFromEnv({ deps: f.deps, env, log: f.log }, { skipPluginIds: new Set(['crm-plugin']) });
++  assert.equal(f.calls.length, 0); assert.equal(f.infos.length, 1);
++  await importAgentPluginAccessTokensFromEnv({ deps: { ...f.deps, switchOnSavedToken: async () => ({ state: 'plugin-off-by-operator' }) }, env, log: f.log });
++  const after = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  assert.equal(f.saved.at(-1)?.principalId, 'acme:import'); assert.equal(after.authMode, 'static_env');
++  assert.ok(f.infos.some(message => message.includes('(Acme Connections)')));
++  const failure = { ...f.deps, resolveInstalledPlugin: async () => { throw new Error('acme-secret-token'); } };
++  await importAgentPluginAccessTokensFromEnv({ deps: failure, env, log: f.log });
++  assert.equal(f.warnings.at(-1), 'acme could not copy ACME_TOKEN to crm-plugin');
++  assert.ok(![...f.infos, ...f.warnings].join('\n').includes('acme-secret-token'));
++});
++
++test('installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins', async () => {
++  const order: string[] = []; const ledger = new Map([['crm-plugin', 'seeded']]);
++  const first = { pluginId: 'crm-plugin', archiveDigest: 'seeded', packageRoot: '/acme/one', files: [], skills: [] };
++  const duplicate = { ...first, archiveDigest: 'other', packageRoot: '/acme/two' };
++  const result = await listInstalledAgentPluginServers({ workspaceRoot: '/acme', lifecycle: { readBundledAgentPluginDigests: async () => { order.push('ledger'); return ledger; }, listInstalledPlugins: async () => { order.push('installed'); return [first, duplicate]; }, preferBundledAgentPluginDigests: ({ installed, bundled }) => { assert.equal(bundled, ledger); return installed; }, readInstalledMcpServers: async ({ packageRoot }) => { order.push(packageRoot); return servers; } } });
++  assert.deepEqual(order, ['ledger', 'installed', '/acme/one']);
++  assert.deepEqual(result, [{ pluginId: 'crm-plugin', servers, bundled: true }]);
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+index bc92c9469..6def909e9 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+@@ -24,7 +24,7 @@ test('Skip on an OAuth sign-in card lets the assistant continue without stopping
+     mcp: mcpTestPort({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock }),
+     credentials: { loadSafe: async () => [] }, pollIntervalMs: 5, waitTimeoutMs: 50,
+     resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
+-    externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isValidationError: () => false },
++    externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isSignInRefusal: () => false },
+   };
+   const ctx: ToolExecutionContext = { executionId: 'execution', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: runController.signal };
+   const result = await runAgentPluginConnect({ routeDeps: deps, surfaces, ctx, pluginId: 'example' }, {
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+index ece7e69ef..00df2e849 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+@@ -65,7 +65,7 @@ function fakeOAuth(repo: InMemoryExternalMcpServerRepo, authorizationUrl: string
+       if (existing) await repo.upsert({ ...existing, oauthStatus: "pending" });
+       return { kind: "redirect_required", authorizationUrl, expiresAt: "2026-09-27T00:10:00.000Z" };
+     },
+-    isValidationError: ({ error }) => error instanceof ExternalMcpValidationError,
++    isSignInRefusal: ({ error }) => error instanceof ExternalMcpValidationError || error instanceof OAuthError,
+   };
+ }
+ 
+@@ -917,7 +917,7 @@ test("OAuth validation classification is supplied by the port before any card op
+     const oauth: AgentPluginOAuthPort = {
+       ...fakeOAuth(store.repo, "unused"),
+       beginConnect: async () => { throw failure; },
+-      isValidationError: ({ error }) => { classifiedErrors.push(error); return classified; },
++      isSignInRefusal: ({ error }) => { classifiedErrors.push(error); return classified || error instanceof OAuthError; },
+     };
+     await assert.rejects(runAgentPluginConnect(baseDeps(store, {
+       externalMcpOAuth: oauth,
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+index b62e78794..0e28cfb1d 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+@@ -128,7 +128,7 @@ test('already signed-in connect declines without granting or calling the sign-in
+     routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+       authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
+       credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('existing source only'); } },
+-      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
++      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isSignInRefusal: () => false },
+       resolveInstalledPlugin: async () => ({ servers }),
+     },
+     surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+@@ -160,7 +160,7 @@ for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
+       routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
+         credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('existing source only'); } },
+-        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
++        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isSignInRefusal: () => false },
+         resolveInstalledPlugin: async () => ({ servers: current }),
+       },
+       surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+@@ -194,7 +194,7 @@ for (const separate of [false, true]) {
+       routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
+         credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { saves++; throw new Error('no provisioning before approval'); } },
+-        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isValidationError: () => false },
++        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isSignInRefusal: () => false },
+         resolveInstalledPlugin: async () => ({ servers: { ...servers, pending: { type: 'streamable-http', url: 'https://pending.example.test/mcp', authMode: 'oauth' } } }),
+       },
+       surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+@@ -249,7 +249,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
+       if (!reauth) throw new Error('must reuse existing sign-in');
+       await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected' });
+       return { kind: 'redirect_required', authorizationUrl: 'https://media.example.test/authorize', expiresAt: '2026-11-04T12:10:00Z' };
+-    }, isValidationError: () => false },
++    }, isSignInRefusal: () => false },
+   }, surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+   ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: controller.signal }, pluginId: 'images' }, {
+     saveToken: async () => { throw new Error('must not ask for a stored token again'); },
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts
+new file mode 100644
+index 000000000..e9ac8ee51
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts
+@@ -0,0 +1,133 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import { ToolInputError } from '@jini-ai/core';
++import { createSystemClock } from '@jini-ai/core/primitives';
++import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
++import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
++import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
++import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
++import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
++import { composeAgentPluginMcp, composePluginProviderFaces } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
++import { createTovuPluginHost, type TovuPluginHostDeps } from '../../../../server/runtime/composition/plugin-host.js';
++import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
++import { grantDeclaredToolsToSignedInRows } from '../../grant-signed-in-defaults.js';
++import { loadAgentPluginConnectionStatuses } from '../../connection-status.js';
++import { hasStoredAgentPluginCredential } from '../../connect-tool.js';
++import { resolveAgentPluginLayout } from '../../layout.js';
++import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
++import { forceRemove } from '../fixtures/force-remove.js';
++import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '../../service-ports.js';
++import type { McpServerConfig } from '../../mcp-metadata.js';
++
++// S4-0b A7 F1: a second host's projections and classifier must reach every path, never Tovu's.
++const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
++class HostValidation extends Error {}
++
++/** Distinct functions: same saved meaning, but the snapshot's key order is the host's own. */
++function hostPorts(overrides: Partial<AgentPluginMcpProjections> = {}) {
++  const calls: string[] = [];
++  const projections: AgentPluginMcpProjections = {
++    accessSnapshot: input => { calls.push('accessSnapshot'); return Object.fromEntries(Object.entries(agentPluginMcpProjections.accessSnapshot(input)).reverse()) as ReturnType<AgentPluginMcpProjections['accessSnapshot']>; },
++    admissionRevision: row => { calls.push('admissionRevision'); return agentPluginMcpProjections.admissionRevision(row); },
++    readToolGrants: (row, options) => { calls.push('readToolGrants'); return agentPluginMcpProjections.readToolGrants(row, options); },
++    validateToolNames: input => { calls.push('validateToolNames'); return agentPluginMcpProjections.validateToolNames(input); },
++    oauthStatus: row => { calls.push('oauthStatus'); return agentPluginMcpProjections.oauthStatus(row); },
++    hasStaticAccessToken: row => { calls.push('hasStaticAccessToken'); return agentPluginMcpProjections.hasStaticAccessToken(row); },
++    ...overrides,
++  };
++  const ports: AgentPluginMcpProjectionPorts = { projections, classifyError: ({ error }) => error instanceof HostValidation ? 'validation' : 'other' };
++  return { ports, calls };
++}
++
++async function store(t: { after(callback: () => unknown): void }, options: { allowed?: string } = {}) {
++  const root = await mkdtemp(path.join(tmpdir(), 'tovu-s4-projection-seam-'));
++  t.after(async () => { await forceRemove(path.join(root, 'ws')); await rm(root, { recursive: true, force: true }); });
++  const repo = new InMemoryExternalMcpServerRepo();
++  const keyring = new InMemoryKeyring();
++  const clock = createSystemClock();
++  const storeDeps = { repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) };
++  await saveExternalMcpServer(storeDeps, {
++    workspaceId: 'site', serverId: 'media', label: 'Media', transport: 'streamable_http', url: 'https://media.example.test/mcp',
++    authMode: 'oauth', enabled: false, command: '', args: '', allowedToolNames: options.allowed ?? 'existing', writeAllowedToolNames: '',
++    principalId: 'owner', provisionedByPluginId: 'images', oauth: { grant: 'authorization_code' },
++  });
++  return { root, repo, clock, storeDeps, layout: resolveAgentPluginLayout({ siteDir: root }, { env: { TOVU_AGENT_PLUGINS_DIR: root } }) };
++}
++
++/** A real installed package, so the grant reads the same declaration the preview displayed. */
++async function install(f: Awaited<ReturnType<typeof store>>): Promise<void> {
++  const source = path.join(f.root, 'source');
++  await mkdir(source);
++  await writeFile(path.join(source, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'images', version: '1.0.0' }));
++  await writeFile(path.join(source, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
++    mcpServers: { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['models', 'generate'], write: ['generate'] } } } }));
++  const packed = await packAgentPluginDirectory(source);
++  await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: f.layout, workspaceId: 'site' });
++}
++
++function pluginHost(f: Awaited<ReturnType<typeof store>>, ports: AgentPluginMcpProjectionPorts, optional: { resolveServers?: boolean } = {}) {
++  const deps = {
++    agentPluginLayout: f.layout, workspaceId: 'site', clock: f.clock,
++    authorize: async () => ({ allowed: true, reason: 'matched' }), pluginActivationRepo: new InMemoryPluginActivationRepo(),
++    discoverPlugins: async () => [], listInstalledAgentPlugins: async () => [],
++    mcp: { ...composeAgentPluginMcp(f.storeDeps), ...ports }, preferences: { locale: async () => 'en' },
++    providerFaces: composePluginProviderFaces({ workspaceRoot: () => f.root }),
++  } as unknown as TovuPluginHostDeps;
++  return createTovuPluginHost({ deps }, { warn: () => {}, ...(optional.resolveServers === false ? {} : { resolveMcpServers: async () => servers }) }).getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
++}
++
++test('composition preview and the approved provision grant revalidate with the host projections', async t => {
++  const f = await store(t);
++  await install(f);
++  const { ports, calls } = hostPorts();
++  const agentPlugins = pluginHost(f, ports, { resolveServers: false });
++  const preview = await agentPlugins.previewEnableAccess!({ pluginId: 'images' });
++  assert.deepEqual(Object.keys(JSON.parse(preview.key)[0].expected)[0], 'provisionedByPluginId', 'preview used the host snapshot');
++  assert.ok(calls.includes('validateToolNames') && calls.includes('readToolGrants') && calls.includes('admissionRevision'));
++  const before = calls.length;
++  // A Tovu snapshot here would differ byte-for-byte and refuse the approval ("declaration or access changed").
++  await agentPlugins.provisionMcp({ pluginId: 'images', principalId: 'owner' }, { approvedEnable: true, approvedEnableKey: preview.key });
++  assert.ok(calls.slice(before).includes('accessSnapshot'), 'the grant re-read the host snapshot');
++  const row = (await f.repo.findByServerId({ workspaceId: 'site', serverId: 'media' }))!;
++  assert.equal(row.enabled, true);
++  assert.deepEqual(JSON.parse(row.allowedToolNames!), ['existing', 'models', 'generate']);
++  assert.equal(row.writeGrantsUpdatedByPrincipalId, 'owner');
++});
++
++test('the composed classifier keeps host validation identity through the preview', async t => {
++  const f = await store(t);
++  const failure = new HostValidation('host rejects these tool names');
++  const { ports } = hostPorts({ validateToolNames: () => { throw failure; } });
++  await assert.rejects(pluginHost(f, ports).previewEnableAccess!({ pluginId: 'images' }), (error: unknown) =>
++    error instanceof ToolInputError && error.message === `The plugin's combined tool grant cannot be saved: ${failure.message}. Review its tool selection with external_mcp_save before enabling it.`);
++});
++
++test('sign-in eligibility uses the host credential projection, not Tovu default', async t => {
++  const f = await store(t, { allowed: '' });
++  const recorded: string[] = [];
++  const { ports } = hostPorts({ hasStaticAccessToken: () => { recorded.push('hasStaticAccessToken'); return true; } });
++  const connected: string[] = [];
++  const deps = { workspaceId: 'site', agentPluginLayout: f.layout, repo: f.repo, clock: f.clock,
++    applyAccess: (input: Omit<Parameters<typeof applyExternalMcpAccess>[0], 'repo' | 'clock'>) => applyExternalMcpAccess({ ...input, repo: f.repo, clock: f.clock }),
++    notifyRosterChanged: async () => {}, onConnected: async (serverId: string) => { connected.push(serverId); } };
++  await grantDeclaredToolsToSignedInRows({ deps, pluginId: 'images', servers });
++  assert.deepEqual(connected, [], 'control: Tovu sees no stored credential');
++  await grantDeclaredToolsToSignedInRows({ deps: { ...deps, ...ports }, pluginId: 'images', servers });
++  assert.deepEqual(connected, ['media']);
++  assert.ok(recorded.includes('hasStaticAccessToken'));
++});
++
++test('status and stored-credential reads use the host pure projections', async () => {
++  const row = { provisionedByPluginId: 'images', authMode: 'oauth' as const, oauthStatus: 'connected' as const, sealedOAuth: null };
++  const { ports } = hostPorts({ oauthStatus: () => 'needs_reauth', hasStaticAccessToken: () => false });
++  const statuses = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] }, ...ports });
++  assert.equal(statuses.get('images'), 'needs_reauth');
++  const control = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] } });
++  assert.equal(control.get('images'), 'connected');
++  const unsigned = { authMode: 'oauth' as const, sealedOAuth: null, oauthStatus: null };
++  assert.equal(hasStoredAgentPluginCredential(unsigned), false);
++  assert.equal(hasStoredAgentPluginCredential(unsigned, hostPorts({ hasStaticAccessToken: () => true }).ports), true);
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts
+new file mode 100644
+index 000000000..e2d2fbfa2
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts
+@@ -0,0 +1,80 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
++import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
++import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
++import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
++import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
++import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
++import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
++import { composeAgentPluginMcp } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
++import { runAgentPluginConnect } from '../../connect-tool.js';
++import { validatedAgentPluginToolGrant } from '../../enable-access.js';
++import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
++import { resolveAgentPluginLayout } from '../../layout.js';
++
++// S4-0b A7 F2: a matching classifier does not make provider text safe for the model.
++const TOKEN = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
++const BEARER = 'Bearer abcdefghijklmnopqrstuvwxyz0123456789';
++const SUFFIX = ". Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.";
++
++function harness(fault: unknown, refusal: boolean) {
++  const repo = new InMemoryExternalMcpServerRepo();
++  const keyring = new InMemoryKeyring();
++  const clock = createSystemClock();
++  const mcp = composeAgentPluginMcp({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock });
++  const seen: unknown[] = [];
++  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
++  const emissions: SurfaceEmission[] = [];
++  const ctx: ToolExecutionContext = { executionId: 'e', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal };
++  const run = () => runAgentPluginConnect({ routeDeps: {
++    workspaceId: 'workspace', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/extract-s4-safe-refusal-no-io' }),
++    authorize: async () => ({ allowed: true, reason: 'test' }), mcp: { ...mcp, notifyRosterChanged: async () => {} },
++    credentials: { loadSafe: async () => [] },
++    isPluginEnabled: async () => true,
++    resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
++    externalMcpOAuth: { beginConnect: async () => { throw fault; }, isSignInRefusal: ({ error }) => { seen.push(error); return refusal; } },
++  }, surfaces, ctx, pluginId: 'example-plugin' }, { emitSurface: async emission => { emissions.push(emission); } });
++  return { run, seen, emissions };
++}
++
++test('a host-classified refusal carrying provider secrets reaches the model redacted, with no card', async () => {
++  const fault = new Error(`discovery refused for ${BEARER} using ${TOKEN}`);
++  const { run, seen, emissions } = harness(fault, true);
++  await assert.rejects(run(), (error: unknown) => {
++    assert.ok(error instanceof ToolInputError);
++    assert.doesNotMatch(error.message, /abcdefghijklmnopqrstuvwxyz0123456789|A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/);
++    assert.ok(error.message.startsWith('discovery refused for Bearer '), error.message);
++    assert.ok(error.message.endsWith(SUFFIX), error.message);
++    return true;
++  });
++  assert.deepEqual(seen, [fault]);
++  assert.deepEqual(emissions, []);
++});
++
++test('ordinary refusal wording, punctuation and fallback suffix are unchanged', async () => {
++  const fault = new Error('redirect URI is not allowed');
++  const { run, emissions } = harness(fault, true);
++  await assert.rejects(run(), (error: unknown) => error instanceof ToolInputError && error.message === `${fault.message}${SUFFIX}`);
++  assert.deepEqual(emissions, []);
++});
++
++test('an unclassified non-Error object propagates with identity and is never rewritten', async () => {
++  const fault = { code: 'host-fault', detail: TOKEN };
++  const { run, seen, emissions } = harness(fault, false);
++  await assert.rejects(run(), (error: unknown) => error === fault);
++  assert.deepEqual(seen, [fault]);
++  assert.deepEqual(emissions, []);
++});
++
++test('the grant repair reason is redacted too; wording and repair action are unchanged', () => {
++  const failure = new Error(`tool list rejected near ${TOKEN}`);
++  const ports = { projections: { ...agentPluginMcpProjections, validateToolNames: () => { throw failure; } }, classifyError: () => 'validation' as const };
++  assert.throws(() => validatedAgentPluginToolGrant({ current: { enabled: false, allow: [], write: [] }, declared: { allow: ['read'], write: [] } }, { ports }), (error: unknown) => {
++    assert.ok(error instanceof ToolInputError);
++    assert.doesNotMatch(error.message, /A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8/);
++    assert.ok(error.message.startsWith("The plugin's combined tool grant cannot be saved: tool list rejected near "), error.message);
++    assert.ok(error.message.endsWith('. Review its tool selection with external_mcp_save before enabling it.'), error.message);
++    return true;
++  });
++});
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
+index 464c2cb73..6689e8338 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts
+@@ -671,7 +671,7 @@ test("the registered connect handler resolves a real installed plugin and reuses
+       credentials: credentialTestPort({ httpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") } }),
+       preferences: { locale: async () => "en" },
+       authorize: async () => ({ allowed: true, reason: "test" }),
+-      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isValidationError: () => false },
++      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isSignInRefusal: () => false },
+     }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
+     assert.ok(connect);
+diff --git a/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts b/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+index 21825cee3..42b28067f 100644
+--- a/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts
+@@ -3,8 +3,8 @@ import test from 'node:test';
+ import { createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
+ import { createPluginContributionRegistry, buildPluginContributionToolRegistrations, pluginToolIdFor } from '@jini-ai/plugins/host';
+ import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
+-import { registerAgentPluginExecutableToolsWithPorts } from '../register.js';
+-import { createAgentPluginDisclosureWithPorts } from '../approval.js';
++import { registerAgentPluginExecutableTools as registerAgentPluginExecutableToolsWithPorts } from '@jini-ai/agent-plugins/connect/executable';
++import { createAgentPluginDisclosure as createAgentPluginDisclosureWithPorts } from '@jini-ai/agent-plugins/connect/executable';
+ import { createFrozenConnectionAccounts } from '../host-capabilities.js';
+ 
+ test('the registrar consumes the host definition and contribution builders without replacing their owner', async () => {
+@@ -14,7 +14,7 @@ test('the registrar consumes the host definition and contribution builders witho
+   let registryCalls = 0;
+   let buildCalls = 0;
+   const registered = await registerAgentPluginExecutableToolsWithPorts({
+-    registry, workspaceId: 'other-workspace',
++    registry, workspaceId: 'other-workspace', toolPermission: 'admin.assistant.use',
+     host: {
+       loadContributions: async (input, options) => { assert.equal(input.definition, definition); assert.equal(options.orderByPluginId, true); return { items: [], refusals: ['host refusal'] }; },
+       connections: { readAccount: async () => null, getAccessToken: async () => 'unused' },
+diff --git a/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts b/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts
+new file mode 100644
+index 000000000..a4b1c30aa
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/tool-permission.other-host.unit.test.ts
+@@ -0,0 +1,76 @@
++/**
++ * @file EXTRACT-S4 Main F1: the executable registrar authorizes plugin tools with the permission the
++ * host supplies (`toolPermission`), not a hard-coded Tovu RBAC name. Runs the real Jini registrar
++ * with the real plugin contribution builder; Tovu's binder still supplies exactly `admin.assistant.use`.
++ */
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { createToolRegistry, type LegacyToolAuthorizeFn, type ToolRegistration } from '@jini-ai/core';
++import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
++import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
++import { registerAgentPluginExecutableTools } from '@jini-ai/agent-plugins/connect/executable';
++import { bindExecutableToolRegistration } from '../../host-bindings.js';
++import { acmeTools, PLUGIN } from '../fixtures.js';
++
++/** An evaluator that grants exactly one permission name and records every name it was asked for. */
++function grantOnly(permission: string) {
++  const asked: string[] = [];
++  const authorize: LegacyToolAuthorizeFn = async (request) => {
++    asked.push(request.permission);
++    return request.permission === permission ? { allowed: true, reason: 'granted' } : { allowed: false, reason: 'no_grant' };
++  };
++  return { authorize, asked };
++}
++
++/** Registers the fixture plugin through the public registrar with the given host permission and evaluator. */
++async function registerWith({ toolPermission, authorize }: { toolPermission: string; authorize: LegacyToolAuthorizeFn }) {
++  const definition = defineAgentPluginToolContribution({ filename: 'other-host-tools.json' });
++  const registry = createToolRegistry({});
++  let built: ToolRegistration[] = [];
++  const registered = await registerAgentPluginExecutableTools({
++    registry, workspaceId: 'other-workspace', toolPermission, authorize,
++    host: {
++      loadContributions: async () => ({ items: acmeTools([]), refusals: [] }),
++      connections: { readAccount: async () => null, getAccessToken: async () => 'unused' },
++      http: { send: async () => { throw new Error('no HTTP expected'); } }, limiter: { check: async () => ({ allowed: true }) },
++      state: () => ({ get: async () => null }), apiOrigins: async () => [], issuedTokens: createIssuedTokenMemories(),
++    },
++    isActive: async () => true,
++    applyApproval: ({ registration }) => registration, withExtensionApprovalPolicy: ({ registration }) => registration,
++    contributions: { definition, createRegistry: createPluginContributionRegistry, toolIdFor: pluginToolIdFor, buildRegistrations: (input) => { built = buildPluginContributionToolRegistrations(input); return built; } },
++    connectionKey: () => 'host-key', readApproval: { class: 'read', confirmation: 'direct' },
++    disclosureMessages: { withdrawn: 'gone', notConnected: 'sign in', accountLabel: 'Identity', affectsLabel: 'Changes' },
++  });
++  const tool = built.find(registration => registration.descriptor.id === pluginToolIdFor({ pluginId: PLUGIN, name: 'read_rows' }));
++  assert.ok(tool, 'the read tool is built by the real contribution builder');
++  assert.ok(registry.has({ toolId: tool.descriptor.id }), 'and registered');
++  return { authorizeRead: async () => tool.policy.authorize({ principal: { id: 'operator' }, run: { id: 'r' }, tool: tool.descriptor, input: {} }), registered };
++}
++
++test('another host authorizes plugin tools with its own RBAC permission name', async () => {
++  const { authorize, asked } = grantOnly('reports.tools.run');
++  const { authorizeRead, registered } = await registerWith({ toolPermission: 'reports.tools.run', authorize });
++  assert.equal(await authorizeRead(), 'allow');
++  assert.ok(asked.includes('reports.tools.run'));
++  assert.ok(!asked.includes('admin.assistant.use'), 'no Tovu permission name is consulted');
++  registered.dispose();
++});
++
++test('the host permission still denies a principal who lacks it', async () => {
++  const { authorize } = grantOnly('admin.assistant.use');
++  const { authorizeRead, registered } = await registerWith({ toolPermission: 'reports.tools.run', authorize });
++  // Same refusal shape as before: the core permission check rejects, naming the permission it needed.
++  await assert.rejects(authorizeRead(), { permission: 'reports.tools.run', reason: 'no_grant' });
++  registered.dispose();
++});
++
++test('Tovu binds exactly admin.assistant.use as the tool permission', () => {
++  const bound = bindExecutableToolRegistration({
++    registry: createToolRegistry({}), workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'test' }),
++    host: { loadContributions: async () => ({ items: [], refusals: [] }), connections: { readAccount: async () => null, getAccessToken: async () => 'unused' },
++      http: { send: async () => { throw new Error('no HTTP expected'); } }, limiter: { check: async () => ({ allowed: true }) },
++      state: () => ({ get: async () => null }), apiOrigins: async () => [], issuedTokens: createIssuedTokenMemories() },
++    isActive: async () => true, applyApproval: ({ registration }) => registration, withExtensionApprovalPolicy: ({ registration }) => registration,
++  });
++  assert.equal(bound.toolPermission, 'admin.assistant.use');
++});
+diff --git a/apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts b/apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts
+new file mode 100644
+index 000000000..c6b60efbd
+--- /dev/null
++++ b/apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts
+@@ -0,0 +1,63 @@
++/**
++ * @file EXTRACT-S4 Main F3 (Tovu host): a saved BYO client whose stored base URL is malformed
++ * rejects with the raw URL parse error, exactly as before S3, instead of being reported as a
++ * credential that "could not be read on this site"; a true read failure keeps that refusal.
++ */
++import assert from "node:assert/strict";
++import path from "node:path";
++import { test } from "node:test";
++
++import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
++
++import { loadPluginContributionsFromSource } from "../../agent-plugins/lifecycle.js";
++import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "../../custom-credentials/index.js";
++import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
++import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
++import { byoClientLabel, resolveByoClient } from "../byo-client.js";
++import { loadDeclaredApiConnections } from "../contribution.js";
++
++const packageRoot = path.join(import.meta.dirname, "fixtures", "acme-office");
++const secret = "z".repeat(20) + "-byo-secret";
++const id = "00000000-0000-4000-8000-0000000000c4";
++
++async function fixtureConnection() {
++  const { connections } = await loadDeclaredApiConnections({
++    workspaceId: "ws-1",
++    loadContributions: (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot }, definition: input.definition }),
++  });
++  return connections[0]!;
++}
++
++async function savedClient() {
++  const repo = new InMemoryCustomCredentialSetRepo();
++  const keyring = new InMemoryKeyring("v1");
++  const sealer = new AesGcmSecretSealer(keyring);
++  await createCustomCredential({ repo, sealer, keyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => id } }, {
++    workspaceId: "ws-1", label: byoClientLabel({ pluginId: "acme-office", connectionId: "account" }), category: "general",
++    baseUrl: "https://auth.acme.test/token", connection: { token: secret, username: "byo-client-id" },
++  });
++  return { repo, keyring, sealer };
++}
++
++test("a malformed saved base URL rejects with the raw URL error, not an unreadable refusal", async () => {
++  const { repo, keyring, sealer } = await savedClient();
++  // A row saved before base-URL validation (or edited outside it) can hold a value URL cannot parse.
++  const row = await repo.vault.find({ workspaceId: "ws-1", id });
++  assert.ok(row);
++  await repo.vault.patchMeta({ workspaceId: "ws-1", id, expectedRevision: row.revision, patch: { baseUrl: "not a url" }, updatedAt: new Date().toISOString() });
++  await assert.rejects(resolveByoClient({ credentials: { repo, sealer, keyring }, workspaceId: "ws-1", connection: await fixtureConnection() }),
++    (error: unknown) => error instanceof TypeError && (error as { code?: string }).code === "ERR_INVALID_URL");
++});
++
++test("a saved client this site cannot open keeps the exact unreadable refusal", async () => {
++  const { repo } = await savedClient();
++  const otherKeyring = new InMemoryKeyring("v1");
++  const resolved = await resolveByoClient({ credentials: { repo, sealer: new AesGcmSecretSealer(otherKeyring), keyring: otherKeyring }, workspaceId: "ws-1", connection: await fixtureConnection() });
++  assert.ok(resolved instanceof ApiConnectionError);
++  assert.equal(resolved.message, 'Acme Office cannot use your own OAuth client: the saved credential "acme-office/account OAuth client" could not be read on this site. Edit it under Admin > Access Tokens, then retry.');
++});
++
++test("a usable saved client on the token origin still resolves", async () => {
++  const { repo, keyring, sealer } = await savedClient();
++  assert.deepEqual(await resolveByoClient({ credentials: { repo, sealer, keyring }, workspaceId: "ws-1", connection: await fixtureConnection() }), { clientId: "byo-client-id", clientSecret: secret });
++});
+diff --git a/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts b/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+index 438c222ce..7d7488b38 100644
+--- a/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
++++ b/apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts
+@@ -1,7 +1,7 @@
+ import assert from 'node:assert/strict';
+ import test from 'node:test';
+-import type { AdminSurfaceConnectionsHost, AdminSurfaceDeclaredConnection } from '@jini-ai/agent-plugins/admin-surfaces';
+-import { createAdminSurfaceConnections } from '../surface-connections.js';
++import type { AdminSurfaceConnectionsHost, AdminSurfaceDeclaredConnection } from '@jini-ai/agent-plugins/admin-surfaces/connections';
++import { createAdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces/connections';
+ 
+ function harness() {
+   const unavailable = new Error('Other host refusal.');
+diff --git a/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts b/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts
+new file mode 100644
+index 000000000..09a6b8638
+--- /dev/null
++++ b/apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts
+@@ -0,0 +1,104 @@
++/** A8 seam proofs for the portable plugin host (moved to @jini-ai/agent-plugins/connect/plugin-host in A9): the required grant port runs after provisioning
++ * and its failure warnings, with the failed servers skipped and the approved enable passed through;
++ * an approved enable with failures refuses before any grant; and no portable A8 file has an import
++ * edge into the A10 connect cycle, and none falls back to Tovu's projections (legacy fallback lives
++ * only in the T shims at the old paths and the T binder). */
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import path from "node:path";
++import { test } from "node:test";
++import { fileURLToPath } from "node:url";
++import { ToolInputError } from "@jini-ai/core";
++import { createPluginHost, type PluginHostDeps } from "@jini-ai/agent-plugins/connect/plugin-host";
++
++type Call = { readonly step: string; readonly detail?: unknown };
++
++function hostWith({ calls, failed }: { calls: Call[]; failed: readonly { serverKey: string; reason: string }[] }) {
++  const projections = {} as PluginHostDeps<never>["mcpPorts"]["projections"];
++  const mcpPorts = { projections, classifyError: () => "other" as const };
++  const mcp = { repo: { tag: "repo" }, applyAccess: async () => {}, notifyRosterChanged: async () => {} } as unknown as PluginHostDeps<never>["mcp"];
++  const deps: PluginHostDeps<never> = {
++    workspaceId: "ws", agentPluginLayout: { tag: "layout" } as never, clock: { now: () => new Date(0) } as never, namespace: "other-host",
++    discoverPlugins: async () => [], getActivation: async () => null,
++    lifecycle: {
++      listInstalled: async () => [], preferInstalled: async ({ installed }) => installed, readIdentity: async () => { throw new Error("unused"); },
++      isEnabled: async () => false, inactivePluginIds: async () => new Set(), assertWritable: async () => {}, setEnabled: async () => { throw new Error("unused"); }, uninstall: async () => undefined,
++    },
++    installedMcp: {} as never, classifyTrust: () => "auto-admit", declinedAccessActor: "other-host:declined",
++    withLock: ({ run }) => run(), mcp, mcpPorts,
++    grantSignedInDefaults: async (required, optional) => { calls.push({ step: "grant", detail: { required, optional } }); return []; },
++    warn: message => calls.push({ step: "warn", detail: message }),
++    messages: { provisioningFailed: ({ pluginId }) => `other-host: ${pluginId} failed`, approvedSnapshotMissing: () => "other-host: no key", approvedLoadFailed: ({ detail }) => `other-host: ${detail}`, sourceConfiguredSeparately: ({ connectionId }) => `other-host: ${connectionId} differs`, sseTransportUnsupported: () => "other-host: sse", headersUnsupported: () => "other-host: headers" },
++  };
++  const servers = { a: { type: "http", url: "https://a.example" }, b: { type: "http", url: "https://b.example" } };
++  const host = createPluginHost({ deps }, {
++    resolveMcpServers: async () => { calls.push({ step: "resolve" }); return servers as never; },
++    provisionMcpServers: async (port) => { calls.push({ step: "provision", detail: port }); return { provisioned: [], alreadyProvisioned: [], adopted: [], failed } as never; },
++  });
++  return { capability: host.getHostCapability({ capability: "agent-plugin-lifecycle" })!, deps, servers, mcpPorts };
++}
++
++test("grant port runs after provisioning and its failure warnings, skipping exactly the failed servers", async () => {
++  const calls: Call[] = [];
++  const { capability, deps, servers, mcpPorts } = hostWith({ calls, failed: [{ serverKey: "b", reason: "boom" }] });
++  await capability.provisionMcp({ pluginId: "p", principalId: "u" });
++  assert.deepEqual(calls.map(call => call.step), ["resolve", "provision", "warn", "grant"]);
++  assert.equal(calls[1]!.detail, deps.mcp, "provisioning receives the host's same MCP port instance");
++  const { required, optional } = calls[3]!.detail as { required: { deps: Record<string, unknown>; pluginId: string; servers: unknown }; optional: Record<string, unknown> };
++  assert.equal(required.pluginId, "p");
++  assert.equal(required.servers, servers, "the same resolved declaration object reaches the grant");
++  assert.deepEqual(optional, { skipServerKeys: ["b"] }, "failed servers skipped; no approvedEnable for a background enable");
++  assert.equal(required.deps.repo, deps.mcp.repo);
++  assert.equal(required.deps.projections, mcpPorts.projections, "the host's one resolved projection pair");
++  assert.equal(required.deps.agentPluginLayout, deps.agentPluginLayout);
++});
++
++test("approved enable passes principal and approved snapshot key to the grant port", async () => {
++  const calls: Call[] = [];
++  const { capability } = hostWith({ calls, failed: [] });
++  await capability.provisionMcp({ pluginId: "p", principalId: "u" }, { approvedEnable: true, approvedEnableKey: "key-1" });
++  const grant = calls.find(call => call.step === "grant")!.detail as { optional: Record<string, unknown> };
++  assert.deepEqual(grant.optional, { skipServerKeys: [], approvedEnable: { principalId: "u", accessKey: "key-1" } });
++});
++
++test("approved enable whose provisioning failed refuses with host copy before any grant", async () => {
++  const calls: Call[] = [];
++  const { capability } = hostWith({ calls, failed: [{ serverKey: "b", reason: "boom" }] });
++  await assert.rejects(capability.provisionMcp({ pluginId: "p", principalId: "u" }, { approvedEnable: true, approvedEnableKey: "key-1" }),
++    (error: unknown) => error instanceof ToolInputError && error.message === "other-host: other-host: p failed");
++  assert.equal(calls.some(call => call.step === "grant"), false);
++});
++
++const here = path.dirname(fileURLToPath(import.meta.url));
++/** A9: the portable bodies now live in `@jini-ai/agent-plugins/connect` (+ `/plugin-host`); read their sources. */
++const connectSrc = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/agent-plugins/connect"))), "../../src/connect");
++const MOVED = [path.join(connectSrc, "plugin-host/index.ts"), ...["ports", "federate-mcp", "enable-access", "apply-connect-defaults", "switch-on-saved-token", "connection-status"].map(name => path.join(connectSrc, `${name}.ts`))];
++const packageSrc = path.resolve(connectSrc, "..");
++
++function specifiersOf(file: string): string[] {
++  const text = fs.readFileSync(file, "utf8");
++  return [...text.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)["']([^"']+)["']/g)].map(match => match[1]!);
++}
++
++test("moved A8 bodies have no import edge back into Tovu (so none into the A10 connect cycle)", () => {
++  for (const file of MOVED) {
++    assert.ok(fs.existsSync(file), file);
++    for (const specifier of specifiersOf(file)) {
++      assert.equal(specifier.startsWith("#src/"), false, `${file} imports ${specifier}`);
++      if (specifier.startsWith(".")) assert.ok(path.resolve(path.dirname(file), specifier).startsWith(packageSrc), `${file} leaves the package: ${specifier}`);
++    }
++  }
++});
++
++test("moved plugin host and bodies import no Jini package other than core", () => {
++  for (const file of MOVED) {
++    const jini = specifiersOf(file).filter(specifier => specifier.startsWith("@jini-ai/"));
++    assert.deepEqual(jini.filter(specifier => !specifier.startsWith("@jini-ai/core")), [], file);
++  }
++  const text = fs.readFileSync(MOVED[0]!, "utf8");
++  assert.equal(/contracts\/headless|@jini-ai\/plugins|@jini-ai\/platform|mcp-host-bindings|node:/.test(text), false, "no headless barrel, plugins/platform package, Tovu projection fallback or node built-in");
++});
++
++test("moved A8 bodies take required projection ports: none imports Tovu's projection fallback", () => {
++  for (const file of MOVED) assert.equal(/mcp-host-bindings/.test(specifiersOf(file).join("\n")), false, `${file} imports mcp-host-bindings`);
++});

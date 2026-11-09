@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: default setup: one plain field per credential key, plus the always-stored baseUrl
+ok 1 - default setup: one plain field per credential key, plus the always-stored baseUrl
+  ---
+  duration_ms: 2.874411
+  type: 'test'
+  ...
+# Subtest: a declared setup keeps its order and help links and appends the undeclared defaults
+ok 2 - a declared setup keeps its order and help links and appends the undeclared defaults
+  ---
+  duration_ms: 1.494367
+  type: 'test'
+  ...
+# Subtest: every malformed setup names what is wrong
+ok 3 - every malformed setup names what is wrong
+  ---
+  duration_ms: 1.658446
+  type: 'test'
+  ...
+# Subtest: the descriptor property form: {} when absent, {setup} when valid, the reason otherwise
+ok 4 - the descriptor property form: {} when absent, {setup} when valid, the reason otherwise
+  ---
+  duration_ms: 0.318963
+  type: 'test'
+  ...
+# Subtest: tovu-mail-adapters.json v2 carries setup through, and a bad setup refuses the file
+ok 5 - tovu-mail-adapters.json v2 carries setup through, and a bad setup refuses the file
+  ---
+  duration_ms: 1.096637
+  type: 'test'
+  ...
+# Subtest: setup rejects null/array boundaries and non-string or oversized field text exactly
+ok 6 - setup rejects null/array boundaries and non-string or oversized field text exactly
+  ---
+  duration_ms: 0.894239
+  type: 'test'
+  ...
+# Subtest: v2 preserves the credential card and setup together under an explicit or default saved label
+ok 7 - v2 preserves the credential card and setup together under an explicit or default saved label
+  ---
+  duration_ms: 1.276038
+  type: 'test'
+  ...
+# Subtest: a bad card keeps its refusal and valid setup; a bad setup still refuses a valid card's descriptor
+ok 8 - a bad card keeps its refusal and valid setup; a bad setup still refuses a valid card's descriptor
+  ---
+  duration_ms: 0.431523
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 854.994538

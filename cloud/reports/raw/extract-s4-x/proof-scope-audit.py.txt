@@ -1,0 +1,30 @@
+from pathlib import Path
+import subprocess,json,re,hashlib
+T=Path('/workspace/Tovu');J=Path('/workspace/Jini');rows={}
+starts={str(T):'814ab1dc61589444ac3a8eb140bab2ce8255ae64',str(J):'f774b9e5c543815b43fa637137a75150aa831f5e'}
+bases={str(T):'c3801c833a191be51753dcdecd133b0cad6f8945',str(J):'4044fe3c0fa34b1f903c5d20a6b4de7714cde573'}
+allowedT={
+'apps/website/src/features/agent-plugins/executable-tools/__tests__/host-ports.unit.test.ts',
+'apps/website/src/features/api-connections/__tests__/surface-connections.host-port.unit.test.ts',
+*['apps/website/src/features/agent-plugins/__tests__/unit/'+n+'.test.ts' for n in ['connect-skip.unit','connect-tool.unit','enable-access.regression','tool-registrations.unit']]}
+allowedJ={'packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts','packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts'}
+def git(repo,*args):return subprocess.check_output(['git',*args],cwd=repo,text=True)
+for repo,allowed in [(T,allowedT),(J,allowedJ)]:
+ current=git(repo,'rev-parse','HEAD').strip();start=starts[str(repo)];base=bases[str(repo)]
+ changed=git(repo,'diff','--name-only',start,current).splitlines()
+ alltest=[line.split('\t') for line in git(repo,'diff','--name-status',base,current).splitlines() if '__tests__/' in line or re.search(r'\.(?:test|spec|typecheck)\.',line)]
+ frozen=[x for x in alltest if x[0]!='A']; assert {x[-1] for x in frozen}==allowed,(repo,frozen)
+ overlap=git(repo,'diff','--name-only',base,'origin/cloud/extract-s5','--',*changed).splitlines()
+ assert not overlap,(repo,overlap)
+ rows[repo.name]={'base':base,'continuationStart':start,'tip':current,'changedPaths':changed,'testDiffSinceS3':alltest,'frozenExceptions':frozen,'s5Observed':git(repo,'rev-parse','origin/cloud/extract-s5').strip(),'s5Overlap':overlap,'diffStat':git(repo,'diff','--stat',start,current)}
+ if repo==T:
+  assert not git(repo,'diff',start,current,'--','apps/website/src/features/agent-plugins/tool-registrations.ts','apps/website/src/server/runtime/composition/plugin-host.ts','apps/website/src/contracts/core/external-mcp-access.ts')
+ else:
+  for p in changed:assert p=='.changeset/extract-s4-connect-cycle.md' or p.startswith('packages/agent-plugins/src/connect/'),p
+  assert not git(repo,'diff',start,current,'--','packages/core','packages/mcp','packages/integrations','packages/server','scripts','pnpm-lock.yaml','packages/agent-plugins/package.json')
+for filename,repo in [('pins.json',T),('core-ui-pins.json',J)]:
+ pins=json.loads((Path('/workspace/work')/filename).read_text())
+ for p in pins:assert hashlib.sha256((repo/p['path']).read_bytes()).hexdigest()==p['sha256'],p['path']
+rows['pins']={'Tovu':28,'coreUi':8,'unchanged':True}
+Path('/workspace/work/logs/a11-scope-audit.json').write_text(json.dumps(rows,indent=2)+'\n')
+print(json.dumps({'changedT':len(rows['Tovu']['changedPaths']),'changedJ':len(rows['Jini']['changedPaths']),'frozenT':len(allowedT),'frozenJ':len(allowedJ),'s5Overlap':0,'pins':'unchanged','R4AndGrantPortAndAfterMergeNote':'unchanged'}))

@@ -1,0 +1,7 @@
+[
+  {
+    "rule": "N2-consumer-path",
+    "file": "packages/agent-plugins/src/apply-tool-renames.ts",
+    "reason": "forbidden source reference \"#src/\" (comments included)"
+  }
+]

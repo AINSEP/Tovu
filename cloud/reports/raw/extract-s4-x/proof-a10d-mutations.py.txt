@@ -1,0 +1,21 @@
+from pathlib import Path
+import subprocess, os, json
+repo=Path('/workspace/Tovu'); base=repo/'apps/website/src/features/agent-plugins/portable'
+cases=[
+('declined-actor','grant-signed-in-defaults.ts','row.writeGrantsUpdatedByPrincipalId === deps.actors.connectDeclined','row.writeGrantsUpdatedByPrincipalId === "system:connect-declined"'),
+('projection','grant-signed-in-defaults.ts','const ports: AgentPluginMcpProjectionPorts = deps;','const ports: AgentPluginMcpProjectionPorts = { ...deps, projections: { ...deps.projections, oauthStatus: () => null } };'),
+('bundled-trust','import-access-token.ts','bundled === true','true'),
+('import-actor','import-access-token.ts','input.principalId ?? deps.importActor','input.principalId ?? "system:token-import"'),
+]
+env=os.environ.copy();env['TSX_TSCONFIG_PATH']='apps/site-chat/tsconfig.json'; records=[]
+for name,file,old,new in cases:
+ p=base/file; original=p.read_bytes(); text=original.decode(); assert text.count(old)==1,(name,text.count(old))
+ try:
+  p.write_text(text.replace(old,new))
+  code=subprocess.call(['python','/workspace/work/run.py',str(repo),'a10d-mutation-'+name,'node','--import','tsx','--import','./development/test-support/composed-bundle-env.ts','--test','--experimental-test-module-mocks','--test-concurrency=1','--test-reporter=tap','apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts'],env=env)
+ finally: p.write_bytes(original)
+ assert p.read_bytes()==original
+ records.append({'mutation':name,'exit':code,'restoredByteForByte':True})
+ Path('/workspace/work/logs/a10d-mutations.json').write_text(json.dumps(records,indent=2)+'\n')
+ assert code==1,(name,code)
+print(json.dumps(records),flush=True)

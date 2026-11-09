@@ -1,0 +1,3725 @@
+{
+  "paths": 369,
+  "files": [
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts",
+      "status": "M",
+      "reason": "New S4 seam tests, public export imports, and scanner/fixture repairs; frozen test edits unchanged since continuation start.",
+      "hunks": [
+        "@@ -5,0 +6 @@ import { fileURLToPath } from 'node:url';",
+        "@@ -12,2 +13,2 @@ import {",
+        "@@ -80,0 +82,13 @@ test('destination: host channel and copy are used, with an opaque resource', asy",
+        "@@ -82,3 +96,4 @@ test('no portable A10 body imports Tovu code (value or type) or a non-core Jini",
+        "@@ -87 +102 @@ test('no portable A10 body imports Tovu code (value or type) or a non-core Jini"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts",
+      "status": "M",
+      "reason": "New S4 seam tests, public export imports, and scanner/fixture repairs; frozen test edits unchanged since continuation start.",
+      "hunks": [
+        "@@ -5 +5 @@ import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts",
+      "status": "M",
+      "reason": "New S4 seam tests, public export imports, and scanner/fixture repairs; frozen test edits unchanged since continuation start.",
+      "hunks": [
+        "@@ -17 +17 @@ import { tovuEnableAccessMessages } from '../../enable-access.js';"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts",
+      "status": "M",
+      "reason": "New S4 seam tests, public export imports, and scanner/fixture repairs; frozen test edits unchanged since continuation start.",
+      "hunks": [
+        "@@ -13 +13 @@ import {",
+        "@@ -16 +16 @@ import { CredentialInputError } from '../../../../contracts/core/credential-toke"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts",
+      "status": "A",
+      "reason": "New S4 seam tests, public export imports, and scanner/fixture repairs; frozen test edits unchanged since continuation start.",
+      "hunks": [
+        "@@ -0,0 +1,101 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/access-token-tool.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -2 +2 @@",
+        "@@ -26,2 +26,2 @@ import {",
+        "@@ -84 +84 @@ const tovuTokenFederation = { classifyTrust: classifyAgentPluginMcpServerTrust,"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/apply-tool-renames.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1 +1 @@",
+        "@@ -7 +7 @@ import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/card-host-bindings.ts",
+      "status": "M",
+      "reason": "One-line card identity public-import rewire; same host instances/identity bytes.",
+      "hunks": [
+        "@@ -4 +4 @@ import { askThenReport } from '@jini-ai/daemon/surface-exchanges';"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/connect-card-ui.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1 +1 @@",
+        "@@ -11 +11 @@ import {",
+        "@@ -15 +15 @@ export {"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/connect-destination.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -2 +2 @@",
+        "@@ -7,2 +7,2 @@ import { agentPluginCardHost } from './card-host-bindings.js';"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/connect-sign-in-wait.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1 +1 @@",
+        "@@ -11 +11 @@ import { buildAgentPluginConnectCard, type AgentPluginConnectCardSpec } from './"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/connect-tool.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1 +1 @@",
+        "@@ -29,2 +29,2 @@ import {"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1,44 +1,15 @@",
+        "@@ -49,2 +20,2 @@ export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {",
+        "@@ -54 +25 @@ export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {",
+        "@@ -60,51 +31,2 @@ export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {",
+        "@@ -112,14 +34,8 @@ export async function grantDeclaredToolsToSignedInRows(",
+        "@@ -128,5 +44,6 @@ export async function grantDeclaredToolsToSignedInRows(",
+        "@@ -135,9 +52,2 @@ function eligibleGrantRow({ row, pluginId, approvedEnable, ports }: { row: NonNu",
+        "@@ -147,14 +57,4 @@ export async function grantDeclaredToolsAtBoot("
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/import-access-token.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1,30 +1,17 @@",
+        "@@ -33 +20 @@ import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedT",
+        "@@ -37,36 +24 @@ export interface ImportAgentPluginAccessTokenDeps",
+        "@@ -74,12 +26,3 @@ export async function importAgentPluginAccessToken(",
+        "@@ -88,13 +31,6 @@ export interface InstalledAgentPluginServers {",
+        "@@ -103,3 +39,3 @@ export async function listInstalledAgentPluginServers(input: { workspaceId: stri",
+        "@@ -108,12 +44,3 @@ export interface TokenImportLog {",
+        "@@ -122,9 +49,2 @@ function envDeclarations(plugins: readonly InstalledAgentPluginServers[]) {",
+        "@@ -134,5 +54 @@ export async function importAgentPluginAccessTokensFromEnv(",
+        "@@ -140,42 +56,7 @@ export async function importAgentPluginAccessTokensFromEnv("
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/access-token-tool.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,346 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/apply-tool-renames.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,158 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/connect-card-ui.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,160 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/connect-destination.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,58 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/connect-sign-in-wait.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,26 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/connect-tool.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,651 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/portable/token-sign-in.ts",
+      "status": "D",
+      "reason": "Portable body moved verbatim to Jini; no retained duplicate implementation.",
+      "hunks": [
+        "@@ -1,80 +0,0 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/service-ports.ts",
+      "status": "M",
+      "reason": "One-line card type public re-export rewire.",
+      "hunks": [
+        "@@ -65 +65 @@ export interface AgentPluginSignInPort {"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "apps/website/src/features/agent-plugins/token-sign-in.ts",
+      "status": "M",
+      "reason": "Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.",
+      "hunks": [
+        "@@ -1 +1 @@",
+        "@@ -10,2 +10,2 @@ import {"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/extract-s4.md",
+      "status": "M",
+      "reason": "Required append-only S4-X continuation and C-b report.",
+      "hunks": [
+        "@@ -1119,0 +1120,182 @@ EXTRACT-S4-C STOPPED AT CAP"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-broad-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,21 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-broad-repaired.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-complexity-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-files.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,45 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-agent-plugins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-card-pins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-guard.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,24 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-integrations.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-layers.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,211 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-matrix-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,12 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-matrix.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-neutral-host.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-platform.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,10 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-plugins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,4 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-scripts-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-scripts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,45 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-ui.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,10 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-j-xp.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,5 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-mutation-bundled-trust.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,69 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-mutation-declined-actor.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,62 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-mutation-import-actor.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-mutation-projection.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,78 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-mutations-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,286 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-mutations.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-new-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-new-red.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,31 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-original-neutrality-complete-policy.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,12 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-original-neutrality.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-restored-green.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,82 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-scanner-repaired.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,82 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-t-matrix-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,91 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-t-pin.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-targeted.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,475 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-tsc-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d-withholding-green.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/a10-card-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/a10-tool-renames-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/a10b-connect-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/a10c-access-token-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/a10c-connect-lazy-mcp.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/a10d-remaining-seams.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/access-token-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,196 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/apply-connect-defaults.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,177 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/apply-tool-renames.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,130 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/cards-port.generic.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-card-open-link.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-card-state.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-card-theme.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-destination-flow.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-destination.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,52 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-skip.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-tool.api-connections.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,82 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connect-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,335 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/connection-status.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/cost-counters.baseline.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,36 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/enable-access.regression.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,190 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/federate-mcp.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,237 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/grant-signed-in-defaults.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,48 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/import-access-token.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,165 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/installed-extension-tools.preview-port.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,26 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/mail-engine-parity.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/mail-send.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/mcp-ports.error-identity.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/mcp-projection-seam.distinct-ports.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,44 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/moved-tools.access-token.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/moved-tools.credential-cards.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/moved-tools.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,18 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/new-site-agent-plugin-tokens.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,70 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/oauth-sign-in-refusal.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,34 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/plugin-enable-reload.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/plugin-host.integration.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,198 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/portable-plugin-host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/saved-keys-round-trip.integration.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,29 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/sign-in-refusal.safe-text.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,34 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/summary.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,542 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/switch-on-saved-token.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,87 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/token-sign-in.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/tool-registrations.contracts.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,226 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/tool-registrations.plugins-uninstall.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,115 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/tool-registrations.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,226 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a10d/wiring-identity.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,279 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-before-neutrality.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 7 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-comment-custody.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 10 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-emitted-notes-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 34 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-emitted-notes-repaired.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 34 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-files.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 83 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-agent-plugins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-build-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 57 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-build-repaired.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 4 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-card-pins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-complexity.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-guard.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 24 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-integrations.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-layers.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 221 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-matrix-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 12 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-matrix.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 64 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-neutral-host.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-neutral-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-platform.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 10 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-plugins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 4 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-scripts-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-scripts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 69 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-source.diff",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 1949 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-test-custody.diff",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 289 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-ui.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 10 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-j-xp.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 5 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-outside-inventory.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new self-inventory JSON evidence artifact"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-process-audit.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 6 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-public-focused.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 154 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-runtime-equivalence.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 10 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-scope-audit.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 1819 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-broad.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-complexity.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 1 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-contracts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 5 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-import-edits.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 66 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-matrix-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 167 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-pin.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 1 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-relink.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 96 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-source.diff",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 2337 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-test-custody.diff",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 1200 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-t-tsc-first.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 1 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11-verbatim-move.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 83 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/a10-card-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 46 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/a10-tool-renames-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/a10b-connect-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 28 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/a10c-access-token-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 40 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/a10c-connect-lazy-mcp.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/a10d-remaining-seams.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 46 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/access-token-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 196 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/admin-action-tools.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 70 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/agent-plugin-connections.vertical-slice.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 70 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/api-connection-slice.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 166 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/api-connection-state-vault.identity.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/apply-connect-defaults.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 177 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/apply-tool-renames.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 130 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/approval.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 70 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/browser-binding.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 46 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/bundled-mail-credential-cards.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 220 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/byo-client.malformed-origin.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 28 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/byo-client.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/capabilities.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 64 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/capability-lifetime.security.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/cards-port.generic.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-card-open-link.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 28 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-card-state.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-card-theme.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-destination-flow.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 28 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-destination.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 52 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-skip.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-tool.api-connections.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 82 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 335 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connect.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 94 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/connection-status.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/cost-counters.baseline.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 36 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/credential-save-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 197 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/delivery-bindings.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 142 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/enable-access.regression.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 190 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/executable-tools.security.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 118 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/executable-tools.vertical-slice.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/federate-mcp.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 237 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/forms.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 28 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/grant-signed-in-defaults.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 48 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/handlers.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 52 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/host-capabilities.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 118 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/host-ports.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 64 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/import-access-token.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 165 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/installed-extension-tools.executable-tools.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 64 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/installed-extension-tools.preview-port.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 26 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mail-adapter-registry.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 73 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mail-engine-parity.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 40 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mail-provider-contribution.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 88 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mail-provider-setup.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 58 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mail-send.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mcp-ports.error-identity.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/mcp-projection-seam.distinct-ports.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 44 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/moved-tools.access-token.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/moved-tools.credential-cards.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/moved-tools.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 18 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/new-site-agent-plugin-tokens.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 70 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/oauth-sign-in-refusal.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 34 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/plugin-enable-reload.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/plugin-host.integration.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 198 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/plugin-state-format.pin.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/plugin-state.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 76 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/portable-plugin-host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 46 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/provider-settings-chat-card.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 82 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/register.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 64 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/same-origin.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 52 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/saved-keys-round-trip.integration.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 29 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/sign-in-refusal.safe-text.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 34 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/summary.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 998 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/surface-adapters.security.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 131 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/surface-connections.host-port.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/surface-connections.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 40 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/surfaces.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 58 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/switch-on-saved-token.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 87 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/token-sign-in.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 40 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/tool-id-collision.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 34 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/tool-permission.other-host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 28 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/tool-registrations.contracts.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 226 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/tool-registrations.plugins-uninstall.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 115 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/tool-registrations.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 226 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/tools.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 94 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/vault-stores.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 118 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/a11/wiring-identity.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 279 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-agent-plugins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,17 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-build.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,125 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-card-pins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-core.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,4 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-guard-repaired.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,24 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-guard.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,36 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-integrations.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-layers.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,211 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-matrix-run-repaired.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,12 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-matrix-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,4 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-matrix.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-neutral-host.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-neutral-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-platform.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,10 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-plugins.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,4 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-scripts-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 0 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-scripts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,74 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-ui.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,10 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-j-xp.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,5 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-broad.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-contracts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,5 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-install.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,47 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-link.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,96 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-matrix-run.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,165 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-pin.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-sdk.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,5 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline-t-tsc.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/a10-card-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/a10-tool-renames-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/a10b-connect-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/a10c-access-token-seam.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/a10c-connect-lazy-mcp.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/access-token-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,196 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/admin-action-tools.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,70 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/agent-plugin-connections.vertical-slice.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,70 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/api-connection-slice.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,166 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/api-connection-state-vault.identity.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/apply-connect-defaults.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,177 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/apply-tool-renames.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,130 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/approval.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,70 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/browser-binding.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/bundled-mail-credential-cards.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,220 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/byo-client.malformed-origin.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/byo-client.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/capabilities.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/capability-lifetime.security.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/cards-port.generic.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-card-open-link.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-card-state.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-card-theme.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-destination-flow.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-destination.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,52 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-skip.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-tool.api-connections.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,82 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,335 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connect.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,94 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/connection-status.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/cost-counters.baseline.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,36 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/credential-save-tool.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,197 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/delivery-bindings.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,142 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/enable-access.regression.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,190 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/executable-tools.security.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,118 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/executable-tools.vertical-slice.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/federate-mcp.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,237 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/forms.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/grant-signed-in-defaults.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,48 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/handlers.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,52 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/host-capabilities.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,118 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/host-ports.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/import-access-token.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,165 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/installed-extension-tools.executable-tools.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/installed-extension-tools.preview-port.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,26 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mail-adapter-registry.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,73 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mail-engine-parity.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mail-provider-contribution.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,88 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mail-provider-setup.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,58 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mail-send.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mcp-ports.error-identity.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/mcp-projection-seam.distinct-ports.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,44 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/moved-tools.access-token.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/moved-tools.credential-cards.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/moved-tools.golden.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,18 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/new-site-agent-plugin-tokens.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,70 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/oauth-sign-in-refusal.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,34 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/plugin-enable-reload.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/plugin-host.integration.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,198 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/plugin-state-format.pin.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,16 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/plugin-state.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,76 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/portable-plugin-host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/provider-settings-chat-card.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,82 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/register.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,64 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/same-origin.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,52 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/saved-keys-round-trip.integration.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,29 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/sign-in-refusal.safe-text.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,34 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/summary.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,986 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/surface-adapters.security.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,131 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/surface-connections.host-port.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,22 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/surface-connections.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/surfaces.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,58 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/switch-on-saved-token.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,87 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/token-sign-in.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,40 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/tool-id-collision.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,34 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/tool-permission.other-host.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,28 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/tool-registrations.contracts.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,226 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/tool-registrations.plugins-uninstall.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,115 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/tool-registrations.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,226 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/tools.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,94 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/vault-stores.unit.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,118 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/baseline/wiring-identity.test.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,279 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/commands.jsonl",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,84 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/core-ui-pins.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,42 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/pins.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,142 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-a10d-mutations.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 21 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-command-runner.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 22 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-comment-custody.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 10 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-emitted-notes.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 51 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-j-matrix.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 16 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-outside-inventory.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 32 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-process-audit.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 17 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-runtime-equivalence.ts.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 19 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-scope-audit.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 30 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-t-matrix.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 23 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/proof-xp3-verify.py.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "new text artifact, 17 lines"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/provenance-originals.json",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,83 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/t-full-files.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1,82 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Tovu",
+      "path": "cloud/reports/raw/extract-s4-x/xp3-write.txt",
+      "status": "A",
+      "reason": "Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.",
+      "hunks": [
+        "@@ -0,0 +1 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": ".changeset/extract-s4-connect-cycle.md",
+      "status": "A",
+      "reason": "Five-line changeset for new public connect APIs; no dependency/manifest change.",
+      "hunks": [
+        "@@ -0,0 +1,5 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/access-token-tool.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,353 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/apply-tool-renames.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,159 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/connect-card-ui.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,162 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/connect-destination.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,58 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/connect-sign-in-wait.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,29 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/connect-tool.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,664 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/grant-signed-in-defaults.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,162 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/import-access-token.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,196 @@"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/index.ts",
+      "status": "M",
+      "reason": "One hunk exporting the nine moved bodies from existing entry.",
+      "hunks": [
+        "@@ -9,0 +10,9 @@ export * from './connection-status.js';"
+      ],
+      "s5Overlap": false
+    },
+    {
+      "repo": "Jini",
+      "path": "packages/agent-plugins/src/connect/token-sign-in.ts",
+      "status": "A",
+      "reason": "One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.",
+      "hunks": [
+        "@@ -0,0 +1,84 @@"
+      ],
+      "s5Overlap": false
+    }
+  ]
+}

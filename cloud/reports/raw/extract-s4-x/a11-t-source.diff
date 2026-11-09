@@ -1,0 +1,2337 @@
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts
+index ec757ddf6..cef2dbd5f 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts
+@@ -3,14 +3,15 @@ import test from 'node:test';
+ import { readdirSync, readFileSync } from 'node:fs';
+ import { dirname, join, resolve } from 'node:path';
+ import { fileURLToPath } from 'node:url';
++import ts from 'typescript';
+ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
+ import type { SurfaceAskThenReport } from '@jini-ai/core';
+ import type { SurfaceCardSecretForm } from '@jini-ai/core/contracts/cards';
+ import {
+   resolveAgentPluginCardIdentity, buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts,
+   type AgentPluginCardBuilders, type AgentPluginCredentialCardForms,
+-} from '../../portable/connect-card-ui.js';
+-import { chooseApiConnectionDestinationWithPorts } from '../../portable/connect-destination.js';
++} from '@jini-ai/agent-plugins/connect';
++import { chooseApiConnectionDestinationWithPorts } from '@jini-ai/agent-plugins/connect';
+ import { agentPluginCardHost, tovuAgentPluginCardIdentity } from '../../card-host-bindings.js';
+ import { buildAgentPluginAccessTokenForm } from '../../connect-card-ui.js';
+ 
+@@ -78,13 +79,27 @@ test('destination: host channel and copy are used, with an opaque resource', asy
+   assert.doesNotMatch(JSON.stringify(spec), /Mac|Tovu|mcp-ui/);
+ });
+ 
++function importedSpecifiers(source: string): readonly string[] {
++  return ts.preProcessFile(source, true, true).importedFiles.map(file => file.fileName);
++}
++
++test('boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require', () => {
++  const source = `// env import's rule is rationale, not an import\nimport type { X } from '@jini-ai/ui';
++import cards = require('@jini-ai/daemon');
++export type Y = import('@jini-ai/integrations').Y;
++const a = import('@jini-ai/mcp');
++const b = require('@jini-ai/cms');`;
++  assert.deepEqual(importedSpecifiers(source), ['@jini-ai/ui', '@jini-ai/daemon', '@jini-ai/integrations', '@jini-ai/mcp', '@jini-ai/cms']);
++});
++
+ test('no portable A10 body imports Tovu code (value or type) or a non-core Jini package', () => {
+-  const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../../portable');
+-  const files = readdirSync(dir).filter(name => name.endsWith('.ts'));
+-  assert.ok(files.length >= 3);
++  const dir = resolve(dirname(fileURLToPath(import.meta.resolve('@jini-ai/agent-plugins/connect'))), '../../src/connect');
++  const expected = ['access-token-tool.ts', 'apply-tool-renames.ts', 'connect-card-ui.ts', 'connect-destination.ts', 'connect-sign-in-wait.ts', 'connect-tool.ts', 'grant-signed-in-defaults.ts', 'import-access-token.ts', 'token-sign-in.ts'];
++  const files = readdirSync(dir).filter(name => expected.includes(name)).sort();
++  assert.deepEqual(files, expected, 'all nine moved bodies are checked');
+   for (const name of files) {
+     const source = readFileSync(join(dir, name), 'utf8');
+-    for (const [, spec] of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
++    for (const spec of importedSpecifiers(source)) {
+       const ok = /^@jini-ai\/core(\/|$)/.test(spec!) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec!) || /^\.\/[^/]+\.js$/.test(spec!);
+       assert.ok(ok, `${name} imports ${spec}`);
+     }
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts
+index 6cda86b51..b3eabd9d3 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10-tool-renames-seam.unit.test.ts
+@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
+ import test from 'node:test';
+ import type { AgentPluginMcpRecord, AgentPluginMcpRepo } from '@jini-ai/agent-plugins/connect';
+ import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
+-import { applyAgentPluginToolRenames, renameToolNames } from '../../portable/apply-tool-renames.js';
++import { applyAgentPluginToolRenames, renameToolNames } from '@jini-ai/agent-plugins/connect';
+ import { applyAgentPluginToolRenames as tovuApply } from '../../apply-tool-renames.js';
+ 
+ const URL_ = 'https://mcp.example.test/mcp';
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+index 9d289553b..b8f4f4a37 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+@@ -14,7 +14,7 @@ import { mcpTestPort } from '../fixtures/connection-service-ports.js';
+ import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
+ import { classifyAgentPluginMcpServerTrust } from '../../capability-projection.js';
+ import { tovuEnableAccessMessages } from '../../enable-access.js';
+-import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '../../portable/connect-tool.js';
++import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '@jini-ai/agent-plugins/connect';
+ import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from '../../connect-tool.js';
+ import type { McpServerConfig } from '../../mcp-metadata.js';
+ 
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts
+index 1ae9e562f..f992760be 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10c-access-token-seam.unit.test.ts
+@@ -10,10 +10,10 @@ import type { ToolExecutionContext } from '@jini-ai/core';
+ import type { SurfaceCardSecretSpec, SurfaceCardSecretOptions, SurfaceCardSecretDeps, SurfaceCardsPort } from '@jini-ai/core/contracts/cards';
+ import {
+   saveAgentPluginToken, type AgentPluginAccessTokenToolDeps, type SetAccessTokenResult, type TokenAuthTarget,
+-} from '../../portable/access-token-tool.js';
++} from '@jini-ai/agent-plugins/connect';
+ import { probeToken, tovuAgentPluginAccessTokenHost, tovuTokenValidator } from '../../access-token-tool.js';
+ import { CredentialInputError } from '../../../../contracts/core/credential-token.js';
+-import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '../../portable/token-sign-in.js';
++import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '@jini-ai/agent-plugins/connect';
+ 
+ class AcmeTokenError extends Error { constructor(readonly acmeRule: string) { super('acme bad token'); } }
+ type Prep = { target: TokenAuthTarget; principalId: string; locale: string };
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts
+new file mode 100644
+index 000000000..05cdeed8d
+--- /dev/null
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts
+@@ -0,0 +1,101 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { createSystemClock } from '@jini-ai/core/primitives';
++import { ToolInputError } from '@jini-ai/core';
++import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
++import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
++import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
++import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
++import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
++import { grantDeclaredToolsAtBoot, grantDeclaredToolsToSignedInRows, type GrantSignedInDefaultsDeps } from '@jini-ai/agent-plugins/connect';
++import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv, listInstalledAgentPluginServers, type ImportAgentPluginAccessTokensFromEnvDeps } from '@jini-ai/agent-plugins/connect';
++import type { AgentPluginMcpSave } from '@jini-ai/agent-plugins/connect';
++import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
++
++const servers: Readonly<Record<string, McpServerConfig>> = { crm: { type: 'streamable-http', url: 'https://crm.acme.test/mcp', authMode: 'oauth', defaultTools: { allow: ['read'], write: ['read'] }, tokenAuth: { helpUrl: 'https://crm.acme.test/token', probeUrl: 'https://crm.acme.test/me', importFromEnv: 'ACME_TOKEN', retiredEnv: ['ACME_OLD'] } } };
++async function fixture() {
++  const repo = new InMemoryExternalMcpServerRepo();
++  const keyring = new InMemoryKeyring(); const clock = createSystemClock();
++  const store = { repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) };
++  await saveExternalMcpServer(store, { workspaceId: 'acme', serverId: 'crm', label: 'Acme', transport: 'streamable_http', authMode: 'oauth', enabled: false, command: '', args: '', url: 'https://crm.acme.test/mcp', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' }, principalId: 'owner', provisionedByPluginId: 'crm-plugin' });
++  const row = (await repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await repo.upsert({ ...row, oauthStatus: 'connected' });
++  const saved: AgentPluginMcpSave[] = []; const calls: string[] = []; const warnings: string[] = []; const infos: string[] = [];
++  const projections = { ...agentPluginMcpProjections, oauthStatus: (input: { oauthStatus: string | null }) => { calls.push('acme:oauth'); return agentPluginMcpProjections.oauthStatus(input); } };
++  const grant: GrantSignedInDefaultsDeps = { workspaceId: 'acme', repo, clock, projections, classifyError: () => 'other', applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), resolveServers: async () => servers, enablePlugin: async () => { calls.push('activate'); }, isPluginOffByOperator: async () => false, actors: { connectDefaults: 'acme:defaults', connectDeclined: 'acme:declined' }, notifyRosterChanged: async () => { calls.push('roster'); }, warn: message => warnings.push(message), approvedFailure: ({ connectionId, detail }) => `acme enable ${connectionId}: ${detail}` };
++  const deps: ImportAgentPluginAccessTokensFromEnvDeps = { workspaceId: 'acme', mcp: { repo, projections, classifyError: () => 'other', saveServer: input => { saved.push(input); return saveExternalMcpServer(store, input); } }, resolveInstalledPlugin: async () => ({ servers }), federation: { classifyTrust: () => 'auto-admit', messages: { sseTransportUnsupported: () => 'acme no sse', headersUnsupported: () => 'acme no headers' } }, messages: { connectionNotSetUp: () => 'acme missing', connectionRepointed: () => 'acme repointed', notInstalled: () => 'acme not installed', noTokenSignIn: () => 'acme no token', multipleTokenSignIns: () => 'acme many tokens', serverNotSetUp: () => 'acme no server' }, importActor: 'acme:import', switchOnSavedToken: async () => { calls.push('switch'); return { state: 'on' }; }, listPlugins: async () => [{ pluginId: 'crm-plugin', bundled: true, servers }], importMessages: { pluginsScreen: 'Acme Connections', failed: ({ envName, pluginId }) => `acme could not copy ${envName} to ${pluginId}` } };
++  const log = { info: (message: string) => infos.push(message), warn: (message: string) => warnings.push(message) };
++  return { repo, calls, warnings, infos, grant, deps, log, saved };
++}
++
++test('other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline', async () => {
++  const f = await fixture();
++  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }, { skipServerKeys: ['crm'] }), []);
++  assert.equal(f.calls.length, 0);
++  const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: 'acme:declined' });
++  let declinedCalls = 0;
++  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: { ...f.grant, onConnected: async () => { declinedCalls += 1; } }, pluginId: 'crm-plugin', servers }), []);
++  assert.equal(declinedCalls, 0, 'a declined row is withheld even from the supplied grant callback');
++  assert.ok(f.calls.includes('acme:oauth')); assert.ok(!f.calls.includes('activate'));
++  await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: null });
++  assert.deepEqual(await grantDeclaredToolsToSignedInRows({ deps: f.grant, pluginId: 'crm-plugin', servers }), ['crm']);
++  const after = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  assert.equal(after.writeGrantsUpdatedByPrincipalId, 'acme:defaults');
++  assert.equal(after.allowedToolNames, '["read"]');
++  assert.deepEqual(f.calls.slice(-2), ['activate', 'roster']);
++});
++
++test('approved grant failure uses safe host guidance; advisory healing warns and continues', async () => {
++  const f = await fixture(); const fault = new Error('storage failed');
++  const deps = { ...f.grant, onConnected: async () => { throw fault; } };
++  await grantDeclaredToolsToSignedInRows({ deps, pluginId: 'crm-plugin', servers });
++  assert.equal(f.warnings.length, 1); assert.match(f.warnings[0]!, /storage failed/);
++  await assert.rejects(grantDeclaredToolsToSignedInRows({ deps, pluginId: 'crm-plugin', servers }, { approvedEnable: { principalId: 'owner', accessKey: 'approved' } }), error => error instanceof ToolInputError && error.message === 'acme enable crm: storage failed');
++});
++
++test('boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row', async () => {
++  const f = await fixture(); const order: string[] = [];
++  const deps = { ...f.grant, listPlugins: async () => { order.push('list'); return [{ pluginId: 'crm-plugin', servers }]; }, readActivations: async () => { order.push('activations'); return { plugins: { 'crm-plugin': { enabled: false } } }; } };
++  await grantDeclaredToolsAtBoot({ deps, log: f.log });
++  assert.deepEqual(order, ['list', 'activations']); assert.equal(f.calls.length, 0);
++  const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await f.repo.upsert({ ...row, writeGrantsUpdatedByPrincipalId: 'acme:operator' });
++  await grantDeclaredToolsAtBoot({ deps: { ...deps, readActivations: async () => ({ plugins: {} }) }, log: f.log });
++  assert.ok(!f.calls.includes('activate')); assert.equal(f.infos.length, 0);
++});
++
++test('import keeps an existing credential and finishes switch-on without replacement', async () => {
++  const f = await fixture();
++  assert.equal(await importAgentPluginAccessToken({ deps: f.deps, input: { pluginId: 'crm-plugin', token: 'never-replace' } }), 'already-connected');
++  assert.deepEqual(f.calls, ['acme:oauth', 'switch']);
++  const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  assert.equal(row.authMode, 'oauth'); assert.deepEqual(f.saved, []);
++});
++
++test('env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret', async () => {
++  const f = await fixture(); const row = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  await f.repo.upsert({ ...row, oauthStatus: null });
++  const env = { ACME_TOKEN: '  acme-secret-token  ', ACME_OLD: '1' };
++  await importAgentPluginAccessTokensFromEnv({ deps: { ...f.deps, listPlugins: async () => [{ pluginId: 'crm-plugin', servers, bundled: false }] }, env, log: f.log });
++  assert.equal(f.calls.length, 0); assert.equal(f.infos.length, 0);
++  await importAgentPluginAccessTokensFromEnv({ deps: f.deps, env, log: f.log }, { skipPluginIds: new Set(['crm-plugin']) });
++  assert.equal(f.calls.length, 0); assert.equal(f.infos.length, 1);
++  await importAgentPluginAccessTokensFromEnv({ deps: { ...f.deps, switchOnSavedToken: async () => ({ state: 'plugin-off-by-operator' }) }, env, log: f.log });
++  const after = (await f.repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
++  assert.equal(f.saved.at(-1)?.principalId, 'acme:import'); assert.equal(after.authMode, 'static_env');
++  assert.ok(f.infos.some(message => message.includes('(Acme Connections)')));
++  const failure = { ...f.deps, resolveInstalledPlugin: async () => { throw new Error('acme-secret-token'); } };
++  await importAgentPluginAccessTokensFromEnv({ deps: failure, env, log: f.log });
++  assert.equal(f.warnings.at(-1), 'acme could not copy ACME_TOKEN to crm-plugin');
++  assert.ok(![...f.infos, ...f.warnings].join('\n').includes('acme-secret-token'));
++});
++
++test('installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins', async () => {
++  const order: string[] = []; const ledger = new Map([['crm-plugin', 'seeded']]);
++  const first = { pluginId: 'crm-plugin', archiveDigest: 'seeded', packageRoot: '/acme/one', files: [], skills: [] };
++  const duplicate = { ...first, archiveDigest: 'other', packageRoot: '/acme/two' };
++  const result = await listInstalledAgentPluginServers({ workspaceRoot: '/acme', lifecycle: { readBundledAgentPluginDigests: async () => { order.push('ledger'); return ledger; }, listInstalledPlugins: async () => { order.push('installed'); return [first, duplicate]; }, preferBundledAgentPluginDigests: ({ installed, bundled }) => { assert.equal(bundled, ledger); return installed; }, readInstalledMcpServers: async ({ packageRoot }) => { order.push(packageRoot); return servers; } } });
++  assert.deepEqual(order, ['ledger', 'installed', '/acme/one']);
++  assert.deepEqual(result, [{ pluginId: 'crm-plugin', servers, bundled: true }]);
++});
+diff --git a/apps/website/src/features/agent-plugins/access-token-tool.ts b/apps/website/src/features/agent-plugins/access-token-tool.ts
+index 4576ac856..66c3ed5c9 100644
+--- a/apps/website/src/features/agent-plugins/access-token-tool.ts
++++ b/apps/website/src/features/agent-plugins/access-token-tool.ts
+@@ -1,5 +1,5 @@
+ /** Tovu compatibility shim (A10c seam). The portable `agent_plugin_set_access_token` body lives in
+- * `./portable/access-token-tool.ts`; these entries keep their signatures and bind Tovu's tool name and
++ * `@jini-ai/agent-plugins/connect`; these entries keep their signatures and bind Tovu's tool name and
+  * product copy ("this Tovu version"), the `credential_save` card lifecycle id and `ui://tovu` card
+  * namespace, the credential token rule (R1: same validator, same error object), the installed-plugin
+  * read and the saved-token switch. Bytes unchanged from the pre-seam body. */
+@@ -23,8 +23,8 @@ import {
+   saveStaticAccessToken as saveWithPorts, saveAgentPluginToken as saveTokenWithPorts,
+   type AgentPluginAccessTokenMessages, type AgentPluginTokenValidator, type AgentPluginAccessTokenHost,
+   type SetAccessTokenResult, type TokenAuthTarget,
+-} from "./portable/access-token-tool.js";
+-export type { TokenAuthTarget, SetAccessTokenResult, AgentPluginAccessTokenMessages, AgentPluginTokenValidator, AgentPluginAccessTokenHost } from "./portable/access-token-tool.js";
++} from "@jini-ai/agent-plugins/connect";
++export type { TokenAuthTarget, SetAccessTokenResult, AgentPluginAccessTokenMessages, AgentPluginTokenValidator, AgentPluginAccessTokenHost } from "@jini-ai/agent-plugins/connect";
+ 
+ /** Same permission `agent_plugin_connect` restates (`connect-tool.ts`). */
+ const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";
+@@ -81,7 +81,7 @@ const tovuTokenFederation = { classifyTrust: classifyAgentPluginMcpServerTrust,
+ 
+ /** Old deps -> portable target deps. The installed read falls back to the on-disk walk as before;
+  * `routeDeps.mcp` is read on first use (after the permission check), its projections bound once. */
+-function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D) {
++export function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D, _optional: Record<string, never> = {}) {
+   let mcp: ReturnType<typeof withAgentPluginMcpPorts<D["mcp"]>> | undefined;
+   const deps = withOverrides(routeDeps, {
+     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
+diff --git a/apps/website/src/features/agent-plugins/apply-tool-renames.ts b/apps/website/src/features/agent-plugins/apply-tool-renames.ts
+index fb71d1ee6..cb51ce29c 100644
+--- a/apps/website/src/features/agent-plugins/apply-tool-renames.ts
++++ b/apps/website/src/features/agent-plugins/apply-tool-renames.ts
+@@ -1,10 +1,10 @@
+-/** Tovu compatibility shim (A10 seam). The portable body lives in `./portable/apply-tool-renames.ts`
++/** Tovu compatibility shim (A10 seam). The portable body lives in `@jini-ai/agent-plugins/connect`
+  * and takes the installed-plugin reads and the rename actor as required inputs; these entries keep
+  * their original positional signatures and bind Tovu's lifecycle reads and `system:tool-renames`. */
+ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+ import type { AgentPluginMcpPort } from "./service-ports.js";
+ import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
+-import { applyAgentPluginToolRenames as applyWithPorts, renameToolNames as renameWithPorts } from "./portable/apply-tool-renames.js";
++import { applyAgentPluginToolRenames as applyWithPorts, renameToolNames as renameWithPorts } from "@jini-ai/agent-plugins/connect";
+ 
+ /** Recorded as the row's write-grant attribution when a rename changes its write list. */
+ const TOOL_RENAMES_ACTOR = "system:tool-renames";
+diff --git a/apps/website/src/features/agent-plugins/card-host-bindings.ts b/apps/website/src/features/agent-plugins/card-host-bindings.ts
+index 76b08afb8..0d3f6baa8 100644
+--- a/apps/website/src/features/agent-plugins/card-host-bindings.ts
++++ b/apps/website/src/features/agent-plugins/card-host-bindings.ts
+@@ -1,7 +1,7 @@
+ /** Actual UI builders, application identities and namespaces stay bound to this host. */
+ import { mcpUiCards } from '@jini-ai/ui/mcp-ui/cards';
+ import { askThenReport } from '@jini-ai/daemon/surface-exchanges';
+-import { resolveAgentPluginCardIdentity, type AgentPluginCardIdentity } from './portable/connect-card-ui.js';
++import { resolveAgentPluginCardIdentity, type AgentPluginCardIdentity } from '@jini-ai/agent-plugins/connect';
+ /** Tovu's card identity: resolves to ui://tovu/agent-plugins-connect/<id>, ui://tovu/sign-in-destination/<id>
+  * and the tovu-agent-plugins-* apps at version 1 (bytes unchanged). */
+ export const tovuAgentPluginCardIdentity: AgentPluginCardIdentity = {
+diff --git a/apps/website/src/features/agent-plugins/connect-card-ui.ts b/apps/website/src/features/agent-plugins/connect-card-ui.ts
+index a86f05e74..1089fb3cd 100644
+--- a/apps/website/src/features/agent-plugins/connect-card-ui.ts
++++ b/apps/website/src/features/agent-plugins/connect-card-ui.ts
+@@ -1,4 +1,4 @@
+-/** Tovu compatibility shim (A10 seam). The portable card bodies live in `./portable/connect-card-ui.ts`
++/** Tovu compatibility shim (A10 seam). The portable card bodies live in `@jini-ai/agent-plugins/connect`
+  * and take the card runtime, identity and product copy as required inputs; these entries keep their
+  * original signatures and bind Tovu's UI builders, card identity and wording (bytes unchanged). */
+ import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
+@@ -8,11 +8,11 @@ import { agentPluginCardHost } from "./card-host-bindings.js";
+ import {
+   buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts,
+   type AgentPluginConnectCardSpec, type AgentPluginAccessTokenFormMessages,
+-} from "./portable/connect-card-ui.js";
++} from "@jini-ai/agent-plugins/connect";
+ export {
+   buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts, resolveAgentPluginCardIdentity,
+   type AgentPluginConnectCardSpec, type AgentPluginCardIdentity, type AgentPluginCredentialCardForms, type AgentPluginAccessTokenFormMessages,
+-} from "./portable/connect-card-ui.js";
++} from "@jini-ai/agent-plugins/connect";
+ 
+ /** Tovu's token-form wording (bytes unchanged from the pre-seam body). */
+ export const tovuAccessTokenFormMessages: AgentPluginAccessTokenFormMessages = {
+diff --git a/apps/website/src/features/agent-plugins/connect-destination.ts b/apps/website/src/features/agent-plugins/connect-destination.ts
+index ffcfd9afb..14b0f0946 100644
+--- a/apps/website/src/features/agent-plugins/connect-destination.ts
++++ b/apps/website/src/features/agent-plugins/connect-destination.ts
+@@ -1,11 +1,11 @@
+ /** Tovu compatibility shim (A10 seam). The portable destination card lives in
+- * `./portable/connect-destination.ts`; this entry keeps its signature and binds Tovu's UI, card
++ * `@jini-ai/agent-plugins/connect`; this entry keeps its signature and binds Tovu's UI, card
+  * identity, exchange helper, `mcp-ui` channel and "this Mac" wording (bytes unchanged). */
+ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
+ import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+ import { agentPluginCardHost } from './card-host-bindings.js';
+-import { chooseApiConnectionDestinationWithPorts, type AgentPluginDestinationCardHost } from './portable/connect-destination.js';
+-export { chooseApiConnectionDestinationWithPorts, type AgentPluginDestinationCardHost } from './portable/connect-destination.js';
++import { chooseApiConnectionDestinationWithPorts, type AgentPluginDestinationCardHost } from '@jini-ai/agent-plugins/connect';
++export { chooseApiConnectionDestinationWithPorts, type AgentPluginDestinationCardHost } from '@jini-ai/agent-plugins/connect';
+ 
+ export const tovuDestinationCardHost: AgentPluginDestinationCardHost = {
+   channel: 'mcp-ui',
+diff --git a/apps/website/src/features/agent-plugins/connect-sign-in-wait.ts b/apps/website/src/features/agent-plugins/connect-sign-in-wait.ts
+index 3922f1d12..d3dffeb01 100644
+--- a/apps/website/src/features/agent-plugins/connect-sign-in-wait.ts
++++ b/apps/website/src/features/agent-plugins/connect-sign-in-wait.ts
+@@ -1,4 +1,4 @@
+-/** Tovu compatibility shim (A10 seam). The portable waiter lives in `./portable/connect-sign-in-wait.ts`
++/** Tovu compatibility shim (A10 seam). The portable waiter lives in `@jini-ai/agent-plugins/connect`
+  * (generic over the card `Resource` and the connect result); these entries keep their signatures and
+  * bind Tovu's UI, card identity, SAME process exchange store and missing-emitter/skip copy. */
+ import { agentPluginCardHost } from './card-host-bindings.js';
+@@ -8,7 +8,7 @@ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
+ import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+ import type { PluginCredentialCard } from '@jini-ai/core/contracts/credentials';
+ import { buildAgentPluginConnectCard, type AgentPluginConnectCardSpec } from './connect-card-ui.js';
+-import { waitAtAgentPluginSignInCardWithPorts as waitWithPorts } from './portable/connect-sign-in-wait.js';
++import { waitAtAgentPluginSignInCardWithPorts as waitWithPorts } from '@jini-ai/agent-plugins/connect';
+ import type { AgentPluginConnectResult } from './connect-tool.js';
+ 
+ /** Old seam signature (connect result fixed to Tovu's `AgentPluginConnectResult`). */
+diff --git a/apps/website/src/features/agent-plugins/connect-tool.ts b/apps/website/src/features/agent-plugins/connect-tool.ts
+index 6e9f568ab..c9883f466 100644
+--- a/apps/website/src/features/agent-plugins/connect-tool.ts
++++ b/apps/website/src/features/agent-plugins/connect-tool.ts
+@@ -1,4 +1,4 @@
+-/** Tovu compatibility shim (A10b seam). The portable tool body lives in `./portable/connect-tool.ts`;
++/** Tovu compatibility shim (A10b seam). The portable tool body lives in `@jini-ai/agent-plugins/connect`;
+  * these entries keep their signatures and bind Tovu's tool id, permissions, approval owner, refusal
+  * copy (tool names, "this Tovu version", "restart Tovu"), public callback URL, installed/activation
+  * reads, trust rule, declined actor and card waiters. Bytes unchanged from the pre-seam body. */
+@@ -26,8 +26,8 @@ import {
+   agentPluginConnectAgentToolCatalogFor, agentPluginConnectDerivedRiskFor,
+   type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages, type AgentPluginConnectOptions, type AgentPluginConnectResult,
+   type ResolvedAgentPluginForConnect,
+-} from "./portable/connect-tool.js";
+-export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "./portable/connect-tool.js";
++} from "@jini-ai/agent-plugins/connect";
++export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "@jini-ai/agent-plugins/connect";
+ 
+ export const AGENT_PLUGIN_CONNECT_TOOL_ID = "agent_plugin_connect";
+ 
+diff --git a/apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts b/apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts
+index 35e302fe1..4e6bbf4db 100644
+--- a/apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts
++++ b/apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts
+@@ -1,161 +1,61 @@
+-import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+-import { ToolInputError, redactSecrets } from '@jini-ai/core';
+-
+-import { agentPluginActivations } from "./activation-effects.js";
+-import { CONNECT_DECLINED_ACTOR, createApplyConnectDefaults } from "./apply-connect-defaults.js";
+-import { hasStoredAgentPluginCredential } from "./connect-tool.js";
+-import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
+-import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
+-import type { AgentPluginLayout } from "./layout.js";
+-import type { McpServerConfig } from "./mcp-metadata.js";
+-import type { AgentPluginMcpContext, AgentPluginMcpPort, AgentPluginMcpProjectionPorts } from "./service-ports.js";
+-import { agentPluginMcpPortsOf } from "./mcp-host-bindings.js";
+-
+-/**
+- * @file "Plugin on + account connected" grants the plugin's declared tools, whichever of the two
+- * happens LAST — not only when the sign-in happens last.
+- *
+- * `apply-connect-defaults.ts` grants a plugin's declared `defaultTools` (allowlist and "may
+- * write") when the operator's sign-in finishes, and `agent_plugin_connect` re-runs that grant for an
+- * already signed-in row. Both are sign-in moments. Bug 2026-11-04 (jared-floyd, Higgsfield Media):
+- * the owner turned the plugin on and signed in, yet the connection stayed off with zero tools, and
+- * the chat could only tell them to tick 8 tools and 3 writes by hand. Whenever the sign-in grant
+- * skipped or failed at sign-in time (the plugin was off then, the plugin did not declare the tools
+- * yet, a post-connect step failed and was only logged), nothing ever tried again: switching the
+- * plugin on and restarting Tovu both left the signed-in row empty. This file is the two other
+- * moments, and both reuse the sign-in grant itself (`createApplyConnectDefaults`) so every rule it
+- * enforces still holds — only a still-empty row this plugin provisioned, at the url it still
+- * declares, never for a plugin an operator turned off, exactly the declared lists:
+- *
+- * - {@link grantDeclaredToolsToSignedInRows} — the operator switching the plugin on (the admin
+- *   toggle and `plugins_set_enabled`). Switching on is the operator's consent, the sign-in already
+- *   was; a row that is not signed in gets nothing, because enabling alone is not a connection.
+- * - {@link grantDeclaredToolsAtBoot} — boot, for every plugin that is on. Heals a site whose grant
+- *   was missed before this file existed, with no action from the owner. Narrower than the toggle: a
+- *   row whose write grants were ever set by anyone (`writeGrantsUpdatedByPrincipalId`) is skipped,
+- *   so a boot never re-grants what an operator emptied on purpose after an earlier grant.
+- *
+- * Automatic healing never widens a grant: a row with any tool already listed is left alone (the
+- * sign-in grant's own rule), so an update cannot silently reach a row that already has its tools.
+- * An explicit enable card is the exception: the owner reviewed the source and resulting lists,
+- * so its approvedEnable option can add those declared names even before sign-in.
+- * The grant writes the row on and notifies the roster, so the running assistant admits the
+- * connection's tools without a restart (Jini `federation/reload.ts` admits a not-yet-admitted row).
+- */
++/** Tovu compatibility signatures for declared-tool healing. The portable body takes required
++ * projection/actor/activation owners; these legacy entries bind the same existing Tovu owners,
++ * diagnostic sink and plugins_set_enabled retry copy. No second activation queue or MCP store. */
++import type { Clock as ClockPort } from '@jini-ai/core/primitives';
++import {
++  grantDeclaredToolsToSignedInRows as grantWithPorts, grantDeclaredToolsAtBoot as bootWithPorts,
++  type GrantSignedInDefaultsDeps as PortableGrantDeps,
++} from '@jini-ai/agent-plugins/connect';
++import { agentPluginActivations } from './activation-effects.js';
++import { tovuConnectActors, isPluginOffByOperator, switchPluginOnUnlessOperatorOff } from './apply-connect-defaults.js';
++import { resolveAgentPluginMcpServers } from './federate-mcp.js';
++import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from './import-access-token.js';
++import { withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
++import type { AgentPluginLayout } from './layout.js';
++import type { AgentPluginMcpContext, AgentPluginMcpPort } from './service-ports.js';
+ 
+ export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {
+   readonly workspaceId: string;
+   readonly agentPluginLayout: AgentPluginLayout;
+-  readonly repo: AgentPluginMcpPort["repo"];
+-  readonly applyAccess: AgentPluginMcpPort["applyAccess"];
++  readonly repo: AgentPluginMcpPort['repo'];
++  readonly applyAccess: AgentPluginMcpPort['applyAccess'];
+   readonly clock: ClockPort;
+   /** The assistant's roster-reload port, so a granted row's tools load without a restart. */
+   readonly notifyRosterChanged: () => Promise<void>;
+-  /** Injected for tests. Defaults to the sign-in's own grant, {@link createApplyConnectDefaults}. */
++  /** Injected for tests. Defaults to the sign-in's own grant, `createApplyConnectDefaults`. */
+   readonly onConnected?: (serverId: string) => Promise<void>;
+   /** Defaults to `console.warn`. A failed grant is reported with its real cause, never thrown. */
+   readonly warn?: (message: string) => void;
+ };
+ 
+-interface GrantDeclaredToolsOptions {
+-  readonly onlyNeverGranted?: boolean;
+-  /** Servers whose provisioning just failed (their row could not even be read or written): nothing to grant. */
+-  readonly skipServerKeys?: readonly string[];
+-  /** The enable card already named these sources and grants; sign-in can happen afterwards. */
+-  readonly approvedEnable?: { readonly principalId: string; readonly accessKey: string };
+-}
+-
+-/** Bind the existing sign-in grant to its explicit approval occasion; test ports retain precedence.
+- * @complexity O(1) construction, no I/O.
+- */
+-function connectGrantFor({ deps, options, ports }: { deps: GrantSignedInDefaultsDeps; options: GrantDeclaredToolsOptions; ports: AgentPluginMcpProjectionPorts }): (serverId: string) => Promise<void> {
+-  return deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, applyAccess: deps.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged, ...ports }, options.approvedEnable ? { approvedEnable: options.approvedEnable } : {});
+-}
+-
+-/** Run the existing grant owner for one eligible row, then report its actual durable change.
+- * @complexity Two indexed row reads plus the existing grant's own point read/write and reload.
+- */
+-async function grantConnection({ deps, pluginId, connectionId, onConnected, options, ports }: { deps: GrantSignedInDefaultsDeps; pluginId: string; connectionId: string; onConnected: (serverId: string) => Promise<void>; options: GrantDeclaredToolsOptions; ports: AgentPluginMcpProjectionPorts }): Promise<boolean> {
+-  const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+-  if (!row || !eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined, ports })) return false;
+-  if (!options.approvedEnable && row.writeGrantsUpdatedByPrincipalId === CONNECT_DECLINED_ACTOR) return false;
+-  if (options.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) return false;
+-  await onConnected(connectionId);
+-  const after = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+-  return after !== null && (after.enabled !== row.enabled || after.allowedToolNames !== row.allowedToolNames || after.writeAllowedToolNames !== row.writeAllowedToolNames);
+-}
+-
+-/** Explicit approvals must report a partial failure to the caller; boot healing remains advisory.
+- * @throws ToolInputError for the approved enable path, with bounded redacted cause.
+- * @complexity O(e) in error-message bytes; no I/O beyond the injected warning port.
+- */
+-function grantFailure({ error, pluginId, connectionId, approved, warn }: { error: unknown; pluginId: string; connectionId: string; approved: boolean; warn: (message: string) => void }): void {
+-  const detail = error instanceof Error ? error.message : String(error);
+-  if (approved) throw new ToolInputError({ message: redactSecrets({ input: `The plugin is on, but '${connectionId}' could not load its approved tools. Request plugins_set_enabled again to retry. Details: ${detail.slice(0, 2000)}` }) });
+-  warn(`[agent-plugins] '${pluginId}': could not turn on the '${connectionId}' connection with the tools the plugin declares — ${detail}`);
+-}
+-
+-/**
+- * Runs the sign-in grant on each of `pluginId`'s declared remote servers whose row this plugin
+- * provisioned and that already holds a credential (finished sign-in or saved access token).
+- *
+- * @returns The connection ids whose tools the grant actually turned on (its own rules may skip one).
+- * @throws Nothing: a failing row is a warning naming the row and the cause; the others still run.
+- * @complexity O(s) in declared servers: one row read each, plus at most one grant and one re-read.
+- */
+-export async function grantDeclaredToolsToSignedInRows(
+-  required: { readonly deps: GrantSignedInDefaultsDeps; readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>> },
+-  optional: GrantDeclaredToolsOptions = {},
+-): Promise<readonly string[]> {
+-  const { deps, pluginId, servers } = required;
++/** Existing connect-defaults host binding, preserving the grant's explicit field selection. */
++function tovuGrantDeps(deps: GrantSignedInDefaultsDeps): PortableGrantDeps {
+   const warn = deps.warn ?? ((message: string) => console.warn(message));
+-  // Resolved once per call: the eligibility check and the grant use the host's same pair.
+-  const ports = agentPluginMcpPortsOf(deps);
+-  const onConnected = connectGrantFor({ deps, options: optional, ports });
+-  const granted: string[] = [];
+-  for (const [serverKey, config] of Object.entries(servers)) {
+-    const connectionId = config.type === "stdio" || optional.skipServerKeys?.includes(serverKey) ? null : deriveAgentPluginConnectionId(serverKey);
+-    if (connectionId === null) continue;
+-    try {
+-      if (await grantConnection({ deps, pluginId, connectionId, onConnected, options: optional, ports })) granted.push(connectionId);
+-    } catch (error) {
+-      grantFailure({ error, pluginId, connectionId, approved: optional.approvedEnable !== undefined, warn });
+-    }
+-  }
+-  return granted;
++  return withOverrides(withAgentPluginMcpPorts(deps), {
++    resolveServers: (input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }),
++    enablePlugin: (input: { workspaceId: string; pluginId: string; actor: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }),
++    isPluginOffByOperator: (pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }),
++    actors: tovuConnectActors,
++    warn,
++    approvedFailure: ({ connectionId, detail }: { connectionId: string; detail: string }) => `The plugin is on, but '${connectionId}' could not load its approved tools. Request plugins_set_enabled again to retry. Details: ${detail}`,
++  });
+ }
+ 
+-/** Explicit activation consent can precede sign-in; automatic healing still requires credentials.
+- * @complexity O(1), no I/O. */
+-function eligibleGrantRow({ row, pluginId, approvedEnable, ports }: { row: NonNullable<Awaited<ReturnType<GrantSignedInDefaultsDeps['repo']['findByServerId']>>>; pluginId: string; approvedEnable: boolean; ports: AgentPluginMcpProjectionPorts }, _options = {}): boolean {
+-  if (row.provisionedByPluginId !== pluginId) return false;
+-  return approvedEnable || hasStoredAgentPluginCredential(row, ports);
++/** Existing enable/sign-in signature; projections and approved key/principal pass through whole. */
++export function grantDeclaredToolsToSignedInRows(
++  required: Omit<Parameters<typeof grantWithPorts>[0], 'deps'> & { readonly deps: GrantSignedInDefaultsDeps },
++  optional: Parameters<typeof grantWithPorts>[1] = {},
++): Promise<readonly string[]> {
++  return grantWithPorts({ ...required, deps: tovuGrantDeps(required.deps) }, optional);
+ }
+ 
+-/**
+- * Boot: {@link grantDeclaredToolsToSignedInRows} for every installed plugin that is on (no record
+- * reads as on, as everywhere else; the seeder's default-off and an operator's off are both skipped,
+- * so a boot never switches a plugin on), limited to rows nobody ever granted write access on.
+- *
+- * @throws Nothing: a listing or activation-read failure is one warning, and the next boot retries.
+- * @complexity O(p·s) over installed plugins and their servers.
+- */
+-export async function grantDeclaredToolsAtBoot(
++/** Existing boot signature. One installed listing followed by one activation snapshot. */
++export function grantDeclaredToolsAtBoot(
+   deps: GrantSignedInDefaultsDeps & { readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]> },
+   log: TokenImportLog,
+ ): Promise<void> {
+-  let plugins: readonly InstalledAgentPluginServers[];
+-  let activations: Awaited<ReturnType<typeof agentPluginActivations.readAgentPluginActivations>>;
+-  try {
+-    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))();
+-    activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root });
+-  } catch (error) {
+-    log.warn(`[agent-plugins] could not check signed-in plugin connections for their declared tools: ${error instanceof Error ? error.message : String(error)}`);
+-    return;
+-  }
+-  for (const { pluginId, servers } of plugins) {
+-    if (activations.plugins[pluginId]?.enabled === false) continue;
+-    const granted = await grantDeclaredToolsToSignedInRows({ deps: { ...deps, warn: (message) => log.warn(message) }, pluginId, servers }, { onlyNeverGranted: true });
+-    if (granted.length > 0) log.info(`[agent-plugins] '${pluginId}': turned on its signed-in connection(s) ${granted.join(", ")} with the tools the plugin declares.`);
+-  }
++  return bootWithPorts({ deps: withOverrides(tovuGrantDeps(deps), {
++    listPlugins: () => (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))(),
++    readActivations: () => agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
++  }), log });
+ }
+diff --git a/apps/website/src/features/agent-plugins/import-access-token.ts b/apps/website/src/features/agent-plugins/import-access-token.ts
+index 4586e7aab..241452980 100644
+--- a/apps/website/src/features/agent-plugins/import-access-token.ts
++++ b/apps/website/src/features/agent-plugins/import-access-token.ts
+@@ -1,182 +1,63 @@
+-import { resolveTarget, saveStaticAccessToken, type AgentPluginTokenTargetDeps } from "./access-token-tool.js";
+-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
+-import { readInstalledMcpServers } from "./capability-projection.js";
+-import { hasStoredAgentPluginCredential } from "./connect-tool.js";
+-import type { AgentPluginLayout } from "./layout.js";
+-import type { McpServerConfig } from "./mcp-metadata.js";
+-import { listInstalledPlugins } from "./lifecycle.js";
+-import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
+-
+-/**
+- * @file Saves an access token that did NOT come through `agent_plugin_set_access_token`'s form onto
+- * an Agent Plugin's token-auth row, then switches the plugin on (`switch-on-saved-token.ts`, shared
+- * with the tool) — the same end state as a pasted token followed by a first sign-in.
+- *
+- * Two callers, both at boot (`server/runtime/boot/bootstrap.ts`):
+- * - {@link importAgentPluginAccessTokensFromEnv}: a plugin's `mcp.json` may name an old env var
+- *   (`tokenAuth.importFromEnv`) whose token is copied over. Added 2026-09-29 when the Supabase
+- *   env preset (`TOVU_SUPABASE_MCP_*`) was retired in favour of the Supabase plugin.
+- * - create-site onboarding's pending tokens (`composition/pending-agent-plugin-tokens.ts`).
+- *
+- * Never overwrites: a row that already holds a credential (a sign-in or a saved token) keeps it; the
+- * switch-on still runs, so a save whose switch-on failed is finished by the next import.
+- * Not probed: the env token was already in use, and onboarding probes before it seals.
+- *
+- * The env import trusts only what THIS Tovu build shipped: a declaration is read from a plugin only
+- * when its installed digest is the one `seed-bundled.ts` recorded (`bundled-digests.ts`), and the
+- * token only goes to a row still at that declaration's URL. Any installed package can declare
+- * `importFromEnv`, so without this an operator-installed plugin could name `OPENAI_API_KEY` and an
+- * endpoint of its own and be handed that secret at boot (Codex review 2026-09-29).
+- */
++/** Tovu compatibility signatures for token imports. The portable body keeps the retry, trust and
++ * no-overwrite decisions; this host binds its existing lifecycle reads, switch owner, saved actor,
++ * screen name and safe log copy. The retired Supabase env preset (`TOVU_SUPABASE_MCP_*`) is host
++ * vocabulary; env values still come only from boot's caller. */
++import {
++  importAgentPluginAccessToken as importWithPorts,
++  importAgentPluginAccessTokensFromEnv as importEnvWithPorts,
++  listInstalledAgentPluginServers as listWithPorts,
++  type ImportAgentPluginAccessTokenDeps as PortableImportDeps,
++  type InstalledAgentPluginServers, type TokenImportLog,
++} from '@jini-ai/agent-plugins/connect';
++import { tovuTargetDeps, type AgentPluginTokenTargetDeps } from './access-token-tool.js';
++import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from './switch-on-saved-token.js';
++import { tovuInstalledMcpReads } from './federate-mcp.js';
++import { withOverrides } from './mcp-host-bindings.js';
++import type { AgentPluginLayout } from './layout.js';
++export type { ImportAgentPluginAccessTokenOutcome, InstalledAgentPluginServers, TokenImportLog } from '@jini-ai/agent-plugins/connect';
+ 
+ /** Recorded as `updatedBy`/principal on what an import writes. */
+-export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = "system:token-import";
++export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = 'system:token-import';
+ 
+ export interface ImportAgentPluginAccessTokenDeps
+   extends AgentPluginTokenTargetDeps,
+-    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn" | "notifyRosterChanged"> {}
+-
+-/** `saved-left-off`: the token is saved but an operator had turned the plugin or its connection off,
+- *  so it stays off (`switch-on-saved-token.ts`). */
+-export type ImportAgentPluginAccessTokenOutcome = "saved" | "saved-left-off" | "already-connected";
+-
+-/**
+- * Seals `token` onto `pluginId`'s token-auth row unless that row already has a credential, then
+- * switches the plugin on (also when it already had one, to finish an earlier interrupted import).
+- *
+- * @throws {import("@jini-ai/core").ToolInputError} Plugin not installed, or no single token-auth server.
+- * @throws Whatever the store throws on save (e.g. an unconfigured secret store).
+- * @complexity O(s) in the plugin's declared servers, plus one row read and at most two writes.
+- */
+-export async function importAgentPluginAccessToken(
+-  deps: ImportAgentPluginAccessTokenDeps,
+-  input: {
+-    readonly pluginId: string;
+-    readonly token: string;
+-    readonly principalId?: string;
+-    /** When set, the token is saved only onto a row at exactly this URL (the env import's rule). */
+-    readonly onlyAtUrl?: string;
+-  },
+-): Promise<ImportAgentPluginAccessTokenOutcome> {
+-  const principalId = input.principalId ?? AGENT_PLUGIN_TOKEN_IMPORT_ACTOR;
+-  const target = await resolveTarget({ routeDeps: deps, pluginId: input.pluginId, principalId });
+-  const row = await deps.mcp.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
+-  if (row && hasStoredAgentPluginCredential(row, deps.mcp)) {
+-    // Finishes a switch-on an earlier import saved the token for but did not complete (it threw
+-    // after the save): idempotent, and it keeps an operator's off switch (`switch-on-saved-token.ts`).
+-    await switchOnSavedTokenConnection(deps, target);
+-    return "already-connected";
+-  }
+-  if (input.onlyAtUrl !== undefined && (row?.url ?? target.config.url) !== input.onlyAtUrl) {
+-    throw new Error(`its '${target.connectionId}' connection points at a different URL than the '${input.pluginId}' plugin declares, so the token is not copied there`);
+-  }
++    Pick<SwitchOnSavedTokenDeps, 'onConnected' | 'isPluginOffByOperator' | 'switchPluginOn' | 'notifyRosterChanged'> {}
+ 
+-  await saveStaticAccessToken({ routeDeps: deps, target, principalId, token: input.token });
+-  const switched = await switchOnSavedTokenConnection(deps, target);
+-  return switched.state === "on" ? "saved" : "saved-left-off";
+-}
+-
+-/** One installed plugin's id and declared servers. */
+-export interface InstalledAgentPluginServers {
+-  readonly pluginId: string;
+-  readonly servers: Readonly<Record<string, McpServerConfig>>;
+-  /** True only when this is the digest this Tovu build seeded for the id (`bundled-digests.ts`).
+-   *  Absent reads as not bundled. */
+-  readonly bundled?: boolean;
++export interface ImportAgentPluginAccessTokensFromEnvDeps extends ImportAgentPluginAccessTokenDeps {
++  /** Injected for tests. Defaults to {@link listInstalledAgentPluginServers}. */
++  readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]>;
+ }
+ 
+-/** Every installed plugin in the workspace, one per id (the bundled-preferred digest). */
+-export async function listInstalledAgentPluginServers(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<readonly InstalledAgentPluginServers[]> {
+-  const workspaceLayout = input.agentPluginLayout.forWorkspace(input.workspaceId);
+-  const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
+-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceLayout.root), ledger);
+-  const seen = new Set<string>();
+-  const out: InstalledAgentPluginServers[] = [];
+-  for (const plugin of installed) {
+-    if (seen.has(plugin.pluginId)) continue;
+-    seen.add(plugin.pluginId);
+-    out.push({ pluginId: plugin.pluginId, servers: await readInstalledMcpServers(plugin.packageRoot), bundled: ledger.get(plugin.pluginId) === plugin.archiveDigest });
+-  }
+-  return out;
++/** Same canonical token target ports and switch owner as the old import path. */
++function tovuImportDeps(deps: ImportAgentPluginAccessTokenDeps): PortableImportDeps {
++  return withOverrides(tovuTargetDeps(deps), {
++    importActor: AGENT_PLUGIN_TOKEN_IMPORT_ACTOR,
++    switchOnSavedToken: ({ target }: Parameters<PortableImportDeps['switchOnSavedToken']>[0]) => switchOnSavedTokenConnection(deps, target),
++  });
+ }
+ 
+-export interface TokenImportLog {
+-  info(message: string): void;
+-  warn(message: string): void;
++/** Existing positional host signature; token values never enter model events or logs. */
++export function importAgentPluginAccessToken(deps: ImportAgentPluginAccessTokenDeps, input: Parameters<typeof importWithPorts>[0]['input']): ReturnType<typeof importWithPorts> {
++  return importWithPorts({ deps: tovuImportDeps(deps), input });
+ }
+ 
+-export interface ImportAgentPluginAccessTokensFromEnvDeps extends ImportAgentPluginAccessTokenDeps {
+-  /** Injected for tests. Defaults to {@link listInstalledAgentPluginServers}. */
+-  readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]>;
+-}
+-
+-/** The env declarations of every token-auth server across the BUNDLED plugins (see this file's header). */
+-function envDeclarations(plugins: readonly InstalledAgentPluginServers[]) {
+-  return plugins.flatMap(({ pluginId, servers, bundled }) =>
+-    bundled === true
+-      ? Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tokenAuth ? [{ pluginId, url: config.url, auth: config.tokenAuth }] : []))
+-      : [],
+-  );
++/** Every installed plugin in the workspace, one per id (the bundled-preferred digest). */
++export function listInstalledAgentPluginServers(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<readonly InstalledAgentPluginServers[]> {
++  return listWithPorts({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root, lifecycle: tovuInstalledMcpReads });
+ }
+ 
+-/**
+- * Boot: for each bundled plugin whose token-auth server names `importFromEnv`, copies a set env
+- * token onto its row (logged once, on the boot that copies it — later boots find the row connected
+- * and say nothing), and names any set `retiredEnv` vars as no longer used. Never throws: a failed
+- * import is a warning and the next boot tries again.
+- *
+- * @complexity O(p·s) over installed plugins and their servers, plus one import per set env token.
+- */
+-export async function importAgentPluginAccessTokensFromEnv(
++/** Existing boot signature; installed reads remain lazy and inside the portable failure boundary. */
++export function importAgentPluginAccessTokensFromEnv(
+   deps: ImportAgentPluginAccessTokensFromEnvDeps,
+   env: Readonly<Record<string, string | undefined>>,
+   log: TokenImportLog,
+-  options: {
+-    /** Plugins with a create-site onboarding token still pending: that explicit token wins over the
+-     *  env one, so the env token is not copied onto them (`bootstrap.ts`). */
+-    readonly skipPluginIds?: ReadonlySet<string>;
+-  } = {},
++  options: Parameters<typeof importEnvWithPorts>[1] = {},
+ ): Promise<void> {
+-  let plugins: readonly InstalledAgentPluginServers[];
+-  try {
+-    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))();
+-  } catch (err) {
+-    log.warn(`[agent-plugins] could not list plugins to import env tokens: ${err instanceof Error ? err.message : String(err)}`);
+-    return;
+-  }
+-
+-  for (const { pluginId, url, auth } of envDeclarations(plugins)) {
+-    reportRetiredEnv({ pluginId, auth, env, log });
+-    const token = auth.importFromEnv ? (env[auth.importFromEnv] ?? "").trim() : "";
+-    await importDeclaredEnvToken({ deps, pluginId, url, auth, token, log, skipPluginIds: options.skipPluginIds });
+-  }
+-}
+-
+-type EnvDeclaration = ReturnType<typeof envDeclarations>[number];
+-
+-/** Retirement notices are independent of whether this boot has a token to import. */
+-function reportRetiredEnv(input: Pick<EnvDeclaration, "pluginId" | "auth"> & { readonly env: Readonly<Record<string, string | undefined>>; readonly log: TokenImportLog }, _options = {}): void {
+-  const { pluginId, auth, env, log } = input;
+-  const retiredSet = (auth.retiredEnv ?? []).filter((name) => (env[name] ?? "").trim() !== "");
+-  if (retiredSet.length > 0) {
+-    log.info(`[agent-plugins] ${retiredSet.join(", ")} ${retiredSet.length === 1 ? "is" : "are"} no longer used; the '${pluginId}' plugin's connection replaces them. You can remove them.`);
+-  }
+-}
+-
+-/** Isolate one import's failure so later declarations still run. */
+-async function importDeclaredEnvToken(input: EnvDeclaration & { readonly deps: ImportAgentPluginAccessTokensFromEnvDeps; readonly token: string; readonly log: TokenImportLog; readonly skipPluginIds?: ReadonlySet<string> }, _options = {}): Promise<void> {
+-  const { deps, pluginId, url, auth, token, log, skipPluginIds } = input;
+-  if (!auth.importFromEnv || token === "" || skipPluginIds?.has(pluginId)) return;
+-  try {
+-    const outcome = await importAgentPluginAccessToken(deps, { pluginId, token, onlyAtUrl: url });
+-    if (outcome === "saved") {
+-      log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection and switched it on. The env var is no longer needed.`);
+-    }
+-    if (outcome === "saved-left-off") {
+-      log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection; it stays off because an operator turned it off (${AGENT_PLUGINS_SCREEN}). The env var is no longer needed.`);
+-    }
+-  } catch {
+-    // Importer/store failures can echo the token; keep all importer text out of boot logs.
+-    log.warn(`[agent-plugins] could not copy ${auth.importFromEnv} onto the '${pluginId}' plugin. Check the site credential store and try again.`);
+-  }
++  return importEnvWithPorts({ deps: withOverrides(tovuImportDeps(deps), {
++    listPlugins: () => (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))(),
++    importMessages: {
++      pluginsScreen: AGENT_PLUGINS_SCREEN,
++      failed: ({ envName, pluginId }: { envName: string; pluginId: string }) => `[agent-plugins] could not copy ${envName} onto the '${pluginId}' plugin. Check the site credential store and try again.`,
++    },
++  }), env, log }, options);
+ }
+diff --git a/apps/website/src/features/agent-plugins/portable/access-token-tool.ts b/apps/website/src/features/agent-plugins/portable/access-token-tool.ts
+deleted file mode 100644
+index 459309e3e..000000000
+--- a/apps/website/src/features/agent-plugins/portable/access-token-tool.ts
++++ /dev/null
+@@ -1,346 +0,0 @@
+-import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
+-import type { SurfaceCardSecretForm, SurfaceCardSecretRun as SecretCardRun, SurfaceCardsPort } from "@jini-ai/core/contracts/cards";
+-import { adaptLegacyAuthorize, requireToolPermission, type LegacyToolAuthorizeFn as AuthorizeFn } from "@jini-ai/core";
+-import { requireInputRecord, ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
+-import type { SurfaceAskThenReport, SurfaceExchangeStore } from "@jini-ai/core";
+-import {
+-  deriveAgentPluginConnectionId, provisionAgentPluginMcpServers,
+-  type AgentPluginMcpPort, type AgentPluginMcpRecord, type AgentPluginMcpProjectionPorts,
+-  type AgentPluginMcpTrustClassifier, type AgentPluginMcpFederationMessages, type SavedTokenSwitchOutcome,
+-} from "@jini-ai/agent-plugins/connect";
+-import type { AgentPluginTokenAuth, RemoteMcpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
+-
+-import {
+-  buildAgentPluginAccessTokenFormWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts, resolveAgentPluginCardIdentity,
+-  type AgentPluginAccessTokenFormMessages, type AgentPluginCardIdentity,
+-} from "./connect-card-ui.js";
+-import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
+-
+-/**
+- * @file `agent_plugin_set_access_token` — the generic access-token fallback for an Agent Plugin whose
+- * remote server declares `tokenAuth { helpUrl, probeUrl }` in its `mcp.json` (`manifest.ts`).
+- * Used when `agent_plugin_connect`'s sign-in cannot start.
+- *
+- * Moved here on 2026-09-29 from `features/supabase-connect/` (SPEC-052's `supabase_set_access_token`),
+- * so no vendor code is left in core: the tokens page and the probe URL now come from the plugin.
+- *
+- * A Jini secret-card spec with domain copy from `connect-card-ui.ts`; the submitted token is probed with one GET to the declared
+- * `probeUrl` (401/403 = refused for this purpose), then saved as the plugin row's sealed `static_env` access token
+- * through `saveExternalMcpServer`. The store sends that token to the hosted server as
+- * `Authorization: Bearer`, and switching the row's auth mode replaces any unfinished OAuth attempt on
+- * it. The save itself carries `enabled` and the tool lists forward; then `switch-on-saved-token.ts`
+- * switches the plugin on with its declared default tools, exactly as a first sign-in does, unless an
+- * operator deliberately turned it off (the result then names the screen that turns it back on).
+- *
+- * The tool takes only a `pluginId`: the token arrives through the form's own submission, never
+- * through a model-issued call. Driven by `askThenReport`, like `custom_credential_set_token`: a second
+- * send replaces the form with the real outcome once the probe and save have run. Fails closed with no
+- * `emitSurface`.
+- */
+-
+-
+-
+-/** Product vocabulary of the token tool: every refusal names the host's tool and product.
+- * @agent-note Second host: return YOUR tool name and product wording; never put a token or a vendor
+- * response body in any of these strings. `credentialText`/`translateCredentialMessage` are your
+- * localized credential copy (rule ids come from your {@link AgentPluginTokenValidator}). */
+-export interface AgentPluginAccessTokenMessages {
+-  connectionNotSetUp(input: { pluginId: string }): string;
+-  connectionRepointed(input: { connectionId: string; displayName: string }): string;
+-  notInstalled(input: { pluginId: string }): string;
+-  noTokenSignIn(input: { pluginId: string }): string;
+-  multipleTokenSignIns(input: { pluginId: string }): string;
+-  serverNotSetUp(input: { pluginId: string; serverKey: string }): string;
+-  onlyPluginId(): string;
+-  pluginIdRequired(): string;
+-  credentialText(input: { id: string; locale: string }): string;
+-  translateCredentialMessage(input: { message: string; locale: string }): string;
+-  savedTokenSwitch(input: { outcome: SavedTokenSwitchOutcome; target: TokenAuthTarget }): string;
+-}
+-
+-/** The host's token input rule (R1): a separate required input, not part of the credentials port.
+- * @agent-note Second host: `assertToken` throws YOUR input error for a malformed token (never echoing
+- * it); `inputErrorRule` returns that error's rule id for `messages.credentialText`, or null for any
+- * other error, which is then rethrown unchanged (same object). */
+-export interface AgentPluginTokenValidator {
+-  assertToken(required: { value: unknown; field: "token" }, optional?: Record<string, never>): void;
+-  inputErrorRule(required: { error: unknown }, optional?: Record<string, never>): string | null;
+-}
+-
+-/** Plugin-declared credential cards and the guarded, read-only token probe.
+- * @agent-note Second host: `apply` returns the form it was given with the card's copy applied (no
+- * value fields); `probe` is one bounded GET that never returns a body; `find` reads safe card copy. */
+-export interface AgentPluginTokenCredentialsPort {
+-  apply(input: { card?: PluginCredentialCard; form: SurfaceCardSecretForm }, options?: Record<string, never>): SurfaceCardSecretForm;
+-  find(input: { workspaceId: string; saveKind: PluginCredentialCard["saveKind"]; target: string }, options?: Record<string, never>): Promise<PluginCredentialCard | undefined>;
+-  probe(input: { probeUrl: string; token: string }, options?: Record<string, never>): Promise<"ok" | "refused" | "unavailable">;
+-}
+-
+-/** What resolving and saving onto a plugin's token row needs — no permission check, no HTTP client.
+- *  Shared with `import-access-token.ts`, which saves a token that did not come from this form.
+- * @agent-note Second host: `mcp` carries your canonical projection pair; `resolveInstalledPlugin` is
+- * your installed-declaration read (no filesystem default here); `federation` is your trust rule and
+- * federation refusal copy, the same pair your connect tool passes. */
+-export interface AgentPluginTokenTargetDeps {
+-  readonly workspaceId: string;
+-  readonly mcp: AgentPluginMcpProjectionPorts & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>;
+-  readonly resolveInstalledPlugin: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
+-  readonly federation: { readonly classifyTrust: AgentPluginMcpTrustClassifier; readonly messages: AgentPluginMcpFederationMessages };
+-  readonly messages: Pick<AgentPluginAccessTokenMessages, "connectionNotSetUp" | "connectionRepointed" | "notInstalled" | "noTokenSignIn" | "multipleTokenSignIns" | "serverNotSetUp">;
+-}
+-
+-/** The host's card wiring and identity for the token form.
+- * @agent-note Second host: `toolId` is the lifecycle id your secret-card answers route back to (your
+- * credential-save tool); the card URI host is `cardIdentity.uriNamespace`; `cards`/`askThenReport` come
+- * from the daemon the tool runs in; `permission`/`entityType` gate the tool. */
+-export interface AgentPluginAccessTokenHost {
+-  readonly toolId: string;
+-  readonly permission: string;
+-  readonly entityType: string;
+-  readonly cardIdentity: AgentPluginCardIdentity;
+-  readonly cards: Pick<SurfaceCardsPort, "defineSecretCardTool">;
+-  readonly askThenReport: SurfaceAskThenReport;
+-  readonly formMessages: AgentPluginAccessTokenFormMessages;
+-}
+-
+-/** @agent-note Second host: `tokenValidator` is required (R1); `switchOnSavedToken` switches the
+- * plugin on after a save exactly as a first sign-in does (your activation owner), and may throw. */
+-export interface AgentPluginAccessTokenToolDeps extends AgentPluginTokenTargetDeps {
+-  readonly authorize: AuthorizeFn;
+-  readonly mcp: AgentPluginTokenTargetDeps["mcp"] & Pick<AgentPluginMcpPort, "classifyError">;
+-  readonly credentials: AgentPluginTokenCredentialsPort;
+-  readonly preferences: { locale(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<string> };
+-  readonly tokenValidator: AgentPluginTokenValidator;
+-  readonly switchOnSavedToken: (required: { target: TokenAuthTarget }) => Promise<SavedTokenSwitchOutcome>;
+-  readonly messages: AgentPluginAccessTokenMessages;
+-  readonly host: AgentPluginAccessTokenHost;
+-}
+-
+-/** Plain-language messages from SPEC-052's errors.spec.md. None ever carries a token or a vendor body. */
+-const MESSAGES = {
+-  tokenInvalid: "The server rejected this token.",
+-  blankToken: "The access token cannot be blank. Nothing was saved.",
+-  saveFailed: "The access token could not be saved. Nothing was changed.",
+-} as const;
+-
+-type UnansweredReason = "cancelled" | "expired" | "abandoned";
+-export type SetAccessTokenResult =
+-  | { saved: true; next: string }
+-  | { saved: false; reason: UnansweredReason | "invalid" | "refused" | "unavailable" | "error"; message?: string };
+-
+-/** The one declared token-auth server this call saves onto. */
+-export interface TokenAuthTarget {
+-  readonly pluginId: string;
+-  readonly displayName: string;
+-  readonly connectionId: string;
+-  readonly config: RemoteMcpServerConfig & { readonly tokenAuth: AgentPluginTokenAuth };
+-}
+-
+-function hostOf(url: string | null): string | null {
+-  if (url === null) return null;
+-  try {
+-    return new URL(url).host;
+-  } catch {
+-    return null;
+-  }
+-}
+-
+-/**
+- * The plugin row, freshly read. Refused when it is missing or no longer points at the host the plugin
+- * declares, so a token is never sent to a server an operator re-pointed.
+- *
+- * @throws {ToolInputError}
+- */
+-export async function requireTargetRow(
+-  { routeDeps, target }: { routeDeps: Pick<AgentPluginTokenTargetDeps, "workspaceId" | "mcp" | "messages">; target: TokenAuthTarget },
+-  _options: Record<string, never> = {},
+-): Promise<AgentPluginMcpRecord> {
+-  const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: target.connectionId });
+-  if (row === null) {
+-    throw new ToolInputError({ message: routeDeps.messages.connectionNotSetUp({ pluginId: target.pluginId }) });
+-  }
+-  if (hostOf(row.url) !== hostOf(target.config.url)) {
+-    throw new ToolInputError({ message: routeDeps.messages.connectionRepointed({ connectionId: target.connectionId, displayName: target.displayName }) });
+-  }
+-  return row;
+-}
+-
+-/**
+- * Resolves the plugin's one server declaring `tokenAuth`, provisioning its row (idempotent, the
+- * same call `agent_plugin_connect` makes) so a first-time fallback needs no earlier step.
+- *
+- * @throws {ToolInputError} Not installed; no or several token-auth servers.
+- * @param optional.signal Stops provisioning when the run ends during plugin resolution.
+- * @throws The signal's abort reason before provisioning when cancelled.
+- */
+-export async function resolveTarget(
+-  { routeDeps, pluginId, principalId }: { routeDeps: AgentPluginTokenTargetDeps; pluginId: string; principalId: string },
+-  optional: { signal?: AbortSignal } = {},
+-): Promise<TokenAuthTarget> {
+-  const plugin = await routeDeps.resolveInstalledPlugin(pluginId);
+-  if (!plugin) throw new ToolInputError({ message: routeDeps.messages.notInstalled({ pluginId }) });
+-
+-  const declared = Object.entries(plugin.servers).flatMap(([serverKey, config]) =>
+-    config.type !== "stdio" && config.tokenAuth ? [{ serverKey, config: config as TokenAuthTarget["config"] }] : [],
+-  );
+-  if (declared.length === 0) throw new ToolInputError({ message: routeDeps.messages.noTokenSignIn({ pluginId }) });
+-  if (declared.length > 1) throw new ToolInputError({ message: routeDeps.messages.multipleTokenSignIns({ pluginId }) });
+-  const [{ serverKey, config }] = declared as [(typeof declared)[number]];
+-  const connectionId = deriveAgentPluginConnectionId(serverKey);
+-  if (!connectionId) throw new ToolInputError({ message: routeDeps.messages.serverNotSetUp({ pluginId, serverKey }) });
+-
+-  optional.signal?.throwIfAborted();
+-  await provisionAgentPluginMcpServers(
+-    routeDeps.mcp,
+-    { workspaceId: routeDeps.workspaceId, pluginId, servers: plugin.servers, principalId, ...routeDeps.federation },
+-  );
+-  return { pluginId, displayName: titleCaseFromPluginId({ pluginId }), connectionId, config };
+-}
+-
+-/** Token sign-in keeps its input validation; Jini owns the GET, redirects and status classification.
+- * @returns Invalid only for malformed input; HTTP 401/403 mean refused for this purpose.
+- * @complexity One bounded GET; no persistence, response bodies or transport errors escape.
+- */
+-export async function probeToken(
+-  { probeUrl, token, credentials, tokenValidator }: { probeUrl: string; token: string; credentials: Pick<AgentPluginTokenCredentialsPort, "probe">; tokenValidator: Pick<AgentPluginTokenValidator, "assertToken"> },
+-  _options: Record<string, never> = {},
+-): Promise<"ok" | "invalid" | "refused" | "unavailable"> {
+-  try { tokenValidator.assertToken({ value: token, field: 'token' }); }
+-  catch { return "invalid"; }
+-  return credentials.probe({ probeUrl, token });
+-}
+-
+-function joinStoredList(raw: string | null): string {
+-  const parsed: unknown = raw === null ? [] : JSON.parse(raw);
+-  return Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === "string").join(",") : "";
+-}
+-
+-/**
+- * Seals `token` onto the freshly re-read row as its `static_env` access token, carrying every
+- * operator-set field forward unchanged. Re-read at write time because the human may sit on the form
+- * while the operator edits the allowlists.
+- * @param optional.signal Stops the write when the run ends during the fresh row read.
+- * @throws The signal's abort reason before saving when cancelled.
+- */
+-export async function saveStaticAccessToken(
+-  { routeDeps, target, principalId, token }: { routeDeps: Pick<AgentPluginTokenTargetDeps, "workspaceId" | "mcp" | "messages">; target: TokenAuthTarget; principalId: string; token: string },
+-  optional: { signal?: AbortSignal } = {},
+-): Promise<void> {
+-  const row = await requireTargetRow({ routeDeps, target });
+-  // A row read or probe may finish after the run ends; never start a credential write then.
+-  optional.signal?.throwIfAborted();
+-  await routeDeps.mcp.saveServer({
+-    workspaceId: routeDeps.workspaceId,
+-    serverId: row.serverId,
+-    ...(row.label !== null ? { label: row.label } : {}),
+-    transport: "streamable_http",
+-    authMode: "static_env",
+-    enabled: row.enabled,
+-    command: "",
+-    url: row.url ?? target.config.url,
+-    args: "",
+-    allowedToolNames: joinStoredList(row.allowedToolNames),
+-    writeAllowedToolNames: joinStoredList(row.writeAllowedToolNames),
+-    accessToken: token,
+-    principalId,
+-  });
+-}
+-
+-/** Only the store's known validation/unconfigured errors are shown. Sealing failures can quote
+- * plaintext, so unconfigured storage gets fixed copy; the engine redacts allowlisted messages. */
+-function describeSaveError({ err, mcp, messages }: { err: unknown; mcp: Pick<AgentPluginMcpPort, "classifyError">; messages: Pick<AgentPluginAccessTokenMessages, "credentialText"> }, _options = {}): string {
+-  const kind = mcp.classifyError({ error: err });
+-  if (kind === "unconfigured") return messages.credentialText({ id: "storage", locale: "en" });
+-  const known = kind === "validation" || err instanceof ToolInputError;
+-  return known ? (err as Error).message : MESSAGES.saveFailed;
+-}
+-
+-/**
+- * The form's answer: probe, then seal. The token lives only in a local for the width of this function
+- * and is never returned, logged, or put in an outcome.
+- *
+- * @complexity O(1) plus one outbound GET and one store save.
+- */
+-async function saveSubmittedAccessToken(
+-  { values, routeDeps, target, principalId, locale, signal, credentialCard }: {
+-    values: Readonly<Record<string, unknown>>; routeDeps: AgentPluginAccessTokenToolDeps;
+-    target: TokenAuthTarget; principalId: string; locale: string; signal: AbortSignal; credentialCard?: PluginCredentialCard;
+-  }, _optional = {},
+-): Promise<SetAccessTokenResult> {
+-  const submitted = values.token;
+-  try { routeDeps.tokenValidator.assertToken({ value: submitted, field: 'token' }); }
+-  catch (err) { const rule = routeDeps.tokenValidator.inputErrorRule({ error: err }); if (rule !== null) { return { saved: false, reason: 'invalid', message: routeDeps.messages.credentialText({ id: rule, locale }) }; } throw err; }
+-
+-  const token = (submitted as string).trim();
+-  const probe = await probeToken({ probeUrl: target.config.tokenAuth.probeUrl, token, credentials: routeDeps.credentials, tokenValidator: routeDeps.tokenValidator });
+-  signal.throwIfAborted();
+-  if (probe === "invalid") return { saved: false, reason: "invalid", message: routeDeps.messages.translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }) };
+-  if (probe === "refused") {
+-    const hint = credentialCard?.keyHint ? ` This card needs: ${credentialCard.keyHint}` : '';
+-    return { saved: false, reason: "refused", message: `This token was refused for this purpose.${hint}` };
+-  }
+-  if (probe === "unavailable") return { saved: false, reason: "unavailable", message: `${target.displayName} is unavailable right now. Try again shortly.` };
+-  await saveStaticAccessToken({ routeDeps, target, principalId, token }, { signal });
+-  let next: string;
+-  try {
+-    next = routeDeps.messages.savedTokenSwitch({ outcome: await routeDeps.switchOnSavedToken({ target }), target });
+-  } catch {
+-    // The token is saved; only switching on failed. The next save or sign-in retries it.
+-    next = `Token saved, but ${target.displayName} could not be switched on automatically. Save the token again to retry.`;
+-  }
+-  return { saved: true, next };
+-}
+-
+-/** Preserve the catalog's result contract while Jini owns answer classification and error redaction. */
+-function accessTokenResult({ run, locale, messages }: { run: SecretCardRun<SetAccessTokenResult>; locale: string; messages: Pick<AgentPluginAccessTokenMessages, "credentialText"> }, _optional = {}): SetAccessTokenResult {
+-  if (run.status === "saved") return run.saved;
+-  if (run.status === "blank") return { saved: false, reason: "invalid", message: messages.credentialText({ id: "blank", locale }) };
+-  if (run.status === "failed") return { saved: false, reason: "error", message: run.safeMessage };
+-  return { saved: false, reason: run.status };
+-}
+-
+-/**
+- * Runs `agent_plugin_set_access_token` end to end: permission, resolve, form, probe, save.
+- *
+- * @throws {ToolInputError} Extra input, unknown plugin, no token-auth server, or a re-pointed row.
+- * @throws {ToolInputError} No `emitSurface` on this execution context.
+- */
+-// -> one outbound GET to the declared probeUrl, then saveExternalMcpServer: a sealed write, via the human's form.
+-export async function saveAgentPluginToken(
+-  { routeDeps, surfaces, ctx }: { routeDeps: AgentPluginAccessTokenToolDeps; surfaces: { readonly surfaceExchanges: Pick<SurfaceExchangeStore, "open"> }; ctx: ToolExecutionContext },
+-  optional: ToolExecutionOptions = {},
+-): Promise<SetAccessTokenResult> {
+-  const input = requireInputRecord({ input: ctx.input });
+-  const { host, messages } = routeDeps;
+-  const tokenApps = resolveAgentPluginCardIdentity({ cardIdentity: host.cardIdentity, toolId: host.toolId }).token;
+-  const card = host.cards.defineSecretCardTool<{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard?: PluginCredentialCard }, SetAccessTokenResult, SetAccessTokenResult>({
+-    toolId: host.toolId,
+-    prepare: async ({ ctx }) => {
+-      if (Object.keys(input).some((key) => key !== "pluginId")) {
+-        throw new ToolInputError({ message: messages.onlyPluginId() });
+-      }
+-      const pluginId = input.pluginId;
+-      if (typeof pluginId !== "string" || pluginId.trim() === "") throw new ToolInputError({ message: messages.pluginIdRequired() });
+-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: host.permission }, { entityType: host.entityType, entityId: pluginId });
+-      // Resolution provisions a missing plugin row; an ended run must not start that effect.
+-      ctx.signal.throwIfAborted();
+-      const target = await resolveTarget({ routeDeps, pluginId, principalId: ctx.principal.id }, { signal: ctx.signal });
+-      await requireTargetRow({ routeDeps, target });
+-      const locale = await routeDeps.preferences.locale({ workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+-      const credentialCard = await routeDeps.credentials.find({ workspaceId: routeDeps.workspaceId, saveKind: "agent-plugin-token", target: pluginId });
+-      return { target, principalId: ctx.principal.id, locale, credentialCard };
+-    },
+-    form: ({ prep }) => buildAgentPluginAccessTokenFormWithPorts({ app: tokenApps.formApp, messages: host.formMessages, spec: { credentials: routeDeps.credentials, pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tokenAuth.helpUrl, credentialCard: prep.credentialCard } }),
+-    save: ({ values, prep, signal }) => saveSubmittedAccessToken({ values, routeDeps, ...prep, signal }),
+-    result: ({ prep, run }) => accessTokenResult({ run, locale: prep.locale, messages }),
+-    outcome: ({ prep, run }) => {
+-      const result = accessTokenResult({ run, locale: prep.locale, messages });
+-      if (!result.saved && result.message === undefined) return undefined;
+-      return buildAgentPluginAccessTokenOutcomeWithPorts({ app: tokenApps.outcomeApp, spec: {
+-        pluginDisplayName: prep.target.displayName, state: result.saved ? "success" : "failure",
+-        title: result.saved ? "Token saved" : "Token not saved", message: result.saved ? result.next : result.message!,
+-      } });
+-    },
+-  }, { uriHost: host.cardIdentity.uriNamespace, frameSize: ["100%", "380px"], safeError: err => describeSaveError({ err, mcp: routeDeps.mcp, messages }), text: { saveFailure: MESSAGES.saveFailed } });
+-  return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport: host.askThenReport })(ctx, optional);
+-}
+diff --git a/apps/website/src/features/agent-plugins/portable/apply-tool-renames.ts b/apps/website/src/features/agent-plugins/portable/apply-tool-renames.ts
+deleted file mode 100644
+index fc41018d4..000000000
+--- a/apps/website/src/features/agent-plugins/portable/apply-tool-renames.ts
++++ /dev/null
+@@ -1,158 +0,0 @@
+-import { type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
+-import { deriveAgentPluginConnectionId, type AgentPluginMcpRecord, type AgentPluginMcpRepo } from "@jini-ai/agent-plugins/connect";
+-import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
+-
+-/** One installed plugin's declared MCP servers, as the host's installed-package reads list them. */
+-interface InstalledAgentPluginServers { readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>> }
+-/** Boot log the host routes to its own sink. */
+-interface TokenImportLog { info(message: string): void; warn(message: string): void }
+-
+-/**
+- * @file Carries saved tool selections across a vendor's tool rename, so an operator never has to
+- * re-tick a tool the server now offers under a new name.
+- *
+- * A plugin's `mcp.json` declares the rename on the server entry (`renamedTools: { "get_logs":
+- * "query_logs" }`, parsed by `manifest.ts`). At boot, every row that plugin provisioned has each old
+- * name in `allowedToolNames` and `writeAllowedToolNames` replaced by the new one. Added 2026-09-29
+- * when Supabase renamed `get_logs` to `query_logs` and the saved dev row kept asking for a tool the
+- * server no longer offers.
+- *
+- * Applied only to a row that names this plugin as its provisioner AND sits at the url the plugin
+- * declares — the same match `apply-connect-defaults.ts` uses — so an operator's own row, or one
+- * pointed elsewhere, is never touched.
+- *
+- * Never widens access: a new name takes exactly the grants its old name had (read stays read, write
+- * stays write), and a rename whose old name is not in a list adds nothing to that list. Idempotent:
+- * once rewritten, the old names are gone and later boots write nothing. Reversible: declaring the
+- * opposite rename puts the old names back.
+- */
+-
+-export interface ApplyAgentPluginToolRenamesDeps {
+-  readonly workspaceId: string;
+-  readonly externalMcpServerRepo: AgentPluginMcpRepo;
+-  readonly clock: ClockPort;
+-  /** Recorded as the row's write-grant attribution when a rename changes its write list.
+-   * @agent-note Second host: a stable system actor id of YOUR vocabulary; it is saved on the row
+-   * (`writeGrantsUpdatedByPrincipalId`), so changing it changes saved bytes for later renames. */
+-  readonly actor: string;
+-  /** The host's installed-plugin reads (a pre-seam default listed them from the plugin layout).
+-   * @agent-note Second host: list only trusted installed packages; rows are matched by provisioner AND url. */
+-  readonly listPlugins: () => Promise<readonly InstalledAgentPluginServers[]>;
+-  /** Announces a changed roster so live runtimes reload — the composition root passes
+-   *  `notifyExternalMcpRosterChanged`. A port rather than a value import: a feature module may not
+-   *  value-import `#src/assistant/` (`domain-no-direct-tool-registration.boundary.test.ts`). */
+-  readonly notifyRosterChanged: () => Promise<void>;
+-}
+-
+-/** A stored JSON tool list as names, or `null` when it is not a JSON array of strings (left alone). */
+-function readToolList(raw: string | null): string[] | null {
+-  if (!raw) return [];
+-  try {
+-    const parsed: unknown = JSON.parse(raw);
+-    return Array.isArray(parsed) && parsed.every((name): name is string => typeof name === "string") ? parsed : null;
+-  } catch {
+-    return null;
+-  }
+-}
+-
+-/**
+- * `names` with every renamed entry replaced, order kept, duplicates dropped — or `null` when
+- * nothing in it was renamed.
+- * @complexity O(n) in the list length.
+- */
+-export function renameToolNames(required: { readonly names: readonly string[]; readonly renames: Readonly<Record<string, string>> }, _optional: Record<string, never> = {}): string[] | null {
+-  const { names, renames } = required;
+-  if (!names.some((name) => Object.hasOwn(renames, name))) return null;
+-  return [...new Set(names.map((name) => (Object.hasOwn(renames, name) ? renames[name]! : name)))];
+-}
+-
+-/** The matching provisioned row with its two tool lists renamed, or `null` when neither list
+- * changed (or either is unreadable). */
+-function renameRowTools(
+-  input: {
+-    readonly row: AgentPluginMcpRecord;
+-    readonly renames: Readonly<Record<string, string>>;
+-    readonly clock: ClockPort;
+-    readonly actor: string;
+-    readonly pluginId: string;
+-    readonly url: string;
+-  },
+-  _options = {},
+-): AgentPluginMcpRecord | null {
+-  const { row, renames, clock, pluginId, url, actor } = input;
+-  if (row.provisionedByPluginId !== pluginId || row.url !== url) return null;
+-  const nowIso = clockNowIso({ clock });
+-  const allow = readToolList(row.allowedToolNames);
+-  const write = readToolList(row.writeAllowedToolNames);
+-  if (allow === null || write === null) return null;
+-  const renamedAllow = renameToolNames({ names: allow, renames });
+-  const renamedWrite = renameToolNames({ names: write, renames });
+-  if (renamedAllow === null && renamedWrite === null) return null;
+-  return {
+-    ...row,
+-    ...(renamedAllow === null ? {} : { allowedToolNames: JSON.stringify(renamedAllow) }),
+-    ...(renamedWrite === null
+-      ? {}
+-      : { writeAllowedToolNames: JSON.stringify(renamedWrite), writeGrantsUpdatedByPrincipalId: actor, writeGrantsUpdatedAt: nowIso }),
+-    updatedAt: nowIso,
+-  };
+-}
+-
+-/** Applies one declaration only to its provisioned row at the declared endpoint. */
+-async function applyServerToolRenames(
+-  input: {
+-    readonly deps: ApplyAgentPluginToolRenamesDeps;
+-    readonly pluginId: string;
+-    readonly serverKey: string;
+-    readonly config: McpServerConfig;
+-    readonly log: TokenImportLog;
+-  },
+-  _options = {},
+-): Promise<boolean> {
+-  const { deps, pluginId, serverKey, config, log } = input;
+-  if (config.type === "stdio" || !config.renamedTools) return false;
+-  const serverId = deriveAgentPluginConnectionId(serverKey);
+-  if (serverId === null) return false;
+-  const result = { changed: false };
+-  try {
+-    const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
+-    if (!row) return false;
+-    const renamed = renameRowTools({ row, renames: config.renamedTools, clock: deps.clock, actor: deps.actor, pluginId, url: config.url });
+-    if (!renamed) return false;
+-    await deps.externalMcpServerRepo.upsert(renamed);
+-    result.changed = true;
+-    const renames = Object.entries(config.renamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ");
+-    log.info(`[agent-plugins] '${serverId}': renamed saved tools to follow the '${pluginId}' plugin (${renames}).`);
+-    return true;
+-  } catch (err) {
+-    log.warn(`[agent-plugins] could not apply the '${pluginId}' plugin's tool renames to '${serverId}': ${err instanceof Error ? err.message : String(err)}`);
+-  }
+-  return result.changed;
+-}
+-
+-/**
+- * Boot: rewrites renamed tool names on every row an installed plugin provisioned. Logs each rewrite
+- * once (the next boot finds nothing to do) and notifies the roster when any row changed. Never
+- * throws: a failure is a warning and the next boot tries again.
+- *
+- * @complexity O(p·s) over installed plugins and their servers, plus one row read per declared rename
+- * and at most one write per row.
+- */
+-export async function applyAgentPluginToolRenames(required: { readonly deps: ApplyAgentPluginToolRenamesDeps; readonly log: TokenImportLog }, _optional: Record<string, never> = {}): Promise<void> {
+-  const { deps, log } = required;
+-  let plugins: readonly InstalledAgentPluginServers[];
+-  try {
+-    plugins = await deps.listPlugins();
+-  } catch (err) {
+-    log.warn(`[agent-plugins] could not list plugins to apply tool renames: ${err instanceof Error ? err.message : String(err)}`);
+-    return;
+-  }
+-
+-  let changed = false;
+-  for (const { pluginId, servers } of plugins) {
+-    for (const [serverKey, config] of Object.entries(servers)) {
+-      if (await applyServerToolRenames({ deps, pluginId, serverKey, config, log })) changed = true;
+-    }
+-  }
+-  if (changed) await deps.notifyRosterChanged();
+-}
+diff --git a/apps/website/src/features/agent-plugins/portable/connect-card-ui.ts b/apps/website/src/features/agent-plugins/portable/connect-card-ui.ts
+deleted file mode 100644
+index 401ade06c..000000000
+--- a/apps/website/src/features/agent-plugins/portable/connect-card-ui.ts
++++ /dev/null
+@@ -1,160 +0,0 @@
+-import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
+-import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardUri as UIResourceUri, SurfaceCardApp, SurfaceCardsPort } from "@jini-ai/core/contracts/cards";
+-import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
+-
+-/** Resource stays concrete through waitAtSignInCard's card callback.
+- * @agent-note Second host: bind your own card runtime (typically `@jini-ai/ui`'s mcp-ui cards); the
+- * waiter's `card` callback returns YOUR `Resource` unchanged, so never cast it to a UI type here. */
+-export type AgentPluginCardsPort<Resource> = SurfaceCardsPort<Resource>;
+-/** @agent-note Build-only view of {@link AgentPluginCardsPort}: card builders never wait on a human. */
+-export type AgentPluginCardBuilders<Resource> = Omit<AgentPluginCardsPort<Resource>, 'waitAtSignInCard'>;
+-
+-/** Plugin-declared credential-card copy applied to a neutral secret form.
+- * @agent-note Second host: `apply` overlays the plugin's declared card (title/intro/key hint) onto the
+- * form and returns YOUR form type; it must keep the single masked `token` field and never prefill it. */
+-export interface AgentPluginCredentialCardForms<Form> {
+-  apply(input: { card?: PluginCredentialCard; form: SecretCardForm }, options?: Record<string, never>): Form;
+-}
+-
+-/** Card identity the host owns.
+- * @agent-note Your app's id; it appears in every card URI and is compared on answers. `uriNamespace`
+- * is ONE segment (no slashes, e.g. your product id); the fixed suffixes `agent-plugins-connect` and
+- * `sign-in-destination` are appended here, and every app is version "1". Changing either breaks
+- * answers to cards already in transcripts. */
+-export interface AgentPluginCardIdentity {
+-  readonly uriNamespace: string;
+-  readonly appNames: { readonly connect: string; readonly tokenForm: string; readonly tokenOutcome: string };
+-}
+-
+-/** Resolves {@link AgentPluginCardIdentity} into the per-card routes the builders below take.
+- * @complexity O(1). */
+-export function resolveAgentPluginCardIdentity(required: { readonly cardIdentity: AgentPluginCardIdentity; readonly toolId: string }, _optional: Record<string, never> = {}) {
+-  const { cardIdentity: { uriNamespace, appNames }, toolId } = required;
+-  return {
+-    connect: { uriNamespace: `${uriNamespace}/agent-plugins-connect`, toolId, app: { appName: appNames.connect, appVersion: '1' } },
+-    token: { formApp: { appName: appNames.tokenForm, appVersion: '1' }, outcomeApp: { appName: appNames.tokenOutcome, appVersion: '1' } },
+-    destination: { uriNamespace: `${uriNamespace}/sign-in-destination`, toolId },
+-  } as const;
+-}
+-
+-/** Product wording on the token form.
+- * @agent-note Second host: name YOUR product as the one that checks the token; the text is shown to
+- * the human only and must not promise the assistant sees the token. */
+-export interface AgentPluginAccessTokenFormMessages {
+-  description(input: { pluginDisplayName: string; helpUrl: string }): string;
+-}
+-
+-/**
+- * @file The card `agent_plugin_connect` shows while it parks on a human's sign-in (`connect-tool.ts`).
+- *
+- * Built on `@jini-ai/ui`'s `buildOutcomeSurface`, not `buildConfirmationSurface`: there is nothing
+- * here for a human to confirm by tool call — the sign-in element is a link that
+- * opens the authenticated host sign-in link, then the plugin's real sign-in page in a new tab
+- * (`outcome.ts`'s `openLinkUrl`, wired to the
+- * bridge's `openLink` — an outbound navigation, never a delivery through `mcp-ui-tool-calls-route.ts`).
+- * Skip answers the existing surface exchange so the assistant can continue the turn.
+- * `state: "partial"` is the honest read of "waiting on the human, not failed, not done yet" —
+- * `outcome.ts`'s own header explains why that needs to be a real third state, not a boolean folded
+- * into success or failure.
+- *
+- * Plain words only: copy comes from the plugin's explicit credential-card declaration, never its
+- * raw plugin.json description, which can contain transport jargon. Older plugins retain the
+- * display-name fallback so an absent declaration never blocks a real sign-in.
+- * plugin.json has no display-name field; uninstall-confirmation-ui.ts makes the identical choice.
+- */
+-
+-function agentPluginConnectSurfaceUri({ pluginId, uriNamespace }: { pluginId: string; uriNamespace: string }): UIResourceUri {
+-  return `ui://${uriNamespace}/${encodeURIComponent(pluginId)}`;
+-}
+-
+-export type AgentPluginConnectCardSpec =
+-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly exchangeId?: string; readonly credentialCard?: PluginCredentialCard }
+-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" }
+-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "skipped" };
+-
+-/**
+- * Renders the connect card. Re-sent under the SAME `ui://` URI (keyed by `pluginId`) when the state
+- * flips from `"waiting"` to `"connected"`, so the transcript replaces the sign-in link in place —
+- * see `outcome.ts`'s own header for why URI reuse is the whole mechanism.
+- *
+- * @complexity O(1).
+- */
+-export function buildAgentPluginConnectCardWithPorts<Resource>(required: { spec: AgentPluginConnectCardSpec; cards: AgentPluginCardBuilders<Resource>; identity: { uriNamespace: string; toolId: string; app: SurfaceCardApp } }, _optional: Record<string, never> = {}): Resource {
+-  const { spec, cards, identity } = required;
+-  const credentialCard = spec.state === "waiting" ? spec.credentialCard : undefined;
+-  return cards.buildSignInCard({
+-    uri: agentPluginConnectSurfaceUri({ pluginId: spec.pluginId, uriNamespace: identity.uriNamespace }), toolId: identity.toolId,
+-    app: identity.app,
+-    waiting: {
+-      title: credentialCard?.title ?? `Let's connect ${spec.pluginDisplayName}`,
+-      description: credentialCard ? `${credentialCard.intro ?? ""} ${credentialCard.permissions ?? credentialCard.keyHint ?? ""}`.trim() : "It's free and takes about two minutes.",
+-      message: "Waiting for you to sign in...", openLinkLabel: `Sign in to ${spec.pluginDisplayName}`, cancelLabel: "Skip",
+-    },
+-    connected: { title: `${spec.pluginDisplayName} connected`, message: "Connected ✓" },
+-    skipped: { title: "Sign-in skipped", message: `Skipped connecting ${spec.pluginDisplayName}. The assistant can continue without this plugin.` },
+-    ...spec,
+-  });
+-}
+-
+-/**
+- * The masked access-token form `agent_plugin_set_access_token` shows (`access-token-tool.ts`), for a
+- * plugin whose server declares `tokenAuth`; its tokens page comes from the plugin metadata.
+- *
+- * Its one field is the only place the token exists outside the sealed ciphertext it becomes: it is
+- * posted straight to the tool-calls route, never through chat. Never pre-filled — every render starts
+- * empty. The engine's URI carries the tool/exchange identity, and the outcome reuses it so it
+- * replaces the form. This builder supplies domain copy only; the engine owns routing and dismissal.
+- *
+- * @returns A secret-card form spec without routing parameters or prefilled credentials.
+- * @example buildAgentPluginAccessTokenFormWithPorts({ app, messages, spec: { credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" } });
+- * @complexity O(1).
+- */
+-export function buildAgentPluginAccessTokenFormWithPorts<Form>(required: { readonly app: SurfaceCardApp; readonly messages: AgentPluginAccessTokenFormMessages; readonly spec: {
+-  readonly credentials: AgentPluginCredentialCardForms<Form>;
+-  readonly pluginDisplayName: string;
+-  readonly helpUrl: string;
+-  readonly credentialCard?: PluginCredentialCard;
+-} }, _optional: Record<string, never> = {}): Form {
+-  const { spec } = required;
+-  const { pluginDisplayName, helpUrl } = spec;
+-  return spec.credentials.apply({ card: spec.credentialCard, form: {
+-    title: `Connect ${pluginDisplayName} with an access token`,
+-    description: required.messages.description({ pluginDisplayName, helpUrl }),
+-    submitLabel: "Save token",
+-    fields: [
+-      {
+-        kind: "string",
+-        name: "token",
+-        label: `${pluginDisplayName} access token`,
+-        hint: "Pasted here only. Never shown to the assistant.",
+-        required: true,
+-        secret: true,
+-      },
+-    ],
+-    cancelLabel: "Cancel",
+-    app: required.app,
+-  } });
+-}
+-
+-/**
+- * The result that replaces the token form. `message` is caller-controlled and must never carry a
+- * token — every call site passes a fixed sentence.
+- *
+- * @returns Outcome copy; the engine supplies the form's URI when rendering it.
+- * @complexity O(1).
+- */
+-export function buildAgentPluginAccessTokenOutcomeWithPorts(required: { readonly app: SurfaceCardApp; readonly spec: {
+-  readonly pluginDisplayName: string;
+-  readonly state: "success" | "failure";
+-  readonly title: string;
+-  readonly message: string;
+-} }, _optional: Record<string, never> = {}): SurfaceOutcomeSpec {
+-  const { spec } = required;
+-  return {
+-    title: spec.title,
+-    details: [{ label: "Connection", value: spec.pluginDisplayName }],
+-    state: spec.state,
+-    message: spec.message,
+-    app: required.app,
+-  };
+-}
+diff --git a/apps/website/src/features/agent-plugins/portable/connect-destination.ts b/apps/website/src/features/agent-plugins/portable/connect-destination.ts
+deleted file mode 100644
+index 41d865d1d..000000000
+--- a/apps/website/src/features/agent-plugins/portable/connect-destination.ts
++++ /dev/null
+@@ -1,58 +0,0 @@
+-import { ToolInputError, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+-import type { SurfaceAnswerChannel, SurfaceAskThenReport, SurfaceExchangeStore } from '@jini-ai/core';
+-import type { AgentPluginCardBuilders } from './connect-card-ui.js';
+-
+-/** Host wording and delivery channel for the destination card.
+- * @agent-note Second host: `channel` is the channel your card runtime answers on (the same one the
+- * callback route delivers to); the copy names where a shared connection lives on YOUR host. The
+- * answer still accepts only `site`/`shared` from the current human exchange. */
+-export interface AgentPluginDestinationCardHost {
+-  readonly channel: SurfaceAnswerChannel;
+-  readonly messages: { readonly description: string; readonly sharedOptionLabel: string };
+-}
+-
+-type Destination = 'site' | 'shared';
+-
+-/** Only the current human exchange can select the shared destination. */
+-function selectedDestination(params: Record<string, unknown>): Destination {
+-  if (Object.keys(params).some(key => !['destination', SURFACE_EXCHANGE_ID_PARAM].includes(key))
+-    || (params.destination !== 'site' && params.destination !== 'shared')) {
+-    throw new ToolInputError({ message: 'Choose where to save this connection in its sign-in card. No site identity or credential can be submitted.' });
+-  }
+-  return params.destination as Destination;
+-}
+-
+-/** Ask before sign-in, so a shared credential is issued directly into owner storage.
+- * The host supplies availability only for the installation owner; cancellation starts no flow.
+- * @returns Explicit destination, or null on cancellation/expiry/abort.
+- * @complexity O(1), one bounded principal-bound human exchange; no storage or provider I/O.
+- */
+-export async function chooseApiConnectionDestinationWithPorts<Resource>(required: {
+-  readonly cards: AgentPluginCardBuilders<Resource>; readonly askThenReport: SurfaceAskThenReport; readonly uriNamespace: string; readonly toolId: string;
+-  readonly host: AgentPluginDestinationCardHost;
+-  readonly surfaces: { readonly surfaceExchanges: SurfaceExchangeStore }; readonly ctx: ToolExecutionContext;
+-  readonly pluginDisplayName: string; readonly available: boolean;
+-}, optional: ToolExecutionOptions = {}): Promise<Destination | null> {
+-  if (!required.available) return 'site';
+-  if (!optional.emitSurface) throw new ToolInputError({ message: 'Choosing where to save a connection requires the interactive sign-in card. Open this action in chat.' });
+-  const { ctx, host } = required;
+-  ctx.signal.throwIfAborted();
+-  const exchange = required.surfaces.surfaceExchanges.open({ binding: { toolId: required.toolId, principalId: ctx.principal.id, channel: host.channel }, emit: optional.emitSurface });
+-  const close = () => exchange.close({});
+-  ctx.signal.addEventListener('abort', close, { once: true });
+-  try {
+-    return await required.askThenReport<Destination | null>({ exchange,
+-      confirmationEmission: { channel: host.channel, payload: { resource: required.cards.buildFormSurface({
+-        uri: `ui://${required.uriNamespace}/${exchange.id}`, title: `Connect ${required.pluginDisplayName}`,
+-        description: host.messages.description,
+-        fields: [{ kind: 'enum', name: 'destination', label: 'Save this connection', required: true, options: [
+-          { value: 'site', label: 'Use only on this site' }, { value: 'shared', label: host.messages.sharedOptionLabel },
+-        ] }], submitLabel: 'Continue to sign in', toolName: required.toolId, preferredFrameSize: ['100%', '1px'],
+-        baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
+-        cancel: { label: 'Cancel', toolName: required.toolId, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
+-      }) } },
+-      handle: async answer => ({ result: answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true || ctx.signal.aborted
+-        ? null : selectedDestination(answer.params) }),
+-    });
+-  } finally { ctx.signal.removeEventListener('abort', close); exchange.close({}); }
+-}
+diff --git a/apps/website/src/features/agent-plugins/portable/connect-sign-in-wait.ts b/apps/website/src/features/agent-plugins/portable/connect-sign-in-wait.ts
+deleted file mode 100644
+index 33345be87..000000000
+--- a/apps/website/src/features/agent-plugins/portable/connect-sign-in-wait.ts
++++ /dev/null
+@@ -1,26 +0,0 @@
+-import type { SurfaceCardSecretDeps } from '@jini-ai/core/contracts/cards';
+-import { type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+-import type { PluginCredentialCard } from '@jini-ai/core/contracts/credentials';
+-import type { AgentPluginCardsPort, AgentPluginConnectCardSpec } from './connect-card-ui.js';
+-
+-/** The plugin's MCP and API sign-ins share one card/exchange lifecycle. Skip cancels only the
+- * sign-in watcher; the enclosing agent run continues. OAuth callback/token custody stays with
+- * each connection owner. @complexity One bounded connection wait and one exchange per sign-in. */
+-/* `Result` is the connect tool's result (`AgentPluginConnectResult`); it is a type parameter here so the
+- * connect-tool <-> sign-in-wait type cycle needs no import back (the waiter only passes it through). */
+-export async function waitAtAgentPluginSignInCardWithPorts<Resource, Result extends { status: string }>(required: {
+-  surfaceExchanges: SurfaceCardSecretDeps['surfaceExchanges']; cards: AgentPluginCardsPort<Resource>;
+-  buildCard: (spec: AgentPluginConnectCardSpec) => Resource; toolId: string; missingEmitterMessage: string; skippedResult: () => Result; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string;
+-  credentialCard?: PluginCredentialCard;
+-  connect: (input: { signal: AbortSignal; showSignIn: (input: { signInUrl: string }) => Promise<void> }) => Promise<Result>;
+-}, optional: ToolExecutionOptions = {}): Promise<Result> {
+-  const { cards, ctx, pluginId, pluginDisplayName, credentialCard, connect } = required;
+-  return cards.waitAtSignInCard<Result>({
+-    surfaceExchanges: required.surfaceExchanges, ctx, toolId: required.toolId, connect,
+-    card: state => required.buildCard(state.state === 'waiting'
+-      ? { pluginId, pluginDisplayName, credentialCard, ...state }
+-      : { pluginId, pluginDisplayName, ...state }),
+-    missingEmitterMessage: required.missingEmitterMessage,
+-    skippedResult: required.skippedResult,
+-  }, optional);
+-}
+diff --git a/apps/website/src/features/agent-plugins/portable/connect-tool.ts b/apps/website/src/features/agent-plugins/portable/connect-tool.ts
+deleted file mode 100644
+index ec69f4aa8..000000000
+--- a/apps/website/src/features/agent-plugins/portable/connect-tool.ts
++++ /dev/null
+@@ -1,651 +0,0 @@
+-import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
+-import type { ExternalMcpConnectStart } from "@jini-ai/core/contracts/hosted-mcp";
+-import { adaptLegacyAuthorize } from "@jini-ai/core";
+-import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition, type AccessApprovalDescription, type ToolHandler } from "@jini-ai/core";
+-import { requireToolPermission, type LegacyToolAuthorizeFn as AuthorizeFn } from "@jini-ai/core";
+-import { ToolInputError, redactSecrets, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
+-import {
+-  deriveAgentPluginConnectionId, provisionAgentPluginMcpServers, previewAgentPluginEnableAccess, recordAgentPluginAccessDeclined,
+-  type AgentPluginMcpPort, type AgentPluginMcpRecord, type AgentPluginMcpProjectionPorts, type AgentPluginMcpProjections,
+-  type AgentPluginMcpTrustClassifier, type AgentPluginEnableAccessMessages,
+-} from "@jini-ai/agent-plugins/connect";
+-import type { McpServerConfig, RemoteMcpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
+-
+-/**
+- * @file agent_plugin_connect connects an Agent Plugin's account through
+- * one shared host flow, so plugins do not need vendor-specific connect tools.
+- *
+- * Token-only plugins reuse a stored credential or the injected credential_save token card. The
+- * token card owns probing, sealing and cancellation; this module never handles a plaintext token.
+- * Explicit OAuth with token fallback retains the OAuth flow below.
+- *
+- * ## What one OAuth call does
+- *
+- * Given a `pluginId`, this provisions the plugin's declared OAuth-authenticated MCP server(s) as
+- * external-MCP rows (idempotently — `provisionAgentPluginMcpServers`, `federate-mcp.ts`), starts an
+- * authorization for whichever of them are not yet connected, shows a card with a sign-in link, and
+- * PARKS the call — polling the row for `oauth.status === "connected"` — until either the human
+- * finishes signing in, skips the card, or a bounded wait elapses. Skip releases only this sign-in
+- * wait so the assistant can continue the turn. It never returns a token, a URL, or a row id in its
+- * own result: only `{ status: "connected" }` or the resumable `{ status: "waiting-for-sign-in" }`
+- * (the plan's skill calls this again on "done" rather than looping on its own). A plugin-declared API
+- * connection's result also carries its opaque `connectionRef`, because that plugin's tools take it as
+- * input and chat has no other way to learn it; the host refuses it for every other plugin.
+- *
+- * ## Why polling alongside `exchange.receive()`
+- *
+- * The sign-in itself finishes on the PUBLIC OAuth callback route, not by the human clicking anything
+- * inside this card (`external-mcp-oauth.ts`'s `completeAuthorizationCallback`) — the card's one
+- * sign-in element is an outbound `openLink`, which (per `@jini-ai/ui`'s `outcome.ts` surface) is
+- * not a delivery through `mcp-ui-tool-calls-route.ts` at all. So there is nothing for this call to
+- * `receive()` to finish sign-in: that now observes Skip, while the callback is observed by reading the row this call already
+- * provisioned, which is exactly what `resolveExternalMcpOAuthStatus` (`features/external-mcp/external-mcp-store.ts`)
+- * is for.
+- *
+- * ## Deliberately narrow: one pending OAuth server per call
+- *
+- * A plugin declaring more than one OAuth-authenticated server that is not yet connected is refused
+- * with a plain `ToolInputError` naming the servers, rather than building a card with several sign-in
+- * links. No bundled plugin does this today (Supabase and Higgsfield each declare exactly one), and a
+- * multi-link card is a real design question (which one is "the" sign-in?) worth deferring to an
+- * actual second case rather than guessing at one now.
+- */
+-
+-const DEFAULT_POLL_INTERVAL_MS = 3000;
+-/** Matches `@jini-ai/daemon/surface-exchanges`'s `DEFAULT_SURFACE_IDLE_TTL_MS` — the same
+- *  "long enough to read a card and go sign in, short enough not to hold a subprocess open forever"
+- *  budget. The connection watcher and the card exchange have separate owners; neither may keep
+- *  the call parked beyond its own deadline. */
+-const DEFAULT_WAIT_TIMEOUT_MS = 5 * 60 * 1000;
+-
+-/** One installed plugin's declared MCP servers — the slice `agent_plugin_connect` needs. Kept
+- *  narrower than `InstalledAgentPlugin` (no version/keywords/skills: this tool cares only about
+- *  what it can connect). */
+-export interface ResolvedAgentPluginForConnect {
+-  readonly credentialCards?: readonly PluginCredentialCard[];
+-  readonly servers: Readonly<Record<string, McpServerConfig>>;
+-}
+-
+-/** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
+- *  display-name field in `plugin.json` (agent-plugins.org has none) — `uninstall-confirmation-ui.ts`'s
+- *  own dialog makes the identical choice, naming the plugin by its id. */
+-export function titleCaseFromPluginId(required: { pluginId: string }, _optional: Record<string, never> = {}): string {
+-  return required.pluginId
+-    .split(/[-_]+/)
+-    .filter((word) => word.length > 0)
+-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+-    .join(" ");
+-}
+-
+-/** Only a remote server can carry `authMode` (`manifest.ts`); a stdio entry never needs a sign-in. */
+-function isOAuthServer(config: McpServerConfig): config is RemoteMcpServerConfig {
+-  return config.type !== "stdio" && config.authMode === "oauth";
+-}
+-
+-/**
+- * Starts the sign-in and returns the link the card shows.
+- *
+- * @throws {ToolInputError} The OAuth service refused the request, or OAuth discovery/registration failed,
+- *   with the no-card note the model must relay.
+- * @throws {Error} A `device_code` grant: the card has no place for the user code, and nothing in this
+- *   call polls `pollDeviceAuthorization`, so the row would never flip to connected. Provisioned rows
+- *   always use `authorization_code` (`federate-mcp.ts`), so this is a fail-loud guard.
+- */
+-async function beginSignIn(
+-  { oauth, serverId, derivedPublicOrigin, host }: { oauth: AgentPluginConnectSignInPort; serverId: string; derivedPublicOrigin?: string; host: AgentPluginConnectHost<unknown> },
+-  _options = {},
+-): Promise<string> {
+-  let start;
+-  try {
+-    start = await oauth.beginConnect({ serverId, redirectUri: host.publicUrl.redirectUri({ serverId, derivedPublicOrigin }), delivery: 'hosted' });
+-  } catch (err) {
+-    // Discovery runs before rendering. A failed start must not leave chat promising a missing card.
+-    if (!oauth.isSignInRefusal({ error: err })) throw err;
+-    // A matching classifier does not make the message safe: model text crosses core redaction.
+-    throw new ToolInputError({ message: host.messages.signInRefused({ detail: redactSecrets({ input: (err as Error).message }, { redactPii: false }) }) });
+-  }
+-  if (start.kind !== "redirect_required") {
+-    throw new Error(host.messages.unsupportedSignIn({ kind: start.kind }));
+-  }
+-  return start.authorizationUrl;
+-}
+-
+-function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
+-  if (signal.aborted) return Promise.resolve();
+-  return new Promise((resolve) => {
+-    const timer = setTimeout(() => {
+-      signal.removeEventListener("abort", onAbort);
+-      resolve();
+-    }, ms);
+-    function onAbort(): void {
+-      clearTimeout(timer);
+-      resolve();
+-    }
+-    signal.addEventListener("abort", onAbort, { once: true });
+-  });
+-}
+-
+-/** The sign-in start this tool needs: only a hosted `redirect_required` start opens the connect card.
+- * @agent-note Second host: bind your hosted-MCP OAuth service. `isSignInRefusal` is true only for a
+- * refusal that opened NO card (chat then offers the key-card fallback); every other fault returns false
+- * and propagates unchanged. Matching never makes a message safe: this tool redacts before model text. */
+-export interface AgentPluginConnectSignInPort {
+-  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted" }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
+-  isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
+-}
+-
+-/** Declared API connections; the host retains OAuth clients, browser binding and token custody.
+- * @agent-note Second host: `Connection` is your own declaration record, passed through unchanged
+- * (this tool never reads it). `connect` resolves with a safe connect result, never a token or URL. */
+-export interface AgentPluginConnectApiConnectionsPort<Connection> {
+-  /** @agent-note True only when your host can save one connection for several sites. */
+-  readonly sharingAvailable?: boolean;
+-  listConnections(input: { pluginId: string }, options?: Record<string, never>): Promise<readonly Connection[]>;
+-  connect(input: { destination?: 'site' | 'shared'; connection: Connection; actorId: string; signal: AbortSignal; pollIntervalMs: number; waitTimeoutMs: number; showSignIn: (input: { readonly signInUrl: string }) => Promise<void> }, options?: Record<string, never>): Promise<AgentPluginConnectResult>;
+-}
+-
+-/** The host's approval lifecycle for a fixed access change (the common access card).
+- * @agent-note Second host: bind your one approval owner (typically a wrapper over core's
+- * `createApprovalHandler`). It MUST: freeze `ctx` and bind the confirming principal before `prepare`;
+- * render `describe`'s access card and wait for the human; call `run` only after an explicit confirm, with
+- * the bound ctx (so `run` re-checks permission, activation and the `prepared.key` fingerprint itself);
+- * forward `emitSurface`/execution options unchanged; and call `declined` (never `run`) on decline,
+- * expiry or abort. `ask` false means nothing needs consent and `run` proceeds without a card. */
+-export interface AgentPluginConnectApprovalsPort<Surfaces> {
+-  accessApprovalHandler<Prepared>(
+-    required: {
+-      surfaces: Surfaces;
+-      prepare(required: { ctx: ToolExecutionContext }, optional: ToolExecutionOptions): Promise<Prepared>;
+-      describe(required: { ctx: ToolExecutionContext; prepared: Prepared }): AgentPluginAccessApprovalDescription;
+-      run(required: { ctx: ToolExecutionContext; prepared: Prepared }, optional: ToolExecutionOptions): Promise<unknown>;
+-    },
+-    optional: {
+-      ask(required: { prepared: Prepared }): boolean;
+-      declined(required: { reason: 'declined' | 'expired' | 'abandoned'; prepared?: Prepared }): unknown;
+-    },
+-  ): ToolHandler;
+-  /** @agent-note Your host's standard not-confirmed result (its exact bytes are merged into this tool's result). */
+-  notConfirmedResult(required: { reason: 'declined' | 'expired' | 'abandoned' }): { cancelled: boolean; reason?: 'expired' | 'abandoned'; note: string };
+-}
+-
+-/** What this tool asks the approvals port to render. Wording is neutral; ids are host input. */
+-export interface AgentPluginAccessApprovalDescription {
+-  readonly toolId: string;
+-  readonly errorCode: string;
+-  readonly title: string;
+-  readonly access?: AccessApprovalDescription;
+-  readonly details: readonly never[];
+-  readonly description: string;
+-  readonly confirmLabel: string;
+-}
+-
+-/** Product wording and tool names this tool's refusals carry; every member is required host copy.
+- * @agent-note Second host: name YOUR tool ids, settings screen and product; keep each refusal a plain
+- * sentence the model can relay. `detail` in `signInRefused` is already redacted. */
+-export interface AgentPluginConnectMessages {
+-  signInRefused(required: { detail: string }): string;
+-  unsupportedSignIn(required: { kind: string }): string;
+-  connectionNotSetUp(required: { pluginId: string; serverKey: string }): string;
+-  multipleTokenServers(required: { pluginId: string }): string;
+-  noTokenCardAdapter(): string;
+-  pluginOff(required: { pluginId: string }): string;
+-  notInstalled(required: { pluginId: string }): string;
+-  noOAuthService(): string;
+-  multipleOAuthServers(required: { pluginId: string; serverKeys: readonly string[] }): string;
+-  noConnection(required: { pluginId: string }): string;
+-  multipleApiConnections(required: { pluginId: string; count: number }): string;
+-  /** @agent-note Shown when the context has no `emitSurface`; the same text your sign-in card host uses. */
+-  missingEmitter(): string;
+-}
+-
+-/** Everything product-specific this tool needs, bound once by the host.
+- * @agent-note Second host: none of these has a default here. `toolId` is the id your card answers and
+- * approvals route back to; `permissions.connect` gates the tool and its approval re-check;
+- * `permissions.apiConnectionWrite` gates saving a declared API connection; `entityType` and
+- * `approvalErrorCode` are your authorization/approval vocabulary. */
+-export interface AgentPluginConnectHost<Surfaces> {
+-  readonly toolId: string;
+-  readonly permissions: { readonly connect: string; readonly apiConnectionWrite: string };
+-  readonly entityType: string;
+-  readonly approvalErrorCode: string;
+-  readonly approvals: AgentPluginConnectApprovalsPort<Surfaces>;
+-  readonly messages: AgentPluginConnectMessages;
+-  /** @agent-note Your public OAuth callback URL for `serverId`, or undefined when your host has no public
+-   * origin (then `beginConnect` decides). Operator configuration precedence is yours to keep. */
+-  readonly publicUrl: { redirectUri(required: { serverId: string; derivedPublicOrigin?: string }): string | undefined };
+-  /** @agent-note Your lifecycle trust rule and federation/enable-access refusal copy (same objects your
+-   * provisioning and enable-access previews use, so plans and fingerprints agree). */
+-  readonly federation: { readonly classifyTrust: AgentPluginMcpTrustClassifier; readonly messages: AgentPluginEnableAccessMessages };
+-  /** @agent-note Actor recorded when a person declines the access card (`AgentPluginConnectActors.connectDeclined`). */
+-  readonly actors: { readonly connectDeclined: string };
+-  /** @agent-note Your sign-in card waiter (typically `waitAtAgentPluginSignInCardWithPorts` bound to your cards,
+-   * card identity and SAME process exchange store). Skip resolves with your skipped result. */
+-  waitAtSignInCard(required: {
+-    surfaces: Surfaces; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string; credentialCard?: PluginCredentialCard;
+-    connect: (input: { signal: AbortSignal; showSignIn: (input: { signInUrl: string }) => Promise<void> }) => Promise<AgentPluginConnectResult>;
+-  }, optional: ToolExecutionOptions): Promise<AgentPluginConnectResult>;
+-  /** @agent-note Your destination card (typically `chooseApiConnectionDestinationWithPorts`); null = cancelled. */
+-  chooseDestination(required: { surfaces: Surfaces; ctx: ToolExecutionContext; pluginDisplayName: string; available: boolean }, optional: ToolExecutionOptions): Promise<'site' | 'shared' | null>;
+-}
+-
+-/** Consumer-owned services; composition binds persistence, secret custody and sign-in providers.
+- * OAuth remains optional so token-only declarations work without an OAuth service.
+- * @agent-note Second host: `mcp` carries your canonical projection pair (never copies); `isPluginEnabled`
+- * and `resolveInstalledPlugin` are your fresh activation owner and installed-declaration read (no
+- * filesystem default here). */
+-export interface AgentPluginConnectDeps<Surfaces, Connection> {
+-  readonly ownerPrincipalId?: Promise<string>;
+-  /** Fresh activation owner; injected so OFF-plugin refusal needs no filesystem in unit tests. */
+-  readonly isPluginEnabled: (pluginId: string) => Promise<boolean>;
+-  readonly credentials: { loadSafe(input: { workspaceId: string }, options?: Record<string, never>): Promise<readonly PluginCredentialCard[]> };
+-  readonly workspaceId: string;
+-  readonly authorize: AuthorizeFn;
+-  readonly mcp: AgentPluginMcpProjectionPorts & Pick<AgentPluginMcpPort, "repo" | "saveServer" | "applyAccess"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>;
+-  readonly externalMcpOAuth?: AgentPluginConnectSignInPort;
+-  readonly derivedPublicOrigin?: string;
+-  /** Injectable for tests; a real composition root omits both and gets the production cadence. */
+-  readonly pollIntervalMs?: number;
+-  readonly waitTimeoutMs?: number;
+-  /** The installed plugin's declarations (a fixture in tests; the host's installed read in production). */
+-  readonly resolveInstalledPlugin: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
+-  /** Plugin-declared OAuth API connections. Absent: only MCP servers connect. */
+-  readonly apiConnections?: AgentPluginConnectApiConnectionsPort<Connection>;
+-  readonly host: AgentPluginConnectHost<Surfaces>;
+-}
+-/** Internal erased view: ports are method-typed, so a host's concrete `Surfaces`/`Connection` pass through opaque. */
+-type ConnectDeps = AgentPluginConnectDeps<unknown, unknown>;
+-
+-/** This tool's one-entry catalog, built from host copy (tool id, permission, description and the
+- *  pluginId schema text are product vocabulary).
+- * @agent-note Second host: pass your own tool id/permission/description bytes; the schema shape is fixed. */
+-export function agentPluginConnectAgentToolCatalogFor(required: { toolId: string; permission: string; description: string; pluginIdDescription: string }, _optional: Record<string, never> = {}): AgentToolDefinition[] {
+-  return [
+-    {
+-      name: required.toolId,
+-      description: required.description,
+-      sideEffects: "mutates-durable-state",
+-      authorization: { permission: required.permission },
+-      inputSchema: {
+-        type: "object",
+-        additionalProperties: false,
+-        required: ["pluginId"],
+-        properties: {
+-          pluginId: {
+-            type: "string",
+-            minLength: 1,
+-            description: required.pluginIdDescription,
+-          },
+-        },
+-      },
+-    },
+-  ];
+-}
+-
+-/** @agent-note Second host: key by your own tool id. */
+-export function agentPluginConnectDerivedRiskFor(required: { toolId: string }, _optional: Record<string, never> = {}): DerivedRiskByToolId {
+-  return new Map<string, AgentToolSideEffect>([
+-    [required.toolId, "mutates-durable-state"],
+-  ]);
+-}
+-
+-/** One declared OAuth server this call still needs to connect. */
+-interface PendingOAuthServer {
+-  readonly serverKey: string;
+-  readonly connectionId: string;
+-}
+-
+-/** Whether a plugin's row already holds a credential: a finished sign-in, or a saved access token
+- *  (`static_env` with the token sealed in `sealedOAuth` — what `agent_plugin_set_access_token`, the
+- *  old env var's boot import, and create-site onboarding all write; `sealedEnv` is a stdio row's env
+- *  block and never holds it). Such a row needs no sign-in, and a token import must never overwrite it. */
+-export function hasStoredAgentPluginCredential(required: { row: Pick<AgentPluginMcpRecord, "authMode" | "sealedOAuth" | "oauthStatus">; projections: AgentPluginMcpProjections }, _optional: Record<string, never> = {}): boolean {
+-  const { row, projections } = required;
+-  return projections.oauthStatus(row) === "connected" || projections.hasStaticAccessToken(row);
+-}
+-
+-/** Resolves which of a plugin's declared OAuth servers still need connecting, after provisioning
+- *  every one of them as an external-MCP row (idempotent — a row already `connected` is left alone).
+- *  @throws {ToolInputError} A declared OAuth server has no row owned by this plugin after provisioning (provisioning
+- *    skipped or failed it — e.g. a legacy `sse` transport): there is nothing to sign in to. */
+-async function resolvePendingOAuthServers(
+-  routeDeps: ConnectDeps,
+-  pluginId: string,
+-  oauthServerKeys: readonly string[],
+-): Promise<readonly PendingOAuthServer[]> {
+-  const pending: PendingOAuthServer[] = [];
+-  for (const serverKey of oauthServerKeys) {
+-    const connectionId = deriveAgentPluginConnectionId(serverKey);
+-    const row = connectionId
+-      ? await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId })
+-      : null;
+-    if (!connectionId || !row || row.provisionedByPluginId !== pluginId) {
+-      throw new ToolInputError({ message: routeDeps.host.messages.connectionNotSetUp({ pluginId, serverKey }) });
+-    }
+-    // A saved access token counts too: starting a sign-in here would switch the row back to OAuth.
+-    if (hasStoredAgentPluginCredential({ row, projections: routeDeps.mcp.projections })) continue;
+-    pending.push({ serverKey, connectionId });
+-  }
+-  return pending;
+-}
+-
+-/** The injected adapter calls the existing token-card lifecycle without a runtime import cycle. */
+-export type AgentPluginConnectOptions = ToolExecutionOptions & {
+-  readonly saveToken?: (
+-    input: { readonly ctx: ToolExecutionContext; readonly pluginId: string },
+-    optional?: ToolExecutionOptions,
+-  ) => Promise<
+-    | { readonly saved: true; readonly next: string }
+-    | { readonly saved: false; readonly reason: string; readonly message?: string }
+-  >;
+-};
+-
+-export interface AgentPluginConnectResult {
+-  readonly status: "connected" | "waiting-for-sign-in" | "not-connected";
+-  readonly cancelled?: boolean;
+-  readonly note?: string;
+-  readonly connectionRef?: string;
+-  readonly reason?: string;
+-  readonly message?: string;
+-  readonly next?: string;
+-}
+-
+-/** A stored credential is reusable only on the same plugin-owned endpoint. No I/O or mutation.
+- * @complexity O(1) time and space. */
+-function hasReusablePluginCredential(
+-  { row, pluginId, url }: { row: AgentPluginMcpRecord | null; pluginId: string; url: string },
+-  optional: { projections: AgentPluginMcpProjections },
+-): boolean {
+-  if (!row) return false;
+-  const reusableOwner = row.provisionedByPluginId === null || row.provisionedByPluginId === pluginId;
+-  return reusableOwner && row.url === url && hasStoredAgentPluginCredential({ row, projections: optional.projections });
+-}
+-
+-/** Connect a token-only declaration through the existing card, or retain the API-connection path.
+- * @returns Connected only for an existing credential or a successful save; preserves card failures.
+- * @throws {ToolInputError} Ambiguous token servers, invalid server id, or a missing save adapter.
+- * @complexity O(s) time/space in declared servers, one row read, then the card's bounded exchange. */
+-async function connectWithoutOAuth(
+-  { routeDeps, surfaces, ctx, pluginId, servers }: {
+-    routeDeps: ConnectDeps; surfaces: unknown; ctx: ToolExecutionContext;
+-    pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
+-  },
+-  { saveToken, ...optional }: AgentPluginConnectOptions = {},
+-): Promise<AgentPluginConnectResult> {
+-  const tokens = Object.entries(servers).filter((entry): entry is [string, RemoteMcpServerConfig] =>
+-    entry[1].type !== "stdio" && entry[1].tokenAuth !== undefined);
+-  if (tokens.length === 0) return connectDeclaredApiConnectionOrRefuse(routeDeps, surfaces, ctx, pluginId, optional);
+-  if (tokens.length > 1) throw new ToolInputError({ message: routeDeps.host.messages.multipleTokenServers({ pluginId }) });
+-  const [serverKey, config] = tokens[0]!;
+-  const serverId = deriveAgentPluginConnectionId(serverKey);
+-  if (!serverId) throw new ToolInputError({ message: routeDeps.host.messages.connectionNotSetUp({ pluginId, serverKey }) });
+-  ctx.signal.throwIfAborted();
+-  const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
+-  ctx.signal.throwIfAborted();
+-  if (hasReusablePluginCredential({ row, pluginId, url: config.url }, routeDeps.mcp)) {
+-    const approved = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: { [serverKey]: config } }, optional);
+-    if (!approved.approved) return approved.result;
+-    await provisionAgentPluginMcpServers(routeDeps.mcp, { workspaceId: routeDeps.workspaceId, pluginId, servers: { [serverKey]: config }, principalId: ctx.principal.id, ...routeDeps.host.federation });
+-    return { status: 'connected' };
+-  }
+-  if (!saveToken) throw new ToolInputError({ message: routeDeps.host.messages.noTokenCardAdapter() });
+-  const result = await saveToken({ ctx, pluginId }, optional);
+-  if (result.saved) return { status: "connected", next: result.next };
+-  return { status: "not-connected", reason: result.reason, ...(result.message ? { message: result.message } : {}) };
+-}
+-
+-/** Deny before reading an off plugin's connection instructions or starting a sign-in.
+- * @throws ToolInputError naming the existing approval flow when activation is off/unverifiable.
+- * @complexity One activation-owner read, no connection reads or writes.
+- */
+-async function assertPluginCanConnect({ routeDeps, pluginId }: { routeDeps: ConnectDeps; pluginId: string }, _options = {}): Promise<void> {
+-  const active = await routeDeps.isPluginEnabled(pluginId);
+-  if (!active) throw new ToolInputError({ message: routeDeps.host.messages.pluginOff({ pluginId }) });
+-}
+-
+-/**
+- * Runs `agent_plugin_connect`: permission, resolve, then the declared token, OAuth or API flow.
+- * @example runAgentPluginConnect({ routeDeps, surfaces, ctx, pluginId }, { saveToken });
+- *
+- * @returns Safe connection status; token-card failure reasons remain observable.
+- * @throws {import("@jini-ai/core").ToolInputError} An unknown `pluginId`, unsupported connection,
+- *   ambiguous token servers or more than one still-unconnected OAuth server (see the header).
+- * @throws {Error} No `externalMcpOAuth` was wired, or this execution context has no `emitSurface` —
+- *   both composition-root/transport gaps, not caller input.
+- * @complexity O(s) provisioning the plugin's declared servers, plus the poll loop (bounded by
+- *   `waitTimeoutMs`); O(s) space for pending declarations.
+- */
+-export async function runAgentPluginConnect<Surfaces, Connection>(
+-  { routeDeps, surfaces, ctx, pluginId }: {
+-    routeDeps: AgentPluginConnectDeps<Surfaces, Connection>; surfaces: Surfaces; ctx: ToolExecutionContext; pluginId: string;
+-  },
+-  optional: AgentPluginConnectOptions = {},
+-): Promise<AgentPluginConnectResult> {
+-  ctx = { ...ctx, principal: { ...ctx.principal }, run: { ...ctx.run }, input: structuredClone(ctx.input) };
+-  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: routeDeps.host.permissions.connect }, { entityType: routeDeps.host.entityType, entityId: pluginId });
+-
+-  await assertPluginCanConnect({ routeDeps, pluginId });
+-
+-  const plugin = await routeDeps.resolveInstalledPlugin(pluginId);
+-  if (!plugin) {
+-    throw new ToolInputError({ message: routeDeps.host.messages.notInstalled({ pluginId }) });
+-  }
+-
+-  const oauthServerKeys = Object.entries(plugin.servers)
+-    .filter(([, config]) => isOAuthServer(config))
+-    .map(([serverKey]) => serverKey);
+-  if (oauthServerKeys.length === 0) return connectWithoutOAuth({ routeDeps, surfaces, ctx, pluginId, servers: plugin.servers }, optional);
+-  if (!routeDeps.externalMcpOAuth) {
+-    throw new Error(routeDeps.host.messages.noOAuthService());
+-  }
+-  const externalMcpOAuth = routeDeps.externalMcpOAuth;
+-
+-  // A retained session may need new access, but declining that card must not provision other
+-  // sources or adopt an operator's independently configured credential-bearing connection.
+-  const signedIn = await retainedOAuthServers({ routeDeps, servers: plugin.servers, oauthServerKeys });
+-  const access = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: signedIn }, optional);
+-  if (!access.approved) return access.result;
+-
+-  const provisioned = await provisionAgentPluginMcpServers(
+-    routeDeps.mcp,
+-    { workspaceId: routeDeps.workspaceId, pluginId, servers: plugin.servers, principalId: ctx.principal.id, ...routeDeps.host.federation },
+-  );
+-
+-  // A colliding row can survive a refused provisioning attempt; never start sign-in on it.
+-  const refusal = [...provisioned.failed, ...provisioned.skipped]
+-    .find(result => oauthServerKeys.includes(result.serverKey));
+-  if (refusal) {
+-    throw new ToolInputError({ message: routeDeps.host.messages.connectionNotSetUp({ pluginId, serverKey: refusal.serverKey }) });
+-  }
+-  const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
+-  const [server] = pending;
+-  // Every declared OAuth server is already connected: no sign-in to start.
+-  if (!server) return { status: "connected" };
+-  if (pending.length > 1) {
+-    throw new ToolInputError({ message: routeDeps.host.messages.multipleOAuthServers({ pluginId, serverKeys: pending.map((p) => p.serverKey) }) });
+-  }
+-
+-  const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
+-  return connectAndReviewMcp({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard, servers: plugin.servers }, optional);
+-}
+-
+-/** Complete sign-in before reviewing defaults still missing from a prior access choice.
+- * @complexity The existing bounded sign-in wait, then two source previews and conditional writes. */
+-async function connectAndReviewMcp(
+-  input: Parameters<typeof waitAtMcpSignInCard>[0] & { servers: Readonly<Record<string, McpServerConfig>> },
+-  optional: ToolExecutionOptions = {},
+-): Promise<AgentPluginConnectResult> {
+-  const result = await waitAtMcpSignInCard(input, optional);
+-  if (result.status !== 'connected') return result;
+-  const { routeDeps, surfaces, ctx, pluginId, server, servers } = input;
+-  const reviewed = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId,
+-    servers: { [server.serverKey]: servers[server.serverKey]! } }, optional);
+-  if (reviewed.approved) return result;
+-  const reviewEnd = reviewed.result.reason === 'expired' ? 'expired' : 'ended with the run';
+-  const lifecycle = reviewed.result.reason
+-    ? ` The access review ${reviewEnd}. Do not retry or reopen it automatically. Wait for a new explicit request.` : '';
+-  return { ...reviewed.result, note: `Your sign-in was saved. No additional tool access was granted.${lifecycle}` };
+-}
+-
+-/** Inspect retained sign-ins before any provisioning; the access preview checks source ownership. */
+-async function retainedOAuthServers({ routeDeps, servers, oauthServerKeys }: {
+-  routeDeps: ConnectDeps; servers: Readonly<Record<string, McpServerConfig>>; oauthServerKeys: readonly string[];
+-}, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
+-  const retained: Record<string, McpServerConfig> = {};
+-  for (const key of oauthServerKeys) {
+-    const connectionId = deriveAgentPluginConnectionId(key);
+-    const row = connectionId ? await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId }) : null;
+-    if (row && hasStoredAgentPluginCredential({ row, projections: routeDeps.mcp.projections })) retained[key] = servers[key]!;
+-  }
+-  return retained;
+-}
+-
+-/** A retained credential proves sign-in, never consent to new tool or write grants.
+- * The common card fixes the exact sources; the existing grant writer applies those snapshots.
+- * @complexity Two previews over the signed-in sources plus one conditional write per changed row. */
+-async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers }: {
+-  routeDeps: ConnectDeps; surfaces: unknown; ctx: ToolExecutionContext;
+-  pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
+-}, optional: ToolExecutionOptions = {}): Promise<{ approved: true } | { approved: false; result: AgentPluginConnectResult }> {
+-  const preview = () => previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers, repo: routeDeps.mcp.repo, projections: routeDeps.mcp.projections, classifyError: routeDeps.mcp.classifyError, ...routeDeps.host.federation });
+-  const handler = routeDeps.host.approvals.accessApprovalHandler({ surfaces,
+-    prepare: preview,
+-    describe: ({ ctx: bound, prepared }) => ({ toolId: routeDeps.host.toolId, errorCode: routeDeps.host.approvalErrorCode, title: `Allow access for ${pluginId}?`,
+-      ...(prepared.resources.length ? { access: { resources: prepared.resources.map(resource => ({ ...resource, scope: { personId: bound.principal.id, siteId: routeDeps.workspaceId } })) } } : {}),
+-      details: [], description: 'Your existing sign-in is reused. Only the listed access is turned on.', confirmLabel: 'Allow access' }),
+-    run: async ({ ctx: bound, prepared }) => {
+-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: bound.principal.id, permission: routeDeps.host.permissions.connect }, { entityType: routeDeps.host.entityType, entityId: pluginId });
+-      await assertPluginCanConnect({ routeDeps, pluginId });
+-      const current = await currentSignedInAccess({ routeDeps, pluginId, servers });
+-      if (current.preview.key !== prepared.key) throw new ToolInputError({ message: 'The plugin access changed while this card was open. Request the access change again. Nothing was granted.' });
+-      const granted: string[] = [];
+-      try {
+-        for (const source of prepared.snapshots) {
+-          if (!source.grant || !source.expected) continue;
+-          if (bound.signal.aborted) throw new ToolInputError({ message: 'The run ended. Other connections were not changed.' });
+-          await routeDeps.mcp.applyAccess({
+-            workspaceId: routeDeps.workspaceId, serverId: source.connectionId, expected: source.expected,
+-            access: { enabled: source.grant.enabled, allowedToolNames: source.grant.allow, writeAllowedToolNames: source.grant.write }, principalId: bound.principal.id });
+-          granted.push(source.connectionId);
+-        }
+-        await routeDeps.mcp.notifyRosterChanged?.({}, {});
+-      } catch (error) {
+-        if (granted.length === 0) throw error;
+-        const detail = redactSecrets({ input: String(error) }).replace('Nothing was changed by this approval.', 'That connection was left unchanged.');
+-        throw new ToolInputError({ message: `Access was saved for ${granted.join(', ')}. The remaining access update did not finish. ${detail} Ask to connect the plugin again to finish.` });
+-      }
+-      return { approved: true };
+-    },
+-  }, { ask: ({ prepared }) => prepared.resources.length > 0, declined: async ({ reason, prepared }) => {
+-    if (reason === 'declined' && prepared) await recordAgentPluginAccessDeclined({ applyAccess: routeDeps.mcp.applyAccess, workspaceId: routeDeps.workspaceId, accessKey: prepared.key, actorId: routeDeps.host.actors.connectDeclined });
+-    return { approved: false, result: { status: 'not-connected', ...routeDeps.host.approvals.notConfirmedResult({ reason }) } };
+-  } });
+-  return await handler(ctx, optional) as { approved: true } | { approved: false; result: AgentPluginConnectResult };
+-}
+-
+-/** Re-resolve the installed declarations: a closed-over manifest is not a fresh approval check. */
+-async function currentSignedInAccess({ routeDeps, pluginId, servers }: {
+-  routeDeps: ConnectDeps; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
+-}, _optional = {}) {
+-  const installed = await routeDeps.resolveInstalledPlugin(pluginId);
+-  const current: Record<string, McpServerConfig> = {};
+-  for (const key of Object.keys(servers)) {
+-    const config = installed?.servers[key];
+-    if (!config) throw new ToolInputError({ message: `The '${pluginId}' connection declaration changed after approval. Request the access change again. Nothing was granted.` });
+-    current[key] = config;
+-  }
+-  return { servers: current, preview: await previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers: current, repo: routeDeps.mcp.repo, projections: routeDeps.mcp.projections, classifyError: routeDeps.mcp.classifyError, ...routeDeps.host.federation }) };
+-}
+-
+-/** Show one MCP sign-in and always release its surface exchange after the bounded wait. */
+-async function waitAtMcpSignInCard(
+-  input: {
+-    readonly routeDeps: ConnectDeps;
+-    readonly surfaces: unknown;
+-    readonly ctx: ToolExecutionContext;
+-    readonly pluginId: string;
+-    readonly server: PendingOAuthServer;
+-    readonly externalMcpOAuth: AgentPluginConnectSignInPort;
+-    readonly credentialCard?: PluginCredentialCard;
+-  },
+-  optional: ToolExecutionOptions = {},
+-): Promise<AgentPluginConnectResult> {
+-  const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard } = input;
+-  if (!optional.emitSurface) {
+-    throw new Error(routeDeps.host.messages.missingEmitter());
+-  }
+-  const signInUrl = await beginSignIn({ oauth: externalMcpOAuth, serverId: server.connectionId, derivedPublicOrigin: routeDeps.derivedPublicOrigin, host: routeDeps.host });
+-  return routeDeps.host.waitAtSignInCard({ surfaces, ctx, pluginId, pluginDisplayName: titleCaseFromPluginId({ pluginId }), credentialCard,
+-    connect: async ({ signal, showSignIn }) => {
+-      await showSignIn({ signInUrl });
+-      const connected = await waitForMcpConnection({ routeDeps, ctx: { ...ctx, signal }, server });
+-      return { status: connected ? "connected" : "waiting-for-sign-in" };
+-    },
+-  }, optional);
+-}
+-
+-/** Observe the MCP row until callback completion, timeout or cancellation. */
+-async function waitForMcpConnection(
+-  input: {
+-    readonly routeDeps: ConnectDeps;
+-    readonly ctx: ToolExecutionContext;
+-    readonly server: PendingOAuthServer;
+-  },
+-  _options = {},
+-): Promise<boolean> {
+-  const { routeDeps, ctx, server } = input;
+-  const pollIntervalMs = routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+-  const waitTimeoutMs = routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
+-  const deadline = Date.now() + waitTimeoutMs;
+-  while (Date.now() < deadline && !ctx.signal.aborted) {
+-    const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: server.connectionId });
+-    if (row && routeDeps.mcp.projections.oauthStatus(row) === "connected") {
+-      return true;
+-    }
+-    await sleepOrAbort(Math.min(pollIntervalMs, Math.max(deadline - Date.now(), 0)), ctx.signal);
+-  }
+-  return false;
+-}
+-
+-/**
+- * The API-connection branch (or the original "nothing to connect" refusal): same card and parked wait as the MCP
+- * branch, plus the opaque `connectionRef` the plugin's tools take, over Jini's api-connections lifecycle instead of an external-MCP row. One declared
+- * connection per call, for the same reason the MCP branch takes one pending server.
+- * @throws {ToolInputError} More than one declared connection, or a sign-in refusal (safe message).
+- * @throws {Error} No interactive channel to show the sign-in card on.
+- * @complexity One sign-in round trip bounded by `waitTimeoutMs`.
+- */
+-/** The plugin's own `oauth` card copy for its sign-in card, shared by the MCP and API-connection branches. O(cards). */
+-async function findPluginOAuthCard(routeDeps: ConnectDeps, pluginId: string): Promise<PluginCredentialCard | undefined> {
+-  const cards = await routeDeps.credentials.loadSafe({ workspaceId: routeDeps.workspaceId });
+-  return cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+-}
+-
+-async function connectDeclaredApiConnectionOrRefuse(
+-  routeDeps: ConnectDeps,
+-  surfaces: unknown,
+-  ctx: ToolExecutionContext,
+-  pluginId: string,
+-  optional: ToolExecutionOptions,
+-): Promise<AgentPluginConnectResult> {
+-  const apiConnections = routeDeps.apiConnections;
+-  const declared: readonly unknown[] = apiConnections ? await apiConnections.listConnections({ pluginId }) : [];
+-  const [connection] = declared;
+-  if (!apiConnections || !connection) {
+-    throw new ToolInputError({ message: routeDeps.host.messages.noConnection({ pluginId }) });
+-  }
+-  if (declared.length > 1) {
+-    throw new ToolInputError({ message: routeDeps.host.messages.multipleApiConnections({ pluginId, count: declared.length }) });
+-  }
+-  const destination = await routeDeps.host.chooseDestination({ surfaces, ctx, pluginDisplayName: titleCaseFromPluginId({ pluginId }),
+-    available: apiConnections.sharingAvailable === true && ctx.principal.id === await routeDeps.ownerPrincipalId }, optional);
+-  if (destination === null) return { status: 'not-connected', reason: 'cancelled', next: 'Sign-in was cancelled. Continue without this connection.' };
+-  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: routeDeps.host.permissions.apiConnectionWrite });
+-  const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
+-  return routeDeps.host.waitAtSignInCard({ surfaces, ctx, pluginId, pluginDisplayName: titleCaseFromPluginId({ pluginId }), credentialCard,
+-    connect: ({ signal, showSignIn }) => apiConnections.connect({
+-      destination, connection, actorId: ctx.principal.id, signal, showSignIn,
+-      pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+-      waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+-    }),
+-  }, optional);
+-}
+diff --git a/apps/website/src/features/agent-plugins/portable/token-sign-in.ts b/apps/website/src/features/agent-plugins/portable/token-sign-in.ts
+deleted file mode 100644
+index 68cc8ace8..000000000
+--- a/apps/website/src/features/agent-plugins/portable/token-sign-in.ts
++++ /dev/null
+@@ -1,80 +0,0 @@
+-import { probeToken, type AgentPluginTokenCredentialsPort, type AgentPluginTokenValidator } from "./access-token-tool.js";
+-import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
+-import type { AgentPluginTokenAuth, McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
+-
+-/**
+- * @file Which installed Agent Plugins can be connected with a pasted access token, and a check of one
+- * token before anything is saved — for create-site onboarding, which offers "connect <plugin> now"
+- * next to the site's name. Generic: a plugin qualifies by declaring `tokenAuth` on exactly one
+- * remote server in its `mcp.json`; the tokens page and the probe URL both come from there.
+- */
+-
+-/** One plugin the onboarding form can offer a token field for. */
+-export interface TokenSignInPlugin {
+-  readonly pluginId: string;
+-  readonly displayName: string;
+-  /** Where the person creates a token (the plugin's own `tokenAuth.helpUrl`). */
+-  readonly helpUrl: string;
+-}
+-
+-/** The plugin's one token-auth declaration, or `null` for none or more than one (the same rule
+- *  `agent_plugin_set_access_token` refuses on). */
+-function soleTokenAuth(servers: Readonly<Record<string, McpServerConfig>>): AgentPluginTokenAuth | null {
+-  const declared = Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tokenAuth ? [config.tokenAuth] : []));
+-  // Exactly one element was just checked, so `declared[0]` is present; the cast only narrows the
+-  // index type (no fallback branch can ever run).
+-  return declared.length === 1 ? (declared[0] as AgentPluginTokenAuth) : null;
+-}
+-
+-/**
+- * The installed plugins that take a pasted token, sorted by id.
+- * @complexity O(p·s) over installed plugins and their servers.
+- */
+-export async function listTokenSignInPlugins(
+-  required: {
+-    readonly workspaceId: string;
+-    /** @agent-note Second host: your installed-plugin read (declared servers per plugin id); no filesystem default here. */
+-    readonly listPlugins: (workspaceId: string) => Promise<readonly { readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>> }[]>;
+-  },
+-  _optional: Record<string, never> = {},
+-): Promise<readonly TokenSignInPlugin[]> {
+-  const plugins = await required.listPlugins(required.workspaceId);
+-  return plugins
+-    .flatMap(({ pluginId, servers }) => {
+-      const auth = soleTokenAuth(servers);
+-      return auth ? [{ pluginId, displayName: titleCaseFromPluginId({ pluginId }), helpUrl: auth.helpUrl }] : [];
+-    })
+-    .sort((a, b) => a.pluginId.localeCompare(b.pluginId));
+-}
+-
+-export type TokenCheckOutcome = "ok" | "invalid" | "refused" | "unavailable" | "unsupported";
+-
+-/**
+- * Checks `token` against the plugin's declared probe URL (one GET; 401/403 refused). Never throws,
+- * never returns or logs the token. `unsupported`: the plugin is not installed or takes no token.
+- */
+-export async function checkAgentPluginAccessToken(
+-  required: {
+-    /** @agent-note Second host: `tokenValidator` is your token rule (R1, required); `resolveInstalledPlugin` your installed read. */
+-    readonly deps: {
+-      readonly workspaceId: string;
+-      readonly credentials: Pick<AgentPluginTokenCredentialsPort, "probe">;
+-      readonly resolveInstalledPlugin: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
+-      readonly tokenValidator: Pick<AgentPluginTokenValidator, "assertToken">;
+-    };
+-    readonly input: { readonly pluginId: string; readonly token: string };
+-  },
+-  _optional: Record<string, never> = {},
+-): Promise<TokenCheckOutcome> {
+-  const { deps, input } = required;
+-  const resolvePlugin = deps.resolveInstalledPlugin;
+-  let plugin: ResolvedAgentPluginForConnect | null;
+-  try {
+-    plugin = await resolvePlugin(input.pluginId);
+-  } catch {
+-    return "unsupported";
+-  }
+-  const auth = plugin ? soleTokenAuth(plugin.servers) : null;
+-  if (!auth) return "unsupported";
+-  return probeToken({ probeUrl: auth.probeUrl, token: input.token, credentials: deps.credentials, tokenValidator: deps.tokenValidator });
+-}
+diff --git a/apps/website/src/features/agent-plugins/service-ports.ts b/apps/website/src/features/agent-plugins/service-ports.ts
+index 0a2d5fa4d..56bc0ef12 100644
+--- a/apps/website/src/features/agent-plugins/service-ports.ts
++++ b/apps/website/src/features/agent-plugins/service-ports.ts
+@@ -62,4 +62,4 @@ export interface AgentPluginSignInPort {
+   isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
+ }
+ /** Card ports moved to the portable card body (A10); re-exported so Tovu callers keep this path. */
+-export type { AgentPluginCardsPort, AgentPluginCardBuilders } from "./portable/connect-card-ui.js";
++export type { AgentPluginCardsPort, AgentPluginCardBuilders } from "@jini-ai/agent-plugins/connect";
+diff --git a/apps/website/src/features/agent-plugins/token-sign-in.ts b/apps/website/src/features/agent-plugins/token-sign-in.ts
+index d5922e487..f6c12ed59 100644
+--- a/apps/website/src/features/agent-plugins/token-sign-in.ts
++++ b/apps/website/src/features/agent-plugins/token-sign-in.ts
+@@ -1,4 +1,4 @@
+-/** Tovu compatibility shim (A10c seam). The portable body lives in `./portable/token-sign-in.ts`; these
++/** Tovu compatibility shim (A10c seam). The portable body lives in `@jini-ai/agent-plugins/connect`; these
+  * entries keep their positional signatures and bind Tovu's credential token rule (R1). */
+ import type { PluginCredentialsPort } from "./service-ports.js";
+ import { tovuTokenValidator } from "./access-token-tool.js";
+@@ -7,8 +7,8 @@ import type { InstalledAgentPluginServers } from "./import-access-token.js";
+ import {
+   listTokenSignInPlugins as listWithPorts, checkAgentPluginAccessToken as checkWithPorts,
+   type TokenSignInPlugin, type TokenCheckOutcome,
+-} from "./portable/token-sign-in.js";
+-export type { TokenSignInPlugin, TokenCheckOutcome } from "./portable/token-sign-in.js";
++} from "@jini-ai/agent-plugins/connect";
++export type { TokenSignInPlugin, TokenCheckOutcome } from "@jini-ai/agent-plugins/connect";
+ 
+ /** Same signature as the pre-seam entry. */
+ export function listTokenSignInPlugins(

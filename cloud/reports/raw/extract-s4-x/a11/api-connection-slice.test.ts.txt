@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: vertical slice: connect -> public callback -> plugin access token -> form-delivery credential
+ok 1 - vertical slice: connect -> public callback -> plugin access token -> form-delivery credential
+  ---
+  duration_ms: 148.074271
+  type: 'test'
+  ...
+# Subtest: security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request
+ok 2 - security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request
+  ---
+  duration_ms: 79.687741
+  type: 'test'
+  ...
+# Subtest: security: the callback refuses an unknown state without any token exchange and renders no request data
+ok 3 - security: the callback refuses an unknown state without any token exchange and renders no request data
+  ---
+  duration_ms: 13.182738
+  type: 'test'
+  ...
+# Subtest: security: a replayed callback state is refused; a wrong PKCE verifier never yields tokens
+ok 4 - security: a replayed callback state is refused; a wrong PKCE verifier never yields tokens
+  ---
+  duration_ms: 108.335384
+  type: 'test'
+  ...
+# Subtest: security: getAccessToken refuses another plugin's or another workspace's connectionRef with the same message
+ok 5 - security: getAccessToken refuses another plugin's or another workspace's connectionRef with the same message
+  ---
+  duration_ms: 15.592871
+  type: 'test'
+  ...
+# Subtest: security (pin): hosted sign-in is refused when this site has no public origin
+ok 6 - security (pin): hosted sign-in is refused when this site has no public origin
+  ---
+  duration_ms: 10.899324
+  type: 'test'
+  ...
+# Subtest: security (pin): hosted sign-in is refused from an origin the connection's web client did not register
+ok 7 - security (pin): hosted sign-in is refused from an origin the connection's web client did not register
+  ---
+  duration_ms: 3.127562
+  type: 'test'
+  ...
+# Subtest: security (pin): a registered origin gets the fixed public callback path
+ok 8 - security (pin): a registered origin gets the fixed public callback path
+  ---
+  duration_ms: 2.811282
+  type: 'test'
+  ...
+# Subtest: security: hosted sign-in fails closed when no callback origin is declared or configured
+ok 9 - security: hosted sign-in fails closed when no callback origin is declared or configured
+  ---
+  duration_ms: 4.930063
+  type: 'test'
+  ...
+# Subtest: security: the configured callback-origin list admits only the origins it names
+ok 10 - security: the configured callback-origin list admits only the origins it names
+  ---
+  duration_ms: 4.443498
+  type: 'test'
+  ...
+# Subtest: security: an attempt is consumed once even when two callbacks race on the same state
+ok 11 - security: an attempt is consumed once even when two callbacks race on the same state
+  ---
+  duration_ms: 6.841996
+  type: 'test'
+  ...
+# Subtest: security: two open sign-in attempts for one connection and two connections' records never collide on a vault label
+ok 12 - security: two open sign-in attempts for one connection and two connections' records never collide on a vault label
+  ---
+  duration_ms: 17.315909
+  type: 'test'
+  ...
+# Subtest: security: a desktop public client's provider-issued secret reaches only the token endpoint
+ok 13 - security: a desktop public client's provider-issued secret reaches only the token endpoint
+  ---
+  duration_ms: 17.111891
+  type: 'test'
+  ...
+# Subtest: security: a hosted (confidential) client without its server-held secret is refused before any sign-in starts
+ok 14 - security: a hosted (confidential) client without its server-held secret is refused before any sign-in starts
+  ---
+  duration_ms: 3.059772
+  type: 'test'
+  ...
+# Subtest: callback: a switch to the account already connected is refused with copy that says to reconnect instead
+ok 15 - callback: a switch to the account already connected is refused with copy that says to reconnect instead
+  ---
+  duration_ms: 38.653015
+  type: 'test'
+  ...
+# Subtest: characterization: a connected account reads as connected through host.records, statusOf and readAccount
+ok 16 - characterization: a connected account reads as connected through host.records, statusOf and readAccount
+  ---
+  duration_ms: 31.597028
+  type: 'test'
+  ...
+# Subtest: characterization: a connection's hooks reach its declared API origin (account) and its token endpoint's origin (revocation)
+ok 17 - characterization: a connection's hooks reach its declared API origin (account) and its token endpoint's origin (revocation)
+  ---
+  duration_ms: 23.679196
+  type: 'test'
+  ...
+# Subtest: security: a connection's hooks get HTTP limited to its declared API origins and its token endpoint's origin
+ok 18 - security: a connection's hooks get HTTP limited to its declared API origins and its token endpoint's origin
+  ---
+  duration_ms: 15.371008
+  type: 'test'
+  ...
+# Subtest: security: a saved BYO client replaces the Tovu-owned client for its own connection; its secret reaches only the token endpoint
+ok 19 - security: a saved BYO client replaces the Tovu-owned client for its own connection; its secret reaches only the token endpoint
+  ---
+  duration_ms: 29.227052
+  type: 'test'
+  ...
+# Subtest: security: a BYO client is used only for its own workspace and connection, and only when the connection allows one
+ok 20 - security: a BYO client is used only for its own workspace and connection, and only when the connection allows one
+  ---
+  duration_ms: 44.447969
+  type: 'test'
+  ...
+# Subtest: security: switching the OAuth client makes a connected account reconnect-required, honestly, until it reconnects
+ok 21 - security: switching the OAuth client makes a connected account reconnect-required, honestly, until it reconnects
+  ---
+  duration_ms: 52.019061
+  type: 'test'
+  ...
+# Subtest: security: a client switch is detected on status reads alone (no token read), durably
+ok 22 - security: a client switch is detected on status reads alone (no token read), durably
+  ---
+  duration_ms: 26.620605
+  type: 'test'
+  ...
+# Subtest: security: rotating the BYO secret under the same client id keeps the connection
+ok 23 - security: rotating the BYO secret under the same client id keeps the connection
+  ---
+  duration_ms: 21.475333
+  type: 'test'
+  ...
+# Subtest: security: a BYO client whose base URL is not the token endpoint's origin, or that has no client id, is refused before any sign-in
+ok 24 - security: a BYO client whose base URL is not the token endpoint's origin, or that has no client id, is refused before any sign-in
+  ---
+  duration_ms: 8.537983
+  type: 'test'
+  ...
+# Subtest: security: a hosted BYO web client returns to this site's own address, and still fails closed without one
+ok 25 - security: a hosted BYO web client returns to this site's own address, and still fails closed without one
+  ---
+  duration_ms: 7.486374
+  type: 'test'
+  ...
+# Subtest: security: a byoClient flag that is not true or false refuses the whole declaration (never read as allowed)
+ok 26 - security: a byoClient flag that is not true or false refuses the whole declaration (never read as allowed)
+  ---
+  duration_ms: 0.425063
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4850.455248

@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header
+ok 1 - a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header
+  ---
+  duration_ms: 2.188104
+  type: 'test'
+  ...
+# Subtest: 401 and 403 are refused; any other failure or an unreachable vendor is unavailable
+ok 2 - 401 and 403 are refused; any other failure or an unreachable vendor is unavailable
+  ---
+  duration_ms: 0.714495
+  type: 'test'
+  ...
+# Subtest: unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one
+ok 3 - unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one
+  ---
+  duration_ms: 0.506893
+  type: 'test'
+  ...
+# Subtest: a stdio server never counts as the token-auth server
+ok 4 - a stdio server never counts as the token-auth server
+  ---
+  duration_ms: 0.207618
+  type: 'test'
+  ...
+# Subtest: the sign-in list names each token plugin once, sorted by id, with its tokens page
+ok 5 - the sign-in list names each token plugin once, sorted by id, with its tokens page
+  ---
+  duration_ms: 12.784376
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2619.934363

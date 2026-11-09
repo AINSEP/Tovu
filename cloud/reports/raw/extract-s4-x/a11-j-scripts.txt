@@ -1,0 +1,69 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /workspace/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 17511ms
+   ✓ XP1 rejects a new source with type-only import 740ms
+   ✓ XP1 rejects a new source with inline type import 385ms
+   ✓ XP1 rejects a new source with value import 609ms
+   ✓ XP1 rejects a new source with type export 594ms
+   ✓ XP1 rejects a new source with value export 403ms
+   ✓ XP1 rejects a new source with dynamic import 511ms
+   ✓ XP1 rejects a new source with require 437ms
+   ✓ XP1 rejects a new source with import type node 490ms
+   ✓ XP2 permits an unchanged pre-existing edge and XP3 permits its unchanged declaration 338ms
+   ✓ XP2 rejects a newly introduced specifier in a modified source 473ms
+   ✓ XP3 rejects a new declaration edge even when the modified source imports only core 407ms
+   ✓ XP3 reads the configured declaration output rather than assuming dist 451ms
+   ✓ XP3 fails closed on missing or invalid current declarations 767ms
+   ✓ XP3 fails closed on missing or invalid baseline declarations 844ms
+   ✓ XP3 fails closed on missing or invalid mapping declarations 581ms
+   ✓ XP3 fails closed on missing or invalid directory declarations 470ms
+   ✓ XP3 fails closed on missing or invalid provenance declarations 534ms
+   ✓ XP3 requires current declarations for added sources too 785ms
+   ✓ XP4 permits only contracts with type declarations and relative type imports inside core 491ms
+   ✓ XP4 rejects invalid contract: export const value = 1; 426ms
+   ✓ XP4 rejects invalid contract: export enum Value { X } 375ms
+   ✓ XP4 rejects invalid contract: namespace Value {} 326ms
+   ✓ XP4 rejects invalid contract: console.log(1); 417ms
+   ✓ XP4 rejects invalid contract: export default interface Value {} 379ms
+   ✓ XP4 rejects invalid contract: export = Value; 436ms
+   ✓ XP4 rejects invalid contract: import { Existing } from '../index.js'; 398ms
+   ✓ XP4 rejects invalid contract: import type { X } from 'node:fs'; 318ms
+   ✓ XP4 rejects invalid contract: import type { X } from 'vendor'; 318ms
+   ✓ XP4 rejects invalid contract: import type { X } from '../../../outside.js'; 357ms
+   ✓ XP4 rejects runtime JavaScript even when its source is type-only 342ms
+   ✓ core cannot import any Jini package 356ms
+   ✓ XP5 rejects a new peerDependencies edge, including optional peers 351ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 4048ms
+   ✓ XP1 and XP3 reject a new source with an import-equals edge 433ms
+   ✓ XP1 and XP3 reject an import-equals edge in a moved source and its declaration 313ms
+   ✓ XP2 rejects a newly added import-equals specifier and permits the unchanged one 690ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 617ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 487ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 1506ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 37233ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 2878ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 2486ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 2932ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 3704ms
+   ✓ F1 writer refuses dirty tracked source 2073ms
+   ✓ F1 writer refuses a missing emitted declaration 1775ms
+   ✓ F1 writer refuses unsafe source destination 2305ms
+   ✓ F1 writer refuses unsafe ancestor destination 2943ms
+   ✓ F1 writer refuses unsafe relative destination 1769ms
+   ✓ F1 writer refuses unsafe symlink destination 2238ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 2679ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 1565ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 1452ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 2393ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 1901ms
+   ✓ F6 ambient module declaration allows core/self for a domain and forbids a Jini edge from core 438ms
+   ✓ F6 XP5 refuses new optionalDependencies edges and permits core 495ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 9ms
+
+ Test Files  4 passed (4)
+      Tests  76 passed (76)
+   Start at  15:48:50
+   Duration  41.01s (transform 517ms, setup 0ms, collect 6.21s, tests 58.80s, environment 1ms, prepare 855ms)
+

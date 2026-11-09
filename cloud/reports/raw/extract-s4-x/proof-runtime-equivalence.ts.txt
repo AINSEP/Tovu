@@ -1,0 +1,19 @@
+import ts from '/workspace/Jini/node_modules/typescript/lib/typescript.js';
+import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+const rows=JSON.parse(readFileSync('/workspace/work/a11-verbatim-move.json','utf8'));
+const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
+let functions=0;
+for(const row of rows){
+ const before=execFileSync('git',['show',`f975fe2f4c2bd9c8bd616652a95464a3138e1cc3:${row.destinationPath}`],{cwd:'/workspace/Jini',encoding:'utf8'});
+ const after=readFileSync('/workspace/Jini/'+row.destinationPath,'utf8');
+ const compile=(source:string)=>ts.transpileModule(source,{fileName:row.destinationPath,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,removeComments:true,verbatimModuleSyntax:true}}).outputText;
+ const original=compile(before), current=compile(after);
+ if(original!==current)throw Error(`runtime changed: ${row.destinationPath}`);
+ const ast=ts.createSourceFile(row.destinationPath,after,ts.ScriptTarget.Latest,true);
+ const exported=ast.statements.filter(ts.isFunctionDeclaration).filter(n=>n.modifiers?.some(m=>m.kind===ts.SyntaxKind.ExportKeyword));
+ for(const fn of exported){if(fn.parameters.length!==2)throw Error(`object API arity: ${fn.name?.text}`);const p=fn.parameters[0]!;if(!p.type||!ts.isTypeLiteralNode(p.type))throw Error(`first argument is not an explicit object: ${fn.name?.text}`);functions++;}
+ console.log(JSON.stringify({...row,verbatimMoveCommit:'f975fe2f4c2bd9c8bd616652a95464a3138e1cc3',runtimeEquivalent:true,runtimeSHA256:hash(current),currentSourceSHA256:hash(after),publicObjectAPIs:exported.map(fn=>fn.name?.text)}));
+}
+console.log(JSON.stringify({movedFiles:rows.length,publicObjectAPIs:functions,runtimeEquivalent:true}));

@@ -1,0 +1,51 @@
+import ts from '/workspace/Jini/node_modules/typescript/lib/typescript.js';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const root='/workspace/Jini/packages/agent-plugins/dist/connect/';
+const checks: [string,string,string[],string?][]=[
+ ['connect-card-ui.d.ts','AgentPluginCardsPort',['YOUR','Resource']],
+ ['connect-card-ui.d.ts','AgentPluginCardBuilders',['Build-only']],
+ ['connect-card-ui.d.ts','AgentPluginCredentialCardForms',['masked','never prefill']],
+ ['connect-card-ui.d.ts','AgentPluginCardIdentity',["Your app's id",'compared on answers','ONE segment']],
+ ['connect-card-ui.d.ts','AgentPluginAccessTokenFormMessages',['YOUR product','human only']],
+ ['connect-destination.d.ts','AgentPluginDestinationCardHost',['channel','current human exchange']],
+ ['connect-sign-in-wait.d.ts','waitAtAgentPluginSignInCardWithPorts',['SAME core exchange store','one answer','Resource']],
+ ['access-token-tool.d.ts','AgentPluginTokenValidator',['required input','same object','rethrown unchanged']],
+ ['access-token-tool.d.ts','AgentPluginTokenCredentialsPort',['one bounded GET','no','body']],
+ ['access-token-tool.d.ts','AgentPluginTokenTargetDeps',['canonical projection pair','installed-declaration read']],
+ ['access-token-tool.d.ts','AgentPluginAccessTokenHost',['lifecycle id','cardIdentity.uriNamespace']],
+ ['access-token-tool.d.ts','AgentPluginAccessTokenToolDeps',['tokenValidator','required (R1)','activation owner']],
+ ['access-token-tool.d.ts','saveAgentPluginToken',['SAME answer','human form','model-visible']],
+ ['connect-tool.d.ts','AgentPluginConnectSignInPort',['NO card','propagates unchanged','redacts']],
+ ['connect-tool.d.ts','AgentPluginConnectApiConnectionsPort',['unchanged','never a token']],
+ ['connect-tool.d.ts','AgentPluginConnectApprovalsPort',['principal','prepared.key','emitSurface','declined']],
+ ['connect-tool.d.ts','AgentPluginConnectHost',['host','card']],
+ ['connect-tool.d.ts','AgentPluginConnectDeps',['canonical projection pair','never copies','fresh activation owner']],
+ ['connect-tool.d.ts','runAgentPluginConnect',['Permission','approval precedes','execution options']],
+ ['grant-signed-in-defaults.d.ts','GrantSignedInDefaultsDeps',['SAME repo/private context','activation queue','principal']],
+ ['grant-signed-in-defaults.d.ts','grantDeclaredToolsAtBoot',['SAME activation owner/queue','absent records','explicit off'],'readActivations'],
+ ['import-access-token.d.ts','ImportAgentPluginAccessTokenDeps',['SAME repo/vault/projection pair','stable saved principal']],
+ ['import-access-token.d.ts','listInstalledAgentPluginServers',['ledger first','SAME ledger','no cache']],
+ ['import-access-token.d.ts','TokenImportLog',['withheld','caught error']],
+ ['import-access-token.d.ts','ImportAgentPluginAccessTokensFromEnvDeps',['host build','Pending explicit tokens']],
+ ['apply-tool-renames.d.ts','ApplyAgentPluginToolRenamesDeps',['canonical MCP repo','stable saved rename actor','provisioner/URL']],
+ ['ports.d.ts','AgentPluginMcpProjections',['JSON-serializable','stable key order','byte-for-byte'],'accessSnapshot'],
+ ['ports.d.ts','AgentPluginMcpProjections',['strict: true','throws','never'],'readToolGrants'],
+ ['ports.d.ts','AgentPluginMcpProjections',['paired','public repair reason','credential'],'validateToolNames'],
+ ['ports.d.ts','AgentPluginMcpProjections',['Pure','no I/O','never opens sealed'],'oauthStatus'],
+ ['ports.d.ts','AgentPluginMcpProjections',['Pure','no I/O','never opens sealed'],'hasStaticAccessToken'],
+ ['executable/ports.d.ts','AgentPluginExecutableRuntimeHost',['ONE `IssuedTokenMemories`','share module scope','withheld from both'],'issuedTokens'],
+ ['executable/ports.d.ts','AgentPluginExecutableRuntimeHost',['SAME','admin-surface'],'frozen'],
+];
+let failed=0;
+for(const [file,name,needles,member] of checks){
+ const source=readFileSync(root+file,'utf8');const ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true);
+ const decl=ast.statements.find(n=>'name' in n && (n as ts.NamedDeclaration).name?.getText(ast)===name);
+ let target=decl;
+ if(member&&decl){target=undefined;const visit=(n:ts.Node)=>{if(target)return;if('name' in n&&(n as ts.NamedDeclaration).name?.getText(ast)===member){target=n;return;}ts.forEachChild(n,visit)};visit(decl)}
+ const notes=(target as ts.Node & {jsDoc?: readonly ts.JSDoc[]}|undefined)?.jsDoc?.map(d=>d.getText(ast)).join('\n')??'';
+ const missing=needles.filter(s=>!notes.includes(s));const ok=!!target&&notes.includes('@agent-note')&&!missing.length;
+ console.log(JSON.stringify({file,name,member,attached:!!target&&notes.includes('@agent-note'),ok,missing,note:notes,sha256:createHash('sha256').update(source).digest('hex')}));
+ if(!ok)failed++;
+}
+console.log(JSON.stringify({checks:checks.length,failed}));if(failed)process.exitCode=1;

@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: executable plugin tools land on the process registry and are gated by the live activation record per call
+ok 1 - executable plugin tools land on the process registry and are gated by the live activation record per call
+  ---
+  duration_ms: 63.178168
+  type: 'test'
+  ...
+# Subtest: a write tool asks through the process's confirmation transport, with the plugin's disclosed rows
+ok 2 - a write tool asks through the process's confirmation transport, with the plugin's disclosed rows
+  ---
+  duration_ms: 14.668076
+  type: 'test'
+  ...
+# Subtest: without agentPluginTools the executable family is skipped
+ok 3 - without agentPluginTools the executable family is skipped
+  ---
+  duration_ms: 3.08568
+  type: 'test'
+  ...
+# Subtest: without surfaces the executable family is skipped
+ok 4 - without surfaces the executable family is skipped
+  ---
+  duration_ms: 3.39293
+  type: 'test'
+  ...
+# Subtest: without executablePluginToolRegistry the executable family is skipped
+ok 5 - without executablePluginToolRegistry the executable family is skipped
+  ---
+  duration_ms: 4.480771
+  type: 'test'
+  ...
+# Subtest: loader refusals are logged with the registrar's prefix and the valid tools still register
+ok 6 - loader refusals are logged with the registrar's prefix and the valid tools still register
+  ---
+  duration_ms: 3.543448
+  type: 'test'
+  ...
+# Subtest: a loader failure is logged and never thrown; the pass continues without the family
+ok 7 - a loader failure is logged and never thrown; the pass continues without the family
+  ---
+  duration_ms: 3.402049
+  type: 'test'
+  ...
+# Subtest: every family that fails is logged once with the registrar's prefix, a non-Error reason verbatim, and the pass never throws
+ok 8 - every family that fails is logged once with the registrar's prefix, a non-Error reason verbatim, and the pass never throws
+  ---
+  duration_ms: 0.705594
+  type: 'test'
+  ...
+# Subtest: AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not
+ok 9 - AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not
+  ---
+  duration_ms: 0.186873
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6306.365102

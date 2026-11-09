@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: frozen accounts: a bound signal returns its account for that connectionRef only
+ok 1 - frozen accounts: a bound signal returns its account for that connectionRef only
+  ---
+  duration_ms: 1.714967
+  type: 'test'
+  ...
+# Subtest: frozen accounts: another execution's signal sees nothing
+ok 2 - frozen accounts: another execution's signal sees nothing
+  ---
+  duration_ms: 0.210367
+  type: 'test'
+  ...
+# Subtest: frozen accounts: a call without a signal is never matched to a frozen account
+ok 3 - frozen accounts: a call without a signal is never matched to a frozen account
+  ---
+  duration_ms: 0.228826
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: a bare call is a bounded GET with no body, no signal and redirects refused
+ok 4 - guarded HTTP: a bare call is a bounded GET with no body, no signal and redirects refused
+  ---
+  duration_ms: 133.536129
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: method, headers, body and signal are passed through when given
+ok 5 - guarded HTTP: method, headers, body and signal are passed through when given
+  ---
+  duration_ms: 1.325989
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: the answer becomes a Response with its status, headers and body text
+ok 6 - guarded HTTP: the answer becomes a Response with its status, headers and body text
+  ---
+  duration_ms: 3.701555
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: a 204 answer becomes a bodiless Response (fetch forbids a body there)
+ok 7 - guarded HTTP: a 204 answer becomes a bodiless Response (fetch forbids a body there)
+  ---
+  duration_ms: 0.835376
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: a 205 answer becomes a bodiless Response (fetch forbids a body there)
+ok 8 - guarded HTTP: a 205 answer becomes a bodiless Response (fetch forbids a body there)
+  ---
+  duration_ms: 0.325278
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: a 304 answer becomes a bodiless Response (fetch forbids a body there)
+ok 9 - guarded HTTP: a 304 answer becomes a bodiless Response (fetch forbids a body there)
+  ---
+  duration_ms: 0.43115
+  type: 'test'
+  ...
+# Subtest: guarded HTTP: a truncated body is refused instead of returning part of it
+ok 10 - guarded HTTP: a truncated body is refused instead of returning part of it
+  ---
+  duration_ms: 3.004351
+  type: 'test'
+  ...
+# Subtest: security: guarded HTTP refuses a plaintext URL before anything is sent
+ok 11 - security: guarded HTTP refuses a plaintext URL before anything is sent
+  ---
+  duration_ms: 0.32892
+  type: 'test'
+  ...
+# Subtest: tool HTTP: a declared origin is reached, looked up for the calling plugin and workspace
+ok 12 - tool HTTP: a declared origin is reached, looked up for the calling plugin and workspace
+  ---
+  duration_ms: 19.436261
+  type: 'test'
+  ...
+# Subtest: security: tool HTTP compares whole origins, so a declared host on another port is refused
+ok 13 - security: tool HTTP compares whole origins, so a declared host on another port is refused
+  ---
+  duration_ms: 0.523621
+  type: 'test'
+  ...
+# Subtest: tool HTTP: a plaintext URL keeps the https-only message and needs no origin lookup
+ok 14 - tool HTTP: a plaintext URL keeps the https-only message and needs no origin lookup
+  ---
+  duration_ms: 0.588419
+  type: 'test'
+  ...
+# Subtest: tokens: an unconfirmed call asks without an expected account
+ok 15 - tokens: an unconfirmed call asks without an expected account
+  ---
+  duration_ms: 0.673518
+  type: 'test'
+  ...
+# Subtest: tokens: a confirmed call asks for the account frozen against its own signal
+ok 16 - tokens: a confirmed call asks for the account frozen against its own signal
+  ---
+  duration_ms: 0.312158
+  type: 'test'
+  ...
+# Subtest: T13: a confirmed call refuses a token for a connection absent from its frozen approval
+ok 17 - T13: a confirmed call refuses a token for a connection absent from its frozen approval
+  ---
+  duration_ms: 0.269708
+  type: 'test'
+  ...
+# Subtest: T23: aborting a tool propagates to its in-flight HTTP request even with a plugin signal
+ok 18 - T23: aborting a tool propagates to its in-flight HTTP request even with a plugin signal
+  ---
+  duration_ms: 0.96093
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1503.709435

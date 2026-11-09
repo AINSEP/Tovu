@@ -1211,3 +1211,91 @@ All original security/order/retry/never-widening reasons remain beside the moved
 Jini source/build/declarations remain at the fresh baseline because A10 is still seamed in Tovu. No moved declaration emission is claimed yet. Source line delta for the seam/test commit: +538/−304 across six files; scanner fix +15/−1, fixture/withholding follow-up +9/−7. Raw command arrays and exact paths are retained, not braced pseudo-paths.
 
 **A11 preflight:** actual neutrality check on copies of the nine seamed bodies and the unchanged real policy reports one N2-consumer-path in `apply-tool-renames`'s T-specific `#src/assistant/` rationale. That entire original rationale already exists verbatim beside the T shim's notify binding. A11 will keep that host rationale there and put the portable shared-roster custody note on the J declaration. No guard/policy exemption will be added. The nine-file move, public exports, T import rewiring, declaration attachment, final accumulated gate and C-b evidence are next. The after-merge note move remains untouched.
+
+### A11 — atomic family move and public host wiring (15:42–15:59Z)
+
+**Pushed implementation commits:**
+- Jini **f975fe2f4c2bd9c8bd616652a95464a3138e1cc3**: move exactly the nine inventoried bodies, **1833 lines**, byte-for-byte from Tovu **651febcb280e6e7f8fe1388af8e61c13a1ec5324**. `a11-verbatim-move.json` records every source path/ref/blob/SHA256 and destination path. All nine destination blobs at this commit equal their T source blobs. No implementation was retyped or sliced.
+- Jini **0ccd93ce965eae248570733a8ea1e9ea4d00a632**: nine exports from the existing `connect/index.ts`, API changeset, and attached second-host custody notes. The N2-rejected host import-boundary rationale remains verbatim at T `apply-tool-renames.ts`'s notifier binding; the duplicated J comment becomes the portable same-roster custody note. No source-neutrality exception or guard change.
+- Tovu **00c1fd0ab91820e85461d3918ff48e023e0f54e9**: delete the nine portable copies, rewire nine shims, two bindings and five S4-added tests to the J public entry (25 import/re-export edits). The static source test now resolves that public entry and checks **exactly all nine** moved source files. Legacy signatures, registration/note/catalog/risk/contributor, host data and UI/credential owners stay in T. The newly exported internal target binder also receives the optional object parameter; existing callers are unchanged.
+- Jini **ade600935216d28694f31a6d4b04a1c3380bca58**: repair the first J build's 11 strict optional-property errors. The T compiler had accepted explicitly present `undefined` values; J's exactOptionalPropertyTypes correctly required those cases to be declared. Fifteen local optional annotations in five moved files now explicitly accept undefined, preserving the original object keys and runtime calls. **No compiler setting, core/UI pin, dependency or old test was changed.** Rebuild and package `tsc --noEmit` pass.
+
+Both repos were pulled with rebase immediately before pushes and their full S4 tips verified. No fallback/force push or conflict was needed. Jini's final continuation delta is **11 files, +1881 lines** (nine bodies, index, changeset); Tovu's net source delta since the continuation start is **23 files, +232/−1814** (the two A10 portable files were created then moved out, so they disappear from that net diff).
+
+**Public/runtime/declaration proof:**
+- `a11-public-focused.txt`: **24/24** through public exports, including opaque non-UI Resource cards, generic callback/form types, token save/cancel/refusal/validator identity, consent and permission rechecks, lazy MCP access, import/grant trust/custody and renames. The full existing suite runs through T shims below.
+- `a11-runtime-equivalence.txt`: all nine final bodies transpile to **byte-identical comment-free JavaScript** compared with the verbatim move commit. Post-move edits are contract documentation and type annotations only. Hashes and all **25 public functions** are recorded; each has a required object plus optional object parameter.
+- `a11-comment-custody.txt`: **138/138 original comments retained**, checking the original continuation source against the final J body plus its T shim, with only the four individually recorded N1 substitutions. The host-specific notifier rationale is retained at its original T binding. No rationale cut to satisfy a scratch parser.
+- `a11-emitted-notes-repaired.txt`: **33 declaration/member attachment checks pass**, retaining the actual attached JSDoc and declaration SHA256, not merely counting strings. These cover card identity/opaque Resource/forms, one exchange store and answer lifecycle, separate required validator/error identity, token custody, sign-in refusal/public-safe copy, approval principal/fingerprint/decline rules, same store/projections/activation owners, boot snapshot order, bundled trust and safe logs, rename attribution, five projection rules and the existing shared issued-token/frozen-account members.
+- The first note verifier had six harness failures: three guessed wording needles, a nested `oauthStatus` field overwriting the intended member, and two members cited on RegistrationRequired instead of their real RuntimeHost declaration. The actual emitted notes were inspected directly; correcting the verifier's citations/traversal/needles yields 33/33 **without modifying contracts to fit it**. First red and repaired output, and the corrected verifier as text, are retained.
+- Existing `./connect`, `./connect/plugin-host`, `./connect/executable` isolation mappings remain `lifecycle`. No manifest edit/new package/dependency/peer/shared bypass. Actual closure audit: connect 71 files, dependencies core + self; plugin-host 55 files/core; executable 55 files/core + existing non-Jini JSON-schema validator. Universal connect metadata remains truthful; no UI, daemon, integrations, MCP or T runtime import was introduced.
+
+### Final accumulated gate — exact implementation pair
+
+**Last green tested pair:**
+- Tovu **00c1fd0ab91820e85461d3918ff48e023e0f54e9**, `cloud/extract-s4`.
+- Jini **ade600935216d28694f31a6d4b04a1c3380bca58**, `cloud/extract-s4`.
+
+The following report/evidence commits are report-only descendants of that T source tip. They do not claim an additional implementation test run. Both implementation tips were independently verified with `ls-remote` again at 16:05Z.
+
+| Required check | Actual final result | Evidence under raw/extract-s4-x |
+|---|---|---|
+| Full verified T named matrix plus all S4 new tests | **83 files; 831 tests, 830 pass, one known publisher-identity failure; no skipped/cancelled/todo** | `a11-files.txt`, `a11/summary.json`, every per-file TAP/PID/exit, `a11-t-matrix-run.txt` |
+| Per-file parity against fresh baseline | Every pre-existing count/result identical; only +1 scanner regression case and +6 new remaining-seam cases | baseline/final summaries; assertions checked directly |
+| All nine accumulated baselines | pass; three moved-tool goldens, registration contracts, mail golden/parity, cost counters, wiring identity, saved-key round trip | corresponding `a11/*.txt` |
+| J named matrix | **278/278**: scripts 76, agent-plugins 100, integrations 60, platform 3, UI credential-card 2, neutral-host 37 | `a11-j-matrix.json`, six named logs |
+| J touched build / tsc | first build 2 (11 own exact-optional errors); repaired build 0; package tsc 0 | `a11-j-build-first.txt`, `a11-j-build-repaired.txt`, `a11-j-tsc.txt` |
+| J scripts / neutral-host compile | 0 / 0 | `a11-j-scripts-tsc.txt`, `a11-j-neutral-tsc.txt` |
+| T relink / contracts build / main compile | 0 / 0 / 0, J build precedes relink | `a11-t-relink.txt`, `a11-t-contracts.txt`, `a11-t-tsc-first.txt` |
+| Broad T tests compile | raw exit 2, **exactly the same 13 full diagnostic lines** as the fresh baseline/A10c, zero new errors | `a11-t-broad.txt` |
+| Excluded T provider-field and core/UI card parity pins | 0 / 0 | `a11-t-pin.txt`, `a11-j-card-pins.txt` |
+| Cyclomatic/cognitive ceiling 10 on all changed production files | J 10 files / T 11 files: 0 errors, no inline configuration honored | `a11-j-complexity.txt`, `a11-t-complexity.txt` |
+| XP1–XP5 / original XP3 snapshot | exit 0; root base remains immutable 35c4961af; no gate-time generation | `a11-j-xp.txt`, snapshot proof |
+| Actual full guard | raw exit 1, exactly **R2-deep-path ×1** plugin-catalog/scripts/generate.ts and **R10-chatpane-public-surface ×1** ChatPane.tsx; complete output read directly | `a11-j-guard.txt` |
+| All guard families accounted for | HW1–HW9 totals **17/16/135/1/0/0/0/49/0**, each new0; six R13 informational lines; **N1/N2/R8/additional findings 0**; summary two violations | same complete raw guard |
+| Plugins / layers / isolation | 0 / [] / []; SI-c9/SI-d7 unchanged | `a11-j-plugins.txt`, `a11-j-layers.txt` |
+| Pins / saved bytes / metadata | 28 T + 8 core/UI source/type pins unchanged, no old fixture regenerated | `pins.json`, `core-ui-pins.json`, custody audit |
+| Snapshot immutability | 3308 mappings, 3320 declarations, nonempty mappings; manifest d836eba0… and aggregate 08b79774… unchanged and exactly the historical values | original XP3 proof and final recheck |
+| Source/API custody | 9 runtime-equivalent bodies, 25 object APIs, 138 retained comments, 33 attached-note checks, no forbidden new Jini edge | dedicated proof logs and corrected proof scripts as text |
+| Paired pushes | source pair above verified full tips; report-only descendants separately recorded | commit list / final task response |
+
+The known prior reds remain visible: T publisher identity, the exact 13 broad-test diagnostics, and the two guard debts. No expectation, baseline, fixture, guard/layer/isolation/debt policy or declaration mapping was weakened to make a gate green. The unrelated UI sign-in-card errors were neither fixed nor counted as passes.
+
+### C-b evidence for independent Claude review — ready, not self-approval
+
+**Inputs and scope:** owner-approved EXTRACT-S4-X continuation; prior S4 report including its 95-row A10 inventory and last Remaining work list; original S3 bases T **c3801c833a191be51753dcdecd133b0cad6f8945** / J **4044fe3c0fa34b1f903c5d20a6b4de7714cde573**; continuation foundations T **814ab1dc61589444ac3a8eb140bab2ce8255ae64** / J **f774b9e5c543815b43fa637137a75150aa831f5e**; immutable XP3 **35c4961af718f0f30591c46d2ea2756c4484a731**. Prior S3 verdicts and S4-0/A8/A9 red/repair/mutation evidence remain in the earlier report sections; they were not relitigated or rewritten. The previously withdrawn S3 guard claims remain withdrawn.
+
+The existing H0 adoption record is unchanged: adopted J **5c3235e615208f181ae2d698c83fd6ff0a32c712**, upstream type contracts **27063efcc7c0327f517429812e167174d1a80448** and neutral config comment **60f593071fbec15fda1ada9b3df886ba6c20e14c**, with paths/blobs in the earlier A9 table. This continuation changes no core/MCP/integrations/server runtime, hosted policy/store/vault, route or S5 report. No independent Claude invocation/review has been run; C-b is the evidence section for the owner to review afterwards.
+
+| Review concern | Final evidence and custody |
+|---|---|
+| Owner's package/import rule | Nine bodies import only core or self; same-package ownership for grants/federation, host callbacks for other owners. XP/source/declaration/layer/isolation checks pass without new dependencies or exemptions. No umbrella/server workflow/DI container. |
+| Required grant callback | Existing C/plugin-host.ts one-line grant binding stays intact and now reaches the moved body through its T shim; the required callback remains on plugin-host. Actual A8/public-host trace still provisions, reports its warnings, then invokes the grant with exact failed-server skips/approved key. Confirmed provisioning failure refuses before grant. No new back-import from plugin-host into this family. |
+| Consent/order | Existing and A10b public tests retain permission recheck, bound principal/fingerprint, decline/expiry withholding and approve → provision → sign in → revalidate. No grant before confirmation, duplicate exchange or activation; new declined-callback mutant fails. |
+| Card identity | Required host `uriNamespace`/app names, opaque Resource preserved through wait callback. T still supplies `tovu`, unchanged connect/destination suffixes, four app identities/version1 and `credential_save` lifecycle. The host's credential-card apply retains `tovu-plugin-credential-card`; no UI runtime or consumer identity moved into core/J defaults. |
+| Host vocabulary / text/schema | Tool ids, permissions, actor ids, public URL, channel, screens, retry/product text are host inputs; neutral copy/protocol constants unchanged. Historical caller/vendor/example names in rationale remain provenance, not runtime defaults. Metadata hash **a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6** and goldens unchanged. |
+| R1 validator / errors | Separate required tokenValidator, original error object/rule classification; no platform import. Public failure text uses existing redaction and host copy. Unknown faults keep identity; ordinary T suffix/punctuation/refusal bytes stay pinned. |
+| Canonical rows / saved state | Core hosted-mcp rows/aliases reused, not duplicated. Existing adopted fields/tokens/grants, AAD/sealed/ownerKey/principal/binding bytes, operator precedence, stale-only reprovision, non-widening renames and saved-state round trips pass unchanged. No migration, fixture re-mint or reconnect. |
+| Shared instances | One exchange store with answer waking waiter, one MCP repo/vault/private context, one API host/state/vault/inbox/CAS/last-sign-in-attempt owner, one issued-token memory/frozen map, one activation queue. Final wiring/vertical-slice/security tests pass; declaration members explicitly carry the custody rules. No new owner constructed. |
+| Costs / replay | The unchanged cost-counter test executes real counters against pinned JSON: **one contribution load and four credential opens per token lookup**, first and repeated; status/projection reads stay pure. Boot/connect/import/rename paths add no I/O/cache/history. Existing sealer counters, replay/idempotent import and adoption tests pass. |
+| Cuts and old-test integrity | S4-0 approved cuts, BYO restoration and injected mail validator remain as recorded. Final exact audit allows only six T frozen wiring files plus J's host-seams deferred origins and owner-approved legacy-test deletion; assertions/cases retained. Full diffs saved; no new exception added. |
+| Notes / rationale / portability | Actual emitted declaration attachments/content checked; all 138 original comments retained. N1's four neutral substitutions are enumerated above; N2's host-specific rationale remains verbatim at the T binding. Same runtime JS for all nine after moving. |
+
+**Every outside path / reason / hunk / S5 check:**
+- T `card-host-bindings.ts`: exactly one import line from portable card identity to the public J entry. T `service-ports.ts`: exactly one type re-export line to that entry. No other binder logic changed.
+- Five S4-added test files (`a10-card-seam`, `a10-tool-renames-seam`, `a10b-connect-seam`, `a10c-access-token-seam`, `a10d-remaining-seams`) use public imports; the first also resolves/checks all nine sources. The scanner regression/fixture repairs above are new-test changes. `a10c-connect-lazy-mcp` and every frozen assertion stay intact.
+- J `connect/index.ts`: one hunk, nine exports. `.changeset/extract-s4-connect-cycle.md`: one five-line API changeset. No package.json/lock/runtime/isolation mapping change.
+- T `cloud/reports/extract-s4.md` and `cloud/reports/raw/extract-s4-x/**`: report, raw commands/exits/TAP, provenance/pins/diffs and reproduction scripts saved as text only. The per-path inventory accompanies the evidence; these are not production helpers or changed guards. The brief/plan remain outside tracked paths.
+- Latest fetched S5 refs at 16:05Z are recorded in `a11-scope-audit.json`; comparison against their S3 bases finds **zero overlap on all continuation-touched paths**. Neither S5 branch was written or merged. A read-only audit command initially used the T SHA in J's cwd and failed “bad object”; it was corrected with explicit repo roots and the complete scope audit passes.
+- The R4 registration/note/combined-catalog/risk/contributor stay block, C/plugin-host grant port and the owner's after-merge F2 note location are byte-unchanged in this continuation. Full T/J source and frozen-test diffs are retained.
+
+**Prior pushed report-only commits in this continuation:** T **19ce05c3d3ebcd3df094d8b28bda01a87c8a92c9**, **da62d6d765c652c441d755d4c4de44dc20192e7b**, **651febcb280e6e7f8fe1388af8e61c13a1ec5324**. Source/test commits and the tested pair are listed above; later evidence-only tips are named in the final task response.
+
+**Numbered remaining work:**
+1. S4-0 through A11, final accumulated gate and C-b preparation: complete within this continuation's scope. No S4 implementation batch remains.
+2. Independent Claude review: intentionally not launched; this evidence is ready for it.
+3. After the merge, the owner's deferred F2 canonical-note move: intentionally unchanged, as instructed.
+
+### Shutdown preflight
+
+At 16:06Z the process audit checked **294 recorded command/test PIDs**: none remains present, no live test/build/repo-server process, and no termination was needed. No server was started for this extraction. Exact PIDs/exits are in commands and matrix logs; final shutdown/push attestation follows after saving this evidence. No publication, deployment, main merge, force push, S5 push, broad kill or helper-agent run occurred.

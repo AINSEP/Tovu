@@ -1,0 +1,23 @@
+import os, subprocess, sys, pathlib, time, re, json
+root=pathlib.Path('/workspace/work'); repo=pathlib.Path('/workspace/Tovu')
+phase,listpath=sys.argv[1:]
+env=os.environ.copy(); env['PATH']=str(root/'tools/node_modules/.bin')+':'+env['PATH']; env['NODE_OPTIONS']='--max-old-space-size=8192'; env['TSX_TSCONFIG_PATH']='apps/site-chat/tsconfig.json'
+out=root/'logs'/phase; out.mkdir(exist_ok=True)
+results=[]
+for line in pathlib.Path(listpath).read_text().splitlines():
+    if not line.strip(): continue
+    path=line.split()[-1]
+    assert (repo/path).is_file(),path
+    command=['node','--import','tsx','--import','./development/test-support/composed-bundle-env.ts','--test','--experimental-test-module-mocks','--test-concurrency=1','--test-reporter=tap',path]
+    name=pathlib.Path(path).name; start=time.time()
+    with (out/(name+'.txt')).open('w') as f:
+        p=subprocess.Popen(command,cwd=repo,env=env,stdout=f,stderr=subprocess.STDOUT)
+        print(f'{phase} {name} pid={p.pid}',flush=True)
+        try: code=p.wait(timeout=180)
+        except subprocess.TimeoutExpired: p.terminate(); code=p.wait(timeout=10)
+    raw=(out/(name+'.txt')).read_text()
+    stats={k:int(v) for k,v in re.findall(r'^# (tests|pass|fail|cancelled|skipped|todo) (\d+)$',raw,re.M)}
+    row={'file':path,'exit':code,'pid':p.pid,'seconds':round(time.time()-start,2),**stats}; results.append(row)
+    print(json.dumps(row),flush=True)
+    (out/'summary.json').write_text(json.dumps(results,indent=2)+'\n')
+print(json.dumps({'files':len(results),'totals':{k:sum(r.get(k,0) for r in results) for k in ['tests','pass','fail','cancelled','skipped','todo']}}),flush=True)

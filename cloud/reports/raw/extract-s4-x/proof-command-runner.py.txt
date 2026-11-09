@@ -1,0 +1,22 @@
+import os, subprocess, sys, time, json, pathlib
+root=pathlib.Path('/workspace/work')
+env=os.environ.copy()
+env['PATH']=str(root/'tools/node_modules/.bin')+':'+env['PATH']
+env['npm_config_cache']=str(root/'npm-cache')
+env['COREPACK_HOME']=str(root/'corepack')
+env['XDG_CACHE_HOME']=str(root/'cache')
+env['npm_config_devdir']=str(root/'node-gyp')
+env['ELECTRON_CACHE']=str(root/'electron-cache')
+env['NODE_OPTIONS']='--max-old-space-size=8192'
+cwd,name,*command=sys.argv[1:]
+log=root/'logs'/f'{name}.txt'
+start=time.time()
+with log.open('w') as f:
+    p=subprocess.Popen(command,cwd=cwd,env=env,stdout=f,stderr=subprocess.STDOUT)
+    print(f'{name}: pid={p.pid}',flush=True)
+    code=p.wait()
+record={'name':name,'cwd':cwd,'command':command,'pid':p.pid,'exit':code,'seconds':round(time.time()-start,2)}
+with (root/'commands.jsonl').open('a') as f: f.write(json.dumps(record)+'\n')
+print(json.dumps(record),flush=True)
+if code: print(log.read_text()[-4500:])
+sys.exit(code)

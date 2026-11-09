@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: Agent Plugins shows signed-in state independently of whether a plugin is enabled
+ok 1 - Agent Plugins shows signed-in state independently of whether a plugin is enabled
+  ---
+  duration_ms: 3.10059
+  type: 'test'
+  ...
+# Subtest: all declared plugin connections must be signed in, and unrelated manual servers never confer status
+ok 2 - all declared plugin connections must be signed in, and unrelated manual servers never confer status
+  ---
+  duration_ms: 0.312405
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1376.007471

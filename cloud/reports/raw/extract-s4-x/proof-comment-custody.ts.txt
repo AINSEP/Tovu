@@ -1,0 +1,10 @@
+import ts from '/workspace/Jini/node_modules/typescript/lib/typescript.js';
+import {readFileSync} from 'node:fs';
+const rows=JSON.parse(readFileSync('/workspace/work/provenance-originals.json','utf8'));
+function comments(source:string){const ast=ts.createSourceFile('source.ts',source,ts.ScriptTarget.Latest,true);const ranges=new Map<number,number>();const visit=(node:ts.Node)=>{for(const range of [...(ts.getLeadingCommentRanges(source,node.pos)??[]),...(ts.getTrailingCommentRanges(source,node.end)??[])])ranges.set(range.pos,range.end);ts.forEachChild(node,visit)};visit(ast);return [...ranges].sort((a,b)=>a[0]-b[0]).map(([a,b])=>source.slice(a,b))}
+const normalize=(s:string)=>s.replace(/^\s*\/\*\*?\s*|\s*\*\/\s*$/g,'').replace(/^\s*\/\/\s*|^\s*\*\s?/gm,'').replace(/\s+/g,' ').trim();
+let total=0,missing=0;
+for(const row of rows){const name=row.destination.split('/').at(-1);const before=comments(readFileSync('/workspace/work/originals/'+name,'utf8'));const destinations=[...comments(readFileSync('/workspace/Jini/'+row.destination,'utf8')),...comments(readFileSync('/workspace/Tovu/apps/website/src/features/agent-plugins/'+name,'utf8'))].map(normalize);const absent=[];
+for(const comment of before){total++;const expected=normalize(comment.replace('env preset (`TOVU_SUPABASE_MCP_*`)','env preset (host-provided variable names)').replace('THIS Tovu build','THIS host build').replace('this Tovu build seeded','this host build seeded').replace('restarting Tovu','restarting the host'));if(!destinations.some(s=>s.includes(expected)))absent.push(comment)}
+missing+=absent.length;console.log(JSON.stringify({file:name,originalComments:before.length,retained:before.length-absent.length,missing:absent}));}
+console.log(JSON.stringify({originalComments:total,missing}));if(missing)process.exitCode=1;

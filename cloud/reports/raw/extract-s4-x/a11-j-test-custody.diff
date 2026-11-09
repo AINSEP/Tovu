@@ -1,0 +1,289 @@
+diff --git a/packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts b/packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts
+deleted file mode 100644
+index 255ff46c1..000000000
+--- a/packages/agent-plugins/src/lifecycle/mail/__tests__/legacy-adapter-descriptors.unit.test.ts
++++ /dev/null
+@@ -1,55 +0,0 @@
+-import { readFileSync } from 'node:fs';
+-import { expect, it } from 'vitest';
+-import { parseMailProviderSetupProperty } from '@jini-ai/platform/mail';
+-import { parseMailAdaptersFile } from '../adapter-descriptors.js';
+-
+-const v1 = { id: 'relay', label: 'Relay', module: 'relay.mjs', credentialLabel: 'Relay key' };
+-const v2 = { id: 'relay', label: 'Relay', module: 'relay.mjs', credentialKeys: ['token', 'region'], feedback: false };
+-const raw = (version: number, entry: unknown) => JSON.stringify({ schemaVersion: version, adapters: [entry] });
+-
+-it('F3 legacy raw-only v1 and v2 without setup retain valid descriptor semantics', () => {
+-  expect(parseMailAdaptersFile({ raw: raw(1, v1) })).toEqual({ ok: true, descriptors: [v1] });
+-  expect(parseMailAdaptersFile({ raw: raw(2, v2) })).toEqual({ ok: true, descriptors: [{ ...v2, schemaVersion: 2, credentialLabel: 'Mail — Relay API' }] });
+-});
+-
+-it('F3 legacy raw-only parser validates declared setup and retains default fields', () => {
+-  const setup = { helpUrl: 'https://relay.test/help', fields: [{ key: 'baseUrl', label: 'Endpoint', type: 'url', defaultValue: 'https://api.relay.test' }] };
+-  const result = parseMailAdaptersFile({ raw: raw(2, { ...v2, setup, ignored: 'unknown' }) });
+-  expect(result).toEqual({ ok: true, descriptors: [{ ...v2, schemaVersion: 2, credentialLabel: 'Mail — Relay API',
+-    setup: { helpUrl: setup.helpUrl, fields: [
+-      { key: 'baseUrl', label: 'Endpoint', type: 'url', required: true, defaultValue: 'https://api.relay.test' },
+-      { key: 'token', label: 'API key', type: 'secret', required: true }, { key: 'region', label: 'region', type: 'text', required: true },
+-    ] },
+-  }] });
+-  expect(parseMailAdaptersFile({ raw: raw(2, { ...v2, setup: { fields: [{ key: 'token', label: 'Key', type: 'text' }] } }) })).toEqual({ ok: false, reason: 'adapters[0].setup.fields[0]: the token field must be type secret' });
+-});
+-
+-it.each([
+-  undefined, null, [], 'bad', {}, { helpUrl: 'http://insecure.test' }, { fields: 'bad' }, { fields: [null] },
+-  { fields: [{ key: 'other', label: 'Other' }] }, { fields: [{ key: 'token', label: 'Key', type: 'text' }] },
+-  { fields: [{ key: 'token', label: 'Key', type: 'secret', defaultValue: 'secret' }] },
+-  { fields: [{ key: 'region', label: 'Region', type: 'email', required: false, help: '  Help  ', placeholder: '  Region  ', helpUrl: 'https://relay.test' }] },
+-  { fields: [{ key: 'region', label: 'Region' }, { key: 'region', label: 'Repeated' }] },
+-  { fields: [{ key: 'region', label: ' ', type: 'text' }] }, { fields: [{ key: 'region', label: 'Region', type: 'number' }] },
+-  { fields: [{ key: 'region', label: 'Region', help: '' }] }, { fields: [{ key: 'region', label: 'Region', helpUrl: 'bad' }] },
+-])('F3 legacy setup result equals the real injected platform parser for %j', setup => {
+-  const input = raw(2, { ...v2, setup });
+-  expect(parseMailAdaptersFile({ raw: input })).toEqual(parseMailAdaptersFile({ raw: input, parseSetup: parseMailProviderSetupProperty }));
+-});
+-
+-it('F3 legacy actual Resend descriptor keeps its card and exact declared label', () => {
+-  const input = readFileSync(new URL('../../../../resend/tovu-mail-adapters.json', import.meta.url), 'utf8');
+-  const result = parseMailAdaptersFile({ raw: input });
+-  expect(result).toEqual(parseMailAdaptersFile({ raw: input, parseSetup: parseMailProviderSetupProperty }));
+-  expect(result.ok).toBe(true);
+-  if (!result.ok) throw new Error(result.reason);
+-  expect(result.descriptors[0]?.credentialLabel).toBe('Tovu Mail — Resend API');
+-  expect(result.descriptors[0]?.credentialCard?.title).toBe('Connect Resend');
+-});
+-
+-it('F3 wired parser receives the original arguments and its output is preserved', () => {
+-  const calls: unknown[] = []; const setup = { fields: [] };
+-  const result = parseMailAdaptersFile({ raw: raw(2, { ...v2, setup }), parseSetup: input => { calls.push(input); return 'Host validation refusal'; } });
+-  expect(calls).toEqual([{ value: setup, at: 'adapters[0]', credentialKeys: v2.credentialKeys }]);
+-  expect(result).toEqual({ ok: false, reason: 'Host validation refusal' });
+-});
+diff --git a/packages/agent-plugins/src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts b/packages/agent-plugins/src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts
+new file mode 100644
+index 000000000..597e75053
+--- /dev/null
++++ b/packages/agent-plugins/src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts
+@@ -0,0 +1,32 @@
++/**
++ * @file EXTRACT-S4 Main F4: setup validation belongs to the host runtime. With the copied parser
++ * deleted (owner-approved), a schemaVersion 2 descriptor parsed without a host validator is refused
++ * with one exact reason; raw v1 files still parse, and an injected validator's verdict is used as is.
++ */
++import { expect, it } from 'vitest';
++import type { MailProviderSetup } from '@jini-ai/core/contracts/mail';
++import { parseMailAdaptersFile } from '../index.js';
++import type { ParseMailSetup } from '../adapter-descriptors.js';
++
++const v1 = { id: 'relay', label: 'Relay', module: 'mail/relay.mjs', credentialLabel: 'Relay key' };
++const v2 = { id: 'relay', label: 'Relay', module: 'mail/relay.mjs', credentialKeys: ['token'], feedback: false };
++const file = (schemaVersion: number, adapters: unknown) => JSON.stringify({ schemaVersion, adapters });
++
++it('a v2 descriptor without a host setup validator is refused with the exact reason', () => {
++  expect(parseMailAdaptersFile({ raw: file(2, [v2]) })).toEqual({ ok: false, reason: 'this host supplies no mail setup validator' });
++  expect(parseMailAdaptersFile({ raw: file(2, [{ ...v2, setup: { fields: [] } }]) })).toEqual({ ok: false, reason: 'this host supplies no mail setup validator' });
++});
++
++it('a raw v1 file still parses without any validator', () => {
++  expect(parseMailAdaptersFile({ raw: file(1, [v1]) })).toEqual({ ok: true, descriptors: [v1] });
++});
++
++it('an injected v2 validator decides setup: its defaults are kept and its refusal is returned unchanged', () => {
++  const calls: unknown[] = [];
++  const setup: MailProviderSetup = { fields: [{ key: 'token', label: 'API key', type: 'secret', required: true }] };
++  const accept: ParseMailSetup = input => { calls.push(input); return { setup }; };
++  expect(parseMailAdaptersFile({ raw: file(2, [{ ...v2, setup: { declared: true } }]), parseSetup: accept })).toEqual({ ok: true, descriptors: [{ ...v2, schemaVersion: 2, credentialLabel: 'Mail — Relay API', setup }] });
++  expect(calls).toEqual([{ value: { declared: true }, at: 'adapters[0]', credentialKeys: ['token'] }]);
++  const refuse: ParseMailSetup = () => 'adapters[0].setup.fields[0]: host refusal';
++  expect(parseMailAdaptersFile({ raw: file(2, [v2]), parseSetup: refuse })).toEqual({ ok: false, reason: 'adapters[0].setup.fields[0]: host refusal' });
++});
+diff --git a/packages/integrations/src/api-connections/__tests__/byo-origin-order.unit.test.ts b/packages/integrations/src/api-connections/__tests__/byo-origin-order.unit.test.ts
+new file mode 100644
+index 000000000..796096c8c
+--- /dev/null
++++ b/packages/integrations/src/api-connections/__tests__/byo-origin-order.unit.test.ts
+@@ -0,0 +1,46 @@
++/**
++ * @file EXTRACT-S4 Main F3: only the credential read is caught as "unreadable". The saved
++ * credential's allowed origins are projected after the read resolves, so a malformed saved base URL
++ * rejects with the host's raw error (as before S3) instead of becoming an "unreadable" refusal.
++ */
++import { expect, it } from 'vitest';
++import { ApiConnectionError, parseApiConnectionDescriptor, resolveByoClient, type ApiConnectionByoCredentials, type DeclaredApiConnection } from '../index.js';
++
++function declaration(): DeclaredApiConnection {
++  return { pluginId: 'relay', descriptor: parseApiConnectionDescriptor({ value: { pluginId: 'relay', connectionId: 'account', label: 'Relay account',
++    authorizationEndpoint: 'https://auth.relay.test/authorize', tokenEndpoint: 'https://auth.relay.test/token', authorizationParams: { public: {}, confidential: {} }, forceConsentParams: {}, startParams: [], callbackFields: [] } }),
++    clients: {}, budgets: [], scopeSets: [], apiOrigins: ['https://api.relay.test'], byoClient: true,
++    module: { createHooks: () => ({ resolveScopes: async () => [], readAccount: async () => ({ accountId: 'a', displayName: 'Account' }), revoke: async () => {} }) } };
++}
++
++it('a malformed saved origin escapes raw with its own identity, never as an unreadable refusal', async () => {
++  const raw = new TypeError('Invalid URL');
++  const refusals: string[] = [];
++  const byoCredentials: ApiConnectionByoCredentials = {
++    read: async () => ({ connection: { username: 'client', token: 'human-secret' }, allowedOrigins: () => { throw raw; } }),
++    refuse: input => { refusals.push(input.problem); return new ApiConnectionError({ code: 'descriptor-invalid', message: 'refused' }); },
++  };
++  await expect(resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials })).rejects.toBe(raw);
++  expect(refusals).toEqual([]);
++});
++
++it('a true read failure is the unreadable refusal and projects no origins', async () => {
++  const marker = new ApiConnectionError({ code: 'descriptor-invalid', message: 'Studio client unavailable.' });
++  const refusals: string[] = [];
++  const byoCredentials: ApiConnectionByoCredentials = {
++    read: async () => { throw new Error('private read failure'); },
++    refuse: input => { refusals.push(input.problem); return marker; },
++  };
++  expect(await resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials })).toBe(marker);
++  expect(refusals).toEqual(['unreadable']);
++});
++
++it('origins are projected once, only after the read has resolved', async () => {
++  const order: string[] = [];
++  const byoCredentials: ApiConnectionByoCredentials = {
++    read: async () => { order.push('read'); return { connection: { username: 'client', token: 'human-secret' }, allowedOrigins: () => { order.push('origins'); return ['https://auth.relay.test']; } }; },
++    refuse: () => { throw new Error('unexpected refusal'); },
++  };
++  expect(await resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials })).toEqual({ clientId: 'client', clientSecret: 'human-secret' });
++  expect(order).toEqual(['read', 'origins']);
++});
+diff --git a/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts b/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
+index fdfcd8764..51d3f78c7 100644
+--- a/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
++++ b/packages/integrations/src/api-connections/__tests__/host-seams.unit.test.ts
+@@ -10,7 +10,7 @@ function declaration(): DeclaredApiConnection {
+ 
+ it('A3 public BYO seam reads one projected credential and preserves the stable label', async () => {
+   const reads: unknown[] = [];
+-  const byoCredentials: ApiConnectionByoCredentials = { read: async input => { reads.push(input); return { connection: { username: ' client ', token: 'human-secret' }, allowedOrigins: ['https://auth.relay.test'] }; }, refuse: () => { throw new Error('unexpected refusal'); } };
++  const byoCredentials: ApiConnectionByoCredentials = { read: async input => { reads.push(input); return { connection: { username: ' client ', token: 'human-secret' }, allowedOrigins: () => ['https://auth.relay.test'] }; }, refuse: () => { throw new Error('unexpected refusal'); } };
+   expect(byoClientLabel({ pluginId: 'relay', connectionId: 'account' })).toBe('relay/account OAuth client');
+   expect(await resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials })).toEqual({ clientId: 'client', clientSecret: 'human-secret' });
+   expect(reads).toEqual([{ workspaceId: 'studio', label: 'relay/account OAuth client' }]);
+@@ -20,8 +20,8 @@ it('A3 BYO unreadable/wrong-origin/missing-id refusals are the injected host err
+   const marker = new ApiConnectionError({ code: 'descriptor-invalid', message: 'Studio client unavailable; use studio settings.' });
+   const problems: string[] = [];
+   for (const read of [async () => { throw new Error('private read failure'); },
+-    async () => ({ connection: { token: 'secret', username: 'client' }, allowedOrigins: ['https://wrong.test'] }),
+-    async () => ({ connection: { token: 'secret' }, allowedOrigins: ['https://auth.relay.test'] })]) {
++    async () => ({ connection: { token: 'secret', username: 'client' }, allowedOrigins: () => ['https://wrong.test'] }),
++    async () => ({ connection: { token: 'secret' }, allowedOrigins: () => ['https://auth.relay.test'] })]) {
+     expect(await resolveByoClient({ connection: declaration(), workspaceId: 'studio', byoCredentials: { read, refuse: input => { problems.push(input.problem); return marker; } } })).toBe(marker);
+   }
+   expect(problems).toEqual(['unreadable', 'wrong-origin', 'missing-client-id']);
+diff --git a/scripts/__tests__/extract-s4-import-equals.test.ts b/scripts/__tests__/extract-s4-import-equals.test.ts
+new file mode 100644
+index 000000000..8dcb53d88
+--- /dev/null
++++ b/scripts/__tests__/extract-s4-import-equals.test.ts
+@@ -0,0 +1,108 @@
++/**
++ * @file EXTRACT-S4 Main F5: `import x = require("@jini-ai/x")` is a package edge like any other
++ * import, in sources (XP1/XP2) and in emitted declarations (XP3). Same throwaway-repo harness as
++ * check-no-cross-package.test.ts, copied so that frozen suite stays unchanged.
++ */
++import { execFileSync } from 'node:child_process';
++import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { dirname, join } from 'node:path';
++import ts from 'typescript';
++import { afterEach, expect, test } from 'vitest';
++import { checkNoCrossPackage } from '../check-no-cross-package.js';
++
++const temporary: string[] = [];
++afterEach(() => { for (const directory of temporary.splice(0)) rmSync(directory, { recursive: true, force: true }); });
++
++function fixture(options: { source?: string; declaration?: string } = {}) {
++  const directory = mkdtempSync(join(tmpdir(), 'jini-import-equals-'));
++  temporary.push(directory);
++  const root = join(directory, 'repo'), baselineDir = join(directory, 'baseline');
++  function write(file: string, text: string) {
++    const target = join(root, file); mkdirSync(dirname(target), { recursive: true }); writeFileSync(target, text);
++  }
++  function git(...args: string[]) { return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim(); }
++  for (const name of ['core', 'platform', 'ui']) {
++    write(`packages/${name}/package.json`, JSON.stringify({ name: `@jini-ai/${name}`, scripts: { build: 'tsc -p tsconfig.json' } }));
++    write(`packages/${name}/tsconfig.json`, JSON.stringify({ compilerOptions: { declaration: true, rootDir: 'src', outDir: 'dist', module: 'ESNext' }, include: ['src'] }));
++    write(`packages/${name}/src/index.ts`, name === 'platform' ? options.source ?? 'export interface Existing {}' : 'export interface Existing {}');
++  }
++  const output = 'packages/platform/dist/index.d.ts';
++  write(output, options.declaration ?? options.source ?? 'export interface Existing {}');
++  git('init', '--quiet'); git('config', 'user.name', 'Fixture'); git('config', 'user.email', 'fixture@example.test');
++  git('add', '--', 'packages'); git('commit', '--quiet', '-m', 'pinned fixture');
++  const base = git('rev-parse', 'HEAD');
++  mkdirSync(dirname(join(baselineDir, output)), { recursive: true });
++  copyFileSync(join(root, output), join(baselineDir, output));
++  writeFileSync(join(baselineDir, 'manifest.json'), JSON.stringify({ base, outputs: { 'packages/platform/src/index.ts': [output] } }));
++  function change(file: string, source: string, declaration = source) {
++    write(file, source);
++    const emitted = file.replace('/src/', '/dist/').replace(/\.[cm]?tsx?$/, '.d.ts');
++    write(emitted, declaration); write(emitted.replace(/\.d\.ts$/, '.js'), 'export {};\n');
++    git('add', '--', file);
++  }
++  return { root, baselineDir, base, write, git, change, check: () => checkNoCrossPackage({ root, baselineDir, base }) };
++}
++
++/** What tsc really emits for an exported type reached through import-equals (independent of the checker). */
++function emittedDeclaration(source: string): string {
++  const directory = mkdtempSync(join(tmpdir(), 'jini-import-equals-emit-'));
++  temporary.push(directory);
++  const file = join(directory, 'index.ts');
++  writeFileSync(file, source);
++  let declaration = '';
++  ts.createProgram([file], { declaration: true, emitDeclarationOnly: true, module: ts.ModuleKind.CommonJS, noResolve: true, skipLibCheck: true })
++    .emit(undefined, (name, text) => { if (name.endsWith('.d.ts')) declaration = text; });
++  return declaration;
++}
++
++const importEquals = "import ui = require('@jini-ai/ui'); export type X = ui.X;";
++
++test('XP1 and XP3 reject a new source with an import-equals edge', () => {
++  const f = fixture(); f.change('packages/platform/src/new.ts', importEquals);
++  expect(f.check()).toEqual([
++    { rule: 'XP1', file: 'packages/platform/src/new.ts', specifier: '@jini-ai/ui' },
++    { rule: 'XP3', file: 'packages/platform/src/new.ts', specifier: '@jini-ai/ui' },
++  ]);
++});
++
++test('XP1 and XP3 reject an import-equals edge in a moved source and its declaration', () => {
++  const f = fixture({ source: importEquals });
++  f.git('mv', 'packages/platform/src/index.ts', 'packages/platform/src/renamed.ts');
++  f.write('packages/platform/dist/renamed.d.ts', importEquals);
++  expect(f.check().map(v => [v.rule, v.specifier])).toEqual([['XP1', '@jini-ai/ui'], ['XP3', '@jini-ai/ui']]);
++});
++
++test('XP2 rejects a newly added import-equals specifier and permits the unchanged one', () => {
++  const f = fixture({ source: importEquals });
++  f.change('packages/platform/src/index.ts', `${importEquals}\n// changed\n`);
++  expect(f.check()).toEqual([]);
++  f.change('packages/platform/src/index.ts', `${importEquals} import other = require('@jini-ai/ui/other'); export type Y = other.Y;`, importEquals);
++  expect(f.check()).toEqual([{ rule: 'XP2', file: 'packages/platform/src/index.ts', specifier: '@jini-ai/ui/other' }]);
++});
++
++test('XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one', () => {
++  const f = fixture();
++  f.change('packages/platform/src/index.ts', "import type { X } from '@jini-ai/core'; export type Y = X;", importEquals);
++  expect(f.check()).toEqual([{ rule: 'XP3', file: 'packages/platform/src/index.ts', specifier: '@jini-ai/ui' }]);
++  const pinned = fixture({ source: 'export interface Existing {}', declaration: importEquals });
++  pinned.change('packages/platform/src/index.ts', 'export interface Changed {}', importEquals);
++  expect(pinned.check()).toEqual([]);
++});
++
++test('import-equals of core and of the own package are allowed; core may import no neighbour', () => {
++  const f = fixture();
++  f.change('packages/platform/src/new.ts', "import core = require('@jini-ai/core'); import self = require('@jini-ai/platform/self'); export type X = core.X | self.Y;");
++  expect(f.check()).toEqual([]);
++  const coreFixture = fixture();
++  coreFixture.change('packages/core/src/new.ts', importEquals);
++  expect(coreFixture.check().map(v => [v.rule, v.specifier])).toEqual([['XP1', '@jini-ai/ui'], ['XP3', '@jini-ai/ui']]);
++});
++
++test('the declaration tsc actually emits for import-equals is caught by XP3', () => {
++  const emitted = emittedDeclaration(importEquals);
++  expect(emitted).toContain("import ui = require('@jini-ai/ui');");
++  const f = fixture();
++  f.change('packages/platform/src/index.ts', 'export interface Changed {}', emitted);
++  expect(f.check()).toEqual([{ rule: 'XP3', file: 'packages/platform/src/index.ts', specifier: '@jini-ai/ui' }]);
++});

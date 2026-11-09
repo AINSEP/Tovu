@@ -1,0 +1,17 @@
+from pathlib import Path
+import json,hashlib,subprocess
+p=Path('/workspace/work/declaration-baseline'); m=json.loads((p/'manifest.json').read_text())
+assert m['base']=='35c4961af718f0f30591c46d2ea2756c4484a731'
+assert len(m['outputs'])==3308
+assert all(m['outputs'].values())
+files=sorted((x for x in p.rglob('*') if x.is_file()),key=lambda x: str(x.relative_to(p)))
+assert len(files)==3321
+manifest=hashlib.sha256((p/'manifest.json').read_bytes()).hexdigest()
+assert manifest=='d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459',manifest
+listing=''.join(f'{hashlib.sha256(x.read_bytes()).hexdigest()}  ./{x.relative_to(p)}\n' for x in files)
+aggregate=hashlib.sha256(listing.encode()).hexdigest()
+assert aggregate=='08b79774e4c55f4288f682316eefe4ea077317da8f855d2e854f3606bc987048',aggregate
+out=Path('/workspace/work/declaration-baseline.files.sha256')
+if out.exists(): assert out.read_text()==listing
+else: out.write_text(listing)
+print(json.dumps({'base':m['base'],'mappings':len(m['outputs']),'declarations':len(files)-1,'manifestSHA256':manifest,'aggregateSHA256':aggregate}))

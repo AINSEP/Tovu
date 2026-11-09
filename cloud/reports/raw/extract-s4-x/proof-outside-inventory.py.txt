@@ -1,0 +1,32 @@
+from pathlib import Path
+import subprocess,json,re
+T=Path('/workspace/Tovu');J=Path('/workspace/Jini');dest=T/'cloud/reports/raw/extract-s4-x/a11-outside-inventory.json'
+starts={T:'814ab1dc61589444ac3a8eb140bab2ce8255ae64',J:'f774b9e5c543815b43fa637137a75150aa831f5e'}
+bases={T:'c3801c833a191be51753dcdecd133b0cad6f8945',J:'4044fe3c0fa34b1f903c5d20a6b4de7714cde573'}
+def git(repo,*args):return subprocess.check_output(['git',*args],cwd=repo,text=True)
+rows=[]
+for repo in [T,J]:
+ tracked={l.split('\t')[-1]:l.split('\t')[0] for l in git(repo,'diff','--name-status',starts[repo],'HEAD').splitlines()}
+ for p in git(repo,'diff','--name-only').splitlines():tracked.setdefault(p,'M')
+ for p in git(repo,'ls-files','--others','--exclude-standard').splitlines():tracked[p]='A'
+ if repo==T:tracked.setdefault(str(dest.relative_to(T)),'A')
+ for p,status in sorted(tracked.items()):
+  if p.startswith('cloud/reports/raw/extract-s4-x/'):reason='Raw gate/provenance/custody/command evidence or proof source saved as text; no production or policy effect.'
+  elif p=='cloud/reports/extract-s4.md':reason='Required append-only S4-X continuation and C-b report.'
+  elif '__tests__/' in p:reason='New S4 seam tests, public export imports, and scanner/fixture repairs; frozen test edits unchanged since continuation start.'
+  elif p.endswith('card-host-bindings.ts'):reason='One-line card identity public-import rewire; same host instances/identity bytes.'
+  elif p.endswith('service-ports.ts'):reason='One-line card type public re-export rewire.'
+  elif p=='.changeset/extract-s4-connect-cycle.md':reason='Five-line changeset for new public connect APIs; no dependency/manifest change.'
+  elif p.endswith('/connect/index.ts'):reason='One hunk exporting the nine moved bodies from existing entry.'
+  elif '/portable/' in p:reason='Portable body moved verbatim to Jini; no retained duplicate implementation.'
+  elif repo==J:reason='One of the nine inventoried portable bodies; byte-preserving move followed by docs/exact-optional type annotations only.'
+  else:reason='Inventoried Tovu compatibility shim or target binding; keeps existing signatures and host inputs.'
+  if (repo/p).exists() and p!=str(dest.relative_to(T)):
+   diff=git(repo,'diff','--unified=0',starts[repo],'--',p)
+   hunks=[l for l in diff.splitlines() if l.startswith('@@')]
+   if status=='A' and not hunks:hunks=[f'new text artifact, {(repo/p).read_bytes().count(bytes([10]))} lines']
+  elif p==str(dest.relative_to(T)):hunks=['new self-inventory JSON evidence artifact']
+  else:hunks=[l for l in git(repo,'diff','--unified=0',starts[repo],'HEAD','--',p).splitlines() if l.startswith('@@')]
+  overlap=git(repo,'diff','--name-only',bases[repo],'origin/cloud/extract-s5','--',p).splitlines();assert not overlap,(repo,p,overlap)
+  rows.append({'repo':repo.name,'path':p,'status':status,'reason':reason,'hunks':hunks,'s5Overlap':False})
+dest.write_text(json.dumps({'paths':len(rows),'files':rows},indent=2)+'\n');print('Per-path/hunk/reason inventory:',len(rows),'paths; zero S5 overlap')

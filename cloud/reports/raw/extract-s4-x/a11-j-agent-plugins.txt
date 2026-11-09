@@ -1,0 +1,16 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/agent-plugins
+
+ ✓ src/admin-surfaces/__tests__/action-tools.unit.test.ts (15 tests) 98ms
+ ✓ src/admin-surfaces/__tests__/surface-capabilities.security.test.ts (66 tests) 441ms
+ ✓ src/admin-surfaces/__tests__/issued-token-memory.security.test.ts (5 tests) 50ms
+ ✓ src/admin-surfaces/__tests__/surface-capabilities.unit.test.ts (6 tests) 12ms
+ ✓ src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts (3 tests) 11ms
+ ✓ src/lifecycle/mail/__tests__/adapter-descriptors.test.ts (4 tests) 12ms
+ ✓ src/admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts (1 test) 4ms
+
+ Test Files  7 passed (7)
+      Tests  100 passed (100)
+   Start at  15:49:33
+   Duration  9.10s (transform 3.83s, setup 0ms, collect 10.72s, tests 629ms, environment 4ms, prepare 1.69s)
+

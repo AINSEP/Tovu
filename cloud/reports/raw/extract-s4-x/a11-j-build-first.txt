@@ -1,0 +1,57 @@
+
+> @jini-ai/agent-plugins@0.6.24 build /workspace/Jini/packages/agent-plugins
+> tsc -p tsconfig.json && node scripts/build-cloudflare.mjs
+
+src/connect/access-token-tool.ts(325,5): error TS2322: Type '({ ctx }: { ctx: ToolExecutionContext; }) => Promise<{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard: PluginCredentialCard | undefined; }>' is not assignable to type '(required: { ctx: ToolExecutionContext; }) => Promise<{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard?: PluginCredentialCard; }>'.
+  Type 'Promise<{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard: PluginCredentialCard | undefined; }>' is not assignable to type 'Promise<{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard?: PluginCredentialCard; }>'.
+    Type '{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard: PluginCredentialCard | undefined; }' is not assignable to type '{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard?: PluginCredentialCard; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'credentialCard' are incompatible.
+        Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+          Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/access-token-tool.ts(340,121): error TS2375: Type '{ credentials: AgentPluginTokenCredentialsPort; pluginDisplayName: string; helpUrl: string; credentialCard: PluginCredentialCard | undefined; }' is not assignable to type '{ readonly credentials: AgentPluginCredentialCardForms<SecretCardForm>; readonly pluginDisplayName: string; readonly helpUrl: string; readonly credentialCard?: PluginCredentialCard; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'credentialCard' are incompatible.
+    Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+      Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/connect-card-ui.ts(122,33): error TS2379: Argument of type '{ card: PluginCredentialCard | undefined; form: { title: string; description: string; submitLabel: string; fields: { kind: "string"; name: string; label: string; hint: string; required: true; secret: true; }[]; cancelLabel: string; app: BridgeScriptSpec; }; }' is not assignable to parameter of type '{ card?: PluginCredentialCard; form: SecretCardForm; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'card' are incompatible.
+    Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+      Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/connect-sign-in-wait.ts(23,39): error TS2345: Argument of type '{ state: "waiting"; signInUrl: string; exchangeId?: string; pluginId: string; pluginDisplayName: string; credentialCard: PluginCredentialCard | undefined; } | { ...; }' is not assignable to parameter of type 'AgentPluginConnectCardSpec'.
+  Type '{ state: "waiting"; signInUrl: string; exchangeId?: string; pluginId: string; pluginDisplayName: string; credentialCard: PluginCredentialCard | undefined; }' is not assignable to type 'AgentPluginConnectCardSpec'.
+    Type '{ state: "waiting"; signInUrl: string; exchangeId?: string; pluginId: string; pluginDisplayName: string; credentialCard: PluginCredentialCard | undefined; }' is not assignable to type '{ readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly exchangeId?: string; readonly credentialCard?: PluginCredentialCard; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'credentialCard' are incompatible.
+        Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+          Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/connect-tool.ts(102,38): error TS2379: Argument of type '{ serverId: string; redirectUri: string | undefined; delivery: "hosted"; }' is not assignable to parameter of type '{ serverId: string; redirectUri?: string; delivery?: "hosted"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'redirectUri' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/connect/connect-tool.ts(102,90): error TS2379: Argument of type '{ serverId: string; derivedPublicOrigin: string | undefined; }' is not assignable to parameter of type '{ serverId: string; derivedPublicOrigin?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'derivedPublicOrigin' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/connect/connect-tool.ts(481,30): error TS2379: Argument of type '{ routeDeps: AgentPluginConnectDeps<Surfaces, Connection>; surfaces: Surfaces; ctx: ToolExecutionContext; ... 4 more ...; servers: Readonly<...>; }' is not assignable to parameter of type '{ readonly routeDeps: ConnectDeps; readonly surfaces: unknown; readonly ctx: ToolExecutionContext; readonly pluginId: string; readonly server: PendingOAuthServer; readonly externalMcpOAuth: AgentPluginConnectSignInPort; readonly credentialCard?: PluginCredentialCard; } & { ...; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type '{ routeDeps: AgentPluginConnectDeps<Surfaces, Connection>; surfaces: Surfaces; ctx: ToolExecutionContext; ... 4 more ...; servers: Readonly<...>; }' is not assignable to type '{ readonly routeDeps: ConnectDeps; readonly surfaces: unknown; readonly ctx: ToolExecutionContext; readonly pluginId: string; readonly server: PendingOAuthServer; readonly externalMcpOAuth: AgentPluginConnectSignInPort; readonly credentialCard?: PluginCredentialCard; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'credentialCard' are incompatible.
+      Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+        Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/connect-tool.ts(589,39): error TS2379: Argument of type '{ oauth: AgentPluginConnectSignInPort; serverId: string; derivedPublicOrigin: string | undefined; host: AgentPluginConnectHost<unknown>; }' is not assignable to parameter of type '{ oauth: AgentPluginConnectSignInPort; serverId: string; derivedPublicOrigin?: string; host: AgentPluginConnectHost<unknown>; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'derivedPublicOrigin' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/connect/connect-tool.ts(590,42): error TS2379: Argument of type '{ surfaces: unknown; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string; credentialCard: PluginCredentialCard | undefined; connect: ({ signal, showSignIn }: { ...; }) => Promise<...>; }' is not assignable to parameter of type '{ surfaces: unknown; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string; credentialCard?: PluginCredentialCard; connect: (input: { ...; }) => Promise<...>; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'credentialCard' are incompatible.
+    Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+      Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/connect-tool.ts(657,42): error TS2379: Argument of type '{ surfaces: unknown; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string; credentialCard: PluginCredentialCard | undefined; connect: ({ signal, showSignIn }: { ...; }) => Promise<...>; }' is not assignable to parameter of type '{ surfaces: unknown; ctx: ToolExecutionContext; pluginId: string; pluginDisplayName: string; credentialCard?: PluginCredentialCard; connect: (input: { ...; }) => Promise<...>; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'credentialCard' are incompatible.
+    Type 'PluginCredentialCard | undefined' is not assignable to type 'PluginCredentialCard'.
+      Type 'undefined' is not assignable to type 'PluginCredentialCard'.
+src/connect/import-access-token.ts(165,34): error TS2379: Argument of type '{ deps: ImportAgentPluginAccessTokensFromEnvDeps; pluginId: string; url: string; auth: AgentPluginTokenAuth; token: string; log: TokenImportLog; skipPluginIds: ReadonlySet<...> | undefined; }' is not assignable to parameter of type '{ pluginId: string; url: string; auth: AgentPluginTokenAuth; } & { readonly deps: ImportAgentPluginAccessTokensFromEnvDeps; readonly token: string; readonly log: TokenImportLog; readonly skipPluginIds?: ReadonlySet<...>; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type '{ deps: ImportAgentPluginAccessTokensFromEnvDeps; pluginId: string; url: string; auth: AgentPluginTokenAuth; token: string; log: TokenImportLog; skipPluginIds: ReadonlySet<...> | undefined; }' is not assignable to type '{ readonly deps: ImportAgentPluginAccessTokensFromEnvDeps; readonly token: string; readonly log: TokenImportLog; readonly skipPluginIds?: ReadonlySet<...>; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'skipPluginIds' are incompatible.
+      Type 'ReadonlySet<string> | undefined' is not assignable to type 'ReadonlySet<string>'.
+        Type 'undefined' is not assignable to type 'ReadonlySet<string>'.
+/workspace/Jini/packages/agent-plugins:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @jini-ai/agent-plugins@0.6.24 build: `tsc -p tsconfig.json && node scripts/build-cloudflare.mjs`
+Exit status 2

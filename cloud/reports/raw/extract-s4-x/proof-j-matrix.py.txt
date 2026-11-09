@@ -1,0 +1,16 @@
+import subprocess,sys,pathlib,json
+phase=sys.argv[1]; root=pathlib.Path('/workspace/Jini')
+groups={
+'scripts':('.', ['scripts/__tests__/check-no-cross-package.test.ts','scripts/__tests__/extract-s3-checker.test.ts','scripts/__tests__/extract-s3-source-contracts.test.ts','scripts/__tests__/extract-s4-import-equals.test.ts']),
+'agent-plugins':('packages/agent-plugins',[f'src/admin-surfaces/__tests__/{name}.test.ts' for name in ['surface-capabilities.unit','surface-capabilities.security','action-tools.unit','issued-token-memory.security','plugin-state-persistence.unit']]+['src/lifecycle/mail/__tests__/adapter-descriptors.test.ts','src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts']),
+'integrations':('packages/integrations',[f'src/api-connections/__tests__/{name}.test.ts' for name in ['host-seams.unit','keys.unit','service.unit','hosted-sign-in.unit','account-actions.unit','vertical-slice.integration','byo-origin-order.unit']]),
+'platform':('packages/platform',['src/mail/__tests__/provider-setup.test.ts']),
+'ui':('packages/ui',['src/features/mcp-ui/__tests__/credential-card.unit.test.ts']),
+'neutral-host':('examples/neutral-host',[f'src/{name}.test.ts' for name in ['provider-status','contribution-contracts','mail-host','api-host-moves','executable-surface-entries','connect-plugin-host']])}
+results=[]
+for name,(cwd,files) in groups.items():
+ for f in files: assert (root/cwd/f).is_file(),f
+ command=['python','/workspace/work/run.py',str(root/cwd),phase+'-j-'+name,'pnpm','exec','vitest','run',*files,'--maxWorkers=2','--minWorkers=1']
+ code=subprocess.call(command); results.append({'name':name,'files':files,'exit':code})
+pathlib.Path('/workspace/work/logs/'+phase+'-j-matrix.json').write_text(json.dumps(results,indent=2)+'\n')
+sys.exit(int(any(r['exit'] for r in results)))
