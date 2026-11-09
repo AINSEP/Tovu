@@ -70,10 +70,11 @@ test("approved enable whose provisioning failed refuses with host copy before an
 });
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-/** A9: the portable bodies now live in `@jini-ai/agent-plugins/connect` (+ `/plugin-host`); read their sources. */
-const connectSrc = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/agent-plugins/connect"))), "../../src/connect");
-const MOVED = [path.join(connectSrc, "plugin-host/index.ts"), ...["ports", "federate-mcp", "enable-access", "apply-connect-defaults", "switch-on-saved-token", "connection-status"].map(name => path.join(connectSrc, `${name}.ts`))];
-const packageSrc = path.resolve(connectSrc, "..");
+/** A9: inspect published bodies and declarations through the public entry, without a workspace source tree. */
+const connectDist = path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/agent-plugins/connect")));
+const MOVED = ["plugin-host/index", "ports", "federate-mcp", "enable-access", "apply-connect-defaults", "switch-on-saved-token", "connection-status"]
+  .flatMap(name => [path.join(connectDist, `${name}.js`), path.join(connectDist, `${name}.d.ts`)]);
+const packageDist = path.resolve(connectDist, "..");
 
 function specifiersOf(file: string): string[] {
   const text = fs.readFileSync(file, "utf8");
@@ -85,7 +86,7 @@ test("moved A8 bodies have no import edge back into Tovu (so none into the A10 c
     assert.ok(fs.existsSync(file), file);
     for (const specifier of specifiersOf(file)) {
       assert.equal(specifier.startsWith("#src/"), false, `${file} imports ${specifier}`);
-      if (specifier.startsWith(".")) assert.ok(path.resolve(path.dirname(file), specifier).startsWith(packageSrc), `${file} leaves the package: ${specifier}`);
+      if (specifier.startsWith(".")) assert.ok(path.resolve(path.dirname(file), specifier).startsWith(packageDist), `${file} leaves the package: ${specifier}`);
     }
   }
 });
@@ -95,8 +96,10 @@ test("moved plugin host and bodies import no Jini package other than core", () =
     const jini = specifiersOf(file).filter(specifier => specifier.startsWith("@jini-ai/"));
     assert.deepEqual(jini.filter(specifier => !specifier.startsWith("@jini-ai/core")), [], file);
   }
-  const text = fs.readFileSync(MOVED[0]!, "utf8");
-  assert.equal(/contracts\/headless|@jini-ai\/plugins|@jini-ai\/platform|mcp-host-bindings|node:/.test(text), false, "no headless barrel, plugins/platform package, Tovu projection fallback or node built-in");
+  for (const file of MOVED.slice(0, 2)) {
+    const text = fs.readFileSync(file, "utf8");
+    assert.equal(/contracts\/headless|@jini-ai\/plugins|@jini-ai\/platform|mcp-host-bindings|node:/.test(text), false, "no headless barrel, plugins/platform package, Tovu projection fallback or node built-in");
+  }
 });
 
 test("moved A8 bodies take required projection ports: none imports Tovu's projection fallback", () => {

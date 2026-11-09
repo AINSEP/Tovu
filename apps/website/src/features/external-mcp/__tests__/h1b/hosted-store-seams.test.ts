@@ -70,13 +70,15 @@ test("error identity and one envelope module instance (package dist, not source)
   assert.equal(vaultShim.externalMcpVaultEnvelope, hosted.externalMcpVaultEnvelope);
   assert.equal(vaultShim.deleteExternalMcpVaultEnvelope, hosted.deleteExternalMcpVaultEnvelope);
   const resolved = import.meta.resolve("@jini-ai/mcp/federation/hosted");
-  assert.match(resolved, /\/packages\/mcp\/dist\/federation\/hosted\/index\.js$/);
+  assert.match(resolved, /\/dist\/federation\/hosted\/index\.js$/);
   // A shim-sealed envelope carries the context symbol of the hosted dist module ...
   const identity = { workspaceId: WS, serverId: "one" };
   const sealed = await vaultShim.sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity, kind: "mcp-auth", payload: { a: 1 } });
   assert.equal(hosted.externalMcpVaultRecord({ sealed, identity, kind: "mcp-auth", vaultErrors: vaultShim.externalMcpVaultPorts.vaultErrors }).ownerKey, "one");
-  // ... and a second copy of the module (its source file) cannot read it: symbols are per instance,
-  // so the passing path above proves every caller shares the dist instance.
-  const source = await import(new URL("../src/federation/hosted/vault.ts", resolved.replace(/dist\/federation\/hosted\/index\.js$/, "dist/")).href) as typeof hosted;
-  assert.throws(() => source.externalMcpVaultRecord({ sealed, identity, kind: "mcp-auth", vaultErrors: vaultShim.externalMcpVaultPorts.vaultErrors }), VaultError);
+  // ... and a second instance of the emitted module cannot read it: symbols are per instance,
+  // so the passing path above proves every caller shares the dist instance. A distinct ESM URL
+  // creates that second instance using only files present in a published installation.
+  const secondInstance = await import(new URL("./vault.js?instance=isolated", resolved).href) as typeof hosted;
+  assert.notEqual(secondInstance.externalMcpVaultRecord, hosted.externalMcpVaultRecord);
+  assert.throws(() => secondInstance.externalMcpVaultRecord({ sealed, identity, kind: "mcp-auth", vaultErrors: vaultShim.externalMcpVaultPorts.vaultErrors }), VaultError);
 });
