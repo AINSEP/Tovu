@@ -32,6 +32,8 @@ const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a
  * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
   ...POLICY_CONFIRMATION_TOOL_IDS,
+  // the host binds this id; Jini opens the exchange
+  "credential_copy_from_project",
   // The host binds this synthetic ID through tool-recovery-preset.ts; Jini opens the exchange.
   "assistant_tool_failure_recovery",
   // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests
@@ -75,6 +77,10 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/theme/file-mutation-tools.ts", new Set(["description"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
+  // The copy tool receives the host-bound credential_copy_from_project id; Jini owns the exchange.
+  ["features/custom-credentials/credential-copy-tool.ts", new Set(["toolId"])],
+  // Host operations supply the fixed credential approval description to the shared confirmation owner.
+  ["features/custom-credentials/tool-registrations.ts", new Set(["description"])],
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
