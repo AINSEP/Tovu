@@ -79,3 +79,83 @@ Earlier-debt items the brief names that are not in the named groups (T plugin-ho
 - T assistant/__tests__/fixtures/tool-metadata.baseline.json **a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6**, which matches the brief.
 - moved-tools.golden.json 3583bc14fa8c596d64a2e97a274166f87a0ea278aed3f8c12b926552b7fc5f66; moved-tools.access-token.golden.json 61e018a56d59eee3a4b44055136c9a7c6144c5a6b13a948c8f90ebb8b14ca16e; moved-tools.credential-cards.golden.json 3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01; server/runtime/boot/__tests__/fixtures/mail-send.golden.json f0733d6176cd0d2fc92a9181d342c9ff9480f0d505f7c5e1dc8330d3f48a4be3; server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json 2be1488c8e4556b71b759536dccac88c78612a22200aa6843748f62cb78e736c.
 - A full list of 25 files (every file in the T assistant, boot and composition `__tests__/fixtures` dirs, plus the J api-connections test fixtures) is kept in scratch, and `sha256sum -c` on it passes on both trees.
+
+## H0 — G-mcp
+
+Builder: H0 subagent (slug s5-h0). No production move or edit; Tovu new files only; Jini untouched (no Jini commits in H0). Programmer skills file (Jini `AI-Dev-Shop/agents/programmer/skills.md`) loaded.
+
+### Paths verified / corrections
+All plan-cited paths exist at the pin: T `features/external-mcp/external-mcp-repo.ts` (`SqlExternalMcpServerRepo`), `external-mcp-repo.sqlite.ts` (`SqliteExternalMcpServerRepo extends SqlExternalMcpServerRepo`), `external-mcp-store.ts`, `external-mcp-vault.ts`, `external-mcp-oauth.ts`, and every store/vocabulary + accumulated-nine named test (12 + 9 files). Corrections: (1) none of the cited paths are stale; (2) the repo test lives at `platform/db/repos/__tests__/external-mcp-repo.test.ts` while the repo itself is in `features/external-mcp/` (as cited); (3) `secrets_vault` is created for tests by the unregistered `ensureVaultRepoFixture` step, and vault rows need a `workspaces` FK parent, so the fixture carries one workspace row; (4) the schema itself refuses some tampers (trigger `secrets_vault_mcp_identity` on linked owner/kind, CHECK `secrets_vault_principal_scope`, CHECK `secrets_vault_owner` for non-MCP kinds) — the test asserts those refusals, then drops the identity trigger on its scratch copy to reach the read-side check.
+
+### Fixture mint (once)
+- Command (Tovu root): `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx apps/website/src/features/external-mcp/__tests__/fixtures/mint-mcp-credentials-frozen.ts --i-am-minting-once` (refuses without the flag or if the fixture exists). First attempt failed before writing anything (FK to `workspaces`; raw `h0-mint.txt` overwritten by the successful run); the fix added the workspace row; the single successful mint wrote the fixture.
+- Writes went through the unmoved `SqlExternalMcpServerRepo` + `saveExternalMcpServer` (env row `env-tool` stdio/none; `static-http` streamable_http/static_env; `oauth-higgs` stdio/oauth with an env block) and the OAuth service's redirect sign-in against an in-process fake token server. Text SQL, INSERTs only: 1 workspace, 4 vault envelopes (mcp-env ×2, mcp-auth ×2), 3 servers. Test key + fake tokens only; no plaintext token appears in the file.
+- Recording commit **31504fd7c16adf756e313da7f3d8c77087630139**. Fixture SHA256 **aca349ca2ad02ec166575336860daabe6c54d316bb7c6b23b9e06a00eddb40c3** (unchanged at H0 tip). Test-key SHA256 (of the 64-char hex string) **43bcfd960ecc2323244b0daaad5f99bfc4df7a2a53177dbd4bee23ae9788ab1a**.
+
+### New tests (T command, `--test-concurrency=1`)
+`features/external-mcp/__tests__/external-mcp-frozen-db.test.ts` (6 cases, SQLite file DBs) and `external-mcp-frozen-db.postgres.test.ts` (1 case, real PostgreSQL); shared host in `__tests__/fixtures/frozen-db-harness.ts`, fixture inputs in `__tests__/fixtures/mcp-credentials-frozen.fixture.ts`. All reads/writes go through `SqlExternalMcpServerRepo` + store/OAuth service (envelope context rebuilt by `joinedEnvelope`).
+1. Open all three via `listExternalMcpServerViews`, `readEnabledExternalMcpConfigs` (+OAuth token resolver) and `openExternalMcpOAuthPayload`.
+2. Gate: `createExternalMcpConnectionGate` verdict `current-grants-checked`.
+3. Leased refresh (fake token server) → static re-save (no new token, carried envelope) → env update → restart (fresh connection/repo/keyring/sealer/service on the same file) → reopen all three. Untouched envelopes (static mcp-auth, oauth mcp-env) byte-identical incl. rowid; rewritten envelopes change ONLY `id,label,created_at,updated_at,sealed_ciphertext,sealed_nonce` (+SQLite rowid) — baseline reseal stages a new vault id with label=id; kind/owner/principal/binding/provider/is_default/revision/sealed_key_id/sealed_alg/last4/token_length/meta unchanged. Server rows updated in place (same rowid, created_at): env `env_secret_id,updated_at`; static `label,updated_at`; oauth `oauth_expires_at,oauth_secret_id,updated_at`. Rewritten OAuth payload keeps key order `clientSecret,tokens,schemaVersion`, schemaVersion 1.
+4. Tamper owner/binding/other-MCP-kind → `VaultError{code:"context"}` from `findByServerId` and `listExternalMcpServerViews` with 0 sealer and 0 keyring calls; restore → reads again.
+5. Foreign kind (`mcp-auth`, `api-connection`) on open → context, 0 sealer calls; foreign kind on seal → context, 0 sealer/keyring calls; invalid AAD (static ciphertext transplanted into the OAuth row) → `ExternalMcpSecretStoreUnconfiguredError` after exactly 1 open; payload schemaVersion 2 (sealed via the real seal path) → version error, not the decrypt error.
+6. Canaries (token/secret/URL/path in `error_description`/`error_uri`; invalid_grant and 500): resolver error message, `readEnabledExternalMcpConfigs` failure reason and gate refusal contain none of them. Baseline already redacts — no prior-behaviour stop.
+
+### Counters measured (baseline, asserted exactly)
+| path | measured |
+|---|---|
+| toView (list, 3 rows) | opens per row env 1 / static 1 / oauth 2 (≤2); sealer {open:4}; kernel {query:1}; keyring 0 |
+| gate call | repo {findByServerId:1}; kernel {query:1}; sealer 0; keyring 0 |
+| one leased refresh | 1 token request; repo {findByServerId:4, tryClaimOAuthRefreshLease:1, releaseOAuthRefreshLease:1, upsert:1}; sealer {open:4, seal:1}; kernel {lockKey:3, query:4, run:13, transaction:3}; keyring {activeKey:1} |
+| next call in lifetime | 0 requests; repo {findByServerId:1}; sealer {open:1} |
+PostgreSQL replay asserts the same per-row opens, gate counts and refresh repo/sealer counts.
+
+### BASELINE rollback
+Script `features/external-mcp/__tests__/fixtures/s5-baseline-rollback.mjs` imports every Tovu module from `--base` (baseline checkout `/home/user/s5/base/Tovu`, pin c3801c83, installed+linked to `/home/user/s5/base/Jini`), copies the DB, compares against the fixture loaded by baseline code, and reads all three. Commands:
+```
+cd /home/user/Tovu && S5_FROZEN_DB_OUT=/home/user/s5/h0/post-write.db TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.test.ts
+cd /home/user/s5/base/Tovu && TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx /home/user/Tovu/apps/website/src/features/external-mcp/__tests__/fixtures/s5-baseline-rollback.mjs --base /home/user/s5/base/Tovu --db /home/user/s5/h0/post-write.db
+```
+Result at H0: `ok:true`, 5 checks (workspace unchanged; server rows in place — rowid/created_at/identity; untouched envelopes byte-identical; rewritten envelopes keep format columns; baseline code opens all three, 0 network). Raw `h0-rollback.txt`, `h0-final-rollback.txt` EXIT 0. Rerun after H1b and H3 (same two commands).
+
+### Mutation red / restored green (raw `h0-mut-*.txt`, `.diff`; script `/home/user/s5/h0/mut/run-mutations*.sh` backs up, mutates, runs, restores by cp, proves `git diff --exit-code`)
+| assertion | mutation | red | restored |
+|---|---|---|---|
+| tamper before crypto | repo `assertJoinedContext` no-op | EXIT 1 "Missing expected rejection: owner_key tamper" | clean |
+| foreign kind (seal) | remove vault service first-line + parser kind guards | EXIT 1 | clean |
+| foreign kind (read) | remove `externalMcpVaultRecord` + `authorize` kind checks | **survived** (EXIT 0): Jini `SecretsVaultService.get`→`find` refuses the kind first; redundant layer. Assertion liveness shown by test-expectation mutation (`context`→`invalid-record`) EXIT 1 | clean |
+| byte-identity | static carry reseals (open+seal) | EXIT 1 "mcp-auth of static-http is byte-identical" rowid 6≠2 | clean |
+| open counts | toView opens the OAuth hint twice | EXIT 1 | clean |
+| gate 1 row | extra `findByServerId` in gate | EXIT 1 | clean |
+| rollback: no recreation | delete+reinsert `static-http` server row | `ok:false` rowid 4≠2 | green EXIT 0 |
+| rollback: untouched bytes | edit static envelope `updated_at` | `ok:false` | green EXIT 0 |
+Restored-green full runs: `h0-mut-restored-green.txt`, `h0-mut2-restored-green.txt` EXIT 0.
+
+### Gate (unmoved code)
+| check | result | raw |
+|---|---|---|
+| new SQLite frozen test | 6/6, EXIT 0 | h0-final-frozen.txt |
+| new PostgreSQL frozen test | 1/1, EXIT 0 | h0-final-frozen-pg.txt |
+| BASELINE rollback | ok, EXIT 0 | h0-final-rollback.txt |
+| T store/vocabulary (12 files) | 284/284, EXIT 0 = baseline | h0-t-store.txt |
+| T accumulated nine (9 files) | 58/58, EXIT 0 = baseline | h0-t-nine.txt |
+| Tovu main tsc | EXIT 0, 0 errors | h0-final-t-tsc.txt |
+| Tovu typecheck:tests | EXIT 2, 13 errors = baseline set, 0 in new files | h0-final-t-tsc-tests.txt |
+| eslint new files | 0 errors after one warning fix | h0-eslint-try1.txt |
+| guard gate (Jini unchanged) | MATCHES BASELINE (exit 1; R2-deep-path + R10 only; HW +0) | j-guard-summary-h0.txt |
+| XP gate | snapshot VERIFIED; check:cross-package EXIT 0 XP1–XP5 clean | j-xp-h0.txt |
+| fixture hash | aca349ca… unchanged | h0-final-fixture-hash.txt |
+Diff vs pin: only `A` files (7 under `features/external-mcp/__tests__/` + this report); no existing test/fixture M/D/R.
+
+### PostgreSQL status
+PostgreSQL 16 server binaries are present in the container (`/usr/lib/postgresql/16/bin`), contrary to the setup note. A scratch cluster (`/home/user/s5/h0/pg/data`, socket `/tmp/s5pg`, user postgres, PID 16820, stopped after the gate) ran the existing harness `platform/db/__tests__/parity/vault-read-parity.postgres.test.ts` + `access-choice.postgres.test.ts`: 20/20 pass (raw `h0-pg-harness.txt`). **G-mcp PostgreSQL replay: proven** — the frozen fixture's sealed bytes replayed into migrated Postgres, opened, refreshed under the lease, re-saved and reopened after reconnect (new pool) with untouched envelopes byte-identical. Not replayed on Postgres: tamper/foreign-kind/AAD/version/canary cases and the rollback script (SQLite only).
+
+### S4 overlap
+Files touched in H0: the 7 new files under T `features/external-mcp/__tests__/` and `cloud/reports/extract-s5.md`. None is in the S4-owned set (T `features/agent-plugins/**` connect files, bindings/registrations, J `agent-plugins/src/connect/**`); no shared manifests/lockfiles/changesets touched. Overlap: none.
+
+### Findings (listed, not fixed)
+- Foreign-kind read refusal is triple-layered (repo/vault-record, vault authorize, Jini vault find); Tovu-side removal is not observable.
+- Baseline reseal writes mint a new vault id (and created_at) per rewrite; "ids preserved" holds for server rows/kinds/owner, not envelope ids.
+
+### Pushed SHAs (Tovu cloud/extract-s5)
+31504fd7c16adf756e313da7f3d8c77087630139, fde3156848329cd028e90843c190659ffbc231f1, b744f77cc5c17c55ac5100b4a7019b4cc9adc7c4, 06863b2da32287dafb17408d99affc3b1ced5301, plus this report commit (SHA in coordinator digest). Jini: none.
