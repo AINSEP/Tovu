@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { SITE_ASSISTANT_TOOL_SCHEMAS } from "../tools.js";
-import { VISITOR_SITE_GUIDE_SCHEMA } from "#src/server/runtime/composition/site-guide-tools";
+import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
+import { buildSiteGuideRegistrations, VISITOR_SITE_GUIDE_SCHEMA } from "#src/server/runtime/composition/site-guide-tools";
 
 // 2026-11-03, live tovu.dev: every visitor chat on a Gemini site failed before answering —
 // "GenerateContentRequest.tools[0].function_declarations[3].parameters.properties[topic].items:
@@ -31,4 +32,12 @@ test("every schema offered to site visitors fits Gemini's function-declaration s
     { name: "site_guide", parameters: VISITOR_SITE_GUIDE_SCHEMA },
   ];
   assert.deepEqual(offered.flatMap(schema => problems(schema.parameters, schema.name)), []);
+});
+
+// 2026-11-09, live tovu.dev admin chat on Gemini: describe_tool publishes site_guide to the next
+// request, and that turn ended with no reply, while describing a plain-schema tool answered normally.
+test("the admin site_guide entry stays inside Gemini's subset after the real provider projection", () => {
+  const { descriptor } = buildSiteGuideRegistrations({ deps: {} as never })[0]!;
+  const parameters = googleParametersOf({ descriptor });
+  assert.deepEqual(problems(parameters, "site_guide"), []);
 });
