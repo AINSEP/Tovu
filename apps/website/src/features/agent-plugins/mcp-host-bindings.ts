@@ -40,4 +40,3 @@ export function withAgentPluginMcpPorts<T extends AgentPluginMcpContext>(context
 export function withOverrides<T extends object, O extends object>(target: T, overrides: O): Omit<T, keyof O> & O {
   return Object.assign(Object.defineProperties({}, Object.getOwnPropertyDescriptors(target)), overrides) as Omit<T, keyof O> & O;
 }
-
