@@ -1,0 +1,423 @@
+TAP version 13
+# Subtest: agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move
+ok 1 - agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move
+  ---
+  duration_ms: 45.609118
+  type: 'test'
+  ...
+# Subtest: six real credential_save card paths retain saved/dismissed resources, frames and counters
+ok 2 - six real credential_save card paths retain saved/dismissed resources, frames and counters
+  ---
+  duration_ms: 148.06683
+  type: 'test'
+  ...
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 3 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 1.449877
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 4 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.362237
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 5 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 0.455086
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 6 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 0.957756
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 7 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 1.355119
+  type: 'test'
+  ...
+# Subtest: a plugin that is not installed is refused before any form or network call
+ok 8 - a plugin that is not installed is refused before any form or network call
+  ---
+  duration_ms: 9.682297
+  type: 'test'
+  ...
+# Subtest: a plugin whose servers declare no tokenAuth is refused: there is no token form for it
+ok 9 - a plugin whose servers declare no tokenAuth is refused: there is no token form for it
+  ---
+  duration_ms: 1.781094
+  type: 'test'
+  ...
+# Subtest: a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+ok 10 - a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+  ---
+  duration_ms: 1.517878
+  type: 'test'
+  ...
+# Subtest: a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+ok 11 - a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+  ---
+  duration_ms: 1.646952
+  type: 'test'
+  ...
+# Subtest: a row an operator pointed at another host is refused, so the token is never sent there
+ok 12 - a row an operator pointed at another host is refused, so the token is never sent there
+  ---
+  duration_ms: 2.646106
+  type: 'test'
+  ...
+# Subtest: INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+ok 13 - INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+  ---
+  duration_ms: 1.58537
+  type: 'test'
+  ...
+# Subtest: with no emitSurface the token tool fails closed with no exchange and no network call
+ok 14 - with no emitSurface the token tool fails closed with no exchange and no network call
+  ---
+  duration_ms: 1.59228
+  type: 'test'
+  ...
+# Subtest: the form names the plugin and displays its declared tokens page in the help text
+ok 15 - the form names the plugin and displays its declared tokens page in the help text
+  ---
+  duration_ms: 12.619842
+  type: 'test'
+  ...
+# Subtest: AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+ok 16 - AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+  ---
+  duration_ms: 24.694419
+  type: 'test'
+  ...
+# Subtest: EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+ok 17 - EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+  ---
+  duration_ms: 4.022433
+  type: 'test'
+  ...
+# Subtest: an unreachable vendor stores nothing and says the plugin is unavailable
+ok 18 - an unreachable vendor stores nothing and says the plugin is unavailable
+  ---
+  duration_ms: 2.985288
+  type: 'test'
+  ...
+# Subtest: a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+ok 19 - a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+  ---
+  duration_ms: 8.421312
+  type: 'test'
+  ...
+# Subtest: a 403 without optional plugin copy is still a refusal rather than an invalid token
+ok 20 - a 403 without optional plugin copy is still a refusal rather than an invalid token
+  ---
+  duration_ms: 2.097358
+  type: 'test'
+  ...
+# Subtest: a blank token is refused without a probe, and a cancel stores nothing
+ok 21 - a blank token is refused without a probe, and a cancel stores nothing
+  ---
+  duration_ms: 2.407449
+  type: 'test'
+  ...
+# Subtest: AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+ok 22 - AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+  ---
+  duration_ms: 5.407089
+  type: 'test'
+  ...
+# Subtest: IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+ok 23 - IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+  ---
+  duration_ms: 4.884651
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+ok 24 - a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+  ---
+  duration_ms: 3.065597
+  type: 'test'
+  ...
+# Subtest: a failure switching on after the save still reports the token as saved, with a retry step
+ok 25 - a failure switching on after the save still reports the token as saved, with a retry step
+  ---
+  duration_ms: 2.787995
+  type: 'test'
+  ...
+# Subtest: permission denial raises no form, opens no exchange and leaves the token row unchanged
+ok 26 - permission denial raises no form, opens no exchange and leaves the token row unchanged
+  ---
+  duration_ms: 0.937345
+  type: 'test'
+  ...
+# Subtest: a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+ok 27 - a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+  ---
+  duration_ms: 1.939068
+  type: 'test'
+  ...
+# Subtest: a store failure after a successful probe is redacted and leaves the previous row intact
+ok 28 - a store failure after a successful probe is redacted and leaves the previous row intact
+  ---
+  duration_ms: 7.633565
+  type: 'test'
+  ...
+# Subtest: a pending form that is expired saves nothing and rejects late answers
+ok 29 - a pending form that is expired saves nothing and rejects late answers
+  ---
+  duration_ms: 2.179452
+  type: 'test'
+  ...
+# Subtest: a pending form that is abandoned saves nothing and rejects late answers
+ok 30 - a pending form that is abandoned saves nothing and rejects late answers
+  ---
+  duration_ms: 1.277096
+  type: 'test'
+  ...
+# Subtest: a pending form that is abort saves nothing and rejects late answers
+ok 31 - a pending form that is abort saves nothing and rejects late answers
+  ---
+  duration_ms: 1.305677
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+ok 32 - credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+  ---
+  duration_ms: 1.730219
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 33 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 1.270836
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 34 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 1.244087
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+ok 35 - credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+  ---
+  duration_ms: 1.213956
+  type: 'test'
+  ...
+# Subtest: an abort during the token probe prevents the sealed write and plugin activation
+ok 36 - an abort during the token probe prevents the sealed write and plugin activation
+  ---
+  duration_ms: 1.401192
+  type: 'test'
+  ...
+# Subtest: a run aborted before preparation opens no form and leaves the plugin row unchanged
+ok 37 - a run aborted before preparation opens no form and leaves the plugin row unchanged
+  ---
+  duration_ms: 1.30836
+  type: 'test'
+  ...
+# Subtest: a destination repointed while the token form is open cannot receive the submitted credential
+ok 38 - a destination repointed while the token form is open cannot receive the submitted credential
+  ---
+  duration_ms: 3.326355
+  type: 'test'
+  ...
+# Subtest: a token is sealed onto a row with no credential, and the plugin is switched on
+ok 39 - a token is sealed onto a row with no credential, and the plugin is switched on
+  ---
+  duration_ms: 16.94727
+  type: 'test'
+  ...
+# Subtest: a row that already holds a saved token is never overwritten
+ok 40 - a row that already holds a saved token is never overwritten
+  ---
+  duration_ms: 4.421511
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off gets the token but stays off
+ok 41 - a plugin an operator turned off gets the token but stays off
+  ---
+  duration_ms: 6.86736
+  type: 'test'
+  ...
+# Subtest: a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)
+ok 42 - a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)
+  ---
+  duration_ms: 3.169008
+  type: 'test'
+  ...
+# Subtest: hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not
+ok 43 - hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not
+  ---
+  duration_ms: 0.17162
+  type: 'test'
+  ...
+# Subtest: env import copies the declared env token once, logs once, and is silent on the next boot
+ok 44 - env import copies the declared env token once, logs once, and is silent on the next boot
+  ---
+  duration_ms: 2.602078
+  type: 'test'
+  ...
+# Subtest: env import uses the declared URL when its connection lookup returns no row
+ok 45 - env import uses the declared URL when its connection lookup returns no row
+  ---
+  duration_ms: 3.814504
+  type: 'test'
+  ...
+# Subtest: env import saves a token without retiredEnv and continues to the next plugin
+ok 46 - env import saves a token without retiredEnv and continues to the next plugin
+  ---
+  duration_ms: 5.873769
+  type: 'test'
+  ...
+# Subtest: env import with no token set writes nothing
+ok 47 - env import with no token set writes nothing
+  ---
+  duration_ms: 0.831138
+  type: 'test'
+  ...
+# Subtest: set retired env vars are named as no longer used; unset ones are not
+ok 48 - set retired env vars are named as no longer used; unset ones are not
+  ---
+  duration_ms: 0.91833
+  type: 'test'
+  ...
+# Subtest: env import never throws: a failed save is a warning
+ok 49 - env import never throws: a failed save is a warning
+  ---
+  duration_ms: 1.531547
+  type: 'test'
+  ...
+# Subtest: env import never logs importer text that echoes an opaque access token
+ok 50 - env import never logs importer text that echoes an opaque access token
+  ---
+  duration_ms: 1.079089
+  type: 'test'
+  ...
+# Subtest: env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret
+ok 51 - env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret
+  ---
+  duration_ms: 1.072312
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-test-site-layout-87Ot0Y/agent-plugins/ws/ws-token-import
+# Subtest: listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded
+ok 52 - listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded
+  ---
+  duration_ms: 2113.721114
+  type: 'test'
+  ...
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Subtest: listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests
+ok 53 - listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests
+  ---
+  duration_ms: 15.749708
+  type: 'test'
+  ...
+# Subtest: env import never sends the token to a row pointed at a URL the bundled plugin does not declare
+ok 54 - env import never sends the token to a row pointed at a URL the bundled plugin does not declare
+  ---
+  duration_ms: 1.67493
+  type: 'test'
+  ...
+# Subtest: manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server
+ok 55 - manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server
+  ---
+  duration_ms: 0.442607
+  type: 'test'
+  ...
+# Subtest: env import skips a plugin that still has a token pending from create-site onboarding
+ok 56 - env import skips a plugin that still has a token pending from create-site onboarding
+  ---
+  duration_ms: 1.017472
+  type: 'test'
+  ...
+# Subtest: a save whose switch-on failed is switched on by the next import, without touching the saved token
+ok 57 - a save whose switch-on failed is switched on by the next import, without touching the saved token
+  ---
+  duration_ms: 4.737357
+  type: 'test'
+  ...
+# Subtest: an already-connected row is not switched on when an operator turned the plugin off
+ok 58 - an already-connected row is not switched on when an operator turned the plugin off
+  ---
+  duration_ms: 3.012534
+  type: 'test'
+  ...
+# Subtest: a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on
+ok 59 - a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on
+  ---
+  duration_ms: 5.365341
+  type: 'test'
+  ...
+# Subtest: env import warns on listing failure and logs plural retirement notices even without an import declaration
+ok 60 - env import warns on listing failure and logs plural retirement notices even without an import declaration
+  ---
+  duration_ms: 1.58515
+  type: 'test'
+  ...
+# Subtest: env import logs an operator-off save once and remains silent on its credential-preserving retry
+ok 61 - env import logs an operator-off save once and remains silent on its credential-preserving retry
+  ---
+  duration_ms: 2.908201
+  type: 'test'
+  ...
+# Subtest: without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing
+ok 62 - without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing
+  ---
+  duration_ms: 5.950281
+  type: 'test'
+  ...
+# Subtest: an Error thrown while listing plugins is reported by its message
+ok 63 - an Error thrown while listing plugins is reported by its message
+  ---
+  duration_ms: 1.064928
+  type: 'test'
+  ...
+# Subtest: a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header
+ok 64 - a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header
+  ---
+  duration_ms: 2.239687
+  type: 'test'
+  ...
+# Subtest: 401 and 403 are refused; any other failure or an unreachable vendor is unavailable
+ok 65 - 401 and 403 are refused; any other failure or an unreachable vendor is unavailable
+  ---
+  duration_ms: 0.824482
+  type: 'test'
+  ...
+# Subtest: unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one
+ok 66 - unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one
+  ---
+  duration_ms: 0.456692
+  type: 'test'
+  ...
+# Subtest: a stdio server never counts as the token-auth server
+ok 67 - a stdio server never counts as the token-auth server
+  ---
+  duration_ms: 0.231424
+  type: 'test'
+  ...
+# Subtest: the sign-in list names each token plugin once, sorted by id, with its tokens page
+ok 68 - the sign-in list names each token plugin once, sorted by id, with its tokens page
+  ---
+  duration_ms: 13.982483
+  type: 'test'
+  ...
+1..68
+# tests 68
+# suites 0
+# pass 68
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15138.013646
