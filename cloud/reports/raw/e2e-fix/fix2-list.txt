@@ -1,0 +1,936 @@
+Listing tests:
+  [chromium] › admin-chat-width.pins.journey.ts:43:5 › Bug pin: admin chat reply width (desktop) › assistant fills >=95% of the row, user stays <=90%, side padding is even and <=24px, and the list never scrolls sideways
+  [chromium] › admin-chat-width.pins.journey.ts:43:5 › Bug pin: admin chat reply width (phone) › assistant fills >=95% of the row, user stays <=90%, side padding is even and <=24px, and the list never scrolls sideways
+  [chromium] › admin-layout.pins.journey.ts:75:3 › Bug pin: admin-fab-drag-onto-dock › admin chat FAB can be dropped onto the open dock and stays there › a drop well clear of the composer send button rests inside the dock, not pushed back onto the page
+  [chromium] › admin-layout.pins.journey.ts:221:3 › Bug pin: admin-fab-position › admin chat FAB does not intercept the composer's send button (Bug 5) › at desktop width, with the dock open, the send button is fully clickable and unobstructed
+  [chromium] › admin-layout.pins.journey.ts:394:5 › Bug pin: admin-selection-colors › at 1440px › Settings: active tab text and underline, selected CLI card border, provider chip fill
+  [chromium] › admin-layout.pins.journey.ts:413:5 › Bug pin: admin-selection-colors › at 1440px › Settings: primary button and privacy consent button fills
+  [chromium] › admin-layout.pins.journey.ts:427:5 › Bug pin: admin-selection-colors › at 1440px › admin tab bar: active tab underline and text
+  [chromium] › admin-layout.pins.journey.ts:435:5 › Bug pin: admin-selection-colors › at 1440px › AI Assistant page: active tab underline and text, provider chip fill, sidebar nav rail and icon
+  [chromium] › admin-layout.pins.journey.ts:394:5 › Bug pin: admin-selection-colors › at 390px › Settings: active tab text and underline, selected CLI card border, provider chip fill
+  [chromium] › admin-layout.pins.journey.ts:413:5 › Bug pin: admin-selection-colors › at 390px › Settings: primary button and privacy consent button fills
+  [chromium] › admin-layout.pins.journey.ts:427:5 › Bug pin: admin-selection-colors › at 390px › admin tab bar: active tab underline and text
+  [chromium] › admin-layout.pins.journey.ts:435:5 › Bug pin: admin-selection-colors › at 390px › AI Assistant page: active tab underline and text, provider chip fill, sidebar nav rail and icon
+  [chromium] › admin-layout.pins.journey.ts:562:3 › Bug pin: admin-shell-no-document-scroll › the admin shell never scrolls the document itself › a screen-reader-only span low in the content flow does not stretch the document
+  [chromium] › admin-layout.pins.journey.ts:578:3 › Bug pin: admin-shell-no-document-scroll › the admin shell never scrolls the document itself › no .visually-hidden element resolves to a position below the viewport
+  [chromium] › admin-layout.pins.journey.ts:601:3 › Bug pin: admin-shell-no-document-scroll › the admin shell never scrolls the document itself › the fix does not disable either real scroller
+  [chromium] › admin-layout.pins.journey.ts:644:3 › Bug pin: admin-shell-no-document-scroll › the admin shell never scrolls the document itself › Themes: the shared TabBar screen holds the same contract
+  [chromium] › admin-layout.pins.journey.ts:750:3 › Bug pin: admin-visual-parity › admin visual parity capture › seeds two demo taxonomies (flat + hierarchical) through the real UI
+  [chromium] › admin-layout.pins.journey.ts:754:3 › Bug pin: admin-visual-parity › admin visual parity capture › captures Settings (reference)
+  [chromium] › admin-layout.pins.journey.ts:761:3 › Bug pin: admin-visual-parity › admin visual parity capture › captures Posts (reference)
+  [chromium] › admin-layout.pins.journey.ts:769:3 › Bug pin: admin-visual-parity › admin visual parity capture › captures Workspace (problem)
+  [chromium] › admin-layout.pins.journey.ts:779:3 › Bug pin: admin-visual-parity › admin visual parity capture › captures Categories & Tags (problem)
+  [chromium] › admin-layout.pins.journey.ts:794:3 › Bug pin: admin-visual-parity › admin visual parity capture › captures Media (control)
+  [chromium] › admin-layout.pins.journey.ts:801:3 › Bug pin: admin-visual-parity › admin visual parity capture › captures Menus (control)
+  [chromium] › admin-layout.pins.journey.ts:850:1 › Bug pin: assistant-dock-preview-layout › expanded post preview leaves the chat FAB and open assistant dock accessible
+  [chromium] › admin-layout.pins.journey.ts:1022:3 › Bug pin: mobile-sheet-scroll › mobile chat sheet reserves scroll room instead of blocking it › 414x896, peek state: the last row on a long page clears the sheet
+  [chromium] › admin-layout.pins.journey.ts:1033:3 › Bug pin: mobile-sheet-scroll › mobile chat sheet reserves scroll room instead of blocking it › 414x896, expanded state: the last row still clears the taller sheet
+  [chromium] › admin-layout.pins.journey.ts:1045:3 › Bug pin: mobile-sheet-scroll › mobile chat sheet reserves scroll room instead of blocking it › 375x667, expanded state: the padding-floor regression stays fixed
+  [chromium] › admin-layout.pins.journey.ts:1068:3 › Bug pin: mobile-sheet-scroll › mobile chat sheet reserves scroll room instead of blocking it › closing the sheet leaves no reserved dead space to scroll into
+  [chromium] › admin-layout.pins.journey.ts:1203:5 › Bug pin: multi-tab-resource-soak › admin app survives an exhausted per-origin connection pool, across multiple screens › Posts fails visibly instead of hanging forever when no socket is free
+  [chromium] › admin-layout.pins.journey.ts:1203:5 › Bug pin: multi-tab-resource-soak › admin app survives an exhausted per-origin connection pool, across multiple screens › Forms fails visibly instead of hanging forever when no socket is free
+  [chromium] › admin-layout.pins.journey.ts:1273:5 › Bug pin: placeholder-tabs-card-parity › placeholder tabs match Settings' card chrome › /admin/settings: current header sits above the tab strip in the flat settings shell
+  [chromium] › admin-layout.pins.journey.ts:1336:3 › Bug pin: placeholder-tabs-card-parity › placeholder tabs match Settings' card chrome › Deployment's current header precedes its real tabs, and each tab opens its panel
+  [chromium] › admin-layout.pins.journey.ts:1361:3 › Bug pin: placeholder-tabs-card-parity › placeholder tabs match Settings' card chrome › Payments' retired core route falls back to Dashboard without a placeholder card
+  [chromium] › admin-layout.pins.journey.ts:1370:3 › Bug pin: placeholder-tabs-card-parity › placeholder tabs match Settings' card chrome › Authentication's external header precedes its tabs in page flow
+  [chromium] › admin-layout.pins.journey.ts:1395:3 › Bug pin: placeholder-tabs-card-parity › placeholder tabs match Settings' card chrome › Payments' legacy URL reports an unknown section instead of the retired Home subtitle
+  [chromium] › admin-layout.pins.journey.ts:1408:3 › Bug pin: placeholder-tabs-card-parity › placeholder tabs match Settings' card chrome › Payments' retired provider deep links cannot resurrect core commerce tabs
+  [chromium] › admin-layout.pins.journey.ts:1428:1 › Bug pin: test-audit-browser › package files wrap long lines and keep each gutter aligned with its source line
+  [chromium] › admin-layout.pins.journey.ts:1466:1 › Bug pin: test-audit-browser › MCP Remove and Tools dialogs contain native Tab navigation and Escape deletes nothing
+  [chromium] › admin-phone-layout.pins.journey.ts:13:1 › site-key fingerprint stays inside its card on a phone
+  [chromium] › admin-phone-layout.pins.journey.ts:31:1 › post formatting controls stay visible and keyboard-reachable on a phone
+  [chromium] › agent-page.pins.journey.ts:109:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 1: DOM page-driver mechanics work against the real rendered SPA — existence, current value, and a React-safe write
+  [chromium] › agent-page.pins.journey.ts:169:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 2: the SSE bridge from browser to daemon attaches with a real bind token
+  [chromium] › assistant-tool-call.journey.ts:102:3 › assistant real tool call (fake BYOK by default; opt-in Codex Local CLI) › a scripted tool_use creates a real draft post, visible in the API and on the Posts screen
+  [chromium] › assistant-tool-call.journey.ts:150:3 › assistant real tool call (fake BYOK by default; opt-in Codex Local CLI) › a tool call with invalid input is refused to the model, writes no row, and the turn still finishes
+  [chromium] › assistant-tool-call.journey.ts:181:3 › assistant real tool call (fake BYOK by default; opt-in Codex Local CLI) › double-clicking Send runs one turn and creates one post
+  [chromium] › assistant.journey.ts:77:3 › assistant ask_choice typed answer › typing while the question card is open delivers one typed answer and starts no second run
+  [chromium] › assistant.journey.ts:98:3 › assistant ask_choice typed answer › a stale question (409) shows the notice, keeps the draft and starts no run
+  [chromium] › assistant.journey.ts:119:3 › assistant ask_choice typed answer › a failed delivery (500) says so and keeps the draft for a retry
+  [chromium] › assistant.journey.ts:134:3 › assistant ask_choice typed answer › ask_choice card baseline
+  [chromium] › assistant.journey.ts:158:3 › assistant confirm card › typing while a CONFIRM card is pending steers the run instead of posting it as a typed answer
+  [chromium] › assistant.journey.ts:179:3 › assistant confirm card › confirm sends exactly one decision for the right tool
+  [chromium] › assistant.journey.ts:193:3 › assistant confirm card › the approval countdown ticks under a fake clock and the card closes as expired at the deadline
+  [chromium] › auth.pins.journey.ts:88:3 › Bug pin: admin-locale-after-login › admin locale survives an interactive login › a stored non-English locale renders in the sidebar on a fresh form login
+  [chromium] › auth.pins.journey.ts:107:3 › Bug pin: admin-locale-after-login › admin locale survives an interactive login › a locale written mid-session by another process reaches an open tab
+  [chromium] › auth.pins.journey.ts:132:1 › Bug pin: admin-logout-cancel › logout initially focuses Cancel and real Escape keeps the session authenticated
+  [chromium] › auth.pins.journey.ts:200:3 › Bug pin: admin-session-expiry-kickback › admin session-expiry login kickback › a 401 from a screen's own API call re-shows the login screen without a full page reload
+  [chromium] › auth.pins.journey.ts:227:3 › Bug pin: admin-session-expiry-kickback › admin session-expiry login kickback › a 403 (authenticated but forbidden) does NOT re-show the login screen
+  [chromium] › auth.pins.journey.ts:270:3 › Bug pin: login-api-down › admin login when the API is unreachable (symptom reproduction) › login attempt fails with a message that names the real cause
+  [chromium] › auth.pins.journey.ts:350:3 › Bug pin: login › admin login (Mandate 1) › valid credentials reach the authenticated admin shell
+  [chromium] › auth.pins.journey.ts:362:3 › Bug pin: login › admin login (Mandate 1) › wrong password shows an error and never reaches the admin shell
+  [chromium] › auth.pins.journey.ts:374:3 › Bug pin: login › admin login (Mandate 1) › unknown username shows an error rather than a different failure mode
+  [chromium] › auth.pins.journey.ts:384:3 › Bug pin: login › admin login (Mandate 1) › session survives a full page reload
+  [chromium] › auth.pins.journey.ts:391:3 › Bug pin: login › admin login (Mandate 1) › logout returns to the login screen and the session cookie stops authenticating
+  [chromium] › auth.pins.journey.ts:410:3 › Bug pin: login › admin login (Mandate 1) › direct API call with no session cookie is rejected (REQ-06 fail-closed)
+  [chromium] › byok.pins.journey.ts:92:3 › Bug pin: byok-azure-path › azure model discovery: refused honestly, independent of baseUrl shape (GOOD behavior — not a bug) › the same clean 'not supported' message for a garbage baseUrl, a well-formed one, and the pre-check for a blank one
+  [chromium] › byok.pins.journey.ts:126:3 › Bug pin: byok-azure-path › azure Test Connection: NOT short-circuited — a real asymmetry with model discovery › the exact same garbage baseUrl that discovery waves through instead surfaces 'Invalid baseUrl' here
+  [chromium] › byok.pins.journey.ts:143:3 › Bug pin: byok-azure-path › azure Test Connection: NOT short-circuited — a real asymmetry with model discovery › a real unreachable loopback port produces the raw, untranslated 'fetch failed' — no azure-specific (or any) translation
+  [chromium] › byok.pins.journey.ts:162:3 › Bug pin: byok-azure-path › azure Test Connection: NOT short-circuited — a real asymmetry with model discovery › a real local listener proves Test Connection genuinely attempts network egress for azure, with the exact URL shape the app builds
+  [chromium] › byok.pins.journey.ts:262:3 › Bug pin: byok-azure-path › the real operator path in the browser: exact messages shown, in order › selecting Azure shows an immediate, accurate 'baseUrl is required' hint, then settles on the honest 'not supported' message once a baseUrl exists
+  [chromium] › byok.pins.journey.ts:299:3 › Bug pin: byok-azure-path › model discovery settles Base URL edits (known gap) › typing a baseUrl character by character sends one settled discovery request
+  [chromium] › byok.pins.journey.ts:506:3 › Bug pin: byok-blank-key-save-guard › blank-key save guard › ADMIN panel, nothing stored: Save key is disabled for an empty field and for whitespace, enabled for a real key
+  [chromium] › byok.pins.journey.ts:523:3 › Bug pin: byok-blank-key-save-guard › blank-key save guard › VISITOR panel, nothing stored: Save key is disabled for an empty field and for whitespace, enabled for a real key
+  [chromium] › byok.pins.journey.ts:539:3 › Bug pin: byok-blank-key-save-guard › blank-key save guard › ADMIN panel, key already stored: an empty field leaves Save key disabled and the stored key intact
+  [chromium] › byok.pins.journey.ts:581:3 › Bug pin: byok-blank-key-save-guard › blank-key save guard › ADMIN panel, key already stored: typing a key and then CLEARING it disables Save key again
+  [chromium] › byok.pins.journey.ts:598:3 › Bug pin: byok-blank-key-save-guard › blank-key save guard › ADMIN panel, key already stored: a whitespace-only field never reaches the server as the new key
+  [chromium] › byok.pins.journey.ts:632:5 › Bug pin: byok-blank-key-save-guard › blank-key save guard › ADMIN panel: Save settings persists the model without changing the stored key
+  [chromium] › byok.pins.journey.ts:632:5 › Bug pin: byok-blank-key-save-guard › blank-key save guard › VISITOR panel: Save settings persists the model without changing the stored key
+  [chromium] › byok.pins.journey.ts:796:3 › Bug pin: byok-credential-persistence › byok credential persistence, multi-tab, and cross-provider contamination › DEFENSE-IN-DEPTH: a non-string apiKey inside a NON-ACTIVE provider's legacy localStorage draft must not break the Settings page render
+  [chromium] › byok.pins.journey.ts:838:3 › Bug pin: byok-credential-persistence › byok credential persistence, multi-tab, and cross-provider contamination › DEFENSE-IN-DEPTH: non-JSON garbage in legacy localStorage falls back to an empty field instead of crashing the settings page
+  [chromium] › byok.pins.journey.ts:869:3 › Bug pin: byok-credential-persistence › byok credential persistence, multi-tab, and cross-provider contamination › SECURITY PIN: a typed API key never reaches localStorage, checked under the exact two-tab race that used to leak it pre-ADR-058
+  [chromium] › byok.pins.journey.ts:962:3 › Bug pin: byok-credential-persistence › byok credential persistence, multi-tab, and cross-provider contamination › HELD: switching to a never-configured provider clears the API key field and never sends the OLD provider's key in the NEW provider's request
+  [chromium] › byok.pins.journey.ts:1056:1 › Bug pin: byok-empty-key-guard › empty-key guard: local rejection for every key-requiring protocol, both routes
+  [chromium] › byok.pins.journey.ts:1083:1 › Bug pin: byok-empty-key-guard › zero-network proof: an empty key never reaches a real listener, even one the SSRF guard allows (loopback)
+  [chromium] › byok.pins.journey.ts:1577:1 › Bug pin: byok-google-tool-schema › BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth, and the turn renders a reply
+  [chromium] › byok.pins.journey.ts:1734:3 › Bug pin: byok-hostile-provider › malformed / truncated / empty response bodies › malformed JSON, a truncated body, and a valid-but-empty model array each get a distinct, legible failure — never a crash or a raw parser exception
+  [chromium] › byok.pins.journey.ts:1795:3 › Bug pin: byok-hostile-provider › HTTP error statuses › 500 and 429 are classified into distinct, correct kinds with the provider's own error text carried through
+  [chromium] › byok.pins.journey.ts:1829:3 › Bug pin: byok-hostile-provider › hung / slow providers — the 12s hard timeout actually fires › a response that never arrives, and one that arrives 1s after the timeout, both abort at the 12s ceiling instead of hanging forever
+  [chromium] › byok.pins.journey.ts:1880:3 › Bug pin: byok-hostile-provider › volume attacks: an oversized body and 10,000 models — the soft spot › a multi-MB body and a 10,000-model catalog are both accepted and forwarded whole — NO size or count cap anywhere in the pipeline (flagged, not fixed)
+  [chromium] › byok.pins.journey.ts:1930:3 › Bug pin: byok-hostile-provider › the real operator path in the browser: does the UI hang, stay usable, and recover › a malformed discovery response shows a parsing error without wedging the form, and editing the endpoint to a healthy deputy recovers the model picker
+  [chromium] › byok.pins.journey.ts:1983:3 › Bug pin: byok-hostile-provider › 10,000 models rendered in the real browser: no hang › the model picker renders all 10,000 options and the page stays interactive
+  [chromium] › byok.pins.journey.ts:2066:3 › Bug pin: byok-hostile-provider › XSS in model ids — highest severity item in this file › a model id containing a live <img onerror> payload renders as inert text/attribute value; it never executes
+  [chromium] › byok.pins.journey.ts:2364:3 › Bug pin: byok-key-handling › byok key-handling edge cases › client-side: a whitespace-only API key keeps Test Connection disabled, matching the server's own guard
+  [chromium] › byok.pins.journey.ts:2384:3 › Bug pin: byok-key-handling › byok key-handling edge cases › a Gemini key containing &, #, ?, %, +, and a raw newline never injects a second query parameter — it round-trips as one encoded value
+  [chromium] › byok.pins.journey.ts:2412:3 › Bug pin: byok-key-handling › byok key-handling edge cases › an API key with leading/trailing whitespace is sent to the provider BYTE-FOR-BYTE — no client or server-side trim
+  [chromium] › byok.pins.journey.ts:2491:3 › Bug pin: byok-key-handling › byok key-handling edge cases › a key containing CRLF never achieves header injection, and the route degrades to ok:false rather than a 500
+  [chromium] › byok.pins.journey.ts:2522:3 › Bug pin: byok-key-handling › byok key-handling edge cases › a 10,000-character API key does not hang or crash discovery or test-connection
+  [chromium] › byok.pins.journey.ts:2562:3 › Bug pin: byok-key-handling › byok key-handling edge cases › redactSecrets scrubs the real API key out of an upstream error that echoes it back — both the non-2xx and the 2xx-bad-reply branches
+  [chromium] › byok.pins.journey.ts:2632:3 › Bug pin: byok-key-handling › byok key-handling edge cases › browser-level: an endpoint that echoes the API key in its error body never shows the raw key anywhere in the settings UI
+  [chromium] › byok.pins.journey.ts:2727:3 › Bug pin: byok-key-handling › Base URL edits settle before sending a draft API key (MSG-1 known gap) › typing into Base URL sends the draft API key only to the finished endpoint
+  [chromium] › byok.pins.journey.ts:2768:3 › Bug pin: byok-key-handling › Base URL edits settle before sending a draft API key (MSG-1 known gap) › a prefix-port listener receives no draft key while editing toward the final endpoint
+  [chromium] › byok.pins.journey.ts:2824:3 › Bug pin: byok-key-handling › Base URL edits settle before sending a draft API key (MSG-1 known gap) › open question 1 (MSG-1): redactSecrets DOES cover an error surfaced from one of these unintended prefix requests
+  [chromium] › byok.pins.journey.ts:2862:3 › Bug pin: byok-key-handling › Base URL edits settle before sending a draft API key (MSG-1 known gap) › rapid Base URL edits contact only the final endpoint
+  [chromium] › byok.pins.journey.ts:2954:3 › Bug pin: byok-model-discovery-self-heal › byok model-discovery self-heal (REQ: Test Connection re-fires stale discovery) › a discovery error from before a key existed clears the moment Test Connection succeeds
+  [chromium] › byok.pins.journey.ts:3121:1 › Bug pin: byok-ssrf-guard › ssrf-guard blocks every documented private/reserved range and non-http(s) scheme
+  [chromium] › byok.pins.journey.ts:3169:1 › Bug pin: byok-ssrf-guard › a hostname that DNS-resolves to a private IP is blocked (rebinding defense) — one-off, not through the route
+  [chromium] › byok.pins.journey.ts:3190:1 › Bug pin: byok-ssrf-guard › ssrf-guard: loopback is allowed BY DESIGN, with no port restriction — the real blast radius
+  [chromium] › byok.pins.journey.ts:3333:3 › Bug pin: byok-state-races › byok state races (REQ: async state must be scoped to the provider it came from) › a Test Connection failure for Anthropic survives a switch to a never-tested OpenAI, mislabeling OpenAI as broken
+  [chromium] › byok.pins.journey.ts:3372:3 › Bug pin: byok-state-races › byok state races (REQ: async state must be scoped to the provider it came from) › an in-flight Test Connection response for Anthropic, resolved AFTER switching to OpenAI, still paints OpenAI's card with Anthropic's verdict
+  [chromium] › byok.pins.journey.ts:3426:3 › Bug pin: byok-state-races › byok state races (REQ: async state must be scoped to the provider it came from) › HELD: an in-flight model-discovery response for OpenAI, resolved after switching to Google, does NOT clobber Google's fresh model list
+  [chromium] › byok.pins.journey.ts:3494:3 › Bug pin: byok-state-races › byok state races (REQ: async state must be scoped to the provider it came from) › HELD: a fast provider switch, before the 600ms settings-save debounce fires, never leaks the typed key into localStorage
+  [chromium] › collections.journey.ts:73:3 › W6 collections › define a content type in the modal, add an entry, publish it, and a page marker renders it publicly
+  [chromium] › collections.journey.ts:123:3 › W6 collections › collections list, entries list and entry editor baselines
+  [chromium] › collections.journey.ts:146:3 › collections stress › two tabs save the same entry: one wins, the other gets dedicated conflict copy (not the raw server message) and keeps its text
+  [chromium] › collections.journey.ts:181:3 › collections stress › double-clicking Publish sends one lifecycle call and leaves no error
+  [chromium] › collections.journey.ts:200:3 › collections stress › a duplicate entry slug is refused with a readable message and nothing is overwritten
+  [chromium] › collections.journey.ts:217:3 › collections stress › saving a new entry with a required field empty is refused and names the field
+  [chromium] › collections.journey.ts:231:3 › collections stress › unicode and markup in field values round-trip through the editor and render escaped publicly
+  [chromium] › composer.pins.journey.ts:114:3 › Bug pin: admin-composer-agent-plugin-chip › admin composer — Agent Plugin chip pin/remove/send wiring › pinning the Agent Plugin row renders a removable chip and types nothing into the draft
+  [chromium] › composer.pins.journey.ts:131:3 › Bug pin: admin-composer-agent-plugin-chip › admin composer — Agent Plugin chip pin/remove/send wiring › the chip's remove button clears the pinned plugin ref
+  [chromium] › composer.pins.journey.ts:153:3 › Bug pin: admin-composer-agent-plugin-chip › admin composer — Agent Plugin chip pin/remove/send wiring › sending with the chip pinned puts pluginRefIds on the real outbound /api/runs request body
+  [chromium] › composer.pins.journey.ts:220:3 › Bug pin: admin-composer-agent-plugin-chip › admin composer — Agent Plugin chip pin/remove/send wiring › selecting the Agent Plugin row via the SLASH trigger pins the chip and leaves the draft empty
+  [chromium] › composer.pins.journey.ts:414:3 › Bug pin: admin-composer-attachment-picker › admin composer — attachment file picker excludes no file type › the composer's file input carries no accept filter, so the OS dialog cannot exclude any file
+  [chromium] › composer.pins.journey.ts:429:3 › Bug pin: admin-composer-attachment-picker › admin composer — attachment file picker excludes no file type › text, code, and config files all upload through the picker and classify as 'file'
+  [chromium] › composer.pins.journey.ts:445:3 › Bug pin: admin-composer-attachment-picker › admin composer — attachment file picker excludes no file type › real images classify as 'image', a binary non-image and odd filenames still classify as 'file'
+  [chromium] › composer.pins.journey.ts:474:3 › Bug pin: admin-composer-attachment-picker › admin composer — attachment file picker excludes no file type › a zero-byte attachment is rejected by the daemon, with no chip added
+  [chromium] › composer.pins.journey.ts:496:3 › Bug pin: admin-composer-attachment-picker › admin composer — attachment file picker excludes no file type › a file over the 50 MB per-attachment cap is rejected before any upload request, with no chip added
+  [chromium] › composer.pins.journey.ts:573:3 › Bug pin: admin-composer-discovery-menu-overlap › admin composer discovery popovers float above the input, not over it › the + Add Context popover does not overlap the textarea, and a real click into the textarea reaches it and dismisses the popover
+  [chromium] › composer.pins.journey.ts:613:3 › Bug pin: admin-composer-discovery-menu-overlap › admin composer discovery popovers float above the input, not over it › the slash-command palette does not overlap the textarea and Escape dismisses it
+  [chromium] › composer.pins.journey.ts:706:3 › Bug pin: admin-composer-discovery-menu-scroll › admin composer discovery popover has no phantom scroll space from hidden hover-tooltip descriptions › scrolling the + Add Context popover to its end reveals the last real row flush with the box's own bottom edge, not a blank block
+  [chromium] › composer.pins.journey.ts:811:3 › Bug pin: admin-composer-typeahead-visual › admin composer type-ahead menu visual regression › composer dock — resting state (baseline for comparison against the open menu)
+  [chromium] › composer.pins.journey.ts:819:3 › Bug pin: admin-composer-typeahead-visual › admin composer type-ahead menu visual regression › typing / opens the slash menu — the owner's named bug case
+  [chromium] › composer.pins.journey.ts:833:3 › Bug pin: admin-composer-typeahead-visual › admin composer type-ahead menu visual regression › + Add Context menu — second type-ahead-style popover, same guard
+  [chromium] › deployment.pins.journey.ts:42:3 › Bug pin: access-tokens › Access Tokens tab › renders all six installed providers and the current saved-token count
+  [chromium] › deployment.pins.journey.ts:69:3 › Bug pin: access-tokens › Access Tokens tab › create a named GitHub Pages token, it shows connected with the typed name, and Static Site still sees it
+  [chromium] › deployment.pins.journey.ts:99:3 › Bug pin: access-tokens › Access Tokens tab › search for 'github' surfaces both the Pages and Source Control groups, never merged into one card
+  [chromium] › deployment.pins.journey.ts:111:3 › Bug pin: access-tokens › Access Tokens tab › source-control writes recover after rejection, and custom providers persist
+  [chromium] › deployment.pins.journey.ts:158:3 › Bug pin: access-tokens › Access Tokens tab › rename an existing token without retyping it, and Remove reads 'Remove from Tovu' with the non-revocation disclosure
+  [chromium] › deployment.pins.journey.ts:203:3 › Bug pin: access-tokens › Access Tokens tab › a second named token for the same provider shows a Default pill and a Make default link
+  [chromium] › deployment.pins.journey.ts:250:3 › Bug pin: access-tokens › Access Tokens tab › a token saved through Static Site BEFORE this page existed shows up with a real name, not the raw 'default' label
+  [chromium] › deployment.pins.journey.ts:297:1 › Bug pin: deployment-overview › Overview fact badges fit their cells and keep the full password warning visible
+  [chromium] › deployment.pins.journey.ts:411:3 › Bug pin: deployment-static-site-token-picker › Deployment > Static Site > GitHub Pages: choosing which saved token publishes › two saved credentials for one provider render a picker; choosing the other one promotes it to default
+  [chromium] › deployment.pins.journey.ts:478:3 › Bug pin: deployment-static-site-token-picker › Deployment > Static Site > GitHub Pages: choosing which saved token publishes › a provider with only one saved credential renders no picker — nothing to choose between
+  [chromium] › deployment.pins.journey.ts:528:3 › Bug pin: deployment-static-site-verify-gap › Deployment > Static Site > GitHub Pages: re-verifying an already-saved credential › a connected-but-unverified credential can be re-verified without re-entering the token
+  [chromium] › deployment.pins.journey.ts:575:3 › Bug pin: deployment-static-site-verify-gap › Deployment > Static Site > GitHub Pages: re-verifying an already-saved credential › the backend verify route reports a failed check for a synthetic token
+  [chromium] › deployment.pins.journey.ts:686:3 › Bug pin: deployment-tabbar-scroll › .tab-bar stays reachable at a 390px viewport (narrow-width regression) › Deployment: the last tab (History) is reachable and clicking it navigates there
+  [chromium] › deployment.pins.journey.ts:706:3 › Bug pin: deployment-tabbar-scroll › .tab-bar stays reachable at a 390px viewport (narrow-width regression) › Themes: the last tab (Code) is reachable and clicking it activates it — confirms the shared fix doesn't regress this other TabBar consumer
+  [chromium] › deployment.pins.journey.ts:723:3 › Bug pin: deployment-tabbar-scroll › .tab-bar stays reachable at a 390px viewport (narrow-width regression) › Pages: unaffected at 390px — its two tabs never overflowed, so the fix must not change their layout
+  [chromium] › deployment.pins.journey.ts:740:3 › Bug pin: deployment-tabbar-scroll › Deployment: tab row stays fully visible with the admin chat pane open (2026-08-16 regression) › all four tabs, including History, are reachable without scrolling once the dock narrows the content column
+  [chromium] › deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly
+  [chromium] › deployment.pins.journey.ts:934:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, hosted-api-only disclosure › shows the plain-language hosted notice OPEN, never the collapsed self-hosted Advanced disclosure
+  [chromium] › deployment.pins.journey.ts:954:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › save, reload, then replace the token — every step through a real route, no label ever typed
+  [chromium] › deployment.pins.journey.ts:995:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › github-pages needs only a token — no label, no owner/repo on this row
+  [chromium] › deployment.pins.journey.ts:1012:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › cloudflare-pages requires BOTH a token and an Account ID before Save enables
+  [chromium] › deployment.pins.journey.ts:1081:3 › Bug pin: static-site-tab › Static Site tab — build export › the Build button starts a real export and the run settles to a real, non-fabricated result
+  [chromium] › deployment.pins.journey.ts:1106:3 › Bug pin: static-site-tab › Static Site tab — build export › the overwrite checkbox starts unchecked, matching the exporter's own clean:false default
+  [chromium] › deployment.pins.journey.ts:1113:3 › Bug pin: static-site-tab › Static Site tab — build export › the overwrite checkbox sends clean and controls preservation of existing files
+  [chromium] › deployment.pins.journey.ts:1151:3 › Bug pin: static-site-tab › Static Site tab — provider split (GitHub Pages vs Vercel) › Cloudflare Pages is the default; selecting GitHub Pages shows its descriptor fields, no CLI detection, and no Vercel fields
+  [chromium] › deployment.pins.journey.ts:1174:3 › Bug pin: static-site-tab › Static Site tab — provider split (GitHub Pages vs Vercel) › switching to Vercel shows its descriptor fields, no CLI detection, and preserves the GitHub draft
+  [chromium] › deployment.pins.journey.ts:1203:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › Preview reports a real derived base path with no credential configured — a pure read, never starts a run
+  [chromium] › deployment.pins.journey.ts:1233:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › a real Publish click for Vercel (no token configured) settles honestly to a credential failure — this can never leave the process, see this file's own header
+  [chromium] › forms.journey.ts:81:3 › W6 forms › build a form in the admin, embed it, a logged-out visitor submits, the admin sees the answer
+  [chromium] › forms.journey.ts:118:3 › W6 forms › forms list, builder and submissions baselines
+  [chromium] › forms.journey.ts:140:3 › forms abuse and stress (public, no login) › a filled honeypot looks like success to the bot but stores nothing
+  [chromium] › forms.journey.ts:158:3 › forms abuse and stress (public, no login) › the sixth submission inside a minute is refused with 429 and a retry hint; the first five are stored
+  [chromium] › forms.journey.ts:175:3 › forms abuse and stress (public, no login) › a spoofed X-Forwarded-For does not reset the rate limit (no trusted proxy configured)
+  [chromium] › forms.journey.ts:185:3 › forms abuse and stress (public, no login) › a rate-limited browser submission shows the error alert, not the success notice
+  [chromium] › forms.journey.ts:202:3 › forms abuse and stress (public, no login) › double-clicking Send stores exactly one submission
+  [chromium] › forms.journey.ts:218:3 › forms abuse and stress (public, no login) › required and maxLength are enforced server-side even when the browser's checks are bypassed
+  [chromium] › forms.journey.ts:230:3 › forms abuse and stress (public, no login) › unknown fields, prototype keys and oversized values never reach the stored answer
+  [chromium] › forms.journey.ts:249:3 › forms abuse and stress (public, no login) › markup in an answer renders as text in the admin submissions table
+  [chromium] › forms.journey.ts:267:3 › forms abuse and stress (public, no login) › an anonymous caller can submit but can never list or read submissions
+  [chromium] › forms.journey.ts:278:3 › forms abuse and stress (public, no login) › an unknown form slug answers 404 and does not echo the slug as HTML
+  [chromium] › media.pins.journey.ts:48:1 › Bug pin: media-picker-cancel › Media's Order by label and dropdown share a row with visible spacing
+  [chromium] › media.pins.journey.ts:130:3 › Bug pin: media-picker-cancel › Media Picker — Cancel button reachability › Cancel stays fully inside the viewport and closes the dialog when clicked, with real media loaded
+  [chromium] › media.pins.journey.ts:196:1 › Bug pin: media-picker-cancel › Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape
+  [chromium] › media.pins.journey.ts:309:1 › Bug pin: media-providers-credentials › the tab renders the engine's vendor roster, not @jini-ai/ui's curated sample
+  [chromium] › media.pins.journey.ts:326:1 › Bug pin: media-providers-credentials › a typed key survives a full page reload as a masked marker, and never comes back in plaintext
+  [chromium] › media.pins.journey.ts:349:1 › Bug pin: media-providers-credentials › the stored key is never delivered to the browser — the field stays empty
+  [chromium] › media.pins.journey.ts:366:1 › Bug pin: media-providers-credentials › Clear removes the credential server-side, so a reload does not bring it back
+  [chromium] › native-dialog-families.journey.ts:33:1 › collection dialog contains Tab, dismisses on Escape/backdrop, and restores its opener
+  [chromium] › native-dialog-families.journey.ts:60:1 › form field settings keep focus inside and return it to the chosen field
+  [chromium] › native-dialog-families.journey.ts:84:1 › widget Select portals within the modal and consumes only its own Escape
+  [chromium] › pages.journey.ts:34:3 › W3 page lifecycle › create an HTML page, publish it, and read it at /<slug> on the public site
+  [chromium] › pages.journey.ts:51:3 › W3 page lifecycle › page editor HTML and preview baselines
+  [chromium] › pages.journey.ts:60:3 › W3 page lifecycle › published page at phone width: no horizontal scroll on the public page or in the admin editor
+  [chromium] › pages.journey.ts:88:3 › page preview sandbox › a target=_top link inside the preview does not navigate the admin
+  [chromium] › pages.journey.ts:99:3 › page preview sandbox › a script inside the preview cannot navigate window.top
+  [chromium] › pages.journey.ts:122:3 › page preview sandbox › a target=_blank popup from the preview opens a new tab, never replaces the admin
+  [chromium] › pages.pins.journey.ts:23:3 › Bug pin: pages-editor-scroll-flush › Pages editor scroll restoration and active text edits › restores a populated HTML textarea's actual scroll position after a tab remount
+  [chromium] › pages.pins.journey.ts:41:3 › Bug pin: pages-editor-scroll-flush › Pages editor scroll restoration and active text edits › restores the same-origin preview window after its document loads again
+  [chromium] › pages.pins.journey.ts:66:3 › Bug pin: pages-editor-scroll-flush › Pages editor scroll restoration and active text edits › Save flushes text still being edited in the real Interactive canvas
+  [chromium] › pages.pins.journey.ts:119:3 › Bug pin: pages-editor › Pages editor › New Page opens the Pages editor, not the Posts/Tiptap one
+  [chromium] › pages.pins.journey.ts:138:3 › Bug pin: pages-editor › Pages editor › [unrun-edit] HTML written in the editor is saved and rendered in the sandboxed preview
+  [chromium] › pages.pins.journey.ts:173:3 › Bug pin: pages-editor › Pages editor › draft preview POSTs saved and pending HTML into its iframe, with no notice above it
+  [chromium] › pages.pins.journey.ts:208:3 › Bug pin: pages-editor › Pages editor › a saved page survives a reload — the HTML is persisted, not just held in component state
+  [chromium] › pages.pins.journey.ts:224:3 › Bug pin: pages-editor › Pages editor › renaming a generated page keeps its HTML — the regression that used to delete it
+  [chromium] › pages.pins.journey.ts:259:3 › Bug pin: pages-editor › Pages editor — Interactive tab (GrapesJS) › clicking into rendered text and typing flows through to the HTML tab
+  [chromium] › pages.pins.journey.ts:295:3 › Bug pin: pages-editor › Pages editor — Interactive tab (GrapesJS) › an embed placeholder div survives an Interactive-tab edit byte-for-byte
+  [chromium] › pages.pins.journey.ts:328:3 › Bug pin: pages-editor › Pages editor — Interactive tab (GrapesJS) › opening the Interactive tab on realistic mixed-content HTML does not crash
+  [chromium] › pages.pins.journey.ts:396:3 › Bug pin: pages-editor › Pages editor — Interactive tab (GrapesJS) › a page's own <style> block survives an Interactive-tab edit
+  [chromium] › plugins.journey.ts:77:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › the install preview says no code runs, lists the content types, and installs switched off
+  [chromium] › plugins.journey.ts:92:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › enabling it adds the FAQ type; a page marker renders an accordion with FAQPage JSON-LD
+  [chromium] › plugins.journey.ts:135:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › a testimonials carousel is keyboard-scrollable and does not widen the page at phone width
+  [chromium] › plugins.journey.ts:164:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › a second plugin declaring the same 'faq' type is flagged in the install preview
+  [chromium] › plugins.journey.ts:175:3 › AW-7 Tier 1: Testimonials + FAQ, code-free › the conflicting plugin's row names the clash, and enabling it is refused while the other is on
+  [chromium] › plugins.journey.ts:203:3 › AW-7 Tier 2: Content Analyzer › enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone
+  [chromium] › plugins.pins.journey.ts:118:3 › Bug pin: plugin-install › isolated plugin installs › UI drop ZIP → Preview → Install appears switched off
+  [chromium] › plugins.pins.journey.ts:130:3 › Bug pin: plugin-install › isolated plugin installs › UI Choose a folder uploads directory input files then previews and installs
+  [chromium] › plugins.pins.journey.ts:140:3 › Bug pin: plugin-install › isolated plugin installs › WebMCP fills plugins-install-folder then previews and confirms via document.modelContext
+  [chromium] › plugins.pins.journey.ts:157:3 › Bug pin: plugin-install › isolated plugin installs › Downloaded rows wrap at container width with a 380px chat dock
+  [chromium] › plugins.pins.journey.ts:236:3 › Bug pin: plugin-install › isolated plugin installs › agent plugin ZIP installs off and Replace upgrades 1.0.0 → 1.0.1
+  [chromium] › plugins.pins.journey.ts:257:3 › Bug pin: plugin-install › isolated plugin installs › cleanup uninstalls every QA fixture installed by this test
+  [chromium] › posts.journey.ts:47:3 › W2 post lifecycle › create, publish, see it public, unpublish hides it, trash and restore bring it back
+  [chromium] › posts.journey.ts:85:3 › W2 post lifecycle › posts list and editor baselines
+  [chromium] › posts.journey.ts:98:3 › posts stress › two tabs save the same post: exactly one wins, the other sees the version-conflict banner and keeps its text
+  [chromium] › posts.journey.ts:135:3 › posts stress › simultaneous saves from two tabs: one 200, one 409, never two silent overwrites
+  [chromium] › posts.journey.ts:155:3 › posts stress › double-clicking New Post creates exactly one post
+  [chromium] › posts.journey.ts:167:3 › posts stress › double-clicking Publish publishes once and leaves one Published notice
+  [chromium] › posts.journey.ts:180:3 › posts stress › reload while a save is in flight never silently loses the typed title
+  [chromium] › posts.journey.ts:203:3 › posts stress › offline save shows an error and keeps the text in the editor
+  [chromium] › posts.journey.ts:216:3 › posts stress › long unicode title and a very long body publish and render publicly intact
+  [chromium] › posts.journey.ts:237:3 › posts stress › 60 posts: every one is reachable from the posts list
+  [chromium] › posts.journey.ts:256:3 › session expiry mid-edit › a revoked session kicks to login on save, and the typed draft is offered back after re-login
+  [chromium] › posts.journey.ts:289:3 › Content analysis card (AW-7 Tier 2) › with the analyzer off, the editor shows no Content analysis card
+  [chromium] › posts.journey.ts:303:3 › Content analysis card (AW-7 Tier 2) › enabled from Plugins, a saved post shows score, words, TOC and checks; Analyze now covers unsaved edits
+  [chromium] › posts.journey.ts:335:3 › post preview sandbox › every post preview iframe is sandboxed without top navigation
+  [chromium] › posts.pins.journey.ts:48:1 › Bug pin: post-editor-autosave-teardown › reload recovers the newest draft while an earlier autosave PUT is pending
+  [chromium] › posts.pins.journey.ts:204:3 › Bug pin: post-editor-image-sizing › post editor — inserted image sizing › a legacy src-only image node (pre-existing content, no assetId/transformName) is constrained to the editor pane, not its raw intrinsic size
+  [chromium] › posts.pins.journey.ts:264:3 › Bug pin: post-editor-image-sizing › post editor — inserted image sizing › an image inserted by drag/paste upload (FileHandler -> MediaImage node view) is equally constrained
+  [chromium] › posts.pins.journey.ts:328:3 › Bug pin: post-editor-image-sizing › public theme — post body image sizing (the second bug this dispatch found) › `.post-detail-body img` scales height when the img carries explicit width/height attributes
+  [chromium] › posts.pins.journey.ts:398:8 › Bug pin: post-editor-image-sizing › public page — inserted image actually renders (not a filename placeholder) › a drag/paste-uploaded image renders as a real <img src="/m/..."> on the published public page, not a media-ph placeholder
+  [chromium] › posts.pins.journey.ts:447:3 › Bug pin: post-editor-image-sizing › media image node — Replace/Remove button spacing (owner-reported, same dispatch) › the Replace and Remove buttons have a visible gap, not flush edges
+  [chromium] › posts.pins.journey.ts:565:3 › Bug pin: post-editor-mention-preview-link › Post editor Preview tab — mention link regression (2026-08-12) › FIXED: a mention link inside the pending-content preview (branch 3) navigates to the real public post, not a dead admin-origin URL
+  [chromium] › posts.pins.journey.ts:686:3 › Bug pin: post-editor-open-redirect-link › Post editor Link toolbar — open-redirect fix (2026-08-20) › a protocol-relative link URL is refused by the Link dialog and never served as an off-site link on the published page
+  [chromium] › posts.pins.journey.ts:875:3 › Bug pin: post-editor-preview-branches › Post editor Preview tab — which of the four branches renders › FIXED (2026-09-11, owner-reported): a brand-new, UNTOUCHED draft's Preview tab shows the real themed template render, not the raw editor-buffer fallback
+  [chromium] › posts.pins.journey.ts:912:3 › Bug pin: post-editor-preview-branches › Post editor Preview tab — which of the four branches renders › WIDENED (2026-09-09): a DRAFT post's own content edit shows the themed pending-content preview, not the raw editor-buffer fallback
+  [chromium] › posts.pins.journey.ts:939:3 › Bug pin: post-editor-preview-branches › Post editor Preview tab — which of the four branches renders › INTENDED: a published, unedited post's Preview tab shows the real live site through an actual navigable iframe, with NO notice
+  [chromium] › posts.pins.journey.ts:960:3 › Bug pin: post-editor-preview-branches › Post editor Preview tab — which of the four branches renders › FIXED (2026-08-12, owner-reported bug): formatting a PUBLISHED post's content keeps its Preview themed via the pending-content branch, carrying the unsaved edit
+  [chromium] › posts.pins.journey.ts:1017:3 › Bug pin: post-editor-preview-branches › Post editor Preview tab — which of the four branches renders › BRANCH 2: changing only a published post's template loads the alternate preview without changing the live page
+  [chromium] › posts.pins.journey.ts:1220:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › Bold, Italic, Strike, Underline, Code and Link marks apply to the selected word and persist
+  [chromium] › posts.pins.journey.ts:1277:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › H1, H2 and H3 create heading nodes at the correct level, each ending Enter back at a plain paragraph
+  [chromium] › posts.pins.journey.ts:1314:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › the bullet-list and numbered-list buttons produce the correct list node, not each other's
+  [chromium] › posts.pins.journey.ts:1340:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › the Quote button produces a blockquote and the Code block button produces a codeBlock
+  [chromium] › posts.pins.journey.ts:1364:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › the Divider button inserts a horizontalRule node between two paragraphs
+  [chromium] › posts.pins.journey.ts:1386:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › each align button sets the current paragraph's textAlign attr to its own value, not a neighbor's
+  [chromium] › posts.pins.journey.ts:1416:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › REGRESSION (2026-08-12, owner-reported bug): the toolbar no longer offers 'Insert image by URL' — it wrote a src-only node render.ts never renders publicly
+  [chromium] › posts.pins.journey.ts:1437:3 › Bug pin: post-editor-toolbar › Post editor toolbar — click-to-persisted-JSON contract › full chain: formatting applied through the toolbar, published, is present in the served public HTML
+  [chromium] › posts.pins.journey.ts:1523:3 › Bug pin: post-editor-youtube-preview › Post editor Preview tab — YouTube embed regression (2026-08-12) › a draft's server-rendered preview renders its YouTube embed with intentionally isolated storage
+  [chromium] › posts.pins.journey.ts:1554:3 › Bug pin: post-editor-youtube-preview › Post editor Preview tab — YouTube embed regression (2026-08-12) › published YouTube iframe retains its complete attributes and initializes a controlled player
+  [chromium] › release-0113-ui.journey.ts:10:3 › 0.1.13 A8 operator journeys › markdown and sandboxed tool-card links open new tabs and preserve the conversation and draft
+  [chromium] › release-0113-ui.journey.ts:43:3 › 0.1.13 A8 operator journeys › mid-run Send delivers one message to the active run and Stop cancels that same run
+  [chromium] › release-0113-ui.journey.ts:74:3 › 0.1.13 A8 operator journeys › menu Options and HTML tabs persist HTML mode and exact source when saved and reopened
+  [chromium] › release-0113-ui.journey.ts:101:3 › 0.1.13 A8 operator journeys › Themes Explore Save as original removes the warning and Reset restores the saved original
+  [chromium] › release-0113-ui.journey.ts:133:3 › 0.1.13 A8 operator journeys › theme cards replace inherited identical pictures with captures of each theme's own render
+  [chromium] › release-0113-ui.journey.ts:160:3 › 0.1.13 A8 operator journeys › Recent errors groups repeated entries, expands full details, copies and refreshes to empty
+  [chromium] › release-0113-ui.journey.ts:201:3 › 0.1.13 A8 operator journeys › pending and completed chat tool rows expand to input and result and collapse again
+  [chromium] › settings-locale.journey.ts:59:3 › de: long translated labels fit the expanded sidebar and no key screen scrolls sideways
+  [chromium] › settings-locale.journey.ts:59:3 › hu: long translated labels fit the expanded sidebar and no key screen scrolls sideways
+  [chromium] › settings-locale.journey.ts:82:1 › ar: the admin flips to right-to-left, with the sidebar on the right
+  [chromium] › settings-locale.journey.ts:108:1 › the language picked in Settings persists across reload and drives the nav
+  [chromium] › settings-locale.journey.ts:123:3 › phone width (390 px) › every key admin screen fits without sideways scroll, and the nav opens and closes
+  [chromium] › settings-locale.journey.ts:139:3 › phone width (390 px) › phone-width baselines for the busiest screens
+  [chromium] › settings-locale.journey.ts:167:3 › keyboard only › first Tab reaches Skip to content, which moves focus into the main region
+  [chromium] › settings-locale.journey.ts:182:3 › keyboard only › Posts is reachable from the nav and New Post opens the editor without a mouse, with a visible focus ring
+  [chromium] › settings-locale.journey.ts:204:3 › keyboard only › a confirm dialog traps focus and Escape closes it without acting
+  [chromium] › settings-locale.journey.ts:224:3 › keyboard only › the post status select has an accessible name
+  [chromium] › site-chat.pins.journey.ts:75:3 › Bug pin: site-assistant-limits › SPEC-046 AC6/REQ-7 — real per-IP rate limiting on the public chat endpoint › requests 1-10 clear the limiter, then the widget's 11th request is readable and leaves the composer usable
+  [chromium] › site-chat.pins.journey.ts:199:3 › Bug pin: site-assistant-navigation › SPEC-046 AC1/D-1 — navigating a visitor's browser › a rehydrated, already-executed navigate directive does not re-fire on mount (no infinite navigation loop)
+  [chromium] › site-chat.pins.journey.ts:280:3 › Bug pin: site-assistant-persistence › SPEC-046 REQ-1 — the transcript survives a page load › a reply and the pane's open state both come back after a plain reload
+  [chromium] › site-chat.pins.journey.ts:301:3 › Bug pin: site-assistant-persistence › SPEC-046 REQ-1 — the transcript survives a page load › 'New thread' clears the PERSISTED copy, so a reload does not rehydrate the discarded conversation
+  [chromium] › site-chat.pins.journey.ts:339:3 › Bug pin: site-assistant-persistence › SPEC-046 REQ-1 — a session store the widget did not write › a corrupt transcript entry degrades to an empty conversation instead of a broken widget
+  [chromium] › site-chat.pins.journey.ts:370:3 › Bug pin: site-assistant-persistence › SPEC-046 REQ-1 — a session store the widget did not write › a corrupt legacy action-queue entry is ignored without executing anything
+  [chromium] › site-chat.pins.journey.ts:469:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › home (/): served HTML mounts the assistant outside comments, before the real </body>
+  [chromium] › site-chat.pins.journey.ts:495:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › home (/): the FAB is visible in the bottom-right corner and opens the panel
+  [chromium] › site-chat.pins.journey.ts:514:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › home (/): the bottom-right corner matches the FAB baseline
+  [chromium] › site-chat.pins.journey.ts:469:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › about (/about): served HTML mounts the assistant outside comments, before the real </body>
+  [chromium] › site-chat.pins.journey.ts:495:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › about (/about): the FAB is visible in the bottom-right corner and opens the panel
+  [chromium] › site-chat.pins.journey.ts:514:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › about (/about): the bottom-right corner matches the FAB baseline
+  [chromium] › site-chat.pins.journey.ts:469:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › blog-post (/how-themes-work): served HTML mounts the assistant outside comments, before the real </body>
+  [chromium] › site-chat.pins.journey.ts:495:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › blog-post (/how-themes-work): the FAB is visible in the bottom-right corner and opens the panel
+  [chromium] › site-chat.pins.journey.ts:514:5 › Bug pin: site-chat-fab-presence › site-chat FAB is present on every public page that ships it › blog-post (/how-themes-work): the bottom-right corner matches the FAB baseline
+  [chromium] › site-chat.pins.journey.ts:540:3 › front: built lazy widget regressions › opens from the loader before React exists, and resumes without stealing page focus
+  [chromium] › site-chat.pins.journey.ts:567:3 › front: vanilla mobile accessibility › renders 16px inputs and contrasting controls; page Escape leaves the resumed panel open
+  [chromium] › site-import.journey.ts:96:3 › 0.1.13 A1 local reference site import › one casual request imports in batches and rebuilds an inactive theme through tovu-theme
+  [chromium] › smoke.journey.ts:36:3 › W1 login and session › wrong password keeps the login card and shows an error
+  [chromium] › smoke.journey.ts:42:3 › W1 login and session › login, reload keeps the session, logout returns to the login card
+  [chromium] › smoke.journey.ts:55:3 › W1 login and session › login screen baseline
+  [chromium] › smoke.journey.ts:61:3 › W1 login and session › login form is usable with the keyboard alone
+  [chromium] › smoke.journey.ts:76:5 › W11 public rendering smoke › public / answers 200 with no page error and no failed same-origin request
+  [chromium] › smoke.journey.ts:76:5 › W11 public rendering smoke › public /welcome answers 200 with no page error and no failed same-origin request
+  [chromium] › smoke.journey.ts:76:5 › W11 public rendering smoke › public /blog answers 200 with no page error and no failed same-origin request
+  [chromium] › smoke.journey.ts:90:3 › W11 public rendering smoke › public home at phone width has no horizontal scroll
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/dashboard renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/sites renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/import-export renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/ai-assistant renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/pages renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/posts renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/media renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/library renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/collections renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/menus renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/widgets renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/taxonomy renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/forms renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/users renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/authentication renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/roles renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/members renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/comments renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/themes renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/admin-ui renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/admin-themes renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/admin-appearance renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/design-system renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/playground renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/addons/plugins renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/addons/agent-plugins renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/addons/skills renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/addons/integrations renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/addons/integrations?tab=webhooks renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/orders renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/products renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/subscriptions renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/billing renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/database renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/recovery renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/deployment renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/source-control renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/access-tokens renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/observability renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/activity-log renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/settings renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/consent renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/workspace renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/email renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/notifications renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/trash renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/seo renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/redirects renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/newsletter renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/analytics renders inside the shell with no 5xx
+  [chromium] › smoke.journey.ts:99:5 › W12 every admin panel loads › /admin/appearance renders inside the shell with no 5xx
+  [chromium] › surfaces.pins.journey.ts:104:3 › Bug pin: a2ui-transport-contract › A2UI actions route — proxy + daemon contract (REQ: proxy hop, route contract) › an unauthenticated browser-origin request is rejected before it can reach the daemon
+  [chromium] › surfaces.pins.journey.ts:111:3 › Bug pin: a2ui-transport-contract › A2UI actions route — proxy + daemon contract (REQ: proxy hop, route contract) › an authenticated request with a malformed envelope is refused with 400, never reaches deliver()
+  [chromium] › surfaces.pins.journey.ts:124:3 › Bug pin: a2ui-transport-contract › A2UI actions route — proxy + daemon contract (REQ: proxy hop, route contract) › a surfaceId that disagrees with the route's exchangeId is refused with 400
+  [chromium] › surfaces.pins.journey.ts:135:3 › Bug pin: a2ui-transport-contract › A2UI actions route — proxy + daemon contract (REQ: proxy hop, route contract) › an authenticated request against an exchange that does not exist gets 409 unknown-or-closed
+  [chromium] › surfaces.pins.journey.ts:150:3 › Bug pin: a2ui-transport-contract › MCP-UI tool-calls route — proxy contract (REQ: allowlist gate before the daemon) › a non-allowlisted toolName is rejected by the PROXY itself, before the daemon is ever called
+  [chromium] › surfaces.pins.journey.ts:163:3 › Bug pin: a2ui-transport-contract › MCP-UI tool-calls route — proxy contract (REQ: allowlist gate before the daemon) › a missing toolName is rejected with 400 by the proxy
+  [chromium] › surfaces.pins.journey.ts:169:3 › Bug pin: a2ui-transport-contract › MCP-UI tool-calls route — proxy contract (REQ: allowlist gate before the daemon) › unauthenticated requests never reach the daemon
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 1 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 2 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 3 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 4 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 5 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 6 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 7 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 8 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 9 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 10 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 11 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:353:5 › Bug pin: surface-abuse › current SurfaceExchange confirmation — hostile titles remain inert complete text › hostile title 12 is emitted and rendered unchanged without executing code
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: script-closing tag
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: script-closing without full tag (case-insensitive parser trap)
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: HTML comment sequence
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: quote breakout into JS string context
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: backslash breakout
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: unicode line separator U+2028
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: unicode paragraph separator U+2029
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: nested template-literal breakout
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: nested ${} interpolation breakout
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: double mustache breakout
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: raw ampersand/entity confusion
+  [chromium] › surfaces.pins.journey.ts:561:7 › Bug pin: surface-abuse › escaping — hostile post titles reaching the real rendered surface over HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: mixed: script-close + unicode linesep + quote
+  [chromium] › surfaces.pins.journey.ts:609:5 › Bug pin: surface-abuse › escaping — slug (unaffected by the ADR-055 rewrite: no agent tool involved) › HELD or CONFIRMED-VULNERABLE: slug injection is structurally blocked by SLUG_FORMAT_PATTERN before it ever reaches a surface
+  [chromium] › surfaces.pins.journey.ts:629:5 › Bug pin: surface-abuse › token exposure — grep the real HTTP wire, not the source (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: the minted token appears ONLY inside the resource's own script, nowhere else in the response
+  [chromium] › surfaces.pins.journey.ts:656:5 › Bug pin: surface-abuse › token exposure — grep the real HTTP wire, not the source (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: a failed redemption's error response never echoes the presented token back
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: case variation
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: all-caps
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: trailing whitespace
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: leading whitespace
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: trailing null byte
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: trailing newline
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: not on the allowlist at all: content_post_create
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: not on the allowlist at all: content_post_update
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: not on the allowlist at all: database_execute_migrate_forward
+  [chromium] › surfaces.pins.journey.ts:713:7 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: prototype-pollution-shaped key
+  [chromium] › surfaces.pins.journey.ts:727:5 › Bug pin: surface-abuse › allowlist bypass attempts on the MCP-UI redemption endpoint › HELD or CONFIRMED-VULNERABLE: an empty toolName is a 400, not a silent no-op forward
+  [chromium] › surfaces.pins.journey.ts:745:5 › Bug pin: surface-abuse › double-submit — concurrent redemption of the same token (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: two simultaneous confirms with the same token — exactly one succeeds, the row is deleted exactly once
+  [chromium] › surfaces.pins.journey.ts:770:5 › Bug pin: surface-abuse › double-submit — concurrent redemption of the same token (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: two simultaneous confirm+cancel with the same token race to a single winner, never both
+  [chromium] › surfaces.pins.journey.ts:802:5 › Bug pin: surface-abuse › token binding — cross-entity replay and stale-version replay over real HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: a token minted for post A cannot delete post B
+  [chromium] › surfaces.pins.journey.ts:825:5 › Bug pin: surface-abuse › token binding — cross-entity replay and stale-version replay over real HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: a token confirmed after the row was edited (stale version) is refused
+  [chromium] › surfaces.pins.journey.ts:864:5 › Bug pin: surface-abuse › token binding — cross-entity replay and stale-version replay over real HTTP (SKIPPED: content_post_delete's confirmation token is REMOVED (ADR-055 Decision 3) and the tool now blocks on a live ctx.emitSurface exchange instead (Decision 2) — the HTTP-only redemption route cannot supply one, so there is nothing left for these token-shaped attacks to reach. See ADS-memory/.local-artifacts/reports/20260804-adversarial-surface-and-resilience.md, Finding 2. Attack design kept, execution skipped pending team-lead guidance.) › HELD or CONFIRMED-VULNERABLE: a burned (already-redeemed) token cannot be replayed against a different, freshly-minted dialog for the same post
+  [chromium] › surfaces.pins.journey.ts:761:3 › Bug pin: surface-abuse › CSRF / origin — a real cross-site browser POST against the redemption endpoints › HELD or CONFIRMED-VULNERABLE: a cross-site POST to the MCP-UI redemption endpoint carries no session cookie
+  [chromium] › surfaces.pins.journey.ts:781:3 › Bug pin: surface-abuse › CSRF / origin — a real cross-site browser POST against the redemption endpoints › HELD or CONFIRMED-VULNERABLE: a cross-site POST to the A2UI actions endpoint carries no session cookie
+  [chromium] › surfaces.pins.journey.ts:796:3 › Bug pin: surface-abuse › CSRF / origin — a real cross-site browser POST against the redemption endpoints › sanity: the SAME session cookie DOES authenticate a same-site request (proves the 401s above are SameSite, not a broken cookie)
+  [chromium] › surfaces.pins.journey.ts:799:107 › Bug pin: surface-abuse › CSRF / origin — a real cross-site browser POST against the redemption endpoints › SameSite=Strict also withholds the session on a cross-site top-level GET
+  [chromium] › surfaces.pins.journey.ts:1128:5 › Bug pin: surface-resilience › concurrent delivery flood against exchange ids that do not exist › HELD or CONFIRMED-VULNERABLE: 50 concurrent A2UI deliveries to 50 distinct unknown exchange ids all resolve cleanly, none hang or 5xx
+  [chromium] › surfaces.pins.journey.ts:1144:5 › Bug pin: surface-resilience › concurrent delivery flood against exchange ids that do not exist › HELD or CONFIRMED-VULNERABLE: 20 concurrent deliveries to the SAME unknown exchange id are all refused identically — no partial state, no crash
+  [chromium] › surfaces.pins.journey.ts:1162:5 › Bug pin: surface-resilience › concurrent delivery flood against exchange ids that do not exist › HELD or CONFIRMED-VULNERABLE: the daemon survives the flood and answers a completely unrelated, well-formed request immediately after
+  [chromium] › surfaces.pins.journey.ts:1191:5 › Bug pin: surface-resilience › malformed and oversized bodies › HELD or CONFIRMED-VULNERABLE: a body with the exchangeId field replaced by a deeply nested object is rejected with 400, not 500
+  [chromium] › surfaces.pins.journey.ts:1208:5 › Bug pin: surface-resilience › malformed and oversized bodies › HELD or CONFIRMED-VULNERABLE: message with an absurdly long surfaceId string is rejected without crashing the route
+  [chromium] › surfaces.pins.journey.ts:1227:5 › Bug pin: surface-resilience › malformed and oversized bodies › HELD or CONFIRMED-VULNERABLE: an oversized body (well past any real payload) is rejected with 413, not silently truncated or 500
+  [chromium] › surfaces.pins.journey.ts:1253:5 › Bug pin: surface-resilience › malformed and oversized bodies › HELD or CONFIRMED-VULNERABLE: an array where the route expects an object is rejected with 400
+  [chromium] › surfaces.pins.journey.ts:1265:5 › Bug pin: surface-resilience › malformed and oversized bodies › HELD or CONFIRMED-VULNERABLE: null message is rejected with 400, not treated as a valid empty envelope
+  [chromium] › surfaces.pins.journey.ts:1276:5 › Bug pin: surface-resilience › malformed and oversized bodies › HELD or CONFIRMED-VULNERABLE: wrong content-type (text/plain) on the MCP-UI redemption endpoint does not silently execute an unparsed body as an empty-object call
+  [chromium] › surfaces.pins.journey.ts:1300:5 › Bug pin: surface-resilience › unknown exchange ids are refused › HELD or CONFIRMED-VULNERABLE: 30 sequential unknown ids are all refused
+  [chromium] › themes.journey.ts:72:3 › W5 theme switching › activating another theme changes the public home, and reverting through the screen restores it
+  [chromium] › themes.journey.ts:109:3 › W5 theme switching › double-clicking Activate sends exactly one theme change
+  [chromium] › themes.journey.ts:128:3 › W5 theme switching › Themes screen baseline
+  [chromium] › themes.pins.journey.ts:37:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › the editor shows real, editable text on every frame of a file switch
+  [chromium] › themes.pins.journey.ts:117:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E1: a ?file= navigation on the open screen, and Back, show real editable text on every frame
+  [chromium] › themes.pins.journey.ts:186:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E2: renaming the open file shows real editable text on every frame, with no re-read
+  [chromium] › themes.pins.journey.ts:317:3 › Bug pin: theme-explore-narrow-sidebar › theme Explore — file picker stays visible at a narrow viewport (2026-08-17 regression) › the file tray has reachable files, no inner scroller, and a full-width preview at 500px
+  [chromium] › themes.pins.journey.ts:317:3 › Bug pin: theme-explore-narrow-sidebar › theme Explore — file picker stays visible at a narrow viewport (2026-08-17 regression) › the file tray has reachable files, no inner scroller, and a full-width preview at 700px
+  [chromium] › themes.pins.journey.ts:413:3 › Bug pin: theme-liquid-preview › theme Explore — .liquid template preview › clicking entry.liquid shows its source instead of downloading it
+  [chromium] › themes.pins.journey.ts:469:3 › Bug pin: theme-liquid-preview › theme Explore — .liquid template preview › the Preview tab renders entry.liquid through the real theme pipeline, styled
+  [chromium] › themes.pins.journey.ts:508:3 › Bug pin: theme-liquid-preview › theme Explore — .liquid template preview › selecting theme.json displays its actual JSON preview
+  [chromium] › themes.pins.journey.ts:597:3 › Bug pin: theme-visual › theme visual regression (AW-2) › download installation command copy writes the displayed command to the clipboard
+  [chromium] › themes.pins.journey.ts:614:3 › Bug pin: theme-visual › theme visual regression (AW-2) › home — desktop 1280
+  [chromium] › themes.pins.journey.ts:623:3 › Bug pin: theme-visual › theme visual regression (AW-2) › home — wide 2560 (guards the full-bleed band rhythm)
+  [chromium] › themes.pins.journey.ts:632:3 › Bug pin: theme-visual › theme visual regression (AW-2) › home — mobile 390, drawer CLOSED (AW-1 bug lives in the open state — not baselined here)
+  [chromium] › themes.pins.journey.ts:657:3 › Bug pin: theme-visual › theme visual regression (AW-2) › post page — /welcome
+  [chromium] › themes.pins.journey.ts:685:3 › Bug pin: theme-visual › AW-1 — mobile nav drawer (tovu-theme) › modal drawer opens inside the viewport, keeps links and CTA reachable, and closes
+  [chromium] › themes.pins.journey.ts:761:7 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › welcome (post) at 1280px — centered column, balanced gutters
+  [chromium] › themes.pins.journey.ts:761:7 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › welcome (post) at 1920px — centered column, balanced gutters
+  [chromium] › themes.pins.journey.ts:761:7 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › welcome (post) at 2560px — centered column, balanced gutters
+  [chromium] › themes.pins.journey.ts:761:7 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › about (generic content page) at 1280px — centered column, balanced gutters
+  [chromium] › themes.pins.journey.ts:761:7 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › about (generic content page) at 1920px — centered column, balanced gutters
+  [chromium] › themes.pins.journey.ts:761:7 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › about (generic content page) at 2560px — centered column, balanced gutters
+  [chromium] › themes.pins.journey.ts:794:3 › Bug pin: theme-visual › AW-4 — wide-screen content-page layout (basic theme) › welcome (post) at 390px — real left/right gutter survives (mobile)
+  [chromium] › themes.pins.journey.ts:815:1 › Bug pin: theme-visual › the shipped stylesheet clamps oversized video and iframe elements inside their container
+  [chromium] › themes.pins.journey.ts:838:1 › Bug pin: theme-visual › img keeps aspect ratio when HTML width/height attributes exceed the viewport
+  [chromium] › themes.pins.journey.ts:937:3 › Bug pin: themes-presentation-request-timeout › Themes screen survives an exhausted per-origin connection pool › getPresentation() fails visibly instead of hanging forever when no socket is free
+  [chromium] › users.journey.ts:88:3 › W8 users and roles › admin creates a user in the UI, grants editor, and the editor works with their own session but cannot manage users
+  [chromium] › users.journey.ts:152:3 › W8 users and roles › an editor's nav hides Users and Roles & Permissions but keeps Posts and Media
+  [chromium] › users.journey.ts:170:3 › W8 users and roles › a disabled editor cannot log in and gets a readable error
+  [chromium] › users.pins.journey.ts:90:3 › Bug pin: users-reset-password › Reset password — confirm field + reveal toggles, end to end › mismatch blocks submit, each toggle reveals only its own field, and the new password really works while the old one is rejected
+  [chromium] › visitor-page-tools.journey.ts:98:3 › tovu-starter/react: mobile submenu, FAQ, private text, confirmation, terminal navigation and no tool UI
+  [chromium] › visitor-page-tools.journey.ts:98:3 › tovu-starter/vanilla: mobile submenu, FAQ, private text, confirmation, terminal navigation and no tool UI
+  [chromium] › visitor-page-tools.journey.ts:98:3 › tovu-theme/react: mobile submenu, FAQ, private text, confirmation, terminal navigation and no tool UI
+  [chromium] › visitor-page-tools.journey.ts:98:3 › tovu-theme/vanilla: mobile submenu, FAQ, private text, confirmation, terminal navigation and no tool UI
+  [chromium] › widgets-menus.journey.ts:77:3 › W7 menus and widgets › build a menu in the admin, wrap it in a menu widget, embed it with a text widget, and both render publicly
+  [chromium] › widgets-menus.journey.ts:125:3 › W7 menus and widgets › a widget whose id does not exist renders nothing and never 500s the page
+  [chromium] › widgets-menus.journey.ts:142:3 › W7 menus and widgets › menus list and editor baselines
+  [chromium] › widgets-menus.journey.ts:156:3 › menus stress › two tabs save the same menu: exactly one wins, the other shows dedicated conflict copy and keeps its items
+  [chromium] › widgets-menus.journey.ts:190:3 › menus stress › simultaneous saves from two tabs never both succeed
+  [chromium] › widgets-menus.journey.ts:211:3 › menus stress › double-clicking Save on a new menu creates exactly one menu
+  [chromium] › widgets-menus.journey.ts:227:3 › menus stress › a javascript: URL item is refused or neutralised in the public render
+  [chromium] › widgets-menus.pins.journey.ts:462:3 › Bug pin: ai-menu-widget-embeds › MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked › positive control: menu widget + text widget both render for real when both embeds are present
+  [chromium] › widgets-menus.pins.journey.ts:483:3 › Bug pin: ai-menu-widget-embeds › MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked › RED-CHECK: removing the menu embed div makes assertMenuWidgetRendered fail (the text widget still renders, isolating the break)
+  [chromium] › widgets-menus.pins.journey.ts:498:3 › Bug pin: ai-menu-widget-embeds › MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked › RED-CHECK: removing the text widget embed div makes assertTextWidgetRendered fail (the menu still renders, isolating the break)
+  [chromium] › widgets-menus.pins.journey.ts:517:3 › Bug pin: ai-menu-widget-embeds › MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked › RED-CHECK: an embed pointing at a nonexistent widget id renders nothing — the rendered-widget assertions go red while the page itself still looks fine
+  [chromium] › widgets-menus.pins.journey.ts:533:3 › Bug pin: ai-menu-widget-embeds › MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked › CORROBORATION: embedding a widget into a real post succeeds at the same HTTP route the AI tool calls into and renders on the public post (independent of what any one live-agent run happens to attempt)
+  [chromium] › widgets-menus.pins.journey.ts:555:3 › Bug pin: ai-menu-widget-embeds › MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked › RED-CHECK (post side): assertNoWidgetMarkup is not vacuously satisfied by every post render — it actually fails when the response body contains genuine widget markup
+  [chromium] › widgets-menus.pins.journey.ts:583:3 › Bug pin: ai-menu-widget-embeds › EMPIRICAL PROBE: theme regions — observed, not just grepped › a widget bound to the header/footer regions and placed does not render on the live public home page or a live public post
+  [chromium-media] › media.journey.ts:62:3 › W4 media lifecycle › upload a PNG, see it in the library, its public URL serves a WebP rendition and the original keeps its bytes
+  [chromium-media] › media.journey.ts:92:3 › W4 media lifecycle › double-clicking Upload stores the file once
+  [chromium-media] › media.journey.ts:106:3 › W4 media lifecycle › a disallowed file type is refused with a visible error, and nothing is added
+  [chromium-media] › media.journey.ts:117:3 › W4 media lifecycle › trash then delete permanently removes the asset and its public URL
+  [chromium-media] › media.journey.ts:137:3 › W4 media lifecycle › media library baseline
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › dashboard: Overview
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › sites: Sites
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › import-export: Import & Export
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › ai-assistant: AI Assistant
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › pages: Pages
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › posts: Posts
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › media: Media
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › library: Library
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › collections: Collections
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › menus: Menus
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › widgets: Widgets
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › taxonomy: Categories & Tags
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › forms: Forms
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › users: Users
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › authentication: Authentication (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › roles: Roles & Permissions
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › members: Members
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › comments: Comments (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › themes: Themes
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-ui: Admin UI
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-themes: admin-themes
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-appearance: admin-appearance
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › design-system: design-system
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › playground: Playground
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › plugins: Plugins
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › agent-plugins: Agent Plugins
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › skills: Skills
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › providers: Integrations
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › integrations: integrations
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › orders: Orders (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › products: Products (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › subscriptions: Subscriptions (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › billing: Billing (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › database: Database
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › recovery: Recovery
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › deployment: Deployment
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › source-control: Source Control
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › access-tokens: Secrets
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › observability: Observability (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › activity-log: Activity Log (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › settings: Settings
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › consent: Cookie Consent (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › workspace: workspace
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › email: Email (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › notifications: notifications
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › trash: Trash
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › seo: SEO & Metadata
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › redirects: Redirects
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › newsletter: Newsletter (soon)
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › analytics: Analytics
+  [desktop] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › appearance: appearance
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab all
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab new
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab trash
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab visitor
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab admin
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab roadmap
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › pages: tab mine
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › pages: tab theme
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab all
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab images
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab videos
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab external-providers
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab trash
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › roles: tab roles
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › roles: tab policies
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab defaults
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab sitemap
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab entries
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab declarative
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab static
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab templated
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab code
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab declarative
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab static
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab templated
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab code
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab installed
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab downloaded
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab add
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab marketplace
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab installed
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab downloaded
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab add
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab marketplace
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › skills: tab skills
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › skills: tab add
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab external-mcp
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab always-allow
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab mcp-server
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab webhooks
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › database: tab timeline
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › database: tab migrate-forward
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › recovery: tab restore-points
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › recovery: tab restore
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab overview
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab static-site
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab dockerfile
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab history
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › source-control: tab providers
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › access-tokens: tab access-tokens
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › access-tokens: tab site-key
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab execution
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab instructions
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab notifications
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab privacy
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab language
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab interface
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab memory
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab workspace
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab about
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab home
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab google
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab facebook
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab linkedin
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab overview
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab recent-errors
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab providers
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab tool-gaps
+  [desktop] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab queries
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category all
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category source-control
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category hosting
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category media
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category ai
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category ops
+  [desktop] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category general
+  [desktop] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target cloudflare-workers
+  [desktop] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target cloudflare-pages
+  [desktop] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target github-pages
+  [desktop] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target netlify
+  [desktop] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target s3-compatible
+  [desktop] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target vercel
+  [desktop] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › settings: execution local-cli
+  [desktop] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › settings: execution byok
+  [desktop] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › ai-assistant: execution local-cli
+  [desktop] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › ai-assistant: execution byok
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: html
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: interactive
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: preview
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › post editor: edit
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › post editor: preview
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › theme editor: preview
+  [desktop] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › theme editor: html
+  [desktop] › admin-visual.pins.journey.ts:728:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › form detail: fields
+  [desktop] › admin-visual.pins.journey.ts:728:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › form detail: submissions
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › menu-editor
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › collection-entries
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › collection-entry-editor
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-editor
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-regions
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-region-editor
+  [desktop] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › change-password
+  [desktop] › admin-visual.pins.journey.ts:762:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › closed dock: FAB
+  [desktop] › admin-visual.pins.journey.ts:769:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › open empty dock
+  [desktop] › admin-visual.pins.journey.ts:784:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › slash popup /sk and a selected skill
+  [desktop] › admin-visual.pins.journey.ts:801:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › Skills install-confirm dialog
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › dashboard: Overview
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › sites: Sites
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › import-export: Import & Export
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › ai-assistant: AI Assistant
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › pages: Pages
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › posts: Posts
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › media: Media
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › library: Library
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › collections: Collections
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › menus: Menus
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › widgets: Widgets
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › taxonomy: Categories & Tags
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › forms: Forms
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › users: Users
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › authentication: Authentication (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › roles: Roles & Permissions
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › members: Members
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › comments: Comments (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › themes: Themes
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-ui: Admin UI
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-themes: admin-themes
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-appearance: admin-appearance
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › design-system: design-system
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › playground: Playground
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › plugins: Plugins
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › agent-plugins: Agent Plugins
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › skills: Skills
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › providers: Integrations
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › integrations: integrations
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › orders: Orders (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › products: Products (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › subscriptions: Subscriptions (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › billing: Billing (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › database: Database
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › recovery: Recovery
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › deployment: Deployment
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › source-control: Source Control
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › access-tokens: Secrets
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › observability: Observability (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › activity-log: Activity Log (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › settings: Settings
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › consent: Cookie Consent (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › workspace: workspace
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › email: Email (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › notifications: notifications
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › trash: Trash
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › seo: SEO & Metadata
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › redirects: Redirects
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › newsletter: Newsletter (soon)
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › analytics: Analytics
+  [tablet] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › appearance: appearance
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab all
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab new
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab trash
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab visitor
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab admin
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab roadmap
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › pages: tab mine
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › pages: tab theme
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab all
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab images
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab videos
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab external-providers
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab trash
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › roles: tab roles
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › roles: tab policies
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab defaults
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab sitemap
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab entries
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab declarative
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab static
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab templated
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab code
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab declarative
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab static
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab templated
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab code
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab installed
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab downloaded
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab add
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab marketplace
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab installed
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab downloaded
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab add
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab marketplace
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › skills: tab skills
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › skills: tab add
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab external-mcp
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab always-allow
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab mcp-server
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab webhooks
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › database: tab timeline
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › database: tab migrate-forward
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › recovery: tab restore-points
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › recovery: tab restore
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab overview
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab static-site
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab dockerfile
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab history
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › source-control: tab providers
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › access-tokens: tab access-tokens
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › access-tokens: tab site-key
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab execution
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab instructions
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab notifications
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab privacy
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab language
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab interface
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab memory
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab workspace
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab about
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab home
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab google
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab facebook
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab linkedin
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab overview
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab recent-errors
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab providers
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab tool-gaps
+  [tablet] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab queries
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category all
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category source-control
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category hosting
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category media
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category ai
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category ops
+  [tablet] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category general
+  [tablet] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target cloudflare-workers
+  [tablet] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target cloudflare-pages
+  [tablet] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target github-pages
+  [tablet] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target netlify
+  [tablet] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target s3-compatible
+  [tablet] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target vercel
+  [tablet] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › settings: execution local-cli
+  [tablet] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › settings: execution byok
+  [tablet] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › ai-assistant: execution local-cli
+  [tablet] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › ai-assistant: execution byok
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: html
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: interactive
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: preview
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › post editor: edit
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › post editor: preview
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › theme editor: preview
+  [tablet] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › theme editor: html
+  [tablet] › admin-visual.pins.journey.ts:728:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › form detail: fields
+  [tablet] › admin-visual.pins.journey.ts:728:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › form detail: submissions
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › menu-editor
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › collection-entries
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › collection-entry-editor
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-editor
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-regions
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-region-editor
+  [tablet] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › change-password
+  [tablet] › admin-visual.pins.journey.ts:762:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › closed dock: FAB
+  [tablet] › admin-visual.pins.journey.ts:769:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › open empty dock
+  [tablet] › admin-visual.pins.journey.ts:784:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › slash popup /sk and a selected skill
+  [tablet] › admin-visual.pins.journey.ts:801:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › Skills install-confirm dialog
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › dashboard: Overview
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › sites: Sites
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › import-export: Import & Export
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › ai-assistant: AI Assistant
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › pages: Pages
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › posts: Posts
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › media: Media
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › library: Library
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › collections: Collections
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › menus: Menus
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › widgets: Widgets
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › taxonomy: Categories & Tags
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › forms: Forms
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › users: Users
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › authentication: Authentication (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › roles: Roles & Permissions
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › members: Members
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › comments: Comments (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › themes: Themes
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-ui: Admin UI
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-themes: admin-themes
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › admin-appearance: admin-appearance
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › design-system: design-system
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › playground: Playground
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › plugins: Plugins
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › agent-plugins: Agent Plugins
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › skills: Skills
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › providers: Integrations
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › integrations: integrations
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › orders: Orders (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › products: Products (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › subscriptions: Subscriptions (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › billing: Billing (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › database: Database
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › recovery: Recovery
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › deployment: Deployment
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › source-control: Source Control
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › access-tokens: Secrets
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › observability: Observability (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › activity-log: Activity Log (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › settings: Settings
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › consent: Cookie Consent (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › workspace: workspace
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › email: Email (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › notifications: notifications
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › trash: Trash
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › seo: SEO & Metadata
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › redirects: Redirects
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › newsletter: Newsletter (soon)
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › analytics: Analytics
+  [mobile] › admin-visual.pins.journey.ts:539:5 › Bug pin: admin-visual-regression › admin index pages › appearance: appearance
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab all
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab new
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › sites: tab trash
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab visitor
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab admin
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › ai-assistant: tab roadmap
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › pages: tab mine
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › pages: tab theme
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab all
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab images
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab videos
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab external-providers
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › media: tab trash
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › roles: tab roles
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › roles: tab policies
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab defaults
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab sitemap
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › seo: tab entries
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab declarative
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab static
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab templated
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › themes: tab code
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab declarative
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab static
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab templated
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › appearance: tab code
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab installed
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab downloaded
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab add
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › plugins: tab marketplace
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab installed
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab downloaded
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab add
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › agent-plugins: tab marketplace
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › skills: tab skills
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › skills: tab add
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab external-mcp
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab always-allow
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab mcp-server
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › providers: tab webhooks
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › database: tab timeline
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › database: tab migrate-forward
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › recovery: tab restore-points
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › recovery: tab restore
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab overview
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab static-site
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab dockerfile
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › deployment: tab history
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › source-control: tab providers
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › access-tokens: tab access-tokens
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › access-tokens: tab site-key
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab execution
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab instructions
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab notifications
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab privacy
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab language
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab interface
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab memory
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab workspace
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › settings: tab about
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab home
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab google
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab facebook
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › authentication: tab linkedin
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab overview
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab recent-errors
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab providers
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab tool-gaps
+  [mobile] › admin-visual.pins.journey.ts:576:7 › Bug pin: admin-visual-regression › every admin page tab › observability: tab queries
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category all
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category source-control
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category hosting
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category media
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category ai
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category ops
+  [mobile] › admin-visual.pins.journey.ts:609:5 › Bug pin: admin-visual-regression › nested page tabs › access-tokens: category general
+  [mobile] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target cloudflare-workers
+  [mobile] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target cloudflare-pages
+  [mobile] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target github-pages
+  [mobile] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target netlify
+  [mobile] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target s3-compatible
+  [mobile] › admin-visual.pins.journey.ts:619:5 › Bug pin: admin-visual-regression › nested page tabs › deployment static-site: target vercel
+  [mobile] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › settings: execution local-cli
+  [mobile] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › settings: execution byok
+  [mobile] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › ai-assistant: execution local-cli
+  [mobile] › admin-visual.pins.journey.ts:634:7 › Bug pin: admin-visual-regression › nested page tabs › ai-assistant: execution byok
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: html
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: interactive
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › page editor: preview
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › post editor: edit
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › post editor: preview
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › theme editor: preview
+  [mobile] › admin-visual.pins.journey.ts:703:7 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › theme editor: html
+  [mobile] › admin-visual.pins.journey.ts:728:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › form detail: fields
+  [mobile] › admin-visual.pins.journey.ts:728:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › form detail: submissions
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › menu-editor
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › collection-entries
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › collection-entry-editor
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-editor
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-regions
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › widget-region-editor
+  [mobile] › admin-visual.pins.journey.ts:745:5 › Bug pin: admin-visual-regression › seeded entity pages and editor tabs › change-password
+  [mobile] › admin-visual.pins.journey.ts:762:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › closed dock: FAB
+  [mobile] › admin-visual.pins.journey.ts:769:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › open empty dock
+  [mobile] › admin-visual.pins.journey.ts:784:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › slash popup /sk and a selected skill
+  [mobile] › admin-visual.pins.journey.ts:801:3 › Bug pin: admin-visual-regression › assistant chat + Skills confirmation › Skills install-confirm dialog
+Total: 932 tests in 35 files
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-79hW2L
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-media-5w4JrB

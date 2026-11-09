@@ -114,3 +114,36 @@ Each test now reaches its own steps or assertions and fails there. I have **not*
 - **Still linked:** `apps/*/node_modules/@jini-ai` is still linked to the local Jini checkout. Run `npm run unlink:jini` before a real build.
 
 E2E-FIX DONE
+
+## E2E-FIX-2: review follow-up
+
+Owner-approved follow-up to an independent review, on the same branch. Only the harness changed. Two findings were fixed and nothing else.
+
+| # | Commit | File(s) | Finding | Fix |
+|---|--------|---------|---------|-----|
+| 1 | `7d92b987` | `development/e2e/support/admin-panels-literal.ts` | **Medium.** The `.map` guard compared `member.name.getText()` with bare `id` and `nav`. So `"id": …` and `["id"]: …` overrides were accepted, and journeys were generated from a stale manifest. | Normalize identifier, string and numeric property names to their text, and reject computed names (`["id"]`, `[key]`). An override of `id` or `nav` in any spelling now throws. |
+| 2 | `be43d06f` | new `development/e2e/support/top-level-const-string.ts`, `development/e2e/journeys/admin-visual.pins.journey.ts`, new `development/e2e/__tests__/admin-manifest-readers.unit.test.ts` | **Medium.** The tab-id constant lookup ignored lexical scope. It visited every nested declaration and kept the last match, so a nested `const ACCESS_TOKENS_TAB = "other"` became the security tab id. | `topLevelConstString(identifier)` reuses the identifier's own `getSourceFile()`. This removes the second read and parse at the old `admin-visual.pins.journey.ts:150`. The name must be bound exactly once in the file, as a top-level `const` with a string-literal value. Anything else throws: a second binding (nested const, parameter, import, …), a `let`, a nested-only const, a missing binding, or a non-string value. |
+
+### Tests added
+
+The new tests are in `admin-manifest-readers.unit.test.ts`, run with `node --import tsx --test`. Result: **11 tests, 11 pass, 0 fail** (`fix2-unit.txt`).
+
+`adminPanelsLiteral`:
+- Accepts the shipped render-only `.map`.
+- Rejects overrides written as bare `id`, `"id"`, `'nav'`, `["id"]` and `[key]`.
+
+`topLevelConstString`:
+- Resolves the single top-level const.
+- Rejects the review's case: a top-level const plus a same-named const in an unrelated function.
+- Rejects a nested const that shadows the reference, a same-named parameter, an import, a `let`, a nested-only const, a missing binding, and a numeric value.
+
+Mutation check: I ran the same test file against the pre-fix guard (`7c83209a`'s `admin-panels-literal.ts`) in a scratch copy. It failed exactly the 4 new quoted and computed rejection cases, and the bare-`id` case still passed. The scratch copy was deleted.
+
+### Verification
+
+- **Collection:** `playwright test --config=development/playwright.journeys.config.ts --list` gives **Total: 932 tests in 35 files**, exit 0 (`fix2-list.txt`). That is unchanged from E2E-FIX.
+- **Typecheck:** `tsc -p development/tsconfig.e2e.json --noEmit` exits 0 with 0 errors (`fix2-tsc-e2e.txt`).
+- **Not rerun:** the journey suite, as instructed.
+- **Cleanup:** the scratch `TMPDIR` holds no `tovu-*` sites after the list run.
+
+E2E-FIX-2 DONE
