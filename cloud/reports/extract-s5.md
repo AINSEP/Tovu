@@ -238,3 +238,103 @@ Recorded before any production move (H1a builder, Tovu tip 8aef56e2, Jini pin 40
 | T consumers | `service-ports.ts`, `mcp-host-bindings.ts`, connect files, `composition/agent-plugin-service-ports.ts`, routes, repos, store, oauth | unchanged: old paths keep every name via re-exports/aliases | S4-owned files NOT edited |
 
 **Not moved (stay T):** store/memory/vault/revocation algorithms (H1b), SQL repo, routes, `CredentialTokenHint`/`SharedExternalMcpOwner` (host types, bound by T aliases).
+
+## H1a
+
+Builder: H1a subagent. Programmer skills file (`Jini AI-Dev-Shop/agents/programmer/skills.md`) loaded. Starting pair Tovu 8aef56e2 / Jini 4044fe3c0; H0 last green Tovu 8c563ef5 / Jini 4044fe3c0.
+
+### Inventory resolution
+Every row in "## H1a — inventory" resolved as recorded, with no deviations. Types are in **CORE** `@jini-ai/core/contracts/hosted-mcp` (`contracts/hosted-mcp.ts` → `hosted-mcp/{vocabulary,record,config}.ts`). Values are in **MCP** `@jini-ai/mcp/federation/hosted` (`federation/hosted/{vocabulary,auth,access,validation-error,unconfigured-error,projections,index}.ts`). Sign-in types are in **INT** `@jini-ai/integrations/api-connections/hosted-mcp` (`contracts.ts` + `index.ts`). Literal unions follow R5/R6 (no `typeof` of a runtime constant in core). In the type-pin test, tuples and unions are pinned equal in both directions. Host types are injected as type parameters: `ExternalMcpServerView<TokenHint = never>` and `ExternalMcpOAuthDeps<Shared = never>`. The Tovu aliases bind `CredentialTokenHint` / `SharedExternalMcpOwner`. Store algorithms did not move. The only store edit replaces the unconfigured class with an import and re-export of the same identity.
+
+### Provenance / comment custody
+Moved lines are byte-sliced from T c3801c833 blobs contracts.ts e2f1d908, external-mcp-auth.ts 6418431c, external-mcp-access.ts 4f6fc1ba, external-mcp-store.ts 2bac5b32 (64–71), and J adapter.http.ts 63b935b2 (123–124). No retyping. Check `raw/h1a-provenance.txt` covered 733 non-blank source lines. 11 lines are not byte-exact, all intentional:
+- contracts.ts:179 bearer `import("@jini-ai/mcp/federation")…` → core `McpBearerTokenSupplier`. :220/:245/:246 View gains `<TokenHint = never>` and `CredentialTokenHint`→`TokenHint`. :414/:416 Deps gains `<Shared = never>` and `shared?: Shared`. auth.ts:25/:68 `typeof` types → core literal unions. Lines 22 and 28 of contracts.ts were replaced the same way.
+- access.ts:62: `{ strict?: boolean }` → `{ strict?: boolean | undefined }`. This is needed for Jini `exactOptionalPropertyTypes`. It was a red build (TS2379 at access.ts 113/114) that I fixed and rebuilt green. The parameter only widens, and runtime is identical.
+- **N1 rewordings (real guard rejection `N1-consumer-identity /tovu/i`, `raw/j-guard-h1a.txt` first run):**
+  - contracts.ts:468: "EVERY grant whenever \`TOVU_PUBLIC_URL\` was unset" → "EVERY grant whenever the host's public-URL setting was unset".
+  - external-mcp-auth.ts:21: "\`oauth\` — Tovu holds a token" → "\`oauth\` — the host holds a token".
+  - Two new agent notes of mine also named Tovu. I reworded them to "for example the platform `CredentialTokenHint`" and "for example a desktop shared-owner storage type".
+
+### Exports added
+- core `./contracts/hosted-mcp` (universal, types-only).
+- mcp `./federation/hosted` (node).
+- integrations `./api-connections/hosted-mcp` (node, types-only).
+- Each is in both `exports` and `jini.entries`.
+- `McpBearerTokenSupplier` moved to core. `@jini-ai/mcp/federation` re-exports it under the same name, and config.ts and stdio are unchanged.
+- Changesets: `.changeset/s5-h1a-{core,mcp,integrations}.md`.
+- No lockfile edits. No new dependency: the mcp and integrations closures import only `@jini-ai/core` (+ `node:crypto`).
+
+### @agent-notes in emitted .d.ts
+Each note is a separate JSDoc block attached directly to the declaration, after the original doc. Counts match source and dist: core 36/36, mcp 17/17, integrations 14/14. All 68 are present in the final dist `.d.ts`. They cover:
+- every exported type, function, const and class;
+- every repository-port method and every sign-in service and device-store method;
+- who fulfills the contract, same-instance rules, CAS/ordering, saved formats and error identity.
+
+### New tests (new files only; existing tests frozen — `git diff --name-status` shows no M/D/R under any __tests__)
+- T `features/external-mcp/__tests__/h1a/hosted-mcp-type-pins.test.ts`: 39 pins of `Equal` + keyof equality + two-way assignability.
+  - Pinned against both core and the T aliases: record, snapshot, approved access, access update, save, save-oauth, view, oauth view, bearer (core and mcp re-export), target, config, sealed payload, sealed oauth, connect-start, revocation, the 4 unions vs literals and vs runtime tuples, and repo/service/deps/device-store key sets plus core↔T↔INT identity.
+  - A second-host case binds its own hint and shared types.
+  - Mutation evidence: changing `aadVersion` to string and dropping a device-store key gave 6 TS errors (`raw/h1a-t-tsc-newtests-mutation.txt`). Restored green (EXIT 0).
+- T `…/h1a/hosted-mcp-projections.test.ts` + `fixtures/projection-baseline.ts`: all 6 projection outputs + 3 revision hashes are pinned to `BASELINE`.
+  - `BASELINE` was captured once from the unmodified c3801c833 functions in `/home/user/s5/base/Tovu` before any edit (`raw/h1a-baseline-projections.json`).
+  - Pinned through the T shims, through `hostedMcpProjections` from the public entry, and through function identity with the existing `agentPluginMcpProjections`.
+- T `…/h1a/hosted-mcp-error-identity.test.ts`:
+  - access shim / store export / entry are the same class objects;
+  - instanceof, name and field survive;
+  - `classifyAgentPluginMcpError` → validation/unconfigured;
+  - `isAgentPluginSignInRefusal` recognizes the canonical validation error;
+  - a same-named lookalike is `other` and not a refusal.
+  - The baseline class has no `code`, and none was added (asserted).
+- J `mcp/src/federation/hosted/__tests__/hosted-entry.test.ts` (4): same baseline outputs through the entry, members are the exact functions, saved literals, one class per error.
+- J `examples/neutral-host/src/hosted-mcp-contracts.test.ts` (1): a second host fulfills the core repo, device store and deps with its own ids, paths and identity. It resolves only core contracts and the INT type entry.
+- Scratch isolated consumer `/home/user/s5/scratch/h1a-consumer` (untracked):
+  - `node_modules` holds only a core symlink plus copies of `package.json` and the hosted dist subtree for mcp and integrations.
+  - strict `nodenext` + `skipLibCheck:false` tsc: EXIT 0. Plain node run: EXIT 0.
+  - Negative control: `import("@jini-ai/mcp/federation")` → ERR_MODULE_NOT_FOUND (`raw/h1a-final-consumer-*.txt`, `raw/h1a-consumer-run.txt`).
+
+### Gate (final tip: Tovu 5162e3db + this report, Jini 883db690; raw under /home/user/s5/raw/)
+| Gate | Result | Raw |
+|---|---|---|
+| H0 frozen SQLite (S5_FROZEN_DB_OUT) | 6/6, EXIT 0 | h1a-h0-frozen.txt |
+| H0 BASELINE rollback | ok:true, 5 checks, EXIT 0 | h1a-h0-rollback.txt |
+| H0 PostgreSQL replay (optional) | 1/1, EXIT 0; server PID 24407 started and stopped by me (no postmaster.pid left) | h1a-h0-pg.txt |
+| Fixture sha / tool-metadata sha / all baseline hashes | aca349ca… / a0d6b428… / `sha256sum -c` OK (T and J) | — |
+| T store/vocabulary (12 files) | 284/284 EXIT 0 (gate run and final rerun) | h1a-t-store.txt, h1a-final-t-store.txt |
+| T sign-in/gate | 141/142 EXIT 1. The only failure is the named prior-debt case, "../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS", with the same message "must have one OAuth ports call" 0 !== 1. Unchanged from baseline; not counted green | h1a-final-t-signin.txt |
+| T connect | 147/147 EXIT 0 | h1a-final-t-connect.txt |
+| T accumulated nine | 58/58 EXIT 0 | h1a-final-t-nine.txt |
+| T new H1a tests | 9/9 EXIT 0. First run 8/9: my own miscount, 39 vs 40 → fixed and rerun | h1a-t-new.txt |
+| J build core/mcp/integrations | EXIT 0 (mcp first red TS2379 → fixed) | h1a-build-*.txt |
+| J `exec tsc --noEmit` core/mcp/integrations | 0/0/0 | h1a-j-tsc-*.txt |
+| J mcp full vitest (adapter.http changed) | 91 files / 1563 tests pass | h1a-j-mcp-all.txt |
+| J API group (integrations) | 20 files / 365 pass (= baseline) | h1a-j-api.txt |
+| J mcp hosted entry test / neutral-host (new + api-host-moves) / neutral-host tsc | 4/4; 3/3; EXIT 0 | h1a-final-j-*.txt |
+| Relink + T main tsc | EXIT 0, 0 errors | h1a-final-t-tsc.txt |
+| T typecheck:tests | EXIT 2, exactly the 13 baseline errors (set diff empty) | h1a-final-t-tsc-tests.txt |
+| guard-gate.sh | First run: DIFFERS (3× N1, see rewordings) → fixed → MATCHES BASELINE twice. Final: exit 1 TOTAL 2 (R2-deep-path, R10-chatpane), HW1:17 HW2:16 HW3:135 HW4:1 HW8:49, others 0. Plugins clean. layers 0, isolation 0, audit findings 16 (c9/d7). Closures 573→576 from the 3 new entries | h1a-final-guard-gate-summary.txt, j-guard-h1a-final.txt |
+| xp-gate.sh | snapshot VERIFIED; XP1–XP5 clean, EXIT 0 | h1a-final-xp-gate-summary.txt |
+| Strict lint, changed production (`--no-inline-config`, complexity/cognitive 10) | J: first run 1 warning (unused `ISODateTime`, mine) → fixed → EXIT 0. T shims clean. T store's only error, `resolveExternalMcpAccessToken` complexity 11, is identical at baseline (line 514 at pin, 509 now) = prior. Biome on new tests: 1 `useImportType` (mine) fixed. Store biome warnings identical to baseline | h1a-j-lint-rerun.txt, h1a-t-lint*.txt, h1a-t-biome*.txt |
+| Emitted closure inspection | 26 files (`.js`/`.d.ts`) across the three new entries: 0 product hits (tovu/open design/higgsfield). Non-core `@jini-ai` import/ImportType/require/re-export specifiers: **0**. The only non-core names appear in agent-note prose ("usually from `@jini-ai/mcp/…`"), as in the existing core contracts | — |
+
+### S4 overlap
+Every changed path, compared against the S4-owned set (T `features/agent-plugins/{federate-mcp,enable-access,apply-connect-defaults,switch-on-saved-token,connection-status,service-ports,plugin-host,connect-tool,access-token-tool,connect-card-ui,connect-destination,connect-sign-in-wait,grant-signed-in-defaults,token-sign-in,import-access-token,apply-tool-renames}.ts`, bindings/registrations, J `agent-plugins/src/connect/**`):
+- T: `contracts/core/external-mcp-{auth,access}.ts`, `features/external-mcp/{contracts,external-mcp-store}.ts`, 4 new files under `features/external-mcp/__tests__/h1a/`, and the report.
+- J: core, mcp and integrations `package.json`; new files under `core/src/contracts/hosted-mcp*`, `mcp/src/federation/hosted/**` and `integrations/src/api-connections/hosted-mcp/**`; `mcp/src/federation/adapter.http.ts`; 3 new changesets; 1 new `examples/neutral-host` test.
+- **No S4-owned file was touched.** `service-ports.ts`, `mcp-host-bindings.ts`, the connect files and `composition/agent-plugin-service-ports.ts` are unedited. They resolve through the old paths with the same identities, which the error-identity test proves.
+- Shared-manifest risk for the integrator: `packages/{core,mcp,integrations}/package.json` `exports`/`jini.entries`. These are additive insertions next to `./contracts/content-types`, `./federation/testing` and `./api-connections`. If S4 adds entries at the same anchors, expect a trivial textual merge. Changeset names are unique (`s5-h1a-*`).
+
+### Lines
+- J production: 14 files, +890/−2 (mostly moved text plus notes).
+- T production: −784/+32 across the 4 shims.
+- New tests: T 228 lines, J 122 lines.
+
+### Findings (listed, not fixed)
+- Pre-existing complexity 11 in T `resolveExternalMcpAccessToken` (store; H1b moves it and will meet the <11 rule).
+- `parseExternalMcpJsonArray`'s strict ToolInputError text ("The plugin connection has an unreadable tool list…") moved as neutral engine wording. A reviewer may prefer it as host input; it is pinned in the baseline either way.
+- The agent notes in core contracts name `@jini-ai/mcp`/`@jini-ai/integrations` in prose (existing convention).
+
+### Pushed SHAs
+- Jini cloud/extract-s5: 27063efcc7c0327f517429812e167174d1a80448, 0b7183c3afe92f9e685d27b744739a79ab328b10, 60f593071fbec15fda1ada9b3df886ba6c20e14c, 883db6908a72947b81fe7c9ce6000893bdf1e4bb.
+- Tovu cloud/extract-s5: 1472d1c26ea74c8ab2a2d4258dde6c926906c401 (inventory), 9355bd8caa68ef6ee928f2a917debddc6c98e967, d075d1e44528f6d2651022473f89321f694b8be7, 5162e3db150286cd8806bd780e18bfcbfe445afe, plus this report commit.
+
+**LAST GREEN PAIR: Tovu 5162e3db150286cd8806bd780e18bfcbfe445afe (tested source; the report commit adds only this file) / Jini 883db6908a72947b81fe7c9ce6000893bdf1e4bb.**
