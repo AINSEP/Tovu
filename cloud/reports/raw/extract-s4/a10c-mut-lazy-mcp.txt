@@ -1,0 +1,29 @@
+TAP version 13
+# Subtest: permission-denied connect never reads routeDeps.mcp (lazy, after the check)
+not ok 1 - permission-denied connect never reads routeDeps.mcp (lazy, after the check)
+  ---
+  duration_ms: 5.125992
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts:1:297'
+  failureType: 'testCodeFailure'
+  error: 'routeDeps.mcp read before the permission check'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.get mcp (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts:19:49)
+    tovuConnectDeps (/home/user/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:186:71)
+    runAgentPluginConnect (/home/user/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:204:36)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10c-connect-lazy-mcp.unit.test.ts:22:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.start (node:internal/test_runner/test:959:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:332:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 867.500174

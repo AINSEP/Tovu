@@ -179,16 +179,19 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
 };
 
 /** Old deps -> portable deps: projections bound once (same pair/identity rule as the A8 shims), the
- * activation/installed defaults read lazily exactly as the pre-seam body did. Getters stay lazy. */
+ * activation/installed defaults read lazily exactly as the pre-seam body did. Getters stay lazy:
+ * `routeDeps.mcp` is first read on first use, i.e. after the permission check, as before the seam. */
 function tovuConnectDeps(routeDeps: AgentPluginConnectToolDeps): AgentPluginConnectDeps<AssistantSurfaceDeps, DeclaredApiConnection> {
-  return withOverrides(routeDeps, {
-    mcp: withAgentPluginMcpPorts(routeDeps.mcp),
+  type ConnectMcp = ReturnType<typeof withAgentPluginMcpPorts<AgentPluginConnectToolDeps["mcp"]>>;
+  let mcp: ConnectMcp | undefined;
+  const deps = withOverrides(routeDeps, {
     isPluginEnabled: (pluginId: string) => routeDeps.isPluginEnabled ? routeDeps.isPluginEnabled(pluginId)
       : isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root, pluginId }),
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
       : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }),
     host: tovuAgentPluginConnectHost,
   });
+  return Object.defineProperty(deps, "mcp", { get: () => (mcp ??= withAgentPluginMcpPorts(routeDeps.mcp)), enumerable: true, configurable: true }) as Omit<typeof deps, "mcp"> & { readonly mcp: ConnectMcp };
 }
 
 /** Same signature as the pre-seam entry; see the portable body for the flow. */

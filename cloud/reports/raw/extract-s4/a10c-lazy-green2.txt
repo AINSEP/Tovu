@@ -1,0 +1,16 @@
+TAP version 13
+# Subtest: permission-denied connect never reads routeDeps.mcp (lazy, after the check)
+ok 1 - permission-denied connect never reads routeDeps.mcp (lazy, after the check)
+  ---
+  duration_ms: 3.392839
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 976.052265
