@@ -1,3 +1,4 @@
+import { addDeclaredHostsToPolicy, REPORT_ONLY_HEADER } from "#src/contracts/core/public-page-security-headers";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
@@ -2632,6 +2633,12 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
  *
  * @complexity O(html length) — one pass for each of the three transforms it composes.
  */
+/** The page's report-only policy names what its plugin exports declared; nothing is added otherwise. O(hosts). */
+function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts | undefined }, _optional: Record<string, never> = {}): void {
+  const policy = req.res?.getHeader?.(REPORT_ONLY_HEADER);
+  if (hosts && typeof policy === "string") req.res!.setHeader(REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
+}
+
 async function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined, deps: RouteDeps): Promise<string> {
   // A see-more batch URL answers with just that listing's next items, not the page around them.
   const listingBatch = listingBatchRequests.get(req);
@@ -2649,6 +2656,7 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
   }
   assertListingPageServed({ req, html });
   html = injectExtraHeadIntoStaticPage(html, deps.pluginExportRender?.headHtml({}));
+  addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
   const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);

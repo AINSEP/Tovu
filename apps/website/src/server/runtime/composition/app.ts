@@ -1181,7 +1181,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     after: Promise.all([siteSettingsReady, identity.identityReady]).then(() => undefined),
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   });
-  const pluginExports = createPluginExportRuntime({ workspaceId: seededWorkspace.id, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: async () => [] });
+  const pluginExports = createPluginExportRuntime({ workspaceId: seededWorkspace.id, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: async () => [] });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     siteBackupSanitize: sanitizeShareDatabase,
     pluginExports,

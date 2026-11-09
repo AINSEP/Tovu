@@ -2224,7 +2224,7 @@ async function composeSiteRouteDeps(
   }, {
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
   });
-  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
+  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     siteBackupSanitize: sanitizeShareDatabase,
     pluginExports,
@@ -2381,6 +2381,7 @@ async function composeSiteRouteDeps(
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
     publicPageSecurityHeaders: () => publicPageSecurityHeaders({ formCollectionProviders: () => formCollectionProviders() }),
+    pluginExportHosts: () => pluginExports.declaredHosts({ workspaceId }),
     ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),

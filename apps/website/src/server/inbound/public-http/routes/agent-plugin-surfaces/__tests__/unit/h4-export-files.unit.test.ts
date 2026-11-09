@@ -35,3 +35,22 @@ for (const scenario of ['catalog-error', 'read-error', 'duplicate-owner', 'missi
     assert.equal(reads, scenario === 'read-error' ? 1 : 0);
   });
 }
+
+test('a declared script is served as JavaScript; an undeclared or remote one is not', async () => {
+  const entry = { ...owner.exports.button!, scripts: ['components/widget.js', 'https://assets.vendor.test/loader.js'] };
+  const source = harness().source;
+  const app = express();
+  registerPluginExportFilesRoute({ app, deps: { workspaceId: 'ws', clock: { nowMs: () => 0 }, agentPluginLifecycle: portFake<TovuAgentPluginLifecycle>({}) } }, {
+    source: { ...source, list: async () => [{ ...owner, exports: { button: entry } }], readAsset: async () => 'console.log(1)' }, limiter: { check: async () => ({ allowed: true }) },
+  });
+  const request = async (path: string) => {
+    const { res, capture } = createCapturingResponse();
+    const headers: Record<string, string> = {};
+    Object.assign(res, { set: (value: Record<string, string>) => { Object.assign(headers, value); return res; }, type: () => res, send: (body: unknown) => { capture.jsonBody = body; return res; } });
+    await extractRouteHandler(app, 'get', '/api/agent-plugin-exports/v1/:pluginId/:component/*')({ params: { pluginId: 'demo', component: 'button', 0: path }, headers: {}, socket: { remoteAddress: '127.0.0.1' }, ip: '127.0.0.1' } as never, res, () => undefined);
+    return { status: capture.statusCode, type: headers['Content-Type'], body: capture.jsonBody };
+  };
+  assert.deepEqual(await request('components/widget.js'), { status: 200, type: 'text/javascript; charset=utf-8', body: 'console.log(1)' });
+  assert.equal((await request('components/other.js')).status, 404);
+  assert.equal((await request('https://assets.vendor.test/loader.js')).status, 404);
+});

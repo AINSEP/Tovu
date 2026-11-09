@@ -1,5 +1,4 @@
 import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "@jini-ai/cms/widgets/markers";
-import { PAGE_EMBED_ORIGINS } from "./page-embed-origins.js";
 
 /** Tovu Page HTML authoring contract shared by tool catalogs, search and the starter skeleton. */
 /** The `data-agent-element` handle for each region a starter Page ships with. */
@@ -114,18 +113,19 @@ export const PAGE_HTML_CONTRACT =
   "- NO <form action=\"...\">. A form you invent posts nowhere and silently drops whatever a visitor " +
   "types into it. If the page needs to collect anything, embed a real form with the `form` marker " +
   "below; if no suitable form exists yet, say so in your reply instead of writing one.\n" +
-  // The owner paste path stores authorized page HTML unchanged. A blanket script ban here made
-  // the assistant refuse working vendor snippets; keep the exception confined to vetted embeds.
-  "- EXTERNAL RESOURCES: only for an owner-requested Calendly embed, allow an HTTPS <script src> " +
-  `with the exact origin ${PAGE_EMBED_ORIGINS.script} (normally /assets/external/widget.js), alongside ` +
-  `its calendly-inline-widget div and the owner's ${PAGE_EMBED_ORIGINS.frame} booking URL. Other external script origins are forbidden; ` +
-  "lookalike hosts, subdomains, credentials, non-default ports and HTTP are not allowed. Do not ask the owner " +
-  "to paste this supported embed by hand: use pages_write_html or pages_write_region. " +
+  // The owner paste path stores authorized page HTML unchanged, so this is guidance for raw HTML only.
+  // A vendor widget goes through its plugin, which owns its files, external hosts and consent.
+  "- EXTERNAL RESOURCES: no <script src> and no <iframe> to another site. To show a third-party widget " +
+  "(a booking calendar, a chat widget), use that plugin's embed instead: find it with plugins_list or plugins_search, " +
+  "turn it on with plugins_set_enabled if needed, and place it as described under EMBEDS. " +
   "No remote stylesheets, remote fonts or hotlinked images. Use the site's own uploaded media or inline SVG.\n" +
   "- NAME MISSING BINARY ASSETS, DON'T FAKE THEM. If content you're deriving this page from (e.g. an " +
   "existing HTML file read via fs_read_file) references an image, font, video, or audio file no tool " +
   "here can upload, do not invent a placeholder and do not silently drop it — say exactly which files " +
   "still need to be added as media or copied by hand, by name.\n" +
+  "- PLUGIN EMBEDS: plugins_list shows each enabled plugin's `exports` with their props. Place one as " +
+  "`<div data-embed-config='{\"type\":\"plugin\",\"plugin\":\"<plugin id>\",\"component\":\"<export name>\",\"version\":1,\"props\":{...}}'><a href=\"...\">fallback link</a></div>`. " +
+  "The inner HTML is what visitors see if it cannot load, so always include a useful fallback. Ask the person for any prop value you do not have, such as their booking link; never invent one.\n" +
   "- EMBEDS: any tag can carry `data-embed-config='{...}'` — single-quoted, so a literal apostrophe " +
   "inside a JSON string value must be written as the JSON escape `\\u0027`, never a literal `'` (which " +
   "ends the attribute early) and never the HTML entity `&#39;` (JSON.parse leaves that as six literal " +

@@ -1127,7 +1127,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
             return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId! })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
           }
           const job = startPublishRun(
-            { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
+            { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
             { requestId: approvedCtx.executionId, productEvent: { userId: approvedCtx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
               ...toolCredentialChoice({ raw }) },
             { nowIso: () => clockNowIso({ clock: deps.clock }) },
