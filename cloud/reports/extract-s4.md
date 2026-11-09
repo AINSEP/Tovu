@@ -1117,3 +1117,31 @@ Item 4 (moving the F2 notes onto S5's declarations) is not started; it waits for
 Stop reason: the continuation's token cap. After A10c about 45k of the extra 700k was left, which cannot fund another builder: each A10 builder used 196k–230k. A10 is 7 of 9 files seamed, and A11 and the final accumulated gate are not started. About 45 minutes of the continuation clock remained.
 
 EXTRACT-S4-C STOPPED AT CAP
+
+## Codex continuation — EXTRACT-S4-X
+
+### Foundation and clock
+
+- Serial continuation; no helper agents, Claude invocation, publication, deployment, main changes or branch replacement. The owner-supplied brief remains outside both tracked trees.
+- Conservative UTC start 2026-11-09T15:01:00Z; hard deadline 18:01:00Z; shutdown reserve begins 17:41:00Z. Setup and waits count.
+- Verified remotes `https://github.com/AINSEP/Tovu.git` and `https://github.com/AINSEP/Jini.git`. Clean initial tracked trees on `work`; fetched the existing S4 branch without changing its remote tip. Starting Tovu **814ab1dc61589444ac3a8eb140bab2ce8255ae64**, Jini **f774b9e5c543815b43fa637137a75150aa831f5e** exactly match the dispatch. Local `cloud/extract-s4` tracks the existing branch. Fetch refspec is restricted in this environment; explicit remote ref fetch and branch remote/merge configuration were needed (failed tracking setup changed no tracked files).
+- Loaded Jini's AI-Dev-Shop bootstrap as directed; Tovu has no bootstrap. Historical target architecture is subordinate to the current owner's explicit DI/import rules. Codebase-memory and Graphify artifacts are absent; the available understand-anything graph has no matching extraction nodes. Current source and prior S4 inventories are the authority for this continuation.
+- Runtime skill loaded, current environment readiness confirmed and network policy enforced. Installed Node **24.2.0**, npm **11.3.0**, pnpm **10.33.2** under `/workspace/work/tools`; caches/logs/scratch checkout outside both repositories. Initial install failed because the default npm cache is read-only; rerun with `/workspace/work/npm-cache` succeeded, without repository changes.
+- On switching branches, Jini's initial checkout left `packages/plugin-ui-ux-design` residue. `git ls-files -- packages/plugin-ui-ux-design` returned zero paths; exact directory removed, initial untracked file list retained in scratch. No tracked work removed.
+- The prior last-green pair remains Tovu **cd4fbe9ff7876d29aa34c58d3f2d14cf30f46d00**, Jini **f774b9e5c543815b43fa637137a75150aa831f5e** until a fresh continuation gate is recorded. Earlier withdrawn evidence remains withdrawn.
+
+### Remaining A10 inventory confirmation (before implementation)
+
+The existing A10 inventory rows 63–70 and 76–88 remain the symbol/destination inventory. No completed A10a–c implementation will be repeated. Required bindings for the final two files:
+
+| Source/symbols | Destination | Required host inputs / vocabulary | Binding and second-host rule |
+|---|---|---|---|
+| `import-access-token.ts:33` import actor | T compatibility export; portable deps member | `system:token-import` | Stable saved principal id, supplied by host; no portable default. |
+| `:35–76` deps/outcome/import body | `portable/import-access-token.ts`, then J `connect/import-access-token.ts` | existing required token target deps, switch-on callback, import actor | Same repo/vault/projections and switch owner; preserve idempotent retry/operator-off/only-at-URL rules. |
+| `:80–101` installed rows/list body | same portable module | trusted installed reads: bundled ledger, preferred installed selection, MCP declarations; workspace root stays in T binding | Ledger and installed declarations from the same owner/build; fresh reads, first-id dedup and bundled digest equality unchanged. |
+| `:103–181` log/env importer/helpers | same portable module | env object supplied by caller, required list function, screen name and safe import-failure copy | Env names come from installed metadata, not package defaults; only host-seeded digest may import; no importer error/token in logs. |
+| `grant-signed-in-defaults.ts:46–69` deps/options | `portable/grant-signed-in-defaults.ts`, then J `connect/grant-signed-in-defaults.ts` | projection/error pair, warn, actors, required connect-defaults dependencies | Same canonical projection functions, repo, activation queue and consent owner. Optional onConnected override retained. |
+| `:71–133` grant helpers/body | same portable module | connectDeclined actor and approved-failure message (`plugins_set_enabled` in T) | Preserve failed-server skip, approved key/principal, attribution, no grant before consent, real error/redaction. Neutral `[agent-plugins]` diagnostic prefix retained. |
+| `:143–163` boot body | same portable module, object API | required installed listing and activation snapshot read, log | Listing then one activation snapshot; absent activation means enabled; host binds existing lifecycle read/queue, boot onlyNeverGranted unchanged. |
+
+Caller search repeated across T apps and J packages/scripts/examples: existing T import, env-import and boot-grant callers retain positional shims; J has no runtime caller of these new APIs (plugin-host's required grant port is existing and retained). No existing test wiring edit is needed. Host filesystem/layout/environment reads stay in T bindings. The R4 registration/note/catalog/risk/contributor stay block and the after-merge F2 note move remain untouched.
