@@ -390,3 +390,130 @@ No Jini file touched in S4-0b. Excluded item `features/api-connections/plugin-st
 | Custody | s40b-gate-custody.txt | 28/28 pins sha256 unchanged; tool-metadata a0d6b428…; XP3 snapshot listing unchanged, manifest d836eba0…; existing-test M/D/R only the listed exceptions (S4-0a's + the isValidationError fixtures) |
 
 Processes: background runner PIDs 4240 and 6964 finished; the hung extra test's exact PIDs 13824/13825/13831 were killed by PID; nothing left running.
+
+## A8 — seam in place (builder A8, started 07:33Z)
+
+### A8 inventory (first commit; Tovu 6f42278c, Jini 92b4eb7d unchanged)
+
+Paths: A = apps/website/src/features/agent-plugins, C = apps/website/src/server/runtime/composition.
+Destination legend: **same** = same package as the A8 bodies (P/connect after A9); **core** = @jini-ai/core root / subpath already exported; **c/<area>** = @jini-ai/core/contracts/<area>; **port:<name>** = named required port; **host:<name>** = required host input (T binds today's bytes); **T** = stays Tovu (binder/shim/route).
+Status column: **A8** = seamed in this batch; **A9** = resolution fixed here, applied when the body moves (A9 scope, row is not deferred-unknown: the port/host input is named).
+
+#### C/plugin-host.ts (201 lines) → portable C/portable-plugin-host.ts `createPluginHost` + thin T `createTovuPluginHost`
+| file:line | symbol / value | kind | destination | host vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :1 | `Clock` | type | core (`@jini-ai/core/primitives`) | — | A8 |
+| :4 | `node:path` join for lock path | runtime | T binder | `.publisher-identity.lock` under `agentPluginLayout.root` → **port:withLock** (T binds `withFileLock`) | A8 |
+| :5 | `redactSecrets`, `ToolInputError` | value | core | — | A8 |
+| :6 | `withFileLock` (`@jini-ai/platform/fs/file-lock`) | value, other Jini pkg | **port:withLock** | T binds with `{createParent:true}` | A8 |
+| :7 | `createPluginLookup`, `readPluginIdentity`, `assertPluginIdentityAvailable`, `PluginProvider` | value/type | core (`plugin-directory`) | — | A8 |
+| :8 | `InstalledAgentPlugin` | type | same (agent-plugins lifecycle) | — | A8 |
+| :9 | `PluginActivationRepoPort` (`@jini-ai/plugins/host`) | type, other Jini pkg | local type `PluginHostActivationRead` (getActivation only) | — | A8 |
+| :10 | `PluginDiscoveryRecord` (`@jini-ai/plugins/host/node`) | type, other Jini pkg | local type `PluginHostDiscoveryRecord` (id/status/manifest/version) | — | A8 |
+| :11 | `AgentPluginHostCapability`, `PluginHostPort` (T headless barrel) | type | local `AgentPluginLifecycleCapability`/`PortablePluginHost` (structural; T binder returns `PluginHostPort`) | — | A8 |
+| :12 | `listInstalledPlugins`, `preferBundledAgentPluginDigests`, `readBundledAgentPluginDigests` | value (T lifecycle) | **port:lifecycle.listInstalled / lifecycle.preferInstalled** | T binds same functions, same order (list → read bundled → prefer) | A8 |
+| :13 | `readInstalledAgentPluginIdentity` | value (T) | **port:lifecycle.readIdentity** | T binds it or `optional.readAgentManifest` wrapper | A8 |
+| :14 | `agentPluginActivations` (resolve/read/assertWritable) | value (T) | **port:lifecycle.isEnabled / inactivePluginIds / assertWritable** | T binds `optional.resolveEnabled` or `verdict==='active'`, `deps.assertAgentPluginActivationsWritable` override | A8 |
+| :15 | `setAgentPluginEnabled` | value (T) | **port:lifecycle.setEnabled** | T binder keeps the override-only lowered notify | A8 |
+| :16 | `runAgentPluginUninstall`, `AgentPluginUninstallToolDeps` | value/type (T) | **port:lifecycle.uninstall** (opaque input pass-through) | T | A8 |
+| :17 | `provisionAgentPluginMcpServers`, `resolveAgentPluginMcpServers` | value (A8 file) | same (direct import; optional test overrides kept) | — | A8 |
+| :18 | `grantDeclaredToolsToSignedInRows` (A10 cycle file) | value | **port:grantSignedInDefaults** (required) | T binds the existing function (A8/A9), moved one (A11) | A8 |
+| :19 | `recordAgentPluginAccessDeclined` | value (A8 file) | same | — | A8 |
+| :20 | `previewAgentPluginEnableAccess` | value (A8 file) | same | — | A8 |
+| :21 | `agentPluginMcpPortsOf` (T projection fallback) | value (T) | T binder only; portable requires `mcpPorts` | T resolves once per binding (same pair instance as before) | A8 |
+| :26 | `reportProvisioningFailures` | fn | same (portable); copy → **host:messages.provisioningFailed** | text names tool `plugins_set_enabled` (T vocabulary) | A8 |
+| :27 | warn `Plugin '…': MCP provisioning for server '…' failed — …` | text | same (neutral diagnostic, no product/tool name; kept) | — | A8 |
+| :32 | `requireApprovedAccessKey` | fn | same; copy → **host:messages.approvedSnapshotMissing** | names `plugins_set_enabled` | A8 |
+| :37 | `TovuPluginHostDeps` | interface | T | — | A8 |
+| :54 | `createTovuPluginHost` | fn | T thin binder (signature unchanged) | — | A8 |
+| :57–61 | `readAgentManifest`, `resolveEnabled`, `warn`, `resolveMcpServers`, `provisionMcpServers` options | test seams | T binder (first three); portable optional (last two) | — | A8 |
+| :66 | default warn `console.warn('[plugins] …')` | runtime default | **host:warn** (required in portable) | `[plugins]` prefix is T | A8 |
+| :68,:79 | `namespace: 'tovu'` | id | **host:namespace** | T `'tovu'` | A8 |
+| :71–149 | `listSiteProviders`/`resolveAgentProviders`/`listAgentProviders`/`listProviders` | decisions | same (portable) | `family: 'site-runtime' | 'agent-plugin'` are core `PluginProvider` vocabulary (neutral) | A8 |
+| :75,:80,:101,:129 | omission warnings (`invalid installed manifest…`, `conflicting publisher identities`, `ambiguous installed revisions`) | text | same (neutral, no product/tool name) | — | A8 |
+| :153 | `mcpPorts` (resolved once per binding) | value | portable requires `deps.mcpPorts`; T computes once | same instance shared by preview + grant | A8 |
+| :154–193 | `agentPlugins` capability (`inactivePluginIds`, `previewEnableAccess`, `recordDeclinedAccess`, `listInstalled`, `assertWritable`, `setEnabled`, `provisionMcp`, `uninstall`) | decisions | same | capability id `'agent-plugin-lifecycle'` = T headless contract literal (kept, structural) | A8 |
+| :188 | `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again…` | text | **host:messages.approvedLoadFailed** | names `plugins_set_enabled` | A8 |
+| :189 | warn `MCP provisioning could not run — …` | text | same (neutral) | — | A8 |
+| :196–199 | `withInstallIdentity` | decision | same; lock → port:withLock | — | A8 |
+
+#### A/federate-mcp.ts (565)
+| file:line | symbol | kind | destination | vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :1–2 | `AgentPluginMcpPort/Record/Context/Projections/ProjectionPorts` | type | same (service-ports) → canonical rows from c/hosted-mcp at A9 | — | A9 |
+| :3 | `agentPluginMcpPortsOf` (T fallback, used :525) | value | T shim only; portable body takes required `AgentPluginMcpProjectionPorts` | — | A9 (see Remaining) |
+| :5 | `classifyAgentPluginMcpServerTrust`, `readInstalledMcpServers` (T capability-projection) | value | **port:lifecycle.readInstalledMcpServers / classifyTrust** | T binds | A9 |
+| :6 | `AgentPluginLayout` | type | local layout type (`forWorkspace(id).root`) | — | A9 |
+| :7 | `AgentPluginDefaultTools` | type | same | — | A9 |
+| :8 | `McpServerConfig` (T mcp-metadata) | type | same (declaration type moves with A9 or c/hosted-mcp) | — | A9 |
+| :9–10 | `preferBundledAgentPluginDigests`, `readBundledAgentPluginDigests`, `listInstalledPlugins` | value (T lifecycle) | **port:lifecycle** (same port as plugin-host) | — | A9 |
+| :143 | `MAX_CONNECTION_ID_LENGTH = 40` | const | same (neutral; record-id grammar of the MCP store, not product) | — | A9 |
+| :162 `deriveAgentPluginConnectionId`; :175 `SkippedAgentPluginMcpServer`; :184 `AgentPluginMcpTrustClassifier`; :186 `PlannedAgentPluginMcpUpsert`; :196 `AgentPluginMcpFederationPlan`; :213 `classifyAgentPluginMcpServerForFederation`; :262 `planAgentPluginMcpFederation`; :298 `resolveAgentPluginMcpServers`; :326 `findAgentPluginMcpServerDefaults`; :343 `resolveAgentPluginReadOnlyRemoteNames`; :354/:363 `ProvisionAgentPluginMcpServers{Input,Result}`; :384 `buildProvisioningSaveInput`; :420 `isStaleUntouchedProvisioning`; :435 `isEmptyJsonList`; :453 `adoptOrRecognizeExistingAgentPluginMcpServer`; :515 `provisionAgentPluginMcpServers`; :542 `provisionPlannedServer` | fn/type | same (portable decisions: plan/adopt `{...existing,provisionedByPluginId}`/stale-only reprovision/collision refusal) | `"streamable_http"`, `authorization_code`, `oauth` = canonical MCP record vocabulary (c/hosted-mcp, neutral); skip/collision reasons neutral (no product/tool names) | A9 |
+
+#### A/enable-access.ts (80)
+| file:line | symbol | kind | destination | vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :2 | `ToolInputError`, `redactSecrets`, `AccessApprovalResource` | value/type | core | — | — |
+| :3 | `planAgentPluginToolGrant`, `AgentPluginToolGrant`, `AgentPluginDeclaredTools` | value/type | same | — | — |
+| :4,:6 | service-ports types | type | same | — | — |
+| :5 | `agentPluginMcpProjectionPorts`, `agentPluginMcpPortsOf` (T fallback, used :26, :69) | value | T shim only | — | A9 (Remaining) |
+| :7 | federate-mcp fns | value | same | — | — |
+| :8 | `McpServerConfig` | type | same | — | A9 |
+| :11 `storedAgentPluginGrants`; :22 `validatedAgentPluginToolGrant`; :38 `assertPluginSource`; :47 `previewSource`; :65 `previewAgentPluginEnableAccess` | fn | same | — | — |
+| :33 | `The plugin's combined tool grant cannot be saved: …` | text | same (neutral) | — | — |
+| :43 | `…Open Settings → External MCP and review this connection…` | text | **host:messages.sourceConfiguredSeparately** | screen path is T vocabulary | A9 |
+| :71 | `The plugin connection cannot be enabled here: …` | text | same (neutral) | — | — |
+
+#### A/apply-connect-defaults.ts (201)
+| file:line | symbol | kind | destination | vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :1 | `ToolInputError` | value | core | — | — |
+| :2 | `agentPluginMcpPortsOf` (used :126) | value | T shim only | — | A9 (Remaining) |
+| :3,:29 | service-ports types | type | same | — | — |
+| :30 | `Clock` | type | core/primitives | — | — |
+| :31 | enable-access fns | value | same | — | — |
+| :34 | `agentPluginActivations` (T) | value | **port:lifecycle.isEnabled/readActivation** | T binds | A9 |
+| :35 | federate-mcp fns | value | same | — | — |
+| :36–37 | `McpServerConfig`, `AgentPluginLayout` | type | same / local | — | A9 |
+| :38 | `setAgentPluginEnabled` (T) | value | **port:lifecycle.setEnabled** | T binds | A9 |
+| :40 | `CONNECT_DECLINED_ACTOR = "system:connect-declined"` | actor id | **host:actors.connectDeclined** (saved in access audit; bytes unchanged) | T `system:connect-declined` | A9 |
+| :44 | `CONNECT_DEFAULTS_ACTOR = "system:connect-defaults"` | actor id | **host:actors.connectDefaults** | T | A9 |
+| :47 | `SEED_ACTOR = "system:seed"` | actor id | **host:actors.seed** | T | A9 |
+| :51 `isPluginOffByOperator`; :71 `switchPluginOnUnlessOperatorOff`; :76 `ApplyConnectDefaultsDeps`; :94 `readConnectGrant`; :108 `allowsAutomaticConnectGrant`; :120 `createApplyConnectDefaults`; :154 `assertApprovedSnapshot`; :160 `approvedSource`; :175 `assertApprovedSource`; :191 `recordAgentPluginAccessDeclined` | fn/type | same (operator-off/approved-source decisions) | — | — |
+| :155,:166,:167,:182 | `…Request the access change again…` refusals | text | same (neutral; no product/tool name) | — | — |
+
+#### A/switch-on-saved-token.ts (85)
+| file:line | symbol | kind | destination | vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :2 | `Clock` | type | core/primitives | — | — |
+| :4 | service-ports types | type | same | — | — |
+| :5 | `agentPluginMcpPortsOf` (used :67) | value | T shim only | — | A9 (Remaining) |
+| :8 | apply-connect-defaults fns (`isPluginOffByOperator` default, `switchPluginOnUnlessOperatorOff`, `createApplyConnectDefaults`) | value | same; defaults read T activations → port:lifecycle at A9 | — | A9 |
+| :9 | `AgentPluginLayout` | type | local | — | A9 |
+| :30 | `AGENT_PLUGINS_SCREEN = "Add-Ons → Agent Plugins"` | screen name | **host:messages.agentPluginsScreen** | T | A9 |
+| :31 | `EXTERNAL_MCP_SCREEN = "Add-Ons → Integrations → External MCP"` | screen name | **host:messages.externalMcpScreen** | T | A9 |
+| :33 `SavedTokenSwitchOutcome`; :38 `SwitchOnSavedTokenDeps`; :60 `switchOnSavedTokenConnection` | type/fn | same | — | — |
+| :78 `describeSavedTokenSwitch` | fn (copy) | **host:messages.savedTokenSwitch** (whole sentences incl. screen names) | T | A9 |
+
+#### A/connection-status.ts (82)
+| file:line | symbol | kind | destination | vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :1 | `agentPluginMcpPortsOf` (used :24) | value | T shim only | — | A9 (Remaining) |
+| :2 | service-ports types | type | same | — | — |
+| :3 | `LoadPluginCredentialCards` (T custom-credentials) | type | c/credentials (`PluginCredentialCard` already there) + local loader type | — | A9 |
+| :4 | `ApiConnectionHost` (T api-connections host) | type | **port:apiConnections** (`AgentPluginApiConnectionsPort` narrow slice) | — | A9 |
+| :6 `ConnectionRow`; :7 `AgentPluginConnectionStatus` (`connected/disconnected/pending/needs_reauth`); :13 `loadAgentPluginConnectionStatuses`; :33 `mcpSignInStatus`; :40 `summarizeStatus`; :46 `appendStatus`; :54 `addMcpStatuses`; :64 `addApiStatuses`; :76 `addUnconnectedCards` | type/fn | same (status vocabulary is the admin list's neutral contract) | `reconnect-required`/`revocation-pending` = I API status vocabulary (core type) | — |
+
+#### A/service-ports.ts (106)
+| file:line | symbol | kind | destination | vocabulary / binding | status |
+|---|---|---|---|---|---|
+| :2 | `ChatAgentPlugins` | type | same | — | — |
+| :3 | `SurfaceCardsPort`, `SurfaceCardSecretForm` | type | c/cards | — | — |
+| :4 | `ExternalMcpConnectStart/ServerRepoPort/ServerView/SaveExternalMcpServerInput` (T external-mcp contracts) | type | c/hosted-mcp (S5 H0, adopted A9) | — | A9 |
+| :5 | `PluginCredentialCard` | type | c/credentials | — | — |
+| :6–7 | `DeclaredApiConnection`, `ApiConnectionConnectStatus` (T api-connections) | type | core types (I contracts) / port:apiConnections | — | A9 |
+| :10 `AgentPluginMcpPort`; :20 `AgentPluginOAuthPort`; :28 `PluginCredentialsPort`; :36 `AgentPluginPreferencesPort`; :46 `AgentPluginApiConnectionsPort`; :53 `AgentPluginPathsPort`; :60–64 record/save/view/repo/snapshot aliases; :68 `AgentPluginMcpProjections`; :87 `AgentPluginMcpProjectionPorts`; :94 `AgentPluginMcpContext`; :96 `AgentPluginMcpServicesPort`; :97 `AgentPluginSignInPort`; :105 `AgentPluginCardsPort`; :106 `AgentPluginCardBuilders` | type | same (P/connect/ports.ts at A9) | notes already carry provider/shared-instance rules (S4-0b) | — |
+
+New A8 contract members (all in C/portable-plugin-host.ts, each with second-host @agent-note): `grantSignedInDefaults` (required), `lifecycle.{listInstalled,preferInstalled,readIdentity,isEnabled,inactivePluginIds,assertWritable,setEnabled,uninstall}`, `withLock`, `namespace`, `warn`, `messages.{provisioningFailed,approvedSnapshotMissing,approvedLoadFailed}`, `discoverPlugins`, `getActivation`, `mcpPorts`.
+
+Citation correction (grant order): the brief says the grant runs "after provisioning/before reporting failures". The actual T code at 6f42278c (C/plugin-host.ts:177–186 and the admin route set-enabled.ts:155–166) runs provisioning → failure warnings (and, for an approved enable with failures, the refusal throw) → grant with failed servers skipped. Frozen behavior and "same order" win: the port is called after provisioning and after the failure warnings; an approved enable whose provisioning partly failed refuses BEFORE any grant (no grant on a refused consent). The @agent-note and the new order test pin this actual order.
