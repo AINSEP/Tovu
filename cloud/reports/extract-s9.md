@@ -1,6 +1,6 @@
 # EXTRACT-S9
 
-**STOPPED at the C3 gate: required F1 classification conflicts with one frozen trace assertion. F1 and the C3 move are implemented; C3 is not green. The requested one-line test allowance is unanswered. This is not a cap stop.**
+**Continuation D in progress. The coordinator approved the single additive F1 trace expectation; the C3 gate is being completed before G-deploy and C4. Historical stop sections below are superseded.**
 
 The input, inventory and initial-stop sections retain historical first-delivery evidence. The Continuation and closing sections below describe the current source and supersede that initial stop.
 
@@ -556,4 +556,11 @@ The closing Tovu report-only SHA is supplied in the final response; both final r
 
 Actual close/shutdown: `2026-11-09T18:14:47.795236+00:00`; `1.0133` elapsed hours from the original 17:14Z start, deadline still 21:14Z. All 396 recorded command parents have exits, no running exact task process group remains, and defunct entries are already exited. No test/server was left running; no broad kill or unrelated-process change occurred. Both source trees are preserved on the same branches. No brief/plan was committed. The terminal marker records this non-cap session termination, not a successful C3 or completed extraction.
 
-EXTRACT-S9-C DONE
+
+## Continuation D — approved additive test wiring
+
+The coordinator explicitly approves adding `classifyError` to the single expected refused-target trace at `extract-s8-c2p2c-ports.test.ts:235`. Only that expected entry changes; every other byte of that frozen test remains unchanged. This preserves its intent (one non-decrypting resolution, no dialog/send on refusal) while recording F1's required classify-once call.
+
+The coordinator also authorizes necessary additive test wiring for already-approved fixes when existing assertion intent is unchanged; each instance must be listed here. Real behavior drift still stops. The known Railway/Render skill-text failures remain unchanged and non-green at every gate.
+
+Original UTC start/deadline remain 17:14Z /21:14Z, reserve20:54Z. Same branches, no agents or clock reset. New final marker: `EXTRACT-S9-D DONE` or `EXTRACT-S9-D STOPPED AT CAP`, only at the actual end.

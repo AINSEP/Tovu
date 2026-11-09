@@ -232,7 +232,7 @@ test('DELETE: approved → exactly one request, after the dialog; a refused targ
   await refusedTools.get('custom_credential_make_request')!.handler({ ...ctx('delete'), input: { label: 'nope', method: 'DELETE', url: ACME_URL } }, { emitSurface: async () => { emitted += 1; } })
     .catch(() => undefined);
   assert.equal(emitted, 0, 'a refused target opens no dialog');
-  assert.deepEqual(refusedLog, ['resolveTarget']);
+  assert.deepEqual(refusedLog, ['resolveTarget', 'classifyError']);
 });
 
 const WRITE_INPUT = { label: 'acme-git', owner: 'acme', repo: 'shop', branch: 'main', commitMessage: 'ACME update readme', files: [{ path: 'README.md', content: 'acme' }] };
