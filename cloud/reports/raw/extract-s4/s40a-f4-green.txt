@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts (3 tests) 4ms
+ ✓ src/lifecycle/mail/__tests__/adapter-descriptors.test.ts (4 tests) 5ms
+
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+   Start at  06:44:57
+   Duration  848ms (transform 463ms, setup 0ms, collect 701ms, tests 9ms, environment 0ms, prepare 167ms)
+
+exit=0

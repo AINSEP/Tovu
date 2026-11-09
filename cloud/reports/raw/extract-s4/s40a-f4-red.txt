@@ -1,0 +1,54 @@
+(red run after correcting the new test's own 'at' expectation from 'adapters[0].setup' to 'adapters[0]'; the first run also failed on that test-side error)
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts (3 tests | 1 failed) 13ms
+   × a v2 descriptor without a host setup validator is refused with the exact reason 11ms
+     → expected { ok: true, descriptors: [ { …(7) } ] } to deeply equal { ok: false, …(1) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts > a v2 descriptor without a host setup validator is refused with the exact reason
+AssertionError: expected { ok: true, descriptors: [ { …(7) } ] } to deeply equal { ok: false, …(1) }
+
+- Expected
++ Received
+
+  Object {
+-   "ok": false,
+-   "reason": "this host supplies no mail setup validator",
++   "descriptors": Array [
++     Object {
++       "credentialKeys": Array [
++         "token",
++       ],
++       "credentialLabel": "Mail — Relay API",
++       "feedback": false,
++       "id": "relay",
++       "label": "Relay",
++       "module": "mail/relay.mjs",
++       "schemaVersion": 2,
++     },
++   ],
++   "ok": true,
+  }
+
+ ❯ src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts:16:57
+     14| 
+     15| it('a v2 descriptor without a host setup validator is refused with the…
+     16|   expect(parseMailAdaptersFile({ raw: file(2, [v2]) })).toEqual({ ok: …
+       |                                                         ^
+     17|   expect(parseMailAdaptersFile({ raw: file(2, [{ ...v2, setup: { field…
+     18| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  06:44:19
+   Duration  456ms (transform 140ms, setup 0ms, collect 174ms, tests 13ms, environment 0ms, prepare 60ms)
+
+undefined
+/home/user/Jini/packages/agent-plugins:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts --maxWorkers=2 --minWorkers=1
+exit=1

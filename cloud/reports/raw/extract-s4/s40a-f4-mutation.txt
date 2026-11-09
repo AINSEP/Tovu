@@ -1,0 +1,51 @@
+MUTATION: missing validator returns the unvalidated descriptor
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts (3 tests | 1 failed) 27ms
+   × a v2 descriptor without a host setup validator is refused with the exact reason 24ms
+     → expected { ok: true, descriptors: [ { …(7) } ] } to deeply equal { ok: false, …(1) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts > a v2 descriptor without a host setup validator is refused with the exact reason
+AssertionError: expected { ok: true, descriptors: [ { …(7) } ] } to deeply equal { ok: false, …(1) }
+
+- Expected
++ Received
+
+  Object {
+-   "ok": false,
+-   "reason": "this host supplies no mail setup validator",
++   "descriptors": Array [
++     Object {
++       "credentialKeys": Array [
++         "token",
++       ],
++       "credentialLabel": "Mail — Relay API",
++       "feedback": false,
++       "id": "relay",
++       "label": "Relay",
++       "module": "mail/relay.mjs",
++       "schemaVersion": 2,
++     },
++   ],
++   "ok": true,
+  }
+
+ ❯ src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts:16:57
+     14| 
+     15| it('a v2 descriptor without a host setup validator is refused with the…
+     16|   expect(parseMailAdaptersFile({ raw: file(2, [v2]) })).toEqual({ ok: …
+       |                                                         ^
+     17|   expect(parseMailAdaptersFile({ raw: file(2, [{ ...v2, setup: { field…
+     18| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  06:45:08
+   Duration  424ms (transform 133ms, setup 0ms, collect 152ms, tests 27ms, environment 0ms, prepare 59ms)
+
+exit=1
