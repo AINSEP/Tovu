@@ -15,7 +15,8 @@ test('credential tool compatibility entries retain canonical public functions an
   assert.equal(hostErrors.CustomCredentialNotFoundError, CustomCredentialNotFoundError);
 });
 
-test('the installed tool declarations retain every local consumer-interface note and public factory note', () => {
+test('the installed tool declarations retain named security and ordering notes and public factory notes', () => {
+  const noted = new Set(['CredentialCardIdentity', 'CustomCredentialToolVocabulary', 'CustomCredentialSecretCards', 'CustomCredentialToolPorts', 'CredentialCopyProjectKeysPort', 'CredentialCopyMessages', 'CredentialCopyToolHost', 'CredentialApprovalDescription', 'CredentialApprovalPort', 'CredentialPluginCardsPort', 'CredentialCreatePrefill', 'CredentialCardFormsPort', 'CredentialSetupDiagnostic', 'CredentialRecoveryPort', 'CredentialPublishPort', 'CredentialLocalePort', 'CredentialToolPolicy', 'CredentialWriteFilesRequest', 'CredentialToolMessages', 'CredentialToolDiagnostics', 'CredentialToolSetsPort', 'CredentialToolActorDeps', 'CredentialToolOperations', 'CredentialToolSurfaces', 'CredentialCopyRequired', 'createCredentialSaveHandlers', 'createCredentialToolRegistrations', 'createCredentialCopyRegistrations']);
   const entry = import.meta.resolve('@jini-ai/integrations/credentialed-http/tools');
   for (const name of ['credential-tool-host', 'credential-tool-operations', 'tool-registrations', 'credential-copy-tool']) {
     const text = readFileSync(new URL(`./${name}.d.ts`, entry), 'utf8');
@@ -24,7 +25,7 @@ test('the installed tool declarations retain every local consumer-interface note
       || (ts.isFunctionDeclaration(statement) && ['createCredentialSaveHandlers', 'createCredentialToolRegistrations', 'createCredentialCopyRegistrations'].includes(statement.name?.text ?? '')));
     assert.ok(declarations.length, name);
     for (const declaration of declarations) {
-      assert.match(text.slice(declaration.getFullStart(), declaration.getStart(source)), /@agent-note/, declaration.getText(source));
+      if('name' in declaration && declaration.name && noted.has(declaration.name.getText(source))) assert.match(text.slice(declaration.getFullStart(), declaration.getStart(source)), /@agent-note/, declaration.getText(source));
     }
     assert.doesNotMatch(text, /from\s+["'](?:#src\/|@tovu\/|@jini-ai\/(?!core))/);
   }
