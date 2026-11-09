@@ -3,7 +3,7 @@ import { nowIso } from '@jini-ai/core/primitives';
 import { withModelFacingErrors, type ModelFacingErrorRule } from '@jini-ai/core/model-facing-tool-errors';
 import { addedPluginCapabilities, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, PluginConflictError, PluginChangedSincePreviewError, previewUninstallPlugin, uninstallPlugin, type PluginActivationRecord, type PluginConflict, type PluginUninstallPreview, type UninstallPluginRequired } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import type { PluginManagementToolsRequired, InstalledPluginRevision, ClassifiedPluginError, PluginLifecycleToolsPort, PluginFamily, SetEnabledRequest, PluginExportRow } from './contract.js';
+import type { PluginManagementToolsRequired, InstalledPluginRevision, ClassifiedPluginError, OptionalValue, PluginLifecycleToolsPort, PluginFamily, SetEnabledRequest, PluginExportRow } from './contract.js';
 const AGENT_PLUGIN_FAMILY = 'agent-plugin' as const;
 type PluginExportCatalogRow = PluginExportRow;
 type PluginSearchProjection = ReturnType<PluginLifecycleToolsPort['searchCandidate']>;
@@ -118,25 +118,26 @@ function readSetEnabledRequest(rawInput: unknown, familyRequired: string): SetEn
 
 
 /** What one plugin's enable approval is bound to; `discovery` is the site-runtime snapshot it was read from. */
+/** @agent-note Saved approval identity is bound to the full current revision/digest/source/access set before and after human consent; never rewrite its bytes or serialize private metadata. */
 interface PluginApprovalIdentity {
   
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
   readonly key: string;
   
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
-  readonly version?: string;
+  readonly version?: OptionalValue<string>;
   
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
   readonly label: string;
   
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
-  readonly discovery?: readonly PluginDiscoveryRecord[];
+  readonly discovery?: OptionalValue<readonly PluginDiscoveryRecord[]>;
   
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
-  readonly accessKey?: string;
+  readonly accessKey?: OptionalValue<string>;
   
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
-  readonly accessResources?: readonly Omit<AccessApprovalResource, 'scope'>[];
+  readonly accessResources?: OptionalValue<readonly Omit<AccessApprovalResource, 'scope'>[]>;
 }
 
 
@@ -237,7 +238,7 @@ async function uninstallConfirmedPlugin<Description>(
  */
 async function applyAgentPluginDecision<Description>(routeDeps: PluginManagementToolsRequired<Description>, principalId: string, request: SetEnabledRequest, optional: { 
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
-  accessKey?: string } = {}): Promise<unknown> {
+  accessKey?: OptionalValue<string> } = {}): Promise<unknown> {
   try {
     const input = {
       workspaceId: routeDeps.workspaceId,
@@ -469,7 +470,7 @@ function activationsRefusalResult<Description>(routeDeps: PluginManagementToolsR
  */
 async function applySiteRuntimeDecision<Description>(routeDeps: PluginManagementToolsRequired<Description>, principalId: string, request: SetEnabledRequest, optional: { 
   /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
-  discovery?: readonly PluginDiscoveryRecord[] } = {}): Promise<unknown> {
+  discovery?: OptionalValue<readonly PluginDiscoveryRecord[]> } = {}): Promise<unknown> {
   const { pluginId, enabled } = request;
   // Reuse the manifest that passed the post-approval identity check, avoiding another discovery
   // read between checking the approved version/digest and the activation owner loading it.

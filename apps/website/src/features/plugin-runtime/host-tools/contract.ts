@@ -612,4 +612,4 @@ export interface PluginSourceToolsRequired<Description> {
 }
 
 /** @agent-note Optional host metadata may explicitly carry undefined under either TypeScript optional-property mode. */
-type OptionalValue<T> = T | undefined;
+export type OptionalValue<T> = T | undefined;
