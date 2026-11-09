@@ -56,6 +56,12 @@ test("CustomCredentialVaultRepo keeps its class identity, constructor shape and 
   assert.ok(new InMemoryCustomCredentialSetRepo() instanceof CustomCredentialVaultRepo);
 });
 
+test("prototype-derived repo wrappers (Object.create) still reach the host policy", async () => {
+  const wrapper = Object.create(new InMemoryCustomCredentialSetRepo()) as InMemoryCustomCredentialSetRepo;
+  assert.equal(await wrapper.findById({ workspaceId: "w", id: "missing" }), null);
+  assert.deepEqual(await wrapper.listByWorkspace({ workspaceId: "w" }), []);
+});
+
 test("Tovu bindings keep the tovu owner scope and canonical VaultError codes", () => {
   assert.deepEqual(customVaultScope({ workspaceId: "w" }), { workspaceId: "w", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null });
   assert.deepEqual(customVaultScope({ workspaceId: "w", id: "i", kind: "custom" }), { workspaceId: "w", kind: "custom", ownerKey: "tovu", principalId: null, binding: null, id: "i" });

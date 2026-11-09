@@ -53,11 +53,13 @@ export class CredentialSetVaultRepo<C extends string = string> implements Creden
   readonly vault: VaultRepoPort;
   readonly project?: CredentialSetProjectScope<C>;
   readonly findByLabel?: (input: { workspaceId: string; label: string }) => Promise<CredentialSetRecord<C> | null>;
-  readonly #policy: CredentialSetVaultPolicy;
+  /** Host policy, stored non-enumerable (not a `#private` field) so prototype-derived wrappers
+   *  (`Object.create(repo)`) keep working exactly as with the historical class. */
+  declare private readonly policy: CredentialSetVaultPolicy;
   /** @param optional.project The project store this site's rows fall back to. */
   constructor({ vault, policy }: { vault: VaultRepoPort; policy: CredentialSetVaultPolicy }, optional: { project?: CredentialSetProjectScope<C>; findRowByLabel?: CredentialSetRowByLabel } = {}) {
     this.vault = vault;
-    this.#policy = policy;
+    Object.defineProperty(this, "policy", { value: policy });
     const findRowByLabel = optional.findRowByLabel;
     if (findRowByLabel) this.findByLabel = async input => {
       const row = await findRowByLabel(input);
@@ -68,16 +70,16 @@ export class CredentialSetVaultRepo<C extends string = string> implements Creden
   async findById(input: { workspaceId: string; id: string }): Promise<CredentialSetRecord<C> | null> {
     const row = await this.vault.find(input);
     if (!row || !isCustomCredentialRow({ row })) return null;
-    return credentialSetVaultRecord<C>({ row, policy: this.#policy });
+    return credentialSetVaultRecord<C>({ row, policy: this.policy });
   }
   async listByWorkspace(input: { workspaceId: string }): Promise<CredentialSetRecord<C>[]> {
-    const ownerKey = this.#policy.ownerKey;
+    const ownerKey = this.policy.ownerKey;
     // Label order, as before the vault (the label index drove the scan); the vault lists by id.
     const unified = await this.vault.list(credentialSetVaultScope({ ...input, ownerKey }));
     // This is a read bridge, not a kind rewrite: the stored kind still authenticates old envelopes.
     const legacy = await this.vault.list(credentialSetVaultScope({ ...input, kind: "custom", ownerKey }));
-    return [...unified.filter(row => row.meta.credentialType === "custom"), ...legacy].sort((a, b) => this.#policy.compareLabels(a, b))
-      .map(row => credentialSetVaultRecord<C>({ row, policy: this.#policy }));
+    return [...unified.filter(row => row.meta.credentialType === "custom"), ...legacy].sort((a, b) => this.policy.compareLabels(a, b))
+      .map(row => credentialSetVaultRecord<C>({ row, policy: this.policy }));
   }
   async insert(record: CredentialSetRecord<C>): Promise<void> { await this.write({ record, expectedRevision: null }); }
   async update(record: CredentialSetRecord<C>): Promise<void> {
@@ -94,7 +96,7 @@ export class CredentialSetVaultRepo<C extends string = string> implements Creden
    * the envelope is unchanged. Label conflicts keep the host's historical raw UNIQUE error contract.
    */
   private async write({ record, expectedRevision, existing }: CompatibilityWrite<C>, _options = {}): Promise<void> {
-    const policy = this.#policy;
+    const policy = this.policy;
     const prepared = preparedVaultRow({ record, policy });
     const row = prepared ?? compatibilityVaultRow({ record, expectedRevision, policy, ...(existing ? { existing } : {}) });
     try { await this.vault.put({ record: row, expectedRevision }); }
