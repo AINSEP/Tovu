@@ -9,6 +9,7 @@
  */
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
@@ -36,8 +37,9 @@ const CANARY = "/srv/secret/vault.db sk-CANARY-91 https://canary.invalid/leak?to
 const TOVU_WORDS = ["Settings → External MCP", "Tovu", "tovu", "TOVU_PUBLIC_URL", "[external-mcp]", "/oauth/external-mcp", "this Mac"];
 const provider: OAuthProviderDescriptor = { providerId: "acme-idp", label: "Acme IdP", supportedGrants: ["authorization_code"],
   authorizationEndpoint: "https://idp.acme.example/authorize", tokenEndpoint: "https://idp.acme.example/token", defaultScopes: [], usesPkce: true, clientAuth: "none" };
-const BASELINE_OAUTH = "/home/user/s5/base/Tovu/apps/website/src/features/external-mcp/external-mcp-oauth.ts";
-const BASELINE_SHARED = "/home/user/s5/base/Tovu/apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts";
+// Immutable source bytes from c3801c833; provenance.json records the original git blobs.
+const BASELINE_OAUTH = new URL("../fixtures/sign-in-copy-baseline/external-mcp-oauth.txt", import.meta.url);
+const BASELINE_SHARED = new URL("../fixtures/sign-in-copy-baseline/external-mcp-shared-oauth.txt", import.meta.url);
 
 async function fixture() {
   const repo = new InMemoryExternalMcpServerRepo();
@@ -182,7 +184,11 @@ test("Tovu's binding is its real implementations by identity, and its copy is th
   assert.equal(p.discoveryPolicy, createTovuIssuerBoundDiscoveryPolicy);
   assert.equal(p.withCopy, withTovuOAuthCopy);
 
-  const baseline = readFileSync(BASELINE_OAUTH, "utf8") + readFileSync(BASELINE_SHARED, "utf8");
+  const oauthBaseline = readFileSync(BASELINE_OAUTH, "utf8");
+  const sharedBaseline = readFileSync(BASELINE_SHARED, "utf8");
+  assert.equal(createHash("sha256").update(oauthBaseline).digest("hex"), "37403ba581a374961e1435bfe86cafc1abe4db479869107fc3dd45e762811415");
+  assert.equal(createHash("sha256").update(sharedBaseline).digest("hex"), "acec0a97bad6443817cf56ab6df38da02db00d9bedd063d4c4e36bc783b4cc32");
+  const baseline = oauthBaseline + sharedBaseline;
   for (const text of [...Object.values(p.copy.actions), p.copy.sharedLocalOnly, p.copy.sharedUnavailable, p.copy.sharedOwnerOnly]) {
     assert.ok(baseline.includes(text), `copy not byte-identical to the baseline: ${text}`);
   }
