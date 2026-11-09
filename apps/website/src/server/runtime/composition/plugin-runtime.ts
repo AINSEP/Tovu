@@ -24,9 +24,10 @@ import { PluginPackagePathError, readPluginPackageFiles as readPluginPackageDire
 import { attachLoadedPlugin } from "@jini-ai/plugins/host";
 import { loadPlugin, PluginLoadError } from "@jini-ai/plugins/host/node";
 import { createTier2ImportSeam } from "@jini-ai/plugins/host/worker";
-import type { Tier2CallRunner } from "@jini-ai/plugins/host/worker";
+import type { RunTier2CallRequired, Tier2CallRunner } from "@jini-ai/plugins/host/worker";
+import type { ArchiveReaderPort, DeclarativeContentTypesPort, PluginModuleImportPort, PluginSdkBinding, PluginTierPolicy, VerifyDigestPort } from "@jini-ai/plugins/host";
+import type { PluginLookupPort } from "@jini-ai/core/plugin-directory";
 import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
-import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import type { BeforeSaveHookPort } from "#src/features/post/index";
 
 /** Executable metadata for one compiled-in plugin. Discovery consumes only `manifest`; the enable
@@ -191,7 +192,7 @@ export interface ComposePluginRuntimeRequired {
   readonly declaredContentTypes?: DeclaredContentTypePorts;
 }
 
-export interface PluginRuntimeBindings {
+export interface PluginRuntimeCoreBindings {
   /** Call after provider teardown and stopped hook users; drains copies and releases owned graphs. */
   readonly dispose: (required: Record<string, never>, optional?: Record<string, never>) => Promise<void>;
   /** Successfully attached, admitted providers only; disable/quarantine retires their assets. */
@@ -231,10 +232,13 @@ export interface PluginRuntimeBindings {
    * `Jini/packages/plugins/src/host/node/package-files.ts`. Rejects with `PluginPackagePathError` for an
    * unsafe id/version or a directory that resolves outside its container. */
   readonly readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
-  readonly beforeSaveHook: BeforeSaveHookPort;
+  /** @agent-note Positional adapter over the shared hook registry; the entry object is passed
+   * through untouched so every host payload field reaches each filter. */
+  readonly beforeSaveHook: (entry: Parameters<HookRegistry["runBeforeSave"]>[0]["entry"]) => ReturnType<HookRegistry["runBeforeSave"]>;
   /** Admin preview (AW-7): one attached plugin's beforeSave patch for a draft, nothing saved or
-   * counted toward quarantine. `null` ⇒ not attached. See `HookRegistry.previewBeforeSave`. */
-  readonly previewPluginBeforeSave: PluginBeforeSavePreview;
+   * counted toward quarantine. `null` ⇒ not attached. See `HookRegistry.previewBeforeSave`.
+   * @agent-note Preview writes nothing and counts nothing toward quarantine. */
+  readonly previewPluginBeforeSave: (pluginId: string, entry: Parameters<HookRegistry["previewBeforeSave"]>[0]["entry"]) => ReturnType<HookRegistry["previewBeforeSave"]>;
   /**
    * P0a fix (2026-09-23): re-runs `onPluginEnabled` for every plugin `activationRepo` durably
    * marks `enabled` for THIS composition's `workspaceId`. Before this existed, nothing replayed
@@ -252,6 +256,97 @@ export interface PluginRuntimeBindings {
   readonly listPluginConflicts: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
 }
 
+/** The product-typed view composition roots consume; member names and docs are the core's. */
+export interface PluginRuntimeBindings extends Omit<PluginRuntimeCoreBindings, "beforeSaveHook" | "previewPluginBeforeSave"> {
+  readonly beforeSaveHook: BeforeSaveHookPort;
+  /** Admin preview (AW-7): one attached plugin's beforeSave patch for a draft, nothing saved or
+   * counted toward quarantine. `null` ⇒ not attached. See `HookRegistry.previewBeforeSave`. */
+  readonly previewPluginBeforeSave: PluginBeforeSavePreview;
+}
+
+/**
+ * The host bag spread into discovery, conflicts, enable, load, the Tier-2 seam, install and the
+ * source service. Extract-s6 L1b: a local port so the runtime core imports no host module.
+ * @agent-note Second-host rule: build ONE bag per runtime and keep it for the runtime's lifetime;
+ * every member is host-owned (capability vocabulary, declared content types, core owner name,
+ * identity namespace, install-disabled wording, tier policy, archive reader, digest format and the
+ * per-load invocation binding factory). The archive reader is always host-supplied (no fallback).
+ */
+export interface PluginRuntimeHostBinding {
+  readonly capabilityVocabulary: readonly string[];
+  readonly declarativeContentTypes: DeclarativeContentTypesPort;
+  readonly coreOwnerName: string;
+  readonly identityNamespace: string;
+  readonly localInstallDisabledMessage: string;
+  readonly tierPolicy: PluginTierPolicy;
+  readonly archiveReader: ArchiveReaderPort;
+  readonly verifyDigest: VerifyDigestPort;
+  readonly createInvocationCoreDeps: RunTier2CallRequired["createInvocationCoreDeps"];
+}
+
+/** Only the tracker member the runtime calls. @agent-note The host supplies the event vocabulary
+ * through `quarantineTelemetry`; the runtime never names an event, user or property itself. */
+export interface PluginRuntimeTracker<TEvent, TOptions> {
+  capture(event: TEvent, options: TOptions): unknown;
+}
+
+/** Install admission + plugin lookup. @agent-note `withInstallIdentity` must serialize admission
+ * of one candidate identity and run `run` at most once; it is read per install, never cached. */
+export interface PluginRuntimeLookup extends PluginLookupPort {
+  withInstallIdentity<T>(required: { candidate: { id: string; localId: string; family: "site-runtime" }; run: () => Promise<T> }): Promise<T>;
+}
+
+/** Host wording the runtime surfaces. @agent-note Exact host bytes; names of host tools, manifest
+ * file names and route prefixes live here, never in the runtime. */
+export interface PluginRuntimeText {
+  /** Source written to a new local plugin draft. */
+  readonly scaffoldEntry: string;
+  /** Reload refusal when a re-sealed version widens capabilities (`added` in manifest order). */
+  readonly reloadApprovalRequired: (required: { added: readonly string[] }) => string;
+  /** Quarantine reason when a source reload and the restored-version reload both failed. */
+  readonly restoreFailedReason: string;
+}
+
+/**
+ * Required inputs of the plugin-owned runtime core (extract-s6 L1b; moves in L1c).
+ * @agent-note Second-host rule: `pluginSourcePolicy`, `tier2CallRunner` and `pluginSdkBinding` have
+ * NO defaults here — the host owns env/policy, the worker entry/runner/timeout, and the SDK (hook
+ * ids, version, `beforeSaveHook`). `activationRepo` and the hook registry built here are shared by
+ * save AND preview of this one runtime. `createModuleImporter` is called only after integrity and
+ * `sdkRange` passed, and the Tier-2 runner must register its SDK resolver before importing.
+ */
+export interface PluginRuntimeCoreRequired<TEvent = unknown, TOptions = unknown> {
+  readonly workspaceId: string;
+  readonly clock: ClockPort;
+  readonly activationRepo: PluginActivationRepoPort;
+  readonly sources: readonly PluginRuntimeSource[];
+  readonly pluginSourcePolicy: PluginSourcePolicyPort;
+  readonly tier2CallRunner: Tier2CallRunner;
+  readonly pluginSdkBinding: PluginSdkBinding;
+  readonly hostBinding: PluginRuntimeHostBinding;
+  readonly createModuleImporter: (
+    required: { manifest: PluginManifest; source: "built-in" | "site" },
+    optional?: { importModule?: (entryPath: string) => Promise<unknown>; snapshots?: NonNullable<ReturnType<typeof createPluginModuleSnapshotLifecycle>> },
+  ) => PluginModuleImportPort;
+  readonly text: PluginRuntimeText;
+  /** Host projection of one quarantine into its own telemetry event; called only when `tracker` is set. */
+  readonly quarantineTelemetry: (required: { pluginId: string }) => { event: TEvent; options: TOptions };
+}
+
+/** Optional inputs; each omitted value keeps the documented default.
+ * @agent-note `dispose()` must run after provider teardown and stopped hook users; it drains
+ * pending attachments, then releases module snapshots. Load epochs retire stale generations. */
+export interface PluginRuntimeCoreOptional<TEvent = unknown, TOptions = unknown> {
+  readonly tracker?: () => PluginRuntimeTracker<TEvent, TOptions>;
+  readonly lookup?: () => PluginRuntimeLookup | undefined;
+  readonly browserProviderApprovals?: readonly BundledBrowserProviderApproval[];
+  readonly bundledEnabledIds?: readonly string[];
+  readonly failureThreshold?: number;
+  readonly installDir?: string;
+  readonly coreClaims?: readonly ExtensionClaim[];
+  readonly declaredContentTypes?: DeclaredContentTypePorts;
+}
+
 /** True when a manifest declares provider factories (`contributes.providers`). */
 function declaresProviders({ manifest }: { manifest: PluginManifest | undefined }): boolean {
   return (manifest?.contributes?.providers?.length ?? 0) > 0;
@@ -264,14 +359,69 @@ function declaresProviders({ manifest }: { manifest: PluginManifest | undefined 
  * has completed successfully.
  */
 export function composePluginRuntime(required: ComposePluginRuntimeRequired, _optional: Record<string, never> = {}): PluginRuntimeBindings {
-  const { activationRepo, clock, sources, installDir } = required;
-  const quarantineDeps = { clock, repo: activationRepo, onQuarantined: ({ pluginId }: { pluginId: string; workspaceId: string }) =>
-    required.productTracker?.().capture({ name: "plugin_quarantined", userId: "system" }, { properties: { pluginId, pluginKind: "cms", reasonClass: "lifecycle" } }) };
+  const { productTracker, getPluginHost, pluginSourcePolicy, tier2CallRunner, workspaceId, clock, activationRepo, sources, ...optionalInputs } = required;
+  const core = createPluginRuntimeCore({
+    workspaceId, clock, activationRepo, sources,
+    pluginSourcePolicy: pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env, hostSignals: resolveHostSignals({ env: process.env }) }),
+    tier2CallRunner: tier2CallRunner ?? createTier2WorkerRunner({}),
+    pluginSdkBinding: pluginHostBinding.pluginSdkBinding,
+    hostBinding: pluginHostBinding,
+    createModuleImporter: createPluginModuleImporter,
+    text: TOVU_PLUGIN_RUNTIME_TEXT,
+    quarantineTelemetry: ({ pluginId }) => ({ event: { name: "plugin_quarantined", userId: "system" }, options: { properties: { pluginId, pluginKind: "cms", reasonClass: "lifecycle" } } }),
+  }, {
+    ...(productTracker === undefined ? {} : { tracker: productTracker }),
+    ...(getPluginHost === undefined ? {} : { lookup: getPluginHost }),
+    ...optionalInputs,
+  });
+  return { ...core, beforeSaveHook: core.beforeSaveHook, previewPluginBeforeSave: core.previewPluginBeforeSave };
+}
+
+/** Tovu's exact runtime wording (tool names, manifest file name, route prefix). */
+const TOVU_PLUGIN_RUNTIME_TEXT: PluginRuntimeText = {
+  // readDefinedPlugin accepts this SDK wrapper ABI; no package imports are needed from an
+  // external site's Documents folder. Owner: full server access for now. Follow-up: sandbox tier-3.
+  scaffoldEntry: `export default { definition: { setup(sdk) {
+  /* Register declared content filters here.
+   * To add the examples below, declare capabilities http.route.register and tools.register,
+   * and contributes: { routes: ['GET /hello'], tools: ['echo'] } in tovu.plugin.json.
+   * Routes mount at /api/p/<plugin-id>/hello. Widgets use render.contribute and contributes.widgets.
+   * sdk.routes.add({ method: 'GET', path: '/hello', access: 'public', handler: () => ({ body: { hello: true } }) });
+   * sdk.tools.add({ name: 'echo', description: 'Echo input', inputSchema: { type: 'object' }, handler: ({ input }) => input });
+   * sdk.widgets.add({ name: '<declared-widget-name>', render: () => '<strong>Hello</strong>' });
+   */
+} } };\n`,
+  reloadApprovalRequired: ({ added }) => `PLUGIN_APPROVAL_REQUIRED: this version adds ${added.join(', ')}. The approved version keeps running; ask the owner to approve it by enabling it again with plugins_set_enabled.`,
+  restoreFailedReason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.',
+};
+
+/**
+ * The plugin-owned runtime algorithm behind {@link composePluginRuntime} (extract-s6 L1b seam,
+ * in place; L1c moves it). Reads no host module: every host value arrives through
+ * {@link PluginRuntimeCoreRequired}/{@link PluginRuntimeCoreOptional}.
+ * @agent-note Callback order is unchanged: quarantine writes the activation row, then telemetry;
+ * enable loads (integrity, sdkRange, resolver, import, setup) before attach; a disable or newer
+ * load during import retires the older epoch.
+ * @example createPluginRuntimeCore({ workspaceId, clock, activationRepo, sources, pluginSourcePolicy, tier2CallRunner, pluginSdkBinding, hostBinding, createModuleImporter, text, quarantineTelemetry }, { installDir })
+ */
+export function createPluginRuntimeCore<TEvent, TOptions>(
+  required: PluginRuntimeCoreRequired<TEvent, TOptions>,
+  optional: PluginRuntimeCoreOptional<TEvent, TOptions> = {},
+): PluginRuntimeCoreBindings {
+  const { activationRepo, clock, sources } = required;
+  const { installDir } = optional;
+  const quarantineDeps = { clock, repo: activationRepo, onQuarantined: ({ pluginId }: { pluginId: string; workspaceId: string }) => {
+    const tracker = optional.tracker?.();
+    if (!tracker) return undefined;
+    const { event, options } = required.quarantineTelemetry({ pluginId });
+    return tracker.capture(event, options);
+  } };
+  const runtimeBinding = { ...required.hostBinding, pluginSdkBinding: required.pluginSdkBinding };
   // The install directory owns versions; its sibling runtime directory owns executable graphs.
   const snapshots = installDir === undefined ? undefined : createPluginModuleSnapshotLifecycle({ runtimeRoot: path.resolve(installDir) + "-runtime" });
   const pendingAttachments = new Set<Promise<void>>();
   let closing = false;
-  const pluginSourcePolicy = required.pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env, hostSignals: resolveHostSignals({ env: process.env }) });
+  const { pluginSourcePolicy } = required;
   const loadedVersions = new Map<string, string>();
   const browserProviders = new Map<string, readonly AdmittedBrowserProvider[]>();
   let browserGeneration = 0;
@@ -280,9 +430,9 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   // Only boot's configured selection may admit provider factories (`loadProviderPlugins`).
   const selectedProviders = new Set<string>();
   const loadEpochs = new Map<string, number>();
-  const tier2CallRunner = required.tier2CallRunner ?? createTier2WorkerRunner({});
-  const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding }, {
-    ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
+  const { tier2CallRunner } = required;
+  const hookRegistry = createHookRegistry({ pluginSdkBinding: required.pluginSdkBinding }, {
+    ...(optional.failureThreshold === undefined ? {} : { failureThreshold: optional.failureThreshold }),
     onQuarantine: async (input) => {
       onPluginDisabled(input.pluginId);
       await quarantinePlugin({ deps: quarantineDeps, input });
@@ -292,24 +442,24 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   // never scanned no matter how the composition root itself was configured — see this function's
   // required-params doc).
   const discoverPlugins = () =>
-    discoverPluginRuntimePlugins({ ...pluginHostBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
+    discoverPluginRuntimePlugins({ ...runtimeBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
 
   /** Retained versions make the activation row's existing active pointer meaningful at boot
    * and reload. A newly installed version is not running until controlled reload advances it. */
   async function discoverActivePlugins(): Promise<readonly PluginDiscoveryRecord[]> {
     const rows = await activationRepo.listAll();
     const versions = new Map(rows.filter(row => row.workspaceId === required.workspaceId && row.enabled).map(row => [row.pluginId, row.version]));
-    return discoverPluginRuntimePlugins({ ...pluginHostBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) }, { versions });
+    return discoverPluginRuntimePlugins({ ...runtimeBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) }, { versions });
   }
 
-  const coreClaims = required.coreClaims ?? [];
+  const coreClaims = optional.coreClaims ?? [];
 
   async function listPluginConflicts(
     discovery?: readonly PluginDiscoveryRecord[],
     optional: { candidateId?: string } = {},
   ): Promise<ReadonlyMap<string, readonly PluginConflict[]>> {
     const [records, activations] = await Promise.all([discovery ?? discoverPlugins(), activationRepo.listAll()]);
-    return resolvePluginConflicts({ ...pluginHostBinding, workspaceId: required.workspaceId, discovery: records, activations, coreClaims }, optional);
+    return resolvePluginConflicts({ ...runtimeBinding, workspaceId: required.workspaceId, discovery: records, activations, coreClaims }, optional);
   }
 
   /** Install preview (2026-10-04): what the staged package would clash with if turned on in THIS
@@ -347,8 +497,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
     // plugin's `loadCode` is never called.
     await enableDeclaredPlugin(
-      { ...pluginHostBinding, pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => onPluginDisabled(pluginId) },
-      required.declaredContentTypes ? { contentTypes: required.declaredContentTypes } : {},
+      { ...runtimeBinding, pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => onPluginDisabled(pluginId) },
+      optional.declaredContentTypes ? { contentTypes: optional.declaredContentTypes } : {},
     );
     loadedVersions.set(pluginId, record.version);
     return undefined;
@@ -377,7 +527,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     const { manifest, entryPath, attachmentSource } = target;
     // The SDK backing (content.read/extend bound to the running filter, single declared beforeSave
     // filter) is shared with the Tier-2 worker — see `invocation-core-deps.ts`.
-    const invocation = pluginHostBinding.createInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
+    const invocation = runtimeBinding.createInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
     const capture = createPluginContributionCapture({ manifest });
     let scopedSdk: PluginSdk | undefined;
     const coreDeps = { ...invocation.coreDeps, contributions: capture };
@@ -386,13 +536,13 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // target takes the contained immutable snapshot; built-in seams retain their original path.
     const moduleImporter = resolveRuntimeImporter({ target, record });
     const result = await loadPlugin(
-      { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter,
-        browserProviderApprovals: required.browserProviderApprovals ?? [],
+      { ...runtimeBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter,
+        browserProviderApprovals: optional.browserProviderApprovals ?? [],
         providerContributions: { registry: providerContributions, isSelected: ({ pluginId: id }) => selectedProviders.has(id) },
-        pluginSdkBinding: { ...pluginHostBinding.pluginSdkBinding,
+        pluginSdkBinding: { ...runtimeBinding.pluginSdkBinding,
           buildSdk: ({ sdk }) => {
-            const host = required.getPluginHost?.();
-            scopedSdk = { ...pluginHostBinding.pluginSdkBinding.buildSdk({ sdk }),
+            const host = optional.lookup?.();
+            scopedSdk = { ...runtimeBinding.pluginSdkBinding.buildSdk({ sdk }),
               ...(host ? { plugins: createPluginLookupFacade({ lookup: host }) } : {}),
             };
             return scopedSdk;
@@ -409,7 +559,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     if (loadEpochs.get(pluginId) !== epoch || !scopedSdk) throw new PluginLoadError(pluginId, 'PLUGIN_SETUP_FAILED');
     const contributions = capture.seal({ sdk: scopedSdk });
     const filter = invocation.capturedFilter();
-    if (manifest.hooks.includes(HOOK_CONTENT_ENTRY_BEFORE_SAVE) && filter === null) {
+    if (manifest.hooks.includes(required.pluginSdkBinding.beforeSaveHook) && filter === null) {
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_NOT_ATTACHED");
     }
     publishPluginAttachment({ pluginId, manifest, attachmentSource, filter, contributions,
@@ -425,8 +575,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // would need the seam's `resolveWorkerEntry` pointed at the integrity-checked module snapshot,
     // since an injected worker seam bypasses the host's default snapshot importer.
     return target.manifest.tier === "tier-2"
-      ? createTier2ImportSeam({ ...pluginHostBinding, manifest: target.manifest, runCall: tier2CallRunner })
-      : createPluginModuleImporter({ manifest: target.manifest, source: record.source }, {
+      ? createTier2ImportSeam({ ...runtimeBinding, manifest: target.manifest, runCall: tier2CallRunner })
+      : required.createModuleImporter({ manifest: target.manifest, source: record.source }, {
           ...(target.importModule === undefined ? {} : { importModule: target.importModule }),
           ...(snapshots === undefined ? {} : { snapshots }),
         });
@@ -506,11 +656,11 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   async function initializeBootDefaults(_required: Record<string, never>, _options = {}) {
     // Serialize first-boot defaults with boot attachment. Existing disabled/quarantined rows win.
     const initialized = await initializeBundledPlugins({
-      deps: { clock, repo: activationRepo, discovery: required.bundledEnabledIds?.length ? await discoverPlugins().catch((error: unknown) => {
+      deps: { clock, repo: activationRepo, discovery: optional.bundledEnabledIds?.length ? await discoverPlugins().catch((error: unknown) => {
         console.warn("[plugin-runtime] bundled discovery failed; chart providers remain unavailable", error);
         return [];
       }) : [], onEnabled: onPluginEnabled, onDisabled: onPluginDisabled },
-      input: { workspaceId: required.workspaceId, pluginIds: required.bundledEnabledIds ?? [] },
+      input: { workspaceId: required.workspaceId, pluginIds: optional.bundledEnabledIds ?? [] },
     });
     for (const failure of initialized.failed) console.warn(`[plugin-runtime] bundled initialization failed for '${failure.pluginId}'`, failure.error);
     return initialized;
@@ -646,13 +796,13 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   }
 
   const pluginInstaller: PluginInstallerPort | undefined = installDir === undefined ? undefined : {
-      preview: (input, options = {}) => previewSitePluginInstall({ ...input, deps: { ...pluginHostBinding, ...options, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      preview: (input, options = {}) => previewSitePluginInstall({ ...input, deps: { ...runtimeBinding, ...options, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts } }),
       install: async (input, options = {}) => {
-        const deps = { ...pluginHostBinding, ...options, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts };
+        const deps = { ...runtimeBinding, ...options, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts };
         const preview = await previewSitePluginInstall({ ...input, deps });
         // Admission uses this manifest's identity; publication must retain those exact bytes.
         const run = () => installSitePlugin({ ...input, expectedDigest: input.expectedDigest ?? preview.digest, deps });
-        const host = required.getPluginHost?.();
+        const host = optional.lookup?.();
         if (!host) return run();
         return host.withInstallIdentity({ candidate: { id: preview.publisherId ?? `unknown/${preview.id}`, localId: preview.id, family: "site-runtime" }, run });
       },
@@ -679,7 +829,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // retained version; the approved version keeps running until plugins_set_enabled is confirmed.
     const next = discovery.find(record => record.id === id)?.manifest;
     const added = enabledCount > 0 && next ? addedPluginCapabilities({ approved: await pluginSource?.readApproval({ id }, {}), next: pluginCapabilitySet({ manifest: next }) }) : [];
-    if (added.length > 0) throw new Error(`PLUGIN_APPROVAL_REQUIRED: this version adds ${added.join(', ')}. The approved version keeps running; ask the owner to approve it by enabling it again with plugins_set_enabled.`);
+    if (added.length > 0) throw new Error(required.text.reloadApprovalRequired({ added }));
   }
 
   async function restoreReloadedPlugin({ id, workspaceId }: { id: string; workspaceId: string }, _options = {}): Promise<void> {
@@ -689,7 +839,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     catch (rollbackError) {
       console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, rollbackError);
       onPluginDisabled(id);
-      await quarantinePlugin({ deps: quarantineDeps, input: { pluginId: id, workspaceId, consecutiveFailures: 0, reason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.' } });
+      await quarantinePlugin({ deps: quarantineDeps, input: { pluginId: id, workspaceId, consecutiveFailures: 0, reason: required.text.restoreFailedReason } });
     }
   }
 
@@ -698,21 +848,10 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   function composeSourceService(_required: Record<string, never>, _options = {}): PluginSourcePort | undefined {
     if (installDir === undefined || pluginInstaller === undefined) return undefined;
     return createPluginSourceService({
-      ...pluginHostBinding, installDir, installer: pluginInstaller, policy: pluginSourcePolicy,
+      ...runtimeBinding, installDir, installer: pluginInstaller, policy: pluginSourcePolicy,
       pruneVersions: ({ id }) => pruneSitePluginVersions({ id, installDir, repo: activationRepo }),
       builtInIds: sources.map(source => source.manifest.id),
-      // readDefinedPlugin accepts this SDK wrapper ABI; no package imports are needed from an
-      // external site's Documents folder. Owner: full server access for now. Follow-up: sandbox tier-3.
-      scaffoldEntry: `export default { definition: { setup(sdk) {
-  /* Register declared content filters here.
-   * To add the examples below, declare capabilities http.route.register and tools.register,
-   * and contributes: { routes: ['GET /hello'], tools: ['echo'] } in tovu.plugin.json.
-   * Routes mount at /api/p/<plugin-id>/hello. Widgets use render.contribute and contributes.widgets.
-   * sdk.routes.add({ method: 'GET', path: '/hello', access: 'public', handler: () => ({ body: { hello: true } }) });
-   * sdk.tools.add({ name: 'echo', description: 'Echo input', inputSchema: { type: 'object' }, handler: ({ input }) => input });
-   * sdk.widgets.add({ name: '<declared-widget-name>', render: () => '<strong>Hello</strong>' });
-   */
-} } };\n`,
+      scaffoldEntry: required.text.scaffoldEntry,
       reload: async ({ id }) => {
         const enabled = (await activationRepo.listAll()).filter(row => row.pluginId === id && row.enabled);
         const discovery = await discoverPlugins();
