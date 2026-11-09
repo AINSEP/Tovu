@@ -1,0 +1,475 @@
+[WebServer] ./bg/glass-bg.webp referenced in ./bg/glass-bg.webp didn't resolve at build time, it will remain unchanged to be resolved at runtime
+[WebServer] 
+[WebServer] (!) outDir /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-a2beQp/admin-build/dist is not inside project root and will not be emptied.
+[WebServer] Use --emptyOutDir to override.
+[WebServer] 
+[WebServer] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] 
+[WebServer] (!) outDir /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-a2beQp/site-chat-dist is not inside project root and will not be emptied.
+[WebServer] Use --emptyOutDir to override.
+[WebServer] 
+[WebServer] [agent-plugins:migration-complete] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-a2beQp/sites/journey-site/agent-plugins/ws/workspace-local
+[WebServer] [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+[WebServer] [agent-plugins:migration-complete] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-media-TEYkxd/sites/journey-site/agent-plugins/ws/workspace-local
+
+Running 12 tests using 1 worker
+
+  ✓   1 [chromium] › development/e2e/journeys/admin-phone-layout.pins.journey.ts:13:1 › site-key fingerprint stays inside its card on a phone (1.9s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-a9f0da14-b82c-4d41-ad70-827874501d96-G9iYx3
+  ✘   2 [chromium] › development/e2e/journeys/admin-phone-layout.pins.journey.ts:31:1 › post formatting controls stay visible and keyboard-reachable on a phone (1.5m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8fc77fb4-10b4-49f8-a3bd-e42f5a1caaca-jRKO0d
+  ✘   3 [chromium] › development/e2e/journeys/agent-page.pins.journey.ts:109:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 1: DOM page-driver mechanics work against the real rendered SPA — existence, current value, and a React-safe write (1.7s)
+  -   4 [chromium] › development/e2e/journeys/agent-page.pins.journey.ts:169:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 2: the SSE bridge from browser to daemon attaches with a real bind token
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-2578ded4-e439-4684-b357-2cafae718b00-XaYCuj
+  ✘   5 [chromium] › development/e2e/journeys/media.pins.journey.ts:48:1 › Bug pin: media-picker-cancel › Media's Order by label and dropdown share a row with visible spacing (2.8s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8777fb1e-b02a-46db-9458-4364050476f3-r7JG2i
+  ✘   6 [chromium] › development/e2e/journeys/media.pins.journey.ts:130:3 › Bug pin: media-picker-cancel › Media Picker — Cancel button reachability › Cancel stays fully inside the viewport and closes the dialog when clicked, with real media loaded (18.5s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-668e53fe-c3a1-4d13-8716-f74dfa9163fa-io6Z2F
+  ✘   7 [chromium] › development/e2e/journeys/media.pins.journey.ts:196:1 › Bug pin: media-picker-cancel › Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape (18.0s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8f7ba747-cd4d-48a5-b9a2-267d8d4c6cfb-Tg13Ch
+  ✘   8 [chromium] › development/e2e/journeys/media.pins.journey.ts:309:1 › Bug pin: media-providers-credentials › the tab renders the engine's vendor roster, not @jini-ai/ui's curated sample (1.5m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-ce1a5a9f-5fbb-4f85-9ad7-f6c39bfccbe1-GqX1zi
+  ✘   9 [chromium] › development/e2e/journeys/media.pins.journey.ts:326:1 › Bug pin: media-providers-credentials › a typed key survives a full page reload as a masked marker, and never comes back in plaintext (1.5m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-c8f007b8-1be4-496e-8bda-606ad89f70b8-IiU1NV
+  ✘  10 [chromium] › development/e2e/journeys/media.pins.journey.ts:349:1 › Bug pin: media-providers-credentials › the stored key is never delivered to the browser — the field stays empty (1.5m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-db1f9c98-cf6f-4ef5-9509-0debfb152a38-rJOseL
+  ✘  11 [chromium] › development/e2e/journeys/media.pins.journey.ts:366:1 › Bug pin: media-providers-credentials › Clear removes the credential server-side, so a reload does not bring it back (1.5m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-3c16eb7e-ed3c-4db4-afeb-4f867a42d694-PAJCT2
+  ✘  12 [chromium] › development/e2e/journeys/users.pins.journey.ts:90:3 › Bug pin: users-reset-password › Reset password — confirm field + reveal toggles, end to end › mismatch blocks submit, each toggle reveals only its own field, and the new password really works while the old one is rejected (1.5m)
+
+
+  1) [chromium] › development/e2e/journeys/admin-phone-layout.pins.journey.ts:31:1 › post formatting controls stay visible and keyboard-reachable on a phone 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: page.waitForResponse: Test timeout of 90000ms exceeded.
+
+      31 | test("post formatting controls stay visible and keyboard-reachable on a phone", async ({ page }) => {
+      32 |   await page.goto("/admin/posts");
+    > 33 |   const created = page.waitForResponse((response) =>
+         |                        ^
+      34 |     response.request().method() === "POST"
+      35 |     && new URL(response.url()).pathname === "/api/admin/v1/workspaces/workspace-local/posts",
+      36 |   );
+        at /home/user/Tovu/development/e2e/journeys/admin-phone-layout.pins.journey.ts:33:24
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-a9f0da14-b82c-4d41-ad70-827874501d96-G9iYx3
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/admin-phone-layout.pins.jo-1f038-yboard-reachable-on-a-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/admin-phone-layout.pins.jo-1f038-yboard-reachable-on-a-phone-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-a9f0da14-b82c-4d41-ad70-827874501d96-G9iYx3/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/admin-phone-layout.pins.jo-1f038-yboard-reachable-on-a-phone-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/admin-phone-layout.pins.jo-1f038-yboard-reachable-on-a-phone-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › development/e2e/journeys/agent-page.pins.journey.ts:109:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 1: DOM page-driver mechanics work against the real rendered SPA — existence, current value, and a React-safe write 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      16 |   for (const pluginId of ["github-pages"]) {
+      17 |     const response = await pinSessionRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 18 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      19 |   }
+      20 | });
+      21 |
+        at /home/user/Tovu/development/e2e/journeys/agent-page.pins.journey.ts:18:66
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8fc77fb4-10b4-49f8-a3bd-e42f5a1caaca-jRKO0d
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/agent-page.pins.journey.ts-3d9f7-alue-and-a-React-safe-write-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/agent-page.pins.journey.ts-3d9f7-alue-and-a-React-safe-write-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8fc77fb4-10b4-49f8-a3bd-e42f5a1caaca-jRKO0d/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/agent-page.pins.journey.ts-3d9f7-alue-and-a-React-safe-write-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/agent-page.pins.journey.ts-3d9f7-alue-and-a-React-safe-write-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › development/e2e/journeys/media.pins.journey.ts:48:1 › Bug pin: media-picker-cancel › Media's Order by label and dropdown share a row with visible spacing 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.media-order-control')
+    Expected: visible
+    Error: strict mode violation: locator('.media-order-control') resolved to 2 elements:
+        1) <div data-agent-role="field" class="media-order-control" data-agent-element="media-order-by" data-agent-label="Order the media grid by Created or Alphabetical">…</div> aka getByText('Order byCreated (newest first')
+        2) <div data-agent-role="field" class="media-order-control" data-agent-element="media-grid-size" data-agent-label="Set the media grid card size: Small, Medium or Large">…</div> aka getByText('SizeSmallMediumLargeExtra')
+
+    Call log:
+      - Expect "toBeVisible" with timeout 15000ms
+      - waiting for locator('.media-order-control')
+
+
+      50 |   await page.goto("/admin/media", { waitUntil: "domcontentloaded" });
+      51 |   const control = page.locator(".media-order-control");
+    > 52 |   await expect(control).toBeVisible();
+         |                         ^
+      53 |
+      54 |   // Measure the served page so an unloaded stylesheet or a later override fails this guard.
+      55 |   const spacing = await control.evaluate((element) => {
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:52:25
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-2578ded4-e439-4684-b357-2cafae718b00-XaYCuj
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--ac2d4--a-row-with-visible-spacing-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--ac2d4--a-row-with-visible-spacing-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-2578ded4-e439-4684-b357-2cafae718b00-XaYCuj/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--ac2d4--a-row-with-visible-spacing-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--ac2d4--a-row-with-visible-spacing-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › development/e2e/journeys/media.pins.journey.ts:130:3 › Bug pin: media-picker-cancel › Media Picker — Cancel button reachability › Cancel stays fully inside the viewport and closes the dialog when clicked, with real media loaded 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /\/admin\/posts\/[^/]+$/
+    Received string:  "http://127.0.0.1:29101/admin/posts?create=1"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 15000ms
+        33 × unexpected value "http://127.0.0.1:29101/admin/posts?create=1"
+
+
+      74 |   await page.goto("/admin/posts", { waitUntil: "domcontentloaded" });
+      75 |   await page.getByRole("button", { name: "New Post" }).click();
+    > 76 |   await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
+         |                      ^
+      77 | }
+      78 |
+      79 | /**
+        at openFreshPost (/home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:76:22)
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:131:5
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8777fb1e-b02a-46db-9458-4364050476f3-r7JG2i
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--f05a8-cked-with-real-media-loaded-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--f05a8-cked-with-real-media-loaded-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8777fb1e-b02a-46db-9458-4364050476f3-r7JG2i/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--f05a8-cked-with-real-media-loaded-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--f05a8-cked-with-real-media-loaded-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › development/e2e/journeys/media.pins.journey.ts:196:1 › Bug pin: media-picker-cancel › Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: locator('dialog.media-lightbox').locator('.media-lightbox-counter')
+    Expected: "2 / 2"
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveText" with timeout 15000ms
+      - waiting for locator('dialog.media-lightbox').locator('.media-lightbox-counter')
+
+
+      240 |   await page.keyboard.press("ArrowRight");
+      241 |   await expect(dialog.getByRole("heading")).toHaveText("Second photo");
+    > 242 |   await expect(dialog.locator(".media-lightbox-counter")).toHaveText("2 / 2");
+          |                                                           ^
+      243 |   await page.keyboard.press("ArrowRight");
+      244 |   await expect(dialog.getByRole("heading")).toHaveText("Second photo");
+      245 |   await expect(dialog.locator(".media-lightbox-counter")).toHaveText("2 / 2");
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:242:59
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-668e53fe-c3a1-4d13-8716-f74dfa9163fa-io6Z2F
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--b1d56-nd-restores-focus-on-Escape-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--b1d56-nd-restores-focus-on-Escape-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-668e53fe-c3a1-4d13-8716-f74dfa9163fa-io6Z2F/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--b1d56-nd-restores-focus-on-Escape-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--b1d56-nd-restores-focus-on-Escape-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › development/e2e/journeys/media.pins.journey.ts:309:1 › Bug pin: media-providers-credentials › the tab renders the engine's vendor roster, not @jini-ai/ui's curated sample 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: page.fill: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for locator('.login-card label:has-text("Password") input')
+
+
+      286 |   await page.waitForSelector(".login-card", { timeout: 20_000 });
+      287 |   await page.fill('.login-card label:has-text("Username") input', "admin");
+    > 288 |   await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+          |              ^
+      289 |   await page.click('.login-card button:has-text("Sign in")');
+      290 |   await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
+      291 | }
+        at login (/home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:288:14)
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:310:3
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8f7ba747-cd4d-48a5-b9a2-267d8d4c6cfb-Tg13Ch
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--12fa7-jini-ai-ui-s-curated-sample-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--12fa7-jini-ai-ui-s-curated-sample-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-8f7ba747-cd4d-48a5-b9a2-267d8d4c6cfb-Tg13Ch/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--12fa7-jini-ai-ui-s-curated-sample-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--12fa7-jini-ai-ui-s-curated-sample-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › development/e2e/journeys/media.pins.journey.ts:326:1 › Bug pin: media-providers-credentials › a typed key survives a full page reload as a masked marker, and never comes back in plaintext 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: page.fill: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for locator('.login-card label:has-text("Password") input')
+
+
+      286 |   await page.waitForSelector(".login-card", { timeout: 20_000 });
+      287 |   await page.fill('.login-card label:has-text("Username") input', "admin");
+    > 288 |   await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+          |              ^
+      289 |   await page.click('.login-card button:has-text("Sign in")');
+      290 |   await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
+      291 | }
+        at login (/home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:288:14)
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:329:3
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-ce1a5a9f-5fbb-4f85-9ad7-f6c39bfccbe1-GqX1zi
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--e975c-ver-comes-back-in-plaintext-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--e975c-ver-comes-back-in-plaintext-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-ce1a5a9f-5fbb-4f85-9ad7-f6c39bfccbe1-GqX1zi/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--e975c-ver-comes-back-in-plaintext-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--e975c-ver-comes-back-in-plaintext-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › development/e2e/journeys/media.pins.journey.ts:349:1 › Bug pin: media-providers-credentials › the stored key is never delivered to the browser — the field stays empty 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: page.fill: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for locator('.login-card label:has-text("Password") input')
+
+
+      286 |   await page.waitForSelector(".login-card", { timeout: 20_000 });
+      287 |   await page.fill('.login-card label:has-text("Username") input', "admin");
+    > 288 |   await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+          |              ^
+      289 |   await page.click('.login-card button:has-text("Sign in")');
+      290 |   await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
+      291 | }
+        at login (/home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:288:14)
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:350:3
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-c8f007b8-1be4-496e-8bda-606ad89f70b8-IiU1NV
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--84521-ser-—-the-field-stays-empty-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--84521-ser-—-the-field-stays-empty-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-c8f007b8-1be4-496e-8bda-606ad89f70b8-IiU1NV/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--84521-ser-—-the-field-stays-empty-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--84521-ser-—-the-field-stays-empty-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [chromium] › development/e2e/journeys/media.pins.journey.ts:366:1 › Bug pin: media-providers-credentials › Clear removes the credential server-side, so a reload does not bring it back 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: page.fill: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for locator('.login-card label:has-text("Password") input')
+
+
+      286 |   await page.waitForSelector(".login-card", { timeout: 20_000 });
+      287 |   await page.fill('.login-card label:has-text("Username") input', "admin");
+    > 288 |   await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+          |              ^
+      289 |   await page.click('.login-card button:has-text("Sign in")');
+      290 |   await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
+      291 | }
+        at login (/home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:288:14)
+        at /home/user/Tovu/development/e2e/journeys/media.pins.journey.ts:367:3
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-db1f9c98-cf6f-4ef5-9509-0debfb152a38-rJOseL
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--4eb7a-load-does-not-bring-it-back-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/media.pins.journey.ts-Bug--4eb7a-load-does-not-bring-it-back-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-db1f9c98-cf6f-4ef5-9509-0debfb152a38-rJOseL/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/media.pins.journey.ts-Bug--4eb7a-load-does-not-bring-it-back-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/media.pins.journey.ts-Bug--4eb7a-load-does-not-bring-it-back-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [chromium] › development/e2e/journeys/users.pins.journey.ts:90:3 › Bug pin: users-reset-password › Reset password — confirm field + reveal toggles, end to end › mismatch blocks submit, each toggle reveals only its own field, and the new password really works while the old one is rejected 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for getByRole('dialog', { name: /reset password\?/i }).getByLabel('New password', { exact: true }).locator('xpath=ancestor::div[contains(concat(\' \', normalize-space(@class), \' \'), \' field \')][1]').getByRole('button', { name: 'Show password' })
+
+
+      140 |     await expect(confirmInput).toHaveAttribute("type", "password");
+      141 |
+    > 142 |     await newField.getByRole("button", { name: "Show password" }).click();
+          |                                                                   ^
+      143 |     await expect(newInput).toHaveAttribute("type", "text");
+      144 |     await expect(confirmInput).toHaveAttribute("type", "password");
+      145 |     await expect(newField.getByRole("button", { name: "Hide password" })).toHaveAttribute("aria-pressed", "true");
+        at /home/user/Tovu/development/e2e/journeys/users.pins.journey.ts:142:67
+
+    attachment #1: pin-site-owner (text/plain) ─────────────────────────────────────────────────────
+    /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-3c16eb7e-ed3c-4db4-afeb-4f867a42d694-PAJCT2
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys/users.pins.journey.ts-Bug--2307b-ile-the-old-one-is-rejected-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys/users.pins.journey.ts-Bug--2307b-ile-the-old-one-is-rejected-chromium/error-context.md
+
+    attachment #4: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [pin-api] [migrations] /tmp/claude-0/-home-user/b5c9e2ab-edea-5b3f-b916-b8861c253f5a/scratchpad/tmp/tovu-journeys-pins-3c16eb7e-ed3c-4db4-afeb-4f867a42d694-PAJCT2/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys/users.pins.journey.ts-Bug--2307b-ile-the-old-one-is-rejected-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys/users.pins.journey.ts-Bug--2307b-ile-the-old-one-is-rejected-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10 failed
+    [chromium] › development/e2e/journeys/admin-phone-layout.pins.journey.ts:31:1 › post formatting controls stay visible and keyboard-reachable on a phone 
+    [chromium] › development/e2e/journeys/agent-page.pins.journey.ts:109:3 › Bug pin: agent-page-control-live-verification › Agent page-control — live verification › LEVEL 1: DOM page-driver mechanics work against the real rendered SPA — existence, current value, and a React-safe write 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:48:1 › Bug pin: media-picker-cancel › Media's Order by label and dropdown share a row with visible spacing 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:130:3 › Bug pin: media-picker-cancel › Media Picker — Cancel button reachability › Cancel stays fully inside the viewport and closes the dialog when clicked, with real media loaded 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:196:1 › Bug pin: media-picker-cancel › Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:309:1 › Bug pin: media-providers-credentials › the tab renders the engine's vendor roster, not @jini-ai/ui's curated sample 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:326:1 › Bug pin: media-providers-credentials › a typed key survives a full page reload as a masked marker, and never comes back in plaintext 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:349:1 › Bug pin: media-providers-credentials › the stored key is never delivered to the browser — the field stays empty 
+    [chromium] › development/e2e/journeys/media.pins.journey.ts:366:1 › Bug pin: media-providers-credentials › Clear removes the credential server-side, so a reload does not bring it back 
+    [chromium] › development/e2e/journeys/users.pins.journey.ts:90:3 › Bug pin: users-reset-password › Reset password — confirm field + reveal toggles, end to end › mismatch blocks submit, each toggle reveals only its own field, and the new password really works while the old one is rejected 
+  1 did not run
+  1 passed (12.5m)
+exit 1

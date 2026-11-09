@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { ADDONS_PANEL_PATHS } from "../support/addons-route-fixture.js";
+import { adminPanelsLiteral } from "../support/admin-panels-literal.js";
 
 import { attemptLoginAsAdmin, logoutAsAdmin } from "../auth-fixtures.js";
 import { JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, PUBLIC_URL, expect, hasHorizontalScroll, test } from "./_fixtures.js";
@@ -20,18 +21,11 @@ const SEEDED_PUBLIC_ROUTES = ["/", "/welcome", "/blog"];
 function readPanelIds(): string[] {
   const filename = path.join(REPO_ROOT, "apps/admin/src/panels.tsx");
   const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let ids: string[] = [];
-  function visit(node: ts.Node): void {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "ADMIN_PANELS" && node.initializer && ts.isArrayLiteralExpression(node.initializer)) {
-      ids = node.initializer.elements.flatMap((element) => {
-        if (!ts.isObjectLiteralExpression(element)) return [];
-        const id = element.properties.find((p) => ts.isPropertyAssignment(p) && p.name.getText() === "id");
-        return id && ts.isPropertyAssignment(id) && ts.isStringLiteral(id.initializer) ? [id.initializer.text] : [];
-      });
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(source);
+  const ids = adminPanelsLiteral(source).elements.flatMap((element) => {
+    if (!ts.isObjectLiteralExpression(element)) return [];
+    const id = element.properties.find((p) => ts.isPropertyAssignment(p) && p.name.getText() === "id");
+    return id && ts.isPropertyAssignment(id) && ts.isStringLiteral(id.initializer) ? [id.initializer.text] : [];
+  });
   if (ids.length === 0) throw new Error("ADMIN_PANELS not found or empty; refusing to silently test nothing.");
   return ids;
 }

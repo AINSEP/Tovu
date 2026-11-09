@@ -116,20 +116,24 @@ export async function startResettablePinApi(
           return;
         }
         if (daemonWanted) {
-          const deadline = Date.now() + 60_000;
-          let record = await readPreviousAssistantDaemon({ siteDir });
-          while (!record && Date.now() < deadline) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            record = await readPreviousAssistantDaemon({ siteDir });
+          // Registration is cold (startAssistantDaemon spawns only on demand, and an idle daemon
+          // parks), so no daemon may be live yet. Pause the one that is live now, if any; requests
+          // are drained and refused while resetting, so nothing here demands a new one.
+          const record = await readPreviousAssistantDaemon({ siteDir });
+          if (record) {
+            assert.ok(record.port === Number(process.env.JINI_AGENT_DAEMON_PORT), "The live pin daemon is not this site's owned daemon");
+            daemonPid = record.pid;
           }
-          assert.ok(record && record.port === Number(process.env.JINI_AGENT_DAEMON_PORT), "The owned pin daemon never became ready");
-          daemonPid = record.pid;
         }
         await pinSiteState({ siteDir, snapshotDir: path.join(runtimeDir, "seed-snapshot"), action: message.action! as "snapshot" | "reset" }, {
           pauseDaemon: () => {
             if (daemonPid) { process.kill(daemonPid, "SIGSTOP"); paused = true; }
           },
         });
+        // A daemon that became live mid-copy was never paused; its writes may be in the copy.
+        if (daemonWanted && !daemonPid) {
+          assert.ok(!await readPreviousAssistantDaemon({ siteDir }), "A pin daemon became live during the unpaused copy");
+        }
         await open();
         ok = true;
       } catch (error) {

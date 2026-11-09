@@ -1,0 +1,19 @@
+✔ adminPanelsLiteral follows the shipped render-only .map to the literal (16.869334ms)
+✔ adminPanelsLiteral rejects a .map that overrides metadata (bare id) (2.176841ms)
+✔ adminPanelsLiteral rejects a .map that overrides metadata (double-quoted id) (1.680171ms)
+✔ adminPanelsLiteral rejects a .map that overrides metadata (single-quoted nav) (1.158898ms)
+✔ adminPanelsLiteral rejects a .map that overrides metadata (computed string id) (1.024547ms)
+✔ adminPanelsLiteral rejects a .map that overrides metadata (computed identifier key) (0.809558ms)
+✔ topLevelConstString resolves the single top-level const string (1.343282ms)
+✔ topLevelConstString rejects a same-named const in an unrelated nested function (1.352964ms)
+✔ topLevelConstString rejects a nested const shadowing the reference's scope (1.554252ms)
+✔ topLevelConstString rejects a parameter or import with the same name (2.409787ms)
+✔ topLevelConstString rejects a non-const, a nested-only const, a missing binding and a non-string value (2.009081ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1023.852405
