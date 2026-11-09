@@ -1,29 +1,124 @@
 
  RUN  v2.1.9 /home/user/Jini/packages/server
 
+ ✓ src/storage/__tests__/legacy-sqlite.test.ts (68 tests) 1522ms
+stderr | src/__tests__/builtin-features.test.ts > agents > clears its promise cache when a probe fails, so the next request retries instead of serving a poisoned rejection forever
+[@jini-ai/http-kit] internal error (GET /api/agents, correlationId=51447b32-419e-421d-9feb-c6daabb28eea) Error: probe exploded
+    at /home/user/Jini/packages/server/src/__tests__/builtin-features.test.ts:145:30
+    at mockCall (file:///home/user/Jini/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at spy (file:///home/user/Jini/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at scanAgents (/home/user/Jini/packages/server/src/builtin-features.ts:315:61)
+    at Object.listAgents (/home/user/Jini/packages/server/src/builtin-features.ts:339:82)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/agents.ts:78:254)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:135:33
+    at Layer.handle [as handle_request] (/home/user/Jini/node_modules/.pnpm/express@4.22.2/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Jini/node_modules/.pnpm/express@4.22.2/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Jini/node_modules/.pnpm/express@4.22.2/node_modules/express/lib/router/route.js:119:3)
 
-⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+stderr | src/__tests__/builtin-features.test.ts > agents > a slow scan failing after a newer rescan already succeeded must not evict the newer scan's cache
+[@jini-ai/http-kit] internal error (GET /api/agents, correlationId=8c66e174-dcbb-4a0a-bfab-4bac4b527221) Error: the slow probe finally failed
+    at /home/user/Jini/packages/server/src/__tests__/builtin-features.test.ts:190:18
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+    at withEnv (file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:90:5)
 
-Vitest caught 1 unhandled error during the test run.
-This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > delegated tool calls > refuses tool execution when the host supplies no principal resolver
+[@jini-ai/http-kit] internal error (resolve-principal, correlationId=b4fd942c-a9f1-4bd2-93ae-1750f8555676) Error: Delegated tool calls require a host principal resolver
+    at resolveDelegatedToolPrincipal (/home/user/Jini/packages/server/src/builtin-features.ts:68:32)
+    at Object.resolvePrincipal (/home/user/Jini/packages/server/src/builtin-features.ts:510:50)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:336:30)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:135:22
 
-⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
-RangeError: options.minThreads and options.maxThreads must not conflict
- ❯ new Tinypool ../../node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:745:120
- ❯ createForksPool ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:6756:16
- ❯ forks ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7664:20
- ❯ ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7690:27
- ❯ executeTests ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7681:5
- ❯ ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10818:9
- ❯ Vitest.runFiles ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10840:12
- ❯ Vitest.start ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10682:7
- ❯ startVitest ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:11848:7
+ ✓ src/__tests__/builtin-features.test.ts (50 tests) 725ms
+ ✓ src/__tests__/compose-jini-kernel.test.ts (45 tests) 547ms
+ ✓ src/__tests__/feature-activation.test.ts (33 tests) 21ms
+ ✓ src/__tests__/dbpkg-server-contract.test.ts (15 tests) 98ms
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > resolveRunInput, when supplied with no onRunStarted, builds a default RunStartHandler that drives the real zero-config AgentExecutor
+[@jini-ai/http-kit] internal error (run-start, correlationId=21a6078b-9afe-4fcd-aed1-f9eaf962b221) AgentExecutorError: AgentExecutor: unknown agentId "no-such-agent"
+    at Object.failBeforeSpawn (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1038:11)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at prepareRunContext (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1071:22)
+    at Object.run (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1392:42)
+    at Object.onStarted (/home/user/Jini/packages/daemon/src/continuation/run-start-handler.ts:124:5)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/runs.ts:230:9)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:135:22 {
+  code: 'AGENT_NOT_FOUND'
+}
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ ✓ src/__tests__/host-bootstrap.test.ts (20 tests) 259ms
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > binds an IPv6 loopback host to a URL that actually parses and answers
+IPv6 loopback unavailable: this platform cannot bind ::1 (EAFNOSUPPORT).
 
- Test Files  no tests
-      Tests  no tests
-     Errors  1 error
-   Start at  05:55:42
-   Duration  31ms (transform 0ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)
+ ✓ src/__tests__/create-local-node-daemon.test.ts (92 tests | 1 skipped) 4833ms
+   ✓ createLocalNodeDaemon > serves GET /api/agents, projecting the real @jini-ai/agent-runtime registry with zero config 2169ms
+ ✓ src/lifecycle/__tests__/boot-lifecycle.test.ts (8 tests) 26ms
+ ✓ src/__tests__/kernel-base.test.ts (12 tests) 131ms
+ ✓ src/lifecycle/__tests__/boot-lifecycle.characterization.unit.test.ts (8 tests) 13ms
+ ✓ src/__tests__/graceful-shutdown.integration.test.ts (4 tests) 4808ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > negative control: without the guard, a real SIGTERM kills the daemon immediately with no graceful teardown — proves the daemon has no default handling, so the positive case below is a real effect 1303ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > positive case: with the guard installed, a real SIGTERM runs stop() and the process exits cleanly with the HTTP listener already closed 1387ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > reacts to a real SIGINT the same way 1054ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > is re-entrant against a real double signal: a second SIGTERM sent immediately after the first does not crash, hang, or double-run shutdown 1063ms
+ ✓ src/storage/__tests__/host-injection.test.ts (6 tests) 112ms
+stderr | src/__tests__/kernel-runtime.test.ts > forwards explicit executor options through the local preset and disposes its supplied state
+[@jini-ai/http-kit] internal error (run-start, correlationId=8ed3a6b5-026f-46ed-9f5f-c5fa8607f01d) AgentExecutorError: AgentExecutor: unknown agentId "host-only-fixture"
+    at Object.failBeforeSpawn (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1038:11)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at prepareRunContext (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1071:22)
+    at Object.run (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1392:42)
+    at Object.onStarted (/home/user/Jini/packages/daemon/src/continuation/run-start-handler.ts:124:5)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/runs.ts:230:9)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:135:22 {
+  code: 'AGENT_NOT_FOUND'
+}
+
+ ✓ src/__tests__/kernel-runtime.test.ts (2 tests) 142ms
+ ✓ src/storage/__tests__/backend-config.test.ts (13 tests) 19ms
+ ✓ src/owner-store/__tests__/legacy.test.ts (7 tests) 161ms
+ ✓ src/storage/__tests__/backend-config.characterization.unit.test.ts (25 tests) 17ms
+ ✓ src/__tests__/create-local-node-daemon.headers.test.ts (2 tests) 12ms
+ ✓ src/__tests__/builtin-features.terminal-lifecycle.test.ts (1 test) 16ms
+ ✓ src/owner-store/__tests__/backup.test.ts (44 tests) 12918ms
+   ✓ refuses invalid portable secret hints {"last4":"abc","tokenLength":12} 328ms
+   ✓ refuses invalid portable secret hints {"last4":1234,"tokenLength":12} 315ms
+   ✓ refuses invalid portable secret hints {"last4":"abcd","tokenLength":11} 644ms
+   ✓ refuses invalid portable secret hints {"last4":null,"tokenLength":-1} 346ms
+   ✓ authenticated non-JSON content remains a fixed invalid-backup error 371ms
+   ✓ a version-2 backup returns grants and pending cleanups as destinations, without hints 301ms
+   ✓ a wrong passphrase fails authentication 309ms
+   ✓ rejects a grant with a empty destination 325ms
+   ✓ rejects a pending cleanup with a missing list 331ms
+   ✓ rejects a pending cleanup with a empty consumer 314ms
+   ✓ rejects an entry with an invalid suffix type 326ms
+   ✓ rejects an entry with an invalid suffix length 304ms
+   ✓ rejects an entry with an invalid negative length 319ms
+   ✓ rejects an entry with an invalid short-token suffix 401ms
+   ✓ rejects an entry with an invalid missing length 459ms
+   ✓ rejects an entry with an invalid unconfigured hint 340ms
+ ✓ src/lifecycle/__tests__/readiness-state.test.ts (4 tests) 12ms
+ ✓ src/storage/__tests__/legacy-ownership.test.ts (2 tests) 18ms
+ ✓ src/owner-store/__tests__/unit/legacy-empty-m2.unit.test.ts (2 tests) 72ms
+ ✓ src/storage/__tests__/hardwiring-ports.test.ts (1 test) 17ms
+ ✓ src/__tests__/index.test.ts (3 tests) 4ms
+ ✓ src/storage/__tests__/sqlite-ownership.test.ts (2 tests) 3ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+ ✓ tests/storage/loads-without-driver.test.ts (1 test) 12834ms
+   ✓ memory composition runs from the packed server with no SQLite, pg, PGlite or React installed 12833ms
+ ✓ src/__tests__/delegated-principal.security.test.ts (2 tests) 8ms
+
+ Test Files  27 passed (27)
+      Tests  471 passed | 1 skipped (472)
+   Start at  06:16:23
+   Duration  36.37s (transform 4.25s, setup 0ms, collect 16.90s, tests 39.34s, environment 7ms, prepare 2.42s)
 

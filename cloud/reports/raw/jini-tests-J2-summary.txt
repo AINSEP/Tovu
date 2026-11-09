@@ -2,3 +2,21 @@ chat exit=1 secs=488
 admin exit=0 secs=152
 daemon exit=0 secs=106
 agent-runtime exit=0 secs=53
+platform exit=1 secs=43
+db exit=0 secs=166
+user-management exit=0 secs=61
+desktop-host exit=0 secs=16
+agentic exit=0 secs=19
+devops exit=0 secs=33
+diagnostics exit=0 secs=14
+provider-plugins exit=0 secs=51
+oauth exit=0 secs=12
+http-kit exit=0 secs=9
+server exit=0 secs=38
+ui-kit exit=0 secs=11
+capability-providers exit=0 secs=6
+cookie-consent exit=0 secs=9
+sandbox exit=0 secs=7
+agent-plugins exit=1 secs=49
+cli exit=0 secs=9
+LANE-DONE

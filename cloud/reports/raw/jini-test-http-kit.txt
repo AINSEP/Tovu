@@ -1,29 +1,54 @@
 
  RUN  v2.1.9 /home/user/Jini/packages/http-kit
 
+ ✓ src/__tests__/rate-limit.test.ts (31 tests) 29ms
+ ✓ src/__tests__/api-security-middleware.test.ts (57 tests) 66ms
+stderr | src/__tests__/adapter.test.ts > http adapter > leaves no dangling close listener after a route that throws
+[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=00b36bc5-8c0e-4e73-8cb7-e578a341b98a) Error: boom
+    at Object.handle (/home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:340:15)
+    at Object.GET /boom-cleanup (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:347:43
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
 
-⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+ ✓ src/__tests__/adapter.test.ts (16 tests) 47ms
+ ✓ src/__tests__/origin-validation.test.ts (69 tests) 29ms
+ ✓ src/__tests__/sse.test.ts (29 tests) 63ms
+ ✓ src/__tests__/verified-origin-registry.test.ts (29 tests) 30ms
+ ✓ src/__tests__/adapter-pins.test.ts (21 tests) 42ms
+ ✓ src/__tests__/local-daemon-request.test.ts (61 tests) 47ms
+ ✓ src/__tests__/verified-origin-configured.test.ts (24 tests) 8ms
+ ✓ src/__tests__/raw-sse.test.ts (19 tests) 645ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > keeps the stream open while a bodyless GET client stays connected 317ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > closes the stream when the client actually disconnects 307ms
+ ✓ src/__tests__/verified-origin-site-path.test.ts (36 tests) 9ms
+ ✓ src/__tests__/route-registration-guard.test.ts (15 tests) 26ms
+ ✓ src/__tests__/adapter-ports.test.ts (8 tests) 17ms
+ ✓ src/__tests__/observability.test.ts (19 tests) 42ms
+ ✓ src/__tests__/verified-origin-branches.test.ts (8 tests) 8ms
+ ✓ src/__tests__/body-size-limit.test.ts (7 tests) 41ms
+ ✓ src/__tests__/http-error-log-redaction.test.ts (24 tests) 1524ms
+   ✓ HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 1105ms
+   ✓ HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages 372ms
+ ✓ src/__tests__/html-response.test.ts (4 tests) 163ms
+ ✓ src/__tests__/pack-http.test.ts (4 tests) 50ms
+ ✓ src/__tests__/local-daemon-request-pins.test.ts (37 tests) 19ms
+ ✓ src/__tests__/verified-origin-normalize.test.ts (13 tests) 11ms
+ ✓ src/__tests__/verified-origin-repo.test.ts (5 tests) 3ms
+ ✓ src/__tests__/origin.test.ts (4 tests) 8ms
+ ✓ src/__tests__/index.test.ts (16 tests) 20ms
+ ✓ src/__tests__/compat.test.ts (5 tests) 9ms
+ ✓ src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts (10 tests) 8ms
+ ✓ src/__tests__/response.test.ts (4 tests) 6ms
+ ✓ src/__tests__/request.test.ts (4 tests) 5ms
 
-Vitest caught 1 unhandled error during the test run.
-This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
-
-⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
-RangeError: options.minThreads and options.maxThreads must not conflict
- ❯ new Tinypool ../../node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:745:120
- ❯ createForksPool ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:6756:16
- ❯ forks ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7664:20
- ❯ ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7690:27
- ❯ executeTests ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7681:5
- ❯ ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10818:9
- ❯ Vitest.runFiles ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10840:12
- ❯ Vitest.start ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10682:7
- ❯ startVitest ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:11848:7
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
- Test Files  no tests
-      Tests  no tests
-     Errors  1 error
-   Start at  05:55:42
-   Duration  28ms (transform 0ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)
+ Test Files  28 passed (28)
+      Tests  579 passed (579)
+   Start at  06:16:14
+   Duration  8.44s (transform 1.62s, setup 0ms, collect 5.02s, tests 2.97s, environment 6ms, prepare 2.49s)
 

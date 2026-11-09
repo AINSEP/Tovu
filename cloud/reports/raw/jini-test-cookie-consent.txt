@@ -1,29 +1,35 @@
 
  RUN  v2.1.9 /home/user/Jini/packages/cookie-consent
 
+ ✓ src/__tests__/anonymous.test.ts (11 tests) 112ms
+stderr | src/__tests__/client.test.ts > boot, queue and banner > a durable grant without a receipt keeps the banner open with its alert until the receipt lands
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:81:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
 
-⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+ ✓ src/__tests__/client.test.ts (28 tests) 800ms
+ ✓ src/__tests__/client-dom.test.ts (12 tests) 188ms
+ ✓ src/__tests__/context.unit.test.ts (5 tests) 54ms
+ ✓ src/__tests__/cms-resource-release.integration.test.ts (5 tests) 640ms
+ ✓ src/__tests__/frames.unit.test.ts (3 tests) 164ms
+ ✓ src/__tests__/bridges.unit.test.ts (4 tests) 119ms
+ ✓ src/__tests__/node.test.ts (19 tests) 139ms
+ ✓ src/__tests__/scripts.unit.test.ts (3 tests) 46ms
+ ✓ src/__tests__/server.test.ts (19 tests) 40ms
+ ✓ src/__tests__/css.test.ts (22 tests) 31ms
+ ✓ src/__tests__/render.test.ts (16 tests) 17ms
+ ✓ src/__tests__/bundle.smoke.test.ts (8 tests) 681ms
+ ✓ src/__tests__/policy.test.ts (10 tests) 23ms
+ ✓ src/__tests__/plugins.test.ts (6 tests) 13ms
+ ✓ src/__tests__/purge-storage-m1.unit.test.ts (1 test) 68ms
+ ✓ src/__tests__/css-failure-m1.unit.test.ts (2 tests) 4ms
 
-Vitest caught 1 unhandled error during the test run.
-This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
-
-⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
-RangeError: options.minThreads and options.maxThreads must not conflict
- ❯ new Tinypool ../../node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:745:120
- ❯ createForksPool ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:6756:16
- ❯ forks ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7664:20
- ❯ ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7690:27
- ❯ executeTests ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:7681:5
- ❯ ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10818:9
- ❯ Vitest.runFiles ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10840:12
- ❯ Vitest.start ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10682:7
- ❯ startVitest ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@25.0.1_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:11848:7
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
- Test Files  no tests
-      Tests  no tests
-     Errors  1 error
-   Start at  05:55:45
-   Duration  18ms (transform 0ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)
+ Test Files  17 passed (17)
+      Tests  174 passed (174)
+   Start at  06:17:18
+   Duration  8.23s (transform 1.08s, setup 0ms, collect 2.66s, tests 3.14s, environment 4.13s, prepare 1.58s)
 
