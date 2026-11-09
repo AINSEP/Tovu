@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildPluginManagementRegistrations } from '@jini-ai/plugins/host/tools';
-import { buildPluginInstallRegistrations } from '@jini-ai/plugins/host/tools';
-import { buildPluginSourceRegistrations } from '@jini-ai/plugins/host/tools';
+import { buildPluginManagementRegistrations, buildPluginInstallRegistrations, buildPluginSourceRegistrations } from '@jini-ai/plugins/host/tools';
 import { bindPluginManagementTools, bindPluginSourceTools } from '../../host-tool-binding.js';
 import { bindPluginInstallTools } from '../../install-tool-binding.js';
 import { harness, context, installedAgentPlugin, PLUGIN_ID } from '../fixtures/plugins-tool-harness.js';
