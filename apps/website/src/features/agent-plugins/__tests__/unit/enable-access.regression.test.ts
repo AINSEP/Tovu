@@ -128,7 +128,7 @@ test('already signed-in connect declines without granting or calling the sign-in
     routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
       authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
       credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('existing source only'); } },
-      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
+      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isSignInRefusal: () => false },
       resolveInstalledPlugin: async () => ({ servers }),
     },
     surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
@@ -160,7 +160,7 @@ for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
       routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
         credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('existing source only'); } },
-        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
+        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isSignInRefusal: () => false },
         resolveInstalledPlugin: async () => ({ servers: current }),
       },
       surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
@@ -194,7 +194,7 @@ for (const separate of [false, true]) {
       routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
         credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { saves++; throw new Error('no provisioning before approval'); } },
-        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isValidationError: () => false },
+        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isSignInRefusal: () => false },
         resolveInstalledPlugin: async () => ({ servers: { ...servers, pending: { type: 'streamable-http', url: 'https://pending.example.test/mcp', authMode: 'oauth' } } }),
       },
       surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
@@ -249,7 +249,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
       if (!reauth) throw new Error('must reuse existing sign-in');
       await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected' });
       return { kind: 'redirect_required', authorizationUrl: 'https://media.example.test/authorize', expiresAt: '2026-11-04T12:10:00Z' };
-    }, isValidationError: () => false },
+    }, isSignInRefusal: () => false },
   }, surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
   ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: controller.signal }, pluginId: 'images' }, {
     saveToken: async () => { throw new Error('must not ask for a stored token again'); },

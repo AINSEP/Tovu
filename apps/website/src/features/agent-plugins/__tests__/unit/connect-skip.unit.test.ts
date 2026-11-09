@@ -24,7 +24,7 @@ test('Skip on an OAuth sign-in card lets the assistant continue without stopping
     mcp: mcpTestPort({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock }),
     credentials: { loadSafe: async () => [] }, pollIntervalMs: 5, waitTimeoutMs: 50,
     resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
-    externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isValidationError: () => false },
+    externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isSignInRefusal: () => false },
   };
   const ctx: ToolExecutionContext = { executionId: 'execution', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: runController.signal };
   const result = await runAgentPluginConnect({ routeDeps: deps, surfaces, ctx, pluginId: 'example' }, {

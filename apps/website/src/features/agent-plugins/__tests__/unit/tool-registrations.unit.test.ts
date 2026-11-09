@@ -671,7 +671,7 @@ test("the registered connect handler resolves a real installed plugin and reuses
       credentials: credentialTestPort({ httpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") } }),
       preferences: { locale: async () => "en" },
       authorize: async () => ({ allowed: true, reason: "test" }),
-      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isValidationError: () => false },
+      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isSignInRefusal: () => false },
     }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
     assert.ok(connect);

@@ -65,7 +65,7 @@ function fakeOAuth(repo: InMemoryExternalMcpServerRepo, authorizationUrl: string
       if (existing) await repo.upsert({ ...existing, oauthStatus: "pending" });
       return { kind: "redirect_required", authorizationUrl, expiresAt: "2026-09-27T00:10:00.000Z" };
     },
-    isValidationError: ({ error }) => error instanceof ExternalMcpValidationError,
+    isSignInRefusal: ({ error }) => error instanceof ExternalMcpValidationError || error instanceof OAuthError,
   };
 }
 
@@ -917,7 +917,7 @@ test("OAuth validation classification is supplied by the port before any card op
     const oauth: AgentPluginOAuthPort = {
       ...fakeOAuth(store.repo, "unused"),
       beginConnect: async () => { throw failure; },
-      isValidationError: ({ error }) => { classifiedErrors.push(error); return classified; },
+      isSignInRefusal: ({ error }) => { classifiedErrors.push(error); return classified || error instanceof OAuthError; },
     };
     await assert.rejects(runAgentPluginConnect(baseDeps(store, {
       externalMcpOAuth: oauth,
