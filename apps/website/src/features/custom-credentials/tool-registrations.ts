@@ -36,34 +36,28 @@ import type { SurfaceEmission } from "@jini-ai/core";
 // `errorKind: 'validation'` instead of the `'internal'` bucket the delegated transport redacts.
 import { ToolInputError } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
-// `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
-// the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
-// anything; see {@link isCredentialedRequestShapeRejection}. Same pattern
-// `features/media-import/tool-registrations.ts`'s own identical import uses.
-import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
+// Types only: the egress refusal is recognised through the request port's `classifyError`
+// (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).
+import type { HttpClientPort } from "../../platform/http/index.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {
   CredentialedRequestValidationError,
-  makeCredentialedRequest,
-  resolveRequestTarget,
-  verifyCustomCredential,
   type CredentialedRequestAuditPort,
   type CredentialedRequestDeps,
-  type CredentialedRequestExecutedResult,
   type CredentialedRequestOutcome,
-  type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
+import type { CredentialedRequestPort, CredentialedRequestRequired, CredentialedRequestOptional, CredentialedRequestResult, SourceControlFileWritePlan, SourceControlFileWriter, SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
+import { bindCredentialedRequestPort, bindSourceControlWritePort } from "./credential-ports.js";
 import { cleanCardToken } from "./card-token.js";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import type { FileWritePlan, SourceControlProvider } from "../source-control/provider-module.js";
-import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
+import type { LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
@@ -77,8 +71,8 @@ import {
   updateCustomCredential,
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
-import { validateRepositoryTarget, validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
-import type { CredentialCardIdentity, CustomCredentialToolHost } from "./credential-tool-host.js";
+import { validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
+import type { CredentialCardIdentity, CustomCredentialToolHost, CustomCredentialToolPorts } from "./credential-tool-host.js";
 import { tovuCredentialCardIdentity } from "./tovu-credential-card-identity.js";
 
 /**
@@ -219,10 +213,13 @@ function withCardApp<Spec extends { readonly app?: SurfaceCardApp }>({ spec, app
  * `CustomCredentialNotFoundError` (a different call shape — a wrong label — unrelated to this tool's
  * egress/allowlist boundary and out of scope for this fix).
  *
- * @complexity O(1) — two `instanceof` checks.
+ * The port's `classifyError` names those two classes `validation` and `egress-refused`.
+ *
+ * @complexity O(1) — one `classifyError` call.
  */
-function isCredentialedRequestShapeRejection(error: unknown): boolean {
-  return error instanceof CredentialedRequestValidationError || error instanceof EgressRefusedError;
+function isCredentialedRequestShapeRejection(error: unknown, port: CredentialedRequestPort): boolean {
+  const { category } = port.classifyError({ error });
+  return category === "validation" || category === "egress-refused";
 }
 
 /**
@@ -237,13 +234,15 @@ function isCredentialedRequestShapeRejection(error: unknown): boolean {
  *
  * @complexity O(1) beyond `makeCredentialedRequest` itself.
  */
-async function makeModelFacingCredentialedRequest(requestDeps: CredentialedRequestDeps, input: MakeCredentialedRequestInput, { catalog }: { catalog: CustomCredentialToolHost["vocabulary"]["catalog"] }): Promise<CredentialedRequestExecutedResult> {
+async function makeModelFacingCredentialedRequest({ port, input, catalog }: { port: CredentialedRequestPort; input: CredentialedRequestRequired & CredentialedRequestOptional; catalog: CustomCredentialToolHost["vocabulary"]["catalog"] }): Promise<CredentialedRequestResult> {
   return withSchemaOnRejection({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog,
-    isShapeRejection: ({ error }) => isCredentialedRequestShapeRejection(error), fn: async () => {
+    isShapeRejection: ({ error }) => isCredentialedRequestShapeRejection(error, port), fn: async () => {
+    const { headers, body, ...required } = input;
     try {
-      return await makeCredentialedRequest(requestDeps, input);
+      return await port.request(required, { headers, body });
     } catch (err) {
-      if (err instanceof EgressRefusedError) throw new EgressRefusedError({ message: err.callerSafeMessage }, { callerSafeMessage: err.callerSafeMessage });
+      const classified = port.classifyError({ error: err });
+      if (classified.category === "egress-refused") throw classified.callerSafeError;
       throw err;
     }
   } });
@@ -394,17 +393,17 @@ type WriteFilesResult =
  *
  * @complexity O(1) beyond the provider's `commitFiles`'s own O(files) cost.
  */
-async function performRepositoryFilesWrite({ routeDeps, provider, resolved, validated, plan }: {
+async function performRepositoryFilesWrite({ routeDeps, port, provider, resolved, validated, plan }: {
   routeDeps: CustomCredentialsToolDeps;
-  provider: SourceControlProvider;
+  port: SourceControlWritePort;
+  provider: SourceControlFileWriter;
   resolved: { baseUrl: string; connection: CustomProviderConnectionInput };
   validated: ValidatedWriteFilesInput;
-  plan: FileWritePlan;
+  plan: SourceControlFileWritePlan;
 }, _optional = {}): Promise<WriteFilesResult> {
-  const commitResult = await provider.commitFiles(
-    { ...writeTarget(resolved, validated), branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
-    plan
-  );
+  const commitResult = await port.commitFiles({ provider,
+    input: { ...writeTarget(resolved, validated), branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
+    plan });
   if (!commitResult.ok) {
     reportRepositoryWriteFailure({ routeDeps, phase: "commit", failure: commitResult });
     return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
@@ -1090,8 +1089,10 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
  *   request target resolves before any dialog; DELETE is held for the human and decrypts only after
  *   approval; a validated file write commits once, with the read-only plan, and an abort commits nothing.
  */
-export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): ToolRegistration[] {
-  const requestDeps: CredentialedRequestDeps = {
+/** The request dependencies Tovu's request-port binding closes over: the store's repo and sealer,
+ *  the guarded client, the clock, the audit sink and the installed auth-scheme loader. */
+function credentialedRequestDeps(routeDeps: CustomCredentialsToolDeps): CredentialedRequestDeps {
+  return {
     repo: routeDeps.customCredentialSetRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
     httpClient: routeDeps.customCredentialsHttpClient,
@@ -1099,7 +1100,31 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
     ...(routeDeps.customCredentialsAudit !== undefined ? { audit: routeDeps.customCredentialsAudit } : {}),
     loadAuthSchemes: routeDeps.loadAuthSchemes,
   };
+}
 
+/** Tovu's credential ports, bound over the same functions and dependencies the handlers used before
+ *  the ports existed (see `credential-ports.ts`). */
+function tovuCredentialToolPorts(routeDeps: CustomCredentialsToolDeps): CustomCredentialToolPorts {
+  return {
+    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }),
+    sourceControlWrite: bindSourceControlWritePort({ load: routeDeps.loadSourceControlProviders, httpClient: routeDeps.customCredentialsHttpClient, observability: routeDeps.observability }),
+  };
+}
+
+/** The registrations over a host's vocabulary and card identity, with Tovu's credential ports. */
+export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): ToolRegistration[] {
+  return createCustomCredentialsToolRegistrations({ routeDeps, surfaces, host, ports: tovuCredentialToolPorts(routeDeps) });
+}
+
+/**
+ * The custom-credential tools over host-supplied credential ports.
+ * @agent-note Requests, target resolution, verification and file writes go ONLY through
+ *   `ports`; see `CustomCredentialToolPorts` for the ordering a binding must keep (target before
+ *   decrypt, DELETE held for the human, one plan-bound commit on the same provider, abort → no commit).
+ * @complexity O(t) registrations; each handler's cost is its port calls.
+ */
+export function createCustomCredentialsToolRegistrations({ routeDeps, surfaces, host, ports }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost; ports: CustomCredentialToolPorts }, _optional = {}): ToolRegistration[] {
+  const { credentialedRequest, sourceControlWrite } = ports;
   const handlers: Record<string, ToolHandler> = {
     // Non-decrypting read-back through the existing store, scoped by the read permission and
     // empty-input contract. Saved origins and usernames reach the model; token hints remain
@@ -1121,7 +1146,7 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
       const input = requireInputRecord({ input: ctx.input });
       const label = requireString({ input, key: "label" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: host.vocabulary.permissions.read }, { entityType: host.vocabulary.entityType });
-      return withCustomCredentialSetup({ label, verification: true, invoke: () => verifyCustomCredential(requestDeps, { workspaceId: routeDeps.workspaceId, label }) }, {});
+      return withCustomCredentialSetup({ label, verification: true, invoke: () => credentialedRequest.verify({ workspaceId: routeDeps.workspaceId, label }) }, {});
     },
 
     // The self-healing FIX half of the 401/403 diagnostic `custom_credential_verify`/
@@ -1174,7 +1199,7 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: host.vocabulary.permissions.write }, { entityType: host.vocabulary.entityType });
 
       if (method !== "DELETE") {
-        return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body }, { catalog: host.vocabulary.catalog }) }, {});
+        return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest({ port: credentialedRequest, input: { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body }, catalog: host.vocabulary.catalog }) }, {});
       }
 
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
@@ -1182,7 +1207,7 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
       // `CustomCredentialNotFoundError` reach the model through the map-level
       // `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` wrap instead — the daemon-boundary
       // redaction this comment once deferred was confirmed to reach here too.
-      const target = await withCustomCredentialSetup({ label, url, invoke: () => resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: routeDeps.workspaceId, label, url }) }, {});
+      const target = await withCustomCredentialSetup({ label, url, invoke: () => credentialedRequest.resolveTarget({ workspaceId: routeDeps.workspaceId, label, url }) }, {});
       if ("credentialSetup" in target) return target;
 
       // Fail closed rather than degrade — same posture `content_post_delete`'s own handler documents:
@@ -1205,7 +1230,7 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: approvedCtx.principal.id, permission: host.vocabulary.permissions.write }, { entityType: host.vocabulary.entityType });
           if (approvedCtx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
           const frozen = requireInputRecord({ input: approvedCtx.input });
-          return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: frozen.headers, body: frozen.body }, { catalog: host.vocabulary.catalog }) }, {});
+          return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest({ port: credentialedRequest, input: { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: frozen.headers, body: frozen.body }, catalog: host.vocabulary.catalog }) }, {});
         },
       }, { declined: ({ reason }) => reason === "declined" ? { executed: false, cancelled: true } : { executed: false, cancelled: false, reason } })(ctx, { emitSurface }) as Promise<CredentialedRequestOutcome | CredentialSetupFailure>;
     },
@@ -1226,16 +1251,10 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
       if (!summary) {
         throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
       }
-      const built = await buildSourceControlProviderForApi({
-        load: routeDeps.loadSourceControlProviders,
-        workspaceId: routeDeps.workspaceId,
-        baseUrl: summary.baseUrl,
-        httpClient: routeDeps.customCredentialsHttpClient,
-        observability: routeDeps.observability,
-      });
+      const built = await sourceControlWrite.build({ workspaceId: routeDeps.workspaceId, baseUrl: summary.baseUrl });
       if (!built.ok) throw new Error(`custom_credential_write_files: ${built.message}`);
       const provider = built.provider;
-      const target = await withSchemaOnRejection({ ...shapeRejection, fn: async () => validateRepositoryTarget({ owner: input.owner, repo: input.repo }, provider.validateTarget) });
+      const target = await withSchemaOnRejection({ ...shapeRejection, fn: async () => sourceControlWrite.validateTarget({ provider, target: { owner: input.owner, repo: input.repo } }) });
       const validated: ValidatedWriteFilesInput = { ...request, ...target };
 
       // A DECRYPTING resolve: the plan phase's read-only host calls need the token regardless of
@@ -1246,7 +1265,7 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
         throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
       }
 
-      const planResult = await provider.planFileWrite({ ...writeTarget(resolved, validated), branch: validated.branch, files: validated.files });
+      const planResult = await sourceControlWrite.planFileWrite({ provider, input: { ...writeTarget(resolved, validated), branch: validated.branch, files: validated.files } });
       if (!planResult.ok) {
         reportRepositoryWriteFailure({ routeDeps, phase: "plan", failure: planResult });
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
@@ -1254,7 +1273,7 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
 
       // A run aborted during reconnaissance must not proceed to the external commit.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
-      return performRepositoryFilesWrite({ routeDeps, provider, resolved, validated, plan: planResult.plan });
+      return performRepositoryFilesWrite({ routeDeps, port: sourceControlWrite, provider, resolved, validated, plan: planResult.plan });
     },
   };
 

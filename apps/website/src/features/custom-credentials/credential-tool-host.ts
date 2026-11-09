@@ -8,6 +8,7 @@
  */
 import type { AgentToolDefinition, DerivedRiskByToolId, SurfaceAskThenReport, ToolMetadataById } from '@jini-ai/core';
 import type { SurfaceCardApp, SurfaceCardFormSpec } from '@jini-ai/core/contracts/cards';
+import type { CredentialedRequestPort, SourceControlWritePort } from '@jini-ai/core/contracts/credentials';
 
 /**
  * Who the cards belong to.
@@ -47,6 +48,26 @@ export interface CustomCredentialToolVocabulary {
 export interface CustomCredentialToolHost {
   readonly vocabulary: CustomCredentialToolVocabulary;
   readonly cardIdentity: CredentialCardIdentity;
+}
+
+/**
+ * The two credential ports `createCustomCredentialsToolRegistrations` calls instead of reaching for
+ * host request or provider functions itself.
+ * @agent-note Bind both over your EXISTING adapters with the same repo, sealer, guarded HTTP client,
+ *   clock, audit, auth-scheme loader and provider registry your store and routes use (Tovu: the
+ *   binders in `credential-ports.ts`). Ordering the tools rely on, which a second host's binding must
+ *   not undo: `resolveTarget` never decrypts and runs before any dialog; GET/POST/PUT/PATCH call
+ *   `request` immediately; a DELETE is held for the human first and `request` (the decrypt and send)
+ *   runs only after approval, so a decline sends nothing. `classifyError` must return the egress
+ *   refusal's `callerSafeError` without the resolved address.
+ * @agent-note File writes: `build` once per call from the non-decrypting summary's saved base URL;
+ *   `validateTarget` before any decrypt; then ONE `planFileWrite` and, unless the run was aborted,
+ *   ONE `commitFiles` on the SAME provider object `build` returned with the EXACT plan it produced —
+ *   never a rebuilt provider or a looser plan. Aborted → no commit.
+ */
+export interface CustomCredentialToolPorts {
+  readonly credentialedRequest: CredentialedRequestPort;
+  readonly sourceControlWrite: SourceControlWritePort;
 }
 
 /**
