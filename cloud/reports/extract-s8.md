@@ -1278,3 +1278,11 @@ contracts with declaration @agent-notes, no new domain package or runtime implem
 Summary categories remain the core's host-supplied string; the Tovu binding preserves its existing
 stored category union. This resolves the C1 row's prospective C3 type closure without a Tovu type
 import or a cross-package import.
+
+Write-validation closure resolution before implementation: `validateWriteFilesInput` remains in
+Tovu behind `policy.validateWriteFiles`; its exact consumed result is local
+`CredentialWriteFilesRequest` (branch/commitMessage/files), with declaration notes requiring the
+existing branch/path/size/.git rules and canonical validation errors before permission/I/O. The
+provider-specific owner/repo validation already goes through SourceControlWritePort. Consequently
+the prospective handler closure imports neither the Tovu source-control validator type nor its
+policy module; no source-control implementation or limits move in this batch.
