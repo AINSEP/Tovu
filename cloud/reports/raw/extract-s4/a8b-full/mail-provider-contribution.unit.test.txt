@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: v1 descriptor IDs accepted by the parser register unchanged as mail providers
+ok 1 - v1 descriptor IDs accepted by the parser register unchanged as mail providers
+  ---
+  duration_ms: 4.234888
+  type: 'test'
+  ...
+# Subtest: v1 descriptors reject IDs the mail provider registry cannot register
+ok 2 - v1 descriptors reject IDs the mail provider registry cannot register
+  ---
+  duration_ms: 0.457224
+  type: 'test'
+  ...
+# Subtest: parseMailAdaptersFile accepts schemaVersion 2 with credentialKeys/feedback and defaults the credential label
+ok 3 - parseMailAdaptersFile accepts schemaVersion 2 with credentialKeys/feedback and defaults the credential label
+  ---
+  duration_ms: 1.017786
+  type: 'test'
+  ...
+# Subtest: parseMailAdaptersFile refuses malformed v2 entries
+ok 4 - parseMailAdaptersFile refuses malformed v2 entries
+  ---
+  duration_ms: 0.519984
+  type: 'test'
+  ...
+# Subtest: contributeMailProviders registers a v1 adapter as a hosted provider whose mailer keeps the plugin's call shape
+ok 5 - contributeMailProviders registers a v1 adapter as a hosted provider whose mailer keeps the plugin's call shape
+  ---
+  duration_ms: 0.729879
+  type: 'test'
+  ...
+# Subtest: contributeMailProviders keeps a v2 module's declared capabilities and feedback parser
+ok 6 - contributeMailProviders keeps a v2 module's declared capabilities and feedback parser
+  ---
+  duration_ms: 0.421743
+  type: 'test'
+  ...
+# Subtest: contributeMailProviders refuses a v2 module whose id or feedback claim disagrees with its descriptor
+ok 7 - contributeMailProviders refuses a v2 module whose id or feedback claim disagrees with its descriptor
+  ---
+  duration_ms: 0.332772
+  type: 'test'
+  ...
+# Subtest: contributeMailProviders surfaces registry refusals: a v1 hyphenated id and a duplicate of a built-in
+ok 8 - contributeMailProviders surfaces registry refusals: a v1 hyphenated id and a duplicate of a built-in
+  ---
+  duration_ms: 0.681958
+  type: 'test'
+  ...
+# Subtest: parseMailAdaptersFile v1 still refuses a non-array list, a non-object entry, a bad id and a blank label
+ok 9 - parseMailAdaptersFile v1 still refuses a non-array list, a non-object entry, a bad id and a blank label
+  ---
+  duration_ms: 0.393382
+  type: 'test'
+  ...
+# Subtest: mail cards preserve bounded usedFor text and refuse bad copy without dropping the adapter
+ok 10 - mail cards preserve bounded usedFor text and refuse bad copy without dropping the adapter
+  ---
+  duration_ms: 1.617105
+  type: 'test'
+  ...
+# Subtest: parseMailAdaptersFile keeps a v2 credentialCard, and a descriptor without one has none
+ok 11 - parseMailAdaptersFile keeps a v2 credentialCard, and a descriptor without one has none
+  ---
+  duration_ms: 0.431436
+  type: 'test'
+  ...
+# Subtest: an invalid credentialCard is ignored with a note, and the adapter still loads
+ok 12 - an invalid credentialCard is ignored with a note, and the adapter still loads
+  ---
+  duration_ms: 0.526532
+  type: 'test'
+  ...
+# Subtest: a v1 descriptor's credentialCard is not read
+ok 13 - a v1 descriptor's credentialCard is not read
+  ---
+  duration_ms: 0.190294
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1139.714438

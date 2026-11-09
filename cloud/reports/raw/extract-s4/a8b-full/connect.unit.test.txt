@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: already connected with every requested scope: connected, with no sign-in card
+ok 1 - already connected with every requested scope: connected, with no sign-in card
+  ---
+  duration_ms: 104.847423
+  type: 'test'
+  ...
+# Subtest: hosted refuses an explicit shared destination before starting a sign-in
+ok 2 - hosted refuses an explicit shared destination before starting a sign-in
+  ---
+  duration_ms: 5.945896
+  type: 'test'
+  ...
+# Subtest: connected but missing a scope the connection now requests: a new sign-in card is shown
+ok 3 - connected but missing a scope the connection now requests: a new sign-in card is shown
+  ---
+  duration_ms: 118.525521
+  type: 'test'
+  ...
+# Subtest: hosted: the call polls the record until the public callback installs a newer credential
+ok 4 - hosted: the call polls the record until the public callback installs a newer credential
+  ---
+  duration_ms: 84.360331
+  type: 'test'
+  ...
+# Subtest: hosted: no callback within the wait returns waiting-for-sign-in with the ref to use later
+ok 5 - hosted: no callback within the wait returns waiting-for-sign-in with the ref to use later
+  ---
+  duration_ms: 47.400843
+  type: 'test'
+  ...
+# Subtest: hosted: aborting the run ends the wait early
+ok 6 - hosted: aborting the run ends the wait early
+  ---
+  duration_ms: 24.366372
+  type: 'test'
+  ...
+# Subtest: hosted: an API-connection refusal at start is a caller-facing input error with its safe message
+ok 7 - hosted: an API-connection refusal at start is a caller-facing input error with its safe message
+  ---
+  duration_ms: 3.540773
+  type: 'test'
+  ...
+# Subtest: a fault that is not an API-connection refusal propagates unchanged (not dressed up as input error)
+ok 8 - a fault that is not an API-connection refusal propagates unchanged (not dressed up as input error)
+  ---
+  duration_ms: 23.596149
+  type: 'test'
+  ...
+# Subtest: desktop: the call completes the sign-in itself through its loopback listener
+ok 9 - desktop: the call completes the sign-in itself through its loopback listener
+  ---
+  duration_ms: 19.453372
+  type: 'test'
+  ...
+# Subtest: desktop: a failed code exchange is a caller-facing input error
+ok 10 - desktop: a failed code exchange is a caller-facing input error
+  ---
+  duration_ms: 23.480613
+  type: 'test'
+  ...
+# Subtest: desktop: a card that cannot be shown closes the loopback listener instead of leaving it to its timeout
+ok 11 - desktop: a card that cannot be shown closes the loopback listener instead of leaving it to its timeout
+  ---
+  duration_ms: 24.436557
+  type: 'test'
+  ...
+# Subtest: desktop: aborting the run closes the listener and returns waiting-for-sign-in
+ok 12 - desktop: aborting the run closes the listener and returns waiting-for-sign-in
+  ---
+  duration_ms: 28.268982
+  type: 'test'
+  ...
+# Subtest: desktop start: a start the service refuses closes the listener it armed and propagates the refusal
+ok 13 - desktop start: a start the service refuses closes the listener it armed and propagates the refusal
+  ---
+  duration_ms: 4.623793
+  type: 'test'
+  ...
+# Subtest: desktop start: the caller's own signal closes the pending listener, and the completion reads null
+ok 14 - desktop start: the caller's own signal closes the pending listener, and the completion reads null
+  ---
+  duration_ms: 4.873247
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1875.906868

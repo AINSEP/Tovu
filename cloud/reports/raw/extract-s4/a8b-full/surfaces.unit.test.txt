@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: the file URL sits under the public prefix and encodes every segment but keeps the path separators
+ok 1 - the file URL sits under the public prefix and encodes every segment but keeps the path separators
+  ---
+  duration_ms: 0.913374
+  type: 'test'
+  ...
+# Subtest: the default host has no handlers and starts every surface with null data
+ok 2 - the default host has no handlers and starts every surface with null data
+  ---
+  duration_ms: 0.683922
+  type: 'test'
+  ...
+# Subtest: the lifecycle source loads the surfaces file for the workspace, active plugins only, ordered by plugin id
+ok 3 - the lifecycle source loads the surfaces file for the workspace, active plugins only, ordered by plugin id
+  ---
+  duration_ms: 1.130253
+  type: 'test'
+  ...
+# Subtest: the lifecycle source reads a file through the lifecycle's contained read for that plugin
+ok 4 - the lifecycle source reads a file through the lifecycle's contained read for that plugin
+  ---
+  duration_ms: 0.218558
+  type: 'test'
+  ...
+# Subtest: findAdminSurface needs both the plugin id and the surface id to match
+ok 5 - findAdminSurface needs both the plugin id and the surface id to match
+  ---
+  duration_ms: 0.449342
+  type: 'test'
+  ...
+# Subtest: readSurfaceFile serves a declared file through the source and refuses an undeclared one without reading
+ok 6 - readSurfaceFile serves a declared file through the source and refuses an undeclared one without reading
+  ---
+  duration_ms: 0.498636
+  type: 'test'
+  ...
+# Subtest: screen and assistant actions return host-issued sign-in URLs without opening a browser
+ok 7 - screen and assistant actions return host-issued sign-in URLs without opening a browser
+  ---
+  duration_ms: 0.437564
+  type: 'test'
+  ...
+# Subtest: failed actions never expose a collected sign-in URL, and hosts without collectors preserve the outcome
+ok 8 - failed actions never expose a collected sign-in URL, and hosts without collectors preserve the outcome
+  ---
+  duration_ms: 0.248854
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 695.850295

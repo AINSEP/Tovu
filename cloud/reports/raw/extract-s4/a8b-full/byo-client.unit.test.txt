@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: label: derived from the plugin and connection ids
+ok 1 - label: derived from the plugin and connection ids
+  ---
+  duration_ms: 1.324965
+  type: 'test'
+  ...
+# Subtest: a saved client this site cannot open is refused with a next step and without its secret
+ok 2 - a saved client this site cannot open is refused with a next step and without its secret
+  ---
+  duration_ms: 34.821848
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1304.00342

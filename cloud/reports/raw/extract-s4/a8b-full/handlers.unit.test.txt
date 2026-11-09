@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: refresh loads the handler contribution for the site workspace, ordered by plugin id
+ok 1 - refresh loads the handler contribution for the site workspace, ordered by plugin id
+  ---
+  duration_ms: 2.502015
+  type: 'test'
+  ...
+# Subtest: refresh returns the refusal lines and logs each one
+ok 2 - refresh returns the refusal lines and logs each one
+  ---
+  duration_ms: 0.285812
+  type: 'test'
+  ...
+# Subtest: without a log option, refusals go to console.warn with the admin-surfaces prefix
+ok 3 - without a log option, refusals go to console.warn with the admin-surfaces prefix
+  ---
+  duration_ms: 0.754574
+  type: 'test'
+  ...
+# Subtest: an admitted module answers through handlersFor after a refresh
+ok 4 - an admitted module answers through handlersFor after a refresh
+  ---
+  duration_ms: 2.971304
+  type: 'test'
+  ...
+# Subtest: every bootstrap reloads first, so a plugin enabled since boot is served without a restart
+ok 5 - every bootstrap reloads first, so a plugin enabled since boot is served without a restart
+  ---
+  duration_ms: 1.123758
+  type: 'test'
+  ...
+# Subtest: a plugin the next load no longer returns loses its handlers and its bootstrap data
+ok 6 - a plugin the next load no longer returns loses its handlers and its bootstrap data
+  ---
+  duration_ms: 0.608956
+  type: 'test'
+  ...
+# Subtest: the sign-in collector is exposed only when one is given
+ok 7 - the sign-in collector is exposed only when one is given
+  ---
+  duration_ms: 0.421908
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 703.172751

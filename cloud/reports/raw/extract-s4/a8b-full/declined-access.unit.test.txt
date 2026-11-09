@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: one approved operator source stays approved through its expected plugin adoption
+ok 1 - one approved operator source stays approved through its expected plugin adoption
+  ---
+  duration_ms: 17.980119
+  type: 'test'
+  ...
+# Subtest: a declined review preserves earlier decisions: null
+ok 2 - a declined review preserves earlier decisions: null
+  ---
+  duration_ms: 8.454624
+  type: 'test'
+  ...
+# Subtest: a declined review preserves earlier decisions: prior-owner
+ok 3 - a declined review preserves earlier decisions: prior-owner
+  ---
+  duration_ms: 2.728953
+  type: 'test'
+  ...
+# Subtest: approval cannot adopt the reviewed operator source into a different plugin
+ok 4 - approval cannot adopt the reviewed operator source into a different plugin
+  ---
+  duration_ms: 2.901056
+  type: 'test'
+  ...
+# Subtest: a declined proposal keeps the approver of the live write list
+ok 5 - a declined proposal keeps the approver of the live write list
+  ---
+  duration_ms: 2.924459
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1098.138073

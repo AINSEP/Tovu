@@ -1,0 +1,19 @@
+TAP version 13
+# Subtest: one enable card lists source, tools and writes before applying the approved grant
+ok 1 - one enable card lists source, tools and writes before applying the approved grant
+  ---
+  duration_ms: 19.672039
+  type: 'test'
+  ...
+# Subtest: cancel never grants and changed source configuration requires another approval
+ok 2 - cancel never grants and changed source configuration requires another approval
+  ---
+  duration_ms: 4.192243
+  type: 'test'
+  ...
+# Subtest: cancel records the reviewed access choice through the host
+ok 3 - cancel records the reviewed access choice through the host
+  ---
+  duration_ms: 1.6669
+  type: 'test'
+  ...

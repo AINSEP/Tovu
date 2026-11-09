@@ -1,0 +1,131 @@
+TAP version 13
+# Subtest: connections: an undeclared id, another plugin, another workspace and a call without an admin all get the same refusal
+ok 1 - connections: an undeclared id, another plugin, another workspace and a call without an admin all get the same refusal
+  ---
+  duration_ms: 123.552861
+  type: 'test'
+  ...
+# Subtest: connections: a start parameter the connection does not declare is refused before any sign-in starts
+ok 2 - connections: a start parameter the connection does not declare is refused before any sign-in starts
+  ---
+  duration_ms: 9.533143
+  type: 'test'
+  ...
+# Subtest: callback fields: only the declared ones are kept, only the owner plugin can take them, and only once
+ok 3 - callback fields: only the declared ones are kept, only the owner plugin can take them, and only once
+  ---
+  duration_ms: 37.60398
+  type: 'test'
+  ...
+# Subtest: desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only
+ok 4 - desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only
+  ---
+  duration_ms: 23.112186
+  type: 'test'
+  ...
+# Subtest: disconnect: revocation is reported verbatim, never 'confirmed' unless the provider confirmed
+ok 5 - disconnect: revocation is reported verbatim, never 'confirmed' unless the provider confirmed
+  ---
+  duration_ms: 30.521436
+  type: 'test'
+  ...
+# Subtest: issued sign-ins: only links recorded inside a collection, only https, and concurrent collections never mix
+ok 6 - issued sign-ins: only links recorded inside a collection, only https, and concurrent collections never mix
+  ---
+  duration_ms: 1.433929
+  type: 'test'
+  ...
+# Subtest: issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not
+ok 7 - issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not
+  ---
+  duration_ms: 0.637057
+  type: 'test'
+  ...
+# Subtest: plugin state: another plugin or workspace never sees a value; malformed keys and oversized values are refused
+ok 8 - plugin state: another plugin or workspace never sees a value; malformed keys and oversized values are refused
+  ---
+  duration_ms: 2.771459
+  type: 'test'
+  ...
+# Subtest: plugin state: a plugin's key count is capped; existing keys still update at the cap
+ok 9 - plugin state: a plugin's key count is capped; existing keys still update at the cap
+  ---
+  duration_ms: 179.48066
+  type: 'test'
+  ...
+# Subtest: tools: plugin state is read-only and scoped to the calling plugin and workspace, whatever the store exposes
+ok 10 - tools: plugin state is read-only and scoped to the calling plugin and workspace, whatever the store exposes
+  ---
+  duration_ms: 0.750498
+  type: 'test'
+  ...
+# Subtest: security: a surface handler's HTTP reaches only the https origins its plugin's connections declare
+ok 11 - security: a surface handler's HTTP reaches only the https origins its plugin's connections declare
+  ---
+  duration_ms: 10.359898
+  type: 'test'
+  ...
+# Subtest: public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null
+ok 12 - public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null
+  ---
+  duration_ms: 0.812382
+  type: 'test'
+  ...
+# Subtest: form delivery: the credential allows only the connection's declared https API origins; an http origin refuses the declaration
+ok 13 - form delivery: the credential allows only the connection's declared https API origins; an http origin refuses the declaration
+  ---
+  duration_ms: 17.206318
+  type: 'test'
+  ...
+# Subtest: attempt id (hosted): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+ok 14 - attempt id (hosted): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+  ---
+  duration_ms: 11.855964
+  type: 'test'
+  ...
+# Subtest: attempt id (desktop): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+ok 15 - attempt id (desktop): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+  ---
+  duration_ms: 9.745909
+  type: 'test'
+  ...
+# Subtest: workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect)
+ok 16 - workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect)
+  ---
+  duration_ms: 52.479507
+  type: 'test'
+  ...
+# Subtest: desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes
+ok 17 - desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes
+  ---
+  duration_ms: 21.936962
+  type: 'test'
+  ...
+# Subtest: status: a staged switch's account label disappears once the switch expired, in status and in action results
+ok 18 - status: a staged switch's account label disappears once the switch expired, in status and in action results
+  ---
+  duration_ms: 32.689966
+  type: 'test'
+  ...
+# [admin-surfaces] desktop sign-in for 'acme-office' did not complete: authorization-failed
+# Subtest: desktop: a sign-in that fails after the browser opened shows a safe code and next action in status; a later success clears it
+ok 19 - desktop: a sign-in that fails after the browser opened shows a safe code and next action in status; a later success clears it
+  ---
+  duration_ms: 26.158637
+  type: 'test'
+  ...
+# Subtest: hosted: status carries no sign-in attempt (the public callback page reports hosted failures)
+ok 20 - hosted: status carries no sign-in attempt (the public callback page reports hosted failures)
+  ---
+  duration_ms: 12.285702
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2106.53315

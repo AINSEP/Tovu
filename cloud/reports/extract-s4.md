@@ -547,5 +547,24 @@ Outside-scope files: none (touched only C/plugin-host.ts, new C/portable-plugin-
 Lines: +427/−146 code+test (portable 283, binder −146/+43, test 101). Time 07:33–07:43Z code+gate. Jini pair unchanged (92b4eb7dc455f5dae3e7693a73cb08385c9b8947).
 
 Remaining A8 work (not done in this batch — numbered):
-1. Dispatch item 3: the legacy no-ports fallback (`agentPluginMcpPortsOf`/`agentPluginMcpProjectionPorts`) is still inside the A bodies at federate-mcp.ts:525, enable-access.ts:26/:69, apply-connect-defaults.ts:126, switch-on-saved-token.ts:67, connection-status.ts:24 (frozen tests call those exported names without ports). Planned seam: portable twins requiring `AgentPluginMcpProjectionPorts` (git mv body → `<name>` portable file, old path = `export *` + one-function T shim adding the pair), no frozen-test edit. Not started (see A8 follow-up below if present).
+1. (DONE in the A8 follow-up below) Dispatch item 3: legacy no-ports fallback moved out of the portable bodies.
 2. A9-status inventory rows (A8 bodies' own T imports: lifecycle.js, capability-projection.js, activation-effects.js, set-enabled.js, layout.js, mcp-metadata.js, external-mcp/api-connections/custom-credentials types; actors `system:*`; screen names; `Open Settings → External MCP` copy) are resolved to named ports/host inputs but applied when the bodies move.
+
+### A8 follow-up — dispatch item 3: required ports in portable bodies, fallback only in T shims (07:44–08:03Z)
+
+- d6f4655c: `git mv` A/{federate-mcp,enable-access,apply-connect-defaults,switch-on-saved-token,connection-status}.ts → A/portable/<same>.ts (bodies, comments and order unchanged; relative imports re-pointed; provenance diff `a8b-move-provenance.txt`, 74 changed lines, all import paths or the five fallback sites). Portable bodies now REQUIRE `AgentPluginMcpProjectionPorts` (federate-mcp:525 `bound`, enable-access `validatedAgentPluginToolGrant` options.ports + preview, apply-connect-defaults factory, switch-on-saved-token `mcp`, connection-status `projections`) and import nothing from `mcp-host-bindings`. Old paths are thin T shims: `export *` from the portable module + the one legacy-signature entry each (old types `ApplyConnectDefaultsDeps`/`SwitchOnSavedTokenDeps` re-declared with optional context), so frozen tests and every T caller keep the same import path/signature. C/portable-plugin-host.ts imports the portable twins; its `mcp` dep now requires the pair.
+- e74957c8 (fix after own red): first shim version spread `deps`, which evaluated a frozen fixture's lazy `agentPluginLayout` getter (apply-connect-defaults.unit 0/15, raw `a8b-gate/` first run overwritten — red recorded here: "Test home isolation required" thrown from the getter via the shim spread). Fixed with `withAgentPluginMcpPorts` in A/mcp-host-bindings.ts (T): returns the same object when projections are present (production: same instance), else a descriptor-preserving shallow copy (getters stay lazy) plus Tovu's pair; `withOverrides` for switch-on's nested `mcp`. T binder passes `withAgentPluginMcpPorts(deps.mcp)`.
+- New proof: test 6 in portable-plugin-host.unit (no portable A8 file imports `mcp-host-bindings`); mutation `a8b-mut-fallback.txt` (re-add import → test 6 red), restored (git diff clean) → green.
+- Outside named scope: A/mcp-host-bindings.ts (+2 T helpers, reason above; S5 overlap: `git diff origin/cloud/extract-s3 origin/cloud/extract-s5 -- <file>` = 0 lines), new dir A/portable/ (S5 0). S5 overlap for the five shim paths: 0 lines each.
+
+Follow-up gate (final code e74957c8):
+| item | raw | result |
+|---|---|---|
+| A8 matrix + baselines (28 files) | `a8b-gate-summary.txt` | identical per-file counts to the first A8 run; portable-plugin-host 6/6; only known red plugin-host.integration test 9 |
+| S4-0b full list (77 files) | `a8b-full-summary.txt` | 76 files identical counts to `s40b-gate-summary`; 77th = the recorded pre-existing hang plugin-enable-access.regression (no result, as before) — stopped by exact PIDs 26316/26317/26323 + runner 22871 |
+| T main tsc | `a8b-tsc3.txt` | exit 0 |
+| broad tests tsconfig | `a8b-broad-tsc.txt` | exactly the 13 baseline errors (identical list) |
+| complexity ≤10 (13 changed prod files) | `a8b-complexity.txt` | 0 errors, 2 warnings (nested template, pre-existing shapes) |
+| guard / custody | as A8 gate (Jini unchanged; pins/snapshot untouched by this follow-up; tests diff vs 6f42278c = only the new test file) | unchanged |
+
+Lines (follow-up): +1085/−989 in A (mostly the git mv), +16 mcp-host-bindings. Token note: builder self-estimate ~140k at report time.

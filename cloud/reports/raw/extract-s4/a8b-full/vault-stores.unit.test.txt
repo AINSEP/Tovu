@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: vault: every other workspace, kind, owner, principal or binding is refused as a context error
+ok 1 - vault: every other workspace, kind, owner, principal or binding is refused as a context error
+  ---
+  duration_ms: 4.166626
+  type: 'test'
+  ...
+# Subtest: vault: a row is never given a generated id (every row id is derived by its store)
+ok 2 - vault: a row is never given a generated id (every row id is derived by its store)
+  ---
+  duration_ms: 0.961627
+  type: 'test'
+  ...
+# Subtest: records: a row sealed under another key is never served
+ok 3 - records: a row sealed under another key is never served
+  ---
+  duration_ms: 6.380872
+  type: 'test'
+  ...
+# Subtest: records: a row whose payload holds no record reads as none
+ok 4 - records: a row whose payload holds no record reads as none
+  ---
+  duration_ms: 1.07803
+  type: 'test'
+  ...
+# Subtest: records: writing a record under a key that is not its own is refused before anything is stored
+ok 5 - records: writing a record under a key that is not its own is refused before anything is stored
+  ---
+  duration_ms: 0.82532
+  type: 'test'
+  ...
+# Subtest: records: a stale expected revision loses the CAS (false) and the stored record is unchanged
+ok 6 - records: a stale expected revision loses the CAS (false) and the stored record is unchanged
+  ---
+  duration_ms: 4.572491
+  type: 'test'
+  ...
+# Subtest: records: a storage fault that is not a conflict propagates from CAS
+ok 7 - records: a storage fault that is not a conflict propagates from CAS
+  ---
+  duration_ms: 0.59337
+  type: 'test'
+  ...
+# Subtest: attempts: an unknown state is null for take and peek
+ok 8 - attempts: an unknown state is null for take and peek
+  ---
+  duration_ms: 0.920315
+  type: 'test'
+  ...
+# Subtest: attempts: a row whose payload holds no attempt reads as none
+ok 9 - attempts: a row whose payload holds no attempt reads as none
+  ---
+  duration_ms: 1.099271
+  type: 'test'
+  ...
+# Subtest: attempts: peek does not consume; take consumes once
+ok 10 - attempts: peek does not consume; take consumes once
+  ---
+  duration_ms: 2.453091
+  type: 'test'
+  ...
+# Subtest: attempts: a take that loses the delete race to another callback reads as already used
+ok 11 - attempts: a take that loses the delete race to another callback reads as already used
+  ---
+  duration_ms: 1.168076
+  type: 'test'
+  ...
+# Subtest: attempts: a storage fault on the consuming delete propagates
+ok 12 - attempts: a storage fault on the consuming delete propagates
+  ---
+  duration_ms: 1.237121
+  type: 'test'
+  ...
+# Subtest: sweep: a new attempt removes expired attempts and keeps live attempts and every other row
+ok 13 - sweep: a new attempt removes expired attempts and keeps live attempts and every other row
+  ---
+  duration_ms: 3.997476
+  type: 'test'
+  ...
+# Subtest: sweep: an expired attempt another process already removed (conflict) does not block the new attempt
+ok 14 - sweep: an expired attempt another process already removed (conflict) does not block the new attempt
+  ---
+  duration_ms: 1.912054
+  type: 'test'
+  ...
+# Subtest: sweep: a storage fault while removing an expired attempt propagates and stores no new attempt
+ok 15 - sweep: a storage fault while removing an expired attempt propagates and stores no new attempt
+  ---
+  duration_ms: 1.49314
+  type: 'test'
+  ...
+# Subtest: row ids: an attempt whose state equals a connection key never touches that connection's record row
+ok 16 - row ids: an attempt whose state equals a connection key never touches that connection's record row
+  ---
+  duration_ms: 4.655321
+  type: 'test'
+  ...
+# Subtest: vault: rows are stamped with the host clock, not the machine's
+ok 17 - vault: rows are stamped with the host clock, not the machine's
+  ---
+  duration_ms: 0.780442
+  type: 'test'
+  ...
+# Subtest: security (T4): listed vault ids, labels and metadata contain a digest instead of the OAuth state
+ok 18 - security (T4): listed vault ids, labels and metadata contain a digest instead of the OAuth state
+  ---
+  duration_ms: 1.658479
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 798.241606

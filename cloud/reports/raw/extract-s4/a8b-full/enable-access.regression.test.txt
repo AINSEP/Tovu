@@ -1,0 +1,190 @@
+TAP version 13
+# Subtest: the owner card predicts the same exact access that the existing grant owner applies, before sign-in
+ok 1 - the owner card predicts the same exact access that the existing grant owner applies, before sign-in
+  ---
+  duration_ms: 16.648339
+  type: 'test'
+  ...
+# Subtest: an approved enable missing its access snapshot refuses before activation or grant writes
+ok 2 - an approved enable missing its access snapshot refuses before activation or grant writes
+  ---
+  duration_ms: 2.650977
+  type: 'test'
+  ...
+# Subtest: a changed endpoint refuses before disclosing or granting a different source
+ok 3 - a changed endpoint refuses before disclosing or granting a different source
+  ---
+  duration_ms: 1.593929
+  type: 'test'
+  ...
+# Subtest: a newly provisioned source cannot receive an approval issued for a different endpoint
+ok 4 - a newly provisioned source cannot receive an approval issued for a different endpoint
+  ---
+  duration_ms: 8.503077
+  type: 'test'
+  ...
+# Subtest: a combined grant cannot exceed the existing external-MCP tool-list limit
+ok 5 - a combined grant cannot exceed the existing external-MCP tool-list limit
+  ---
+  duration_ms: 1.940625
+  type: 'test'
+  ...
+# Subtest: a plugin OFF switch refuses its already-admitted external tools on the next call
+ok 6 - a plugin OFF switch refuses its already-admitted external tools on the next call
+  ---
+  duration_ms: 2.328016
+  type: 'test'
+  ...
+# Subtest: an ON plugin with an OFF source offers the same enable card instead of manual settings
+ok 7 - an ON plugin with an OFF source offers the same enable card instead of manual settings
+  ---
+  duration_ms: 1.326783
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: {
+ok 8 - a damaged stored grant refuses the owner card: {
+  ---
+  duration_ms: 1.251539
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: {}
+ok 9 - a damaged stored grant refuses the owner card: {}
+  ---
+  duration_ms: 1.32352
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: ["read",3]
+ok 10 - a damaged stored grant refuses the owner card: ["read",3]
+  ---
+  duration_ms: 1.241989
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: false
+ok 11 - a damaged stored grant refuses the owner card: false
+  ---
+  duration_ms: 1.005307
+  type: 'test'
+  ...
+# Subtest: declared tool arrays are validated as names rather than split as comma-separated text
+ok 12 - declared tool arrays are validated as names rather than split as comma-separated text
+  ---
+  duration_ms: 0.959645
+  type: 'test'
+  ...
+# Subtest: already signed-in connect declines without granting or calling the sign-in defaults hook
+ok 13 - already signed-in connect declines without granting or calling the sign-in defaults hook
+  ---
+  duration_ms: 21.031879
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: tools
+ok 14 - retained-session approval refuses an installed declaration changed while open: tools
+  ---
+  duration_ms: 5.53011
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: writes
+ok 15 - retained-session approval refuses an installed declaration changed while open: writes
+  ---
+  duration_ms: 3.735515
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: endpoint
+ok 16 - retained-session approval refuses an installed declaration changed while open: endpoint
+  ---
+  duration_ms: 11.355571
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: removed
+ok 17 - retained-session approval refuses an installed declaration changed while open: removed
+  ---
+  duration_ms: 3.913082
+  type: 'test'
+  ...
+# Subtest: retained OAuth refuses or declines before any provisioning: separate connection false
+ok 18 - retained OAuth refuses or declines before any provisioning: separate connection false
+  ---
+  duration_ms: 6.031415
+  type: 'test'
+  ...
+# Subtest: retained OAuth refuses or declines before any provisioning: separate connection true
+ok 19 - retained OAuth refuses or declines before any provisioning: separate connection true
+  ---
+  duration_ms: 3.171938
+  type: 'test'
+  ...
+# Subtest: matching separately configured credential uses the access card: token false
+ok 20 - matching separately configured credential uses the access card: token false
+  ---
+  duration_ms: 7.371192
+  type: 'test'
+  ...
+# Subtest: matching separately configured credential uses the access card: token true
+ok 21 - matching separately configured credential uses the access card: token true
+  ---
+  duration_ms: 12.789774
+  type: 'test'
+  ...
+# Subtest: unanswered access card reports expired without a declined record
+ok 22 - unanswered access card reports expired without a declined record
+  ---
+  duration_ms: 3.534309
+  type: 'test'
+  ...
+# Subtest: unanswered access card reports abandoned without a declined record
+ok 23 - unanswered access card reports abandoned without a declined record
+  ---
+  duration_ms: 2.671195
+  type: 'test'
+  ...
+# Subtest: a later source failure reports the access already saved
+ok 24 - a later source failure reports the access already saved
+  ---
+  duration_ms: 6.729354
+  type: 'test'
+  ...
+# Subtest: a new explicit connection request can replace a saved declined choice
+ok 25 - a new explicit connection request can replace a saved declined choice
+  ---
+  duration_ms: 4.115189
+  type: 'test'
+  ...
+# Subtest: an interrupted multi-source approval reports its completed source
+ok 26 - an interrupted multi-source approval reports its completed source
+  ---
+  duration_ms: 4.147855
+  type: 'test'
+  ...
+# Subtest: a new sign-in after a saved choice can complete its access review in the same call
+ok 27 - a new sign-in after a saved choice can complete its access review in the same call
+  ---
+  duration_ms: 5.593058
+  type: 'test'
+  ...
+# Subtest: declining access after a new sign-in reports the retained account
+ok 28 - declining access after a new sign-in reports the retained account
+  ---
+  duration_ms: 4.101017
+  type: 'test'
+  ...
+# Subtest: new sign-in retains the no-retry instruction after expired
+ok 29 - new sign-in retains the no-retry instruction after expired
+  ---
+  duration_ms: 5.147441
+  type: 'test'
+  ...
+# Subtest: new sign-in retains the no-retry instruction after abandoned
+ok 30 - new sign-in retains the no-retry instruction after abandoned
+  ---
+  duration_ms: 4.122016
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1423.550284

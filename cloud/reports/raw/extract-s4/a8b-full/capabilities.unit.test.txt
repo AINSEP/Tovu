@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: http and limiter are the tool port's own, built for the same call scope
+ok 1 - http and limiter are the tool port's own, built for the same call scope
+  ---
+  duration_ms: 1.954575
+  type: 'test'
+  ...
+# Subtest: no artifact store bound: the surface gets no artifacts capability at all
+ok 2 - no artifact store bound: the surface gets no artifacts capability at all
+  ---
+  duration_ms: 0.240096
+  type: 'test'
+  ...
+# Subtest: an artifact store bound: the surface gets the tool port's artifacts
+ok 3 - an artifact store bound: the surface gets the tool port's artifacts
+  ---
+  duration_ms: 0.174455
+  type: 'test'
+  ...
+# Subtest: connections get the full call scope; state only the workspace and plugin
+ok 4 - connections get the full call scope; state only the workspace and plugin
+  ---
+  duration_ms: 0.307787
+  type: 'test'
+  ...
+# Subtest: public config is the one site-wide port, the same for every call
+ok 5 - public config is the one site-wide port, the same for every call
+  ---
+  duration_ms: 0.214331
+  type: 'test'
+  ...
+# Subtest: no delivery bindings port bound: the surface gets no deliveryBindings capability at all
+ok 6 - no delivery bindings port bound: the surface gets no deliveryBindings capability at all
+  ---
+  duration_ms: 0.149241
+  type: 'test'
+  ...
+# Subtest: a delivery bindings port bound: each call gets the port built for its full scope
+ok 7 - a delivery bindings port bound: each call gets the port built for its full scope
+  ---
+  duration_ms: 0.2746
+  type: 'test'
+  ...
+# Subtest: no forms port bound: the surface gets no forms capability
+ok 8 - no forms port bound: the surface gets no forms capability
+  ---
+  duration_ms: 0.153699
+  type: 'test'
+  ...
+# Subtest: a forms reader bound: each call gets the reader for its authenticated scope
+ok 9 - a forms reader bound: each call gets the reader for its authenticated scope
+  ---
+  duration_ms: 0.261259
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 701.471826

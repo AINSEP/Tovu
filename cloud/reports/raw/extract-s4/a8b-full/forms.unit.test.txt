@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: lists only slug/title after the forms permission check, scoped to this workspace
+ok 1 - lists only slug/title after the forms permission check, scoped to this workspace
+  ---
+  duration_ms: 1.941597
+  type: 'test'
+  ...
+# Subtest: missing principal and another workspace are refused before authorization or repository access
+ok 2 - missing principal and another workspace are refused before authorization or repository access
+  ---
+  duration_ms: 0.789466
+  type: 'test'
+  ...
+# Subtest: a denied forms permission and an authorization failure never read forms
+ok 3 - a denied forms permission and an authorization failure never read forms
+  ---
+  duration_ms: 0.333162
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 679.760073

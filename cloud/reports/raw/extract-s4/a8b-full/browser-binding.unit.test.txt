@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: MCP reuses browser cookies with an isolated name and callback scope
+ok 1 - MCP reuses browser cookies with an isolated name and callback scope
+  ---
+  duration_ms: 2.330652
+  type: 'test'
+  ...
+# Subtest: F1: handoffs expire, consume before actor checks, and refuse replays
+ok 2 - F1: handoffs expire, consume before actor checks, and refuse replays
+  ---
+  duration_ms: 2.270747
+  type: 'test'
+  ...
+# Subtest: F1: handoffs use Jini's bounded cache and evict the oldest at capacity
+ok 3 - F1: handoffs use Jini's bounded cache and evict the oldest at capacity
+  ---
+  duration_ms: 26.675566
+  type: 'test'
+  ...
+# Subtest: F1: callback cookie is host-only, HttpOnly, Secure, Lax, and callback scoped on set and clear
+ok 4 - F1: callback cookie is host-only, HttpOnly, Secure, Lax, and callback scoped on set and clear
+  ---
+  duration_ms: 0.856225
+  type: 'test'
+  ...
+# Subtest: F1: missing, malformed and duplicate cookies fail closed; unrelated cookies cannot replace proof
+ok 5 - F1: missing, malformed and duplicate cookies fail closed; unrelated cookies cannot replace proof
+  ---
+  duration_ms: 0.332943
+  type: 'test'
+  ...
+# Subtest: F1: host links expose only an opaque handoff; path recognition rejects trailing and foreign paths
+ok 6 - F1: host links expose only an opaque handoff; path recognition rejects trailing and foreign paths
+  ---
+  duration_ms: 0.509584
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 773.605716

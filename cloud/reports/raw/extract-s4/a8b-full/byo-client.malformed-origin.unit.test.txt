@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: a malformed saved base URL rejects with the raw URL error, not an unreadable refusal
+ok 1 - a malformed saved base URL rejects with the raw URL error, not an unreadable refusal
+  ---
+  duration_ms: 28.465843
+  type: 'test'
+  ...
+# Subtest: a saved client this site cannot open keeps the exact unreadable refusal
+ok 2 - a saved client this site cannot open keeps the exact unreadable refusal
+  ---
+  duration_ms: 7.57016
+  type: 'test'
+  ...
+# Subtest: a usable saved client on the token origin still resolves
+ok 3 - a usable saved client on the token origin still resolves
+  ---
+  duration_ms: 6.798203
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1140.498135
