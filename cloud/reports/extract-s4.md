@@ -835,3 +835,78 @@ C/plugin-host.ts:20 imports `grantDeclaredToolsToSignedInRows` from the T file a
 8. A11 binder: C/plugin-host.ts:20 import → moved grant (R5 check first).
 9. A11 gate: no moved T import (value/type), no forbidden edge, runtime-.d.ts closure, product scan of P, pins/counters/goldens, full common gate, paired pushes.
 10. C-b evidence section for connect contracts/card identity/wiring after A11.
+
+## C-b — evidence summary for independent Claude review (coordinator, 08:35Z)
+
+This section is evidence only. It is not approval. Claude reviews it independently afterwards. Every verdict here is a builder's gate result, already recorded in the sections above.
+
+### Inputs and clock
+- Bases (verified 06:12Z): Tovu c3801c833a191be51753dcdecd133b0cad6f8945 and Jini 4044fe3c0fa34b1f903c5d20a6b4de7714cde573. Both equal `origin/cloud/extract-s3`. The XP3 original base is 35c4961af718f0f30591c46d2ea2756c4484a731.
+- Review files: s3-review.md and s3-a7-review.md were in neither checkout. The S4-0 finding list in the dispatch brief was used as the authority.
+- Clock (UTC): start 2026-11-09T06:11:23Z, deadline 10:11:23Z, coordinator stop decision 08:28Z, report 08:35Z. About 2h25m elapsed.
+- Builder: the owner switched the builder to Claude Code Opus subagents, one per batch, run serially. The coordinator did no building.
+
+### Per-batch results (each gate green unless stated; tips checked by ls-remote)
+
+| Batch | Time (UTC) | Tokens (subagent) | Tovu tip | Jini tip | Gate |
+|---|---|---|---|---|---|
+| Setup / baseline | 06:15–06:36 | 175k | e989c75d2f8ecae4cb2931304684c60941c5825a | 4044fe3c0fa34b1f903c5d20a6b4de7714cde573 | baseline recorded (guard matches record; 13 broad-tsconfig errors = 12 known + 1 prior drift) |
+| S4-0a (Main F1–F5 + cuts) | 06:37–07:03 | 282k | 8b2ef5a61f455d44ae0fe2013309fb48d4b72187 | 92b4eb7dc455f5dae3e7693a73cb08385c9b8947 | green |
+| S4-0b (A7 F1–F4 + cuts + full S4-0 gate) | 07:06–07:36 | 292k | 6f42278cb3dbefe55e663c9ae3825a3a53c15aae | 92b4eb7d (unchanged) | green (S4-0 gate) |
+| A8 (seam in place) | 07:33–08:03 | 221k | f82936d945630bf1ae72468946d45b096b133900 | 92b4eb7d (unchanged) | green |
+| A9 (move + H0 adoption) | 08:05–08:27 | 269k | 64696b0be32d1a51e904c7ce57b7d168e752fc33 | f774b9e5c543815b43fa637137a75150aa831f5e | green |
+| A10 inventory only | 08:28–08:33 | 171k | d63f9aa787e8918676e818b588459ede23511ba3 (report-only) | f774b9e5 (unchanged) | n/a (no code) |
+
+- Batch overruns against the per-builder token target: S4-0a and S4-0b came close to the 300k per-agent ceiling (about 1.2× a 230k target). The A10 inventory used 171k against its 110k limit (1.55×).
+- Running token total, coordinator included: about 1.50M of the 1.7M cap.
+- **Last green paired SHAs:** Tovu 64696b0be32d1a51e904c7ce57b7d168e752fc33 and Jini f774b9e5c543815b43fa637137a75150aa831f5e. That pair is the A9 gate.
+- The current tips are Tovu d63f9aa7 plus this report-only commit, and Jini f774b9e5.
+
+### Guard / checker / custody at the last green gate (A9, verified by the builder from the full output)
+- Full `pnpm guard` exits 1 with "2 guard violation(s)", exactly the record:
+  - R2-deep-path(1) and R10-chatpane-public-surface(1); R13 is informational
+  - HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, all with 0 new; HW5/6/7/9 are 0
+  - **N1 = 0.** A9's first run had N1 ×3 in the moved files. The fix made that copy host input and reworded 5 comment lines neutrally; the exact diffs are in the message of Jini commit 0506634875ecd8d6a63f0e4467de8c25dbf2cec1.
+- guard:plugins is clean. Layers 0 and isolation 0; SI audits 9 and 7.
+- `pnpm check:cross-package` with JINI_DECLARATION_BASELINE_DIR set to the immutable XP3 snapshot reports XP1–XP5 clean. Snapshot provenance:
+  - manifest.json SHA256 d836eba0…d459, identical to S3's
+  - aggregate listing SHA256 08b79774…7048
+  - 3308 mappings and 3320 .d.ts files; unchanged at every gate
+- Custody:
+  - 28/28 pins unchanged; tool-metadata.baseline.json still a0d6b428…a0b6
+  - existing-test edits only at the listed exceptions; exact diffs in s40a-/s40b-frozen-test-diffs.txt
+  - Known reds only: T plugin-host.integration test 9, and the 13 broad-tsconfig errors.
+- One pre-existing hang outside the named matrix: features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts passes 3/3 but never exits. It hangs at S3 code too. Its PIDs were killed one by one.
+
+### Points flagged for the independent review
+1. **Grant order (A8/A9).** The brief says the grant runs "after provisioning/before reporting failures". The actual Tovu order is provision → failure warnings (or the refusal on an approved enable) → grant. The builders kept the actual order (same order, frozen tests) and pinned it in the @agent-note and in the tests (Tovu C/__tests__/portable-plugin-host.unit.test.ts and Jini examples/neutral-host/src/connect-plugin-host.test.ts). The report records this as a citation correction.
+2. **Legacy no-ports fallback.** After A8 it lives only in the thin Tovu shims (`withAgentPluginMcpPorts`), and the portable bodies in Jini take required ports. Check that no custom-host path can reach a Tovu projection.
+3. **F2 notes in an S5-owned file.** S4-0b added 3 comment hunks to T contracts/core/external-mcp-access.ts. S5 commit 9355bd8c turns that file into a re-export shim, so at merge these notes must move to S5's canonical declarations.
+4. **H0 adoption.** Only core hosted-MCP type files (contracts/hosted-mcp.ts and hosted-mcp/{vocabulary,record,config}.ts) and the core package.json export entries were copied byte-for-byte from S5 at 183915bb. Their upstream commits are 27063efc and 60f59307. No S5 runtime, mcp/**, integrations/**, oauth/flow or Tovu part was taken.
+5. **Neutral-host connect test (A9) was not mutation-tested.** The A8 tests carry mutation proof.
+6. **Lazy-getter shim red, fixed twice** (A8 follow-up and Tovu e19646a3 in A9). A shim spread read a test fixture's lazy getter. Check the `withAgentPluginMcpPorts`/`withOverrides` copies.
+7. **The F1 toolPermission requirement breaks direct registrar callers.** The changeset says so (Jini .changeset/extract-s4-tool-permission.md).
+
+### S5 overlap / outside-scope summary
+- Jini I/{byo-client,host-ports,host,hook-http}.ts (S4-0a F2, F3 and cuts) overlap S5's I/** area. The hunks are itemised in the S4-0a section.
+- Tovu contracts/core/external-mcp-access.ts has comments only (see point 3).
+- Jini core/** has only the byte-identical H0 adoption.
+- Tovu C/** and route files (S4-0b, A8, A9) had 0 lines of S5 change when checked.
+- No S5 branch was pushed to, merged, or had its runtime adopted.
+
+### Remaining work (numbered)
+1. A10, seam in place: see "A10 inventory" above (95 symbol rows, 8 design risks, and a 10-item list). The highest risks:
+   - R1, the token validator. `@jini-ai/platform` cannot be imported, so it must become a separate required host input.
+   - R3, cardIdentity `{uriNamespace:'tovu', appNames}` versus the existing `WithPorts` callers passing `'tovu/agent-plugins-connect'`.
+2. A11: move the A10 portable symbols to P/connect while Tovu keeps the R4 stay block. The binder passes the moved grantDeclaredToolsToSignedInRows into the required grantSignedInDefaults (inventory risk R5: possibly more than one line).
+3. The final accumulated gate (the full named matrix at the A11 tip) and the C-b evidence for A10/A11.
+4. Moving the F2 notes onto S5 declarations at merge (point 3).
+
+### Shutdown
+- Every builder reported no process left running, with the PIDs it killed listed in its own section.
+- Nothing was published, merged into main, or force-pushed.
+- Builders committed by explicit paths. The brief and plan files exist only in scratch and were never committed.
+
+Stop reason: the token cap. After the A9 gate about 310k of the 1.7M job cap was left (now about 200k). The builders that did comparable batches cost 220k–290k each, so A10 (the hardest batch), A11 and the final accumulated gate cannot finish within the cap. Only the A10 inventory was done. The wall clock still had about 1h20m before the 20-minute reserve.
+
+EXTRACT-S4 STOPPED AT CAP
