@@ -1,0 +1,45 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /workspace/Jini
+
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 10966ms
+   ✓ XP1 rejects a new source with type-only import 554ms
+   ✓ XP1 rejects a new source with inline type import 321ms
+   ✓ XP1 rejects a new source with type export 414ms
+   ✓ XP1 rejects a new source with value export 435ms
+   ✓ XP1 rejects a new source with dynamic import 341ms
+   ✓ XP1 rejects a new source with require 347ms
+   ✓ XP3 fails closed on missing or invalid current declarations 345ms
+   ✓ XP3 fails closed on missing or invalid baseline declarations 353ms
+   ✓ XP3 fails closed on missing or invalid mapping declarations 354ms
+   ✓ XP5 rejects a new dependencies edge, including optional peers 399ms
+   ✓ XP5 permits added core and unchanged pre-existing dependencies 547ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 4471ms
+   ✓ XP2 rejects a newly added import-equals specifier and permits the unchanged one 1638ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 600ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 449ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 1404ms
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 30054ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 2095ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 2077ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 1480ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 1486ms
+   ✓ F1 writer refuses dirty tracked source 1347ms
+   ✓ F1 writer refuses a missing emitted declaration 1365ms
+   ✓ F1 writer refuses unsafe source destination 2011ms
+   ✓ F1 writer refuses unsafe ancestor destination 2495ms
+   ✓ F1 writer refuses unsafe relative destination 1306ms
+   ✓ F1 writer refuses unsafe symlink destination 1943ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 4204ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 1626ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 1688ms
+   ✓ F6 type reference directive allows core/self for a domain and forbids a Jini edge from core 372ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 1682ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 1737ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 9ms
+
+ Test Files  4 passed (4)
+      Tests  76 passed (76)
+   Start at  15:33:13
+   Duration  33.41s (transform 345ms, setup 0ms, collect 3.95s, tests 45.50s, environment 1ms, prepare 557ms)
+

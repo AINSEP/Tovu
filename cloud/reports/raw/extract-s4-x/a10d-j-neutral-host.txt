@@ -1,0 +1,16 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /workspace/Jini/examples/neutral-host
+
+ ✓ src/mail-host.test.ts (1 test) 104ms
+ ✓ src/connect-plugin-host.test.ts (2 tests) 18ms
+ ✓ src/provider-status.test.ts (1 test) 10ms
+ ✓ src/executable-surface-entries.test.ts (3 tests) 14ms
+ ✓ src/contribution-contracts.test.ts (28 tests) 936ms
+ ✓ src/api-host-moves.test.ts (2 tests) 8ms
+
+ Test Files  6 passed (6)
+      Tests  37 passed (37)
+   Start at  15:34:10
+   Duration  9.85s (transform 5.43s, setup 0ms, collect 10.65s, tests 1.09s, environment 2ms, prepare 1.26s)
+

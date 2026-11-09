@@ -1156,3 +1156,58 @@ Caller search repeated across T apps and J packages/scripts/examples: existing T
 - Tovu frozen install, SDK build, Jini relink and contracts build have passed; main/broad type checks and the full verified 82-file current named matrix are running on unchanged source. Jini's four checker suites pass **76/76**. A scratch matrix launcher initially had a Python syntax error before running any test; repaired and rerun. This is a harness failure, not a test result.
 - Actual N1 function run against the two original remaining files in a scratch package fixture (with the real unchanged policy and its allowlisted source files) reports **N1 ×2 only**: grant header `Tovu`, import header `TOVU`. This authorizes only the exact neutral comment rewordings recorded with the seam; runtime host strings will instead be injected. First incomplete scratch fixture also reported two unused-policy entries; adding the two actual source files resolved that harness omission without modifying the policy.
 - All 28 pinned files matched SHA256 at continuation start. No production or existing test source has been edited.
+
+### Baseline completion / tested foundation
+
+- Verified 82-file T baseline: **824 tests, 823 pass, one fail**, no cancelled/skipped/todo. The only failure is `plugin-host.integration` test 9, expected `jini/charts-recharts-agent`, actual `unknown/charts-recharts`, exactly the recorded debt. All nine accumulated baselines pass. Full per-file commands follow the header's prescribed Node command; exact file lists, PIDs/exits/counts and TAP are retained under `raw/extract-s4-x/baseline/` and `t-full-files.txt`.
+- All named Jini groups pass: scripts **76**, agent-plugins **100**, integrations **60**, platform **3**, UI credential-card **2**, neutral-host **37** (278 total). No claim is made about the unrelated UI sign-in-card suite, which was not part of this named run.
+- Main T compile 0; broad test compile 2 with **13 diagnostics exactly identical, line-for-line, to A10c**; explicit provider-setting-field pin 0. J scripts compile 0, neutral-host compile 0, explicit excluded core/UI card-contract parity pin compile 0. Eight core/UI source/type pins were recorded before production edits, with full Git blobs/SHA256 in `core-ui-pins.json`; the 28 existing T pins remain unchanged.
+- Current checker XP1–XP5 passes against the read-only original XP3 snapshot. `commands.jsonl` records command arrays, cwd, PID, raw exit and duration; later batch logs supplement that initial copy.
+
+### A10d — final two seams (15:27–15:39Z)
+
+**Implementation/test commits, all on Tovu `cloud/extract-s4`, pulled with rebase immediately before each verified push:**
+- `8c5790fb36155592af50485c9b0c25478a4e4313`: `git mv` the two remaining original bodies into `A/portable/`, preserve rationale, add object APIs/required host inputs and positional T wrappers; add the six new tests. Jini unchanged.
+- `3671bd3b400228d7f1f0d0058cfa8e766293053f`: repair the S4-added import-boundary test's regex scanner (it misread the preserved comment phrase “env import's rule” as an import). Use TypeScript's scanner, with an added regression proving comments are ignored while type imports, import-equals, import types, dynamic imports and require are all seen. This changes a new S4 test, not a frozen pre-S3 test; no expectation or case removed.
+- `a0fb09645bbae7b1000e7902d9322b0ef11e6517`: pin withholding even from an injected grant callback on a declined row; repair new fixture types (valid non-null input label, length-zero assertions that avoid Node assert's `never[]` narrowing). The initial broad compile had five new test errors, all repaired; no production type errors and no frozen test edit.
+
+**Resolved inventory / bindings:**
+- Import: `ImportAgentPluginAccessTokenDeps` extends the existing portable target contract, requires stable `importActor` and `switchOnSavedToken({target})`. T reuses the existing descriptor-preserving/lazy `tovuTargetDeps` binder (only exported from the T module, not moved), binds **`system:token-import`**, the same `switchOnSavedTokenConnection`, `AGENT_PLUGINS_SCREEN`, and the exact original safe boot-warning sentence. Environment values remain supplied by the boot caller, never read by the portable body. Existing positional T entry signatures stay intact.
+- Installed listing: reuse existing `AgentPluginInstalledMcpReads`, with required host workspaceRoot/lifecycle. Preserve **ledger → installed list → prefer → one MCP declaration per first id**, one ledger object for bundled digest equality, no cache. T passes the existing `tovuInstalledMcpReads`; no second owner or filesystem default.
+- Env import: listPlugins and importMessages are required. Unbundled declarations cannot import; pending explicit tokens win; the URL check, idempotent switch recovery, existing credential preservation and bounded safe failure path remain the same.
+- Grant: required `ApplyConnectDefaultsDeps` gives the canonical pair, same repo, lifecycle callbacks and stable `actors`; warn/approvedFailure are required. T binds existing `resolveAgentPluginMcpServers`, `switchPluginOnUnlessOperatorOff`, `isPluginOffByOperator`, `tovuConnectActors` and console warning fallback only at the old host entry. The approved-failure message still uses the exact `plugins_set_enabled` sentence and is redacted as a whole. Default grant construction stays same-package, with no new back-edge from plugin-host.
+- Boot grant: object API, required listing and one activation snapshot after listing; absent activation still means on, explicit off and prior write attribution still skip. T wrapper retains `(deps, log)` and the existing activation owner. No new I/O, sealed opens, activation queue or cache added.
+- `@agent-note` is attached to new deps/log/listing contracts and boot read members; A11 will verify their emitted attachment. Host vocabulary, shared custody and error rules are explicit; no unresolved A10 row remains.
+
+**Comment custody:** original source blobs/SHA256/line counts are in `provenance-originals.json`. Both bodies were moved with `git mv`, not retyped or sliced. Original actor/default-warn/optional-listing and roster explanations stay verbatim beside their T bindings. Only N1-rejected comment lines were neutrally reworded:
+1. import: `env preset (\`TOVU_SUPABASE_MCP_*\`)` → `env preset (host-provided variable names)`; exact old preset vocabulary is also retained in the T shim's rationale.
+2. import: `THIS Tovu build` → `THIS host build`.
+3. import: `this Tovu build seeded` → `this host build seeded`.
+4. grant: `restarting Tovu` → `restarting the host`.
+All original security/order/retry/never-widening reasons remain beside the moved code.
+
+**New proof / repair / mutation:**
+- `a10d-new-red.txt`: new module/API absent before the seam (expected red). `a10d-new-first.txt`: six new tests green.
+- Coverage: second-host projections and `acme:*` attribution; failed-server skip and declined callback withholding; approved error guidance versus advisory warning; one listing then activation snapshot; off/prior-attribution boot refusal; no-overwrite import recovery; bundled-only/pending-token/host-screen/env safety; one ledger/first-id declaration reads. Ordinary T behavior remains covered by the frozen 25 import tests, four boot-grant tests and existing enable/projection/counter/golden groups.
+- `a10d-targeted.txt`: 67/68, solely the new S4 regex false positive; scanner repair rerun green (`a10d-scanner-repaired.txt`). No production comment changed to satisfy the bad regex.
+- `a10d-broad-first.txt`: 18 errors = 13 baseline + five in the new fixture. `a10d-broad-repaired.txt`: exactly the original 13 full diagnostic lines, zero additional errors.
+- Four actual mutants, each raw exit 1 and inspected assertion failure: host declined actor replaced with the old fixed actor; projection pair replaced by an oauthStatus-false projection; bundled trust check bypassed; import actor hard-coded. Every source restored **byte-for-byte** in `finally`; `a10d-mutations.json` records restoration; `a10d-restored-green.txt` passes both new suites afterwards.
+
+**A10d common gate, tested pair:** Tovu **a0fb09645bbae7b1000e7902d9322b0ef11e6517** + Jini **f774b9e5c543815b43fa637137a75150aa831f5e** (unchanged), both full remote tips verified before reporting.
+
+| Check | Actual result / raw |
+|---|---|
+| T 45 files | **441 tests, 440 pass, only known publisher-identity red**; `a10d/summary.json`, individual TAP. Every baseline file's count unchanged except the new scanner test (+1); remaining-seams adds 6. |
+| main T compile | 0, `a10d-tsc-first.txt` |
+| broad test compile | 2, exactly the 13 baseline diagnostic lines after own fixture repair |
+| complexity + cognitive ceiling 10, all five changed production files | 0 errors, `a10d-complexity-first.txt` |
+| explicit T pin / core-UI parity / J scripts compile | 0 / 0 / 0 |
+| J named matrix | 278/278 pass again (same six groups and counts as fresh baseline) |
+| XP checker / plugins | 0 / 0, original snapshot exported as JINI_DECLARATION_BASELINE_DIR |
+| actual full guard | exit 1, exactly R2 ×1 + R10 ×1, all HW totals/new counts unchanged, R13 informational, **zero N1/R8/other findings**; whole raw output read |
+| layers/isolation/custody | arrays empty; SI-c9/SI-d7; 28 T and 8 core/UI pins unchanged; XP3 per-file/manifest/aggregate rechecked unchanged |
+| scope / S5 | no overlap on touched source/test paths against fetched S5; R4 registration block unchanged; no new frozen-test exception |
+
+Jini source/build/declarations remain at the fresh baseline because A10 is still seamed in Tovu. No moved declaration emission is claimed yet. Source line delta for the seam/test commit: +538/−304 across six files; scanner fix +15/−1, fixture/withholding follow-up +9/−7. Raw command arrays and exact paths are retained, not braced pseudo-paths.
+
+**A11 preflight:** actual neutrality check on copies of the nine seamed bodies and the unchanged real policy reports one N2-consumer-path in `apply-tool-renames`'s T-specific `#src/assistant/` rationale. That entire original rationale already exists verbatim beside the T shim's notify binding. A11 will keep that host rationale there and put the portable shared-roster custody note on the J declaration. No guard/policy exemption will be added. The nine-file move, public exports, T import rewiring, declaration attachment, final accumulated gate and C-b evidence are next. The after-merge note move remains untouched.

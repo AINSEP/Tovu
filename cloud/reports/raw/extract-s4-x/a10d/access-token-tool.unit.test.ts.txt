@@ -1,0 +1,196 @@
+TAP version 13
+# Subtest: a plugin that is not installed is refused before any form or network call
+ok 1 - a plugin that is not installed is refused before any form or network call
+  ---
+  duration_ms: 11.042994
+  type: 'test'
+  ...
+# Subtest: a plugin whose servers declare no tokenAuth is refused: there is no token form for it
+ok 2 - a plugin whose servers declare no tokenAuth is refused: there is no token form for it
+  ---
+  duration_ms: 2.301616
+  type: 'test'
+  ...
+# Subtest: a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+ok 3 - a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+  ---
+  duration_ms: 1.568634
+  type: 'test'
+  ...
+# Subtest: a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+ok 4 - a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+  ---
+  duration_ms: 2.179486
+  type: 'test'
+  ...
+# Subtest: a row an operator pointed at another host is refused, so the token is never sent there
+ok 5 - a row an operator pointed at another host is refused, so the token is never sent there
+  ---
+  duration_ms: 2.688926
+  type: 'test'
+  ...
+# Subtest: INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+ok 6 - INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+  ---
+  duration_ms: 1.411225
+  type: 'test'
+  ...
+# Subtest: with no emitSurface the token tool fails closed with no exchange and no network call
+ok 7 - with no emitSurface the token tool fails closed with no exchange and no network call
+  ---
+  duration_ms: 2.326018
+  type: 'test'
+  ...
+# Subtest: the form names the plugin and displays its declared tokens page in the help text
+ok 8 - the form names the plugin and displays its declared tokens page in the help text
+  ---
+  duration_ms: 13.367871
+  type: 'test'
+  ...
+# Subtest: AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+ok 9 - AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+  ---
+  duration_ms: 21.559336
+  type: 'test'
+  ...
+# Subtest: EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+ok 10 - EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+  ---
+  duration_ms: 10.813167
+  type: 'test'
+  ...
+# Subtest: an unreachable vendor stores nothing and says the plugin is unavailable
+ok 11 - an unreachable vendor stores nothing and says the plugin is unavailable
+  ---
+  duration_ms: 6.339596
+  type: 'test'
+  ...
+# Subtest: a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+ok 12 - a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+  ---
+  duration_ms: 9.950652
+  type: 'test'
+  ...
+# Subtest: a 403 without optional plugin copy is still a refusal rather than an invalid token
+ok 13 - a 403 without optional plugin copy is still a refusal rather than an invalid token
+  ---
+  duration_ms: 2.577255
+  type: 'test'
+  ...
+# Subtest: a blank token is refused without a probe, and a cancel stores nothing
+ok 14 - a blank token is refused without a probe, and a cancel stores nothing
+  ---
+  duration_ms: 3.195087
+  type: 'test'
+  ...
+# Subtest: AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+ok 15 - AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+  ---
+  duration_ms: 8.799952
+  type: 'test'
+  ...
+# Subtest: IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+ok 16 - IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+  ---
+  duration_ms: 8.035954
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+ok 17 - a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+  ---
+  duration_ms: 5.649041
+  type: 'test'
+  ...
+# Subtest: a failure switching on after the save still reports the token as saved, with a retry step
+ok 18 - a failure switching on after the save still reports the token as saved, with a retry step
+  ---
+  duration_ms: 5.72186
+  type: 'test'
+  ...
+# Subtest: permission denial raises no form, opens no exchange and leaves the token row unchanged
+ok 19 - permission denial raises no form, opens no exchange and leaves the token row unchanged
+  ---
+  duration_ms: 1.683418
+  type: 'test'
+  ...
+# Subtest: a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+ok 20 - a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+  ---
+  duration_ms: 3.107671
+  type: 'test'
+  ...
+# Subtest: a store failure after a successful probe is redacted and leaves the previous row intact
+ok 21 - a store failure after a successful probe is redacted and leaves the previous row intact
+  ---
+  duration_ms: 11.064701
+  type: 'test'
+  ...
+# Subtest: a pending form that is expired saves nothing and rejects late answers
+ok 22 - a pending form that is expired saves nothing and rejects late answers
+  ---
+  duration_ms: 3.958776
+  type: 'test'
+  ...
+# Subtest: a pending form that is abandoned saves nothing and rejects late answers
+ok 23 - a pending form that is abandoned saves nothing and rejects late answers
+  ---
+  duration_ms: 1.865112
+  type: 'test'
+  ...
+# Subtest: a pending form that is abort saves nothing and rejects late answers
+ok 24 - a pending form that is abort saves nothing and rejects late answers
+  ---
+  duration_ms: 2.16811
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+ok 25 - credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+  ---
+  duration_ms: 1.910268
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 26 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 2.576841
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 27 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 3.537778
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+ok 28 - credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+  ---
+  duration_ms: 1.490829
+  type: 'test'
+  ...
+# Subtest: an abort during the token probe prevents the sealed write and plugin activation
+ok 29 - an abort during the token probe prevents the sealed write and plugin activation
+  ---
+  duration_ms: 7.014983
+  type: 'test'
+  ...
+# Subtest: a run aborted before preparation opens no form and leaves the plugin row unchanged
+ok 30 - a run aborted before preparation opens no form and leaves the plugin row unchanged
+  ---
+  duration_ms: 5.807413
+  type: 'test'
+  ...
+# Subtest: a destination repointed while the token form is open cannot receive the submitted credential
+ok 31 - a destination repointed while the token form is open cannot receive the submitted credential
+  ---
+  duration_ms: 46.354724
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4171.150395

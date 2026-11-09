@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/platform
+
+ ✓ src/mail/__tests__/provider-setup.test.ts (3 tests) 10ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  15:34:00
+   Duration  1.84s (transform 535ms, setup 0ms, collect 893ms, tests 10ms, environment 0ms, prepare 435ms)
+

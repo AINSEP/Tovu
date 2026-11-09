@@ -1,0 +1,4 @@
+  File "/workspace/work/j-matrix.py", line 4
+    'scripts':('.', ['scripts/__tests__/check-no-cross-package.test.ts','scripts/__tests__/extract-s3-checker.test.ts','scripts/__tests__/extract-s3-source-contracts.test.ts','scripts/__tests__/extract-s4-import-equals.test.ts'])),
+                                                                                                                                                                                                                                     ^
+SyntaxError: closing parenthesis ')' does not match opening parenthesis '{' on line 3

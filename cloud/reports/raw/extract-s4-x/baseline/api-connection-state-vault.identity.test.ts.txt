@@ -1,0 +1,16 @@
+TAP version 13
+# Subtest: A4 row 14: actual state/API writes use one vault, saved scope/format and revision CAS
+ok 1 - A4 row 14: actual state/API writes use one vault, saved scope/format and revision CAS
+  ---
+  duration_ms: 15.454919
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2532.273439

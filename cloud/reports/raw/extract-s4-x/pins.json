@@ -1,0 +1,142 @@
+[
+  {
+    "sha256": "c0a70dfbd42b2e6ba386878397cc02a5345a66b5548557a8a0171dd20ed48e11",
+    "blob": "467b657a6589637a010856579f1102399a0b9bbe",
+    "path": "apps/website/src/assistant/__tests__/fixtures/chat-delete-grant.ts"
+  },
+  {
+    "sha256": "2ab83af15abc5ef53ae56463d7140ee43f4f54246ede131a3b9e655a1b40fcb0",
+    "blob": "418f7e36ab8ab412af0c9c53347725d6261c088a",
+    "path": "apps/website/src/assistant/__tests__/fixtures/confirmed-registrations.ts"
+  },
+  {
+    "sha256": "16c14275f7995c681944ed4479f6c519a3f8aee83cfeeb7455e30697cbbbc3fa",
+    "blob": "3b1884c6941733f9be16297f3f9524de6e45fc45",
+    "path": "apps/website/src/assistant/__tests__/fixtures/content-target-inputs.ts"
+  },
+  {
+    "sha256": "817b3c529dda50bae7a7b2828a423cab126c9886e214c43d61311636199e9c47",
+    "blob": "babc9e68f2698396f31005a8c1392bff89f59082",
+    "path": "apps/website/src/assistant/__tests__/fixtures/credential-setup-search.json"
+  },
+  {
+    "sha256": "5854612c762662c6e585dc0eec7b1635519000064d62e77810db8820c0e06c49",
+    "blob": "f35d77a85ba90cb0cead1c34685315fe6e1ccb25",
+    "path": "apps/website/src/assistant/__tests__/fixtures/execute-registered-tool.ts"
+  },
+  {
+    "sha256": "61e018a56d59eee3a4b44055136c9a7c6144c5a6b13a948c8f90ebb8b14ca16e",
+    "blob": "e7f73997f961c07e0f38a65ae3423a012be13d01",
+    "path": "apps/website/src/assistant/__tests__/fixtures/moved-tools.access-token.golden.json"
+  },
+  {
+    "sha256": "3eb3766de97c9d6699507fbda53b29ec63babd0af1d6381611ee907da4a2fa01",
+    "blob": "5372c54c107f9e7b351f4c41f9b2f9344a7d5723",
+    "path": "apps/website/src/assistant/__tests__/fixtures/moved-tools.credential-cards.golden.json"
+  },
+  {
+    "sha256": "3583bc14fa8c596d64a2e97a274166f87a0ea278aed3f8c12b926552b7fc5f66",
+    "blob": "0582e3f3d69efbd18ec0f06acfa22ad476776e82",
+    "path": "apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json"
+  },
+  {
+    "sha256": "654a2be3f905f13bf967b58121a750cf33b37a4d35d59be2e51c74f046936ca9",
+    "blob": "7da069a7569c7ed531c7cb548e9cac376c3d7b4f",
+    "path": "apps/website/src/assistant/__tests__/fixtures/published-catalog-descriptor.ts"
+  },
+  {
+    "sha256": "713c88e41789a31e9dd47b356cd4a84ff204a0909f1062003a87f5ecfb806768",
+    "blob": "30f6da926d8f6dc9ed188744e82909dd9311d556",
+    "path": "apps/website/src/assistant/__tests__/fixtures/registry-deps.ts"
+  },
+  {
+    "sha256": "a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6",
+    "blob": "baef5215b6a5634da5ce16d3f30764a54ddf2aad",
+    "path": "apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json"
+  },
+  {
+    "sha256": "767bdbd7f700d0a0c6d27679c5354019b33d788359383ef7e6115ca28d8ba028",
+    "blob": "a40840ce6a5d812294fac517885c62eb564708ec",
+    "path": "apps/website/src/assistant/__tests__/fixtures/tool-search-known-gaps.ts"
+  },
+  {
+    "sha256": "8f46c0bd15b3d55932f759d30301aa0afb8b7c58c9bc52c2ca15dc8efe714f9a",
+    "blob": "34859614b50d39a07f6f11a824b6b8e212e8d403",
+    "path": "apps/website/src/assistant/__tests__/fixtures/tool-search-operator-requests.json"
+  },
+  {
+    "sha256": "a9d7529dca082866a3aab9c7c978a477eb00549aa1496383aeaa899dd8d63706",
+    "blob": "d52d9c6b0d1377b17be2b8e9e4489c8c33d9fa81",
+    "path": "apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts"
+  },
+  {
+    "sha256": "54c1f9c3c98780a882eca0dc94c5c1b7a0d8cd50aa28053b7be20b783c6aa76c",
+    "blob": "1cb6a7589834d079b706515fd5e875fc39cfcbdc",
+    "path": "apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts"
+  },
+  {
+    "sha256": "b5534cf39ffee2b108a425f38f443c6b1d6f5af348271f3f09748e6150d23d3f",
+    "blob": "381af219b74cf6baa871c93b736136161fe91439",
+    "path": "apps/website/src/assistant/__tests__/moved-tools.golden.test.ts"
+  },
+  {
+    "sha256": "1f3b2997d332973973902437d09f2322f46c3024a196cd55f5752ea5783c33fd",
+    "blob": "124189d35a02a5418017e51edc0ed7247377983d",
+    "path": "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts"
+  },
+  {
+    "sha256": "7a57ea1126178279361bef826ad1ea4f9383b7c1f4adba683df370c898e59795",
+    "blob": "76cc652705148f61297d7e9383de0822539f59f4",
+    "path": "apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts"
+  },
+  {
+    "sha256": "bab9300dc16748e03d9d91e0ecadd768e1c6e25c46d288818d3b727c3d1bb0e0",
+    "blob": "c865afde778b5313f38767a636644afdf8bd9713",
+    "path": "apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts"
+  },
+  {
+    "sha256": "f0733d6176cd0d2fc92a9181d342c9ff9480f0d505f7c5e1dc8330d3f48a4be3",
+    "blob": "ef0f409eafcdff5ae2181209953205a790184cca",
+    "path": "apps/website/src/server/runtime/boot/__tests__/fixtures/mail-send.golden.json"
+  },
+  {
+    "sha256": "89f3f72f480bb3fbebfec11e88334d24537592ab0e11ca1f2f5e685bba151e62",
+    "blob": "4e4e1bd6c8f9ec0395bbbf35316d45103e011a2f",
+    "path": "apps/website/src/server/runtime/boot/__tests__/fixtures/unhandled-rejection-child.ts"
+  },
+  {
+    "sha256": "10234c460b5aaa513da12049a6edd557ff5d35ab711a8d9a9049db1c3761aeb8",
+    "blob": "ffd8529dea90925169dd4899f1cfd420a2cdbd9e",
+    "path": "apps/website/src/server/runtime/boot/__tests__/mail-engine-parity.unit.test.ts"
+  },
+  {
+    "sha256": "28738c7757cc624ea03fcd4c7564d9f1a30882d1b94e2574a7d31b4ca4bf92f0",
+    "blob": "d833a5949e9c8a2754d044b0ce994fa72c1979b0",
+    "path": "apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts"
+  },
+  {
+    "sha256": "d49833d1f7e5ad40246fb03a760e93fc80e7fda3ba2b9d6593e43b37137d209c",
+    "blob": "d4142f9b21ec3300a9c012ba0b9719cfe19ed19a",
+    "path": "apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts"
+  },
+  {
+    "sha256": "e8f47a04981537e5f2aebc0a3522093b07d6f0eea7bc148a73b19b31a4a4e1f7",
+    "blob": "4cc5ff5b4c20855fcb9d135cc8c4364aabbcad93",
+    "path": "apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts"
+  },
+  {
+    "sha256": "2be1488c8e4556b71b759536dccac88c78612a22200aa6843748f62cb78e736c",
+    "blob": "2494d7fd3d06a7c8830440c5ca4ec0388de9dd16",
+    "path": "apps/website/src/server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json"
+  },
+  {
+    "sha256": "53fe7c4736107b90ab47d91434cd941f3eb427526d32b144e120a0b1817d56c0",
+    "blob": "cd989ef7df9159d0cace5cf157e78e08acbedcd2",
+    "path": "apps/website/src/server/runtime/composition/__tests__/fixtures/legacy-content-history.ts"
+  },
+  {
+    "sha256": "91d8fe88e61bae9c33f26f58e234dfe364736745ff9805c117f85c35c4fb8c69",
+    "blob": "ad8f217b08bc4b2c3180cc80e4109b27fc24a844",
+    "path": "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts"
+  }
+]

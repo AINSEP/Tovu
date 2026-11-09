@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+ok 1 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 21.646744
+  type: 'test'
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 2 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 11.94863
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 3 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 4.807485
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 4 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 4.202183
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+not ok 5 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 23.812228
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:7536'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'system:token-import'
+    - 'acme:import'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'acme:import'
+  actual: 'system:token-import'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:86:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 6 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.965991
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2022.722271

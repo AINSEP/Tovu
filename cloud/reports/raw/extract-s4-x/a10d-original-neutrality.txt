@@ -1,0 +1,22 @@
+[
+  {
+    "rule": "N1-consumer-identity",
+    "file": "packages/agent-plugins/src/grant-signed-in-defaults.ts",
+    "reason": "forbidden source reference \"Tovu\" (comments included)"
+  },
+  {
+    "rule": "N1-consumer-identity",
+    "file": "packages/agent-plugins/src/import-access-token.ts",
+    "reason": "forbidden source reference \"TOVU\" (comments included)"
+  },
+  {
+    "rule": "N0-allowlist",
+    "file": "packages/plugins/src/host/plugin-format.ts",
+    "reason": "unused exception for N1-consumer-identity; remove stale policy"
+  },
+  {
+    "rule": "N0-allowlist",
+    "file": "packages/agent-plugins/src/core/identity-namespace.ts",
+    "reason": "unused exception for N1-consumer-identity; remove stale policy"
+  }
+]

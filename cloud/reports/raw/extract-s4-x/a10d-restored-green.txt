@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 1 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 6.638115
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 2 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 1.096132
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 3 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 1.525464
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 4 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 2.332197
+  type: 'test'
+  ...
+# Subtest: boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require
+ok 5 - boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require
+  ---
+  duration_ms: 5.214502
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 6 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 58.735343
+  type: 'test'
+  ...
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+ok 7 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 49.577966
+  type: 'test'
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 8 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 26.021873
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 9 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 9.984788
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 10 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 8.062289
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+ok 11 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 57.825258
+  type: 'test'
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 12 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 1.523237
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7195.4999

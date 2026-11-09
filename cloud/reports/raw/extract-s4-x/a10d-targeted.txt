@@ -1,0 +1,475 @@
+TAP version 13
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 1 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 2.616406
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 2 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.355218
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 3 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 0.453792
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 4 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 0.998693
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+not ok 5 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 4.819721
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts:1:5001'
+  failureType: 'testCodeFailure'
+  error: |-
+    import-access-token.ts imports s rule). */
+        readonly onlyAtUrl?: string;
+      } },
+      _optional: Record<string, never> = {},
+    ): Promise<ImportAgentPluginAccessTokenOutcome> {
+      const { deps, input } = required;
+      const principalId = input.principalId ?? deps.importActor;
+      const target = await resolveTarget({ routeDeps: deps, pluginId: input.pluginId, principalId });
+      const row = await deps.mcp.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
+      if (row && hasStoredAgentPluginCredential({ row, projections: deps.mcp.projections })) {
+        // Finishes a switch-on an earlier import saved the token for but did not complete (it threw
+        // after the save): idempotent, and it keeps an operator
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts:89:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1062:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+    Test.postRun (node:internal/test_runner/test:1191:19)
+    Test.run (node:internal/test_runner/test:1119:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: the owner card predicts the same exact access that the existing grant owner applies, before sign-in
+ok 6 - the owner card predicts the same exact access that the existing grant owner applies, before sign-in
+  ---
+  duration_ms: 33.213355
+  type: 'test'
+  ...
+# Subtest: an approved enable missing its access snapshot refuses before activation or grant writes
+ok 7 - an approved enable missing its access snapshot refuses before activation or grant writes
+  ---
+  duration_ms: 5.600667
+  type: 'test'
+  ...
+# Subtest: a changed endpoint refuses before disclosing or granting a different source
+ok 8 - a changed endpoint refuses before disclosing or granting a different source
+  ---
+  duration_ms: 4.944319
+  type: 'test'
+  ...
+# Subtest: a newly provisioned source cannot receive an approval issued for a different endpoint
+ok 9 - a newly provisioned source cannot receive an approval issued for a different endpoint
+  ---
+  duration_ms: 13.192936
+  type: 'test'
+  ...
+# Subtest: a combined grant cannot exceed the existing external-MCP tool-list limit
+ok 10 - a combined grant cannot exceed the existing external-MCP tool-list limit
+  ---
+  duration_ms: 5.758129
+  type: 'test'
+  ...
+# Subtest: a plugin OFF switch refuses its already-admitted external tools on the next call
+ok 11 - a plugin OFF switch refuses its already-admitted external tools on the next call
+  ---
+  duration_ms: 8.487326
+  type: 'test'
+  ...
+# Subtest: an ON plugin with an OFF source offers the same enable card instead of manual settings
+ok 12 - an ON plugin with an OFF source offers the same enable card instead of manual settings
+  ---
+  duration_ms: 7.116285
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: {
+ok 13 - a damaged stored grant refuses the owner card: {
+  ---
+  duration_ms: 4.543629
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: {}
+ok 14 - a damaged stored grant refuses the owner card: {}
+  ---
+  duration_ms: 15.460378
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: ["read",3]
+ok 15 - a damaged stored grant refuses the owner card: ["read",3]
+  ---
+  duration_ms: 22.205704
+  type: 'test'
+  ...
+# Subtest: a damaged stored grant refuses the owner card: false
+ok 16 - a damaged stored grant refuses the owner card: false
+  ---
+  duration_ms: 7.991739
+  type: 'test'
+  ...
+# Subtest: declared tool arrays are validated as names rather than split as comma-separated text
+ok 17 - declared tool arrays are validated as names rather than split as comma-separated text
+  ---
+  duration_ms: 6.013636
+  type: 'test'
+  ...
+# Subtest: already signed-in connect declines without granting or calling the sign-in defaults hook
+ok 18 - already signed-in connect declines without granting or calling the sign-in defaults hook
+  ---
+  duration_ms: 108.963307
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: tools
+ok 19 - retained-session approval refuses an installed declaration changed while open: tools
+  ---
+  duration_ms: 8.603457
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: writes
+ok 20 - retained-session approval refuses an installed declaration changed while open: writes
+  ---
+  duration_ms: 7.328838
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: endpoint
+ok 21 - retained-session approval refuses an installed declaration changed while open: endpoint
+  ---
+  duration_ms: 4.417587
+  type: 'test'
+  ...
+# Subtest: retained-session approval refuses an installed declaration changed while open: removed
+ok 22 - retained-session approval refuses an installed declaration changed while open: removed
+  ---
+  duration_ms: 6.201068
+  type: 'test'
+  ...
+# Subtest: retained OAuth refuses or declines before any provisioning: separate connection false
+ok 23 - retained OAuth refuses or declines before any provisioning: separate connection false
+  ---
+  duration_ms: 7.302811
+  type: 'test'
+  ...
+# Subtest: retained OAuth refuses or declines before any provisioning: separate connection true
+ok 24 - retained OAuth refuses or declines before any provisioning: separate connection true
+  ---
+  duration_ms: 146.526498
+  type: 'test'
+  ...
+# Subtest: matching separately configured credential uses the access card: token false
+ok 25 - matching separately configured credential uses the access card: token false
+  ---
+  duration_ms: 90.82288
+  type: 'test'
+  ...
+# Subtest: matching separately configured credential uses the access card: token true
+ok 26 - matching separately configured credential uses the access card: token true
+  ---
+  duration_ms: 36.343196
+  type: 'test'
+  ...
+# Subtest: unanswered access card reports expired without a declined record
+ok 27 - unanswered access card reports expired without a declined record
+  ---
+  duration_ms: 5.362663
+  type: 'test'
+  ...
+# Subtest: unanswered access card reports abandoned without a declined record
+ok 28 - unanswered access card reports abandoned without a declined record
+  ---
+  duration_ms: 92.668321
+  type: 'test'
+  ...
+# Subtest: a later source failure reports the access already saved
+ok 29 - a later source failure reports the access already saved
+  ---
+  duration_ms: 53.86529
+  type: 'test'
+  ...
+# Subtest: a new explicit connection request can replace a saved declined choice
+ok 30 - a new explicit connection request can replace a saved declined choice
+  ---
+  duration_ms: 14.129527
+  type: 'test'
+  ...
+# Subtest: an interrupted multi-source approval reports its completed source
+ok 31 - an interrupted multi-source approval reports its completed source
+  ---
+  duration_ms: 16.089104
+  type: 'test'
+  ...
+# Subtest: a new sign-in after a saved choice can complete its access review in the same call
+ok 32 - a new sign-in after a saved choice can complete its access review in the same call
+  ---
+  duration_ms: 32.97616
+  type: 'test'
+  ...
+# Subtest: declining access after a new sign-in reports the retained account
+ok 33 - declining access after a new sign-in reports the retained account
+  ---
+  duration_ms: 5.224167
+  type: 'test'
+  ...
+# Subtest: new sign-in retains the no-retry instruction after expired
+ok 34 - new sign-in retains the no-retry instruction after expired
+  ---
+  duration_ms: 5.513742
+  type: 'test'
+  ...
+# Subtest: new sign-in retains the no-retry instruction after abandoned
+ok 35 - new sign-in retains the no-retry instruction after abandoned
+  ---
+  duration_ms: 7.409739
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot turns on a signed-in connection of an on plugin with exactly its declared tools and writes — no restart, no Settings trip
+ok 36 - boot turns on a signed-in connection of an on plugin with exactly its declared tools and writes — no restart, no Settings trip
+  ---
+  duration_ms: 378.384408
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot never switches a plugin on: the seeder's default-off and an operator's off both leave the row and the plugin alone
+ok 37 - boot never switches a plugin on: the seeder's default-off and an operator's off both leave the row and the plugin alone
+  ---
+  duration_ms: 205.488603
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot grants nothing to a connection that is not signed in
+ok 38 - boot grants nothing to a connection that is not signed in
+  ---
+  duration_ms: 81.921076
+  type: 'test'
+  ...
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+# Subtest: boot leaves a row whose write grants someone already set (an operator emptied it on purpose)
+ok 39 - boot leaves a row whose write grants someone already set (an operator emptied it on purpose)
+  ---
+  duration_ms: 61.266842
+  type: 'test'
+  ...
+# Subtest: a token is sealed onto a row with no credential, and the plugin is switched on
+ok 40 - a token is sealed onto a row with no credential, and the plugin is switched on
+  ---
+  duration_ms: 27.701654
+  type: 'test'
+  ...
+# Subtest: a row that already holds a saved token is never overwritten
+ok 41 - a row that already holds a saved token is never overwritten
+  ---
+  duration_ms: 6.203166
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off gets the token but stays off
+ok 42 - a plugin an operator turned off gets the token but stays off
+  ---
+  duration_ms: 9.197462
+  type: 'test'
+  ...
+# Subtest: a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)
+ok 43 - a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)
+  ---
+  duration_ms: 4.183238
+  type: 'test'
+  ...
+# Subtest: hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not
+ok 44 - hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not
+  ---
+  duration_ms: 0.196986
+  type: 'test'
+  ...
+# Subtest: env import copies the declared env token once, logs once, and is silent on the next boot
+ok 45 - env import copies the declared env token once, logs once, and is silent on the next boot
+  ---
+  duration_ms: 3.66517
+  type: 'test'
+  ...
+# Subtest: env import uses the declared URL when its connection lookup returns no row
+ok 46 - env import uses the declared URL when its connection lookup returns no row
+  ---
+  duration_ms: 8.802153
+  type: 'test'
+  ...
+# Subtest: env import saves a token without retiredEnv and continues to the next plugin
+ok 47 - env import saves a token without retiredEnv and continues to the next plugin
+  ---
+  duration_ms: 10.510457
+  type: 'test'
+  ...
+# Subtest: env import with no token set writes nothing
+ok 48 - env import with no token set writes nothing
+  ---
+  duration_ms: 1.390448
+  type: 'test'
+  ...
+# Subtest: set retired env vars are named as no longer used; unset ones are not
+ok 49 - set retired env vars are named as no longer used; unset ones are not
+  ---
+  duration_ms: 1.405112
+  type: 'test'
+  ...
+# Subtest: env import never throws: a failed save is a warning
+ok 50 - env import never throws: a failed save is a warning
+  ---
+  duration_ms: 1.513947
+  type: 'test'
+  ...
+# Subtest: env import never logs importer text that echoes an opaque access token
+ok 51 - env import never logs importer text that echoes an opaque access token
+  ---
+  duration_ms: 1.394654
+  type: 'test'
+  ...
+# Subtest: env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret
+ok 52 - env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret
+  ---
+  duration_ms: 1.277089
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-test-site-layout-BcuWk5/agent-plugins/ws/ws-token-import
+# Subtest: listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded
+ok 53 - listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded
+  ---
+  duration_ms: 4907.108275
+  type: 'test'
+  ...
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+# Subtest: listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests
+ok 54 - listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests
+  ---
+  duration_ms: 30.2888
+  type: 'test'
+  ...
+# Subtest: env import never sends the token to a row pointed at a URL the bundled plugin does not declare
+ok 55 - env import never sends the token to a row pointed at a URL the bundled plugin does not declare
+  ---
+  duration_ms: 1.373007
+  type: 'test'
+  ...
+# Subtest: manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server
+ok 56 - manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server
+  ---
+  duration_ms: 0.414365
+  type: 'test'
+  ...
+# Subtest: env import skips a plugin that still has a token pending from create-site onboarding
+ok 57 - env import skips a plugin that still has a token pending from create-site onboarding
+  ---
+  duration_ms: 0.715535
+  type: 'test'
+  ...
+# Subtest: a save whose switch-on failed is switched on by the next import, without touching the saved token
+ok 58 - a save whose switch-on failed is switched on by the next import, without touching the saved token
+  ---
+  duration_ms: 10.502835
+  type: 'test'
+  ...
+# Subtest: an already-connected row is not switched on when an operator turned the plugin off
+ok 59 - an already-connected row is not switched on when an operator turned the plugin off
+  ---
+  duration_ms: 2.440691
+  type: 'test'
+  ...
+# Subtest: a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on
+ok 60 - a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on
+  ---
+  duration_ms: 21.053332
+  type: 'test'
+  ...
+# Subtest: env import warns on listing failure and logs plural retirement notices even without an import declaration
+ok 61 - env import warns on listing failure and logs plural retirement notices even without an import declaration
+  ---
+  duration_ms: 24.92284
+  type: 'test'
+  ...
+# Subtest: env import logs an operator-off save once and remains silent on its credential-preserving retry
+ok 62 - env import logs an operator-off save once and remains silent on its credential-preserving retry
+  ---
+  duration_ms: 13.68885
+  type: 'test'
+  ...
+# Subtest: without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing
+ok 63 - without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing
+  ---
+  duration_ms: 84.377621
+  type: 'test'
+  ...
+# Subtest: an Error thrown while listing plugins is reported by its message
+ok 64 - an Error thrown while listing plugins is reported by its message
+  ---
+  duration_ms: 1.848794
+  type: 'test'
+  ...
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# Subtest: composition preview and the approved provision grant revalidate with the host projections
+ok 65 - composition preview and the approved provision grant revalidate with the host projections
+  ---
+  duration_ms: 334.532371
+  type: 'test'
+  ...
+# Subtest: the composed classifier keeps host validation identity through the preview
+ok 66 - the composed classifier keeps host validation identity through the preview
+  ---
+  duration_ms: 14.04336
+  type: 'test'
+  ...
+# Subtest: sign-in eligibility uses the host credential projection, not Tovu default
+ok 67 - sign-in eligibility uses the host credential projection, not Tovu default
+  ---
+  duration_ms: 10.477142
+  type: 'test'
+  ...
+# Subtest: status and stored-credential reads use the host pure projections
+ok 68 - status and stored-credential reads use the host pure projections
+  ---
+  duration_ms: 1.415111
+  type: 'test'
+  ...
+1..68
+# tests 68
+# suites 0
+# pass 67
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20310.166401

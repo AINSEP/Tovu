@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: browser restart after a committed attached save produces a success card with reload guidance
+ok 1 - browser restart after a committed attached save produces a success card with reload guidance
+  ---
+  duration_ms: 47.382553
+  type: 'test'
+  ...
+# Subtest: the chat card saves the provider's settings into the PROJECT store, not the site vault; the key never reaches the result, transcript or model input
+ok 2 - the chat card saves the provider's settings into the PROJECT store, not the site vault; the key never reaches the result, transcript or model input
+  ---
+  duration_ms: 20.707229
+  type: 'test'
+  ...
+# Subtest: a Custom… choice saves the typed host
+ok 3 - a Custom… choice saves the typed host
+  ---
+  duration_ms: 4.385607
+  type: 'test'
+  ...
+# Subtest: the shared re-entry rule: a changed host with the saved key kept is refused and nothing is written
+ok 4 - the shared re-entry rule: a changed host with the saved key kept is refused and nothing is written
+  ---
+  duration_ms: 8.795027
+  type: 'test'
+  ...
+# Subtest: a blank key with an unchanged host keeps the saved key
+ok 5 - a blank key with an unchanged host keeps the saved key
+  ---
+  duration_ms: 3.851166
+  type: 'test'
+  ...
+# Subtest: a provider plugin that is not installed opens no card
+ok 6 - a provider plugin that is not installed opens no card
+  ---
+  duration_ms: 4.072907
+  type: 'test'
+  ...
+# Subtest: the chat save refuses a missing conditional token with exact guidance and accepts explicit no auth
+ok 7 - the chat save refuses a missing conditional token with exact guidance and accepts explicit no auth
+  ---
+  duration_ms: 6.717865
+  type: 'test'
+  ...
+# Subtest: provider_status reports presence only: configured, missing, store, never a value
+ok 8 - provider_status reports presence only: configured, missing, store, never a value
+  ---
+  duration_ms: 2.476808
+  type: 'test'
+  ...
+# Subtest: a different key card explains site isolation and retains the manifest's help and purposes
+ok 9 - a different key card explains site isolation and retains the manifest's help and purposes
+  ---
+  duration_ms: 0.377857
+  type: 'test'
+  ...
+# Subtest: provider_status exposes manifest requirements and choices with the command that opens settings
+ok 10 - provider_status exposes manifest requirements and choices with the command that opens settings
+  ---
+  duration_ms: 0.805018
+  type: 'test'
+  ...
+# Subtest: the provider_status settings command opens the manifest card without an agent plugin
+ok 11 - the provider_status settings command opens the manifest card without an agent plugin
+  ---
+  duration_ms: 5.072309
+  type: 'test'
+  ...
+# Subtest: assistant reports saved settings with the plugin startup reason and correction, never restart guidance
+ok 12 - assistant reports saved settings with the plugin startup reason and correction, never restart guidance
+  ---
+  duration_ms: 6.215926
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1454.967976

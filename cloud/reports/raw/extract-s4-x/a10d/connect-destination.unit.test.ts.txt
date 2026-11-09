@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: local-only hosts retain their existing sign-in without a choice card
+ok 1 - local-only hosts retain their existing sign-in without a choice card
+  ---
+  duration_ms: 1.55608
+  type: 'test'
+  ...
+# Subtest: shared destination comes only from a principal-bound human answer and cannot be replayed
+ok 2 - shared destination comes only from a principal-bound human answer and cannot be replayed
+  ---
+  duration_ms: 4.1064
+  type: 'test'
+  ...
+# Subtest: unoffered or forged destination answer {"destination":"shared","siteId":"other-site"} is refused
+ok 3 - unoffered or forged destination answer {"destination":"shared","siteId":"other-site"} is refused
+  ---
+  duration_ms: 1.277811
+  type: 'test'
+  ...
+# Subtest: unoffered or forged destination answer {"destination":"shared","credentialId":"guessed"} is refused
+ok 4 - unoffered or forged destination answer {"destination":"shared","credentialId":"guessed"} is refused
+  ---
+  duration_ms: 0.45124
+  type: 'test'
+  ...
+# Subtest: unoffered or forged destination answer {"destination":"unknown"} is refused
+ok 5 - unoffered or forged destination answer {"destination":"unknown"} is refused
+  ---
+  duration_ms: 0.424165
+  type: 'test'
+  ...
+# Subtest: unoffered or forged destination answer {"destination":["shared"]} is refused
+ok 6 - unoffered or forged destination answer {"destination":["shared"]} is refused
+  ---
+  duration_ms: 0.493754
+  type: 'test'
+  ...
+# Subtest: cancel and expiry start no authorization
+ok 7 - cancel and expiry start no authorization
+  ---
+  duration_ms: 1.765997
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 684.957295

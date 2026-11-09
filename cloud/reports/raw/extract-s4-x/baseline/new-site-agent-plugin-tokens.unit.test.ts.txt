@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: parse: absent is none; blanks are dropped; values are trimmed
+ok 1 - parse: absent is none; blanks are dropped; values are trimmed
+  ---
+  duration_ms: 3.511153
+  type: 'test'
+  ...
+# Subtest: parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused
+ok 2 - parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused
+  ---
+  duration_ms: 0.784361
+  type: 'test'
+  ...
+# Subtest: refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not
+ok 3 - refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not
+  ---
+  duration_ms: 0.770629
+  type: 'test'
+  ...
+# Subtest: firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token
+ok 4 - firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token
+  ---
+  duration_ms: 0.572846
+  type: 'test'
+  ...
+# Subtest: a permission refusal stops onboarding without calling the token invalid
+ok 5 - a permission refusal stops onboarding without calling the token invalid
+  ---
+  duration_ms: 0.355091
+  type: 'test'
+  ...
+# Subtest: bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty
+ok 6 - bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty
+  ---
+  duration_ms: 33.127971
+  type: 'test'
+  ...
+# Subtest: the token sign-in list over bundled plugins offers only plugins that declare tokenAuth
+ok 7 - the token sign-in list over bundled plugins offers only plugins that declare tokenAuth
+  ---
+  duration_ms: 3.506098
+  type: 'test'
+  ...
+# Subtest: a missing supplied bundled root never falls back to the shipped plugins
+ok 8 - a missing supplied bundled root never falls back to the shipped plugins
+  ---
+  duration_ms: 1.724149
+  type: 'test'
+  ...
+# Subtest: the new-site sign-in list reads the given bundled root
+ok 9 - the new-site sign-in list reads the given bundled root
+  ---
+  duration_ms: 16.232478
+  type: 'test'
+  ...
+# Subtest: a bundled dir whose manifest name is not a valid plugin id is skipped
+ok 10 - a bundled dir whose manifest name is not a valid plugin id is skipped
+  ---
+  duration_ms: 15.887928
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1538.211948

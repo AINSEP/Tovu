@@ -1,0 +1,226 @@
+TAP version 13
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance
+ok 1 - opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance
+  ---
+  duration_ms: 275.075416
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills
+ok 2 - each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills
+  ---
+  duration_ms: 99.080937
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain
+ok 3 - registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain
+  ---
+  duration_ms: 82.977162
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has
+ok 4 - the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has
+  ---
+  duration_ms: 107.623745
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names
+ok 5 - calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names
+  ---
+  duration_ms: 96.224713
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so
+ok 6 - when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so
+  ---
+  duration_ms: 127.575089
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: an explicit, recognized 'skill' argument returns that skill's own guidance, not the default
+ok 7 - an explicit, recognized 'skill' argument returns that skill's own guidance, not the default
+  ---
+  duration_ms: 83.760338
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error
+ok 8 - an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error
+  ---
+  duration_ms: 94.875351
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful
+ok 9 - a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful
+  ---
+  duration_ms: 142.876767
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub
+ok 10 - the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub
+  ---
+  duration_ms: 136.435573
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output
+ok 11 - SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output
+  ---
+  duration_ms: 111.65423
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# [agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+# Subtest: two installed digests of the same plugin id refuse that plugin loudly, without aborting the load
+ok 12 - two installed digests of the same plugin id refuse that plugin loudly, without aborting the load
+  ---
+  duration_ms: 152.471957
+  type: 'test'
+  ...
+# Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+# Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+# Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+# Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+# Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+# Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+# Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+# Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+# [agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+# Subtest: a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source
+ok 13 - a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source
+  ---
+  duration_ms: 285.143038
+  type: 'test'
+  ...
+# Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+# Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+# Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+# Subtest: a current upgrade exposes only the accepted replacement's guidance
+ok 14 - a current upgrade exposes only the accepted replacement's guidance
+  ---
+  duration_ms: 88.720012
+  type: 'test'
+  ...
+# Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+# Subtest: workspace isolation: a load for workspace A sees nothing installed only under a different workspace
+ok 15 - workspace isolation: a load for workspace A sees nothing installed only under a different workspace
+  ---
+  duration_ms: 56.784889
+  type: 'test'
+  ...
+# Subtest: an empty (never-installed) workspace produces zero sources and an empty registration list, no throw
+ok 16 - an empty (never-installed) workspace produces zero sources and an empty registration list, no throw
+  ---
+  duration_ms: 3.799786
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: the executor denies cached guidance after disable
+ok 17 - the executor denies cached guidance after disable
+  ---
+  duration_ms: 216.28545
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: the executor denies cached guidance after uninstall
+ok 18 - the executor denies cached guidance after uninstall
+  ---
+  duration_ms: 105.559591
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# [agent-plugins] 'coffee-roastery': tool call denied — activation could not be established (activations.json is not valid JSON (Expected property name or '}' in JSON at position 1 (line 1 column 2)))
+# Subtest: the executor denies cached guidance after unreadable-activation
+ok 19 - the executor denies cached guidance after unreadable-activation
+  ---
+  duration_ms: 79.295654
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay
+ok 20 - the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay
+  ---
+  duration_ms: 59.401236
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: a refused host file keeps the overlay and skill guidance with a recovery note
+ok 21 - a refused host file keeps the overlay and skill guidance with a recovery note
+  ---
+  duration_ms: 91.448821
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: an untested plugin's caution stays ahead of its overlay guidance
+ok 22 - an untested plugin's caution stays ahead of its overlay guidance
+  ---
+  duration_ms: 142.27629
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged
+ok 23 - a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged
+  ---
+  duration_ms: 92.339152
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-sqveuh/ws/55555555-5555-4555-8555-555555555555
+# Subtest: the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access
+ok 24 - the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access
+  ---
+  duration_ms: 7178.862267
+  type: 'test'
+  ...
+# Subtest: plugin guidance carries maturity and warns before keys/actions for every maturity flag
+ok 25 - plugin guidance carries maturity and warns before keys/actions for every maturity flag
+  ---
+  duration_ms: 0.856106
+  type: 'test'
+  ...
+# Subtest: L025b guidance pins selection guards, reader recovery and sanitized unknown names
+ok 26 - L025b guidance pins selection guards, reader recovery and sanitized unknown names
+  ---
+  duration_ms: 1.655754
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17074.302438

@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: list (F11): own bindings with the connection id (never the ref) and form slugs; a stored binding without formIds is listed as allForms: true
+ok 1 - list (F11): own bindings with the connection id (never the ref) and form slugs; a stored binding without formIds is listed as allForms: true
+  ---
+  duration_ms: 3.455236
+  type: 'test'
+  ...
+# Subtest: list: a form id whose form is gone is left out of the slugs
+ok 2 - list: a form id whose form is gone is left out of the slugs
+  ---
+  duration_ms: 0.457908
+  type: 'test'
+  ...
+# Subtest: T7: re-saving a binding preserves its temporarily hidden trashed form ids
+ok 3 - T7: re-saving a binding preserves its temporarily hidden trashed form ids
+  ---
+  duration_ms: 0.874153
+  type: 'test'
+  ...
+# Subtest: security: list leaves out another adapter's binding and a binding on another plugin's connection
+ok 4 - security: list leaves out another adapter's binding and a binding on another plugin's connection
+  ---
+  duration_ms: 0.389625
+  type: 'test'
+  ...
+# Subtest: security: a scope in another workspace owns nothing and reads no binding
+ok 5 - security: a scope in another workspace owns nothing and reads no binding
+  ---
+  duration_ms: 0.227814
+  type: 'test'
+  ...
+# Subtest: security: list without a signed-in admin is refused (admin-required)
+ok 6 - security: list without a signed-in admin is refused (admin-required)
+  ---
+  duration_ms: 0.423412
+  type: 'test'
+  ...
+# Subtest: save: a new binding gets a host id, the plugin's own ref and form row ids, is appended, and is written as the admin
+ok 7 - save: a new binding gets a host id, the plugin's own ref and form row ids, is appended, and is written as the admin
+  ---
+  duration_ms: 0.445274
+  type: 'test'
+  ...
+# Subtest: save: an existing own binding is replaced in place, the others kept in order
+ok 8 - save: an existing own binding is replaced in place, the others kept in order
+  ---
+  duration_ms: 0.509732
+  type: 'test'
+  ...
+# Subtest: save (F11): an allForms draft stores no formIds (the forms build's every form) and is answered as allForms: true
+ok 9 - save (F11): an allForms draft stores no formIds (the forms build's every form) and is answered as allForms: true
+  ---
+  duration_ms: 0.372204
+  type: 'test'
+  ...
+# Subtest: save (F11): a draft naming no forms (formIds: []) stores an empty list, never every form
+ok 10 - save (F11): a draft naming no forms (formIds: []) stores an empty list, never every form
+  ---
+  duration_ms: 0.882463
+  type: 'test'
+  ...
+# Subtest: security: saving an adapter the plugin does not contribute is refused (adapter-not-owned); nothing written
+ok 11 - security: saving an adapter the plugin does not contribute is refused (adapter-not-owned); nothing written
+  ---
+  duration_ms: 0.476935
+  type: 'test'
+  ...
+# Subtest: security: saving with a connection the plugin does not declare is refused (connection-not-declared); nothing written
+ok 12 - security: saving with a connection the plugin does not declare is refused (connection-not-declared); nothing written
+  ---
+  duration_ms: 0.234809
+  type: 'test'
+  ...
+# Subtest: save: a form slug this site does not have is refused (form-not-found); nothing written
+ok 13 - save: a form slug this site does not have is refused (form-not-found); nothing written
+  ---
+  duration_ms: 0.262328
+  type: 'test'
+  ...
+# Subtest: security: overwriting another adapter's binding by id is refused (binding-not-found); nothing written
+ok 14 - security: overwriting another adapter's binding by id is refused (binding-not-found); nothing written
+  ---
+  duration_ms: 0.29796
+  type: 'test'
+  ...
+# Subtest: security: ownership is re-read inside the write: a binding that changed adapter after the list is not overwritten
+ok 15 - security: ownership is re-read inside the write: a binding that changed adapter after the list is not overwritten
+  ---
+  duration_ms: 0.35731
+  type: 'test'
+  ...
+# Subtest: security: save without a signed-in admin is refused (admin-required); nothing read or written
+ok 16 - security: save without a signed-in admin is refused (admin-required); nothing read or written
+  ---
+  duration_ms: 0.261422
+  type: 'test'
+  ...
+# Subtest: save: the binding owner's validation refusal becomes delivery-binding-invalid with its message and cause
+ok 17 - save: the binding owner's validation refusal becomes delivery-binding-invalid with its message and cause
+  ---
+  duration_ms: 0.486952
+  type: 'test'
+  ...
+# Subtest: save: any other write failure (authorization, ledger) propagates unchanged
+ok 18 - save: any other write failure (authorization, ledger) propagates unchanged
+  ---
+  duration_ms: 0.321336
+  type: 'test'
+  ...
+# Subtest: save: a second bindings conflict stops retrying and gives the panel an actionable refusal
+ok 19 - save: a second bindings conflict stops retrying and gives the panel an actionable refusal
+  ---
+  duration_ms: 0.632005
+  type: 'test'
+  ...
+# Subtest: remove: deletes only that own binding, written as the admin
+ok 20 - remove: deletes only that own binding, written as the admin
+  ---
+  duration_ms: 0.580599
+  type: 'test'
+  ...
+# Subtest: security: removing another adapter's binding is refused (binding-not-found); nothing written
+ok 21 - security: removing another adapter's binding is refused (binding-not-found); nothing written
+  ---
+  duration_ms: 0.216259
+  type: 'test'
+  ...
+# Subtest: security: remove without a signed-in admin is refused (admin-required); nothing written
+ok 22 - security: remove without a signed-in admin is refused (admin-required); nothing written
+  ---
+  duration_ms: 0.548794
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1191.685089

@@ -1,0 +1,22 @@
+[
+  {
+    "mutation": "declined-actor",
+    "exit": 1,
+    "restoredByteForByte": true
+  },
+  {
+    "mutation": "projection",
+    "exit": 1,
+    "restoredByteForByte": true
+  },
+  {
+    "mutation": "bundled-trust",
+    "exit": 1,
+    "restoredByteForByte": true
+  },
+  {
+    "mutation": "import-actor",
+    "exit": 1,
+    "restoredByteForByte": true
+  }
+]

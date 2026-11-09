@@ -1,0 +1,26 @@
+TAP version 13
+# [preview-port-test] agent-plugin tools could not be registered, continuing without them — Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+# [preview-port-test] skill tools could not be registered, continuing without them — Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+# [preview-port-test] agent-plugin tools could not be registered, continuing without them — Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+# [preview-port-test] skill tools could not be registered, continuing without them — Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+# Subtest: the daemon's capability tool runs a tier-2 plugin fresh through the injected preview binding
+ok 1 - the daemon's capability tool runs a tier-2 plugin fresh through the injected preview binding
+  ---
+  duration_ms: 10.461962
+  type: 'test'
+  ...
+# Subtest: without a preview binding the same tool reads the stored value
+ok 2 - without a preview binding the same tool reads the stored value
+  ---
+  duration_ms: 4.079813
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3631.613035

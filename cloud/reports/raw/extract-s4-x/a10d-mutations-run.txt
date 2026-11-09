@@ -1,0 +1,286 @@
+a10d-mutation-declined-actor: pid=13451
+{"name": "a10d-mutation-declined-actor", "cwd": "/workspace/Tovu", "command": ["node", "--import", "tsx", "--import", "./development/test-support/composed-bundle-env.ts", "--test", "--experimental-test-module-mocks", "--test-concurrency=1", "--test-reporter=tap", "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts"], "pid": 13451, "exit": 1, "seconds": 1.42}
+TAP version 13
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+not ok 1 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 19.130886
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:4281'
+  failureType: 'testCodeFailure'
+  error: |-
+    a declined row is withheld even from the supplied grant callback
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:39:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 2 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 11.360003
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 3 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 3.106916
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 4 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 3.413989
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+ok 5 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 10.335499
+  type: 'test'
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 6 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.561903
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1283.753288
+
+a10d-mutation-projection: pid=13543
+{"name": "a10d-mutation-projection", "cwd": "/workspace/Tovu", "command": ["node", "--import", "tsx", "--import", "./development/test-support/composed-bundle-env.ts", "--test", "--experimental-test-module-mocks", "--test-concurrency=1", "--test-reporter=tap", "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts"], "pid": 13543, "exit": 1, "seconds": 1.59}
+TAP version 13
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+not ok 1 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 122.60974
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:4281'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      grantDeclaredToolsToSignedInRows({ deps: { ...f.grant, onConnected: async () => { declinedCalls += 1; } }, pluginId: 'crm-plugin', servers })
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:40:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+not ok 2 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 2.905979
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:5551'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:53:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 3 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 4.409777
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 4 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 3.873743
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+ok 5 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 13.953873
+  type: 'test'
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 6 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.664393
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 4
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1489.943532
+
+a10d-mutation-bundled-trust: pid=13613
+{"name": "a10d-mutation-bundled-trust", "cwd": "/workspace/Tovu", "command": ["node", "--import", "tsx", "--import", "./development/test-support/composed-bundle-env.ts", "--test", "--experimental-test-module-mocks", "--test-concurrency=1", "--test-reporter=tap", "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts"], "pid": 13613, "exit": 1, "seconds": 1.86}
+TAP version 13
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+ok 1 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 12.488451
+  type: 'test'
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 2 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 6.838088
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 3 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 2.592415
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 4 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 4.734033
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+not ok 5 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 13.794005
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:7536'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'acme:oauth',
+    +   'switch'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'acme:oauth'
+    1: 'switch'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:81:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 6 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.429346
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1733.58399
+
+a10d-mutation-import-actor: pid=13700
+{"name": "a10d-mutation-import-actor", "cwd": "/workspace/Tovu", "command": ["node", "--import", "tsx", "--import", "./development/test-support/composed-bundle-env.ts", "--test", "--experimental-test-module-mocks", "--test-concurrency=1", "--test-reporter=tap", "apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts"], "pid": 13700, "exit": 1, "seconds": 2.14}
+TAP version 13
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+ok 1 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 21.646744
+  type: 'test'
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 2 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 11.94863
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 3 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 4.807485
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 4 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 4.202183
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+not ok 5 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 23.812228
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:7536'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'system:token-import'
+    - 'acme:import'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'acme:import'
+  actual: 'system:token-import'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:86:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 6 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.965991
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2022.722271
+
+[{"mutation": "declined-actor", "exit": 1, "restoredByteForByte": true}, {"mutation": "projection", "exit": 1, "restoredByteForByte": true}, {"mutation": "bundled-trust", "exit": 1, "restoredByteForByte": true}, {"mutation": "import-actor", "exit": 1, "restoredByteForByte": true}]

@@ -1,0 +1,78 @@
+TAP version 13
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+not ok 1 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 122.60974
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:4281'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      grantDeclaredToolsToSignedInRows({ deps: { ...f.grant, onConnected: async () => { declinedCalls += 1; } }, pluginId: 'crm-plugin', servers })
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:40:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+not ok 2 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 2.905979
+  type: 'test'
+  location: '/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:1:5551'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts:53:10)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:752:7)
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 3 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 4.409777
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 4 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 3.873743
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+ok 5 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 13.953873
+  type: 'test'
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 6 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.664393
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 4
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1489.943532

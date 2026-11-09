@@ -1,0 +1,42 @@
+[
+  {
+    "path": "packages/core/src/contracts/cards.ts",
+    "sha256": "bc4757ccf151d5864a423456745958bc832935382c21aaecaf6b7202354da323",
+    "blob": "f3a0b26331a13fca1bdca683f1fe7174efa4d06e"
+  },
+  {
+    "path": "packages/core/src/surface-cards.ts",
+    "sha256": "643b40379e871644d3348fa0c0df5ae6e38216a857b35dc6b192379f04509dce",
+    "blob": "bfea6370d520104b4968797d4ea73d12b3437472"
+  },
+  {
+    "path": "packages/core/src/surface-exchanges.ts",
+    "sha256": "7b191a0a7e859323153c969e0784e8a2e2ca7d082a6915c9fad78feeb6b48365",
+    "blob": "15b3d3cbb6940db1745f85b7876da02554a25216"
+  },
+  {
+    "path": "packages/core/src/contracts/credentials.ts",
+    "sha256": "582535eeee51483d2c2402d9467d3b1c927a9aacc59ae3c09d02903491308843",
+    "blob": "d38d315a4d482d7da0356c1f2fab1f1a0ccc51e7"
+  },
+  {
+    "path": "packages/ui/src/features/mcp-ui/cards.ts",
+    "sha256": "a00d4e1e381c93a6a3caf878ee379b989c651f871a86d0d120b1f0708443f89e",
+    "blob": "c22f0ae9b3d977cbbd0ddb5e459d20fbb4ee6f81"
+  },
+  {
+    "path": "packages/ui/src/features/mcp-ui/credential-card.ts",
+    "sha256": "b2af4e13eb9051db0d7292c25d53cc4037aa4509a774403f148c1013987c45de",
+    "blob": "5298c35992d90a06ccfa16bc8b8b4977d4c9c1b0"
+  },
+  {
+    "path": "packages/ui/src/features/mcp-ui/__tests__/cards-contracts.typecheck.ts",
+    "sha256": "da13dc3704a6e8d1b759d0ae1188b532110e7bcfa2a79f9df220627597210742",
+    "blob": "bd4391d17d9b5d425600857ec672b887f03c1c43"
+  },
+  {
+    "path": "packages/ui/src/features/mcp-ui/__tests__/pinned-cards.typecheck.ts",
+    "sha256": "bf2f29fa8dffca5bc5317dbb6e2ed91f7cd23d55d475165dc823a42c04fb77dd",
+    "blob": "7a1604190bc0f8687d25939b55f072620616c2e3"
+  }
+]

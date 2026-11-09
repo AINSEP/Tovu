@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: each declared effect maps to its own reviewed approval family
+ok 1 - each declared effect maps to its own reviewed approval family
+  ---
+  duration_ms: 2.574742
+  type: 'test'
+  ...
+# Subtest: a call with a connectionRef gets an Account row first, then one Affects row per resource
+ok 2 - a call with a connectionRef gets an Account row first, then one Affects row per resource
+  ---
+  duration_ms: 0.547795
+  type: 'test'
+  ...
+# Subtest: the account is read for the calling plugin and workspace with the connection the projection disclosed
+ok 3 - the account is read for the calling plugin and workspace with the connection the projection disclosed
+  ---
+  duration_ms: 0.231661
+  type: 'test'
+  ...
+# Subtest: the shown account is frozen against the call's own abort signal
+ok 4 - the shown account is frozen against the call's own abort signal
+  ---
+  duration_ms: 0.253264
+  type: 'test'
+  ...
+# Subtest: a withdrawn tool (no disclosure) is refused with the withdrawn message before any account read
+ok 5 - a withdrawn tool (no disclosure) is refused with the withdrawn message before any account read
+  ---
+  duration_ms: 0.738111
+  type: 'test'
+  ...
+# Subtest: a connection that is not connected is refused with the reconnect message and nothing is frozen
+ok 6 - a connection that is not connected is refused with the reconnect message and nothing is frozen
+  ---
+  duration_ms: 0.424846
+  type: 'test'
+  ...
+# Subtest: a call the projection gives no connection shows only the affected resources, reads no account and binds an empty set
+ok 7 - a call the projection gives no connection shows only the affected resources, reads no account and binds an empty set
+  ---
+  duration_ms: 0.263253
+  type: 'test'
+  ...
+# Subtest: T13: an approval for connection A is refused when the call asks for connection B
+ok 8 - T13: an approval for connection A is refused when the call asks for connection B
+  ---
+  duration_ms: 1.318019
+  type: 'test'
+  ...
+# Subtest: T13: a confirmed call with no connection binds an empty set, so any token request is refused
+ok 9 - T13: a confirmed call with no connection binds an empty set, so any token request is refused
+  ---
+  duration_ms: 0.286013
+  type: 'test'
+  ...
+# Subtest: T13: one unconnected connection among several refuses the call and freezes nothing
+ok 10 - T13: one unconnected connection among several refuses the call and freezes nothing
+  ---
+  duration_ms: 0.642886
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1366.548891

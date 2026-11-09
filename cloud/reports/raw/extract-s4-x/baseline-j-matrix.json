@@ -1,0 +1,64 @@
+[
+  {
+    "name": "scripts",
+    "files": [
+      "scripts/__tests__/check-no-cross-package.test.ts",
+      "scripts/__tests__/extract-s3-checker.test.ts",
+      "scripts/__tests__/extract-s3-source-contracts.test.ts",
+      "scripts/__tests__/extract-s4-import-equals.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "agent-plugins",
+    "files": [
+      "src/admin-surfaces/__tests__/surface-capabilities.unit.test.ts",
+      "src/admin-surfaces/__tests__/surface-capabilities.security.test.ts",
+      "src/admin-surfaces/__tests__/action-tools.unit.test.ts",
+      "src/admin-surfaces/__tests__/issued-token-memory.security.test.ts",
+      "src/admin-surfaces/__tests__/plugin-state-persistence.unit.test.ts",
+      "src/lifecycle/mail/__tests__/adapter-descriptors.test.ts",
+      "src/lifecycle/mail/__tests__/no-setup-validator.unit.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "integrations",
+    "files": [
+      "src/api-connections/__tests__/host-seams.unit.test.ts",
+      "src/api-connections/__tests__/keys.unit.test.ts",
+      "src/api-connections/__tests__/service.unit.test.ts",
+      "src/api-connections/__tests__/hosted-sign-in.unit.test.ts",
+      "src/api-connections/__tests__/account-actions.unit.test.ts",
+      "src/api-connections/__tests__/vertical-slice.integration.test.ts",
+      "src/api-connections/__tests__/byo-origin-order.unit.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "platform",
+    "files": [
+      "src/mail/__tests__/provider-setup.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "ui",
+    "files": [
+      "src/features/mcp-ui/__tests__/credential-card.unit.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "neutral-host",
+    "files": [
+      "src/provider-status.test.ts",
+      "src/contribution-contracts.test.ts",
+      "src/mail-host.test.ts",
+      "src/api-host-moves.test.ts",
+      "src/executable-surface-entries.test.ts",
+      "src/connect-plugin-host.test.ts"
+    ],
+    "exit": 0
+  }
+]

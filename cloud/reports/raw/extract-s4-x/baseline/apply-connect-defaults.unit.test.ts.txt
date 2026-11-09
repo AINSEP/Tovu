@@ -1,0 +1,177 @@
+TAP version 13
+# Subtest: after the first OAuth callback, a plugin-provisioned row with empty lists is enabled with the declared tools
+ok 1 - after the first OAuth callback, a plugin-provisioned row with empty lists is enabled with the declared tools
+  ---
+  duration_ms: 542.016979
+  type: 'test'
+  ...
+# Subtest: T21: OAuth sign-in respects an operator's explicit plugin-off decision
+ok 2 - T21: OAuth sign-in respects an operator's explicit plugin-off decision
+  ---
+  duration_ms: 55.880494
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Subtest: OAuth callback composes installed defaults with real plugin activation storage
+ok 3 - OAuth callback composes installed defaults with real plugin activation storage
+  ---
+  duration_ms: 228.226027
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Subtest: an operator turning the plugin OFF after the off-check but before the enable keeps it off and grants nothing
+ok 4 - an operator turning the plugin OFF after the off-check but before the enable keeps it off and grants nothing
+  ---
+  duration_ms: 197.145286
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [external-mcp] 'supabase': post-connect step failed: 'supabase' is part of the 'acme-provider' plugin and turns on and off with it. Switch 'acme-provider' instead: Add-Ons → Plugins, or plugins_set_enabled with family 'site-runtime' and pluginId 'acme-provider'.
+# Subtest: a sign-in never switches on a provider plugin's linked face (its provider's switch decides), and grants nothing
+ok 5 - a sign-in never switches on a provider plugin's linked face (its provider's switch decides), and grants nothing
+  ---
+  duration_ms: 131.398507
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+# Subtest: a sign-in never switches on a plugin this host is incompatible with, and grants nothing
+ok 6 - a sign-in never switches on a plugin this host is incompatible with, and grants nothing
+  ---
+  duration_ms: 172.163024
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+# Subtest: an incompatible plugin whose activation is absent gets no grants from a sign-in, and its record is untouched
+ok 7 - an incompatible plugin whose activation is absent gets no grants from a sign-in, and its record is untouched
+  ---
+  duration_ms: 218.67398
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: a compatible plugin whose activation is absent gets its grants, and its record is not rewritten
+ok 8 - a compatible plugin whose activation is absent gets its grants, and its record is not rewritten
+  ---
+  duration_ms: 155.695546
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+# Subtest: an incompatible plugin whose activation is operator-on gets no grants from a sign-in, and its record is untouched
+ok 9 - an incompatible plugin whose activation is operator-on gets no grants from a sign-in, and its record is untouched
+  ---
+  duration_ms: 132.51803
+  type: 'test'
+  ...
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [external-mcp] 'supabase': post-connect step failed: activation store unwritable
+# Subtest: a compatible plugin whose activation is operator-on gets its grants, and its record is not rewritten
+ok 10 - a compatible plugin whose activation is operator-on gets its grants, and its record is not rewritten
+  ---
+  duration_ms: 72.838801
+  type: 'test'
+  ...
+# Subtest: a row the operator already edited is untouched by a sign-in
+ok 11 - a row the operator already edited is untouched by a sign-in
+  ---
+  duration_ms: 38.361859
+  type: 'test'
+  ...
+# Subtest: an operator's own row (no provisioning plugin) is untouched by a sign-in
+ok 12 - an operator's own row (no provisioning plugin) is untouched by a sign-in
+  ---
+  duration_ms: 6.223275
+  type: 'test'
+  ...
+# Subtest: a provisioned row whose url no longer matches the plugin's declaration is untouched
+ok 13 - a provisioned row whose url no longer matches the plugin's declaration is untouched
+  ---
+  duration_ms: 10.156956
+  type: 'test'
+  ...
+# Subtest: a second sign-in after the defaults applied changes nothing further
+ok 14 - a second sign-in after the defaults applied changes nothing further
+  ---
+  duration_ms: 27.375396
+  type: 'test'
+  ...
+# Subtest: a failing post-connect step never fails the sign-in, and leaves the row for the next sign-in to retry
+ok 15 - a failing post-connect step never fails the sign-in, and leaves the row for the next sign-in to retry
+  ---
+  duration_ms: 4.689948
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 22339.65792

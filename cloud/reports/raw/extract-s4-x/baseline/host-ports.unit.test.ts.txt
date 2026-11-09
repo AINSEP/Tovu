@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: the registrar consumes the host definition and contribution builders without replacing their owner
+ok 1 - the registrar consumes the host definition and contribution builders without replacing their owner
+  ---
+  duration_ms: 6.024985
+  type: 'test'
+  ...
+# Subtest: host disclosure labels and refusals pass through while the original frozen map is bound
+ok 2 - host disclosure labels and refusals pass through while the original frozen map is bound
+  ---
+  duration_ms: 2.071955
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2734.332889

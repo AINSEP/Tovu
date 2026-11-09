@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: the exact https or http origin of this host is admitted, with or without fetch metadata
+ok 1 - the exact https or http origin of this host is admitted, with or without fetch metadata
+  ---
+  duration_ms: 0.964127
+  type: 'test'
+  ...
+# Subtest: security: a missing Origin or a missing Host is refused
+ok 2 - security: a missing Origin or a missing Host is refused
+  ---
+  duration_ms: 0.302977
+  type: 'test'
+  ...
+# Subtest: security: fetch metadata other than same-origin is refused even with a matching Origin
+ok 3 - security: fetch metadata other than same-origin is refused even with a matching Origin
+  ---
+  duration_ms: 0.194339
+  type: 'test'
+  ...
+# Subtest: security: a sandboxed frame's opaque "null" origin is refused
+ok 4 - security: a sandboxed frame's opaque "null" origin is refused
+  ---
+  duration_ms: 0.219619
+  type: 'test'
+  ...
+# Subtest: security: another host or port is refused
+ok 5 - security: another host or port is refused
+  ---
+  duration_ms: 0.146129
+  type: 'test'
+  ...
+# Subtest: security: an Origin that is not a bare origin (path, trailing slash, credentials) is refused
+ok 6 - security: an Origin that is not a bare origin (path, trailing slash, credentials) is refused
+  ---
+  duration_ms: 0.175752
+  type: 'test'
+  ...
+# Subtest: security: a non-http(s) scheme naming this host is refused
+ok 7 - security: a non-http(s) scheme naming this host is refused
+  ---
+  duration_ms: 0.502618
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 959.923965

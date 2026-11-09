@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports
+ok 1 - other host: card lifecycle id, namespace, apps, form copy and askThenReport are host input; save goes through its ports
+  ---
+  duration_ms: 4.454109
+  type: 'test'
+  ...
+# Subtest: other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved
+ok 2 - other host: invalid token uses the host rule and copy; an unclassified validator error is rethrown as the same object; nothing saved
+  ---
+  duration_ms: 0.981401
+  type: 'test'
+  ...
+# Subtest: other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy
+ok 3 - other host: cancel / blank results, refusal copy, prepare refusals use host permission and copy
+  ---
+  duration_ms: 2.419417
+  type: 'test'
+  ...
+# Subtest: Tovu shim: same validator error identity/rule, probe classification and host bytes
+ok 4 - Tovu shim: same validator error identity/rule, probe classification and host bytes
+  ---
+  duration_ms: 22.564363
+  type: 'test'
+  ...
+# Subtest: token sign-in: object API uses the host token rule and installed reads
+ok 5 - token sign-in: object API uses the host token rule and installed reads
+  ---
+  duration_ms: 3.758513
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2565.485346

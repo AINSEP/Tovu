@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 1 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 2.156141
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 2 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.374877
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 3 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 0.470452
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 4 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 1.011268
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 5 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 1.6324
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 785.834436
