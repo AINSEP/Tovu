@@ -1,0 +1,8 @@
+{
+  "note": "Obviously synthetic test key bytes 00..1f; never a real secret.",
+  "hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "keyId": "extract-s8-synthetic",
+  "hkdfSalt": "HKDF_EXTRACTION_SALT",
+  "clock": "2026-11-01T00:00:00.000Z",
+  "workspaceId": "ws-extract-s8"
+}

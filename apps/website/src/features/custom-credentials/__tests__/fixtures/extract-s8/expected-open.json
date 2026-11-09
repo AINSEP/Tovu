@@ -1,0 +1,25 @@
+{
+  "Legacy custom": {
+    "id": "cred-legacy-custom",
+    "category": "general",
+    "baseUrl": "https://legacy.example.test",
+    "additionalHosts": [
+      "https://legacy-files.example.test"
+    ],
+    "connection": {
+      "token": "synthetic-legacy-token-000000000002"
+    }
+  },
+  "Vendor bridge": {
+    "id": "cred-vendor-custom",
+    "category": "hosting",
+    "baseUrl": "https://api.example.test/v1",
+    "additionalHosts": [
+      "https://upload.example.test"
+    ],
+    "connection": {
+      "token": "synthetic-vendor-token-000000000001",
+      "username": "fixture-login"
+    }
+  }
+}
