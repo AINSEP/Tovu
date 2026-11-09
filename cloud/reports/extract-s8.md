@@ -1266,3 +1266,15 @@ for pure-contract imports/declaration documentation and absence of product defau
 closure. Existing tests/fixtures are frozen (allowance NONE). Full 54-file inherited Tovu matrix plus
 all new tests, explicit pin compilation, core/integrations builds/types, neutral host, Jini matrices,
 original-snapshot XP1–XP5 and complete raw guards are required again at the final source pair.
+
+Inventory resolution before implementation: the new injected entries also take a narrow
+`CredentialToolActorDeps` (core LegacyToolAuthorizeFn, workspace id and trusted scheme loader),
+`CredentialToolSurfaces` (core exchange store), and `operations.sets: CredentialToolSetsPort`.
+The latter binds the existing C1 list/describe/byLabel/resolve/setUsername/create/replace functions
+over the same host policy and repo rather than exporting the broad Tovu route-deps type. Its
+create/replace callbacks receive the supplied abort guard, signal and trusted principal where
+needed; they preserve owner replacement, scope grants and CAS. These are consumer-only core-type
+contracts with declaration @agent-notes, no new domain package or runtime implementation move.
+Summary categories remain the core's host-supplied string; the Tovu binding preserves its existing
+stored category union. This resolves the C1 row's prospective C3 type closure without a Tovu type
+import or a cross-package import.
