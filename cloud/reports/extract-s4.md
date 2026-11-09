@@ -1015,7 +1015,7 @@ Bases: Tovu 70f9d183, Jini f774b9e5 (Jini **unchanged**). Skills file not loaded
 - 32d12ad9 — fix: connect-tool T shim reads `routeDeps.mcp` lazily (memoized getter, first read on first use = after the permission check, as before A10b) + new test `a10c-connect-lazy-mcp.unit` (1).
 - f125fe53 — `git mv` A/access-token-tool.ts → A/portable/access-token-tool.ts, then edits; old path re-created as a thin T shim (unchanged signatures). Portable parent blob = 70f9d183 `A/access-token-tool.ts` 218e8422. New test `a10c-access-token-seam.unit` (4) + raws.
 - 7055cd0a — `git mv` A/token-sign-in.ts → A/portable/token-sign-in.ts (parent blob 3bf1efbd), edits; T shim keeps positional `listTokenSignInPlugins(workspaceId, listPlugins)` / `checkAgentPluginAccessToken(deps, input)`. +1 test in `a10c-access-token-seam.unit` (now 5).
-- Report/STATE commit: see the push line at the end of this section.
+- fc12ff1c — this report + gate raws (pushed, ls-remote verified).
 
 ### Item 0 — A10b regression (test-first)
 - Test: `a10c-connect-lazy-mcp.unit`: T `runAgentPluginConnect` with `authorize` denying and `routeDeps.mcp` as a throwing getter spy; asserts rejection is the permission refusal, permission asked once (`admin.integrations.manage`), and **zero** `mcp` reads.
