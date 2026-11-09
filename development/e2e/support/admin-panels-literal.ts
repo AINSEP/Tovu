@@ -17,7 +17,17 @@ function isIdentityPreservingPanelMap(call: ts.CallExpression): boolean {
   if (!ts.isObjectLiteralExpression(body)) return false;
   const [first, ...rest] = body.properties;
   if (!first || !ts.isSpreadAssignment(first) || !ts.isIdentifier(first.expression) || first.expression.text !== parameter.text) return false;
-  return rest.every(member => !ts.isSpreadAssignment(member) && member.name !== undefined && !["id", "nav"].includes(member.name.getText()));
+  return rest.every(member => {
+    if (ts.isSpreadAssignment(member)) return false;
+    const name = staticPropertyName(member.name);
+    return name !== undefined && name !== "id" && name !== "nav";
+  });
+}
+
+/** `id`, `"id"` and `'id'` all name the same key; a computed name (`["id"]`, `[key]`) is unknown. */
+function staticPropertyName(name: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
+  return undefined;
 }
 
 /**
