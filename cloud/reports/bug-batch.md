@@ -123,3 +123,61 @@ No test by that name exists on this base. The closest match is `server/runtime/c
 - No processes were left running.
 
 BUG-BATCH DONE
+
+## BUG-BATCH-2
+
+This is the owner-approved follow-up to an independent review: same branch, `cloud/bug-batch` in both repos. Raw outputs are in `cloud/reports/raw/bug-batch-2/`.
+
+| # | Fix | Commit |
+|---|-----|--------|
+| 1 | data-module `dbPath` matched by file identity; a mismatch only warns | Tovu `da0b05264` |
+| 2 | Sign in open request times out after 30 s and releases its guard | Jini `fa3f5d229` |
+
+### 1. dbPath identity and no boot refusal (Tovu `da0b05264`)
+
+This supersedes the `DB_PATH_MISMATCH` refusal from bug 4 above.
+
+- **Confirmed:** the BUG-BATCH check compared canonical path strings. One database file reached through a second path is refused with `DB_PATH_MISMATCH`, so its tables stay uninstalled. In the regression test the second path is a hard link: same `(dev, ino)`, different path. It stands in for the same site directory behind two bind mounts, which can't be made here.
+- **Fix** in `features/plugins/data-module.ts`, for a file-backed SQLite declare:
+  - The open file comes from `pragma_database_list` (`main`). The named `dbPath` and that file are compared by `statSync` `dev` and `ino`.
+  - A genuinely different file, a missing file, or an in-memory connection logs a plain `console.warn` and the install proceeds. The message is: "`<dbPath>` is not the database this connection has open (`<file>`). Its tables are installed in the open database, and the safety snapshot and disk-space check use it too. Fix the configured database path."
+  - Headroom and the snapshot always use the database the connection has open. An in-memory connection takes no snapshot.
+  - Callers passing `dbPath: ":memory:"` are unchanged.
+- **Tests** in `__tests__/data-module.test.ts`:
+  - The different-file case was rewritten. It now checks for exactly one warning, a completed install, headroom measured on the open file, the snapshot beside the open file, and nothing written beside the wrong file.
+  - Added: "a different path to the same database file (a second mount, a hard link) installs without a warning".
+  - In `data-module.dialects.test.ts`, the sqlite branch (in-memory kernel, `/nonexistent/content.db`) now expects `ok: true` and `snapshotPath: null` instead of the refusal.
+- **Red** (`fix1-red.txt`): 3 failures. The same-file case failed with `DB_PATH_MISMATCH`; the other two were the rewritten cases.
+- **Mutations:**
+  - Going back to comparing path strings makes only the same-file case red (`fix1-mutation-a-path-compare.txt`).
+  - Snapshotting the named path again makes only the different-file case red (`fix1-mutation-b-snapshot-named-path.txt`).
+- **Green:**
+  - The two data-module files pass 54/54 (`fix1-green.txt`).
+  - All plugin tests plus the comments and newsletter tests pass 611/611 (`fix1-green-wider.txt`).
+  - `tsc -p tsconfig.json --noEmit` and `tsc -p tsconfig.tests.json` both report 0 errors (`fix1-tsc-main.txt`, `fix1-tsc-tests.txt`).
+- Command: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2 <files>`
+
+### 2. Sign in open request that never answers (Jini `fa3f5d229`). Not seen in a browser.
+
+- **Confirmed by reading:** the bridge keeps unanswered requests with no timeout (`surfaces/bridge.ts` `request`). The BUG-BATCH guard (`opening`) cleared only when the request settled, so a lost reply made every later Sign in click return silently.
+- **Fix** in `surfaces/outcome.ts`:
+  - The request now races one named constant, `OPEN_LINK_TIMEOUT_MS = 30_000`.
+  - On timeout the card shows "Failed: The link did not open within 30 seconds. Try again." through the existing failure path, which re-enables the buttons.
+  - The guard and the timer are released when the request settles or times out.
+  - Clicks before the deadline still reuse the request in progress.
+- **Test** in `__tests__/surfaces/outcome.test.ts`, with fake timers. A request that never answers is still coalesced at 29,999 ms. At 30,000 ms the failure text is shown and both buttons are enabled. A retry calls `openLink` again and succeeds, a later click opens again, and only one timer is left.
+- **Red** (`fix2-red.txt`): the status stays `partial` with no timeout.
+- **Mutations:**
+  - Not releasing the guard on timeout fails the retry (`fix2-mutation-a-guard-kept.txt`).
+  - Not clearing the timer leaves 2 timers instead of 1 (`fix2-mutation-b-timer-not-cleared.txt`).
+- **Green** (`fix2-green.txt`): mcp-ui passes 525/525. The ui type-check `tsc -p tsconfig.json --noEmit` is clean (`fix2-typecheck-ui.txt`).
+- Command: `npx vitest run src/features/mcp-ui/__tests__/ --maxWorkers=2 --minWorkers=1`
+
+### New findings (listed, not fixed)
+
+1. After a failed or timed-out open, a later successful retry leaves the "Failed: …" status in place. The refused path did this before BUG-BATCH too.
+2. Each timed-out request stays in the bridge's `pending` map forever, because the bridge itself has no timeout. This is a small leak per lost reply.
+
+No processes were left running.
+
+BUG-BATCH-2 DONE

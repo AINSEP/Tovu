@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts (25 tests | 1 failed | 24 skipped) 64ms
+   × cancellable outcome sign-in that the Host never answers > coalesces clicks until a 30-second deadline, then says so plainly and lets a retry open the link 62ms
+     → expected 'partial' to be 'failed' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/mcp-ui/__tests__/surfaces/outcome.test.ts > cancellable outcome sign-in that the Host never answers > coalesces clicks until a 30-second deadline, then says so plainly and lets a retry open the link
+AssertionError: expected 'partial' to be 'failed' // Object.is equality
+
+Expected: "failed"
+Received: "partial"
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome.test.ts:205:37
+    203|       expect(surface.api.openLink).toHaveBeenCalledTimes(1);
+    204|       await vi.advanceTimersByTimeAsync(1);
+    205|       expect(surface.statusState()).toBe('failed');
+       |                                     ^
+    206|       expect(surface.status()).toBe('Failed: The link did not open wit…
+    207|       expect(surface.disabledActions()).toEqual([false, false]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 24 skipped (25)
+   Start at  06:29:09
+   Duration  2.12s (transform 333ms, setup 546ms, collect 386ms, tests 64ms, environment 794ms, prepare 88ms)
+
