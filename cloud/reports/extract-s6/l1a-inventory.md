@@ -113,3 +113,21 @@ Tovu callers of the T module: `features/plugin-runtime/host-binding.ts:13`,
 `server/runtime/composition/declared-content-types.ts:11`, and the existing
 `declarative-content-types.unit.test.ts` — all keep their imports unchanged.
 No prerequisite and no owner-import-rule conflict found.
+
+## Resolution (after implementation)
+
+Every row above is resolved as listed; no row needed a design stop.
+
+- Jini: `d775c681` (new `plugins/src/host/declarative-content-types.ts`, `export *` added to
+  `plugins/src/host/index.ts`), `01b36f27` (NEW test
+  `plugins/src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts`, changeset
+  `.changeset/extract-s6-l1a-plugins-host.md`), `1f7bcbe1` (@agent-notes on every exported item).
+- Tovu: `f700769d` — `features/plugin-runtime/declarative-content-types.ts` is a binder (54 code
+  lines) keeping every old export/signature; `host-binding.ts` and
+  `server/runtime/composition/declared-content-types.ts` unchanged.
+- Emitted declarations: `@jini-ai/plugins/dist/host/declarative-content-types.d.ts` carries all 28
+  `@agent-note` blocks; `dist/host/index.d.ts` re-exports the module.
+- Transport check: the closure bodies differ from the pin only by indentation, the
+  `DeclaredContentType`/`DeclaredContentTypePlan`/`DeclaredContentTypePorts` → concrete J names,
+  and `!(result.error instanceof ContentTypeAlreadyExistsError)` →
+  `!isAlreadyExists({ error: result.error })`.
