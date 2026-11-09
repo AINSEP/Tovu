@@ -198,7 +198,7 @@ test('every bundled agent and site package declares a distinct publisher identit
   }
   for (const entry of packages) {
     const value = JSON.parse(await readFile(path.join(entry.packageRoot, 'plugin.json'), 'utf8'));
-    const identity = readPluginIdentity({ manifest: value, namespace: 'tovu' });
+    const identity = readPluginIdentity({ manifest: value, namespace: 'jini' });
     assert.equal(identity.id, JINI_PUBLISHED_IDENTITIES.get(entry.pluginId) ?? 'tovu/' + value.name);
     assert.ok(identity.keywords.length > 0);
     assert.ok(identity.provides.length > 0);

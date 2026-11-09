@@ -39,7 +39,7 @@ function servers(read: string[]): Readonly<Record<string, McpServerConfig>> {
   if (!parsed.ok) throw new Error("invalid fixture");
   const remote = parsed.config.servers.remote;
   assert.ok(remote && remote.type !== "stdio", "the fixture must declare a remote server");
-  assert.deepEqual(remote.tovuDefaultTools?.read, read, "the fixture must contain a valid read declaration");
+  assert.deepEqual(remote.defaultTools?.read, read, "the fixture must contain a valid read declaration");
   return parsed.config.servers;
 }
 

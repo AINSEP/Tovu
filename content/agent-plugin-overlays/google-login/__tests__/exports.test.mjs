@@ -14,7 +14,7 @@ const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-login' });
 
 const root = pathToFileURL(`${PLUGIN_ROOT}/`);
 const raw = JSON.parse(readFileSync(new URL('plugin.json', root), 'utf8'));
-const parsed = parseAgentPluginManifest({ value: raw }, { identityNamespace: 'tovu' });
+const parsed = parseAgentPluginManifest({ value: raw }, { identityNamespace: 'jini' });
 const workspaceId = 'ws-google-button';
 const config = { type: 'plugin', plugin: 'tovu/google-login', component: 'sign-in-button', version: 1, props: { variant: 'light' } };
 

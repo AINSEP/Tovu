@@ -69,7 +69,7 @@ test('a declined enable remains a choice when a seeded-off plugin signs in later
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const clock = { nowMs: () => Date.parse('2026-11-05T12:00:00Z') };
-  const servers = { media: { type: 'streamable-http' as const, url: 'https://media.example.test/mcp', tovuAuthMode: 'oauth' as const, tovuDefaultTools: { allow: ['read'], write: [] } } };
+  const servers = { media: { type: 'streamable-http' as const, url: 'https://media.example.test/mcp', authMode: 'oauth' as const, defaultTools: { allow: ['read'], write: [] } } };
   await saveExternalMcpServer({ repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) }, {
     workspaceId: WORKSPACE_ID, serverId: 'media', label: 'Media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
     url: servers.media.url, command: '', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', provisionedByPluginId: input.pluginId,

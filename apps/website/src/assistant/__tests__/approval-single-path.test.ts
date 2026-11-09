@@ -10,7 +10,7 @@ const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 // search package (`@jini-ai/search/tools`' approval handler; Tovu passes the card as `askHuman`). Reauth is an
 // acknowledgement notice, with no approval or effect; secret forms and choices keep their owners.
 const allowedCalls = new Map([
-  ['requireHumanConfirm', new Set(['contracts/core/human-confirm.ts', 'assistant/tool-approval-policy.ts', 'features/database-transfer/tool-registrations.ts', 'server/runtime/composition/site-search-tools.ts'])],
+  ['requireHumanConfirm', new Set(['contracts/core/human-confirm.ts', 'assistant/tool-approval-policy.ts', 'features/database-transfer/tool-registrations.ts', 'server/runtime/composition/site-search-tools.ts', 'features/custom-credentials/tool-registrations.ts'])],
   ['buildConfirmationSurface', new Set(['contracts/core/human-confirm.ts', 'assistant/external-mcp-reauth-tool.ts'])],
   ['classifyConfirmationAnswer', new Set(['contracts/core/human-confirm.ts'])],
 ]);

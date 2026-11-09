@@ -11,7 +11,7 @@ import { resolveSiteGuideEngine, TOVU_CAPABILITY_CARDS } from "#src/server/runti
 test("How Tovu works uses stable manifest identity and valid main topics with real workflow gates", async () => {
   const root = resolve("content/agent-plugins/how-tovu-works");
   const manifest = JSON.parse(await readFile(resolve(root, "plugin.json"), "utf8"));
-  assert.equal(manifest.extensions.tovu.id, "tovu/how-tovu-works"); assert.deepEqual(manifest.extensions.tovu.provides, ["site-guide"]);
+  assert.equal(manifest.extensions.jini.id, "tovu/how-tovu-works"); assert.deepEqual(manifest.extensions.jini.provides, ["site-guide"]);
   assert.ok(manifest.keywords.includes("forms")); assert.ok(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("how-tovu-works"));
   const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(resolve(root, SITE_GUIDE_FILENAME), "utf8") });
   if (!parsed.ok) throw new Error(parsed.reason);

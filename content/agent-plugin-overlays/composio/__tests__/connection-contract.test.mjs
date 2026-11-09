@@ -15,7 +15,7 @@ test('the hosted connection supports browser sign-in without inline credentials'
   assert.equal(parseAgentPluginManifest({ value: manifest }).ok, true);
   assert.equal(parseAgentPluginMcpConfig({ value: config }, { pluginManifest: manifest }).ok, true);
   assert.deepEqual(config.mcpServers.composio, {
-    type: 'streamable-http', url: 'https://connect.composio.dev/mcp', tovuAuthMode: 'oauth',
+    type: 'streamable-http', url: 'https://connect.composio.dev/mcp', authMode: 'oauth',
   });
   const skill = await readFile(path.join(PLUGIN_ROOT, 'skills/composio/SKILL.md'), 'utf8');
   assert.match(skill, /agent_plugin_connect/);

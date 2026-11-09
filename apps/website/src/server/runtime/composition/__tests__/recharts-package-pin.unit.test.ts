@@ -73,8 +73,8 @@ test("a missing package is a loud packaging error, never a silent content/plugin
 
 test("the agent face (@jini-ai/agent-plugins/charts-recharts) drives this runtime source", () => {
   const facePath = createRequire(import.meta.url).resolve("@jini-ai/agent-plugins/charts-recharts");
-  const face = JSON.parse(readFileSync(facePath, "utf8")) as { name: string; extensions?: { tovu?: { id?: string; providerPlugin?: string } } };
+  const face = JSON.parse(readFileSync(facePath, "utf8")) as { name: string; extensions?: { jini?: { id?: string; providerPlugin?: string } } };
   assert.equal(face.name, "charts-recharts");
-  assert.equal(face.extensions?.tovu?.providerPlugin, RECHARTS_BROWSER_APPROVAL.pluginId);
-  assert.equal(face.extensions?.tovu?.id, "jini/charts-recharts-agent");
+  assert.equal(face.extensions?.jini?.providerPlugin, RECHARTS_BROWSER_APPROVAL.pluginId);
+  assert.equal(face.extensions?.jini?.id, "jini/charts-recharts-agent");
 });
