@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/server
+
+ ✓ src/lifecycle/__tests__/boot-lifecycle.characterization.unit.test.ts (8 tests) 19ms
+ ✓ src/lifecycle/__tests__/boot-lifecycle.test.ts (8 tests) 40ms
+ ✓ src/lifecycle/__tests__/readiness-state.test.ts (4 tests) 6ms
+
+ Test Files  3 passed (3)
+      Tests  20 passed (20)
+   Start at  06:22:28
+   Duration  784ms (transform 163ms, setup 0ms, collect 192ms, tests 65ms, environment 1ms, prepare 221ms)
+
