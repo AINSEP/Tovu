@@ -364,3 +364,47 @@ C1 new tests, named before they are written (T-relative, all NEW files):
 - `features/custom-credentials/__tests__/extract-s8-c1-second-host.test.ts` — a second host (different owner key, category list and messages, its own error classes) drives the generic `sets/` store + vault repo over the platform in-memory vault: create/list/describe/resolve/update/delete, owner/null/kind enforcement, canonical error construction + classifier + context, scope/replace/grants with a project half, same vault identity and read/open/seal/write counts, metadata reads with 0 opens.
 - `features/custom-credentials/__tests__/extract-s8-c1-source-scan.test.ts` — the `sets/` files import nothing but `@jini-ai/core/*` and same-dir files (no db/platform/UI/Tovu/project/vendor path, no `tovu` owner literal); T old-entry identity: `store.ts` error classes are the `sets/store.ts` objects, `CustomCredentialVaultRepo` constructor shape/instance fields, `repo.vault === suppliedVault`, VaultError identity for context/invalid-record, raw UNIQUE message.
 - `features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts` — independent hand-written copies of the old `types.ts` shapes; exact key/readonly/optional/assignability checks against the aliases, compiled explicitly with `tsc --noEmit` (its runtime body is one trivial node test).
+
+## C1 seam
+
+Coordinator boundary C0→C1: 2026-11-09T07:20:58Z, elapsed 25m37s of 150m, running token total ≈ 412k (setup 131k, C0 241k, coordinator ≈ 40k) of 1.9M cap.
+
+Window: 07:11Z–07:35Z (drafting from 07:11Z, edits after c0-green 07:21Z; ~24 min). Nothing moved into Jini except pure types in core.
+
+Commits (all pushed, `git ls-remote` verified):
+- Tovu: 436862ecea8c46796e3dcf12fe3a61f82f0c9ee0 (inventory), 79e039b1ca8dfea70bcd07e90f27852649e62df5 (seam), af4c1cddf28b6b5e0e15acddb6857c9f95b3907d (new tests + one comment reword), 1a8e1bd483c78eb1e41f791c64bd2de7808b4e79 (strict-lint), 98212b56b0c387514bb362381e0a51e1c7b9c9e8 (repair), plus this report commit.
+- Jini: 23c19e2ae22192713ef2cb08bd2cb729276e8ea9 (core contracts), 41ff2ffecfbcbb94b4ed0da76491a46a1f5f347f (changeset `extract-s8-c1-credential-set-contracts.md`, @jini-ai/core minor).
+
+Files (T = apps/website/src/features/custom-credentials/):
+- NEW generic (only `@jini-ai/core/*` + same-dir imports): T sets/host.ts (102), sets/vault-repo.ts (≈151), sets/store.ts (550).
+- NEW Tovu binder: T tovu-credential-sets.ts (57) — owner `tovu`, parseTovuStoreMeta, byVaultLabel, `new VaultError({code})` + instanceof classifier, raw UNIQUE message, createTovuStoreVault+storage error, credentialScopes/credentialCreateTarget, isUniqueViolation, ProjectKeyCreateConflictError, token policy with the @tovu/contracts detector, normalizeCredentialWorksFor, CUSTOM_CREDENTIAL_CATEGORIES, all host wording.
+- MODIFIED thin bindings: T store.ts (+34/−461; every export, signature and deps/input interface kept verbatim; error classes re-exported as the same objects), vault-repo.ts (+19/−111; `customVaultScope`/`customVaultRecord`/`CustomCredentialVaultRepo` same signatures; the :44 inline `import()` type replaced by a type import + injected `findRowByLabel` on the same vault), types.ts (+37/−87; every name is now an alias of the core contract specialized to `CustomCredentialCategoryId`; `allowedOriginsFor` runtime unchanged in T; field-level why comments kept in the alias docs).
+- J packages/core/src/contracts/credentials.ts (+122): CredentialSetTokenHint, CredentialSetKeyringPort, CredentialSetConnectionInput, CredentialSetRecord<C>, CredentialSetScope, CredentialSetSummary<C>, CredentialSetProjectScope<C>, CredentialSetRepoPort<C>, each with @agent-note (metadata never decrypts; non-enumerable private vault context, same vault + CAS; trusted owner/null/kind/AAD; scope/grant/replacement; findByLabel indexed + same authorization). Relative type import from ./vault.js only; emitted JS is `export {}` + comments (XP4).
+- NEW tests: T __tests__/extract-s8-c1-second-host.test.ts (8), extract-s8-c1-source-scan.test.ts (6), extract-s8-c1-old-shape.types.test.ts (1 + compile-time pin).
+
+Inventory correction found during implementation: Tovu's `KeyringPort` (via @jini-ai/integrations/webhooks) has a zero-argument `activeKey()`, while core's vault `KeyringPort` takes `_required`. Using core's would have changed the old project-scope shape, so core gets the narrow `CredentialSetKeyringPort` (zero-arg; both keyring shapes satisfy it). The old-shape pin proves it (mutation to core's port fails compile).
+
+Comment reword in moved-to-be code (exact): sets/store.ts copy of store.ts:36 — before `realistic cause is a missing site key (\`TOVU_SITE_KEY\`), same fail-closed`, after `realistic cause is a missing store key (a host environment setting), same fail-closed`. The original line is unchanged in Tovu history; `TOVU_SITE_KEY` remains in T comments/tests only.
+
+Repair (own bug, red → fix → green): the first seam held the host policy in a `#policy` private field. The existing C2-matrix test features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts wraps the repo with `Object.create(inner)`, which cannot reach a `#private` field (red: 6/7, \"form must be raised\"). Fixed by storing the policy as a non-enumerable `declare`d property (own keys stay `vault, project, findByLabel`); new regression case in extract-s8-c1-source-scan. That existing test was NOT edited; it is 7/7 again.
+
+Gate (after the repair commit; Node 24.2.0):
+| step | command | exit | result |
+|---|---|---|---|
+| core build | `pnpm --filter @jini-ai/core run build` | 0 | — |
+| core tsc | `pnpm --filter @jini-ai/core exec tsc --noEmit` | 0 | — |
+| relink | `JINI_PACKAGES_DIR=/home/user/Jini/packages npm run link:jini` | 0 | — |
+| T main tsc | `npx tsc -p tsconfig.json --noEmit` | 0 | — |
+| explicit pin compile | `tsc -p <tsconfig extending tsconfig.tests.json, files = the 3 new tests>` | 0 | mutation check (old label made mutable + core KeyringPort) → exit 2, 6 errors |
+| eslint T | `npx eslint` on the 7 changed/new code files + 3 new tests | 0 | 0 problems (3 warnings fixed) |
+| eslint J | `pnpm exec eslint packages/core/src/contracts/credentials.ts` | 0 | 0 |
+| Tovu tests | node test runner, `--test-concurrency=1`, one file at a time | all 0 | 51 files / 773 tests / 0 fail: C1 matrix 11 files (216), accumulated nine + inherited S3 three (72), C2-Tovu matrix 28 files (562, regression run), C0 extract-s8-g-cred (11), new C1 (15); baseline 747 + 11 + 15 = 773 |
+| XP | `JINI_DECLARATION_BASELINE_DIR=<original-35c4961af snapshot> pnpm check:cross-package` | 0 | XP1–XP5 clean; snapshot manifest d836eba0…728d459 and aggregate d.ts hash 48f6d422…452d24 unchanged |
+| guard | `pnpm guard` | 1 | byte-identical to setup baseline: only R2-deep-path(1), R10-chatpane-public-surface(1); R13 informational; HW1=17/HW2=16/HW3=135/HW4=1/HW8=49, HW5/6/7/9=0, 0 new; no N1/R8/other family |
+| guard:plugins / layers / isolation | as setup | 0/0/0 | clean; SI audit c=9, d=7 |
+| hashes | sha256 of the 5 base fixtures | — | all 5 match the brief; C0 fixtures/test unchanged since 3f19a8bd |
+
+Manual relative-edge review: sets/* import only `./host.js`, `./vault-repo.js` and `@jini-ai/core/contracts/{credentials,vault}`, `@jini-ai/core/primitives` (types); asserted by extract-s8-c1-source-scan. core/contracts/credentials.ts imports only `./vault.js` (type). No Jini package gained a dependency. No existing test/fixture in either repo was modified, deleted or renamed; no migration, guard, checker or debt file touched.
+
+Shared-lane files: none. tool-catalog-manifest.ts, deps.ts, external-mcp, api-connections, plugin-runtime and J agent-plugins/mcp/plugins were not touched (checked with `git diff --name-only` from the C0 tip).
+Gate status: fully green.
