@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /tmp/claude-0/-home-user/d9b51367-fec0-57ae-9702-99312341dfc0/scratchpad/consumers/neutral
+
+ ✓ src/s10-plugin-state-vault.test.ts (1 test) 3ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  23:07:31
+   Duration  294ms (transform 45ms, setup 0ms, collect 73ms, tests 3ms, environment 0ms, prepare 62ms)
+
+exit 0

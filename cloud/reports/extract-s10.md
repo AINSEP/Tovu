@@ -1,6 +1,6 @@
 # EXTRACT-S10 — X1 packed install, saved-data/replay proof
 
-**Result: INCOMPLETE** (independent of the end marker). The packed-install, structural and saved-data proofs ran and are green apart from reds that fail identically on the combine pair. X1 is not fully covered: PostgreSQL parity did not run here, three neutral-host classes have only partial packed successors (one of them needs a ruling), two extraction-era entries miss the optional-peer note obligation, and the independent Claude review has not happened. X2 was not started (it is a separate later run).
+**Result: INCOMPLETE** (independent of the end marker). The packed-install, structural and saved-data proofs ran and are green apart from reds that fail identically on the combine pair. X1 is not fully covered: PostgreSQL parity did not run here, two neutral-host classes have only partial packed successors (one of them needs a ruling), two extraction-era entries miss the optional-peer note obligation, and the independent Claude review has not happened. X2 was not started (it is a separate later run).
 
 Builder: one serial Claude Code session (no helpers or subagents). Clock: start **2026-11-09T22:32:35Z**, deadline 00:32:35Z, reserve from 00:12:35Z. The session's worker process restarted once at about 22:57Z. Scratch state survived, so no work was redone. UTC end, elapsed time and shutdown evidence are in the last section.
 
@@ -169,11 +169,11 @@ Consent and login-providers declare no modules. The frozen `tovu-*.json` payload
 
 ## E2 — neutral public-contract runtime coverage (strict pnpm consumer)
 
-`examples/neutral-host` was copied from `git archive HEAD`, all deps were made tarballs, and it got a standalone tsconfig. Vitest `--maxWorkers=2`: **17 files, 69 passed, 13 todo, exit 0**.
+`examples/neutral-host` was copied from `git archive HEAD`, all deps were made tarballs, and it got a standalone tsconfig. Vitest `--maxWorkers=2`: **18 files, 70 passed, 13 todo, exit 0**.
 
 Consumer-only edits (diff in `x1-neutral-consumer-src-diff.txt`):
 - Three checkout reads were replaced by installed public resolution (`createRequire().resolve` of an exported entry, then up to the package root): `api-host-moves`, `executable-surface-entries` and `contribution-contracts`. Their assertions are unchanged.
-- Three new test files were added: sheets_get, tier-2, and hosted-MCP revocation/store listing. The last copies `hosted-mcp-sign-in.test.ts`'s setup unchanged and appends 2 cases.
+- Four new test files were added: sheets_get, tier-2, hosted-MCP revocation/store listing, and plugin-state vault count. The last copies `hosted-mcp-sign-in.test.ts`'s setup unchanged and appends 2 cases.
 
 | Required coverage | Packed evidence |
 | --- | --- |
@@ -189,6 +189,7 @@ Each new assertion was mutation-checked:
 - Sheets token and tier-2 patch: mutated, both fail (exit 1); restored, both pass (exit 0).
 - Revocation without `disconnect`: "expected 'connected' to be 'disconnected'", exit 1.
 - Store listing with opens forced to 0: "expected 1 to be +0", exit 1.
+- Plugin-state with the list count forced to 0: deep-equal failure, exit 1.
 
 The tests are in `raw/extract-s10/consumer-tests/` and live only in the disposable consumer, not in Jini.
 
@@ -208,7 +209,7 @@ The tests are in `raw/extract-s10/consumer-tests/` and live only in the disposab
 | access token, one credential open per lookup | **Partial:** no neutral counting assertion. Tovu tarballs: `moved-tools.access-token.golden` and `cost-counters.baseline` tokenLookup. Note that the frozen baseline records **4** credential opens per `getAccessToken`, not 1, so the `.todo` wording does not match the pinned behaviour. A neutral assertion of "1" would contradict the frozen baseline, so none was written. |
 | MCP store, listing as counted | **new** `s10-hosted-revocation.test.ts` case 2: `listExternalMcpServerViews` with a counting sealer. The signed-in server is listed with 1 open for 1 row (bound ≤ 2 per row, as in Tovu frozen-db case 1), and the bearer never appears in the views. |
 | revocation of a hosted MCP grant | **new** `s10-hosted-revocation.test.ts` case 1: sign in and call, then `service.disconnect`. The row reads `disconnected`, the opened stored payload has no tokens, the token lookup refuses with the host's `StudioRelinkError` (model-safe text), and the provider gets no request. |
-| vault, plugin-state writes counted | **Partial:** api-host-moves proves zero storage calls before a foreign-scope refusal; neutral-host harness counts vault listings. |
+| vault, plugin-state writes counted | **new** `s10-plugin-state-vault.test.ts`: the public `admin-surfaces` store over a counting vault. Each write is exactly 1 `list` + 1 `put` with 0 `get` (no envelope read); a read is 1 `get`; describe is 1 `list`; the revision goes 1 → 2. Plus api-host-moves: zero storage calls before a foreign-scope refusal. |
 
 **Tovu strings in the second host** (second-host limit):
 - the existing `tovu-` file prefix and `TOVU_` client namespace in contribution-contracts;
@@ -309,7 +310,7 @@ No script, guard, checker or debt edit.
 
 1. **F1, optional-peer note obligation (needs a ruling).** `@jini-ai/agent-plugins/lifecycle/host-tools` reaches the optional peer `semver` by value. `@jini-ai/agent-plugins/connect/executable` reaches `@cfworker/json-schema` by value. Neither entry names this in its own `jini.optionalPeers` note or entry `@agent-note`, and both entries are new since combine. The strict consumer confirms the hazard: without `semver` installed, importing these packages fails with ERR_MODULE_NOT_FOUND. Not fixed: S10 freezes manifests and guides, and the repository's own isolation checker accepts it. Three older entries (manifest, lifecycle/node, plugins/host/node) have the same shape at combine.
 2. PostgreSQL parity for the frozen-db replay: run where a PostgreSQL server exists.
-3. Neutral-host partial classes still open: the access-token count (its `.todo` wording contradicts the frozen 4-open baseline; needs a ruling), the API-connection credentialed call, and the plugin-state vault count. Revocation and MCP-store listing are now covered by disposable consumer assertions. Either write the remaining assertions or accept the Tovu-tarball successors.
+3. Neutral-host partial classes still open: the access-token count (its `.todo` wording contradicts the frozen 4-open baseline; needs a ruling) and the API-connection credentialed call. Revocation, MCP-store listing and the plugin-state vault count are now covered by disposable consumer assertions. Either write the remaining assertions or accept the Tovu-tarball successors.
 4. Strict consumer tsc: the 4 `RequestInit['dispatcher']` declaration errors under the DOM lib, from source unchanged since combine. Confirm with a packed combine consumer, or fix in a later lane.
 5. E3: replace the proxy with the plan's moved-path inventory and rule on the 17 FAT files.
 6. P10a customized copy through the real install/customize API.
@@ -327,3 +328,38 @@ Commits on cloud/extract-s10 (Tovu), each pushed:
 - the report commit (SHA in the final message and the delivery addendum below)
 
 Jini cloud/extract-s10 equals `d9fa89a28`, pushed and unchanged.
+
+### Delivery addendum and shutdown
+
+**Pushed commits on Tovu cloud/extract-s10**, in order:
+
+| SHA | Content |
+| --- | --- |
+| `41e5dc55` | Step 0 guide edit |
+| `61d476e3` | Raw evidence |
+| `7b510fdf` | Report, before the end marker |
+| `95e4de74` | Revocation and store-listing consumer assertions |
+| final commit | Plugin-state assertion, this addendum and the marker. Its SHA is in the final message and was verified with `git ls-remote`. |
+
+**Jini cloud/extract-s10:** `d9fa89a284f5f5f69852abf4b9abac08e695021e`, pushed, no S10 commits.
+
+- **Tested pair:** Tovu `41e5dc55` with Jini `d9fa89a28`. Later Tovu commits change reports only.
+- **Last genuinely green pair:** null.
+- **Independent review:** pending. The next assignee is an independent Claude reviewer. Landing and later sessions are not authorized by this run.
+
+**Processes.** All task PIDs were recorded and checked by exact id: 3 shards, the combine batch, the extra batch, the Jini gate chain, the Jini, XP3, old and combine builds, the npm ci runs, tsc, and the two P10a servers.
+- Every one is gone.
+- The one id that answered after the worker restart (4042) is a kernel worker that reused the number after the restart (`[kworker/u16:13]`, parent 2). It is not a task process.
+- `ps` shows no node, npm, pnpm, vitest or tsc process. Nothing listens on the P10a ports 39101/39102.
+- Both P10a servers were stopped by process group, and the stop was verified.
+
+**Scratch cleanup.** Deleted after the evidence was committed:
+- both consumers and the old and combine trees;
+- the P10a site and HOME, including its synthetic site key, and the pristine tar;
+- the replay copies, the XP3 clone and the unpacked tarballs.
+
+Remaining private scratch: tarballs, the XP3 baseline output, the raw logs and the TAP files.
+
+**Time:** start 2026-11-09T22:32:35Z, end 2026-11-09T23:09:08Z. Elapsed is within the 2-hour cap, and no cap was reached.
+
+EXTRACT-S10 DONE

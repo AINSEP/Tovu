@@ -1,0 +1,31 @@
+// S10 disposable consumer assertion: plugin-state writes through the public admin-surfaces store list
+// the workspace vault exactly as counted (one summary listing and one put per write, no envelope read).
+import { expect, it } from 'vitest';
+import { createAgentPluginStateStore } from '@jini-ai/agent-plugins/admin-surfaces';
+
+it('a plugin-state write lists the workspace vault once and puts once; a read gets once; describe lists once', async () => {
+  const calls = { list: 0, get: 0, put: 0, delete: 0 };
+  const rows = new Map<string, { id: string; revision: number; payload: unknown }>();
+  const vault = {
+    list: async () => { calls.list++; return [...rows.values()].map(({ id, revision }) => ({ id, revision })); },
+    get: async ({ id }: { id: string }) => { calls.get++; const row = rows.get(id); return row ? { payload: row.payload, summary: { revision: row.revision } } : null; },
+    put: async (input: { id: string; expectedRevision: number | null; payload: unknown }) => {
+      calls.put++; const current = rows.get(input.id);
+      if ((current?.revision ?? null) !== input.expectedRevision) throw new Error('conflict');
+      rows.set(input.id, { id: input.id, revision: (current?.revision ?? 0) + 1, payload: input.payload });
+    },
+    delete: async () => { calls.delete++; },
+  };
+  const store = createAgentPluginStateStore({ workspaceId: 'studio', messages: { unavailable: 'Studio state unavailable.' },
+    persistence: { scope: { workspaceId: 'studio', kind: 'api-connection', ownerKey: 'studio', principalId: null, binding: null }, format: 'studio-state',
+      vault: vault as never, isConflict: ({ error }: { error: unknown }) => String(error).includes('conflict') } } as never);
+  const plugin = store.forPlugin({ workspaceId: 'studio', pluginId: 'relay' });
+  await plugin.set({ key: 'channel', value: 'alpha' });
+  expect(calls).toEqual({ list: 1, get: 0, put: 1, delete: 0 });
+  await plugin.set({ key: 'channel', value: 'beta' });
+  expect(calls).toEqual({ list: 2, get: 0, put: 2, delete: 0 });
+  expect(await plugin.get({ key: 'channel' })).toBe('beta');
+  expect(calls.get).toBe(1);
+  expect(await store.describe({ workspaceId: 'studio', pluginId: 'relay' })).toEqual({ keys: [{ key: 'channel', revision: 2 }] });
+  expect(calls).toEqual({ list: 3, get: 1, put: 2, delete: 0 });
+});
