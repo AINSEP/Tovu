@@ -1164,3 +1164,22 @@ Guard families: R2-deep-path 1, R10-chatpane-public-surface 1 (both pre-existing
 
 **Processes.** Jini gate PID 7383 and Tovu gate PID 10530 both exited (DONE); replay and old reader ran in the foreground. `ps` shows no node, vitest, tsc, npm or pnpm process afterwards.
 
+> Original S8 verdict (08:22Z): EXTRACT-S8 STOPPED AT CAP — C2 part 2 partial, token cap.
+
+### Continuation final status
+
+- **Tips (ls-remote verified):** Tovu `cloud/extract-s8` = the commit that adds this final-status block (report-only); before it `7601724b15230fd9a8c6180f3a7608102d490c9f` (F8 rerun section, report-only), verified with `git ls-remote origin refs/heads/cloud/extract-s8`. Jini `cloud/extract-s8` = `a266ba82144d9c7d8078ef7d056ff8c748d607e6` (unchanged since C2 part 1; ls-remote equal).
+- **Last verified GREEN source pair (F8 rerun):** Tovu source `1e4f8d3d1271405709bd588c7a04e2c86cd42031` / Jini `a266ba82144d9c7d8078ef7d056ff8c748d607e6`. Report-only Tovu commits after it: `db3456e397db786bdbe00824ec451fe5985066d5`, `7601724b15230fd9a8c6180f3a7608102d490c9f`, and this final-status commit.
+- **Recovery branches:** `git ls-remote origin 'refs/heads/cloud/extract-s8*'` lists only `refs/heads/cloud/extract-s8` in both repos. No fallback or recovery branches.
+- **C2 part 2 rows done (continuation):** row 1, handlers consume the injected `CredentialedRequestPort` / `SourceControlWritePort` (`42b9b0c5`, `3644089f`, tests `2f25eedb`, `d58df3cf`); row 2, secret cards: `defineSecretCardTool` and `askThenReport` injected through `CustomCredentialSecretCards` (`1e4f8d3d`).
+- **C2 part 2 REMAINING:**
+  1. `approvalToolHandler` / `describeDeleteRequestApproval` / human-confirm injection (needs a narrow local approval type replacing `HumanConfirmSpec`);
+  2. `pluginCards` {load, find, readValues} / `credentialCardForms` / recovery and setup diagnostics;
+  3. deployment catalog / publish / cache-invalidation / locale-translation ports;
+  4. `abortGuardedCredentialRepo` / `cleanCardToken` / `assertCredentialFreeField` / `worksFor` / model-facing error rules / form messages / tool ids and handler keys.
+- **Next-session work:** finish the C2 part 2 remaining rows above, then C3 (tools move), G-deploy, C4.
+- **Open doc issue:** move the credential-ports JSDoc onto `CustomCredentialToolPorts` (see F8 rerun, section 6).
+- Continuation tokens: C2p2 remainder 211k + F8 rerun 75k + coordinator ≈ 20k of 450k; elapsed 29m of 60m.
+
+Stop reason: continuation 1-hour cap — after C2 part 2 rows 1–2 (partial) and the F8 rerun, the remaining C2 part 2 rows (listed above) cannot be built and re-gated before 09:38:25Z; not a behavior, design or import-rule stop.
+EXTRACT-S8-C STOPPED AT CAP
