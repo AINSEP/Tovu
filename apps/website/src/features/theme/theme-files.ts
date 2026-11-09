@@ -373,7 +373,9 @@ function visitThemeDirEntry(dir: string, name: string, depth: number, base: stri
  */
 function walkThemeDir(dir: string, depth: number, base: string, found: string[]): void {
   if (depth > MAX_WALK_DEPTH || found.length >= MAX_LISTED_FILES) return;
-  for (const name of readdirSync(dir)) {
+  const names = readdirSync(dir);
+  // render/ goes first: a media folder can hold more files than the cap, and must not hide the theme's own pages.
+  for (const name of depth === 0 ? [...names.filter(entry => entry === "render"), ...names.filter(entry => entry !== "render")] : names) {
     if (found.length >= MAX_LISTED_FILES) return;
     visitThemeDirEntry(dir, name, depth, base, found);
   }
