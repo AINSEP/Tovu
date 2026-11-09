@@ -1,0 +1,10 @@
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(27,16): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(28,32): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(30,40): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(31,40): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(33,35): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,13): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,119): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(45,30): error TS18047: 'result' is possibly 'null'.
+apps/website/src/features/plugin-runtime/__tests__/unit/set-enabled-confirmation-ui.unit.test.ts(41,266): error TS2353: Object literal may only specify known properties, and 'scope' does not exist in type 'Omit<AccessApprovalResource, "scope">'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(70,9): error TS2741: Property 'tidy' is missing in type '{ list: (input: { principalId: string; }) => Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; credentialWarnings: never[]; }[]>; get: (input: { ...; }) => { ...; }; upload: (input: { ...; })...' but required in type 'SiteImportBackend'.

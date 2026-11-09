@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts (7 tests) 21ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  06:01:45
+   Duration  1.68s (transform 538ms, setup 211ms, collect 639ms, tests 21ms, environment 403ms, prepare 95ms)
+

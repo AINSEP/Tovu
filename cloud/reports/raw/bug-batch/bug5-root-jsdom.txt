@@ -1,0 +1,11 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ packages/ui/src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts (7 tests) 20ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  06:08:47
+   Duration  1.63s (transform 439ms, setup 0ms, collect 632ms, tests 20ms, environment 495ms, prepare 90ms)
+

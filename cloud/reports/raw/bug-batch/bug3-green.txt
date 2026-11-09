@@ -1,0 +1,48 @@
+✔ the registry directory is created private and resolved to an absolute path (5.506924ms)
+✔ an existing registry directory is tightened to owner-only (1.088639ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("../x") (2.660018ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA") (1.159423ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaax") (1.365173ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("") (1.232441ms)
+✔ upload and stage paths are fixed names inside the registry (1.585529ms)
+✔ upload and stage paths refuse an invalid id (1.088786ms)
+✔ a stored record reads back for its principal and is written owner-only (11.956356ms)
+✔ a missing record is not found (1.064845ms)
+✔ another principal's record is not found (2.776878ms)
+✔ an unreadable record is refused and left untouched (1.189466ms)
+✔ history lists only import records, newest first, for every principal by default (17.009521ms)
+✔ history lists a record once when a non-JSON file shares its id and name length (2.324319ms)
+✔ history filters by principal (3.916473ms)
+✔ a null history record is skipped (1.144336ms)
+✔ a history entry that vanished before it was read (dangling link) is skipped (0.879302ms)
+✔ an unreadable history record refuses the listing (1.418084ms)
+✔ a fresh upload reads back for its principal (2.89686ms)
+✔ an upload exactly one hour old is still available (1.994923ms)
+✔ an upload older than one hour has expired (2.196453ms)
+✔ another principal's upload is not found (2.320934ms)
+✔ a missing upload is not found (0.920064ms)
+✔ an unreadable upload is reported as not found (1.113415ms)
+✔ the transfer lane returns its run's result and releases the lock (40.097763ms)
+✔ the transfer lane runs one transfer at a time (47.726684ms)
+✔ expiry removes an upload older than one hour with its payload (3.032564ms)
+✔ T25: interrupted verification and orphaned payloads release the staging budget without discarding live owner setup (12.426847ms)
+✔ expiry keeps an upload exactly one hour old (2.044018ms)
+✔ expiry keeps an unreadable upload and ignores upload files with a foreign name (0.719606ms)
+✔ expiry fails an owner setup past its deadline and removes its stage (3.036202ms)
+✔ expiry keeps an owner setup at its deadline (1.72503ms)
+✔ expiry leaves a past-deadline record in any other status alone (2.078549ms)
+✔ expiry skips unreadable records and foreign files (5.738727ms)
+✔ expiry removes a null upload row with its payload: it can never be claimed (1.460721ms)
+✔ expiry leaves a null import record in place, as history does (2.061178ms)
+✔ a ready row keeps only the share origin, a verifying one keeps the full link (4.594947ms)
+✔ a failed row keeps only the share origin, a verifying one keeps the full link (2.275512ms)
+✔ legacy ready history still loads and existing expiry removes its link details (1.551207ms)
+✔ legacy failed history still loads and existing expiry removes its link details (1.506483ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2090.450822

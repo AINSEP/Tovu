@@ -1,0 +1,442 @@
+apps/website/src/assistant/__tests__/agents-owned-runtime.test.ts(5,10): error TS2305: Module '"@jini-ai/agent-runtime/model-selection"' has no exported member 'modelReasoningOptions'.
+apps/website/src/assistant/__tests__/agents-owned-runtime.test.ts(154,31): error TS2339: Property 'reasoningInModelId' does not exist on type 'AssistantAgentSummary'.
+apps/website/src/assistant/__tests__/cross-site-read-catalog.test.ts(20,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts(118,44): error TS2305: Module '"@jini-ai/commerce/tools"' has no exported member 'commerceCatalogToolCatalog'.
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts(119,10): error TS2305: Module '"@jini-ai/commerce/payments/tools"' has no exported member 'commerceResolutionToolCatalog'.
+apps/website/src/assistant/ask-choice-tool.ts(5,10): error TS2305: Module '"@jini-ai/ui/mcp-ui/surfaces"' has no exported member 'accessApprovalDetails'.
+apps/website/src/assistant/ask-choice-tool.ts(6,100): error TS2305: Module '"@jini-ai/core"' has no exported member 'AccessApprovalDescription'.
+apps/website/src/assistant/ask-choice-tool.ts(514,5): error TS2353: Object literal may only specify known properties, and 'choicesLabel' does not exist in type 'ConfirmationSurfaceSpec & { uri: `ui://${string}`; preferredFrameSize?: readonly [string, string] | undefined; expiresAtMs?: number | undefined; }'.
+apps/website/src/assistant/byok-tool-surface.ts(1,10): error TS2305: Module '"@jini-ai/mcp/federation"' has no exported member 'readFrozenFederationToolNames'.
+apps/website/src/assistant/external-mcp-roster-change.ts(3,15): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessChange'.
+apps/website/src/assistant/host-contracts.ts(3,15): error TS2305: Module '"@jini-ai/commerce/payments/tools"' has no exported member 'CommerceResolutionToolsRequired'.
+apps/website/src/assistant/mcp-ui-tool-calls-route.ts(10,10): error TS2305: Module '"@jini-ai/daemon/http"' has no exported member 'deliverSurfaceCallback'.
+apps/website/src/assistant/mcp-ui-tool-calls-route.ts(226,15): error TS7031: Binding element 'toolId' implicitly has an 'any' type.
+apps/website/src/assistant/mcp-ui-tool-calls-route.ts(226,23): error TS7031: Binding element 'answersAnExchange' implicitly has an 'any' type.
+apps/website/src/assistant/mcp-ui-tool-calls-route.ts(226,42): error TS7031: Binding element 'typedAnswer' implicitly has an 'any' type.
+apps/website/src/assistant/mcp-ui-tool-calls.ts(1,10): error TS2305: Module '"@jini-ai/daemon/http"' has no exported member 'isSurfaceCallbackPermitted'.
+apps/website/src/assistant/mcp-ui-tool-calls.ts(42,10): error TS2305: Module '"@jini-ai/daemon/http"' has no exported member 'SURFACE_TYPED_ANSWER_REFUSAL'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(27,16): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(28,32): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(30,40): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(31,40): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(33,35): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,13): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(35,119): error TS18047: 'result' is possibly 'null'.
+apps/website/src/cli/__tests__/integration/import-local.integration.test.ts(45,30): error TS18047: 'result' is possibly 'null'.
+apps/website/src/contracts/core/__tests__/unit/form-provider-security-headers.contract.test.ts(4,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/contracts/core/human-confirm.ts(21,86): error TS2305: Module '"@jini-ai/core"' has no exported member 'AccessApprovalDescription'.
+apps/website/src/contracts/core/human-confirm.ts(23,10): error TS2305: Module '"@jini-ai/ui/mcp-ui/surfaces"' has no exported member 'accessApprovalDetails'.
+apps/website/src/contracts/core/human-confirm.ts(150,29): error TS7006: Parameter 'resource' implicitly has an 'any' type.
+apps/website/src/contracts/core/tool-access-change.ts(1,15): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessChange'.
+apps/website/src/contracts/headless/plugin-host.ts(4,15): error TS2305: Module '"@jini-ai/core"' has no exported member 'AccessApprovalResource'.
+apps/website/src/contracts/headless/site-cookie-consent.ts(1,29): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts(93,117): error TS2353: Object literal may only specify known properties, and 'maxPromptArgBytes' does not exist in type '{ query?: string | undefined; capabilities?: readonly string[] | undefined; loaded?: readonly string[] | undefined; signal?: AbortSignal | undefined; }'.
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts(193,113): error TS7053: Element implicitly has an 'any' type because expression of type '"missing" | "excluded" | "off" | "unavailable" | "cancelled" | "untrusted" | "installed-but-inactive" | "already-loaded"' can't be used to index type '{ loaded: string; 'installed-but-inactive': string; excluded: string; untrusted: string; missing: string; off: string; cancelled: string; unavailable: string; }'.
+  Property 'already-loaded' does not exist on type '{ loaded: string; 'installed-but-inactive': string; excluded: string; untrusted: string; missing: string; off: string; cancelled: string; unavailable: string; }'.
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts(208,152): error TS2339: Property 'guidanceIds' does not exist on type '{ prepare: (input: { query?: string | undefined; capabilities?: readonly string[] | undefined; loaded?: readonly string[] | undefined; signal?: AbortSignal | undefined; }, _options?: {} | undefined) => Promise<...>; load: (input: { ...; } & AgentPluginSkillRequest, _options?: {} | undefined) => Promise<...>; }'.
+apps/website/src/features/agent-plugins/connect-card-ui.ts(5,33): error TS2307: Cannot find module '@jini-ai/ui/mcp-ui/sign-in-card' or its corresponding type declarations.
+apps/website/src/features/agent-plugins/connect-sign-in-wait.ts(1,34): error TS2307: Cannot find module '@jini-ai/ui/mcp-ui/sign-in-card' or its corresponding type declarations.
+apps/website/src/features/agent-plugins/connect-sign-in-wait.ts(19,11): error TS7006: Parameter 'state' implicitly has an 'any' type.
+apps/website/src/features/agent-plugins/enable-access.ts(2,46): error TS2305: Module '"@jini-ai/core"' has no exported member 'AccessApprovalResource'.
+apps/website/src/features/agent-plugins/service-ports.ts(16,77): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/daemon/dist/index"' has no exported member 'ToolAccessChange'.
+apps/website/src/features/analytics/contracts.ts(3,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'ConsentAnalyticsProof'.
+apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts(24,90): error TS7031: Binding element 'byteLength' implicitly has an 'any' type.
+apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts(38,125): error TS7031: Binding element 'byteLength' implicitly has an 'any' type.
+apps/website/src/features/api-connections/__tests__/shared-bindings.postgres.test.ts(8,10): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'createSharedOAuthConsumer'.
+apps/website/src/features/api-connections/__tests__/shared-bindings.postgres.test.ts(8,42): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'SharedOAuthConnection'.
+apps/website/src/features/api-connections/__tests__/shared-bindings.postgres.test.ts(41,66): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts(10,10): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'createSharedOAuthConsumer'.
+apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts(116,58): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts(117,34): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts(122,74): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/__tests__/support/starting-browser.ts(28,32): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/browser-binding.ts(7,10): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'createSignInHandoffs'.
+apps/website/src/features/api-connections/browser-binding.ts(7,37): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'SignInHandoffs'.
+apps/website/src/features/api-connections/connect.ts(2,84): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'waitForHostedSignIn'.
+apps/website/src/features/api-connections/host.ts(4,38): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'createSignInHandoffs'.
+apps/website/src/features/api-connections/host.ts(174,90): error TS7031: Binding element 'byteLength' implicitly has an 'any' type.
+apps/website/src/features/api-connections/shared-api.ts(1,30): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'assertSharedOAuthCompatibility'.
+apps/website/src/features/api-connections/shared-api.ts(1,62): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'createSharedOAuthConsumer'.
+apps/website/src/features/api-connections/shared-api.ts(37,23): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/shared-api.ts(38,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/api-connections/shared-api.ts(41,30): error TS7031: Binding element 'credentialId' implicitly has an 'any' type.
+apps/website/src/features/api-connections/shared-api.ts(41,44): error TS7031: Binding element 'expectedGeneration' implicitly has an 'any' type.
+apps/website/src/features/api-connections/shared-api.ts(41,64): error TS7031: Binding element 'expectedAccountId' implicitly has an 'any' type.
+apps/website/src/features/api-connections/shared-owner.ts(3,95): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'SharedOAuthConnection'.
+apps/website/src/features/comments/__tests__/public-markers-scripts.unit.test.ts(4,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/comments/public-markers.ts(3,15): error TS2305: Module '"@jini-ai/capability-providers/comments"' has no exported member 'CommentThreadScript'.
+apps/website/src/features/comments/public-markers.ts(4,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/comments/public-markers.ts(30,102): error TS2339: Property 'scripts' does not exist on type '{ html: string; }'.
+apps/website/src/features/comments/public-markers.ts(30,133): error TS2339: Property 'scripts' does not exist on type '{ html: string; }'.
+apps/website/src/features/consent/readiness.ts(2,27): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/consent/readiness.ts(3,10): error TS2305: Module '"@jini-ai/cookie-consent/policy"' has no exported member 'validateScripts'.
+apps/website/src/features/consent/readiness.ts(64,62): error TS7006: Parameter 'script' implicitly has an 'any' type.
+apps/website/src/features/consent/region-plugins.ts(9,10): error TS2305: Module '"@jini-ai/cookie-consent/policy"' has no exported member 'validateScripts'.
+apps/website/src/features/consent/region-plugins.ts(11,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/consent/region-plugins.ts(96,28): error TS7006: Parameter 'script' implicitly has an 'any' type.
+apps/website/src/features/consent/revisions.ts(2,15): error TS2724: '"@jini-ai/cookie-consent"' has no exported member named 'ConsentConfig'. Did you mean 'ClientConfig'?
+apps/website/src/features/consent/service.ts(2,15): error TS2724: '"@jini-ai/cookie-consent"' has no exported member named 'ConsentConfig'. Did you mean 'ClientConfig'?
+apps/website/src/features/consent/validation.ts(2,15): error TS2724: '"@jini-ai/cookie-consent"' has no exported member named 'ConsentConfig'. Did you mean 'ClientConfig'?
+apps/website/src/features/deployments/export-run.ts(149,30): error TS2741: Property 'outputDir' is missing in type 'ExportRunReportLike' but required in type 'ExportReport'.
+apps/website/src/features/deployments/static-publish/__tests__/adapter.security-headers.unit.test.ts(6,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts(251,28): error TS2339: Property 'bearerToken' does not exist on type 'ResolvedFederatedConnection'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts(252,29): error TS2339: Property 'bearerToken' does not exist on type 'ResolvedFederatedConnection'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts(254,28): error TS2339: Property 'bearerToken' does not exist on type 'ResolvedFederatedConnection'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts(255,29): error TS2339: Property 'bearerToken' does not exist on type 'ResolvedFederatedConnection'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts(257,42): error TS2339: Property 'bearerToken' does not exist on type 'ResolvedFederatedConnection'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts(258,29): error TS2339: Property 'bearerToken' does not exist on type 'ResolvedFederatedConnection'.
+apps/website/src/features/external-mcp/__tests__/external-mcp-store.test.ts(1540,35): error TS2339: Property 'provisionedByPluginId' does not exist on type 'FederatedMcpConnectionConfig'.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(2,30): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'assertSharedOAuthCompatibility'.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(2,62): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'createSharedOAuthConsumer'.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(93,26): error TS7031: Binding element 'consumerId' implicitly has an 'any' type.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(94,29): error TS7031: Binding element 'siteId' implicitly has an 'any' type.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(94,37): error TS7031: Binding element 'credentialId' implicitly has an 'any' type.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(95,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(95,89): error TS7031: Binding element 'credentialId' implicitly has an 'any' type.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(95,103): error TS7031: Binding element 'expectedGeneration' implicitly has an 'any' type.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(97,56): error TS18047: 'record' is possibly 'null'.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(101,84): error TS18047: 'record' is possibly 'null'.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(102,13): error TS2322: Type '{ status: "reconnect-required"; revision: number; key?: string | undefined; workspaceId?: string | undefined; pluginId?: string | undefined; connectionId?: string | undefined; generation?: number | undefined; ... 4 more ...; updatedAt?: string | undefined; }' is not assignable to type 'ApiConnectionRecord'.
+  Types of property 'key' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts(102,74): error TS18047: 'record' is possibly 'null'.
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts(16,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts(23,14): error TS7031: Binding element 'config' implicitly has an 'any' type.
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts(57,70): error TS2339: Property 'provider' does not exist on type 'FormDefinitionRecord & FormAuthoring'.
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts(62,68): error TS2339: Property 'provider' does not exist on type 'FormDefinitionRecord & FormAuthoring'.
+apps/website/src/features/forms/__tests__/form-destination-manifest.test.ts(104,80): error TS2353: Object literal may only specify known properties, and 'provider' does not exist in type 'HtmlFormDefinitionRecord'.
+apps/website/src/features/forms/__tests__/form-file-maintenance.test.ts(21,131): error TS2353: Object literal may only specify known properties, and 'graceMs' does not exist in type '{ outbox: FormOutboxPort; workspaceId: string; mediaId: string; sha256: string; now: number; }'.
+apps/website/src/features/forms/__tests__/form-file-maintenance.test.ts(62,84): error TS7006: Parameter 'row' implicitly has an 'any' type.
+apps/website/src/features/forms/__tests__/form-file-renditions.test.ts(51,7): error TS2353: Object literal may only specify known properties, and 'withHashLock' does not exist in type '{ bus: EventBusPort; findBlob: (required: Payload) => Promise<{ storageKey: string; status: string; } | null>; hasOwners: (required: Payload) => Promise<...>; deleteBytes: (required: { ...; }) => Promise<...>; removeBlob: (required: Payload) => Promise<...>; }'.
+apps/website/src/features/forms/__tests__/form-file-renditions.test.ts(53,28): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/forms/__tests__/form-file-renditions.test.ts(142,25): error TS2349: This expression is not callable.
+  Type '{}' has no call signatures.
+apps/website/src/features/forms/__tests__/form-schema-hash.test.ts(3,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'captureSubmissionEvidence'.
+apps/website/src/features/forms/__tests__/import-remote-submissions.test.ts(225,31): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/features/forms/__tests__/tool-registrations.model-facing-errors.test.ts(24,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/features/forms/__tests__/tool-registrations.model-facing-errors.test.ts(230,14): error TS7031: Binding element 'config' implicitly has an 'any' type.
+apps/website/src/features/forms/__tests__/tool-registrations.model-facing-errors.test.ts(252,135): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/features/forms/analytics-provenance.ts(2,127): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cookie-consent/dist/contract"' has no exported member 'ConsentAnalyticsProof'.
+apps/website/src/features/forms/form-destination-manifest.ts(3,31): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'submissionEvidenceSchema'.
+apps/website/src/features/forms/form-destination-manifest.ts(3,112): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormSubmissionEvidence'.
+apps/website/src/features/forms/form-destination-manifest.ts(26,92): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/features/forms/form-destination-manifest.ts(26,115): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/features/forms/form-file-maintenance.ts(2,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'matchesFormAttachmentCleanupEvidence'.
+apps/website/src/features/forms/form-file-maintenance.ts(2,48): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'reconcileFormAttachments'.
+apps/website/src/features/forms/form-file-maintenance.ts(2,74): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'retainedJsonReferencesAttachment'.
+apps/website/src/features/forms/form-file-maintenance.ts(2,113): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormAttachmentCandidate'.
+apps/website/src/features/forms/form-file-maintenance.ts(2,143): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormAttachmentInspection'.
+apps/website/src/features/forms/form-file-maintenance.ts(29,18): error TS7031: Binding element 'workspaceId' implicitly has an 'any' type.
+apps/website/src/features/forms/form-file-maintenance.ts(29,31): error TS7031: Binding element 'after' implicitly has an 'any' type.
+apps/website/src/features/forms/form-file-maintenance.ts(29,38): error TS7031: Binding element 'limit' implicitly has an 'any' type.
+apps/website/src/features/forms/form-file-maintenance.ts(34,14): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/forms/form-file-maintenance.ts(35,14): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/forms/form-file-maintenance.ts(36,14): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/forms/form-file-purge.ts(44,30): error TS2344: Type '"cleanupJournal" | "cleanupTransaction" | "tombstoneLock"' does not satisfy the constraint 'keyof MediaRowCleanupDeps'.
+  Type '"cleanupJournal"' is not assignable to type 'keyof MediaRowCleanupDeps'.
+apps/website/src/features/forms/form-file-purge.ts(45,3): error TS2322: Type '{ cleanupJournal: (input: any) => Promise<void>; cleanupTransaction?: (({ work }: { work: () => Promise<void>; }) => Promise<void>) | undefined; tombstoneLock?: (<T>({ key, criticalSection }: { ...; }) => Promise<...>) | undefined; }' is not assignable to type 'Pick<MediaRowCleanupDeps, "cleanupJournal" | "cleanupTransaction" | "tombstoneLock">'.
+  Property 'cleanupTransaction' is optional in type '{ cleanupJournal: (input: any) => Promise<void>; cleanupTransaction?: (({ work }: { work: () => Promise<void>; }) => Promise<void>) | undefined; tombstoneLock?: (<T>({ key, criticalSection }: { ...; }) => Promise<...>) | undefined; }' but required in type 'Pick<MediaRowCleanupDeps, "cleanupJournal" | "cleanupTransaction" | "tombstoneLock">'.
+apps/website/src/features/forms/form-file-purge.ts(55,21): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/forms/import-remote-submissions.ts(3,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'readSubmissionEvidence'.
+apps/website/src/features/forms/import-remote-submissions.ts(3,34): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'submissionEvidenceDefinition'.
+apps/website/src/features/forms/publish-content.ts(45,7): error TS2353: Object literal may only specify known properties, and 'provider' does not exist in type 'Record<keyof FormDefinitionRecord | keyof FormAuthoring, FieldDisposition>'.
+apps/website/src/features/forms/publish-content.ts(61,86): error TS2339: Property 'provider' does not exist on type 'FormAuthoring'.
+apps/website/src/features/forms/publish-content.ts(80,71): error TS2353: Object literal may only specify known properties, and 'provider' does not exist in type 'HtmlFormDefinitionRecord'.
+apps/website/src/features/forms/publish-content.ts(80,85): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/features/forms/tool-registrations.ts(1,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/features/forms/tool-registrations.ts(1,40): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'describeFormCollectionProviders'.
+apps/website/src/features/forms/tool-registrations.ts(1,78): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormCollectionRegistry'.
+apps/website/src/features/forms/tool-registrations.ts(2,30): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormProviderSelection'.
+apps/website/src/features/forms/tool-registrations.ts(161,19): error TS2339: Property 'provider' does not exist on type 'FormDefinitionRecord & FormAuthoring'.
+apps/website/src/features/forms/tool-registrations.ts(161,52): error TS2339: Property 'provider' does not exist on type 'FormDefinitionRecord & FormAuthoring'.
+apps/website/src/features/forms/tool-registrations.ts(282,43): error TS2339: Property 'provider' does not exist on type '{ name?: string | undefined; fields?: FieldDescriptor[] | undefined; notify?: NotifyConfig | undefined; } & FormAuthoring'.
+apps/website/src/features/forms/tool-registrations.ts(454,82): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/features/forms/tool-registrations.ts(454,116): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/features/forms/tool-registrations.ts(597,60): error TS2339: Property 'provider' does not exist on type 'FormDefinitionRecord & FormAuthoring'.
+apps/website/src/features/forms/tool-registrations.ts(597,148): error TS2339: Property 'provider' does not exist on type 'FormDefinitionRecord & FormAuthoring'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(5,10): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerLogin'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(5,27): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerPasskeyEnrollment'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(5,56): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'confirmOwnerPasskeyEnrollment'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(5,87): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerPasskeyLogin'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(6,3): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'completeOwnerPasskeyLogin'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(6,55): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'OwnerPasskeyDeps'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(32,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(32,65): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(37,32): error TS7031: Binding element 'credential' implicitly has an 'any' type.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(66,56): error TS2353: Object literal may only specify known properties, and 'mfa' does not exist in type 'OwnerRecoveryDeps'.
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts(71,78): error TS7006: Parameter 'session' implicitly has an 'any' type.
+apps/website/src/features/identity/mfa.repo.ts(1,15): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'MfaStore'.
+apps/website/src/features/identity/mfa.repo.ts(14,50): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+apps/website/src/features/identity/mfa.repo.ts(22,13): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+apps/website/src/features/identity/mfa.repo.ts(27,17): error TS7006: Parameter 'factor' implicitly has an 'any' type.
+apps/website/src/features/identity/mfa.repo.ts(33,14): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/identity/mfa.repo.ts(37,144): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/user-management/dist/server/index"' has no exported member 'MfaPending'.
+apps/website/src/features/identity/mfa.repo.ts(41,18): error TS7006: Parameter 'pending' implicitly has an 'any' type.
+apps/website/src/features/identity/mfa.repo.ts(48,12): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+apps/website/src/features/identity/passkeys.repo.ts(1,15): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'PasskeyStore'.
+apps/website/src/features/identity/passkeys.repo.ts(11,11): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+apps/website/src/features/identity/passkeys.repo.ts(17,11): error TS7006: Parameter 'credential' implicitly has an 'any' type.
+apps/website/src/features/identity/passkeys.repo.ts(26,13): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/features/identity/passkeys.repo.ts(30,12): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+apps/website/src/features/identity/wiring.ts(3,15): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'MfaStore'.
+apps/website/src/features/identity/wiring.ts(3,25): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'PasskeyStore'.
+apps/website/src/features/plugin-runtime/tool-registrations.ts(118,15): error TS2305: Module '"@jini-ai/core"' has no exported member 'AccessApprovalResource'.
+apps/website/src/features/project-keys/shared-oauth-disconnect.ts(2,30): error TS2305: Module '"@jini-ai/integrations/api-connections"' has no exported member 'disconnectApiConnection'.
+apps/website/src/features/settings/tool-registrations.ts(95,74): error TS2339: Property 'expectedRevisionSeq' does not exist on type 'SettingsWriteConfirmation'.
+apps/website/src/features/settings/visitor-tools-registrations.ts(2,75): error TS2305: Module '"@jini-ai/core"' has no exported member 'AccessApprovalResource'.
+apps/website/src/features/site-backup/__tests__/import-download-limit.unit.test.ts(55,28): error TS2551: Property 'bodyAs' does not exist on type 'HttpRequest'. Did you mean 'body'?
+  Property 'bodyAs' does not exist on type '{ method: "DELETE" | "GET" | "POST" | "HEAD" | "PUT" | "PATCH"; url: string; headers: Readonly<Record<string, string>>; body?: string | Uint8Array<ArrayBufferLike> | undefined; totalDeadlineMs?: number | undefined; signal?: AbortSignal | undefined; maxResponseBytes?: number | undefined; } & { ...; }'.
+apps/website/src/features/site-backup/import-backend-steps.ts(101,249): error TS2561: Object literal may only specify known properties, but 'bodyAs' does not exist in type 'HttpRequest'. Did you mean to write 'body'?
+apps/website/src/features/site-export/__tests__/hosted-forms-static.unit.test.ts(8,15): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormCollectionProvider'.
+apps/website/src/features/site-export/site-exporter.ts(589,5): error TS2353: Object literal may only specify known properties, and 'assetUrls' does not exist in type 'ExportSiteArgs'.
+apps/website/src/features/theme/public-page-security-headers.ts(1,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'describeFormCollectionProviders'.
+apps/website/src/features/theme/public-page-security-headers.ts(1,48): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormCollectionRegistry'.
+apps/website/src/features/theme/public-page-security-headers.ts(41,80): error TS7006: Parameter 'provider' implicitly has an 'any' type.
+apps/website/src/features/theme/public-page-security-headers.ts(41,120): error TS7006: Parameter 'provider' implicitly has an 'any' type.
+apps/website/src/features/theme/render-contract.ts(1,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/theme/theme.ts(1,10): error TS2305: Module '"@jini-ai/cookie-consent/policy"' has no exported member 'validateScripts'.
+apps/website/src/features/theme/theme.ts(2,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/features/theme/validation/manifest-v2.ts(1,10): error TS2305: Module '"@jini-ai/cookie-consent/policy"' has no exported member 'validateScripts'.
+apps/website/src/features/theme/validation/manifest-v2.ts(439,73): error TS7006: Parameter 'message' implicitly has an 'any' type.
+apps/website/src/platform/db/repos/__tests__/form-delivery-repo.dialects.test.ts(55,22): error TS2339: Property 'form' does not exist on type 'FormDeliveryJob & Record<"submissionRef", unknown>'.
+apps/website/src/platform/db/repos/form-delivery-repo.ts(3,8): error TS2724: '"@jini-ai/cms/forms"' has no exported member named 'FormDeliveryQueuedJob'. Did you mean 'FormDeliveryJob'?
+apps/website/src/server/__tests__/routes/forms-submit.test.ts(11,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormSchemaChangedError'.
+apps/website/src/server/__tests__/routes/forms-submit.test.ts(11,34): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormAttachmentSpaceError'.
+apps/website/src/server/inbound/admin-http/__tests__/admin-failure-copy.test.ts(6,10): error TS2305: Module '"@jini-ai/core"' has no exported member 'describeRequestFailure'.
+apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts(162,19): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts(163,24): error TS7006: Parameter 'proof' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts(164,50): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/user-management/dist/server/index"' has no exported member 'MfaStore'.
+apps/website/src/server/inbound/admin-http/__tests__/owner-mfa-login.unit.test.ts(5,15): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'MfaFactor'.
+apps/website/src/server/inbound/admin-http/__tests__/owner-mfa-login.unit.test.ts(5,26): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'MfaPending'.
+apps/website/src/server/inbound/admin-http/__tests__/owner-mfa-login.unit.test.ts(5,38): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'MfaStore'.
+apps/website/src/server/inbound/admin-http/__tests__/owner-mfa-login.unit.test.ts(21,23): error TS7006: Parameter 'value' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/__tests__/owner-mfa-login.unit.test.ts(22,20): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/__tests__/owner-mfa-login.unit.test.ts(23,24): error TS7006: Parameter 'value' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts(8,10): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'createSimpleWebAuthnPasskeys'.
+apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts(8,45): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'PasskeyCredential'.
+apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts(8,69): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'PasskeyOptions'.
+apps/website/src/server/inbound/admin-http/dev-auth.ts(16,3): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerLogin'.
+apps/website/src/server/inbound/admin-http/dev-auth.ts(17,3): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginPrincipalSignIn'.
+apps/website/src/server/inbound/admin-http/dev-auth.ts(18,3): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'completeOwnerLogin'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(36,35): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(46,35): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(65,20): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(65,54): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(91,20): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(91,56): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(100,76): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/server/inbound/admin-http/http/forms.ts(100,126): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/server/inbound/admin-http/owner-mfa-deps.ts(1,10): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'createOtplibTotp'.
+apps/website/src/server/inbound/admin-http/owner-mfa-deps.ts(1,28): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'createSealedMfaSecrets'.
+apps/website/src/server/inbound/admin-http/owner-mfa-deps.ts(1,57): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'OwnerMfaDeps'.
+apps/website/src/server/inbound/admin-http/owner-mfa-routes.ts(4,10): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerEnrollment'.
+apps/website/src/server/inbound/admin-http/owner-mfa-routes.ts(4,32): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'confirmOwnerEnrollment'.
+apps/website/src/server/inbound/admin-http/owner-mfa-routes.ts(4,56): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'removeOwnerFactor'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(4,10): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerPasskeyEnrollment'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(4,39): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'confirmOwnerPasskeyEnrollment'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(4,70): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'beginOwnerPasskeyLogin'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(4,94): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'completeOwnerPasskeyLogin'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(5,3): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'removeOwnerPasskey'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(5,23): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'createSimpleWebAuthnPasskeys'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(5,58): error TS2305: Module '"@jini-ai/user-management/server"' has no exported member 'OwnerPasskeyDeps'.
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts(110,62): error TS7006: Parameter 'c' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/provider-save.unit.test.ts(4,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/provider-save.unit.test.ts(32,14): error TS7031: Binding element 'config' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/provider-save.unit.test.ts(55,117): error TS2339: Property 'provider' does not exist on type 'HtmlFormDefinitionRecord'.
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/providers.unit.test.ts(4,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/server/inbound/admin-http/routes/forms/authoring.ts(17,82): error TS2339: Property 'provider' does not exist on type 'FormAuthoring'.
+apps/website/src/server/inbound/admin-http/routes/forms/create.ts(26,82): error TS2339: Property 'provider' does not exist on type 'FormAuthoring'.
+apps/website/src/server/inbound/admin-http/routes/forms/create.ts(50,11): error TS2353: Object literal may only specify known properties, and 'formCollectionProviders' does not exist in type 'FormWriteServiceDeps'.
+apps/website/src/server/inbound/admin-http/routes/forms/providers.ts(1,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/server/inbound/admin-http/routes/forms/providers.ts(1,40): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'describeFormCollectionProviders'.
+apps/website/src/server/inbound/admin-http/routes/forms/update.ts(42,42): error TS2339: Property 'provider' does not exist on type '{ name?: string | undefined; fields?: FieldDescriptor[] | undefined; notify?: NotifyConfig | undefined; } & FormAuthoring'.
+apps/website/src/server/inbound/admin-http/routes/forms/update.ts(42,84): error TS2339: Property 'provider' does not exist on type 'FormAuthoring'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(70,9): error TS2741: Property 'tidy' is missing in type '{ list: (input: { principalId: string; }) => Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; credentialWarnings: never[]; }[]>; get: (input: { ...; }) => { ...; }; upload: (input: { ...; })...' but required in type 'SiteImportBackend'.
+apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts(6,10): error TS2305: Module '"@jini-ai/core"' has no exported member 'describeRequestFailure'.
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts(18,10): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'admittedToolSources'.
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts(18,36): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessRun'.
+apps/website/src/server/inbound/assistant/__tests__/assistant-tool-consent.unit.test.ts(44,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/__tests__/ensure-json-agent-install.unit.test.ts(77,61): error TS7006: Parameter 'value' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts(8,10): error TS2305: Module '"@jini-ai/agent-runtime/native-tool-policy"' has no exported member 'LOCAL_HOST_DEFAULT_PERMISSIONS'.
+apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts(8,42): error TS2305: Module '"@jini-ai/agent-runtime/native-tool-policy"' has no exported member 'planRun'.
+apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts(13,10): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'admittedToolSources'.
+apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts(14,44): error TS2307: Cannot find module '@jini-ai/daemon/chat-settings' or its corresponding type declarations.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(5,78): error TS2307: Cannot find module '@jini-ai/daemon/chat-settings' or its corresponding type declarations.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(6,10): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'stopRunsForToolAccessChange'.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(6,39): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'admittedToolSources'.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(6,65): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessRun'.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(319,72): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(319,79): error TS7031: Binding element 'principalId' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1115,7): error TS2353: Object literal may only specify known properties, and 'subagentStartContext' does not exist in type 'Pick<AgentExecutorRunInput, "env" | "model" | "settings" | "allowedTools" | "permissionMode" | "reasoning" | "resumeSessionId" | "filesystemRoot" | "nativeToolAccess" | ... 11 more ... | "chromeIntegration">'.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1265,22): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1396,14): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1397,20): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1398,28): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1402,20): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts(1402,27): error TS7031: Binding element 'message' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts(1,71): error TS2307: Cannot find module '@jini-ai/daemon/chat-settings' or its corresponding type declarations.
+apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts(2,15): error TS2305: Module '"@jini-ai/agent-runtime/native-tool-policy"' has no exported member 'RunPlan'.
+apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts(15,35): error TS2339: Property 'mcpSource' does not exist on type 'ToolMetadata<ToolApprovalMetadata>'.
+apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts(26,35): error TS2339: Property 'mcpIsolation' does not exist on type 'RuntimeAgentDef'.
+apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts(35,62): error TS7053: Element implicitly has an 'any' type because expression of type 'string | number | symbol' can't be used to index type 'Partial<Record<"shell" | "fileWrite" | "userMcp" | "subagents" | "userSettings" | "web" | "workflows" | "loginEnvironment", boolean>>'.
+  No index signature with a parameter of type 'string' was found on type 'Partial<Record<"shell" | "fileWrite" | "userMcp" | "subagents" | "userSettings" | "web" | "workflows" | "loginEnvironment", boolean>>'.
+apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts(1,10): error TS2305: Module '"@jini-ai/agent-runtime/native-tool-policy"' has no exported member 'planRun'.
+apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts(1,49): error TS2305: Module '"@jini-ai/agent-runtime/native-tool-policy"' has no exported member 'RunConsentKey'.
+apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts(4,43): error TS2307: Cannot find module '@jini-ai/daemon/chat-settings' or its corresponding type declarations.
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts(1,10): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'requestRunToolConsent'.
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts(1,38): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'RunToolConsentPorts'.
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts(1,64): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'RunToolConsentSnapshot'.
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts(1,93): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'RunToolConsentResult'.
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts(62,13): error TS7031: Binding element 'snapshot' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts(62,23): error TS7031: Binding element 'stale' implicitly has an 'any' type.
+apps/website/src/server/inbound/assistant/ensure-json-agent-install.ts(1,10): error TS2305: Module '"@jini-ai/mcp"' has no exported member 'installOwnedJsonAgent'.
+apps/website/src/server/inbound/assistant/tool-access-lowering-route.ts(3,15): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessChange'.
+apps/website/src/server/inbound/assistant/tool-access-lowering-route.ts(3,33): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessStopResult'.
+apps/website/src/server/inbound/public-http/http/site/__tests__/declared-assets.unit.test.ts(4,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/server/inbound/public-http/http/site/bare-page.ts(1,15): error TS2305: Module '"@jini-ai/cms/presentation"' has no exported member 'DocumentAssets'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(1,15): error TS2305: Module '"@jini-ai/cms/presentation"' has no exported member 'DocumentAssets'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(2,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(3,10): error TS2305: Module '"@jini-ai/cookie-consent/render"' has no exported member 'renderScriptAssets'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(4,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'renderFormCollection'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(4,37): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormCollectionPlan'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(5,29): error TS2307: Cannot find module '@jini-ai/commerce/money' or its corresponding type declarations.
+apps/website/src/server/inbound/public-http/http/site/render.ts(18,46): error TS2305: Module '"@jini-ai/cms/forms/html-render"' has no exported member 'renderFormSchemaHash'.
+apps/website/src/server/inbound/public-http/http/site/render.ts(2430,5): error TS2353: Object literal may only specify known properties, and 'idPrefix' does not exist in type '{ html?: string | undefined; successMessage?: string | undefined; className?: string | undefined; }'.
+apps/website/src/server/inbound/public-http/middleware/__tests__/declared-consent.unit.test.ts(242,50): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cookie-consent/dist/contract"' has no exported member 'DeclaredScript'.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-cookie-consent.regressions.unit.test.ts(12,37): error TS2307: Cannot find module '@jini-ai/http-kit/html-response' or its corresponding type declarations.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-cookie-consent.regressions.unit.test.ts(50,62): error TS7031: Binding element 'body' implicitly has an 'any' type.
+apps/website/src/server/inbound/public-http/middleware/site-consent.ts(3,15): error TS2724: '"@jini-ai/cookie-consent"' has no exported member named 'ConsentConfig'. Did you mean 'ClientConfig'?
+apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts(1,15): error TS2305: Module '"@jini-ai/cms/presentation"' has no exported member 'DocumentAssets'.
+apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts(2,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'DeclaredScript'.
+apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts(3,10): error TS2305: Module '"@jini-ai/cookie-consent/render"' has no exported member 'renderScriptAssets'.
+apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts(4,15): error TS2724: '"@jini-ai/cookie-consent"' has no exported member named 'ConsentConfig'. Did you mean 'ClientConfig'?
+apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts(278,74): error TS2353: Object literal may only specify known properties, and 'scripts' does not exist in type 'Omit<ClientConfig, "banner">'.
+apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts(12,10): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'createCommerceServer'.
+apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts(12,66): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'CommerceBuyerOrder'.
+apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts(118,89): error TS7006: Parameter 'message' implicitly has an 'any' type.
+apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts(4,33): error TS2724: '"@jini-ai/commerce"' has no exported member named 'commerceBuyerStatus'. Did you mean 'CommerceStatus'?
+apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts(4,54): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'toCommerceBuyerOrder'.
+apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts(4,81): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'CommerceOrderView'.
+apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts(3,41): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormSchemaChangedError'.
+apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts(3,65): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormAttachmentSpaceError'.
+apps/website/src/server/inbound/public-http/routes/site/pages.ts(909,112): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cookie-consent/dist/contract"' has no exported member 'DeclaredScript'.
+apps/website/src/server/inbound/public-http/routes/site/pages.ts(2747,60): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cookie-consent/dist/contract"' has no exported member 'DeclaredScript'.
+apps/website/src/server/inbound/public-http/visitor-analytics.ts(2,15): error TS2305: Module '"@jini-ai/cookie-consent"' has no exported member 'ConsentAnalyticsProof'.
+apps/website/src/server/routes/types.ts(194,56): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/user-management/dist/server/index"' has no exported member 'MfaStore'.
+apps/website/src/server/routes/types.ts(196,60): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/user-management/dist/server/index"' has no exported member 'PasskeyStore'.
+apps/website/src/server/routes/types.ts(759,64): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cms/dist/forms/index"' has no exported member 'FormCollectionRegistry'.
+apps/website/src/server/routes/types.ts(1352,85): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cookie-consent/dist/contract"' has no exported member 'DeclaredScript'.
+apps/website/src/server/routes/types.ts(1352,167): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cms/dist/presentation/index"' has no exported member 'DocumentAssets'.
+apps/website/src/server/routes/types.ts(1353,55): error TS2694: Namespace '"/home/user/Tovu/node_modules/@jini-ai/cookie-consent/dist/contract"' has no exported member 'DeclaredScript'.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(10,86): error TS7006: Parameter 'message' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(12,15): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(60,26): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(71,26): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(81,71): error TS7006: Parameter 'message' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(82,26): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(83,15): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(96,26): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce-worker.unit.test.ts(97,15): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts(192,130): error TS18046: 'view' is of type 'unknown'.
+apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts(193,23): error TS18046: 'settled' is of type 'unknown'.
+apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts(193,45): error TS18046: 'settled' is of type 'unknown'.
+apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts(193,68): error TS18046: 'settled' is of type 'unknown'.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.fixture.ts(3,35): error TS2724: '"@jini-ai/cms/forms"' has no exported member named 'FormDeliveryQueuedJob'. Did you mean 'FormDeliveryJob'?
+apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.fixture.ts(9,58): error TS2724: '"@jini-ai/cms/forms"' has no exported member named 'FormDeliveryQueuedJob'. Did you mean 'FormDeliveryJob'?
+apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts(115,35): error TS2353: Object literal may only specify known properties, and 'workspaceId' does not exist in type '{ job: FormDeliveryJob; deliver: (job: FormDeliveryJob) => Promise<void | FormDeliveryResult>; }'.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts(115,96): error TS7031: Binding element 'workspaceId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts(115,109): error TS7031: Binding element 'submissionId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts(115,123): error TS7031: Binding element 'formId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts(5,71): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormDeliveryReferenceJob'.
+apps/website/src/server/runtime/composition/__tests__/form-delivery.test.ts(125,100): error TS2339: Property 'form' does not exist on type 'FormDeliveryJob & Record<"submissionRef", unknown>'.
+apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts(1,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'describeFormCollectionProviders'.
+apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts(1005,113): error TS7006: Parameter 'provider' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts(1055,108): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts(1073,115): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts(1094,110): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts(1100,109): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/__tests__/tool-catalog-commerce.unit.test.ts(5,10): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'createCommerceServer'.
+apps/website/src/server/runtime/composition/__tests__/tool-catalog-commerce.unit.test.ts(6,30): error TS2305: Module '"@jini-ai/commerce/tools"' has no exported member 'buildCommerceCatalogRegistrations'.
+apps/website/src/server/runtime/composition/__tests__/tool-catalog-commerce.unit.test.ts(38,74): error TS2353: Object literal may only specify known properties, and 'commerce' does not exist in type 'Deps'.
+apps/website/src/server/runtime/composition/app.ts(1865,9): error TS2353: Object literal may only specify known properties, and 'withHashLock' does not exist in type 'Omit<{ bus: EventBusPort; findBlob: (required: Payload) => Promise<{ storageKey: string; status: string; } | null>; hasOwners: (required: Payload) => Promise<...>; deleteBytes: (required: { ...; }) => Promise<...>; removeBlob: (required: Payload) => Promise<...>; }, "bus">'.
+apps/website/src/server/runtime/composition/app.ts(1867,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/app.ts(2568,7): error TS2353: Object literal may only specify known properties, and 'readUploadFreeBytes' does not exist in type 'SubmitFormDeps'.
+apps/website/src/server/runtime/composition/browser-analytics.ts(3,37): error TS2307: Cannot find module '@jini-ai/http-kit/html-response' or its corresponding type declarations.
+apps/website/src/server/runtime/composition/browser-analytics.ts(22,62): error TS7031: Binding element 'body' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce-drain.ts(2,10): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'readCommerceDrain'.
+apps/website/src/server/runtime/composition/commerce-drain.ts(2,47): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'CommerceConfiguration'.
+apps/website/src/server/runtime/composition/commerce-drain.ts(4,10): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'commerceConfigurationKey'.
+apps/website/src/server/runtime/composition/commerce-drain.ts(4,36): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'selectCommerceDrain'.
+apps/website/src/server/runtime/composition/commerce-http.ts(4,42): error TS2307: Cannot find module '@jini-ai/commerce/checkout-browser' or its corresponding type declarations.
+apps/website/src/server/runtime/composition/commerce-origin.ts(1,10): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'normalizedCommerceOrigin'.
+apps/website/src/server/runtime/composition/commerce-origin.ts(2,10): error TS2305: Module '"@jini-ai/platform/net/endpoint-policy"' has no exported member 'isDeployedApiHostname'.
+apps/website/src/server/runtime/composition/commerce-settings.ts(5,15): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'CommerceConfiguration'.
+apps/website/src/server/runtime/composition/commerce-settings.ts(6,15): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'CommerceConfiguration'.
+apps/website/src/server/runtime/composition/commerce-worker.ts(2,10): error TS2305: Module '"@jini-ai/commerce/payments/kernel"' has no exported member 'createSettlementWorker'.
+apps/website/src/server/runtime/composition/commerce-worker.ts(2,39): error TS2305: Module '"@jini-ai/commerce/payments/kernel"' has no exported member 'CommerceWorkerRequired'.
+apps/website/src/server/runtime/composition/commerce-worker.ts(2,68): error TS2305: Module '"@jini-ai/commerce/payments/kernel"' has no exported member 'CommerceWorkerOptional'.
+apps/website/src/server/runtime/composition/commerce-worker.ts(8,53): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce-worker.ts(12,38): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce-worker.ts(12,43): error TS7006: Parameter 'delayMs' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(3,58): error TS2305: Module '"@jini-ai/commerce/tools"' has no exported member 'buildCommerceCatalogRegistrations'.
+apps/website/src/server/runtime/composition/commerce.ts(4,10): error TS2305: Module '"@jini-ai/commerce/payments/tools"' has no exported member 'buildCommerceResolutionRegistrations'.
+apps/website/src/server/runtime/composition/commerce.ts(4,53): error TS2305: Module '"@jini-ai/commerce/payments/tools"' has no exported member 'CommerceResolutionToolsRequired'.
+apps/website/src/server/runtime/composition/commerce.ts(7,23): error TS2305: Module '"@jini-ai/db/kernel"' has no exported member 'withKernelSessionLock'.
+apps/website/src/server/runtime/composition/commerce.ts(7,46): error TS2305: Module '"@jini-ai/db/kernel"' has no exported member 'kernelSessionPoolMax'.
+apps/website/src/server/runtime/composition/commerce.ts(10,10): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'createCommerceServer'.
+apps/website/src/server/runtime/composition/commerce.ts(10,32): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'CommerceUnavailableError'.
+apps/website/src/server/runtime/composition/commerce.ts(10,87): error TS2305: Module '"@jini-ai/commerce"' has no exported member 'readOwnedCommerceOrder'.
+apps/website/src/server/runtime/composition/commerce.ts(12,27): error TS2305: Module '"@jini-ai/commerce/repo"' has no exported member 'commerceStorefrontFor'.
+apps/website/src/server/runtime/composition/commerce.ts(56,35): error TS2322: Type '() => { [k: string]: string; }' is not assignable to type 'Readonly<Record<string, string>>'.
+  Index signature for type 'string' is missing in type '() => { [k: string]: string; }'.
+apps/website/src/server/runtime/composition/commerce.ts(179,60): error TS2339: Property 'findOpenPayment' does not exist on type 'LedgerTx'.
+apps/website/src/server/runtime/composition/commerce.ts(181,44): error TS2339: Property 'workspaceId' does not exist on type '{}'.
+apps/website/src/server/runtime/composition/commerce.ts(181,70): error TS2339: Property 'siteId' does not exist on type '{}'.
+apps/website/src/server/runtime/composition/commerce.ts(181,95): error TS2339: Property 'providerId' does not exist on type '{}'.
+apps/website/src/server/runtime/composition/commerce.ts(182,33): error TS2339: Property 'providerAccountId' does not exist on type '{}'.
+apps/website/src/server/runtime/composition/commerce.ts(182,63): error TS2339: Property 'mode' does not exist on type '{}'.
+apps/website/src/server/runtime/composition/commerce.ts(210,51): error TS2339: Property 'hasOpenPayment' does not exist on type 'LedgerTx'.
+apps/website/src/server/runtime/composition/commerce.ts(224,75): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(252,11): error TS2353: Object literal may only specify known properties, and 'unconfirmedBefore' does not exist in type '{ updatedBefore: number; limit: number; }'.
+apps/website/src/server/runtime/composition/commerce.ts(254,83): error TS2353: Object literal may only specify known properties, and 'limit' does not exist in type '{ unresolvedOnly?: boolean | undefined; }'.
+apps/website/src/server/runtime/composition/commerce.ts(285,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(286,22): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(289,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(290,18): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(291,24): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/commerce.ts(300,85): error TS2353: Object literal may only specify known properties, and 'commerce' does not exist in type 'Deps'.
+apps/website/src/server/runtime/composition/commerce.ts(304,137): error TS7031: Binding element 'orderId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/deps.ts(5,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/server/runtime/composition/deps.ts(1765,5): error TS2353: Object literal may only specify known properties, and 'formCollectionProviders' does not exist in type 'CoreResolverDeps'.
+apps/website/src/server/runtime/composition/form-delivery.ts(2,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'submissionEvidenceDefinition'.
+apps/website/src/server/runtime/composition/form-delivery.ts(65,5): error TS2353: Object literal may only specify known properties, and 'readSubmission' does not exist in type '{ bus: EventBusPort; plan: (required: { workspaceId: string; submissionId: string; formId: string; }) => Promise<unknown>; deliver: (required: { workspaceId: string; job: FormDeliveryJob; }) => Promise<...>; }'.
+apps/website/src/server/runtime/composition/form-delivery.ts(65,30): error TS7031: Binding element 'workspaceId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/form-delivery.ts(65,43): error TS7031: Binding element 'submissionId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/form-delivery.ts(65,57): error TS7031: Binding element 'formId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/form-delivery.ts(100,118): error TS2339: Property 'evidence' does not exist on type 'FormSubmissionRecord'.
+apps/website/src/server/runtime/composition/modules/__tests__/assistant-byok.tool-access-lowering.integration.test.ts(37,139): error TS2353: Object literal may only specify known properties, and 'mcpSource' does not exist in type 'ToolMetadata<ToolApprovalMetadata>'.
+apps/website/src/server/runtime/composition/modules/__tests__/assistant-byok.tool-access-lowering.integration.test.ts(57,80): error TS2353: Object literal may only specify known properties, and 'mcpSource' does not exist in type 'ToolMetadata<ToolApprovalMetadata>'.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(2,10): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'admittedToolSources'.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(2,31): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'stopRunsForToolAccessChange'.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(2,65): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessRun'.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(2,85): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessChange'.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(536,18): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(537,24): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(538,26): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(539,24): error TS7031: Binding element 'runId' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(539,31): error TS7031: Binding element 'message' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/modules/assistant-server-federation.ts(1,15): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessChange'.
+apps/website/src/server/runtime/composition/modules/assistant-tool-access-lowering.ts(1,15): error TS2305: Module '"@jini-ai/daemon"' has no exported member 'ToolAccessChange'.
+apps/website/src/server/runtime/composition/provider-plugins.ts(1,10): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'createFormCollectionRegistry'.
+apps/website/src/server/runtime/composition/provider-plugins.ts(1,45): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormCollectionProvider'.
+apps/website/src/server/runtime/composition/provider-plugins.ts(1,74): error TS2305: Module '"@jini-ai/cms/forms"' has no exported member 'FormCollectionRegistry'.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(38,31): error TS2307: Cannot find module '@jini-ai/commerce/money' or its corresponding type declarations.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(39,10): error TS2305: Module '"@jini-ai/commerce/tools"' has no exported member 'commerceCatalogDerivedRisk'.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(383,20): error TS7031: Binding element 'ctx' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(383,25): error TS7031: Binding element 'description' implicitly has an 'any' type.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(383,40): error TS7006: Parameter 'options' implicitly has an 'any' type.
+scripts/forms-maintenance.ts(46,75): error TS2322: Type '{ mediaRepo: SqlMediaRepo; blobRepo: SqlAssetBlobRepo; renditionRepo: SqlAssetRenditionRepo; entryRefsRepo: SqlEntryRefsRepo; postRepo: SqlitePostRepo; }' is not assignable to type 'Omit<PurgeMediaDeps, "referenceCheck"> & { entryRefsRepo: Pick<EntryRefsRepoPort, "findByTarget">; postRepo: Pick<PostRepoPort, "list">; mediaRepo: Pick<...>; }'.
+  Property 'blobStore' is missing in type '{ mediaRepo: SqlMediaRepo; blobRepo: SqlAssetBlobRepo; renditionRepo: SqlAssetRenditionRepo; entryRefsRepo: SqlEntryRefsRepo; postRepo: SqlitePostRepo; }' but required in type 'Omit<PurgeMediaDeps, "referenceCheck">'.
+scripts/forms-maintenance.ts(66,73): error TS7006: Parameter 'result' implicitly has an 'any' type.
+scripts/forms-maintenance.ts(66,110): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ readonly 'proven-orphan': "The exact terminal form-upload record matches and no live or restorable owner was found."; readonly 'missing-evidence': "No verified terminal upload record matches. A missing submission or matching filename is insufficient; the file was kept."; ... 4 more ...; readonly 'cleanup-failed': ...'.

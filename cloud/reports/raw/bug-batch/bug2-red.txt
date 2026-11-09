@@ -1,0 +1,66 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ❯ src/forms/__tests__/repo.dialects.test.ts (26 tests | 2 failed | 24 skipped) 2557ms
+   × forms repos [sqlite] > a submission whose IP the retention sweep cleared reads back with a null source IP 21ms
+     → Expected values to be strictly equal:
+
+'' !== null
+
+   × forms repos [pglite] > a submission whose IP the retention sweep cleared reads back with a null source IP 2529ms
+     → Expected values to be strictly equal:
+
+'' !== null
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/forms/__tests__/repo.dialects.test.ts > forms repos [sqlite] > a submission whose IP the retention sweep cleared reads back with a null source IP
+AssertionError: Expected values to be strictly equal:
+
+'' !== null
+
+
+- Expected: 
+null
+
++ Received: 
+""
+
+ ❯ src/forms/__tests__/repo.dialects.test.ts:194:14
+    192|       await kernel.run((db) => db.updateTable("form_submissions").set(…
+    193|       const read = await subs.findById({ workspaceId: WS, id: "a" });
+    194|       assert.equal(read?.sourceIp, null);
+       |              ^
+    195|       assert.deepEqual(read?.data, { name: "n-a", agree: true });
+    196|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/forms/__tests__/repo.dialects.test.ts > forms repos [pglite] > a submission whose IP the retention sweep cleared reads back with a null source IP
+AssertionError: Expected values to be strictly equal:
+
+'' !== null
+
+
+- Expected: 
+null
+
++ Received: 
+""
+
+ ❯ src/forms/__tests__/repo.dialects.test.ts:194:14
+    192|       await kernel.run((db) => db.updateTable("form_submissions").set(…
+    193|       const read = await subs.findById({ workspaceId: WS, id: "a" });
+    194|       assert.equal(read?.sourceIp, null);
+       |              ^
+    195|       assert.deepEqual(read?.data, { name: "n-a", agree: true });
+    196|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 24 skipped (26)
+   Start at  05:53:53
+   Duration  3.84s (transform 590ms, setup 0ms, collect 995ms, tests 2.56s, environment 0ms, prepare 77ms)
+
