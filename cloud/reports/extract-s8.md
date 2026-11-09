@@ -1075,5 +1075,54 @@ After F8, `ps` shows no node, vitest, tsc, npm or pnpm process. **Nothing is lef
 
 - Coordinator final tally: 2026-11-09T08:22:17Z, elapsed 86m56s of 150m. Actual subagent tokens: setup 131k, C0 241k, C1 seam 269k, C1 move 192k, C2 part 1 252k, C2 part 2 241k, F8 142k = 1.468M; coordinator ≈ 0.105M; job total ≈ 1.57M of the 1.9M cap. Subagents: 7 (6 build + F8), no follow-up builder. Batch-time note: C1 seam, C1 move and C2 part 1 each finished inside their windows; no batch ran over 1.4× its estimate.
 
+## Continuation (EXTRACT-S8-C)
+
+### C2 part 2 remainder
+
+Continuation start 2026-11-09T08:38:25Z, deadline 09:38:25Z, extra cap 450k tokens / 1h
+
+Builder window 08:39Z–09:10Z. Rows are the "Remains for C3" rows of the "C2 part 2 — inventory/plan"
+table above (that table is this batch's inventory; no new inventory rows were needed). Seams IN PLACE
+in Tovu only: no tool, provider, HTTP or policy code moved; old entries (`buildCustomCredentialsRegistrations`,
+`buildApiCredentialSaveHandlers`, `contributeCustomCredentialsTools`) and the part-2 entries
+(`createCustomCredentialsRegistrations`, `createApiCredentialSaveHandlers`) keep their signatures and
+bind Tovu's values. Jini untouched (stays `a266ba82144d9c7d8078ef7d056ff8c748d607e6`, clean, remote equal).
+
+| Row (priority) | Status | How |
+|---|---|---|
+| 1. handlers consume `CredentialedRequestPort` / `SourceControlWritePort` | DONE | new `createCustomCredentialsToolRegistrations({routeDeps,surfaces,host,ports})` and `createApiCredentialSaveToolHandlers({…,ports,cards})`; `ports: CustomCredentialToolPorts {credentialedRequest, sourceControlWrite}` (new required type in `credential-tool-host.ts`, core types only, @agent-notes: target before decrypt/dialog, GET/POST/PUT/PATCH immediate, DELETE held then decrypt, decline sends nothing, one build/validate-before-decrypt/one plan/one commit on the SAME provider with the EXACT plan, abort → no commit, egress `callerSafeError` only). verify → `port.verify`; make_request → `port.request` (headers/body as the optional half) / `port.resolveTarget`; egress rebuild now `classifyError(...).callerSafeError` (Tovu binder builds exactly the old `new EgressRefusedError({message: callerSafeMessage}, {callerSafeMessage})`); `isCredentialedRequestShapeRejection` = `classifyError` category ∈ {validation, egress-refused} (same set as the old two `instanceof`); write_files → `build`/`validateTarget`/`planFileWrite`/`commitFiles`; plugin-card probe → `port.probe`. Old/part-2 entries bind `credential-ports.ts`'s `bindCredentialedRequestPort`/`bindSourceControlWritePort` over the same deps (`credentialedRequestDeps(routeDeps)` = the former inline `requestDeps`). Same error classes/messages. |
+| 2. secret cards / askThenReport injection | DONE (cards) / REMAINING (approval) | `createApiCredentialSaveToolHandlers` takes required `cards: CustomCredentialSecretCards {defineSecretCardTool: SurfaceCardsPort["defineSecretCardTool"], askThenReport: SurfaceAskThenReport}` (@agent-note: typically Jini UI `@jini-ai/ui/mcp-ui/secret-card` + daemon `askThenReport`; SAME `SurfaceExchangeStore` as the answer/callback route; keystrokes only browser→route→exchange→seal; outcome same URI only after save). Existing entry binds ui `defineSecretCardTool` + daemon `askThenReport`. `approvalToolHandler`/`describeDeleteRequestApproval` NOT injected: its type names T `HumanConfirmSpec`/`ChatDeleteSurfaceDeps`, so a generic port needs a narrow local approval type — not started before the 09:00Z row cut-off. |
+| 3. pluginCards {load,find,readValues}, credentialCardForms, recovery/setup diagnostics | REMAINING | not started (time) |
+| 4. deployment catalog / publish + cache invalidation, locale/translation ports | REMAINING | not started (time) |
+| 5. abortGuardedCredentialRepo, cleanCardToken / assertCredentialFreeField / worksFor, model-facing error rules / form messages, tool ids / handler keys | REMAINING | not started (time) |
+
+Commits (Tovu `cloud/extract-s8`, all pushed; Jini none):
+- `42b9b0c5` refactor: request, verify, target and file-write handlers call the injected credential ports (row 1)
+- `3644089f` refactor: plugin-card key probe goes through the injected request port (row 1)
+- `2f25eedb` test: second host's credential ports are the ones the handlers call, in order (row 1)
+- `d58df3cf` test: plugin-card key probe uses the second host's request port (row 1)
+- `1e4f8d3d` refactor: API key cards open through host-injected secret-card functions (+ test) (row 2)
+- this report commit (SHA in the final digest / F8 rerun)
+
+Files (T = `apps/website/src/features/custom-credentials/`; none in S4/S5/S6 lanes; `tool-catalog-manifest.ts` and connect tokenDeps :595 untouched; no test/fixture M/D/R):
+- `credential-tool-host.ts` (+38/−2; still core-type imports only): new `CustomCredentialSecretCards`, `CustomCredentialToolPorts`; import of `SurfaceCardsPort` and `@jini-ai/core/contracts/credentials` port types.
+- `tool-registrations.ts` (+160/−64 across both rows): imports (credentialed-request value imports reduced to `CredentialedRequestValidationError`; `provider-module`/`buildSourceControlProviderForApi`/`validateRepositoryTarget`/`probeCredentialConnection` imports dropped; core credential types + `credential-ports.js` binders added); `isCredentialedRequestShapeRejection`/`makeModelFacingCredentialedRequest` (old lines 222-246); `performRepositoryFilesWrite` (397-404); `probeCardBeforeSave`/`SetTokenAnswerContext`/`saveSetToken`/`saveCreateCard`/`openCreateCard` gain `probe` and `cards` (567-939); `createApiCredentialSaveHandlers` → one-line binding + new `createApiCredentialSaveToolHandlers` (964-1067); new `credentialedRequestDeps`, `tovuCredentialToolPorts`, `createCustomCredentialsToolRegistrations` (1093-1102); handler call sites (1124, 1177, 1185, 1208, 1229-1257).
+- Comment edit (exact, recorded): before — "// `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` — / // the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct / // anything; see {@link isCredentialedRequestShapeRejection}. Same pattern / // `features/media-import/tool-registrations.ts`'s own identical import uses." + `import { EgressRefusedError, type HttpClientPort } …`; after — "// Types only: the egress refusal is recognised through the request port's `classifyError` / // (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import)." + `import type { HttpClientPort } …`. The runtime import it explained no longer exists in this file; the `instanceof` now lives in the binder (part 1).
+- NEW test `__tests__/extract-s8-c2p2c-ports.test.ts` (9 tests): old-entry byte pins (reuses `extract-s8-c2p2-pins.support.ts`, same four recorded hashes); acme host (permissions `acme.creds.see`/`acme.creds.change`, entity `acme-entity`, namespace `acme`, apps `acme-key-*` v7, acme URLs/messages): verify + GET = one port call each, no resolve, exact required/optional split; egress → port `callerSafeError` message, no resolved address; DELETE: `resolveTarget` before the dialog, decline → no `request`, approve → exactly one `request:DELETE` after the dialog with the write permission re-checked, refused target → no dialog; write files: `build → validateTarget → open → plan → commit`, same provider object at validate/plan/commit, `commitPlan === plan`, abort during plan → no commit, refused target → no decrypt/plan; probe through the port before sealing (refusal keeps the old key, card text has the host hint); cards: the card handler receives the SAME exchange store, host reporter called once, outcome emitted only after the new key is stored, URI `ui://acme/secret-card/credential_save/acme-rot-1`.
+
+Gate (Tovu root, Node 24.2.0):
+| check | result |
+|---|---|
+| T `npx tsc -p tsconfig.json --noEmit` | exit 0 (after row 1a, row 1b, row 2) |
+| explicit pin compile (`tsconfig.tests.json` + the 8 earlier S8 test/pin files + the new file) | exit 0 |
+| eslint `--max-warnings 0` on the 3 changed/new files | exit 0 |
+| T matrix after row 1 (C1 + C2 matrices + accumulated nine + inherited S3 three + all S8 tests + new file) | 54 files, every exit 0, 798/798 |
+| T matrix after row 2 (same list) | 54 files, every exit 0, 799/799 (part 2 end: 53/790; +1 file/+9 tests) |
+| fixture hashes (tool-metadata.baseline, moved-tools ×3, cost-counters.baseline) + inherited S3 pins ×3 | all 8 unchanged |
+| Jini | untouched: HEAD = remote = `a266ba82…`, clean → J build/guard/cross-package not rerun (F8 values stand) |
+
+Repairs (own errors): first draft dropped the `CredentialedRequestValidationError` import still used by the map-level error rules → restored before the first compile; explicit pin compile found the test's sealer wrapper untyped → typed parameters. No production behaviour changed by a repair. No process left running (both matrix runners exited 0).
+Elapsed: 08:39Z–08:59Z (≈20 min). Approval injection and rows 3–5 were not started: the remaining window could not hold another implementation plus a full green matrix before the 09:10Z push deadline.
+
 Stop reason: C2 part 2 only partially seamed (remaining rows listed above). Finishing it needs at least one more builder the size of the C2 part 2 run (≈241k tokens) plus a full F8 rerun (≈142k), ≈383k in all, but only ≈330k of the 1.9M-token job cap remains — a token-cap stop, not a behavior, design or import-rule stop.
 EXTRACT-S8 STOPPED AT CAP
