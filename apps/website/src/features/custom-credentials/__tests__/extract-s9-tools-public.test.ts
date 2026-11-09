@@ -21,7 +21,7 @@ test('the installed tool declarations retain named security and ordering notes a
   for (const name of ['credential-tool-host', 'credential-tool-operations', 'tool-registrations', 'credential-copy-tool']) {
     const text = readFileSync(new URL(`./${name}.d.ts`, entry), 'utf8');
     const source = ts.createSourceFile(`${name}.d.ts`, text, ts.ScriptTarget.Latest, true);
-    const declarations = source.statements.filter(statement => ts.isInterfaceDeclaration(statement)
+    const declarations = source.statements.filter((statement): statement is ts.InterfaceDeclaration | ts.FunctionDeclaration => ts.isInterfaceDeclaration(statement)
       || (ts.isFunctionDeclaration(statement) && ['createCredentialSaveHandlers', 'createCredentialToolRegistrations', 'createCredentialCopyRegistrations'].includes(statement.name?.text ?? '')));
     assert.ok(declarations.length, name);
     for (const declaration of declarations) {
