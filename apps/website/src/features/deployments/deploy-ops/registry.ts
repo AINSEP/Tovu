@@ -1,3 +1,4 @@
+import { requireDeployPlatform } from './portable/ops-registry.js';
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
@@ -89,15 +90,7 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
   } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }
 }
 
-/** Refuse an absent id with the available ids and loader refusals, rather than guessing a platform. */
-export function requirePlatform(registry: DeployOpsRegistry, id: string): LoadedDeployOps {
-  const platform = registry.get(id);
-  if (!platform) {
-    const refusals = registry.refusals.length ? ` ${registry.refusals.join(" ")}` : "";
-    throw new ToolInputError({ message: `Unknown deployment ops platform '${id}'. Choose: ${registry.list().map(p => p.descriptor.id).join(", ") || "(none)"}.${refusals}` });
-  }
-  return platform;
-}
+export function requirePlatform(registry:DeployOpsRegistry,id:string):LoadedDeployOps {return requireDeployPlatform({registry,id},{});}
 /** Index uniquely claimed ids. Ambiguous ids are refused for all claimants. O(platforms). */
 function buildRegistry(loaded: readonly LoadedDeployOps[], inputRefusals: readonly string[]): DeployOpsRegistry {
   const map = new Map<string, LoadedDeployOps>(); const duplicates = new Set<string>(); const refusals = [...inputRefusals];
