@@ -1,0 +1,17 @@
+# S4-0b A7 F4 compile proof: temp file apps/website/src/features/agent-plugins/__s40b_tmp/example.ts (removed after)
+// S4-0b A7 F4 compile proof of the @example (temporary, not committed).
+import { buildAgentPluginAccessTokenFormWithPorts } from '../connect-card-ui.js';
+import type { SurfaceCardApp } from '@jini-ai/core/contracts/cards';
+import type { PluginCredentialsPort } from '../service-ports.js';
+declare const app: SurfaceCardApp;
+declare const credentials: Pick<PluginCredentialsPort, 'apply'>;
+export const form = buildAgentPluginAccessTokenFormWithPorts({ app, spec: { credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" } });
+// @ts-expect-error the old flat call shape does not compile against the real ports
+buildAgentPluginAccessTokenFormWithPorts({ credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" });
+# listed by main tsconfig:
+1
+# main tsc with the example (new shape compiles; @ts-expect-error proves the old flat shape fails):
+exit=0
+# negative control without @ts-expect-error:
+apps/website/src/features/agent-plugins/__s40b_tmp/example.ts(9,44): error TS2353: Object literal may only specify known properties, and 'credentials' does not exist in type '{ readonly app: BridgeScriptSpec; readonly spec: { readonly credentials: Pick<PluginCredentialsPort, "apply">; readonly pluginDisplayName: string; readonly helpUrl: string; readonly credentialCard?: PluginCredentialCard | undefined; }; }'.
+exit=2

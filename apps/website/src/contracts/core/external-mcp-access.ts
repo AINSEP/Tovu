@@ -120,6 +120,8 @@ export function externalMcpAdmissionRevision(
 }
 
 /** Capture the source identity, exact previous grants and their decision, excluding token-refresh metadata.
+ * @agent-note Canonical saved representation: JSON-serializable with this stable key order. Approval
+ * revalidation compares JSON.stringify output byte-for-byte; a second host's projection must too.
  * @returns A detached approval snapshot containing no credential bytes.
  * @complexity O(a+w) in the bounded grant lists; no I/O.
  */
@@ -133,6 +135,8 @@ export function externalMcpAccessSnapshot({ record }: { record: ExternalMcpAcces
 /** Parses a row's two grant lists the same way {@link resolveExternalMcpConfig} does — shared so
  *  admission and `external-mcp-revocation.ts`'s per-call re-check can never silently disagree about
  *  what a malformed list means (both fail closed to `[]`).
+ *  @agent-note With `{ strict: true }` (grant planning) an unreadable list throws; it never reads as
+ *  an empty or fresh grant.
  *  @complexity O(n) in the size of the two JSON blobs. */
 export function readExternalMcpToolGrants(
   record: Pick<ExternalMcpAccessSnapshot, "allowedToolNames" | "writeAllowedToolNames">,
@@ -145,6 +149,8 @@ export function readExternalMcpToolGrants(
 }
 
 /** Validate already-decoded names using the save path's charset, cap and dedup rule.
+ * @agent-note What this throws, the paired `classifyError` must call `'validation'`; its message is the
+ * model-facing repair reason, so it must stay public-safe (consumers still pass it through core redaction).
  * @throws ExternalMcpValidationError for a refused name or more than 64 tools.
  * @complexity O(names), no I/O.
  */

@@ -66,7 +66,7 @@ export function buildAgentPluginConnectCardWithPorts<Resource>(required: { spec:
  * replaces the form. This builder supplies domain copy only; the engine owns routing and dismissal.
  *
  * @returns A secret-card form spec without routing parameters or prefilled credentials.
- * @example buildAgentPluginAccessTokenForm({ credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" });
+ * @example buildAgentPluginAccessTokenFormWithPorts({ app, spec: { credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" } });
  * @complexity O(1).
  */
 export function buildAgentPluginAccessTokenFormWithPorts(required: { readonly app: SurfaceCardApp; readonly spec: {
