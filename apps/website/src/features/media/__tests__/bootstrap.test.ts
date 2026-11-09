@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryTransformDefinitionRepo, registerTransform } from "@jini-ai/cms/media";
+import {
+  InMemoryAssetBlobRepo,
+  InMemoryAssetRenditionRepo,
+  InMemoryBlobStore,
+  InMemoryImageTransformer,
+  InMemoryMediaRepo,
+  InMemoryTransformDefinitionRepo,
+  registerTransform,
+  resolveMediaRendition,
+  uploadMedia,
+} from "@jini-ai/cms/media";
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render";
@@ -124,4 +134,51 @@ test("og boot: registers one JPEG share transform and preserves both versions ac
   assert.equal((await deps.transformRepo.listByName({ workspaceId: WORKSPACE_ID, name: "public" })).length, 1);
   await ensureCoreMediaTransform({ deps, input: { workspaceId: OTHER_WORKSPACE_ID } });
   assert.equal((await deps.transformRepo.listByName({ workspaceId: OTHER_WORKSPACE_ID, name: "og" })).length, 1);
+});
+
+// Grid guard: a site upgraded after its images were uploaded gets thumbnails with no re-import.
+test("thumb boot: registers one 640-wide WebP transform, and an asset uploaded BEFORE it generates on its first request", async () => {
+  const deps = fakeDeps();
+  const transformCalls: unknown[] = [];
+  const realTransformer = new InMemoryImageTransformer();
+  const renditionDeps = {
+    ...deps,
+    mediaRepo: new InMemoryMediaRepo({}),
+    blobRepo: new InMemoryAssetBlobRepo({}),
+    renditionRepo: new InMemoryAssetRenditionRepo({}),
+    blobStore: new InMemoryBlobStore(),
+    imageTransformer: {
+      transform: async (input: Parameters<typeof realTransformer.transform>[0]) => {
+        transformCalls.push(input.params);
+        return realTransformer.transform(input);
+      },
+    },
+  };
+  const { media } = await uploadMedia({
+    deps: renditionDeps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      filename: "shot.png",
+      contentType: "image/png",
+      bytes: new TextEncoder().encode("raster bytes"),
+      createdByPrincipal: "owner",
+    },
+  });
+
+  for (let restart = 0; restart < 3; restart += 1) {
+    await ensureCoreMediaTransform({ deps, input: { workspaceId: WORKSPACE_ID } });
+  }
+
+  const thumb = await deps.transformRepo.listByName({ workspaceId: WORKSPACE_ID, name: "thumb" });
+  assert.equal(thumb.length, 1, "restarts must not mint a second thumb version");
+  assert.equal(thumb[0]!.version, 1);
+  assert.equal(thumb[0]!.owner, "core");
+  assert.deepEqual(thumb[0]!.params, { format: "webp", width: 640 });
+
+  const result = await resolveMediaRendition({
+    deps: renditionDeps,
+    input: { workspaceId: WORKSPACE_ID, assetId: media.id, transformName: "thumb", version: 1 },
+  });
+  assert.equal(result.outcome, "ok");
+  assert.deepEqual(transformCalls, [{ format: "webp", width: 640 }]);
 });
