@@ -145,6 +145,19 @@ function readLiteralArray(filename: string, name: string): ts.Expression[] {
   return Array.from(initializer.elements);
 }
 
+/** A tab id written as a same-file `const X = "literal"` (Security.tsx's ACCESS_TOKENS_TAB). */
+function sameFileConstString(filename: string, name: string): ts.StringLiteral | undefined {
+  const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true);
+  let found: ts.StringLiteral | undefined;
+  function visit(node: ts.Node): void {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer
+      && ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) && ts.isStringLiteral(node.initializer)) found = node.initializer;
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return found;
+}
+
 function tabValues(file: string, name: string, field?: string): string[] {
   // Screens that moved into @jini-ai/admin keep their tab ids in the package's built rules files.
   const jini = "@jini-ai/admin/";
@@ -161,7 +174,8 @@ function tabValues(file: string, name: string, field?: string): string[] {
       && ts.isArrayLiteralExpression(spread.whenFalse) && spread.whenFalse.elements.length === 0) return Array.from(spread.whenTrue.elements);
     throw new Error(`Unsupported spread in ${name} in ${file}`);
   }).map(element => {
-    const value = field && ts.isObjectLiteralExpression(element) ? property(element, field) : element;
+    const written = field && ts.isObjectLiteralExpression(element) ? property(element, field) : element;
+    const value = written && ts.isIdentifier(written) ? sameFileConstString(filename, written.text) : written;
     if (!value || !ts.isStringLiteral(value)) throw new Error(`Nonliteral ${name}.${field ?? "id"} in ${file}`);
     return value.text;
   });
