@@ -10,7 +10,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.
 import { pluginAgentToolCatalog, PLUGINS_SET_ENABLED_TOOL_ID } from './agent-tools.js';
 import { describeUninstallApproval } from './uninstall-confirmation-ui.js';
 import { describeEnableApproval } from './enable-confirmation-ui.js';
-import { pluginSourceAgentToolCatalog } from './source-tools.js';
+import { pluginSourceAgentToolCatalog } from './source-tool-catalog.js';
 import { pluginToolMessages } from './plugin-tool-messages.js';
 import { lowerPluginToolAccess } from './lower-tool-access.js';
 import { bindAgentPluginTools } from './agent-plugin-tool-binding.js';

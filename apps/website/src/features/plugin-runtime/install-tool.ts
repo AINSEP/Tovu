@@ -1,9 +1,10 @@
-import type { AgentToolDefinition, ToolContributor, ToolRegistration } from '@jini-ai/core';
+import type { ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { PluginsToolDeps } from './tool-registrations.js';
-import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader } from '#src/contracts/headless/index';
+import { type InstallAttachmentReader } from '#src/contracts/headless/index';
 import { buildPluginInstallRegistrations, pluginInstallDerivedRiskFor } from '@jini-ai/plugins/host/tools';
 import { bindPluginInstallTools } from './install-tool-binding.js';
-
+import { PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';
+export { catalog, PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';
 
 /**
  * @file `plugins_install` — the assistant's way to install a SITE plugin (`.tovu-plugin`, the family
@@ -34,34 +35,8 @@ export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "auth
   readonly env?: Readonly<Record<string, string | undefined>>;
 };
 
-
-export const PLUGINS_INSTALL_TOOL_ID = "plugins_install";
-
-
-export const catalog: AgentToolDefinition[] = [{
-  name: PLUGINS_INSTALL_TOOL_ID,
-  description:
-    "Installs a SITE plugin (.tovu-plugin, the kind content_read.plugin lists) from a local folder or .zip on the machine Tovu runs on, or a chat ZIP source.attachmentRef (get it from chat_list_pending_attachments). " +
-    "Use when the user asks to install or add a plugin from a folder or zip. The package is inspected and an invalid one is refused before " +
-    "anything is written; the result names its trust tier and carries a warning saying whether it runs code — tell the user. Set replace:true to replace an installed version (refused while that plugin is on). The plugin is " +
-    "installed OFF in every workspace — turn it on afterwards with plugins_set_enabled (family 'site-runtime'). Hosted servers refuse installs " +
-    "without TOVU_PLUGIN_LOCAL_INSTALL=1; desktop and dev sites install directly. To AUTHOR a site plugin use plugin_source_create/open, write/edit files, seal, then enable. Does not install Agent Plugins, " +
-    "themes or skills, and does not download anything.",
-  sideEffects: "mutates-durable-state",
-  authorization: { permission: "admin.plugins.enable" },
-  inputSchema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["source"],
-    properties: {
-      source: PLUGIN_INSTALL_SOURCE_SCHEMA,
-      replace: { type: "boolean", description: "true to replace an installed version of the same plugin id. Default false." },
-    },
-  },
-}];
 export const derivedRisk = pluginInstallDerivedRiskFor({ toolId: PLUGINS_INSTALL_TOOL_ID });
 export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] { return buildPluginInstallRegistrations(bindPluginInstallTools(deps)); }
-
 
 /** Contributes `plugins_install` as its own domain — see this file's header. */
 export function contributePluginsInstallTools(required: { readInstallAttachment?: InstallAttachmentReader } = {}, _optional: Record<string, never> = {}): ToolContributor<PluginsInstallToolDeps, unknown> {
