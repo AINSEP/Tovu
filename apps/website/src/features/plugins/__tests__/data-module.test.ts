@@ -80,26 +80,51 @@ test("dataModule: declares a namespaced table and records a migration-journal en
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("dataModule: a dbPath naming a different real file is refused before headroom, snapshot or DDL", async () => {
-  // Otherwise the snapshot lands beside the wrong file (where boot recovery would restore it over
-  // that file), and headroom is measured on a file that may be empty or absent, so it always passes.
-  const { db, dir } = openWithCore();
+test("dataModule: a dbPath naming a different real file warns, still installs, and snapshots the open database", async (t) => {
+  // A wrong configured path must not block the schema install (no boot refusals); the snapshot and
+  // headroom check bind to the database the connection actually uses, never to the named file.
+  const { db, dbPath, dir } = openWithCore();
   const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-other-"));
   const wrongPath = path.join(otherDir, "other.db");
   new Database(wrongPath).close();
+  const warn = t.mock.method(console, "warn", () => {});
   const measured: string[] = [];
   const result = await declareDataModule({ db: contentKernel(db), dbPath: wrongPath, decl: productsDecl }, {
     checkHeadroom: ({ dbPath }) => { measured.push(dbPath); return { ok: true, requiredBytes: 0, freeBytes: 0 }; },
   });
 
-  assert.deepEqual({ ok: result.ok, code: result.error?.code, snapshotPath: result.snapshotPath, measured }, { ok: false, code: "DB_PATH_MISMATCH", snapshotPath: null, measured: [] });
-  assert.match(result.error!.message, /is not the database this connection has open/);
-  assert.equal(tableExists(db, "p_hello__products"), false, "nothing was declared");
-  assert.deepEqual(fs.readdirSync(otherDir), ["other.db"], "no snapshot beside the wrong file");
+  assert.deepEqual({ ok: result.ok, created: result.created, measured: measured.map(file => fs.realpathSync(file)) }, { ok: true, created: ["p_hello__products"], measured: [fs.realpathSync(dbPath)] });
+  assert.equal(fs.realpathSync(path.dirname(result.snapshotPath!)), fs.realpathSync(dir), "the snapshot is taken beside the open database");
+  assert.deepEqual(fs.readdirSync(otherDir), ["other.db"], "nothing is written beside the wrong file");
+  assert.equal(warn.mock.callCount(), 1);
+  assert.match(String(warn.mock.calls[0]!.arguments[0]), /other\.db is not the database this connection has open .*content\.db.*Fix the configured database path/);
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
   fs.rmSync(otherDir, { recursive: true, force: true });
+});
+
+test("dataModule: a different path to the same database file (a second mount, a hard link) installs without a warning", async (t) => {
+  // Path strings do not establish file identity: the same site directory behind two bind mounts
+  // gives one file two canonical paths. A hard link reproduces that here: same (dev, ino), other path.
+  const { db, dbPath, dir } = openWithCore();
+  const aliasDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-alias-"));
+  const alias = path.join(aliasDir, "content.db");
+  fs.linkSync(dbPath, alias);
+  const warn = t.mock.method(console, "warn", () => {});
+  const measured: string[] = [];
+  const result = await declareDataModule({ db: contentKernel(db), dbPath: alias, decl: productsDecl }, {
+    checkHeadroom: ({ dbPath }) => { measured.push(dbPath); return { ok: true, requiredBytes: 0, freeBytes: 0 }; },
+  });
+
+  assert.deepEqual({ ok: result.ok, created: result.created, error: result.error, warnings: warn.mock.callCount() }, { ok: true, created: ["p_hello__products"], error: undefined, warnings: 0 });
+  assert.equal(measured.length, 1);
+  assert.equal(fs.statSync(measured[0]!).ino, fs.statSync(dbPath).ino, "headroom measures the open database");
+  assert.ok(tableExists(db, "p_hello__products"));
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(aliasDir, { recursive: true, force: true });
 });
 
 test("dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof)", async () => {
