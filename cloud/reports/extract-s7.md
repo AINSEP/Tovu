@@ -21,3 +21,15 @@ Started 2026-11-09T17:40:00Z (conservative); deadline 2026-11-09T21:40:00Z. Four
 | OAuth error spec and adaptOAuthResponse comment | prose | J oauth/docs/spec/errors.spec.md:31; src/errors.ts:60 | Document protocol allowlists and plain unknown-code refusal/invalid_provider_error | No host vocabulary |
 
 S7-0 is in progress. Baselines, gates, overlap accounting and final source pair will be recorded from actual results. No terminal marker has been written.
+
+## Stop before L2
+
+The untouched required baseline file `apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts` fails its fourth case, **bundled cold-start guidance names the enable tool and Agent Plugin family**: 3 pass, 1 fail, exit 1. Its regex requires `plugins_set_enabled` before `family: "agent-plugin"`; the pinned Jini Composio guidance instead says “enable the plugin with confirmation” followed by that family. Higgsfield guidance has the same wording pattern. Neither content file nor the test was changed here. The integrated receipt does not select this test. A fresh composed-bundle run after the clean package builds reproduced the same failure. This is prior test drift, not a missing emission or a new session regression. The owner stop rule blocks L2; it has not started. L3 and F7 have not started either.
+
+## S7-0 implementation checkpoint
+
+- F2: deleted the unused resolver and its type import, and only the approved three dead-resolver test statements (one setup and two assertions). All four test cases and the real classifier assertions survive. Real installed-error identity suite: 4/4 before and after.
+- F3: shared the three identical 20-code registration/device/callback sets in one package-local module. The 15-code token set and all runtime strings remain unchanged. Corrected the OAuth spec/comment and existing minor changeset.
+- Removed the stale plugin-runtime comment claiming that this file never uses `ToolInputError` and introduces no such convention; the uninstall-specific error behavior remains documented. The S9 changed-path inventory does not include this file.
+- OAuth baseline/final suites: 42 files, 755/755. A first consolidation compile caught duplicate local declarations (TS2440 in three files); repair committed immediately. Build, typecheck, strict lint and subsequent full suite pass. Mutation removing `invalid_client`: exactly the existing recognized-registration case fails (24/25); restored source passes 25/25 and full 755/755.
+- Current cross-package XP1–XP5 checker passes with the immutable original snapshot. Main Tovu types and changed-production strict lint pass. Final ready baseline selections and shutdown results are still being collected; no complete-extraction claim is made.
