@@ -1,0 +1,5 @@
+
+Running 11 tests using 1 worker
+
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-75454539-94fb-4e69-a7c2-71472cd95c73-gze9vD
+  ✘   1 [chromium] › development/e2e/journeys/auth.pins.journey.ts:88:3 › Bug pin: admin-locale-after-login › admin locale survives an interactive login › a stored non-English locale renders in the sidebar on a fresh form login (4ms)

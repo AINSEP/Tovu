@@ -1,0 +1,20 @@
+TimeoutError: locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Upload image', exact: true })
+
+
+   at mobile-visual.setup.ts:54
+
+  52 |     await page.goto("/admin/media");
+  53 |     // Upload lives in the "Upload image" dialog (2026-10-13).
+> 54 |     await page.getByRole("button", { name: "Upload image", exact: true }).click();
+     |                                                                           ^
+  55 |     const dialog = page.getByRole("dialog", { name: "Upload image" });
+  56 |     await dialog.getByLabel("File to upload").setInputFiles({ name: `${MEDIA_TITLE}.png`, mimeType: "image/png", buffer: TINY_PNG });
+  57 |     await dialog.getByRole("button", { name: "Upload", exact: true }).click();
+    at uploadMedia (/home/user/Tovu/development/e2e/journeys/mobile-visual.setup.ts:54:75)
+    at seed (/home/user/Tovu/development/e2e/journeys/mobile-visual.setup.ts:101:3)
+    at mobileVisualGlobalSetup (/home/user/Tovu/development/e2e/journeys/mobile-visual.setup.ts:163:50)
+
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-mobile-nUCrqN
+EXIT 1 SECS 61

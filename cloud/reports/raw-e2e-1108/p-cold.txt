@@ -1,0 +1,345 @@
+
+Running 15 tests using 1 worker
+
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-7cabb714-1d7a-4ce5-9d46-f698d666c409-YYrs7c
+  ✓   1 [chromium] › development/e2e/journeys/auth.pins.journey.ts:270:3 › Bug pin: login-api-down › admin login when the API is unreachable (symptom reproduction) › login attempt fails with a message that names the real cause @isolated-site (1.0m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-cac524fc-bb6a-4076-9798-09c4949464a1-BuH8NQ
+  ✘   2 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly @isolated-site (2.5s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-53f2e6f1-5380-4b2e-b2d1-77c40db5e2ab-2TFzYC
+  ✘   3 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:934:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, hosted-api-only disclosure › shows the plain-language hosted notice OPEN, never the collapsed self-hosted Advanced disclosure @isolated-site (3.2s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-b84d42b2-0091-4c7c-9e2c-b5452553814e-DSlw1f
+  ✘   4 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:954:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › save, reload, then replace the token — every step through a real route, no label ever typed @isolated-site (3.2s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-a633e141-7e10-4754-b8fb-c3f3380e463b-yyiVsA
+  ✘   5 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:995:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › github-pages needs only a token — no label, no owner/repo on this row @isolated-site (3.2s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-0ae35817-4709-40ea-b055-c1a0dfc9e90a-7iJ5Le
+  ✘   6 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1012:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › cloudflare-pages requires BOTH a token and an Account ID before Save enables @isolated-site (3.1s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-54347f23-0a81-4153-a674-bd19abd9d23a-pPWVtE
+  ✘   7 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1203:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › Preview reports a real derived base path with no credential configured — a pure read, never starts a run @isolated-site (2.5s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-5475d7cd-c6ab-4871-8018-ff857359a288-86F0r2
+  ✘   8 [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1233:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › a real Publish click for Vercel (no token configured) settles honestly to a credential failure — this can never leave the process, see this file's own header @isolated-site (2.4s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-1e0e697f-2b57-45e9-95ed-d713c3dea05f-JMbXBF
+  ✓   9 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:118:3 › Bug pin: plugin-install › isolated plugin installs › UI drop ZIP → Preview → Install appears switched off @isolated-site (2.1s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-55d04309-89fa-466c-8687-81c9a8f1494c-REDoAP
+  ✓  10 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:130:3 › Bug pin: plugin-install › isolated plugin installs › UI Choose a folder uploads directory input files then previews and installs @isolated-site (1.8s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-b83050df-db67-458c-8c02-96b3ce02dd2b-WVXcYI
+  ✓  11 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:140:3 › Bug pin: plugin-install › isolated plugin installs › WebMCP fills plugins-install-folder then previews and confirms via document.modelContext @isolated-site (1.7s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-f737bd93-badf-436d-b397-da84861344d9-BemJME
+  ✘  12 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:157:3 › Bug pin: plugin-install › isolated plugin installs › Downloaded rows wrap at container width with a 380px chat dock @isolated-site (16.5s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-d8b986a8-329b-4aaa-b37e-d9adf6d4ae18-WBjPGM
+  ✓  13 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:236:3 › Bug pin: plugin-install › isolated plugin installs › agent plugin ZIP installs off and Replace upgrades 1.0.0 → 1.0.1 @isolated-site (3.1s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-38a98e35-b461-48e5-b282-94595b0d271c-2DLqXd
+  ✓  14 [chromium] › development/e2e/journeys/plugins.pins.journey.ts:257:3 › Bug pin: plugin-install › isolated plugin installs › cleanup uninstalls every QA fixture installed by this test @isolated-site (3.3s)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-ab7c248f-4654-48ac-b0b6-3a54b3dff9e7-02dgqI
+  ✓  15 [chromium] › development/e2e/journeys/site-chat.pins.journey.ts:75:3 › Bug pin: site-assistant-limits › SPEC-046 AC6/REQ-7 — real per-IP rate limiting on the public chat endpoint › requests 1-10 clear the limiter, then the widget's 11th request is readable and leaves the composer usable @isolated-site (1.2s)
+
+
+  1) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-cac524fc-bb6a-4076-9798-09c4949464a1-BuH8NQ/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-cf569-es-pill-tracks-it-correctly-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:934:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, hosted-api-only disclosure › shows the plain-language hosted notice OPEN, never the collapsed self-hosted Advanced disclosure @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-56825--hosted-Advanced-disclosure-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-56825--hosted-Advanced-disclosure-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-53f2e6f1-5380-4b2e-b2d1-77c40db5e2ab-2TFzYC/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-56825--hosted-Advanced-disclosure-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-56825--hosted-Advanced-disclosure-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:954:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › save, reload, then replace the token — every step through a real route, no label ever typed @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-d21da-l-route-no-label-ever-typed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-d21da-l-route-no-label-ever-typed-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-b84d42b2-0091-4c7c-9e2c-b5452553814e-DSlw1f/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-d21da-l-route-no-label-ever-typed-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-d21da-l-route-no-label-ever-typed-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:995:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › github-pages needs only a token — no label, no owner/repo on this row @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-1d8d7-l-no-owner-repo-on-this-row-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-1d8d7-l-no-owner-repo-on-this-row-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-a633e141-7e10-4754-b8fb-c3f3380e463b-yyiVsA/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-1d8d7-l-no-owner-repo-on-this-row-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-1d8d7-l-no-owner-repo-on-this-row-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1012:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › cloudflare-pages requires BOTH a token and an Account ID before Save enables @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-43177-ount-ID-before-Save-enables-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-43177-ount-ID-before-Save-enables-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-0ae35817-4709-40ea-b055-c1a0dfc9e90a-7iJ5Le/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-43177-ount-ID-before-Save-enables-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-43177-ount-ID-before-Save-enables-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1203:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › Preview reports a real derived base path with no credential configured — a pure read, never starts a run @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-ac2f8-ure-read-never-starts-a-run-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-ac2f8-ure-read-never-starts-a-run-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-54347f23-0a81-4153-a674-bd19abd9d23a-pPWVtE/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-ac2f8-ure-read-never-starts-a-run-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-ac2f8-ure-read-never-starts-a-run-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1233:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › a real Publish click for Vercel (no token configured) settles honestly to a credential failure — this can never leave the process, see this file's own header @isolated-site 
+
+    Error: github-pages: explicit host activation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      21 |   for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+      22 |     const response = await deploymentRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    > 23 |     expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+         |                                                                  ^
+      24 |   }
+      25 | });
+      26 |
+        at /home/user/Tovu/development/e2e/journeys/deployment.pins.journey.ts:23:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-3c2b8--see-this-file-s-own-header-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/deployment.pins.journey.ts-3c2b8--see-this-file-s-own-header-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-5475d7cd-c6ab-4871-8018-ff857359a288-86F0r2/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/deployment.pins.journey.ts-3c2b8--see-this-file-s-own-header-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/deployment.pins.journey.ts-3c2b8--see-this-file-s-own-header-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › development/e2e/journeys/plugins.pins.journey.ts:157:3 › Bug pin: plugin-install › isolated plugin installs › Downloaded rows wrap at container width with a 380px chat dock @isolated-site 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "overflow": false,
+        "overlap": false,
+    -   "stacked": false,
+    +   "stacked": true,
+        "truncated": false,
+      }
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      182 |           stacked: actions.getBoundingClientRect().top >= summary.getBoundingClientRect().bottom - 1,
+      183 |           overflow: element.scrollWidth > element.clientWidth + 1 };
+    > 184 |       })).toEqual({ truncated: false, overlap: false, stacked, overflow: false });
+          |           ^
+      185 |     }
+      186 |   });
+      187 |
+        at /home/user/Tovu/development/e2e/journeys/plugins.pins.journey.ts:184:11
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    development/test-results/journeys-b/plugins.pins.journey.ts-Bu-135de-idth-with-a-380px-chat-dock-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: development/test-results/journeys-b/plugins.pins.journey.ts-Bu-135de-idth-with-a-380px-chat-dock-chromium/error-context.md
+
+    attachment #3: pin-server.log (text/plain) ─────────────────────────────────────────────────────
+    [api] [migrations] /tmp/tovu-journeys-pins-f737bd93-badf-436d-b397-da84861344d9-BemJME/sites/journey-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submiss...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/plugins.pins.journey.ts-Bu-135de-idth-with-a-380px-chat-dock-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/plugins.pins.journey.ts-Bu-135de-idth-with-a-380px-chat-dock-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8 failed
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:859:3 › Bug pin: dockerfile-tab-editable › Dockerfile tab is editable › editing and saving a real change persists across reload, and the Unsaved-changes pill tracks it correctly @isolated-site 
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:934:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, hosted-api-only disclosure › shows the plain-language hosted notice OPEN, never the collapsed self-hosted Advanced disclosure @isolated-site 
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:954:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › save, reload, then replace the token — every step through a real route, no label ever typed @isolated-site 
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:995:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › github-pages needs only a token — no label, no owner/repo on this row @isolated-site 
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1012:3 › Bug pin: static-site-tab-credentials › Static Site tab — credentials, real CRUD round trip › cloudflare-pages requires BOTH a token and an Account ID before Save enables @isolated-site 
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1203:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › Preview reports a real derived base path with no credential configured — a pure read, never starts a run @isolated-site 
+    [chromium] › development/e2e/journeys/deployment.pins.journey.ts:1233:3 › Bug pin: static-site-tab › Static Site tab — preview and publish, never touching the real internet › a real Publish click for Vercel (no token configured) settles honestly to a credential failure — this can never leave the process, see this file's own header @isolated-site 
+    [chromium] › development/e2e/journeys/plugins.pins.journey.ts:157:3 › Bug pin: plugin-install › isolated plugin installs › Downloaded rows wrap at container width with a 380px chat dock @isolated-site 
+  7 passed (4.7m)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-ae6Pgf
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-0w618q
+EXIT 1 SECS 284

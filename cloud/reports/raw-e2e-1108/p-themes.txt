@@ -1,0 +1,786 @@
+
+Running 24 tests using 1 worker
+
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-66b512db-eb3b-4eb2-9907-0a37a0ce5222-rFKmkx
+  ✘   1 [chromium] › development/e2e/journeys/themes.pins.journey.ts:37:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › the editor shows real, editable text on every frame of a file switch (1ms)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-4274f1af-4f28-4af4-a35e-ee4b81d8a4d6-vkPcpH
+  ✘   2 [chromium] › development/e2e/journeys/themes.pins.journey.ts:117:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E1: a ?file= navigation on the open screen, and Back, show real editable text on every frame (1ms)
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-pins-6ac1e0d6-0692-4baa-b73a-5b115378e654-V1dQ6Z
+  ✘   3 [chromium] › development/e2e/journeys/themes.pins.journey.ts:186:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E2: renaming the open file shows real editable text on every frame, with no re-read (3ms)
+Testing stopped early after 3 maximum allowed failures.
+
+
+  1) [chromium] › development/e2e/journeys/themes.pins.journey.ts:37:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › the editor shows real, editable text on every frame of a file switch 
+
+    Error: Pin snapshot failed; site cannot be reused
+    --- pin server log (tail) ---
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+
+       at ../../../../Jini/packages/db/src/kernel/sqlite/driver.ts:82
+
+      80 |     close: () => {},
+      81 |     prepare(sqlText) {
+    > 82 |       const statement = client.prepare(sqlText);
+         |                                ^
+      83 |       const bind = (parameters: ReadonlyArray<unknown>) => parameters.map(bindable);
+      84 |       return {
+      85 |         reader: statement.reader,
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [post-go-live-sweep] sweep failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async SqlitePostRepo.listGoLiveCandidates (/home/user/Tovu/apps/website/src/features/post/repo.ts:129:18)
+        at async announceDueGoLives (/home/user/Tovu/apps/website/src/features/post/go-live.ts:117:15)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [domain-dns] due-bindings sweep failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [pin-api] snapshot failed: The owned pin daemon never became ready
+
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at /home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:242:13
+        at runPinSite (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:241:15)
+    [cause]: Error: Pin snapshot failed; site cannot be reused
+        at ChildProcess.message (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:105:64)
+
+    AggregateError: Pin file cleanup failed
+
+       at ../support/bug-pin-fixtures.ts:405
+
+      403 |       const closed = await Promise.allSettled([...files.keys()].map((file) => close({ file })));
+      404 |       const failed = closed.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+    > 405 |       if (failed.length) throw new AggregateError(failed.map((result) => result.reason), "Pin file cleanup failed");
+          |                                ^
+      406 |     }
+      407 |   }, { scope: "worker", timeout: 180_000 }],
+      408 |   journeySite: [async ({ playwright, pinApi, pinSites, outboundTestOrigins, pinAdminPassword, pinThemeCaptures, pinVisitorWidget }, use, testInfo) => {
+        at Object.journeyTest.extend.pinSites.scope (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:405:32)
+
+    Error: Pin snapshot failed; site cannot be reused
+    --- pin server log (tail) ---
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+
+       at ../../../../Jini/packages/db/src/kernel/sqlite/driver.ts:82
+
+      80 |     close: () => {},
+      81 |     prepare(sqlText) {
+    > 82 |       const statement = client.prepare(sqlText);
+         |                                ^
+      83 |       const bind = (parameters: ReadonlyArray<unknown>) => parameters.map(bindable);
+      84 |       return {
+      85 |         reader: statement.reader,
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [post-go-live-sweep] sweep failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async SqlitePostRepo.listGoLiveCandidates (/home/user/Tovu/apps/website/src/features/post/repo.ts:129:18)
+        at async announceDueGoLives (/home/user/Tovu/apps/website/src/features/post/go-live.ts:117:15)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [domain-dns] due-bindings sweep failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [pin-api] snapshot failed: The owned pin daemon never became ready
+
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at /home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:242:13
+        at runPinSite (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:241:15)
+    [cause]: Error: Pin snapshot failed; site cannot be reused
+        at ChildProcess.message (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:105:64)
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/themes.pins.journey.ts-Bug-e5da1-very-frame-of-a-file-switch-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/themes.pins.journey.ts-Bug-e5da1-very-frame-of-a-file-switch-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › development/e2e/journeys/themes.pins.journey.ts:117:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E1: a ?file= navigation on the open screen, and Back, show real editable text on every frame 
+
+    Error: Pin snapshot failed; site cannot be reused
+    --- pin server log (tail) ---
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+
+       at ../../../../Jini/packages/db/src/kernel/sqlite/driver.ts:82
+
+      80 |     close: () => {},
+      81 |     prepare(sqlText) {
+    > 82 |       const statement = client.prepare(sqlText);
+         |                                ^
+      83 |       const bind = (parameters: ReadonlyArray<unknown>) => parameters.map(bindable);
+      84 |       return {
+      85 |         reader: statement.reader,
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [post-go-live-sweep] sweep failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async SqlitePostRepo.listGoLiveCandidates (/home/user/Tovu/apps/website/src/features/post/repo.ts:129:18)
+        at async announceDueGoLives (/home/user/Tovu/apps/website/src/features/post/go-live.ts:117:15)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [domain-dns] due-bindings sweep failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [pin-api] snapshot failed: The owned pin daemon never became ready
+
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at /home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:242:13
+        at runPinSite (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:241:15)
+    [cause]: Error: Pin snapshot failed; site cannot be reused
+        at ChildProcess.message (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:105:64)
+
+    AggregateError: Pin file cleanup failed
+
+       at ../support/bug-pin-fixtures.ts:405
+
+      403 |       const closed = await Promise.allSettled([...files.keys()].map((file) => close({ file })));
+      404 |       const failed = closed.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+    > 405 |       if (failed.length) throw new AggregateError(failed.map((result) => result.reason), "Pin file cleanup failed");
+          |                                ^
+      406 |     }
+      407 |   }, { scope: "worker", timeout: 180_000 }],
+      408 |   journeySite: [async ({ playwright, pinApi, pinSites, outboundTestOrigins, pinAdminPassword, pinThemeCaptures, pinVisitorWidget }, use, testInfo) => {
+        at Object.journeyTest.extend.pinSites.scope (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:405:32)
+
+    Error: Pin snapshot failed; site cannot be reused
+    --- pin server log (tail) ---
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+
+       at ../../../../Jini/packages/db/src/kernel/sqlite/driver.ts:82
+
+      80 |     close: () => {},
+      81 |     prepare(sqlText) {
+    > 82 |       const statement = client.prepare(sqlText);
+         |                                ^
+      83 |       const bind = (parameters: ReadonlyArray<unknown>) => parameters.map(bindable);
+      84 |       return {
+      85 |         reader: statement.reader,
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [post-go-live-sweep] sweep failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async SqlitePostRepo.listGoLiveCandidates (/home/user/Tovu/apps/website/src/features/post/repo.ts:129:18)
+        at async announceDueGoLives (/home/user/Tovu/apps/website/src/features/post/go-live.ts:117:15)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [domain-dns] due-bindings sweep failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [pin-api] snapshot failed: The owned pin daemon never became ready
+
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at /home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:242:13
+        at runPinSite (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:241:15)
+    [cause]: Error: Pin snapshot failed; site cannot be reused
+        at ChildProcess.message (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:105:64)
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/themes.pins.journey.ts-Bug-d9699-ditable-text-on-every-frame-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/themes.pins.journey.ts-Bug-d9699-ditable-text-on-every-frame-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › development/e2e/journeys/themes.pins.journey.ts:186:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E2: renaming the open file shows real editable text on every frame, with no re-read 
+
+    Error: Pin snapshot failed; site cannot be reused
+    --- pin server log (tail) ---
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+
+       at ../../../../Jini/packages/db/src/kernel/sqlite/driver.ts:82
+
+      80 |     close: () => {},
+      81 |     prepare(sqlText) {
+    > 82 |       const statement = client.prepare(sqlText);
+         |                                ^
+      83 |       const bind = (parameters: ReadonlyArray<unknown>) => parameters.map(bindable);
+      84 |       return {
+      85 |         reader: statement.reader,
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [post-go-live-sweep] sweep failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async SqlitePostRepo.listGoLiveCandidates (/home/user/Tovu/apps/website/src/features/post/repo.ts:129:18)
+        at async announceDueGoLives (/home/user/Tovu/apps/website/src/features/post/go-live.ts:117:15)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [domain-dns] due-bindings sweep failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [pin-api] snapshot failed: The owned pin daemon never became ready
+
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at /home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:242:13
+        at runPinSite (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:241:15)
+    [cause]: Error: Pin snapshot failed; site cannot be reused
+        at ChildProcess.message (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:105:64)
+
+    AggregateError: Pin file cleanup failed
+
+       at ../support/bug-pin-fixtures.ts:405
+
+      403 |       const closed = await Promise.allSettled([...files.keys()].map((file) => close({ file })));
+      404 |       const failed = closed.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+    > 405 |       if (failed.length) throw new AggregateError(failed.map((result) => result.reason), "Pin file cleanup failed");
+          |                                ^
+      406 |     }
+      407 |   }, { scope: "worker", timeout: 180_000 }],
+      408 |   journeySite: [async ({ playwright, pinApi, pinSites, outboundTestOrigins, pinAdminPassword, pinThemeCaptures, pinVisitorWidget }, use, testInfo) => {
+        at Object.journeyTest.extend.pinSites.scope (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:405:32)
+
+    Error: Pin snapshot failed; site cannot be reused
+    --- pin server log (tail) ---
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+
+       at ../../../../Jini/packages/db/src/kernel/sqlite/driver.ts:82
+
+      80 |     close: () => {},
+      81 |     prepare(sqlText) {
+    > 82 |       const statement = client.prepare(sqlText);
+         |                                ^
+      83 |       const bind = (parameters: ReadonlyArray<unknown>) => parameters.map(bindable);
+      84 |       return {
+      85 |         reader: statement.reader,
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [post-go-live-sweep] sweep failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async SqlitePostRepo.listGoLiveCandidates (/home/user/Tovu/apps/website/src/features/post/repo.ts:129:18)
+        at async announceDueGoLives (/home/user/Tovu/apps/website/src/features/post/go-live.ts:117:15)
+    [pin-api] [webhooks] delivery tick failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [domain-dns] due-bindings sweep failed; retrying after the interval: TypeError: The database connection is not open
+    [pin-api] [site-search] reconcile failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async Object.listRetired (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:223:20)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+    [pin-api] [site-search] backfill failed; retrying after the idle interval TypeError: The database connection is not open
+        at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async read (/home/user/Tovu/apps/website/src/features/site-search/index-state-store.ts:197:17)
+    [pin-api] [pin-api] snapshot failed: The owned pin daemon never became ready
+
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at async dropRetired (/home/user/Jini/packages/search/src/indexer.ts:318:27)
+        at Object.prepare (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:82:32)
+        at SqliteConnection.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js:58:31)
+        at /home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:41
+        at DefaultConnectionProvider.provideConnection (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:26)
+        at async DefaultQueryExecutor.executeQuery (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async SelectQueryBuilderImpl.execute (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:318:24)
+        at async SelectQueryBuilderImpl.executeTakeFirst (/home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/select-query-builder.js:322:26)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)
+        at /home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:242:13
+        at runPinSite (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:241:15)
+    [cause]: Error: Pin snapshot failed; site cannot be reused
+        at ChildProcess.message (/home/user/Tovu/development/e2e/support/bug-pin-fixtures.ts:105:64)
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    development/test-results/journeys-b/themes.pins.journey.ts-Bug-f87c7-every-frame-with-no-re-read-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace development/test-results/journeys-b/themes.pins.journey.ts-Bug-f87c7-every-frame-with-no-re-read-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    [chromium] › development/e2e/journeys/themes.pins.journey.ts:37:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › the editor shows real, editable text on every frame of a file switch 
+    [chromium] › development/e2e/journeys/themes.pins.journey.ts:117:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E1: a ?file= navigation on the open screen, and Back, show real editable text on every frame 
+    [chromium] › development/e2e/journeys/themes.pins.journey.ts:186:3 › Bug pin: theme-explore-file-switch › theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression) › E2: renaming the open file shows real editable text on every frame, with no re-read 
+  21 did not run
+  1 error was not a part of any test, see above for details
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-nrSsvW
+[journeys cleanup] Deleted isolated site and runtime: /tmp/tovu-journeys-media-6Cav5O
+EXIT 1 SECS 253
