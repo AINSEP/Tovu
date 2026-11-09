@@ -17,12 +17,13 @@ import { bindAgentPluginTools } from './agent-plugin-tool-binding.js';
 import type { PluginsToolDeps } from './tool-registrations.js';
 import type { PluginApprovalPort, PluginManagementToolsRequired, PluginSourceToolsRequired } from './host-tools/contract.js';
 function approvals(surfaces: AssistantSurfaceDeps | undefined): PluginApprovalPort<HumanConfirmSpec> {
-  return { handler: (steps, options) => { if (!surfaces) throw new ToolInputError({ message: 'An authenticated confirmation transport is required.' }); return approvalToolHandler({ surfaces, ...steps }, options); }, notConfirmed: notConfirmedResult };
+  return { handler: (steps, options) => { if (!surfaces) { throw new ToolInputError({ message: 'An authenticated confirmation transport is required.' }); }
+      return approvalToolHandler({ surfaces, ...steps }, options); }, notConfirmed: notConfirmedResult };
 }
 export function bindPluginManagementTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces?: AssistantSurfaceDeps }): PluginManagementToolsRequired<HumanConfirmSpec> {
   return {
     registration: { domain: 'plugins', catalogModule: 'features/plugin-runtime/agent-tools.ts', catalog: pluginAgentToolCatalog, metadata: toolMetadata },
-    workspaceId: deps.workspaceId, authorize: deps.authorize, clock: deps.clock,
+    workspaceId: deps.workspaceId, get authorize() { return deps.authorize; }, clock: deps.clock,
     permissions: { read: 'admin.plugins.read', enable: 'admin.plugins.enable' }, toolIds: pluginManagementToolIds,
     entityTypes: { plugin: 'plugin', agentPlugin: 'agent-plugin', activation: 'plugin-activation' }, actorPluginId: 'assistant',
     pluginActivationRepo: deps.pluginActivationRepo, discoverPlugins: deps.discoverPlugins, listPluginConflicts: deps.listPluginConflicts,
@@ -40,7 +41,7 @@ export function bindPluginManagementTools({ deps, surfaces }: { deps: PluginsToo
 }
 export function bindPluginSourceTools({ deps, surfaces }: { deps: Pick<PluginsToolDeps, 'workspaceId' | 'authorize' | 'pluginSource'>; surfaces: AssistantSurfaceDeps }): PluginSourceToolsRequired<HumanConfirmSpec> {
   return { registration: { domain: 'plugin-source', catalogModule: 'features/plugin-runtime/source-tools.ts', catalog: pluginSourceAgentToolCatalog, metadata: toolMetadata },
-    workspaceId: deps.workspaceId, authorize: deps.authorize, toolIds: pluginSourceToolIds, enablePermission: 'admin.plugins.enable', entityType: 'plugin', pluginSource: deps.pluginSource,
+    workspaceId: deps.workspaceId, get authorize() { return deps.authorize; }, toolIds: pluginSourceToolIds, enablePermission: 'admin.plugins.enable', entityType: 'plugin', pluginSource: deps.pluginSource,
     approvals: approvals(surfaces), describeDelete: ({ target }) => ({ toolId: 'plugin_source_delete', errorCode: 'PLUGIN_SOURCE_DELETE_CONFIRM', title: 'Permanently delete this draft file?', danger: true,
       details: [{ label: 'Plugin', value: target.id }, { label: 'Draft file', value: target.path }], confirmLabel: 'Delete', cancelLabel: 'Cancel' }) };
 }

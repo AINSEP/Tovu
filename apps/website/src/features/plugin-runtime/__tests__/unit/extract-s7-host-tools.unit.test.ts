@@ -6,6 +6,7 @@ import { buildPluginSourceRegistrations } from '../../host-tools/source.js';
 import { bindPluginManagementTools, bindPluginSourceTools } from '../../host-tool-binding.js';
 import { bindPluginInstallTools } from '../../install-tool-binding.js';
 import { harness, context, installedAgentPlugin, PLUGIN_ID } from '../fixtures/plugins-tool-harness.js';
+import { resolveAgentPluginLayout } from '../../../agent-plugins/layout.js';
 import { PluginInstallError } from '@jini-ai/plugins/host/node';
 import { AgentPluginNotInstalledError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginInstallPreview } from '@jini-ai/plugins/host/node';
@@ -46,7 +47,7 @@ for (const family of ['site-runtime', 'agent-plugin'] as const) {
 }
 
 test('missing capability keeps the legacy installed-list override, but a switch still refuses lazily', async () => {
-  const h = harness({ injected: { listInstalledAgentPlugins: async () => [installedAgentPlugin()] } });
+  const h = harness({ layout: resolveAgentPluginLayout({ siteDir: '/foreign-host' }), injected: { listInstalledAgentPlugins: async () => [installedAgentPlugin()] } });
   const { required } = foreign({ ...h, deps: { ...h.deps, pluginHost: undefined } });
   const out = await tool(required, required.toolIds.list).handler(context({}), {});
   assert.ok(typeof out === 'object' && out !== null && 'agentPlugins' in out);
@@ -85,10 +86,27 @@ test('foreign source ids dispatch through catalog permissions and preserve owner
   const h = harness(); const base = bindPluginSourceTools({ deps: h.deps, surfaces: { surfaceExchanges: h.surfaceExchanges } });
   const toolIds = Object.fromEntries(Object.keys(base.toolIds).map(key => [key, `other_${key}`])) as typeof base.toolIds;
   const ids = new Map(Object.entries(base.toolIds).map(([op, id]) => [id, toolIds[op as keyof typeof toolIds]]));
-  const returned = { files: ['owner-result'] };
+  const returned = { files: [{ path: 'owner-result', bytes: 12 }] };
   const required = { ...base, toolIds, registration: { ...base.registration, domain: 'other-source', catalogModule: 'other/source', catalog: base.registration.catalog.map(t => ({ ...t, name: ids.get(t.name)!, authorization: { permission: 'other.inspect' } })), metadata: {} },
     pluginSource: { ...h.deps.pluginSource!, list: async () => returned } };
   const registration = buildPluginSourceRegistrations(required).find(r => r.descriptor.id === toolIds.list); assert.ok(registration);
   assert.equal(await registration.handler(context({ id: 'other' }), {}), returned);
   assert.equal(h.authorizeCalls[0]?.permission, 'other.inspect');
+});
+
+test('approval identity forwards the same sorted revisions to the foreign fingerprint owner', async () => {
+  const { pluginApprovalIdentity } = await import('../../host-tools/management.js');
+  const h = harness({ agentHost: { listInstalled: async () => [installedAgentPlugin({ version: '2.0.0', archiveDigest: 'bb' }), installedAgentPlugin({ version: '1.0.0', archiveDigest: 'aa' })] } });
+  const { required } = foreign(h); const inputs: unknown[] = [];
+  const identity = await pluginApprovalIdentity({ deps: { ...required, approvalFingerprint: input => { inputs.push(input); return 'other-fingerprint-owner'; } }, request: { family: 'agent-plugin', pluginId: 'higgsfield' } });
+  assert.equal(identity.key, 'other-fingerprint-owner');
+  assert.deepEqual(inputs, [{ family: 'agent-plugin', pluginId: 'higgsfield', revision: '[["1.0.0","aa"],["2.0.0","bb"]]', schema: {} }]);
+});
+
+test('the foreign telemetry callback observes one durable OFF decision after the command owner', async () => {
+  const h = harness({ initialRows: [{ pluginId: PLUGIN_ID, workspaceId: '66666666-6666-4666-8666-666666666666', version: '1.0.0', enabled: true, updatedAt: '2026-01-01T00:00:00Z' }] });
+  const { required } = foreign(h); const seen: unknown[] = [];
+  const portable = { ...required, telemetry: { toggled: (input: { principalId: string; pluginId: string; enabled: boolean }) => { assert.ok(h.events.includes('save:false')); seen.push(input); } } };
+  await tool(portable, portable.toolIds.setEnabled).handler(context({ family: 'site-runtime', pluginId: PLUGIN_ID, enabled: false }), {});
+  assert.deepEqual(seen, [{ principalId: 'owner-under-test', pluginId: PLUGIN_ID, enabled: false }]);
 });

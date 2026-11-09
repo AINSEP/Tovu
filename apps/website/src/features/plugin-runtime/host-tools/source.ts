@@ -1,17 +1,28 @@
 import { adaptLegacyAuthorize, requireToolPermission, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
 import { PluginInstallError, PluginSourceError, type PluginSourcePort } from '@jini-ai/plugins/host/node';
 import type { PluginSourceToolsRequired } from './contract.js';
+const MUTATES_DURABLE_STATE = 'mutates-durable-state' as const;
 
 
 /** Reads one required string field, naming it when the caller sent something else. */
-function stringField(required: { input: Record<string, unknown>; key: string }): string {
+function stringField(required: { 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  input: Record<string, unknown>; 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  key: string }): string {
   const value = required.input[required.key];
   if (typeof value !== 'string') throw new ToolInputError({ message: `${required.key} must be a string.` });
   return value;
 }
 
 
-type SourceOperation = (required: { port: PluginSourcePort; pluginId: string; input: Record<string, unknown> }) => Promise<unknown>;
+type SourceOperation = (required: { 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  port: PluginSourcePort; 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  pluginId: string; 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  input: Record<string, unknown> }) => Promise<unknown>;
 
 
 /** One port call per non-confirming source tool; fields are read in argument order. */
@@ -35,6 +46,7 @@ function sourceOperations(toolIds: PluginSourceToolsRequired<unknown>['toolIds']
  * @param _optional Reserved registration options.
  * @returns Complete registrations; typed source/install refusals become actionable input errors.
  */
+/** @agent-note Required host inputs have no vocabulary defaults. Bind the same workspace-scoped lifecycle, canonical classes, command/fingerprint owners and authenticated approval transport. Authorize before disclosure and after approval; preserve saved identity bytes, privacy, order, rollback/Stop, I/O and telemetry counts, and unknown failure identity. */
 export function buildPluginSourceRegistrations<Description>(deps: PluginSourceToolsRequired<Description>, _optional = {}): ToolRegistration[] {
   const operations = sourceOperations(deps.toolIds);
   async function authorize(ctx: ToolExecutionContext, permission: string): Promise<void> {
@@ -85,9 +97,12 @@ export function buildPluginSourceRegistrations<Description>(deps: PluginSourceTo
 
 /** Independently derived from calls to the source port: reads are read-only, delete unlinks,
  * and create/open/write/edit/seal/rollback durably publish bytes. */
-export function pluginSourceDerivedRiskFor({ toolIds }: { toolIds: PluginSourceToolsRequired<unknown>['toolIds'] }, _optional = {}): DerivedRiskByToolId { return new Map([
-  [toolIds.create, "mutates-durable-state"], [toolIds.open, "mutates-durable-state"],
-  [toolIds.list, 'none'], [toolIds.read, 'none'], [toolIds.write, "mutates-durable-state"],
-  [toolIds.edit, "mutates-durable-state"], [toolIds.delete, 'deletes-durable-state'],
-  [toolIds.seal, "mutates-durable-state"], [toolIds.rollback, "mutates-durable-state"],
+/** @agent-note Required host inputs have no vocabulary defaults. Bind the same workspace-scoped lifecycle, canonical classes, command/fingerprint owners and authenticated approval transport. Authorize before disclosure and after approval; preserve saved identity bytes, privacy, order, rollback/Stop, I/O and telemetry counts, and unknown failure identity. */
+export function pluginSourceDerivedRiskFor({ toolIds }: { 
+  /** @agent-note Host ids are required input for every operation; never replace them with this package or another host's names. */
+  toolIds: PluginSourceToolsRequired<unknown>['toolIds'] }, _optional = {}): DerivedRiskByToolId { return new Map([
+  [toolIds.create, MUTATES_DURABLE_STATE], [toolIds.open, MUTATES_DURABLE_STATE],
+  [toolIds.list, 'none'], [toolIds.read, 'none'], [toolIds.write, MUTATES_DURABLE_STATE],
+  [toolIds.edit, MUTATES_DURABLE_STATE], [toolIds.delete, 'deletes-durable-state'],
+  [toolIds.seal, MUTATES_DURABLE_STATE], [toolIds.rollback, MUTATES_DURABLE_STATE],
 ]); }

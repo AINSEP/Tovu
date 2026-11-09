@@ -11,7 +11,7 @@ import type { PluginInstallToolsRequired } from './host-tools/contract.js';
 export function bindPluginInstallTools(deps: PluginsInstallToolDeps): PluginInstallToolsRequired<PluginInstallRequest> {
   return {
     registration: { domain: 'plugins-install', catalogModule: 'features/plugin-runtime/install-tool.ts', catalog, metadata: toolMetadata },
-    workspaceId: deps.workspaceId, authorize: deps.authorize, toolId: PLUGINS_INSTALL_TOOL_ID, permission: 'admin.plugins.enable', entityType: 'plugin',
+    workspaceId: deps.workspaceId, get authorize() { return deps.authorize; }, toolId: PLUGINS_INSTALL_TOOL_ID, permission: 'admin.plugins.enable', entityType: 'plugin',
     parseRequest: readPluginInstallRequest, installer: deps.pluginInstaller, riskSentence: pluginInstallRiskSentence, messages: pluginInstallMessages,
     localInstallEnabled: () => deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env, hostSignals: deps.hostSignals }),
     installInput: async ({ request, ownerId, runId }) => request.kind === 'folder' ? { sourceDir: request.path!, replace: request.replace }

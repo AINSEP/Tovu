@@ -11,7 +11,11 @@ function refusedResult(error: PluginInstallError, pluginId: string, retryInstall
 
 
 /** Inspects the package before anything is written; an installer refusal is the caller's input problem. */
-async function previewOrRefuse(required: { installer: PluginInstallerPort; input: PluginInstallInput }): Promise<PluginInstallPreview> {
+async function previewOrRefuse(required: { 
+  /** @agent-note Bind the same installer. Preview first, then install with expectedDigest; always leave newly installed packages OFF. */
+  installer: PluginInstallerPort; 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  input: PluginInstallInput }): Promise<PluginInstallPreview> {
   try { return await required.installer.preview(required.input); }
   catch (error) {
     if (error instanceof PluginInstallError) throw new ToolInputError({ message: `${error.code}: ${error.message}` });
@@ -21,7 +25,11 @@ async function previewOrRefuse(required: { installer: PluginInstallerPort; input
 
 
 /** What the model relays after a successful install; the plugin always lands OFF. */
-function installedResult<Request>(required: { plugin: PluginInstallPreview; deps: PluginInstallToolsRequired<Request> }): unknown {
+function installedResult<Request>(required: { 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  plugin: PluginInstallPreview; 
+  /** @agent-note Preserve the existing caller-safe plugin protocol value and saved/result bytes; do not infer host authority or disclose private paths, secrets or handles. */
+  deps: PluginInstallToolsRequired<Request> }): unknown {
   const { plugin } = required;
   return {
     installed: true, enabled: false,
@@ -37,6 +45,7 @@ function installedResult<Request>(required: { plugin: PluginInstallPreview; deps
  * digest. Preview runs first so an invalid package is refused before anything is written.
  * @complexity O(package bytes) twice (preview and install each inspect).
  */
+/** @agent-note Required host inputs have no vocabulary defaults. Bind the same workspace-scoped lifecycle, canonical classes, command/fingerprint owners and authenticated approval transport. Authorize before disclosure and after approval; preserve saved identity bytes, privacy, order, rollback/Stop, I/O and telemetry counts, and unknown failure identity. */
 export function buildPluginInstallRegistrations<Request>(deps: PluginInstallToolsRequired<Request>, _optional: Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ ...deps.registration,
     catalog: indexCatalogById({ catalog: deps.registration.catalog }),
@@ -66,7 +75,10 @@ export function buildPluginInstallRegistrations<Request>(deps: PluginInstallTool
 }
 
 
-export function pluginInstallDerivedRiskFor({ toolId }: { toolId: string }, _optional = {}): DerivedRiskByToolId { return new Map([
+/** @agent-note Required host inputs have no vocabulary defaults. Bind the same workspace-scoped lifecycle, canonical classes, command/fingerprint owners and authenticated approval transport. Authorize before disclosure and after approval; preserve saved identity bytes, privacy, order, rollback/Stop, I/O and telemetry counts, and unknown failure identity. */
+export function pluginInstallDerivedRiskFor({ toolId }: { 
+  /** @agent-note Required host tool id; descriptor, risk, dispatch and approved exchange must use the same identity. */
+  toolId: string }, _optional = {}): DerivedRiskByToolId { return new Map([
   // -> pluginInstaller.install (installSitePlugin): copies the package into the site's plugin
   //    directory (replacing a version on replace:true). Durable file writes; nothing is executed and
   //    no network is used. Uninstalling (plugins_uninstall) is the inverse.

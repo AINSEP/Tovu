@@ -37,7 +37,8 @@ export function bindAgentPluginTools({ deps, surfaces }: { deps: PluginsToolDeps
       ? deps.assertAgentPluginActivationsWritable({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }) : capability().assertWritable({}, {}),
     setEnabled: input => deps.setAgentPluginEnabled ? deps.setAgentPluginEnabled({ ...input, agentPluginLayout: deps.agentPluginLayout }) : capability().setEnabled(input),
     provisionMcp: (input, optional) => capability().provisionMcp(input, optional),
-    uninstall: (input, optional) => { if (!surfaces) throw new ToolInputError({ message: 'An authenticated confirmation transport is required.' }); return capability().uninstall({ ...input, surfaces }, optional); },
+    uninstall: (input, optional) => { if (!surfaces) { throw new ToolInputError({ message: 'An authenticated confirmation transport is required.' }); }
+      return capability().uninstall({ ...input, surfaces }, optional); },
     searchCandidate: agentVisiblePluginCandidate,
     classifyError,
     compatibility: ({ revisions }) => revisions.some(revision => !checkAgentPluginCompatibility({ manifest: revision, hostVersion: AGENT_PLUGIN_CONTRACT_VERSION, activeProvides: [] }).hostOk)
