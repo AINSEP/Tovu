@@ -26,7 +26,7 @@ function capability(deps: PluginsToolDeps) {
   return value;
 }
 /** The approval-identity shim reads revisions without constructing destructive operations. */
-export function bindAgentPluginIdentity({ deps }: { deps: PluginsToolDeps }): Pick<PluginLifecycleToolsPort, 'listInstalled' | 'previewEnableAccess'> {
+export function bindAgentPluginIdentity({ deps }: { deps: PluginsToolDeps }, _optional: Record<string, never> = {}): Pick<PluginLifecycleToolsPort, 'listInstalled' | 'previewEnableAccess'> {
   return {
     previewEnableAccess: input => capability(deps).previewEnableAccess?.(input, {}) ?? Promise.resolve(undefined),
     listInstalled: async () => (await (deps.listInstalledAgentPlugins

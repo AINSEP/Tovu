@@ -43,7 +43,7 @@ export function bindPluginSourceTools({ deps, surfaces }: { deps: Pick<PluginsTo
 }
 
 /** Bind only the identity reads needed by the compatibility helper; no confirmation transport. */
-export function bindPluginApprovalIdentity({ deps }: { deps: PluginsToolDeps }): Pick<PluginManagementToolsRequired<HumanConfirmSpec>, 'discoverPlugins' | 'approvalFingerprint'> & { agentPlugins: ReturnType<typeof bindAgentPluginIdentity> } {
+export function bindPluginApprovalIdentity({ deps }: { deps: PluginsToolDeps }, _optional: Record<string, never> = {}): Pick<PluginManagementToolsRequired<HumanConfirmSpec>, 'discoverPlugins' | 'approvalFingerprint'> & { agentPlugins: ReturnType<typeof bindAgentPluginIdentity> } {
   return {
     discoverPlugins: deps.discoverPlugins,
     agentPlugins: bindAgentPluginIdentity({ deps }),
