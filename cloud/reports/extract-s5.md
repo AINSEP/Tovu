@@ -31,6 +31,7 @@ Scratch worktrees: base/{Jini,Tovu} at the S5 pins (H0 rollback baseline; frozen
 | UTC | Elapsed (min) | Event | Coordinator+subagent tokens (approx) |
 |---|---|---|---|
 | 06:10 | 0 | start, pins verified, branches created | — |
+| 06:36 | 26 | Baseline agent done (Tovu 55111a2e) + H0 done (Tovu tip 8c563ef5; Jini pin) — LAST GREEN PAIR Tovu 8c563ef5 / Jini 4044fe3c0 | ~515k (baseline 174k, H0 269k — H0 over 230k target, within cap) |
 
 ## Baseline (setup, guard, XP3, named tests)
 
@@ -159,3 +160,7 @@ Files touched in H0: the 7 new files under T `features/external-mcp/__tests__/` 
 
 ### Pushed SHAs (Tovu cloud/extract-s5)
 31504fd7c16adf756e313da7f3d8c77087630139, fde3156848329cd028e90843c190659ffbc231f1, b744f77cc5c17c55ac5100b4a7019b4cc9adc7c4, 06863b2da32287dafb17408d99affc3b1ced5301, plus this report commit (SHA in coordinator digest). Jini: none.
+
+## Coordinator decisions
+- 06:36Z Baseline digest: T external-mcp-oauth-loopback-wiring.unit.test.ts case "../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS" RED at unmodified pin (0 !== 1 createTovuOAuthHttpPorts calls). Coordinator verified: git grep at c3801c833 shows no call in agent-daemon-server.ts; Tovu's own cloud/reports/tests-tovu-site.md:1227 already records it as "unchanged obsolete daemon OAuth-port owner assertion ... full replacement ownership proof not completed" (pre-S5). DECISION: treated as NAMED PRIOR DEBT pinned to that exact case (not a stop): file must remain exactly 2/3 with the same single failing case and same assertion message at every gate; the app.ts and deps.ts cases are required-green. Not counted green. Flagged for owner/independent review: the brief says "Required baseline red means prior drift"; coordinator judged this documented, out-of-scope source-scan assertion as prior debt rather than a session stop.
+- typecheck:tests 13 errors (brief expected 12): extra surface-connections.host-port.unit.test.ts(15,5) TS2322 from S3 commit 1ef11e22. Treated likewise as named prior debt; exact 13 set must not grow.
