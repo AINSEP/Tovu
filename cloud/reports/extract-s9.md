@@ -1,6 +1,6 @@
 # EXTRACT-S9
 
-**STOPPED before C3 — prior frozen Tovu overlay-test drift at the supplied integrated pins. No extraction completed. This is not a time-cap stop.**
+**F1 follow-up authorized and in progress. Credential-tool extraction remains STOPPED for prior overlay-test drift; no move is authorized by this follow-up.**
 
 The inventory below was committed before implementation. The approved R1 relocation resolves the old S8 layout conflict, but does not authorize edits to the two additional failing overlay tests.
 
@@ -298,4 +298,17 @@ Session scratch stays under `/workspace/work/extract-s9/`, outside both tracked 
 
 Final close at 2026-11-09T17:40:20.860285+00:00; elapsed 0.4391 hours. Both remote branches are `cloud/extract-s9`. The terminal marker below records session termination only; the STOPPED verdict above governs extraction status.
 
-EXTRACT-S9 DONE
+
+## F1 addition — inventory before implementation
+
+The owner explicitly authorizes the DELETE preflight repair and an additive regression in `extract-s8-x-host-operations.test.ts`; this extends the old frozen-test allowance for this finding only. Existing assertions, inputs, fixtures and byte pins remain unchanged. The Railway/Render overlay stop remains in effect for the move.
+
+| Unit | Value/type | Current location | Resolution / future C3 destination | Vocabulary |
+| --- | --- | --- | --- | --- |
+| DELETE `resolveTarget` rejection in `createCredentialToolRegistrations` | value | Tovu `apps/website/src/features/custom-credentials/tool-registrations.ts:1228` | Catch inside the existing recovery `invoke`; classify the original once; rebuild validation only from `callerSafeMessage`; rethrow other objects unchanged. Future same C3 handler closure. | No new literal or host policy. Retain map-level formatting; no schema decoration. |
+| `CredentialedRequestValidationError` constructor | value | Already imported in Tovu from `./credentialed-request.js` | Canonical defining owner is Jini `integrations/src/contracts/credentialed-request-errors.ts`; future relative import `../../contracts/credentialed-request-errors.js` from tools. No package-barrel import. | Shared error identity, no host vocabulary. |
+| Foreign DELETE regression | test | Existing `extract-s8-x-host-operations.test.ts` | Append test(s) only, using the published credentialed-http error and independent raw/safe messages. Pin classify-once, exact map prefix, zero approval/send and non-validation identity. | Foreign ids/permissions/catalog already provided by the unchanged fixture. |
+
+The old five-line preflight comment describes the unsafe old behavior; this owner-directed correction will replace it with the caller-safe/class-preserving rule. All unrelated why-comments remain byte-identical. No Jini source, export, dependency or stored format changes are needed for F1.
+
+Follow-up UTC opened 2026-11-09T17:42:42.789517+00:00; original start/deadline remain 17:14Z / 21:14Z. No clock reset. Baseline is the verified report-only tip `43fff22ff2f4188c88ef5011da5392eb96e4ebc6` / Jini `46cd558de9c6b4fa882b46349450ce3bcf0a378d`.
