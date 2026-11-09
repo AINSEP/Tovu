@@ -29,7 +29,7 @@ import { validateRepositoryTarget } from "./write-files-validation.js";
  * The egress rebuild is the one `tool-registrations.ts` performs before schema decoration.
  * @complexity O(1) — at most four `instanceof` checks.
  */
-export function classifyCredentialedRequestError(error: unknown): CredentialedRequestErrorClass {
+export function classifyCredentialedRequestError({ error }: { error: unknown }, _optional = {}): CredentialedRequestErrorClass {
   if (error instanceof EgressRefusedError) {
     const callerSafeMessage = error.callerSafeMessage;
     return { category: "egress-refused", error, callerSafeMessage, callerSafeError: new EgressRefusedError({ message: callerSafeMessage }, { callerSafeMessage }) };
@@ -54,7 +54,7 @@ export function bindCredentialedRequestPort(required: { deps: CredentialedReques
     resolveTarget: (input) => resolveRequestTarget({ repo: deps.repo }, input),
     verify: (input) => verifyCustomCredential(deps, input),
     probe: (input) => probeCredentialConnection(input, { httpClient: deps.httpClient }),
-    classifyError: ({ error }) => classifyCredentialedRequestError(error),
+    classifyError: classifyCredentialedRequestError,
   };
 }
 

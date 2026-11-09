@@ -63,7 +63,7 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
       available:!!deps.deployOpsHttpClient,
       list:async()=> (await listCustomCredentials({repo:deps.customCredentialSetRepo},{workspaceId:deps.workspaceId})).map(c=>({label:c.label,get allowedOrigins(){return allowedOriginsFor(c);}})),
       resolveTarget:(required,optional)=>resolveRequestTarget({repo:deps.customCredentialSetRepo},{...required,...optional}),
-      classifyError:({error})=>classifyCredentialedRequestError(error),
+      classifyError:classifyCredentialedRequestError,
       request:async(required,optional)=>{
         const {signal}=optional;
         const requestDeps:CredentialedRequestDeps={repo:deps.customCredentialSetRepo,sealer:deps.siteAssistantSecretSealer,httpClient:deps.deployOpsHttpClient!,clock:deps.clock,...(deps.customCredentialsAudit?{audit:deps.customCredentialsAudit}:{}),loadAuthSchemes:deps.loadAuthSchemes};
@@ -93,4 +93,3 @@ export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operati
 export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'listTargets',signal?:AbortSignal):Promise<DeployOpsTargets>;
 export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'status'|'logs'|'listTargets',signal?:AbortSignal) {return portable.runDeployOps({deps:bindDeployOpsRuntime(deps),input,operation},{signal});}
 export function runDeploy(required:{deps:DeployOpsToolDeps;input:portable.DeployRequest},optional:{signal?:AbortSignal}={}) {return portable.runDeploy({...required,deps:bindDeployOpsRuntime(required.deps)},optional);}
-
