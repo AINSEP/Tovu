@@ -4,7 +4,7 @@ import test from "node:test";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpValidationError as AccessShimValidationError } from "../../../../contracts/core/external-mcp-access.js";
 import { ExternalMcpSecretStoreUnconfiguredError as StoreUnconfigured, ExternalMcpValidationError as StoreValidationError } from "../../external-mcp-store.js";
-import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal, resolveAgentPluginSignInPort } from "../../../agent-plugins/mcp-host-bindings.js";
+import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from "../../../agent-plugins/mcp-host-bindings.js";
 import type { AgentPluginMcpProjections } from "../../../agent-plugins/service-ports.js";
 
 /** Same name and shape, different class: must NOT be treated as canonical. */
@@ -45,7 +45,4 @@ test("a same-named lookalike is neither classified nor treated as a sign-in refu
   const error = new LookalikeValidationError("lookalike");
   assert.equal(classifyAgentPluginMcpError({ error }), "other");
   assert.equal(isAgentPluginSignInRefusal({ error }), false);
-  const port = resolveAgentPluginSignInPort({ beginConnect: async () => { throw error; } } as unknown as Parameters<typeof resolveAgentPluginSignInPort>[0]);
-  assert.equal(port.isSignInRefusal({ error }), false);
-  assert.equal(port.isSignInRefusal({ error: new hosted.ExternalMcpValidationError("refused", "url") }), false, "an old-signature port without isValidationError only recognizes OAuth errors, as before");
 });

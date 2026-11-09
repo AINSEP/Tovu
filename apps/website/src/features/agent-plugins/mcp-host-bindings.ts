@@ -3,7 +3,7 @@ import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMc
 import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '../../contracts/core/external-mcp-auth.js';
 import { ExternalMcpSecretStoreUnconfiguredError } from '../external-mcp/external-mcp-store.js';
 import { OAuthError } from '../../platform/oauth/errors.js';
-import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections, AgentPluginSignInPort } from './service-ports.js';
+import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from './service-ports.js';
 
 export const agentPluginMcpProjections: AgentPluginMcpProjections = {
   accessSnapshot: externalMcpAccessSnapshot, admissionRevision: externalMcpAdmissionRevision,
@@ -41,15 +41,3 @@ export function withOverrides<T extends object, O extends object>(target: T, ove
   return Object.assign(Object.defineProperties({}, Object.getOwnPropertyDescriptors(target)), overrides) as Omit<T, keyof O> & O;
 }
 
-/** Legacy compatibility export retained for S5 consumers. Modern connect callers still require
- * their explicit isSignInRefusal port; this adapter is never their fallback. */
-export function resolveAgentPluginSignInPort(required: {
-  readonly beginConnect: AgentPluginSignInPort['beginConnect'];
-  readonly isSignInRefusal?: AgentPluginSignInPort['isSignInRefusal'];
-  readonly isValidationError?: AgentPluginSignInPort['isSignInRefusal'];
-}, _optional: Record<string, never> = {}): AgentPluginSignInPort {
-  return { beginConnect: (input, options) => required.beginConnect(input, options),
-    isSignInRefusal: ({ error }) => required.isSignInRefusal ? required.isSignInRefusal({ error })
-      : (required.isValidationError?.({ error }) ?? false) || error instanceof OAuthError,
-  };
-}
