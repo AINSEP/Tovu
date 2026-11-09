@@ -1,3 +1,4 @@
+import { apiConnectionCallbackFieldRules } from './oauth-bindings.js';
 import {
   asApiConnectionHooksModule, checkApiConnectionClientNamespace, parseApiConnectionDescriptor,
   parseApiConnectionsFile as parseApiConnectionDeclarations,
@@ -69,7 +70,7 @@ export async function loadDeclaredApiConnections(
   for (const item of load.items) {
     try {
       checkApiConnectionClientNamespace({ pluginId: item.pluginId, clients: item.descriptor.clients, clientNamespace: CLIENT_NAMESPACE });
-      const descriptor = parseApiConnectionDescriptor({ value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
+      const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
       const { clients, budgets, scopeSets, apiOrigins, byoClient } = item.descriptor;
       connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, byoClient, module: item.module });
     } catch (error) {
