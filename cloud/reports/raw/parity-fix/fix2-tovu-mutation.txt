@@ -1,0 +1,99 @@
+✔ Auto preflight delivers full primary guidance once before guarded writes (95.171664ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (50.917626ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (46.889673ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (24.210858ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (34.658631ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (28.433639ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (18.943774ms)
+✔ CLI onStarted retains the Codex prompt carrier and explicit reads stay complete (592.860633ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (296.941835ms)
+✔ load_agent_plugin carries maturity untested (33.148739ms)
+✔ load_agent_plugin carries maturity soon (21.333625ms)
+✔ load_agent_plugin carries maturity (absent) (18.845264ms)
+✔ automatic tool guidance warns before actions for an untested plugin (38.29695ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (23.884653ms)
+✔ inactive plugin returns setup guidance and the activation call while tools remain off (82.537884ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (17.161322ms)
+✔ the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance (18.876606ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (10753.058082ms)
+✔ explicit loader and guarded write refuse ask through the real executor (14.489376ms)
+✔ explicit loader and guarded write refuse off through the real executor (5.219713ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (16.531676ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (14.382353ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (3.902762ms)
+✔ a tool without guidance capabilities loads no plugin guidance (9.181255ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (13.443506ms)
+✔ load_agent_plugin refuses unknown input keys (12.479894ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (13.935086ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (27.461238ms)
+✔ pending plugin use cannot override a newer personal Off preference (10.311893ms)
+✔ pending plugin auto cannot override a newer personal Off preference (16.086547ms)
+✔ automatic plugin access rechecks the real active person after the answer (7.9675ms)
+✔ a real Auto CAS failure after the post-card read retains no consent on the same controller (8.716911ms)
+✔ fresh child reads complete guidance after parent pinned delivery (24.311475ms)
+✔ fresh child reads complete guidance after parent explicit delivery (25.647581ms)
+✔ replacement preflight retains the exact prepared bytes without another resolution (12.594563ms)
+✔ a rejected preflight promise is cleared so the same turn can retry (14.013762ms)
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (338.077628ms)
+✔ accepted adapter prompt budget preserves preflight delivery (claude, pinned=false) (314.757859ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (277.440814ms)
+✖ a replacement attempt keeps both prepared variants, so its own launch can choose the compact one (25.434752ms)
+✔ preflight carries only delivered plugin ids through real RPC (automatic) (303.575168ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned) (224.652202ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned-off) (236.228775ms)
+✔ later chat turns retain delivered IDs without repeating primary text (22.405534ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 42
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20796.997877
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:6:42492
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (338.077628ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /load_agent_plugin/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:719:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /load_agent_plugin/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:9:1853
+✖ a replacement attempt keeps both prepared variants, so its own launch can choose the compact one (25.434752ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /Use holographic layout discipline/. Input:
+  
+  '<<AGENT_PLUGIN pluginId="synthetic-author">>\n' +
+    '---\n' +
+    'name: synthetic-author\n' +
+    'description: Holography instructions\n' +
+    '---\n' +
+    'Use holographic layout discipline.\n' +
+    '\n' +
+    '\n' +
+    `The SKILL.md above is this Agent Plugin's own instructions — follow them, including any files it directs you to load before starting work. Readable supporting files are listed relative to this skill folder. Request one with load_agent_plugin({"pluginId":"synthetic-author","skill":"synthetic-author","file":"<relative path>"}).\n` +
+    'files: []\n' +
+    '<</AGENT_PLUGIN>>'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:748:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `<<AGENT_PLUGIN pluginId="synthetic-author">>\n---\nname: synthetic-author\ndescription: Holography instructions\n---\nUse holographic layout discipline.\n\n\nThe SKILL.md above is this Agent Plugin's own instructions — follow them, including any files it directs you to load before starting work. Readable supporting files are listed relative to this skill folder. Request one with load_agent_plugin({"pluginId":"synthetic-author","skill":"synthetic-author","file":"<relative path>"}).\nfiles: []\n<</AGENT_PLUGIN>>`,
+    expected: /Use holographic layout discipline/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

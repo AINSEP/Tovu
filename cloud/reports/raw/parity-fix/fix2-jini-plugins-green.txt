@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/__tests__/unit/automatic-use.unit.test.ts (71 tests) 77ms
+
+ Test Files  1 passed (1)
+      Tests  71 passed (71)
+   Start at  07:55:48
+   Duration  1.10s (transform 538ms, setup 0ms, collect 755ms, tests 77ms, environment 0ms, prepare 68ms)
+

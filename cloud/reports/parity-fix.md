@@ -111,3 +111,99 @@ The unit test pins the Windows arithmetic: `30,000 − 16,000 − 4,096`. The in
 - Exit 0, no errors (`raw/parity-fix/tovu-tsc.txt`).
 
 PARITY-FIX DONE
+
+## PARITY-FIX-2
+
+This is a follow-up to an independent review of the change above, on the same branch `cloud/parity-argv`.
+
+### Commits
+
+| Repo | SHA | What |
+|---|---|---|
+| Jini | `7edf8f17` | `daemon`: `AgentExecutor.run` takes an optional `compactPrompt`. Includes a changeset. |
+| Jini | `ba2de1ad` | `agent-plugins`: `prepareVariants` returns `{ prefix, compact }`, where `compact` has the inlined primary replaced by its load pointer. |
+| Tovu | `58677865` | Preflight returns `compactPrefix`. The daemon scope builds `compactPrompt`. The guessed-headroom helper is removed. |
+
+### Approach
+
+The review showed that the site cannot know the CLI's real remaining argv space. The executor adds things after the site prepares the prompt:
+- the system overlay;
+- the attachment notice;
+- the executable and its options;
+- Windows quoting.
+
+Two more problems came from where the decision was made:
+- The prompt and the history representations were counted together.
+- A retry reused the first attempt's decision.
+
+So the decision has moved to where the real assembly happens:
+1. **Preflight returns two variants.** The full prefix, as before, and a compact one in which an inlined automatic primary is replaced by the existing "deferred … Load the full instructions with …" pointer. Pinned guidance is identical in both. The Tovu response carries `compactPrefix` only when it differs from `prefix`.
+2. **The Tovu daemon scope assembles both prompts.** It does so after `selectRunHistoryPrompt`, so only the history that actually runs is included. The page context, attachment notice, capability manifest and refusal prefix are also included. The only difference between the two prompts is the plugin prefix. `compactPrompt` is passed to the executor only when it differs.
+3. **The executor chooses per attempt.**
+   - `run()` first runs the full prompt with the two budget guards set to signal rather than fail the run. Those guards are `checkPromptArgvBudget` and the post-`buildArgs` Windows cmd-shim / direct-exe command-line guard, which sees the overlay-bearing args, the executable, the options and the quoting.
+   - If either guard fires, it launches `compactPrompt`. Both guards release anything they staged before failing, and the argv guard runs before anything is staged.
+   - The guards apply unchanged to the compact prompt, so a run fails only when neither variant fits.
+   - Without `compactPrompt`, `run()` behaves exactly as before.
+
+### Findings
+
+**Finding 1, High: incomplete command-line accounting. Fixed.**
+- `automaticGuidanceArgvHeadroom` and its guessed 4 KiB reserve are deleted.
+- The decision is now made against the executor's real guards on the real assembly.
+- The old integration assertion that read the executor input is replaced. It now checks:
+  - `compactPrompt` is exactly `prompt` with the prefix swapped;
+  - the real DeepSeek def's argv guard refuses `prompt` and accepts `compactPrompt`.
+
+**Finding 2, Medium: a reconstruction retry reuses an obsolete budget decision. Fixed.**
+- The cached preflight now keeps both variants. Consent and resolved content are still prepared once per turn.
+- Each attempt (`rejoin`) gets both variants, and its own executor launch chooses against its own assembled prompt.
+- A rejected preparation stays retryable, as before.
+- This applies on POSIX too. My earlier "Windows-only" note was wrong: the POSIX 100 KB argv guard also fires.
+
+**Finding 3, Medium: two history representations counted together. Fixed by removal.**
+- The sum `prompt + coldStartContext` no longer exists.
+- The compact and full prompts are both assembled after `selectRunHistoryPrompt` has picked one representation.
+
+### Evidence
+
+Raw output is in `cloud/reports/raw/parity-fix/fix2-*.txt`.
+
+| Step | Result |
+|---|---|
+| Jini daemon red (`fix2-jini-daemon-red.txt`) | 2 failed. "launches the compact prompt when the full prompt exceeds the argv budget" and "… when Windows quoting expands the full command line past the limit". |
+| Jini daemon mutation: the retry relaunches the full prompt (`fix2-jini-daemon-mutation.txt`) | The same 2 fail. Source restored. |
+| Jini daemon green (`fix2-jini-daemon-green.txt`) | All 393 tests in `agent-executor.test.ts` pass. This includes "keeps the full prompt when it fits" and "still fails before spawn when the compact prompt does not fit either". |
+| Jini agent-plugins red / mutation / green | Red: 2 failed. Mutation (`compact = prefix`): 1 failed. Green: 71/71. |
+| Jini `tsc --noEmit` | `daemon`: exit 0. `agent-plugins`: exit 0. |
+| Tovu red (`fix2-tovu-red.txt`) | 2 failed. The deepseek preflight does not carry `compactPrefix`, and `runs.compactPrefix` does not exist. |
+| Tovu mutation: `compactPrefix` returns the full prefix (`fix2-tovu-mutation.txt`) | The same 2 fail. Source restored. |
+| Tovu green (`fix2-tovu-green.txt`) | 58 of 59 pass. The one failure is pre-existing (see below). |
+
+The Tovu green run covers four files:
+- `automatic-agent-plugins.integration`;
+- `assistant-tool-exec.unit`;
+- `assistant-agent-plugin-preflight.integration`;
+- `agent-daemon-site-tools.unit`.
+
+**Pre-existing failure, not caused by this change:** `agent-daemon-site-tools.unit.test.ts` › "plugin preflight sends only the live run id…".
+- Its fake response omits `pluginIds`, which the strict schema already requires.
+- It fails the same way with the untouched base version of `agent-daemon-site-tools.ts` (`fix2-tovu-sitetools-baseline.txt`).
+- It was left alone as out of scope.
+
+### Residual, not fixed
+
+- **The fallback does not update delivery state.** If the executor falls back to the compact prompt, the controller has still recorded the primary as delivered. As a result:
+  - the usage chip shows it;
+  - children are told to `load_agent_plugin` it;
+  - a later turn will not re-inline it.
+  
+  The parent still receives the load pointer in its prompt, so the guidance stays reachable. Reporting the executor's choice back to the site would need a new daemon → site message, which is larger than this fix.
+- **POSIX overlay gap in the argv guard.** On POSIX the argv guard measures the prompt before the overlay, as before. An overlay that pushes argv past the kernel limit on POSIX still surfaces as a spawn error. This guard was kept unchanged, as instructed.
+- **Leftover cap.** Jini's `PrepareInput.maxPromptArgBytes` cap from PARITY-FIX remains. It is harmless, but Tovu no longer passes it.
+- **Release coupling.** Tovu `58677865` needs Jini `7edf8f17` and `ba2de1ad` released, or linked.
+
+### Tovu type-check
+- `tsc -p tsconfig.json --noEmit`, with Jini linked to the local build.
+- Exit 0, no errors (`fix2-tovu-tsc.txt`).
+
+PARITY-FIX-2 DONE

@@ -1,0 +1,40 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/__tests__/unit/automatic-use.unit.test.ts (71 tests | 2 failed) 95ms
+   × prepareVariants offers a compact prefix with the inlined primary replaced by its load pointer 10ms
+     → f.controller.prepareVariants is not a function
+   × prepareVariants returns identical prefixes when nothing was inlined 1ms
+     → f.controller.prepareVariants is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/__tests__/unit/automatic-use.unit.test.ts > prepareVariants offers a compact prefix with the inlined primary replaced by its load pointer
+TypeError: f.controller.prepareVariants is not a function
+ ❯ src/lifecycle/__tests__/unit/automatic-use.unit.test.ts:621:50
+    619| it('prepareVariants offers a compact prefix with the inlined primary r…
+    620|   const f = fixture();
+    621|   const { prefix, compact } = await f.controller.prepareVariants({ que…
+       |                                                  ^
+    622|   expect(prefix).toContain('Guidance for synthetic');
+    623|   expect(compact).not.toContain('Guidance for synthetic');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lifecycle/__tests__/unit/automatic-use.unit.test.ts > prepareVariants returns identical prefixes when nothing was inlined
+TypeError: f.controller.prepareVariants is not a function
+ ❯ src/lifecycle/__tests__/unit/automatic-use.unit.test.ts:631:50
+    629|   const f = fixture();
+    630|   f.ports.rank = () => [];
+    631|   const { prefix, compact } = await f.controller.prepareVariants({ que…
+       |                                                  ^
+    632|   expect(compact).toBe(prefix);
+    633| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 69 passed (71)
+   Start at  07:55:27
+   Duration  1.10s (transform 506ms, setup 0ms, collect 715ms, tests 95ms, environment 0ms, prepare 82ms)
+

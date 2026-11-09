@@ -1,0 +1,101 @@
+✔ Auto preflight delivers full primary guidance once before guarded writes (79.066229ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (51.90727ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (66.128687ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (19.416744ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (29.03967ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (29.464027ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (19.04315ms)
+✔ CLI onStarted retains the Codex prompt carrier and explicit reads stay complete (634.338505ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (268.200929ms)
+✔ load_agent_plugin carries maturity untested (49.256233ms)
+✔ load_agent_plugin carries maturity soon (27.001475ms)
+✔ load_agent_plugin carries maturity (absent) (30.311587ms)
+✔ automatic tool guidance warns before actions for an untested plugin (63.434179ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (25.367913ms)
+✔ inactive plugin returns setup guidance and the activation call while tools remain off (79.40333ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (21.058576ms)
+✔ the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance (20.853874ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (11501.789355ms)
+✔ explicit loader and guarded write refuse ask through the real executor (17.782369ms)
+✔ explicit loader and guarded write refuse off through the real executor (7.741224ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (20.761366ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (27.920056ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (4.746622ms)
+✔ a tool without guidance capabilities loads no plugin guidance (13.202185ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (16.057186ms)
+✔ load_agent_plugin refuses unknown input keys (15.493826ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (14.451873ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (37.626442ms)
+✔ pending plugin use cannot override a newer personal Off preference (52.507345ms)
+✔ pending plugin auto cannot override a newer personal Off preference (10.346005ms)
+✔ automatic plugin access rechecks the real active person after the answer (9.898982ms)
+✔ a real Auto CAS failure after the post-card read retains no consent on the same controller (14.534809ms)
+✔ fresh child reads complete guidance after parent pinned delivery (28.091023ms)
+✔ fresh child reads complete guidance after parent explicit delivery (31.246146ms)
+✔ replacement preflight retains the exact prepared bytes without another resolution (10.319713ms)
+✔ a rejected preflight promise is cleared so the same turn can retry (19.382222ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (336.263489ms)
+✔ accepted adapter prompt budget preserves preflight delivery (claude, pinned=false) (336.839574ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (347.326059ms)
+✔ a replacement attempt keeps both prepared variants, so its own launch can choose the compact one (71.315841ms)
+✔ preflight carries only delivered plugin ids through real RPC (automatic) (319.171776ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned) (323.885656ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned-off) (328.646365ms)
+✔ later chat turns retain delivered IDs without repeating primary text (27.393369ms)
+✔ concurrent principals have isolated catalogs and terminal cleanup (44.273802ms)
+✔ component requests refresh the server snapshot and fail closed without a core fallback (7.90846ms)
+[agent-daemon] site catalog unavailable: /internal/component-catalog
+✔ a catalog read completing after terminal cleanup cannot resurrect its principal (11.568222ms)
+✔ component snapshot reads reject oversized and malformed provider metadata (5.041365ms)
+✔ the inherited site tool token is removed before any CLI or plugin runtime can inherit it (1319.809577ms)
+[agent-daemon] site catalog unavailable: /internal/tool-catalog
+✔ an obsolete start failure cannot remove a newer start of the same run (7.537035ms)
+✔ a live run cannot be rebound to another principal (2.785097ms)
+✖ plugin preflight sends only the live run id and closes after receiving its prepared prefix (2.713315ms)
+✔ the agent launches only after site catalog and plugin preparation finish (142.218657ms)
+✔ plugin preflight uses the site's live run identity and releases terminal consent (415.607754ms)
+✔ a stopped run cannot publish late plugin consent or receive a prepared prefix (196.518064ms)
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+✔ pinned preflight always inlines text and carries its identity, even with pointer environment delivery (556.406215ms)
+[tool-failure] ERR-FA54-9FB8-7833-3EDD tool=chat_list_pending_attachments run=att-run execution=29369c4c-e4b0-46be-95ca-acb1b99eae1a principal=dfa95dda-de87-4e23-a3e0-dfac7e6343c9 redactions=0: attachment store is not ready
+✔ the chat-attachment tools read the daemon's store over the lookup, and only inside a daemon call (598.785506ms)
+✔ approval memory reads and grants against the daemon's conversation, and is inert outside a daemon call (0.847389ms)
+✔ plugin-install attachments: a daemon call reads only its message refs; a BYOK turn reads by owner (10.913259ms)
+ℹ tests 59
+ℹ suites 0
+ℹ pass 58
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22975.62073
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts:1:7530
+✖ plugin preflight sends only the live run id and closes after receiving its prepared prefix (2.713315ms)
+  Error [ZodError]: [
+    {
+      "code": "invalid_type",
+      "expected": "array",
+      "received": "undefined",
+      "path": [
+        "pluginIds"
+      ],
+      "message": "Required"
+    }
+  ]
+      at get error (file:///home/user/Tovu/node_modules/zod/v3/types.js:39:31)
+      at ZodObject.parse (file:///home/user/Tovu/node_modules/zod/v3/types.js:114:22)
+      at Object.preflight (/home/user/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts:132:30)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts:143:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    issues: [ { code: 'invalid_type', expected: 'array', received: 'undefined', path: [Array], message: 'Required' } ],
+    [errors]: [ { code: 'invalid_type', expected: 'array', received: 'undefined', path: [Array], message: 'Required' } ]
+  }

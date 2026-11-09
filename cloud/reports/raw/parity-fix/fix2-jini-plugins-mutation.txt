@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/__tests__/unit/automatic-use.unit.test.ts (71 tests | 1 failed) 96ms
+   × prepareVariants offers a compact prefix with the inlined primary replaced by its load pointer 10ms
+     → expected 'Guidance for synthetic' not to contain 'Guidance for synthetic'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/__tests__/unit/automatic-use.unit.test.ts > prepareVariants offers a compact prefix with the inlined primary replaced by its load pointer
+AssertionError: expected 'Guidance for synthetic' not to contain 'Guidance for synthetic'
+ ❯ src/lifecycle/__tests__/unit/automatic-use.unit.test.ts:623:23
+    621|   const { prefix, compact } = await f.controller.prepareVariants({ que…
+    622|   expect(prefix).toContain('Guidance for synthetic');
+    623|   expect(compact).not.toContain('Guidance for synthetic');
+       |                       ^
+    624|   expect(compact).toContain('host_read_plugin({"pluginId":"synthetic",…
+    625|   expect(await f.controller.prepare({ query: 'synthetic' })).toBe('');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 70 passed (71)
+   Start at  07:56:07
+   Duration  1.10s (transform 528ms, setup 0ms, collect 738ms, tests 96ms, environment 0ms, prepare 74ms)
+

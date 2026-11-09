@@ -1,0 +1,20 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — a single failed queued emit does not block the run from reaching a terminal state > swallows an emit() race against an already-terminal run instead of leaving an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — ACP dispatch (fake attachAcpSession) > swallows an emit() race against an already-terminal run on the ACP path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — pi-rpc dispatch (fake attachPiRpcSession) > swallows an emit() race against an already-terminal run on the pi-rpc path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+ ✓ src/agent-executor/__tests__/agent-executor.test.ts (393 tests) 723ms
+
+ Test Files  1 passed (1)
+      Tests  393 passed (393)
+   Start at  07:54:15
+   Duration  4.23s (transform 2.30s, setup 0ms, collect 3.26s, tests 723ms, environment 0ms, prepare 70ms)
+

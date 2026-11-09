@@ -1,0 +1,79 @@
+✔ Auto preflight delivers full primary guidance once before guarded writes (80.072158ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (45.471526ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (42.680619ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (17.354548ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (20.40899ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (23.284631ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (15.45425ms)
+✔ CLI onStarted retains the Codex prompt carrier and explicit reads stay complete (866.651475ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (304.043713ms)
+✔ load_agent_plugin carries maturity untested (35.087771ms)
+✔ load_agent_plugin carries maturity soon (46.001336ms)
+✔ load_agent_plugin carries maturity (absent) (21.107133ms)
+✔ automatic tool guidance warns before actions for an untested plugin (23.046147ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (29.595414ms)
+✔ inactive plugin returns setup guidance and the activation call while tools remain off (81.904442ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (16.260935ms)
+✔ the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance (18.064335ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (10400.840468ms)
+✔ explicit loader and guarded write refuse ask through the real executor (14.449982ms)
+✔ explicit loader and guarded write refuse off through the real executor (4.698498ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (15.77022ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (13.860062ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (3.627216ms)
+✔ a tool without guidance capabilities loads no plugin guidance (10.191285ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (15.583583ms)
+✔ load_agent_plugin refuses unknown input keys (11.385392ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (9.491371ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (25.767706ms)
+✔ pending plugin use cannot override a newer personal Off preference (7.968287ms)
+✔ pending plugin auto cannot override a newer personal Off preference (8.929286ms)
+✔ automatic plugin access rechecks the real active person after the answer (11.126966ms)
+✔ a real Auto CAS failure after the post-card read retains no consent on the same controller (10.113727ms)
+✔ fresh child reads complete guidance after parent pinned delivery (23.655811ms)
+✔ fresh child reads complete guidance after parent explicit delivery (25.830748ms)
+✔ replacement preflight retains the exact prepared bytes without another resolution (10.341785ms)
+✔ a rejected preflight promise is cleared so the same turn can retry (15.527353ms)
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (293.764855ms)
+✔ accepted adapter prompt budget preserves preflight delivery (claude, pinned=false) (273.390727ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (252.008123ms)
+✖ a replacement attempt keeps both prepared variants, so its own launch can choose the compact one (27.044187ms)
+✔ preflight carries only delivered plugin ids through real RPC (automatic) (281.245994ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned) (276.463593ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned-off) (293.134935ms)
+✔ later chat turns retain delivered IDs without repeating primary text (31.673146ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 42
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 35714.227608
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:6:42492
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (293.764855ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(result.prefix?.includes(full.promptPrefix))
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:715:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:9:1853
+✖ a replacement attempt keeps both prepared variants, so its own launch can choose the compact one (27.044187ms)
+  TypeError [Error]: f.runs.compactPrefix is not a function
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:745:32)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

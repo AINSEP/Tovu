@@ -1,0 +1,45 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts (393 tests | 2 failed | 389 skipped) 56ms
+   × AgentExecutor — plain-format argv prompt-budget guard (aider/deepseek: maxPromptArgBytes) > launches the compact prompt when the full prompt exceeds the argv budget 36ms
+     → Fake Aider requires the prompt as a command-line argument and this run's composed prompt exceeds the safe size (200000 > 100000 bytes). Reduce the selected context, shorten the conversation, or pick an adapter with stdin support.
+   × AgentExecutor — plain-format argv prompt-budget guard (aider/deepseek: maxPromptArgBytes) > launches the compact prompt when Windows quoting expands the full command line past the limit 8ms
+     → Fake Aider on Windows runs through a .cmd shim and this run's prompt would expand past the CreateProcess command-line limit after cmd.exe quote-doubling (40049 > 32511 chars). Reduce quote-heavy content in the selected context, shorten the conversation, or pick an adapter with stdin support.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — plain-format argv prompt-budget guard (aider/deepseek: maxPromptArgBytes) > launches the compact prompt when the full prompt exceeds the argv budget
+AgentExecutorError: Fake Aider requires the prompt as a command-line argument and this run's composed prompt exceeds the safe size (200000 > 100000 bytes). Reduce the selected context, shorten the conversation, or pick an adapter with stdin support.
+ ❯ Object.failBeforeSpawn src/agent-executor/launch.ts:1038:11
+    1036|     await cleanupFilesystemTemp({ runId }, {});
+    1037|     await lifecycle.finish({ runId, status: 'failed', code: null, sign…
+    1038|     throw new AgentExecutorError({ code: code, message: message });
+       |           ^
+    1039|   }
+    1040| 
+ ❯ runAttempt src/agent-executor/launch.ts:1420:27
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts:3764:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — plain-format argv prompt-budget guard (aider/deepseek: maxPromptArgBytes) > launches the compact prompt when Windows quoting expands the full command line past the limit
+AgentExecutorError: Fake Aider on Windows runs through a .cmd shim and this run's prompt would expand past the CreateProcess command-line limit after cmd.exe quote-doubling (40049 > 32511 chars). Reduce quote-heavy content in the selected context, shorten the conversation, or pick an adapter with stdin support.
+ ❯ Object.failBeforeSpawn src/agent-executor/launch.ts:1038:11
+    1036|     await cleanupFilesystemTemp({ runId }, {});
+    1037|     await lifecycle.finish({ runId, status: 'failed', code: null, sign…
+    1038|     throw new AgentExecutorError({ code: code, message: message });
+       |           ^
+    1039|   }
+    1040| 
+ ❯ guardWindowsCommandLineBudget src/agent-executor/launch.ts:835:5
+ ❯ runAttempt src/agent-executor/launch.ts:1623:5
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts:3774:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed | 389 skipped (393)
+   Start at  07:54:29
+   Duration  3.43s (transform 2.17s, setup 0ms, collect 3.13s, tests 56ms, environment 0ms, prepare 67ms)
+
