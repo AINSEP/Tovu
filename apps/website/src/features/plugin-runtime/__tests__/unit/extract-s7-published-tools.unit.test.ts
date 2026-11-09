@@ -60,8 +60,18 @@ test('resolved emitted contracts document the security and ordering obligations 
     pluginActivationRepo: /Share this workspace-scoped repository.*same activation state/i,
     pluginSource: /Record source approval before enabling.*OFF if recording fails/i,
     rollback: /exact prior activation row.*newly created row.*hooks/i,
+    flag: /false-valued result field.*declined is absent/i,
+    ask: /false skips the human dialog and runs immediately/i,
+    declined: /Replace the default no-answer result.*without running the mutation/i,
+    listInstalled: /rejected listing empties the entire agentPlugins list.*isolate failure/i,
+    updatePendingNextStep: /Only PLUGIN_UPDATE_PENDING is recoverable by restart.*other update codes/i,
+    registration: /List rejects all input.*family\/pluginId\/enabled.*exactly site-runtime or agent-plugin/i,
+    toolIds: /Every operation reads id.*name\/description.*oldString\/newString.*replaceAll/i,
+    installer: /canonical PluginInstallError.*relayable refusals.*opaque failure/i,
   };
   const documented = new Set<string>();
+  let sourceErrorNote = false;
+  let constructionNote = false;
   for (const name of ['contract', 'management', 'install', 'source']) {
     const url = new URL(`./${name}.d.ts`, publicEntry);
     const declaration = readFileSync(url, 'utf8');
@@ -72,6 +82,8 @@ test('resolved emitted contracts document the security and ordering obligations 
         const notes = ts.getJSDocTags(node).filter(tag => tag.tagName.text === 'agent-note');
         const member = node.name.getText(ast);
         if (notes.some(note => typeof note.comment === 'string' && requiredNotes[member]?.test(note.comment))) documented.add(member);
+        if (member === 'pluginSource' && notes.some(note => typeof note.comment === 'string' && /canonical PluginSourceError or PluginInstallError.*relayable refusals/i.test(note.comment))) sourceErrorNote = true;
+        if (member === 'handler' && notes.some(note => typeof note.comment === 'string' && /set-enabled.*at registration.*uninstall.*per call/i.test(note.comment))) constructionNote = true;
       }
       if (ts.isFunctionDeclaration(node) && node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
         functions++;
@@ -81,6 +93,8 @@ test('resolved emitted contracts document the security and ordering obligations 
     visit(ast);
   }
   for (const member of Object.keys(requiredNotes)) assert.ok(documented.has(member), member);
+  assert.equal(sourceErrorNote, true);
+  assert.equal(constructionNote, true);
   assert.equal(functions, 7);
 });
 
