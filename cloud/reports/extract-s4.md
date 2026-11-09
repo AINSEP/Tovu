@@ -647,3 +647,191 @@ packages/agent-plugins/package.json: `./connect` (existing; now also exports por
 - Tovu A/service-ports.ts (MCP ports → re-exports; S5 diff vs S3 on this file: check at merge — S5 owns T external-MCP contracts, which this file no longer imports for MCP rows), C/plugin-host.ts (binder deps), A/{federate-mcp,enable-access,apply-connect-defaults,switch-on-saved-token,connection-status}.ts shims (S5 0 lines at A8).
 Lines: Jini +1399 verbatim copy, then +200/−232 seams; Tovu +225/−1408 (moved out). Time 08:05–08:27Z. Token note: builder ~165k at report time.
 Remaining: none for A9 scope. A10/A11 must consume the moved MCP ports from `@jini-ai/agent-plugins/connect` (T service-ports re-exports them) and the T binder still passes the T grant (`grantDeclaredToolsToSignedInRows`).
+
+## A10 inventory (not implemented — job stopped at token cap)
+
+Builder A10-INVENTORY, ~08:20–08:40Z, on Tovu 64696b0b / Jini f774b9e5 (cloud/extract-s4). **No code edits, no moves, no tests run.** This is the A10 "first seam commit = inventory" deliverable only; the seam (A10) and the move (A11) are NOT done. Read-only sources: the nine files under A (`apps/website/src/features/agent-plugins/`), their T/J imports, `card-host-bindings.ts`, `service-ports.ts`, `tool-registrations.ts`, `C/plugin-host.ts`, J `P/connect/{ports,index,federate-mcp,apply-connect-defaults}.ts`, J core `surface-exchanges.ts`/`contracts/cards.ts`/`tool-permissions.ts`, J daemon `surface-exchanges.ts:412`.
+
+Destination key: **P/x** = J `packages/agent-plugins/src/connect/x.ts` (same package, `./connect` entry); **P/ports** = `P/connect/ports.ts`; **CORE** = `@jini-ai/core` root; **CC/area** = `@jini-ai/core/contracts/<area>` (types only); **SELF** = `@jini-ai/agent-plugins/lifecycle` (self-import, allowed); **HOST** = required host input bound by the T shim/binder (no T default in P); **T-STAY** = stays Tovu (R4 stay block / host wiring). Port names follow the brief list (Mcp, Projections, SignIn, Lifecycle, Cards<Resource>, CredentialCardForms<Form>, exchange store/askThenReport, approvals, preferences, API, messages, publicUrl, cardIdentity).
+
+### Value-import graph among the nine (production, non-test)
+
+| from | value imports (of the nine) | type-only imports (of the nine) |
+|---|---|---|
+| connect-tool | connect-destination, connect-sign-in-wait | — |
+| connect-sign-in-wait | connect-card-ui | connect-tool (`AgentPluginConnectResult`) |
+| access-token-tool | connect-card-ui, connect-tool | — |
+| import-access-token | access-token-tool, connect-tool | — |
+| grant-signed-in-defaults | connect-tool, import-access-token | — |
+| token-sign-in | access-token-tool, connect-tool | import-access-token |
+| apply-tool-renames | import-access-token | — |
+| connect-card-ui, connect-destination | — | — |
+
+**Finding:** the nine form a value-DAG, not a value cycle. The only cycle is **type-only**: connect-tool ⇄ connect-sign-in-wait (`AgentPluginConnectResult`). The A8 grant port already removed the old back-edge (C/plugin-host → grant-signed-in-defaults is now a T binder value import, plugin-host itself lives in J `connect/plugin-host` since A9). Move order if split: card-ui, destination → sign-in-wait+connect-tool (atomic, type cycle) → access-token-tool → import-access-token → {grant, token-sign-in, apply-tool-renames}. Brief requires the family to move together in A11 anyway; atomic move is still the plan.
+
+External production callers (must keep T shim signatures): `tool-registrations.ts` (A, R4 stay block), `write-note-tool.ts:8` (type `AgentPluginAccessTokenToolDeps`), `new-site-agent-plugin-tokens.ts:8–11`, `assistant/tool-registrations.ts:149` (type), `C/plugin-host.ts:20,98`, `C/tool-catalog-manifest.ts:28`, `C/pending-agent-plugin-tokens.ts` (comment only), `server/runtime/boot/bootstrap.ts:6–8`, `server/inbound/admin-http/routes/system/sites.ts:40`, `routes/agent-plugins/set-enabled.ts:8`, `features/sites/site-admin.ts:22`, `cli/commands/agent-plugin-tokens.ts:12`. No `examples/` caller. (`features/publish-content/connect-destination.ts` is an unrelated same-named file.)
+
+### Symbol inventory
+
+| # | symbol | file:line | kind | destination | host vocabulary / injection |
+|---|---|---|---|---|---|
+| 1 | `AGENT_PLUGIN_CONNECT_TOOL_ID` = `"agent_plugin_connect"` | connect-tool:66 | value const, export | HOST (cardIdentity/toolId) + T-STAY re-export | tool id; used by R4 stay block; P receives `toolId` from host (already `agentPluginCardHost.connect.toolId`) |
+| 2 | `AGENT_PLUGIN_CONNECT_PERMISSION` = `"admin.integrations.manage"` | connect-tool:72 | value const | HOST (permission name) | permission string; also in catalog `authorization.permission`; inject `permissions.connect` |
+| 3 | `DEFAULT_POLL_INTERVAL_MS` 3000 | connect-tool:74 | value const | P (neutral default, justified: already overridable via `pollIntervalMs`) | none |
+| 4 | `DEFAULT_WAIT_TIMEOUT_MS` 300000 | connect-tool:79 | value const | P (same justification) | none |
+| 5 | `EXTERNAL_MCP_OAUTH_CALLBACK_PATH` = `"/api/mcp-servers/oauth/callback"` | connect-tool:84 | value const | HOST (publicUrl port) | route path; routes stay T |
+| 6 | `resolveConnectRedirectUri(serverId, derivedPublicOrigin)` | connect-tool:94 | internal fn | HOST (publicUrl port: `redirectUri({serverId})`) — body stays T binder | reads `process.env.TOVU_PUBLIC_URL`; precedence env > `derivedPublicOrigin` must be preserved by the binder |
+| 7 | `ResolvedAgentPluginForConnect` | connect-tool:114 | interface, export | P/connect-tool | none |
+| 8 | `defaultResolveInstalledAgentPlugin({workspaceId,pluginId,agentPluginLayout})` | connect-tool:124 | fn, export | P via Lifecycle installed reads (`AgentPluginInstalledMcpReads`, P/federate-mcp:200) + `AgentPluginLayout` (P/federate-mcp:192) | T `lifecycle.ts` / `capability-projection.ts` (node:fs) become host-passed reads; no T default |
+| 9 | `titleCaseFromPluginId(pluginId)` | connect-tool:138 | pure fn, export (positional scalar, existing) | P (pure) ; T shim keeps signature | none |
+| 10 | `isOAuthServer(config)` | connect-tool:147 | internal guard | P | `"oauth"`/`"stdio"` = SELF config vocabulary (justified) |
+| 11 | `beginSignIn({oauth,serverId,derivedPublicOrigin})` | connect-tool:160 | internal fn | P, using SignIn port `beginConnect({serverId,redirectUri?,delivery?})` + `isSignInRefusal({error})` | refusal text names `credential_save` and "restart Tovu" → HOST messages; `'hosted'` delivery and `redirect_required` are CC/hosted-mcp vocabulary (justified); unsupported-kind Error text prefixed `agent_plugin_connect:` → messages |
+| 12 | `sleepOrAbort(ms, signal)` | connect-tool:179 | internal fn | P (setTimeout: universal JS, justified) | none |
+| 13 | `AgentPluginConnectToolDeps` | connect-tool:196 | interface, export | P/connect-tool, reshaped `(required, optional)`-friendly; `authorize` (CORE `LegacyToolAuthorizeFn`), `mcp` (P/ports Mcp+Projections required), `externalMcpOAuth` (SignIn), `credentials` (`loadSafe`), `apiConnections` (API), `agentPluginLayout`, `isPluginEnabled` (Lifecycle), `resolveInstalledPlugin` | `UUID` CORE primitives |
+| 14 | `AGENT_PLUGIN_CONNECT_DESCRIPTION` | connect-tool:217 | value string | HOST (tool/schema text) | names `search_agent_plugin_local`, `credential_save`, "restart Tovu" |
+| 15 | `agentPluginConnectAgentToolCatalog` | connect-tool:233 | value, export | HOST-built: P exports a builder taking `{toolId, permission, description, pluginIdDescription}`; T shim passes bytes | schema description "e.g. from search_agent_plugin_local"; used by R4 stay block |
+| 16 | `agentPluginConnectDerivedRisk` | connect-tool:254 | value Map, export | P builder keyed by injected toolId (`"mutates-durable-state"` CORE vocabulary) ; T shim | used by R4 stay block |
+| 17 | `PendingOAuthServer` | connect-tool:259 | internal interface | P | none |
+| 18 | `hasStoredAgentPluginCredential(row, options)` | connect-tool:268 | fn, export | P; projections REQUIRED (today defaults via T `agentPluginMcpPortsOf`) | none; T shim binds `agentPluginMcpProjectionPorts` |
+| 19 | `resolvePendingOAuthServers` | connect-tool:277 | internal fn | P | error "could not be set up in this Tovu version" → messages |
+| 20 | `AgentPluginConnectOptions` (`saveToken?`) | connect-tool:299 | type, export | P (extends CORE `ToolExecutionOptions`; emitSurface/executionOptions preserved) | none |
+| 21 | `AgentPluginConnectResult` | connect-tool:309 | interface, export | P (moves with connect-sign-in-wait: type cycle) | none |
+| 22 | `hasReusablePluginCredential` | connect-tool:321 | internal fn | P | none |
+| 23 | `connectWithoutOAuth` | connect-tool:334 | internal fn | P | errors name `agent_plugin_connect`, "this Tovu version", `credential_save` → messages |
+| 24 | `assertPluginCanConnect` | connect-tool:367 | internal fn | P; Lifecycle `isPluginEnabled` REQUIRED (today falls back to T `isAgentPluginEnabled`, activation-effects) | error names `plugins_set_enabled({family:"agent-plugin",…})` → messages |
+| 25 | `runAgentPluginConnect({routeDeps,surfaces,ctx,pluginId}, optional)` | connect-tool:385 | fn, export | P ; T shim same signature, binds ports | permission (#2), `entityType "agent-plugin"` (host vocabulary → inject with permission), errors → messages; ctx clone preserved |
+| 26 | `connectAndReviewMcp` | connect-tool:442 | internal fn | P | note text neutral ("Your sign-in was saved…") moves unchanged (justified) |
+| 27 | `retainedOAuthServers` | connect-tool:459 | internal fn | P | none |
+| 28 | `approveSignedInAccess` | connect-tool:474 | internal fn | P + **approvals port** (replaces T `approvalToolHandler`/`notConfirmedResult`, A `contracts/core/human-confirm.ts`) preserving authority/fingerprint (`prepared.key`)/ctx/principal/emitSurface | `errorCode 'AGENT_PLUGIN'`, `entityType 'agent-plugin'`, permission, approval title/description/confirmLabel ("Allow access for…", neutral) ; `scope {personId, siteId}` is T approval vocabulary → approvals port; uses P `previewAgentPluginEnableAccess` (messages = T `tovuEnableAccessMessages`, HOST) and P `recordAgentPluginAccessDeclined` (actor injected via `AgentPluginConnectActors`) |
+| 29 | `currentSignedInAccess` | connect-tool:515 | internal fn | P | neutral refusal text |
+| 30 | `waitAtMcpSignInCard` | connect-tool:529 | internal fn | P | missing-emitter text names `agent_plugin_connect` → messages (same string as #46) |
+| 31 | `waitForMcpConnection` | connect-tool:556 | internal fn | P (Date.now: universal; justified, unchanged timing) | none |
+| 32 | `findPluginOAuthCard` | connect-tool:587 | internal fn | P (credentials `loadSafe`, `saveKind "oauth"` = CC/credentials vocabulary) | none |
+| 33 | `connectDeclaredApiConnectionOrRefuse` | connect-tool:592 | internal fn | P + API port (`sharingAvailable/listConnections/connect`) + `ownerPrincipalId` | permission `'system.write'` → HOST; errors name `agent_plugin_connect`, "this Tovu version" → messages; cancel `next` text neutral |
+| 34 | `AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION` = `"admin.integrations.manage"` | access-token-tool:47 | value const | HOST (permission) | permission string |
+| 35 | `AgentPluginTokenTargetDeps` | access-token-tool:52 | type, export | P (Pick of #13 + CORE `Clock`) | none |
+| 36 | `AgentPluginAccessTokenToolDeps` | access-token-tool:57 | interface, export | P; external type users `write-note-tool.ts:8`, `assistant/tool-registrations.ts:149`, R4 block — T shim re-exports type | `credentials: PluginCredentialsPort`, `preferences.locale` (preferences port) |
+| 37 | `MESSAGES` (tokenInvalid/blankToken/saveFailed) | access-token-tool:72 | value object | P (neutral copy, unchanged; justified) — `tokenInvalid` goes through host `translateCredentialMessage` | none |
+| 38 | `UnansweredReason`, `SetAccessTokenResult` | access-token-tool:78–79 | internal types | P | none |
+| 39 | `TokenAuthTarget` | access-token-tool:84 | interface, export | P (uses SELF `AgentPluginTokenAuth`, `RemoteMcpServerConfig`) | none |
+| 40 | `hostOf(url)` | access-token-tool:91 | internal fn | P (URL global, justified) | none |
+| 41 | `requireTargetRow` | access-token-tool:106 | fn, export | P | errors name `agent_plugin_set_access_token`, "this Tovu version" → messages |
+| 42 | `resolveTarget` | access-token-tool:128 | fn, export | P (provision via P `provisionAgentPluginMcpServers`, which needs host `classifyTrust` + `tovuFederationMessages`) | errors name `agent_plugin_set_access_token`, "this Tovu version" → messages |
+| 43 | `probeToken({probeUrl,token,credentials})` | access-token-tool:157 | fn, export | P; **token validation** (`assertCredentialToken`, T `contracts/core/credential-token.ts` → `@jini-ai/platform`) must become injected (credentials validator) — see risk R1 | none |
+| 44 | `joinStoredList` | access-token-tool:163 | internal fn | P | none |
+| 45 | `saveStaticAccessToken` | access-token-tool:175 | fn, export | P (Mcp `saveServer`) | `transport "streamable_http"`, `authMode "static_env"` = CC/hosted-mcp record vocabulary (justified, saved bytes unchanged) |
+| 46 | `describeSaveError` | access-token-tool:201 | internal fn | P; `credentialText({id:"storage",locale:"en"})` → messages port; original error object + Mcp `classifyError` preserved | none |
+| 47 | `saveSubmittedAccessToken` | access-token-tool:214 | internal fn | P; `credentialText`/`translateCredentialMessage`/`CredentialInputError.rule` → messages + validator; `describeSavedTokenSwitch` (T-only, switch-on-saved-token:48) → HOST messages; P `switchOnSavedTokenConnection` same package | refused/unavailable/switch-failure copy neutral (justified) |
+| 48 | `accessTokenResult` | access-token-tool:245 | internal fn | P (CORE `SurfaceCardSecretRun` replaces UI `SecretCardRun`) | `credentialText(blank)` → messages |
+| 49 | `saveAgentPluginToken({routeDeps,surfaces,ctx}, optional)` | access-token-tool:259 | fn, export | P; `defineSecretCardTool` → **Cards<Resource>** port (`SurfaceCardsPort.defineSecretCardTool`); `askThenReport` → host exchange helper (CORE `SurfaceAskThenReport` type); `CREDENTIAL_SAVE_TOOL_ID` → HOST (token cards keep `credential_save` lifecycle) | `toolId credential_save`, `uriHost: "tovu"` → cardIdentity.uriNamespace; `frameSize ["100%","380px"]` (neutral, justified); `saveKind "agent-plugin-token"` (CC/credentials vocabulary, justified); prepare errors name `agent_plugin_set_access_token` → messages; permission #34; `entityType "agent-plugin"` |
+| 50 | `agentPluginConnectSurfaceUri({pluginId,uriNamespace})` | connect-card-ui:26 | internal fn | P; builds `ui://${uriNamespace}/${pluginId}` — with brief cardIdentity `{uriNamespace:"tovu"}` P must append neutral suffix `agent-plugins-connect` (justify) so bytes stay `ui://tovu/agent-plugins-connect/<id>` | URI |
+| 51 | `AgentPluginConnectCardSpec` | connect-card-ui:30 | type, export | P | none |
+| 52 | `buildAgentPluginConnectCardWithPorts<Resource>` | connect-card-ui:42 | generic fn, export (S3 seam) | P; `cards: AgentPluginCardBuilders<Resource>` (Omit<…,'waitAtSignInCard'>), identity → cardIdentity | neutral card copy ("Let's connect…", "It's free and takes about two minutes.", "Skip", "Connected ✓") moves unchanged (justified) |
+| 53 | `buildAgentPluginAccessTokenFormWithPorts` | connect-card-ui:72 | fn, export | P + **CredentialCardForms<Form>** (`credentials.apply({card?,form})`) ; app from cardIdentity.appNames.tokenForm | **"Tovu checks it with …"** product copy → HOST messages; `@example` URL `https://supabase.com/dashboard/account/tokens` in JSDoc (doc only; reword to neutral example or keep with justification) |
+| 54 | `buildAgentPluginAccessTokenOutcomeWithPorts` | connect-card-ui:108 | fn, export | P; app from cardIdentity.appNames.tokenOutcome | "Connection" label neutral |
+| 55 | `buildAgentPluginConnectCard` / `…AccessTokenForm` / `…AccessTokenOutcome` | connect-card-ui:125/128/131 | T host entries | T-STAY shims binding `agentPluginCardHost` | — |
+| 56 | `agentPluginCardHost` (card-host-bindings.ts:4–8, not one of the nine) | card-host-bindings:4 | T value | T-STAY: becomes the host's `{cards: mcpUiCards, askThenReport, cardIdentity}` | `tovu/agent-plugins-connect`, `tovu-agent-plugins-connect`, `tovu-agent-plugins-access-token[-outcome]`, `tovu/sign-in-destination`, `agent_plugin_connect`, version `"1"`; imports `@jini-ai/ui` + `@jini-ai/daemon` (allowed in T host only) |
+| 57 | `Destination` = `'site'|'shared'` | connect-destination:7 | internal type | P | none |
+| 58 | `selectedDestination(params)` | connect-destination:10 | internal fn | P (CORE `SURFACE_EXCHANGE_ID_PARAM`) | "No site identity…" neutral |
+| 59 | `chooseApiConnectionDestinationWithPorts<Resource>` | connect-destination:23 | generic fn, export (S3 seam) | P; cards + askThenReport + cardIdentity (`sign-in-destination` suffix) + toolId | channel `'mcp-ui'` (×2) → HOST channel; **"this Mac"** description/option labels → HOST messages; "Continue to sign in", "Use only on this site" neutral; frame `['100%','1px']` justified |
+| 60 | `chooseApiConnectionDestination` | connect-destination:53 | T host entry | T-STAY shim | binds `agentPluginCardHost.destination` |
+| 61 | `waitAtAgentPluginSignInCardWithPorts<Resource>` | connect-sign-in-wait:13 | generic fn, export (S3 seam) | P; `cards: AgentPluginCardsPort<Resource>` (waiter generic callback), `surfaceExchanges` CORE `SurfaceCardSecretDeps['surfaceExchanges']` | `missingEmitterMessage`, `skippedResult.next` are already params |
+| 62 | `waitAtAgentPluginSignInCard` | connect-sign-in-wait:31 | T host entry | T-STAY shim | binds missing-emitter text (`agent_plugin_connect:` prefix) and skipped copy |
+| 63 | `GrantSignedInDefaultsDeps` | grant-signed-in-defaults:46 | type, export | P (projections REQUIRED; `clock` CORE; `warn` REQUIRED or host-bound) | — |
+| 64 | `GrantDeclaredToolsOptions` | grant-signed-in-defaults:60 | internal interface | P (= brief `optional` of grant callback + `onlyNeverGranted`) | — |
+| 65 | `connectGrantFor` | grant-signed-in-defaults:71 | internal fn | P (`createApplyConnectDefaults` already P; needs `actors` injected) | — |
+| 66 | `grantConnection` | grant-signed-in-defaults:78 | internal fn | P; `CONNECT_DECLINED_ACTOR` → `AgentPluginConnectActors.connectDeclined` (HOST) | actor id |
+| 67 | `grantFailure` | grant-signed-in-defaults:92 | internal fn | P | error names `plugins_set_enabled` → messages; `[agent-plugins]` log prefix (package domain, justified) |
+| 68 | `grantDeclaredToolsToSignedInRows(required, optional)` | grant-signed-in-defaults:106 | fn, export | P; matches brief grant callback `(required{deps,pluginId,servers}, optional{skipServerKeys?,approvedEnable?})` | `console.warn` default → HOST `warn` |
+| 69 | `eligibleGrantRow` | grant-signed-in-defaults:130 | internal fn | P | — |
+| 70 | `grantDeclaredToolsAtBoot(deps, log)` | grant-signed-in-defaults:143 | fn, export (positional) | P as `(required{deps,log}, optional)`; T shim keeps `(deps, log)`; activations via Lifecycle `getActivation`/reader (today T `agentPluginActivations`) | log copy neutral, `[agent-plugins]` prefix |
+| 71 | `TokenSignInPlugin` | token-sign-in:17 | interface, export | P | — |
+| 72 | `soleTokenAuth` | token-sign-in:26 | internal fn | P | — |
+| 73 | `listTokenSignInPlugins(workspaceId, listPlugins)` | token-sign-in:37 | fn, export (positional scalars) | P as object API; T shim keeps signature (callers sites.ts:40, new-site-agent-plugin-tokens.ts:11) | — |
+| 74 | `TokenCheckOutcome` | token-sign-in:50 | type, export | P | — |
+| 75 | `checkAgentPluginAccessToken(deps, input)` | token-sign-in:56 | fn, export | P as `(required, optional)`; T shim keeps signature (site-admin.ts:22, cli agent-plugin-tokens.ts:12) | — |
+| 76 | `AGENT_PLUGIN_TOKEN_IMPORT_ACTOR` = `"system:token-import"` | import-access-token:33 | value const, export | HOST actor (saved bytes) | actor id |
+| 77 | `ImportAgentPluginAccessTokenDeps` | import-access-token:35 | interface, export | P | — |
+| 78 | `ImportAgentPluginAccessTokenOutcome` | import-access-token:41 | type, export | P | — |
+| 79 | `importAgentPluginAccessToken(deps, input)` | import-access-token:51 | fn, export | P object API; T shim (bootstrap.ts:6, pending-agent-plugin-tokens wiring) | URL-mismatch Error text neutral |
+| 80 | `InstalledAgentPluginServers` | import-access-token:80 | interface, export | P | — |
+| 81 | `listInstalledAgentPluginServers` | import-access-token:89 | fn, export | P via Lifecycle installed reads + layout (today T lifecycle.ts/capability-projection.ts, node:fs) | — |
+| 82 | `TokenImportLog` | import-access-token:103 | interface, export | P | — |
+| 83 | `ImportAgentPluginAccessTokensFromEnvDeps` | import-access-token:108 | interface, export | P | — |
+| 84 | `envDeclarations` | import-access-token:114 | internal fn | P | env var NAMES come from plugin metadata (`importFromEnv`, `retiredEnv`) — neutral; JSDoc line 18 cites `TOVU_SUPABASE_MCP_…` (comment; reword or justify) |
+| 85 | `importAgentPluginAccessTokensFromEnv(deps, env, log, options)` | import-access-token:130 | fn, export | P object API; `env` stays a host-passed value (the `process.env` read is in T bootstrap, T-STAY) | — |
+| 86 | `EnvDeclaration` | import-access-token:155 | internal type | P | — |
+| 87 | `reportRetiredEnv` | import-access-token:158 | internal fn | P | log copy neutral |
+| 88 | `importDeclaredEnvToken` | import-access-token:167 | internal fn | P | `AGENT_PLUGINS_SCREEN` (`"Add-Ons → Agent Plugins"`, T switch-on-saved-token:14) → HOST messages/screen name; "site credential store" wording → messages |
+| 89 | `TOOL_RENAMES_ACTOR` = `"system:tool-renames"` | apply-tool-renames:29 | value const | HOST actor (saved `writeGrantsUpdatedByPrincipalId` bytes) | actor id |
+| 90 | `ApplyAgentPluginToolRenamesDeps` | apply-tool-renames:31 | interface, export | P (`externalMcpServerRepo: Mcp repo`, `clock`) | — |
+| 91 | `readToolList` | apply-tool-renames:45 | internal fn | P | — |
+| 92 | `renameToolNames(names, renames)` | apply-tool-renames:60 | pure fn, export (positional) | P; keep export as-is only if still exported by T shim | — |
+| 93 | `renameRowTools` | apply-tool-renames:67 | internal fn | P (CORE `nowIso`) | — |
+| 94 | `applyServerToolRenames` | apply-tool-renames:97 | internal fn | P | log copy neutral, `[agent-plugins]` |
+| 95 | `applyAgentPluginToolRenames(deps, log)` | apply-tool-renames:136 | fn, export | P object API; T shim (bootstrap.ts:7) | — |
+
+### Imports the nine take, and what each becomes
+
+| import | value/type | in | becomes |
+|---|---|---|---|
+| `@jini-ai/core` (ToolInputError, redactSecrets, requireInputRecord, adaptLegacyAuthorize, requireToolPermission, SURFACE_* params; types) | value+type | most | CORE (allowed) |
+| `@jini-ai/core/primitives` (Clock, nowIso, UUID), `/contracts/credentials`, `/contracts/cards` | type (+`nowIso` value from primitives) | several | CORE / CC (allowed) |
+| `@jini-ai/cms/core` adaptLegacyAuthorize, requireToolPermission | value | access-token-tool:7–8 | **forbidden in P** → same CORE exports (as connect-tool already does) |
+| `@jini-ai/ui/mcp-ui/secret-card` defineSecretCardTool / SecretCardRun | value / type | access-token-tool:10 | Cards<Resource> port / CC/cards `SurfaceCardSecretRun` |
+| `@jini-ai/daemon/surface-exchanges` askThenReport / AssistantSurfaceDeps | value / type | access-token-tool:12, connect-tool:12, destination:2, sign-in-wait:5 | host `askThenReport` (CORE `SurfaceAskThenReport`) / P-local `{ surfaceExchanges: SurfaceExchangeStore }` (CORE type) |
+| `@jini-ai/agent-plugins/lifecycle` AgentPluginTokenAuth | type | access-token-tool:18, token-sign-in:6 | SELF |
+| `./service-ports.js` (OAuth, SignIn, Credentials, Preferences, ApiConnections, Cards, CardBuilders, McpContext; Mcp/Record/Projections already re-exported from P) | type | 7 files | P/ports (move remaining T port declarations; OAuth start type from CC/hosted-mcp `ExternalMcpConnectStart`) |
+| `../../contracts/core/human-confirm.js` approvalToolHandler, notConfirmedResult | value | connect-tool:5 | approvals port (HOST) |
+| `../../contracts/core/plugin-credential-card.js` | type | access-token-tool:3 | CC/credentials `PluginCredentialCard` |
+| `../../contracts/headless/index.js` CREDENTIAL_SAVE_TOOL_ID | value | access-token-tool:4 | HOST toolId |
+| `../../contracts/core/credential-copy.js` credentialText, translateCredentialMessage | value | access-token-tool:5 | messages port (locale-aware, HOST; 601-line T table stays T) |
+| `../../contracts/core/credential-token.js` assertCredentialToken, CredentialInputError | value | access-token-tool:6 | injected validator (wraps `@jini-ai/platform`; P cannot import) — risk R1 |
+| `./enable-access.js` previewAgentPluginEnableAccess | value | connect-tool:6 | P same package, messages HOST (`tovuEnableAccessMessages`) |
+| `./apply-connect-defaults.js` recordAgentPluginAccessDeclined, CONNECT_DECLINED_ACTOR, createApplyConnectDefaults | value | connect-tool:7, grant:5 | P same package, actors HOST |
+| `./mcp-host-bindings.js` agentPluginMcpPortsOf | value | connect-tool:13, grant:12 | removed in P (projections required); T shims call `withAgentPluginMcpPorts` |
+| `./federate-mcp.js` deriveAgentPluginConnectionId, provisionAgentPluginMcpServers | value | 5 files | P same package; provision needs HOST `classifyTrust` + `tovuFederationMessages` |
+| `./capability-projection.js` readInstalledMcpServers; `./lifecycle.js` listInstalledPlugins/preferBundled…/readBundled… | value | connect-tool, import-access-token | Lifecycle installed reads (`AgentPluginInstalledMcpReads`, HOST-passed) |
+| `./activation-effects.js` isAgentPluginEnabled, agentPluginActivations | value | connect-tool:22, grant:4 | Lifecycle activation (`isPluginEnabled` / activation reader) HOST |
+| `./layout.js` AgentPluginLayout | type | 5 files | P/federate-mcp `AgentPluginLayout` |
+| `./mcp-metadata.js` McpServerConfig, RemoteMcpServerConfig | type | 6 files | SELF lifecycle types |
+| `../api-connections/contribution.js` DeclaredApiConnection | type | connect-tool:24 (+service-ports) | P/ports generic `AgentPluginApiConnectionsPort<Connection>` (opaque pass-through) — no integrations import |
+| `./switch-on-saved-token.js` switchOnSavedTokenConnection, describeSavedTokenSwitch, AGENT_PLUGINS_SCREEN, SwitchOnSavedTokenDeps | value+type | access-token-tool:20, import-access-token:8 | P same package (switch); describe + screen → HOST messages |
+| `./card-host-bindings.js` agentPluginCardHost | value | card-ui, destination, sign-in-wait | T-STAY (host shims only) |
+
+### Host vocabulary (each to be injected or justified; none may get a T default inside P)
+
+Tool ids: `agent_plugin_connect` (#1), `credential_save` (#49 toolId; also in refusal/description copy), `agent_plugin_set_access_token` (error prefixes #41/#42/#49), `search_agent_plugin_local` (#14/#15), `plugins_set_enabled` (#24/#67). Permissions: `admin.integrations.manage` (#2/#34), `system.write` (#33); entity type `agent-plugin`; approval errorCode `AGENT_PLUGIN`. Card identity: `ui://tovu/agent-plugins-connect/<pluginId>` app `tovu-agent-plugins-connect` v1; `ui://tovu/sign-in-destination/<exchangeId>`; `uriHost "tovu"` (token secret card); `tovu-agent-plugins-access-token`, `tovu-agent-plugins-access-token-outcome` v1; `tovu-plugin-credential-card` v1 is built by the credentials `apply` port (UI side, not in these files). Channel `mcp-ui` (#59). Screen `Add-Ons → Agent Plugins` (#88). Actors `system:token-import` (#76), `system:tool-renames` (#89), connect-declined/connect-defaults actors (#66). Product copy: "this Tovu version" (#19,#23,#33,#41,#42), "restart Tovu" (#11,#14), "Tovu checks it with" (#53), "this Mac" (#59). Env/route: `TOVU_PUBLIC_URL`, `/api/mcp-servers/oauth/callback` (#5/#6). Example URLs: `https://supabase.com/dashboard/account/tokens` (JSDoc #53), `TOVU_SUPABASE_MCP_…` (JSDoc import-access-token:18). Catalog module path `features/agent-plugins/connect-tool.ts` (tool-registrations.ts:143, T-STAY; still valid while connect-tool.ts remains as a T shim). `external_mcp_save` guidance: not present in these nine (lives in other T files) — nothing to inject here. Justified neutral constants: poll/timeout defaults, `"mutates-durable-state"`, `streamable_http`/`static_env`/`oauth`/`agent-plugin-token` (CC record/credential vocabulary, saved bytes), frame sizes, `[agent-plugins]` log prefix, neutral card copy.
+
+### R4 stay block (A/tool-registrations.ts, unchanged by A10/A11)
+
+`buildAgentPluginConnectRegistrations` :123 (note handler wiring :125–140, `catalogModule` :143), `agentPluginConnectDomainCatalog` :151, `agentPluginConnectDomainRisk` :152, `contributeAgentPluginConnectTools` :156 (domain `"agent-plugin-connect"`). It imports `AGENT_PLUGIN_CONNECT_TOOL_ID, agentPluginConnectAgentToolCatalog, agentPluginConnectDerivedRisk, runAgentPluginConnect` (:22–27) and `saveAgentPluginToken, AgentPluginAccessTokenToolDeps` (:28–31) — after A11 these resolve through T shims (connect-tool.ts / access-token-tool.ts) that bind the moved P functions.
+
+### A11 grant binder
+
+C/plugin-host.ts:20 imports `grantDeclaredToolsToSignedInRows` from the T file and :98 passes it as `grantSignedInDefaults`. A11 change is the import line (:20) → moved function (via T shim or `@jini-ai/agent-plugins/connect`); :98 unchanged; port retained. Caveat in risk R5.
+
+### Design risks found
+
+- **R1 token validation:** `assertCredentialToken`/`CredentialInputError` (T credential-token.ts → `@jini-ai/platform` + `@tovu/contracts/secret-redaction`) are used by `probeToken` and `saveSubmittedAccessToken` (`err.rule` → message id). P cannot import platform; needs a host-injected validator. Adding it to `PluginCredentialsPort` changes the brief's credentials ABI (find/loadSafe/probe/apply); a separate required `validateToken` input is cleaner. Must keep `"invalid"` classification and per-rule localized text byte-identical.
+- **R2 messages surface is large:** ~15 distinct product-bearing strings (tool ids, "this Tovu version", "restart Tovu", "Tovu checks it", "this Mac", screen name, `describeSavedTokenSwitch`, `credentialText`/`translateCredentialMessage` locale table). All are required host input under the brief; expect one messages object per tool family. Risk of exceeding "no needless messages options" is low because each item is product vocabulary, but count must be justified row by row.
+- **R3 cardIdentity shape vs S3 seams:** existing `…WithPorts` seams take `{uriNamespace:'tovu/agent-plugins-connect', toolId, app}`; the brief wants `cardIdentity:{uriNamespace:'tovu', appNames}` with P appending fixed suffixes. Bytes stay identical only if suffixes `agent-plugins-connect`/`sign-in-destination` become P constants and the token secret card's `uriHost:"tovu"` reuses the same namespace. Any existing (frozen) test that calls `…WithPorts` with the old identity shape would need an advance-listed exception — NOT checked (no test reads in this run).
+- **R4 approvals port:** `approvalToolHandler` (T human-confirm.ts, 311 lines, wraps a Jini approval handler + chat-delete grant + tool metadata) must become a port whose contract preserves authority re-check inside `run`, fingerprint (`prepared.key`), principal binding and emitSurface; `notConfirmedResult` shape must stay byte-identical in results. Approve→provision→sign in→revalidate order (connect-tool:410–440) must be kept exactly.
+- **R5 grant one-liner:** the moved `grantDeclaredToolsToSignedInRows` needs injected actors (`connectDeclined`, apply-connect-defaults actors), required projections and `warn`. If J `connect/plugin-host`'s `GrantSignedInDefaultsDeps` does not already carry these, the T binder needs a closure (more than one line) or plugin-host deps grow — check J plugin-host deps shape before A11.
+- **R6 positional public signatures:** `listTokenSignInPlugins`, `checkAgentPluginAccessToken`, `importAgentPluginAccessToken`, `importAgentPluginAccessTokensFromEnv`, `applyAgentPluginToolRenames`, `grantDeclaredToolsAtBoot`, `renameToolNames`, `titleCaseFromPluginId` are positional; P must expose `(required, optional)` while T shims keep old signatures — doubles the shim surface (~8 shims).
+- **R7 runtime boundary of `./connect`:** the moved closure must not pull node:fs (`capability-projection.ts`) or T `lifecycle.ts` (diagnostics + node effects); everything installed/activation must come through Lifecycle reads, or `./connect` stops being universal (A9 note).
+- **R8 api-connections types:** `DeclaredApiConnection`/`ApiConnectionConnectStatus` are T/I types; P must treat the connection as an opaque generic, otherwise it would need an integrations import (forbidden).
+- No risk found that forces T byte changes, provided R1/R3 are solved as described.
+
+### A10/A11 remaining work
+
+1. A10 seam: add `cardIdentity`, `permissions`, `actors`, `messages`, `publicUrl` (redirect URI), approvals, validator, Lifecycle reads/activation as required inputs on in-place `…WithPorts`/portable entry points in the nine files; T entries bind current values (bytes unchanged).
+2. Replace `@jini-ai/cms/core`, `@jini-ai/ui`, `@jini-ai/daemon` imports in the nine with CORE exports / ports (rows: access-token-tool:7,8,10,12; connect-tool:12; destination:2; sign-in-wait:5).
+3. Move remaining T port declarations (OAuth/SignIn, Credentials, Preferences, ApiConnections<Connection>, Paths, Cards, CardBuilders, McpContext) into P/ports with second-host `@agent-note`s; verify in emitted .d.ts.
+4. Make projections/activation/installed-reads/warn required (drop T fallbacks `agentPluginMcpPortsOf`, `isAgentPluginEnabled`, `defaultResolveInstalledAgentPlugin` default use, `console.warn`) inside the portable bodies; T shims supply them.
+5. Object-shaped public API for the positional functions (R6) with T signature shims.
+6. A10 gate tests (brief A10 Gate list): alternate opaque Resource cards, waiter callback type, forms build/apply, token save/cancel/invalid, destination site/shared/cancel, safe refusal/unknown identity, exact approvals/host copy, revert-port→red; approve→provision→sign in→revalidate order; same counters/saved/goldens; common gate.
+7. A11: `git mv`-style move of the nine portable bodies into P/connect (connect-tool, access-token-tool, connect-card-ui, connect-destination, connect-sign-in-wait, grant-signed-in-defaults, token-sign-in, import-access-token, apply-tool-renames), keeping why-comments beside code; export via `./connect`; T files become thin shims; R4 stay block untouched.
+8. A11 binder: C/plugin-host.ts:20 import → moved grant (R5 check first).
+9. A11 gate: no moved T import (value/type), no forbidden edge, runtime-.d.ts closure, product scan of P, pins/counters/goldens, full common gate, paired pushes.
+10. C-b evidence section for connect contracts/card identity/wiring after A11.
