@@ -26,7 +26,7 @@ export class CustomCredentialDuplicateLabelError extends Error {}
 export class CustomCredentialConcurrentModificationError extends Error {}
 
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the
- *  realistic cause is a missing site key (`TOVU_SITE_KEY`), same fail-closed
+ *  realistic cause is a missing store key (a host environment setting), same fail-closed
  *  contract every sibling credential table's store documents. */
 export class CustomCredentialSecretStoreUnconfiguredError extends Error {}
 
