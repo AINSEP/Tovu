@@ -22,9 +22,23 @@ function cliRequired(answers: { snapshot?: Effective | Error; legacy?: Effective
 }
 const userLayer = (value: NonNullable<Effective>["value"]): Effective => ({ value, sourceLayer: "user", defVersion: 1 });
 
-for (const userMcp of [false, true]) test(`a valid owner snapshot preserves personal MCP ${userMcp}`, async () => {
+for (const userMcp of [false, true]) test(`a snapshot saved with personal MCP on by default preserves personal MCP ${userMcp}`, async () => {
   const stored = assistantCliPermissions({ enabled: true, capabilities: { web: false, userMcp } });
-  assert.deepEqual(await readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: stored.enabled, capabilities: { ...stored.capabilities } }) })), stored);
+  assert.deepEqual(await readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: stored.enabled, capabilities: { ...stored.capabilities }, userMcpDefaultOn: true }) })), stored);
+});
+
+test("a snapshot saved before personal MCP defaulted on reads its stored false as the default", async () => {
+  const stored = assistantCliPermissions({ enabled: true, capabilities: { web: false, userMcp: false } });
+  const result = await readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: true, capabilities: { ...stored.capabilities } }) }));
+  assert.deepEqual(result, assistantCliPermissions({ enabled: true, capabilities: { web: false } }));
+  assert.equal(result.capabilities.userMcp, true);
+});
+
+test("a per-agent personal MCP choice is kept from a snapshot saved before personal MCP defaulted on", async () => {
+  const stored = assistantCliPermissions({ enabled: true, capabilities: { userMcp: false } });
+  const byAgent = { codex: { capabilities: { userMcp: false } } };
+  const result = await readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: true, capabilities: { ...stored.capabilities }, byAgent }) }));
+  assert.deepEqual(result, assistantCliPermissions({ enabled: true, byAgent }));
 });
 
 test("a snapshot from the definition default inherits the legacy boolean", async () => {
@@ -38,10 +52,10 @@ test("a snapshot with a null value inherits the legacy boolean", async () => {
   assert.deepEqual(result, DENIED);
 });
 
-test("no snapshot and no legacy value defaults full CLI access ON with personal MCP OFF", async () => {
+test("no snapshot and no legacy value defaults full CLI access ON with personal MCP ON", async () => {
   const settings = await readAssistantCliPermissions(cliRequired({}));
   assert.equal(settings.enabled, true);
-  assert.equal(settings.capabilities.userMcp, false);
+  assert.equal(settings.capabilities.userMcp, true);
   assert.equal(settings.capabilities.shell, true);
 });
 
