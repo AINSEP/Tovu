@@ -98,7 +98,7 @@ test('R4 other host: approve -> provision -> sign in -> revalidate, one sign-in 
   const flow = f.log.filter(entry => !entry.startsWith('grant'));
   assert.deepEqual(flow, [
     'activation', 'approval:prepare', 'approval:run', 'activation', 'provision',
-    'begin:https://acme.test/cb/widget', 'sign-in-card', 'show:https://idp.test/widget',
+    'begin:https://acme.test/cb/widget', 'sign-in-card', 'show:/widget',
     'approval:prepare', 'approval:run', 'activation',
   ]);
   assert.equal(f.log.filter(entry => entry.startsWith('begin:')).length, 1);
