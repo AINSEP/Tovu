@@ -8,10 +8,18 @@ export const SITE_GUIDE_SCHEMA = {
   type: "object", additionalProperties: false, required: ["operation"],
   properties: {
     operation: { type: "string", enum: ["overview", "explain", "search"], description: "overview lists topics; explain describes one topic; search finds visible topics by text." },
-    topic: { type: ["string", "array"], aliases: ["query"], minLength: 1, maxLength: 200,
-      minItems: 1, maxItems: 1, items: { type: "string", minLength: 1, maxLength: 200 },
-      description: "For explain: one topic id from overview, as a string or a one-element array. To explain several topics, send a separate site_guide call per topic. For search: words to find in topic ids, titles and summaries. query is an alias." },
+    // Plain string so Gemini accepts it: `items` on a string field 400s the whole request.
+    topic: { type: "string", aliases: ["query"], minLength: 1, maxLength: 200,
+      description: "For explain: one topic id from overview. To explain several topics, send a separate site_guide call per topic. For search: words to find in topic ids, titles and summaries. query is an alias." },
   },
+} as const;
+/** What the host accepts, never published to a provider: a stray topic array must reach
+ * normalizeGuideInput, whose correction names the one-call-per-topic fix. Against the published
+ * string type, core refuses it first with a generic message. */
+const SITE_GUIDE_INVOCATION_SCHEMA = {
+  ...SITE_GUIDE_SCHEMA,
+  properties: { ...SITE_GUIDE_SCHEMA.properties, topic: { ...SITE_GUIDE_SCHEMA.properties.topic, type: ["string", "array"],
+    minItems: 1, maxItems: 1, items: { type: "string", minLength: 1, maxLength: 200 } } },
 } as const;
 /** The site_guide schema offered to site VISITORS. Visitor chat sends tool schemas straight to the
  * site's model provider, and Gemini accepts one `type` per field, `items` only on arrays and no
@@ -114,7 +122,7 @@ export function buildSiteGuideRegistrations({ deps }: { deps: TovuSiteGuideDeps 
         throw error;
       }
     } },
-  });
+  }).map(registration => ({ ...registration, invocationSchema: SITE_GUIDE_INVOCATION_SCHEMA }));
 }
 
 /** Shared by every admin CLI vendor and BYOK through the existing first-party manifest. */
