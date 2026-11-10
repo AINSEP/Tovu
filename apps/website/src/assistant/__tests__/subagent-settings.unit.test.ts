@@ -134,7 +134,7 @@ test("per-agent choices survive reads and apply only to the selected agent after
   assert.deepEqual(parsed.byAgent, saved.byAgent);
   const resolve = (agentId: string, isOwner = true) => resolveAssistantCliPermissions({ isOwner, env: {}, settings: parsed, agentId });
   assert.equal(resolve("antigravity").capabilities.userMcp, true);
-  assert.equal(resolve("claude").capabilities.userMcp, false);
+  assert.equal(resolve("claude").capabilities.userMcp, true); // the site default, on since 2026-11-10
   assert.equal(resolve("claude").capabilities.shell, false);
   assert.equal(resolve("antigravity", false).capabilities.userMcp, false);
 });

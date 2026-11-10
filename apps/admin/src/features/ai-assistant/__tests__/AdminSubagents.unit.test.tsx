@@ -41,7 +41,7 @@ describe("owner subagent setting", () => {
     mount(f.port);
     await ready();
     expect(toggle()).toBeChecked();
-    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are off unless allowed separately. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately.");
+    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are on by default; turn them off here for any agent. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately.");
     expect(icon()).toBeVisible();
     expect(icon()).toHaveAccessibleName("This chat can use subagents");
     expect(icon()?.querySelector(".ri-group-line")).not.toBeNull();
@@ -74,7 +74,7 @@ describe("owner subagent setting", () => {
     mount(f.port);
     await screen.findByText("Only the owner can change Full CLI access.");
     expect(toggle()).toBeDisabled();
-    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are off unless allowed separately. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately. Only the owner can change Full CLI access.");
+    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are on by default; turn them off here for any agent. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately. Only the owner can change Full CLI access.");
     expect(toggle()).toBeChecked();
     expect(icon()).toBeVisible();
     expect(f.writes).toEqual([]);

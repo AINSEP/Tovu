@@ -45,7 +45,7 @@ export function AdminSubagents({ t = (key: string) => key, useController = useWi
   return <section className="assistant-switch assistant-subagents">
     {/* No agent handle: only the human owner may change the assistant's own tool grant. */}
     <AssistantToggleRow t={t} label={t("Full CLI access")}
-      info={t("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are off unless allowed separately. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately.")}
+      info={t("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are on by default; turn them off here for any agent. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately.")}
       checked={view.checked} describedBy={view.ownerOnly || view.lockReason ? ownerNoteId : undefined}
       disabled={view.disabled}
       onChange={(enabled) => { void controller.setEnabled({ enabled }); }} />
