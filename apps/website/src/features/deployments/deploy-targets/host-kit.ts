@@ -33,7 +33,7 @@ export const DEPLOY_FETCH_TIMEOUTS: DeployFetchTimeouts = Object.freeze({ QUICK:
  * `fetch`, aborted after `timeoutMs`. A caller's own `init.signal` still works: the request aborts on
  * whichever fires first, and only OUR timeout is reported as a timeout.
  *
- * @throws {Error} `fetch timed out after <ms>ms: <url>` when the timeout fired; otherwise whatever
+ * @throws {Error} `fetch timed out after <ms>ms: <origin>` when the timeout fired; otherwise whatever
  * `fetch` rejected with (the caller's abort reason, a network error).
  * @complexity One request.
  */
@@ -43,7 +43,7 @@ async function fetchWithTimeout(fetchFn: typeof fetch, url: string, init: Reques
   try {
     return await fetchFn(url, { ...init, signal });
   } catch (error) {
-    if (timeoutSignal.aborted && !init.signal?.aborted) throw new Error(`fetch timed out after ${options.timeoutMs}ms: ${url}`);
+    if (timeoutSignal.aborted && !init.signal?.aborted) throw new Error(`fetch timed out after ${options.timeoutMs}ms: ${URL.canParse(url) ? new URL(url).origin : "the requested server"}`);
     throw error;
   }
 }

@@ -1,0 +1,191 @@
+
+> tovu@0.1.0 unlink:jini
+> node development/scripts/unlink-jini.mjs
+
+
+.:
+  unlink agent-plugins (-> ../../../Jini/packages/agent-plugins)
+  unlink agent-runtime (-> ../../../Jini/packages/agent-runtime)
+  unlink agentic (-> ../../../Jini/packages/agentic)
+  unlink analytics (-> ../../../Jini/packages/analytics)
+  unlink capability-providers (-> ../../../Jini/packages/capability-providers)
+  unlink chat (-> ../../../Jini/packages/chat)
+  unlink cli (-> ../../../Jini/packages/cli)
+  unlink cms (-> ../../../Jini/packages/cms)
+  unlink commerce (-> ../../../Jini/packages/commerce)
+  unlink cookie-consent (-> ../../../Jini/packages/cookie-consent)
+  unlink core (-> ../../../Jini/packages/core)
+  unlink daemon (-> ../../../Jini/packages/daemon)
+  unlink db (-> ../../../Jini/packages/db)
+  unlink desktop-host (-> ../../../Jini/packages/desktop-host)
+  unlink devops (-> ../../../Jini/packages/devops)
+  unlink diagnostics (-> ../../../Jini/packages/diagnostics)
+  unlink http-kit (-> ../../../Jini/packages/http-kit)
+  unlink infra (-> ../../../Jini/packages/infra)
+  unlink integrations (-> ../../../Jini/packages/integrations)
+  unlink mcp (-> ../../../Jini/packages/mcp)
+  unlink oauth (-> ../../../Jini/packages/oauth)
+  unlink platform (-> ../../../Jini/packages/platform)
+  unlink plugin-catalog (-> ../../../Jini/packages/plugin-catalog)
+  unlink plugins (-> ../../../Jini/packages/plugins)
+  unlink protocol (-> ../../../Jini/packages/protocol)
+  unlink provider-plugins (-> ../../../Jini/packages/provider-plugins)
+  unlink registry (-> ../../../Jini/packages/registry)
+  unlink sandbox (-> ../../../Jini/packages/sandbox)
+  unlink search (-> ../../../Jini/packages/search)
+  unlink server (-> ../../../Jini/packages/server)
+  unlink sidecar (-> ../../../Jini/packages/sidecar)
+  unlink ui (-> ../../../Jini/packages/ui)
+  unlink ui-kit (-> ../../../Jini/packages/ui-kit)
+  unlink user-management (-> ../../../Jini/packages/user-management)
+  unlink vibecoding (-> ../../../Jini/packages/vibecoding)
+$ (.) npm install
+npm warn deprecated @jini-ai/infra@0.6.19: Compatibility shim: use @jini-ai/db/core and @jini-ai/db/sqlite directly.
+
+> tovu@0.1.0 prepare
+> node development/scripts/prepare-desktop-hooks.mjs
+
+
+added 35 packages, and audited 779 packages in 14s
+
+229 packages are looking for funding
+  run `npm fund` for details
+
+51 vulnerabilities (18 moderate, 30 high, 3 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+npm warn install-scripts 5 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   esbuild@0.18.20 (postinstall: node install.js)
+npm warn install-scripts   argon2@0.44.0 (install: node-gyp rebuild)
+npm warn install-scripts   better-sqlite3@13.0.3 (install: node-gyp rebuild)
+npm warn install-scripts   esbuild@0.19.12 (postinstall: node install.js)
+npm warn install-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+
+apps/admin:
+  unlink admin (-> ../../../../../Jini/packages/admin)
+  unlink agent-plugins (-> ../../../../../Jini/packages/agent-plugins)
+  unlink agent-runtime (-> ../../../../../Jini/packages/agent-runtime)
+  unlink agentic (-> ../../../../../Jini/packages/agentic)
+  unlink chat (-> ../../../../../Jini/packages/chat)
+  unlink cms (-> ../../../../../Jini/packages/cms)
+  unlink core (-> ../../../../../Jini/packages/core)
+  unlink integrations (-> ../../../../../Jini/packages/integrations)
+  unlink platform (-> ../../../../../Jini/packages/platform)
+  unlink plugins (-> ../../../../../Jini/packages/plugins)
+  unlink protocol (-> ../../../../../Jini/packages/protocol)
+  unlink ui (-> ../../../../../Jini/packages/ui)
+  unlink ui-kit (-> ../../../../../Jini/packages/ui-kit)
+  unlink user-management (-> ../../../../../Jini/packages/user-management)
+$ (apps/admin) npm install
+npm warn deprecated backbone-undo@0.2.6: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+added 591 packages, and audited 593 packages in 18s
+
+179 packages are looking for funding
+  run `npm fund` for details
+
+56 vulnerabilities (37 moderate, 19 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+npm warn install-scripts 2 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   contracts@0.1.0 (prepare: npm run build)
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+
+apps/site-chat:
+  unlink agentic (-> ../../../../../Jini/packages/agentic)
+  unlink chat (-> ../../../../../Jini/packages/chat)
+  unlink protocol (-> ../../../../../Jini/packages/protocol)
+  unlink ui (-> ../../../../../Jini/packages/ui)
+$ (apps/site-chat) npm install
+
+added 349 packages, and audited 350 packages in 8s
+
+103 packages are looking for funding
+  run `npm fund` for details
+
+18 vulnerabilities (4 moderate, 13 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+
+apps/desktop:
+  unlink agent-runtime (-> ../../../../../Jini/packages/agent-runtime)
+  unlink agentic (-> ../../../../../Jini/packages/agentic)
+  unlink chat (-> ../../../../../Jini/packages/chat)
+  unlink core (-> ../../../../../Jini/packages/core)
+  unlink daemon (-> ../../../../../Jini/packages/daemon)
+  unlink db (-> ../../../../../Jini/packages/db)
+  unlink desktop-host (-> ../../../../../Jini/packages/desktop-host)
+  unlink devops (-> ../../../../../Jini/packages/devops)
+  unlink diagnostics (-> ../../../../../Jini/packages/diagnostics)
+  unlink integrations (-> ../../../../../Jini/packages/integrations)
+  unlink mcp (-> ../../../../../Jini/packages/mcp)
+  unlink platform (-> ../../../../../Jini/packages/platform)
+  unlink protocol (-> ../../../../../Jini/packages/protocol)
+  unlink sidecar (-> ../../../../../Jini/packages/sidecar)
+  unlink ui (-> ../../../../../Jini/packages/ui)
+$ (apps/desktop) npm install
+npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+added 564 packages, and audited 709 packages in 19s
+
+157 packages are looking for funding
+  run `npm fund` for details
+
+61 vulnerabilities (43 moderate, 17 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+npm warn install-scripts 4 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   contracts@0.1.0 (prepare: npm run build)
+npm warn install-scripts   electron-winstaller@5.4.0 (install: node ./script/select-7z-arch.js)
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+npm warn install-scripts   node-pty@1.1.0 (install: node scripts/prebuild.js || node-gyp rebuild; postinstall: node scripts/post-install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+
+Unlinked 68 link(s). Registry-published @jini-ai/* versions restored.
+

@@ -69,7 +69,7 @@ test("kit.fetch aborts with the exact timeout message when the server is slower 
   await withServer(
     () => undefined, // never responds
     async (url) => {
-      await assert.rejects(createDeployHostKit().fetch(url, {}, { timeoutMs: 50 }), { message: `fetch timed out after 50ms: ${url}` });
+      await assert.rejects(createDeployHostKit().fetch(url, {}, { timeoutMs: 50 }), { message: `fetch timed out after 50ms: ${new URL(url).origin}` });
     },
   );
 });
@@ -202,4 +202,15 @@ test("a traced SigV4 client signs without sending, identically to the untraced c
   const plain = await createDeployHostKit().createSigV4Client(clientOptions).sign("https://fixture-bucket.s3.us-east-1.amazonaws.com/index.html", init);
   assert.equal(traced.headers.get("authorization"), plain.headers.get("authorization"));
   assert.deepEqual(exporter.getFinishedSpans(), []);
+});
+
+test("deployment timeout details identify the origin without the resource path or query", async () => {
+  await withServer(() => undefined, async origin => {
+    const url = new URL("/artifact/sample-file?key=sample-query", origin).href;
+    await assert.rejects(createDeployHostKit().fetch(url, {}, { timeoutMs: 20 }), error => {
+      assert.equal((error as Error).message, `fetch timed out after 20ms: ${new URL(origin).origin}`);
+      assert.equal(JSON.stringify(error).includes("sample-file"), false);
+      return true;
+    });
+  });
 });

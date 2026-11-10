@@ -104,8 +104,9 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       const spaceProbe = dialect === "postgres" ? t.mock.method(fs, "statfs") : null;
       const declared = declareDataModule({ db: kernel, dbPath: "/nonexistent/content.db", decl: V1 });
       if (dialect === "sqlite") {
-        // SQLite with a file dbPath DOES snapshot (the in-memory case is the first test above).
-        await assert.rejects(declared, /directory does not exist/);
+        // The open database is in-memory, so there is nothing to snapshot whatever dbPath names; it warns and installs.
+        const result = await declared;
+        assert.deepEqual({ ok: result.ok, snapshotPath: result.snapshotPath }, { ok: true, snapshotPath: null });
         return;
       }
       const result = await declared;

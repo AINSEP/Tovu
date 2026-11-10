@@ -1,0 +1,76 @@
+✔ the registry directory is created private and resolved to an absolute path (4.147262ms)
+✔ an existing registry directory is tightened to owner-only (0.798046ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("../x") (2.112404ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA") (0.968347ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaax") (0.814842ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("") (1.074633ms)
+✔ upload and stage paths are fixed names inside the registry (0.916414ms)
+✔ upload and stage paths refuse an invalid id (0.921875ms)
+✔ a stored record reads back for its principal and is written owner-only (4.456615ms)
+✔ a missing record is not found (1.61055ms)
+✔ another principal's record is not found (2.225713ms)
+✔ an unreadable record is refused and left untouched (0.9815ms)
+✔ history lists only import records, newest first, for every principal by default (12.900426ms)
+✔ history lists a record once when a non-JSON file shares its id and name length (1.922414ms)
+✔ history filters by principal (3.403303ms)
+✔ a null history record is skipped (0.847847ms)
+✔ a history entry that vanished before it was read (dangling link) is skipped (0.747782ms)
+✔ an unreadable history record refuses the listing (1.042865ms)
+✔ a fresh upload reads back for its principal (2.515562ms)
+✔ an upload exactly one hour old is still available (1.972208ms)
+✔ an upload older than one hour has expired (1.817221ms)
+✔ another principal's upload is not found (1.603884ms)
+✔ a missing upload is not found (0.633471ms)
+✔ an unreadable upload is reported as not found (0.970452ms)
+✔ the transfer lane returns its run's result and releases the lock (41.011426ms)
+✔ the transfer lane runs one transfer at a time (45.126871ms)
+✔ expiry removes an upload older than one hour with its payload (2.975315ms)
+✔ T25: interrupted verification and orphaned payloads release the staging budget without discarding live owner setup (13.905174ms)
+✔ expiry keeps an upload exactly one hour old (5.706958ms)
+✔ expiry keeps an unreadable upload and ignores upload files with a foreign name (0.910685ms)
+✔ expiry fails an owner setup past its deadline and removes its stage (4.244441ms)
+✔ expiry keeps an owner setup at its deadline (2.008839ms)
+✔ expiry leaves a past-deadline record in any other status alone (2.221211ms)
+✔ expiry skips unreadable records and foreign files (1.009142ms)
+✖ expiry removes a null upload row with its payload: it can never be claimed (1.126208ms)
+✖ expiry leaves a null import record in place, as history does (1.128554ms)
+✔ a ready row keeps only the share origin, a verifying one keeps the full link (3.588849ms)
+✔ a failed row keeps only the share origin, a verifying one keeps the full link (2.7215ms)
+✔ legacy ready history still loads and existing expiry removes its link details (2.167247ms)
+✔ legacy failed history still loads and existing expiry removes its link details (2.063473ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 38
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2480.954697
+
+✖ failing tests:
+
+test at apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts:1:12866
+✖ expiry removes a null upload row with its payload: it can never be claimed (1.126208ms)
+  TypeError [Error]: Cannot read properties of null (reading 'createdAt')
+      at SiteImportRegistry.expireUpload (/home/user/Tovu/apps/website/src/features/site-backup/import-registry.ts:112:65)
+      at SiteImportRegistry.expire (/home/user/Tovu/apps/website/src/features/site-backup/import-registry.ts:149:59)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts:287:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts:1:13142
+✖ expiry leaves a null import record in place, as history does (1.128554ms)
+  TypeError [Error]: Cannot read properties of null (reading 'status')
+      at SiteImportRegistry.expireOwnerSetup (/home/user/Tovu/apps/website/src/features/site-backup/import-registry.ts:121:13)
+      at SiteImportRegistry.expire (/home/user/Tovu/apps/website/src/features/site-backup/import-registry.ts:152:45)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-registry.unit.test.ts:294:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

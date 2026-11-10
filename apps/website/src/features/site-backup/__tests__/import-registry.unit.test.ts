@@ -280,26 +280,43 @@ test("expiry skips unreadable records and foreign files", t => {
   assert.deepEqual(fs.readdirSync(registry.directory).sort(), [".import.lock", `${ID_A}.json`, "notes.json"]);
 });
 
-test("expiry crashes on a null upload row (reported, not fixed)", t => {
+test("expiry removes a null upload row with its payload: it can never be claimed", t => {
   const registry = registryIn(t);
   raw(registry, `${ID_B}.upload.json`, "null");
-  assert.throws(() => registry.expire({}), { name: "TypeError", message: /Cannot read properties of null \(reading 'createdAt'\)/ });
+  raw(registry, `${ID_B}.upload.zip`, "PK");
+  registry.expire({});
+  assert.deepEqual(fs.readdirSync(registry.directory), []);
 });
 
-test("expiry crashes on a null import record (reported, not fixed)", t => {
+test("expiry leaves a null import record in place, as history does", t => {
   const registry = registryIn(t);
   raw(registry, `${ID_A}.json`, "null");
-  assert.throws(() => registry.expire({}), { name: "TypeError", message: /Cannot read properties of null \(reading 'status'\)/ });
+  registry.expire({});
+  assert.deepEqual(fs.readdirSync(registry.directory), [`${ID_A}.json`]);
 });
 
 for (const status of ["ready", "failed"] as const) {
-  test(`a ${status} row keeps its share link without the query string, a verifying one keeps it whole`, t => {
-    const registry = registryIn(t), url = "https://files.example.com/shop.tovu.zip";
+  test(`a ${status} row keeps only the share origin, a verifying one keeps the full link`, t => {
+    const registry = registryIn(t), url = "https://files.example.com:8443/_share/sample-path-token/shop.tovu.zip";
     registry.put({ row: record({ source: { url: url + "?k=secret" }, status: "verifying" }) });
     assert.equal(JSON.stringify(registry.get({ importId: ID_A, principalId: "owner" })).includes("secret"), true, "still needed while the download runs");
     registry.put({ row: record({ source: { url: url + "?k=secret" }, status }) });
     const stored = registry.get({ importId: ID_A, principalId: "owner" });
-    assert.deepEqual(stored.source, { url });
+    assert.deepEqual(stored.source, { url: "https://files.example.com:8443" });
+    assert.equal(fs.readFileSync(path.join(registry.directory, ID_A + ".json"), "utf8").includes("sample-path-token"), false);
     assert.equal(fs.readFileSync(path.join(registry.directory, ID_A + ".json"), "utf8").includes("secret"), false);
+  });
+}
+
+
+for (const status of ["ready", "failed"] as const) {
+  test(`legacy ${status} history still loads and existing expiry removes its link details`, t => {
+    const registry = registryIn(t);
+    const legacy = record({ status, source: { url: "https://files.example.com:8443/_share/sample-path-token/shop.tovu.zip" } });
+    raw(registry, `${ID_A}.json`, JSON.stringify(legacy));
+    const loaded = registry.get({ importId: ID_A, principalId: "owner" });
+    assert.deepEqual(loaded, legacy);
+    registry.expire({});
+    assert.deepEqual(registry.list({ principalId: "owner" }), [{ ...legacy, source: { url: "https://files.example.com:8443" } }]);
   });
 }

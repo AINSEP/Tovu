@@ -1,3 +1,4 @@
+import { tidyImportDatabases } from "./import-database.js";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import type { CreateSitePort, CreateSiteResult } from "#src/platform/site-dir/index";
 import { resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
-import { withoutQuery, type SiteImportRegistry, type SiteImportRecord } from "./import-registry.js";
+import { importSourceDigest, withoutQuery, type SiteImportRegistry, type SiteImportRecord } from "./import-registry.js";
 import { SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { verifySiteImport } from "./import-verifier.js";
 import { stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
@@ -141,11 +142,14 @@ export function createSiteImportBackend(required: {
         registry.expire({});
         const existing = parsed.requestId ? registry.list(input).find(row => row.requestId === parsed.requestId) : undefined;
         if (existing) {
-          if (JSON.stringify(withoutQuery({ source: existing.source })) !== JSON.stringify(withoutQuery({ source: parsed.source }))) refusal("REQUEST_CONFLICT", "requestId already belongs to another source.");
+          const sameSource = existing.sourceDigest !== undefined
+            ? existing.sourceDigest === importSourceDigest({ source: parsed.source })
+            : JSON.stringify(withoutQuery({ source: existing.source })) === JSON.stringify(withoutQuery({ source: parsed.source }));
+          if (!sameSource) refusal("REQUEST_CONFLICT", "requestId already belongs to another source.");
           return view(existing);
         }
         if ("url" in parsed.source) requireStagingBudget({ registry });
-        const row: SiteImportRecord = { importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date().toISOString(), expiresAt: Date.now() + 3600_000 };
+        const row: SiteImportRecord = { importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date().toISOString(), expiresAt: Date.now() + 3600_000 };
         put(row);
         return verifyAndStage({ row, parsed, signal: deadlineSignal({ timeoutMs: 5 * 60_000 }, options) });
       });
@@ -183,7 +187,7 @@ export function createSiteImportBackend(required: {
     },
     async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },
     get(input) { return view(registry.get(input)); },
-    async tidy() { await exclusive(async () => { registry.expire({}); }); },
+    async tidy() { await exclusive(async () => { registry.expire({}); await tidyImportDatabases({}); }); },
   };
   return backend;
 }

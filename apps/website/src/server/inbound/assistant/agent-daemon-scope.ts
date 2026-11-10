@@ -1035,7 +1035,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
       }
       startupStage = 'CLI launch';
-      await launchAgentRun({ sessionBinding, attachmentRunFields }, {});
+      await launchAgentRun({ sessionBinding, attachmentRunFields, pluginIds: pluginPreparation.pluginIds }, {});
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.
@@ -1051,11 +1051,11 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   /** The server owns pinned guidance and automatic consent, including later tool-triggered
    * preparation. No controller or plugin lifecycle is constructed in this process. Transport
    * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
-  async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string }> {
+  async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
     try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
     catch {
       console.warn('[agent-plugins] automatic preflight unavailable');
-      return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "" };
+      return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
     }
   }
 
@@ -1071,7 +1071,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
    * Declared after the continuation that calls it so the session binding above stays textually
    * ahead of `agentExecutor.run` (the wiring tests read this file's source in order). */
   async function launchAgentRun(
-    { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
+    { sessionBinding, attachmentRunFields, pluginIds }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginIds: readonly string[] }, _optional = {},
   ): Promise<void> {
     startupStage = 'native tool policy';
     const access = await verifyLaunchToolPolicy({ agentId: sessionBinding.agentId });
@@ -1112,6 +1112,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       permissionMode: policy.permissionMode ?? resolvePermissionMode(),
       nativeToolAccess,
       nativeCapabilities,
+      subagentStartContext: { ids: pluginIds, instructions: 'Before you start, call load_agent_plugin for every parent plugin and follow it. Discover Tovu tools with search_tools, describe before executing, honor approvals, and keep file searches inside the site.' },
       cliParity: nativeToolAccess,
       ...(parityEnv ? { env: parityEnv } : {}),
       // Explicit capability denies are applied by the runtime after this legacy native grant.

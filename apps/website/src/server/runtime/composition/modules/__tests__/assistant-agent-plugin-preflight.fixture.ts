@@ -9,16 +9,16 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
 
 /** Real live-run RPC and daemon client; callers supply only the plugin owner and its log sink. */
-export async function pluginPreflightFixture({ t, context, plugins, tools = [], prepareGuidance }: {
+export async function pluginPreflightFixture({ t, context, plugins, tools = [], prepareGuidance, agentId }: {
   t: TestContext; context: { principalId: string; conversationId: string; prompt: string } & Record<string, unknown>;
   plugins: NonNullable<Parameters<typeof registerAssistantToolExecRoutes>[0]["plugins"]>;
-  tools?: readonly ToolRegistration[]; prepareGuidance?: PrepareToolGuidance;
+  tools?: readonly ToolRegistration[]; prepareGuidance?: PrepareToolGuidance; agentId?: string;
 }, _options = {}) {
   const deps = createRouteDeps();
   const runId = "daemon-test-run";
   await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: context.principalId }).create({ id: context.conversationId });
   await deps.chatRunLedger.durable!.accept({ conversationId: context.conversationId, messageId: "plugin-answer", runId, principalId: context.principalId,
-    workspaceId: deps.workspaceId, now: Date.now(), request: { contextRef: JSON.stringify(context) } }, {});
+    workspaceId: deps.workspaceId, now: Date.now(), request: { contextRef: JSON.stringify(context), ...(agentId ? { agentId } : {}) } }, {});
   const registry = createToolRegistry({});
   for (const tool of tools) registry.register(tool);
   const app = express();

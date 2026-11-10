@@ -23,6 +23,7 @@ test("a .tovu.zip becomes a new registered site with no server and leaves no sta
   fs.writeFileSync(file, h.archive);
   const printed: string[] = [];
   const result = await runImportLocalCommand({}, { workspace: h.workspace, mintOwnerPassword: () => OWNER_PASSWORD, readRequest: async () => JSON.stringify({ file }), writeStdout: line => printed.push(line) });
+  assert.ok(result, "an import request returns the new site (only a tidy request returns null)");
   const entry = h.workspace.registry({}).list({})[0]!;
   assert.equal(result.siteId, entry.id);
   assert.equal(fs.realpathSync(result.dir), fs.realpathSync(entry.path));
@@ -41,6 +42,7 @@ test("with no injected password the command still finishes, and its output carri
   fs.writeFileSync(file, h.archive);
   const printed: string[] = [];
   const result = await runImportLocalCommand({}, { workspace: h.workspace, readRequest: async () => JSON.stringify({ file }), writeStdout: line => printed.push(line) });
+  assert.ok(result, "an import request returns the new site (only a tidy request returns null)");
   assert.deepEqual(Object.keys(JSON.parse(printed.join(""))).sort(), ["dir", "name", "siteId", "warnings"]);
   assert.equal(fs.existsSync(result.dir), true);
 });

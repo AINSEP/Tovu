@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
 import type { SiteCreationAllocation } from "#src/platform/site-dir/index";
@@ -10,6 +11,7 @@ export interface SiteImportRecord {
   importId: string;
   principalId: string;
   requestId?: string;
+  sourceDigest?: string;
   source: { url: string } | { uploadId: string };
   newSiteId: string | null;
   newSiteName: string | null;
@@ -31,13 +33,18 @@ const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const UPLOAD_TTL_MS = 3600_000;
 /** The statuses whose import may still own a `<id>.stage` directory. */
 const STAGED_STATUSES: ReadonlySet<SiteImportRecord["status"]> = new Set(["verifying", "needs-owner", "creating"]);
-/** A share link without its query string, which can hold a private key. Other sources are unchanged. @complexity O(url length). */
+/** Only the share origin remains in finished history. Upload sources are unchanged. @complexity O(url length). */
 export function withoutQuery(required: { source: SiteImportRecord["source"] }): SiteImportRecord["source"] {
   const { source } = required;
   if (!("url" in source)) return source;
   const url = new URL(source.url);
-  url.search = "";
-  return { url: url.href };
+  return { url: url.origin };
+}
+/** Request replay can compare a link without retaining its path in finished history. */
+export function importSourceDigest(required: { source: SiteImportRecord["source"] }, _optional = {}): string | undefined {
+  if (!("url" in required.source)) return undefined;
+  const url = new URL(required.source.url);
+  return createHash("sha256").update(url.href).digest("hex");
 }
 /** The import id behind an `<id>.json` history record name; undefined for every other file. */
 function recordIdOf(name: string): string | undefined {
@@ -74,7 +81,7 @@ export class SiteImportRegistry {
     return row;
   }
   put(required: { row: SiteImportRecord }, _options: Record<string, never> = {}): void {
-    // History is kept for good; once the download is over the link's query string has no use left.
+    // History is kept for good; a finished import no longer needs the share link's path or query.
     const row = required.row.status === "ready" || required.row.status === "failed" ? { ...required.row, source: withoutQuery({ source: required.row.source }) } : required.row;
     this.store(required.row.importId, ".json").write({ value: row });
     fs.chmodSync(this.file(required.row.importId, ".json"), 0o600);
@@ -102,7 +109,10 @@ export class SiteImportRegistry {
   private expireUpload(required: { id: string }): void {
     if (!ID.test(required.id)) return;
     const read = this.store(required.id, UPLOAD_METADATA_SUFFIX).read({});
-    if (read.state !== "ok" || (read.value as SiteImportUpload).createdAt + UPLOAD_TTL_MS >= Date.now()) return;
+    if (read.state !== "ok") return;
+    const row = read.value as SiteImportUpload | null;
+    // A null row can never be claimed (getUpload refuses it), so it expires like an old one.
+    if (row !== null && row.createdAt + UPLOAD_TTL_MS >= Date.now()) return;
     fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
     fs.rmSync(this.file(required.id, UPLOAD_METADATA_SUFFIX), { force: true });
   }
@@ -110,11 +120,14 @@ export class SiteImportRegistry {
   private expireOwnerSetup(required: { importId: string }): void {
     const read = this.store(required.importId, ".json").read({});
     if (read.state !== "ok") return;
-    const row = read.value as SiteImportRecord;
+    const row = read.value as SiteImportRecord | null;
+    if (row === null) return;
     if (row.status === "needs-owner" && row.expiresAt < Date.now()) {
       fs.rmSync(this.stagePath(row), { recursive: true, force: true });
       this.put({ row: { ...row, status: "failed", error: "Owner setup expired. Import the archive again." } });
     }
+    // Reuse the existing history pass to remove link details from older finished records too.
+    if ((row.status === "ready" || row.status === "failed") && "url" in row.source && row.source.url !== new URL(row.source.url).origin) this.put({ row });
   }
   /** Removes a ZIP whose metadata is missing or unreadable: a crash between the two writes. */
   private removeOrphanUpload(required: { id: string }): void {

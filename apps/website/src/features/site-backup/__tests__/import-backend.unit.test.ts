@@ -108,19 +108,37 @@ test("an already-aborted caller signal fails the import before anything is fetch
   assert.equal(fetched, false);
   assert.equal((await backend.list({ principalId: "owner" }))[0]?.error, "Archive verification failed. No site was created.");
 });
-test("a replayed requestId for a finished share-link import matches by address, not by query string", async t => {
-  const h = await importFixture(t), link = (query: string) => ({ url: "https://files.example.com/shop.tovu.zip" + query });
-  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => response({ bodyBytes: h.archive }) } });
+test("a replayed requestId for a finished share import returns its recorded result without another download", async t => {
+  const h = await importFixture(t), link = (query: string) => ({ url: "https://files.example.com/_share/sample-path-token/shop.tovu.zip" + query });
+  const fetched: string[] = [];
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async request => { fetched.push(request.url); return response({ bodyBytes: h.archive }); } } });
   const first = await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" });
   await backend.completeOwner({ principalId: "owner", importId: first.importId, adminPassword: OWNER_PASSWORD });
   assert.equal((await backend.importBackup({ principalId: "owner", source: link("?k=one"), requestId: "again" })).importId, first.importId);
+  assert.deepEqual(fetched, [link("?k=one").url]);
+  assert.deepEqual(backend.get({ principalId: "owner", importId: first.importId }).source, { url: "https://files.example.com" });
   await assert.rejects(backend.importBackup({ principalId: "owner", source: { url: "https://other.example.com/shop.tovu.zip?k=one" }, requestId: "again" }), { code: "REQUEST_CONFLICT" });
 });
+test("a replayed failed share import keeps the origin and returns its failure without another download", async t => {
+  const h = await importFixture(t);
+  let fetched = 0;
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => { fetched++; return response({ status: 503 }); } } });
+  const input = { principalId: "owner", source: { url: "https://files.example.com/_share/sample-path-token/shop.tovu.zip?k=one" }, requestId: "failed-retry" };
+  await assert.rejects(backend.importBackup(input), { code: "DOWNLOAD_FAILED" });
+  const history = await backend.list({ principalId: "owner" });
+  assert.equal(history.length, 1);
+  assert.deepEqual(history[0]!.source, { url: "https://files.example.com" });
+  const replay = await backend.importBackup(input);
+  assert.equal(replay.importId, history[0]!.importId);
+  assert.equal(replay.status, "failed");
+  assert.equal(fetched, 1);
+});
+
 test("the download request is a bounded identity GET of the share URL", async t => {
   const h = await importFixture(t); const sent: unknown[] = [];
   const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async request => { sent.push({ ...request, signal: request.signal instanceof AbortSignal }); return response({ bodyBytes: h.archive }); } } });
   await backend.importBackup({ principalId: "owner", source: URL_SOURCE });
-  assert.deepEqual(sent, [{ method: "GET", url: URL_SOURCE.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 120_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, signal: true }]);
+  assert.deepEqual(sent, [{ method: "GET", url: URL_SOURCE.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 240_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, bodyAs: "bytes", signal: true }]);
 });
 for (const [label, overrides] of [["a non-200 status", { status: 206 }], ["no body", { bodyBytes: undefined }], ["a truncated body", { bodyBytesTruncated: true }]] as const) {
   test(`a download with ${label} is refused as a failed download`, async t => {
@@ -277,4 +295,25 @@ test("import credential warnings remain visible after owner setup removes the pr
   const reopened = createSiteImportBackend(h.backendPorts);
   assert.deepEqual(reopened.get({ principalId: "recipient", importId: pending.importId }).credentialWarnings, pending.credentialWarnings);
   assert.equal(JSON.stringify(ready.credentialWarnings).includes(token), false);
+});
+
+test("request replay distinguishes corrected links on one origin while old records keep loading", async t => {
+  const h = await importFixture(t);
+  let downloads = 0;
+  const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => { downloads++; return response({ status: 503 }); } } });
+  const input = { principalId: "owner", source: { url: "https://files.example.com/_share/sample-first/site.zip?download=one" }, requestId: "corrected-link" };
+  await assert.rejects(backend.importBackup(input), { code: "DOWNLOAD_FAILED" });
+  const saved = h.registry.list({ principalId: "owner" })[0]!;
+  assert.match(saved.sourceDigest!, /^[a-f0-9]{64}$/);
+  assert.deepEqual(saved.source, { url: "https://files.example.com" });
+  assert.equal(JSON.stringify(saved).includes("sample-first"), false);
+  assert.equal(JSON.stringify(saved).includes("download=one"), false);
+  assert.equal((await backend.importBackup(input)).importId, saved.importId);
+  await assert.rejects(backend.importBackup({ ...input, source: { url: input.source.url.replace("download=one", "download=two") } }), { code: "REQUEST_CONFLICT" });
+  await assert.rejects(backend.importBackup({ ...input, source: { url: input.source.url.replace("sample-first", "sample-corrected") } }), { code: "REQUEST_CONFLICT" });
+  assert.equal(downloads, 1);
+  const { sourceDigest: _digest, ...legacy } = saved;
+  h.registry.put({ row: legacy });
+  assert.equal((await backend.importBackup({ ...input, source: { url: "https://files.example.com/older.zip" } })).importId, saved.importId);
+  assert.equal(downloads, 1);
 });

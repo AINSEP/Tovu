@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
@@ -96,11 +97,15 @@ export function consumeUpload(required: { registry: SiteImportRegistry; uploadId
  * @complexity O(archive bytes), at most 300 MiB.
  */
 export async function downloadShareArchive(required: { http: HttpClientPort; url: string; signal: AbortSignal }): Promise<Buffer> {
-  const response = await required.http.send({ method: "GET", url: required.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 120_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, signal: required.signal });
+  // Keep the final minute of the import budget for verification and restore.
+  const response = await required.http.send({ method: "GET", url: required.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 240_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, bodyAs: "bytes", signal: required.signal }).catch((error: unknown) => {
+    if (error instanceof FetchTimeoutError) refusal("DOWNLOAD_TIMEOUT", `The share download from ${new URL(required.url).origin} timed out after ${error.timeoutMs / 1000} seconds. Download the ZIP file and import it.`);
+    throw error;
+  });
   if (response.status !== 200 || !response.bodyBytes || response.bodyBytesTruncated !== false) refusal("DOWNLOAD_FAILED", "Share download failed or exceeded the 300 MiB archive cap.");
   const contentType = Object.entries(response.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1]?.split(";", 1)[0]?.trim().toLowerCase();
   if (!contentType || !ARCHIVE_CONTENT_TYPES.includes(contentType)) refusal("INVALID_CONTENT_TYPE", "Share download must have a ZIP or binary Content-Type.");
-  return Buffer.from(response.bodyBytes);
+  return Buffer.isBuffer(response.bodyBytes) ? response.bodyBytes : Buffer.from(response.bodyBytes.buffer, response.bodyBytes.byteOffset, response.bodyBytes.byteLength);
 }
 
 /**

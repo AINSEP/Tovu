@@ -7,6 +7,7 @@
 import { spawn as nodeSpawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import type { Writable } from "node:stream";
 import { buildCliEnv, buildCliSpawnPlan, parseCliErrorLine } from "./tovu-server.ts";
 
@@ -135,18 +136,20 @@ export async function importSiteArchive(
 }
 
 /**
- * At launch: a stage or upload left by a killed import is otherwise only cleaned up by the next
- * import. Starts one child to clean up, and only when something is there, so a clean launch runs
- * nothing. Never fails the launch: leftovers it could not remove are tried again next time.
+ * At launch: stages, uploads and database temp folders are checked for cleanup.
+ * Starts one child only when leftovers exist; saved history alone needs no child. Never fails the launch: leftovers it could not remove are tried again next time.
  * @param required.appData the sites workspace's app-data folder, the one the child resolves too.
- * @complexity O(entries in the import folder) to look, plus at most one short child.
+ * @complexity O(import-folder + temp-folder entries) to look, plus at most one short child.
  */
 export async function tidyInterruptedImports(
   { appData, repoRoot, cliMode }: ChildPlan & { appData: string },
   { readDir = (dir: string) => fs.readdirSync(dir), ...optional }: ChildOptions & { readDir?: (dir: string) => readonly string[] } = {},
 ): Promise<void> {
+  let leftovers = false;
+  try { leftovers = readDir(path.join(appData, "site-imports", "local")).some((name) => /\.(stage|upload\.zip)$/.test(name)); }
+  catch { /* Database temp folders may remain even when the registry folder is missing. */ }
   try {
-    const leftovers = readDir(path.join(appData, "site-imports", "local")).some((name) => /\.(stage|upload\.zip)$/.test(name));
+    leftovers ||= readDir(tmpdir()).some(name => name.startsWith("tovu-import-db-"));
     if (leftovers) await runImportChild({ request: { tidy: true }, repoRoot, cliMode }, optional);
   } catch { /* No folder yet, or a child that could not start: nothing to report at launch. */ }
 }

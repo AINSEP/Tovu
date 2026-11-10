@@ -52,6 +52,7 @@ export function buildAssistantSubagentsOverlay(required: {
     ? "Native agents/subagents/Task are available for this chat. Use them when useful, " +
       "including other local agent CLIs. These are native tools, not Tovu catalog tools. " +
       "Subagents follow the same catalog authorization and permanent-delete confirmation rules. " +
+      "Name applicable plugins in every delegation brief, including plugins loaded after preflight; require each child to call load_agent_plugin before starting. " +
       "Every subagent brief must require writing a handoff (done / remaining / files) before stopping, " +
       "before the 250k context warning or any lower cap. If a subagent stops at its context budget " +
       "or any cap with work remaining, IMMEDIATELY start a fresh subagent from its notes and handoff. " +

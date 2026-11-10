@@ -1,3 +1,5 @@
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
@@ -92,6 +94,7 @@ test("a successful helper's rebuilt database and manifests are returned and its 
   const result = await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork });
   assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [], notices: [], credentialWarnings: [{ path: "content.db:workspaces.name", kind: "provider key shape" }] });
   assert.equal(fs.existsSync(roots[0]!), false);
+  assert.equal(fs.existsSync(roots[0]! + ".lock"), false);
 });
 
 test("a rebuilt database over the cap is refused even when the helper succeeded", async () => {
@@ -99,6 +102,7 @@ test("a rebuilt database over the cap is refused even when the helper succeeded"
   await assert.rejects(rebuildImportDatabase({ snapshot: Buffer.from("input") }, { limits: { maxExpandedBytes: 32 }, statfs: plenty, fork }),
     { code: "LIMIT_EXCEEDED", message: "Rebuilt import database exceeds 300 MiB." });
   assert.equal(fs.existsSync(roots[0]!), false);
+  assert.equal(fs.existsSync(roots[0]! + ".lock"), false);
 });
 
 test("a helper that exits non-zero is an invalid database; a helper that fails to start surfaces its own error", async () => {
@@ -116,4 +120,25 @@ test("a cancellation that lands while staging kills the helper as soon as it sta
   const statfs = async () => { controller.abort(); return plenty(); };
   await assert.rejects(rebuildImportDatabase({ snapshot: Buffer.from("input") }, { signal: controller.signal, statfs, fork }), { code: "CANCELLED" });
   assert.deepEqual(children[0]!.kills, ["SIGKILL"]);
+});
+
+
+test("database staging creates its private root only after taking ownership", async t => {
+  const originalMkdir = fsPromises.mkdir;
+  const roots: string[] = [];
+  const mock = t.mock.method(fsPromises, "mkdir", async (...args: Parameters<typeof fsPromises.mkdir>) => {
+    const root = String(args[0]);
+    if (path.basename(root).startsWith("tovu-import-db-")) {
+      roots.push(root);
+      assert.equal(fs.existsSync(root), false);
+      assert.equal(fs.existsSync(root + ".lock"), true);
+      assert.deepEqual(args[1], { mode: 0o700 });
+    }
+    return originalMkdir(...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); for (const root of roots) fs.rmSync(root, { recursive: true, force: true }); });
+  const helper = forkThat(({ root, child }) => { writeOutputs(root); child.emit("close", 0); });
+  await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork: helper.fork });
+  assert.equal(roots.length, 1);
 });

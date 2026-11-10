@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
@@ -14,6 +16,9 @@ import { readTemplate } from "../../../platform/site-dir/read-template.js";
 import { stageVerifiedImport, stagedImportWarnings } from "../import-restore.js";
 import { restoreStagedImport } from "#src/server/runtime/composition/site-portability";
 import { writeExclusive } from "../import-restore-placement.js";
+
+// Resolve the admin dependency from its package so hoisted installs use its public export.
+const { formHtmlStarter } = await import(pathToFileURL(createRequire(new URL("../../../../../admin/package.json", import.meta.url)).resolve("@jini-ai/admin/forms")).href);
 
 const FALLBACK = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
 const sha = (text: string): string => createHash("sha256").update(text).digest("hex");
@@ -32,6 +37,8 @@ function databaseBytes(activeThemes: readonly string[], pages: readonly PageRow[
   try {
     db.exec("CREATE TABLE presentation_settings (workspace_id TEXT, active_theme_id TEXT)");
     db.exec("CREATE TABLE posts (id TEXT, title TEXT, body_format TEXT, body_html TEXT, status TEXT)");
+    db.exec("CREATE TABLE menus (id TEXT, title TEXT, doc_json TEXT, status TEXT)");
+    db.exec("CREATE TABLE form_definitions (id TEXT, name TEXT, fields_json TEXT, status TEXT)");
     for (const [index, theme] of activeThemes.entries()) db.prepare("INSERT INTO presentation_settings VALUES (?, ?)").run("ws-" + index, theme);
     for (const [index, page] of pages.entries()) db.prepare("INSERT INTO posts VALUES (?, ?, ?, ?, ?)").run("p" + index, page.title, page.body_format, page.body_html, page.status);
     return db.serialize();
@@ -259,6 +266,62 @@ test("a published HTML page that could run script lands as a draft with a notice
   assert.deepEqual(stagedImportWarnings({ root: h.root }).filter(notice => notice.includes("Page")), ["Tag", "Handler", "Link", "Svg", "Frame", "Marker", "Escaped marker"].map(title => `Page '${title}' holds its own code, so it was imported as a draft. Publish it if you trust this file.`));
 });
 
+test("imported menus and forms follow the same keep-off rule as pages while markers stay published", async t => {
+  const ownHtml = "<script>example()</script>";
+  const menu = { type: "nav-menu", version: 1, items: [], mode: "html", html: ownHtml };
+  const form = { fields: [], mode: "html", html: ownHtml };
+  const inertMenu = { ...menu, html: '<nav><a href="/about">About</a></nav>' };
+  const inertForm = { ...form, html: '<label>Email<input name="email" type="email"></label>' };
+  const marker = `<div data-embed-config='{"type":"menu","id":"own"}'></div><div data-embed-config='{"type":"form","id":"own"}'></div>`;
+  const h = await restore(t, {}, { pages: [{ title: "Markers", body_format: "html", body_html: marker, status: "published" }], before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const [id, doc] of [["own", menu], ["inert", inertMenu]] as const) db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(id, id, JSON.stringify(doc));
+      for (const [id, doc] of [["own", form], ["inert", inertForm]] as const) db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(id, id, JSON.stringify(doc));
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    const menus = db.prepare("SELECT id, doc_json FROM menus ORDER BY id").all() as { id: string; doc_json: string }[];
+    assert.deepEqual(menus.map(row => JSON.parse(row.doc_json)), [inertMenu, { ...menu, mode: "items" }]);
+    assert.deepEqual(db.prepare("SELECT id, fields_json, status FROM form_definitions ORDER BY id").all(), [
+      { id: "inert", fields_json: JSON.stringify(inertForm), status: "active" },
+      { id: "own", fields_json: JSON.stringify(form), status: "disabled" },
+    ]);
+    assert.equal(pageStatuses(h.dbPath).Markers, "published");
+    assert.deepEqual(stagedImportWarnings({ root: h.root }), [
+      "Menu 'own' (ID own) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.",
+      "Form 'own' (ID own) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.",
+    ]);
+  } finally { db.close(); }
+});
+
+test("kept-off menu and form notices cap item counts and titles while preserving every original", async t => {
+  const title = "A".repeat(100);
+  const html = "<script>example()</script>";
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (let i = 0; i < 25; i++) {
+        db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(String(i), title, JSON.stringify({ mode: "html", html, items: [] }));
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(String(i), title, JSON.stringify({ mode: "html", html, fields: [] }));
+      }
+    } finally { db.close(); }
+  } });
+  const notices = stagedImportWarnings({ root: h.root });
+  assert.equal(notices.length, 42);
+  assert.equal(notices[20], "5 more menus hold their own code and their HTML was kept switched off.");
+  assert.equal(notices[41], "5 more forms hold their own code and were imported disabled.");
+  assert.ok(notices[0]!.includes(title.slice(0, 78)));
+  assert.ok(notices.every(notice => !notice.includes(title)));
+  const db = new Database(h.dbPath);
+  try {
+    assert.equal((db.prepare("SELECT count(*) AS n FROM form_definitions WHERE status='disabled'").get() as { n: number }).n, 25);
+    for (const row of db.prepare("SELECT doc_json FROM menus").all() as { doc_json: string }[]) assert.deepEqual(JSON.parse(row.doc_json), { mode: "items", html, items: [] });
+    for (const row of db.prepare("SELECT fields_json FROM form_definitions").all() as { fields_json: string }[]) assert.deepEqual(JSON.parse(row.fields_json), { mode: "html", html, fields: [] });
+  } finally { db.close(); }
+});
+
 test("many kept-off pages share a bounded notice", async t => {
   const pages = Array.from({ length: 25 }, (_, index): PageRow => ({ title: "P" + index, body_format: "html", body_html: "<script></script>", status: "published" }));
   const h = await restore(t, {}, { pages });
@@ -291,4 +354,73 @@ test("the containment guard refuses a path that escapes the root even if the pat
   const h = harness(t), noPolicy = (_required: { path: string }): void => undefined;
   assert.throws(() => writeExclusive({ root: h.dir, relative: "../escaped", bytes: Buffer.from("x") }, { validatePath: noPolicy }), { message: "Import path escaped staging" });
   assert.equal(fs.existsSync(path.join(h.dir, "../escaped")), false);
+});
+
+
+test("import keeps starter radio and URL form markup active while authored behavior stays off", async t => {
+  const starter = formHtmlStarter({ fields: [
+    { id: "choice", type: "radio", label: "Choice", required: true, options: [{ value: "one", label: "One" }] },
+    { id: "website", type: "url", label: "Website", required: false },
+  ] });
+  assert.match(starter, /<fieldset>/);
+  assert.match(starter, /inputmode="url"/);
+  const html = starter + '<select><optgroup label="Group"><option>One</option></optgroup></select><input maxlength="20" pattern="\\d+" accept="image/*" readonly spellcheck="false" autocapitalize="none">';
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const [id, body] of [["starter", html], ["group", starter + '<select><optgroup label="Group" onclick="example()"><option>One</option></optgroup></select>'], ["handler", starter.replace("<input", '<input onclick="example()"')], ["link", starter + '<a href="javascript:example()">More</a>']]) {
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(id, id, JSON.stringify({ mode: "html", html: body, fields: [] }));
+      }
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    assert.deepEqual(db.prepare("SELECT id, status FROM form_definitions ORDER BY id").all(), [
+      { id: "group", status: "disabled" }, { id: "handler", status: "disabled" }, { id: "link", status: "disabled" }, { id: "starter", status: "active" },
+    ]);
+    assert.equal(JSON.parse((db.prepare("SELECT fields_json FROM form_definitions WHERE id='starter'").get() as { fields_json: string }).fields_json).html, html);
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 3);
+  } finally { db.close(); }
+});
+
+test("restorable menus and disabled forms retain off states and individual notices", async t => {
+  const html = '<button onclick="example()">Choose</button>';
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const status of ["published", "draft", "trash"]) db.prepare("INSERT INTO menus VALUES (?, ?, ?, ?)").run(status, status, JSON.stringify({ mode: "html", html, items: [] }), status);
+      for (const status of ["active", "disabled"]) db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, ?)").run(status, status, JSON.stringify({ mode: "html", html, fields: [] }), status);
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    for (const row of db.prepare("SELECT doc_json FROM menus").all() as { doc_json: string }[]) assert.deepEqual(JSON.parse(row.doc_json), { mode: "items", html, items: [] });
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 5);
+    db.prepare("UPDATE menus SET status='published' WHERE id='trash'").run();
+    assert.equal(JSON.parse((db.prepare("SELECT doc_json FROM menus WHERE id='trash'").get() as { doc_json: string }).doc_json).mode, "items");
+  } finally { db.close(); }
+});
+
+test("unreadable menu and form rows do not stop other imported content", async t => {
+  const stored = ["{", "null", "[]", '"text"', '{"mode":"html","html":{}}'];
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const [index, json] of stored.entries()) {
+        db.prepare("INSERT INTO menus VALUES (?, ?, ?, 'published')").run(String(index), String(index), json);
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(String(index), String(index), json);
+      }
+      const json = JSON.stringify({ mode: "html", html: '<button onclick="example()">Choose</button>' });
+      db.prepare("INSERT INTO menus VALUES ('valid', 'Valid', ?, 'published')").run(json);
+      db.prepare("INSERT INTO form_definitions VALUES ('valid', 'Valid', ?, 'active')").run(json);
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    for (const [index, json] of stored.entries()) {
+      assert.equal((db.prepare("SELECT doc_json FROM menus WHERE id=?").get(String(index)) as { doc_json: string }).doc_json, json);
+      assert.equal((db.prepare("SELECT fields_json FROM form_definitions WHERE id=?").get(String(index)) as { fields_json: string }).fields_json, json);
+    }
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 2);
+  } finally { db.close(); }
 });

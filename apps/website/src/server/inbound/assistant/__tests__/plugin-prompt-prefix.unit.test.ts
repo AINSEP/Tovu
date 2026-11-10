@@ -2,6 +2,13 @@ import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { getAgentDef, type PromptAugmenter } from "@jini-ai/agent-runtime";
+import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "../assistant-system-overlay.js";
+import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
+import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -185,4 +192,53 @@ test("resolveAgentPluginPromptPrefix resolves a run that pinned the retired 'dep
   assert.ok(prefix?.includes("Deploy the server with fly deploy."), "the retired ref must reach Fly's skill, not fail the run");
   assert.equal(prefix?.split("Deploy the server with fly deploy.").length, 2, "deploy and fly pinned together resolve Fly once");
   assert.equal((await lifecycle.get({ runId: run.id }))?.state, "running");
+});
+
+
+for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carries plugin guidance exactly once through its declared carrier`, async () => {
+    const capabilities = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>['capabilities']>();
+  const native = new AsyncLocalStorage<boolean>();
+  const runtime = new AsyncLocalStorage();
+  const prefix = 'BEGIN_PRIMARY\n' + 'complete guidance '.repeat(600) + '\nEND_PRIMARY';
+  const custom = 'CUSTOM_INSTRUCTIONS_SENTINEL';
+  const augmenter = evaluateDaemonExpression<PromptAugmenter>(daemonInitializer('assistantPromptAugmenter'), {
+    getAgentDef, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, buildAssistantRuntimeGuidance,
+    buildAssistantFilesystemNotices, assistantCliPermissions, bashProhibitionEnabled: false,
+    assistantCliCapabilitiesContext: capabilities,
+    assistantNativeToolsContext: native, assistantRuntimeGuidanceContext: runtime,
+    customInstructionsCache: { readOverlay: () => custom },
+  });
+  let system = '';
+  let captured!: { prompt: string };
+  await captureDaemonRun({ prompt: 'USER_REQUEST' }, { request: { agentId }, bindings: {
+    assistantCliCapabilitiesContext: capabilities,
+    assistantNativeToolsContext: native, assistantRuntimeGuidanceContext: runtime,
+    getAgentDef: ({ id }: { id: string }) => ({ ...getAgentDef({ id })!, mcpIsolation: { perRun: 'fixture@2026-11-05' } }),
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: ['ui-ux-design'] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+    agentExecutor: { run: async (input: { prompt: string }) => {
+      captured = input;
+      system = augmenter.systemOverlay!({ agentId, turnIndex: 0 }) ?? "";
+      throw new Error('CAPTURED_PLUGIN_LAUNCH');
+    } },
+  } }).catch(error => assert.match(String(error), /CAPTURED_PLUGIN_LAUNCH/));
+  assert.ok(captured);
+  assert.equal((system + captured.prompt).split(prefix).length - 1, 1);
+  assert.equal(system.split(custom).length - 1, 1);
+  assert.match(buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true }).capabilities }), /plugins loaded after preflight/);
+  assert.equal(system.split(buildBaseSystemOverlay(false, { nativeToolAccess: false, messageRelayEnabled: agentId === 'codex' })).length - 1, 1);
+  assert.equal(system.includes(prefix), false);
+  assert.equal(captured.prompt.includes(prefix), true);
+});
+
+
+
+for (const agentId of ['aider', 'deepseek', 'codex', 'antigravity']) test(`${agentId} keeps pinned text in the prompt without relying on child IDs or MCP`, async () => {
+  const prefix = 'PINNED_BEGIN\n' + 'theme '.repeat(1000) + '\nPINNED_END';
+  const captured = await captureDaemonRun({ prompt: 'USER_REQUEST', pluginRefIds: ['tovu-theme'], agentPluginState: { decision: null, excluded: [] } }, { request: { agentId }, bindings: {
+    ...(agentId !== 'codex' ? { routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal') }, env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }) } : {}),
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: [] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+  } });
+  assert.ok(captured.prompt.includes(prefix));
+  assert.equal(captured.prompt.split(prefix).length - 1, 1);
+  assert.ok(captured.prompt.includes('USER_REQUEST'));
 });

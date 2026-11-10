@@ -10,7 +10,8 @@ export const MEDIA_CHAT_PREVIEW_MAX_EDGE_PX = 320;
  * `media_view_image` returns, so every agent CLI and BYOK path already carries it. The text block
  * is the unchanged `{ media }` JSON. Best effort: no codec, a video or SVG, or any encode error
  * returns the plain result; the media write itself already succeeded.
- * Batch items drop the image (`@jini-ai/core` batch wrapper), so batches stay plain JSON.
+ * In a batch (`@jini-ai/core` batch wrapper) each item's JSON drops its image, and the batch result
+ * carries up to four of the previews beside its JSON summary.
  * @complexity O(pixels) time/space for one decode and one small encode.
  */
 export async function withChatPreview<T extends { media: { title: string; publicUrl: string | null } }>(

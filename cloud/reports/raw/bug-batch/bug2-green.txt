@@ -1,0 +1,16 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ✓ src/forms/__tests__/repo.dialects.test.ts (26 tests) 3122ms
+   ✓ forms repos [pglite] > definition create then findById / findBySlug / list round-trip 2860ms
+ ✓ src/forms/__tests__/repo.contract.test.ts (58 tests) 3439ms
+   ✓ [SqlFormDefinitionRepo [pglite]] create + findById round-trips 3183ms
+ ✓ src/forms/__tests__/submission-ip-retention.dialects.test.ts (6 tests) 4756ms
+   ✓ submission IP retention adapter and migration 0006 [pglite] > bounded batches cover more than 500 records; concurrent passes count each cleared row once 2740ms
+   ✓ [pglite] before migration 0006 the adapter refuses without writing, and re-probes once the migration lands 1935ms
+
+ Test Files  3 passed (3)
+      Tests  90 passed (90)
+   Start at  05:54:03
+   Duration  10.16s (transform 758ms, setup 0ms, collect 2.13s, tests 11.32s, environment 1ms, prepare 244ms)
+

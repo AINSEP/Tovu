@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -206,19 +207,22 @@ test("a grandchild that holds stdout open cannot keep the import pending after t
 });
 
 for (const [name, files, spawns] of [
-  ["a clean launch starts no child", ["0.json", "readme.txt"], 0],
+  ["a clean launch starts no child", ["readme.txt"], 0],
+  ["saved history alone starts no child", ["0.json"], 0],
   ["a missing folder starts no child", null, 0],
   ["a leftover stage starts one tidy request", ["0.stage"], 1],
   ["a leftover upload starts one tidy request", ["0.upload.zip", "1.upload.zip"], 1],
-] as const) test(`startup tidy: ${name}`, async () => {
+] as const) test(`startup tidy: ${name}`, async t => {
   const fake = fakeChild();
   const spawned: string[][] = [];
   const done = tidyInterruptedImports({ appData: "/profile", repoRoot: REPO_ROOT, cliMode: "source" }, {
-    readDir: (dir: string) => { assert.equal(dir, path.join("/profile", "site-imports", "local")); if (files === null) throw new Error("ENOENT"); return [...files]; },
+    readDir: (dir: string) => { if (dir === tmpdir()) return []; assert.equal(dir, path.join("/profile", "site-imports", "local")); if (files === null) throw new Error("ENOENT"); return [...files]; },
     spawnFn: (_command, args) => { spawned.push(args); return fake.child as never; },
     baseEnv: { PATH: "/usr/bin" },
   });
+  t.after(async () => { fake.child.exit(0); await done; });
   await tick(1);
+  assert.equal(spawned.length, spawns);
   if (spawns) {
     assert.deepEqual(JSON.parse(fake.stdinText.join("")), { tidy: true });
     fake.child.exit(0);
@@ -233,4 +237,27 @@ test("startup tidy never fails the launch: a child that fails is only ignored", 
   await tick(1);
   fake.child.exit(1);
   await done;
+});
+
+
+for (const missing of [false, true]) test(`startup tidy checks database temp folders when the registry is ${missing ? "missing" : "clean"}`, async () => {
+  const fake = fakeChild();
+  const reads: string[] = [];
+  let spawns = 0;
+  const done = tidyInterruptedImports({ appData: "/profile", repoRoot: REPO_ROOT, cliMode: "source" }, {
+    readDir: dir => {
+      reads.push(dir);
+      if (dir === tmpdir()) return ["tovu-import-db-example"];
+      if (missing) throw new Error("ENOENT");
+      return ["readme.txt"];
+    },
+    spawnFn: () => { spawns++; return fake.child as never; },
+    baseEnv: { PATH: "/usr/bin" },
+  });
+  await tick(1);
+  try {
+    assert.equal(spawns, 1);
+    assert.deepEqual(reads, [path.join("/profile", "site-imports", "local"), tmpdir()]);
+    assert.deepEqual(JSON.parse(fake.stdinText.join("")), { tidy: true });
+  } finally { fake.child.exit(0); await done; }
 });

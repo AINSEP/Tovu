@@ -1,0 +1,112 @@
+▶ plugin dataModule engine [sqlite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (152.251112ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (123.984588ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (124.063892ms)
+  ✔ install (401.365419ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (159.163902ms)
+    ✔ recreates an index whose declared shape changed (171.257276ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (168.741817ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (174.147193ms)
+  ✔ upgrade (673.992701ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (126.197793ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (146.445758ms)
+  ✔ identity guard (273.029519ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (156.19962ms)
+    ✔ a staged phase rolls back with its transaction (153.969459ms)
+  ✔ journal and recovery scan (310.4712ms)
+✔ plugin dataModule engine [sqlite] (1659.732885ms)
+▶ plugin dataModule engine [pglite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (3912.133519ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (25.540161ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (24.23678ms)
+  ✔ install (3962.571921ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (97.676006ms)
+    ✔ recreates an index whose declared shape changed (77.221523ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (89.316803ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (85.570781ms)
+  ✔ upgrade (350.212019ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (21.135172ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (71.624443ms)
+  ✔ identity guard (93.026063ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (20.764918ms)
+    ✔ a staged phase rolls back with its transaction (12.392005ms)
+  ✔ journal and recovery scan (33.483969ms)
+✔ plugin dataModule engine [pglite] (4439.725795ms)
+✔ dataModule: declares a namespaced table and records a migration-journal entry (72.208415ms)
+✖ dataModule: a dbPath naming a different real file is refused before headroom, snapshot or DDL (14.283764ms)
+✔ dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof) (16.99543ms)
+✔ dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL) (4.074473ms)
+✔ dataModule: a failing DDL rolls back to a working state (never-brick), snapshot kept as recovery point (11.510352ms)
+✔ dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK (12.253952ms)
+✔ dataModule: FAULT INJECTION — a verification failure now rolls back the DDL atomically, so the journal is truthfully ROLLED_BACK and no drift survives (22.700343ms)
+✔ dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit verification failure survive a later (non-crash) boot recovery pass (30.216712ms)
+✔ dataModule: declaring the same table twice is idempotent (no error, no double-create) (13.287678ms)
+✔ dataModule: against an in-memory db, snapshotPath is null and NO `:memory:.snapshot-*` file is ever created (2.383754ms)
+✔ dataModule: an in-memory db's failing DDL still rolls back to a working state, with no journal entry involved (1.958672ms)
+✔ dataModule: FAULT INJECTION, :memory: — a post-commit verification failure rolls the ALTER back too, not just the reported result (3.923261ms)
+✔ dataModule: rejects a table whose namespaced name would exceed PostgreSQL's 63-byte identifier limit (3.823535ms)
+✔ dataModule: rejects an index whose generated name would exceed the identifier limit, even when the table fits (4.130586ms)
+✔ dataModule: accepts an identifier of exactly 63 bytes — the limit is inclusive (20.420654ms)
+✔ dataModule refuses an otherwise valid Tier-1 declaration before schema, snapshot or bookkeeping writes (8.301211ms)
+✔ dataModule reports a committed migration as successful despite a post-commit checkpoint failure (17.272047ms)
+✔ dataModule rejects an invalid table identifier before any database writes (1.222156ms)
+✔ dataModule rejects an empty table list before any database writes (0.412414ms)
+✔ dataModule rejects a table with no columns before any database writes (0.482737ms)
+✔ dataModule rejects an invalid column identifier before any database writes (0.442472ms)
+✔ dataModule rejects an invalid index identifier before any database writes (0.426759ms)
+✔ dataModule rejects an index without columns before any database writes (0.503099ms)
+✔ dataModule refuses insufficient disk headroom (12 free bytes) before snapshots or DDL (6.671782ms)
+✔ dataModule refuses insufficient disk headroom (unknown free bytes) before snapshots or DDL (5.382042ms)
+✔ dataModule skips disk measurement for in-memory declarations and fully reconciled repeats (2.476864ms)
+✔ dataModule accepts Tier-3 declarations with explicitly false nullable, key and index flags (3.104145ms)
+✔ dataModule rolls back migration bookkeeping when a created table cannot be verified (2.468946ms)
+✔ dataModule housekeeping checkpoints before discarding the snapshot (26.748811ms)
+✔ dataModule housekeeping retains the snapshot on checkpoint failure (11.567159ms)
+✔ dataModule housekeeping skips checkpoints and backups without a file-backed snapshot (2.017755ms)
+ℹ tests 53
+ℹ suites 10
+ℹ pass 52
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8055.973276
+
+✖ failing tests:
+
+test at apps/website/src/features/plugins/__tests__/data-module.test.ts:1:2260
+✖ dataModule: a dbPath naming a different real file is refused before headroom, snapshot or DDL (14.283764ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   code: undefined,
+  +   measured: [
+  +     '/tmp/tovu-dm-other-zCBSJk/other.db'
+  +   ],
+  +   ok: true,
+  +   snapshotPath: '/tmp/tovu-dm-other-zCBSJk/other.db.snapshot-hello-1794204042203'
+  -   code: 'DB_PATH_MISMATCH',
+  -   measured: [],
+  -   ok: false,
+  -   snapshotPath: null
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugins/__tests__/data-module.test.ts:95:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: true, code: undefined, snapshotPath: '/tmp/tovu-dm-other-zCBSJk/other.db.snapshot-hello-1794204042203', measured: [ '/tmp/tovu-dm-other-zCBSJk/other.db' ] },
+    expected: { ok: false, code: 'DB_PATH_MISMATCH', snapshotPath: null, measured: [] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

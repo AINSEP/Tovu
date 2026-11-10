@@ -7,6 +7,8 @@ import { composedBundledPluginDirs } from "../../../apps/website/src/features/ag
 import path from "node:path";
 import ts from "typescript";
 import { ADDONS_PANEL_PATHS } from "../support/addons-route-fixture.js";
+import { adminPanelsLiteral } from "../support/admin-panels-literal.js";
+import { topLevelConstString } from "../support/top-level-const-string.js";
 import { test as base } from "../support/bug-pin-fixtures.js";
 import { expect } from "../support/bug-pin-fixtures.js";
 import { type BrowserContext } from "../support/bug-pin-fixtures.js";
@@ -111,16 +113,7 @@ function property(object: ts.ObjectLiteralExpression, name: string): ts.Expressi
 function readPanelCaptures(): PanelCapture[] {
   const filename = path.join(REPO_ROOT, "apps/admin/src/panels.tsx");
   const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let declaration: ts.VariableDeclaration | undefined;
-  function visit(node: ts.Node): void {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "ADMIN_PANELS") declaration = node;
-    ts.forEachChild(node, visit);
-  }
-  visit(source);
-  if (!declaration?.initializer || !ts.isArrayLiteralExpression(declaration.initializer)) {
-    throw new Error("ADMIN_PANELS must be a literal array; update the visual manifest reader if its declaration changes.");
-  }
-  const captures = declaration.initializer.elements.map(element => {
+  const captures = adminPanelsLiteral(source).elements.map(element => {
     if (!ts.isObjectLiteralExpression(element)) throw new Error("Unrecognized panel declaration; refusing to silently lose coverage.");
     const id = property(element, "id");
     if (!id || !ts.isStringLiteral(id)) throw new Error("Panel id must be a string literal.");
@@ -170,6 +163,7 @@ function tabValues(file: string, name: string, field?: string): string[] {
     throw new Error(`Unsupported spread in ${name} in ${file}`);
   }).map(element => {
     const value = field && ts.isObjectLiteralExpression(element) ? property(element, field) : element;
+    if (value && ts.isIdentifier(value)) return topLevelConstString(value);
     if (!value || !ts.isStringLiteral(value)) throw new Error(`Nonliteral ${name}.${field ?? "id"} in ${file}`);
     return value.text;
   });

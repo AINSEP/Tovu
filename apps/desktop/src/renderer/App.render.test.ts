@@ -461,6 +461,39 @@ test('App: an import that fails after the person left the page reaches them as a
   assert.equal(app.container.querySelector('.onboarding__error'), null, 'already told; the page opens clean');
 });
 
+test('App: a live import starts its new site, shows Starting, then opens the admin Import page', async t => {
+  const started: string[] = [];
+  let finish!: (record: SiteRecord) => void;
+  const app = await renderApp(t, {
+    createSite: async () => site('live'),
+    startSite: id => { started.push(id); return new Promise<SiteRecord>(resolve => { finish = resolve; }); },
+  });
+  await app.click(app.byText('Import'));
+  await typeAddress(app, 'https://example.com/about');
+  await app.click(app.byText('Import website'));
+  assert.deepEqual(started, ['live']);
+  assert.ok(app.all('[role="tab"]').some(tab => tab.getAttribute('aria-selected') === 'true' && tab.textContent?.includes('Site live')));
+  assert.match(app.text(), /Starting/);
+  assert.equal(app.container.querySelector('webview'), null);
+  await act(async () => { finish(site('live', { status: 'running', port: 4101 })); });
+  await settle();
+  assert.equal(app.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2Fabout');
+  assert.deepEqual(started, ['live']);
+});
+
+test('App: a live import whose new site is already running opens Import without starting it again', async t => {
+  const started: string[] = [];
+  const app = await renderApp(t, {
+    createSite: async () => site('live', { status: 'running', port: 4101 }),
+    startSite: async id => { started.push(id); return site(id); },
+  });
+  await app.click(app.byText('Import'));
+  await typeAddress(app, 'https://example.com/');
+  await app.click(app.byText('Import website'));
+  assert.deepEqual(started, []);
+  assert.equal(app.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2F');
+});
+
 test('App: a share link goes to the archive importer, a live address to Create', async (t) => {
   const asked: unknown[] = [];
   const created: string[] = [];
