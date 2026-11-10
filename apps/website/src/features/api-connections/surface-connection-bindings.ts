@@ -2,8 +2,8 @@ import { ApiConnectionError, deriveApiConnectionKey, type DeclaredApiConnection 
 import type { AdminSurfaceConnectionsHost } from '@jini-ai/agent-plugins/admin-surfaces/connections';
 import { startApiConnectionSignIn } from './connect.js';
 import type { ApiConnectionHost } from './host.js';
-import type { IssuedSignIn } from './surface-connections.js';
-import { confirmedTokenOptions, type FrozenConnectionAccounts } from '../agent-plugins/executable-tools/host-capabilities.js';
+import type { IssuedSignIn } from '@jini-ai/agent-plugins/admin-surfaces/connections';
+import { confirmedTokenOptions, type FrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
 
 export interface SurfaceConnectionsDeps {
   readonly host: ApiConnectionHost;

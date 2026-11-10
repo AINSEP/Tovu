@@ -2,7 +2,7 @@ import { bundledContributionSources } from "../../agent-plugins/bundled-contribu
 import { asDeployTargetModule, parseDeployTargetsFile as parseDeployTargetsDescriptors } from "@jini-ai/devops/deploy";
 import { defineExecutablePluginContribution, type LoadPluginContributions, type PluginContributionDefinition, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
-import type { FormDestinationForm, FormSubmissionsInspection } from "#src/features/form-destinations/types";
+import type { FormDestinationForm, FormSubmissionsInspection } from "@jini-ai/cms/forms";
 import type { InstalledDeployTarget, InstalledDeployTargetInventory, DeployTargetDescriptor, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
 /**
