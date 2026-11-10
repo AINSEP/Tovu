@@ -33,6 +33,7 @@ export function fakeProjectKeys({ log, permission = 'custom-credentials.write', 
   return {
     site: { id: 'site-a', name: 'Site A' },
     list: async () => { log.push('list'); return [{ keyId: 'key-a', name: 'Key A', kind: 'custom', usedByThisSite: false, usedBy: [] }]; },
+    listChoices: async () => { log.push('listChoices'); return [{ keyId: 'key-a', name: 'Key A', kind: 'custom', usedByThisSite: false, usedBy: [] }]; },
     listGranted: async () => [],
     permissionFor: async ({ keyId }) => { log.push(`permissionFor:${keyId}`); return permission; },
     use: async ({ keyId, use }) => {

@@ -20,12 +20,13 @@ import { createApiCredentialSaveHandlers, createCustomCredentialsRegistrations }
 import { tovuCredentialCardIdentity } from '../tovu-credential-card-identity.js';
 import { captureCard, credentialToolDeps, ctx, fakeProjectKeys, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';
 
-/** Recorded on the unmodified code (Tovu 3aa67be7, before the C2 part 2 seam commit). */
+/** Recorded on the unmodified code (Tovu 3aa67be7, before the C2 part 2 seam commit).
+ * copyCard and copyDescriptors re-recorded after 0b05623b changed the card and tool descriptions. */
 const OLD_ENTRY_HASHES = {
-  copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead',
+  copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3',
   createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75',
   credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb',
-  copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea',
+  copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1',
 };
 
 const ACME_IDENTITY: CredentialCardIdentity = {
@@ -50,7 +51,8 @@ function acmeCopyHost({ catalog }: { catalog?: readonly AgentToolDefinition[] } 
     messages: { ownerOnly: 'ACME owner only', instanceRefused: 'ACME instance refused', unexpectedField: 'ACME unexpected field',
       notOffered: 'ACME not offered', inputNotEmpty: 'ACME input not empty', keysUnavailable: 'ACME keys unavailable',
       needsInteractive: 'ACME needs a card', cardTitle: 'ACME pick a key', siteLabel: 'Shop', siteFallback: 'This shop',
-      cardDescription: 'ACME nothing is copied', fieldLabel: 'ACME keys', fieldPlaceholder: 'ACME choose', newKeyLabel: 'ACME new key',
+      cardDescription: 'ACME nothing is copied', emptyCardDescription: 'ACME no keys yet', lockedLabel: ({ names }) => `ACME locked: ${names.join('; ')}`,
+      outcomes: { dismissed: 'ACME closed', interrupted: 'ACME run ended', nothingToPick: 'ACME nothing to pick' }, fieldLabel: 'ACME keys', fieldPlaceholder: 'ACME choose', newKeyLabel: 'ACME new key',
       submitLabel: 'ACME use it', cancelLabel: 'ACME stop' },
     protocol: { askThenReport, buildFormSurface },
   };
@@ -103,7 +105,7 @@ test('copy: a second host\'s tool id, namespace, card path, answer value and wor
     assert.ok(html.includes(words), `card shows the host's ${words}`);
   }
   assert.deepEqual(result, { granted: true, credentialId: 'key-a' });
-  assert.deepEqual(log, ['list', 'permissionFor:key-a', 'use:key-a:true']);
+  assert.deepEqual(log, ['listChoices', 'permissionFor:key-a', 'use:key-a:true']);
   // Owner permission before the inventory, then owner + the key's own permission after the answer.
   assert.deepEqual(authorizeCalls.map(call => call.permission), ['acme.owner', 'acme.owner', 'acme.keys.write']);
   assert.ok(authorizeCalls.every(call => call.workspaceId === 'shop-1'));
@@ -144,7 +146,7 @@ test('copy: permission is re-checked after the answer and a revoked key is refus
     setImmediate(() => exchanges.deliver({ exchangeId: 'pick-1', principalId: 'owner', params }, { toolId: ACME_COPY_TOOL, channel: 'mcp-ui' }));
   } });
   await assert.rejects(answer({ credentialId: 'key-a' }));
-  assert.deepEqual(log, ['list', 'permissionFor:key-a'], 'a session that lost the permission while the card was open never reaches use');
+  assert.deepEqual(log, ['listChoices', 'permissionFor:key-a'], 'a session that lost the permission while the card was open never reaches use');
   const revoked = acmeCopy({ log: [], authorizeCalls: [], refuseUse: true });
   await assert.rejects(revoked.tool.handler(ctx('pick'), { emitSurface: async () => {
     setImmediate(() => revoked.exchanges.deliver({ exchangeId: 'pick-1', principalId: 'owner', params: { credentialId: 'key-a' } }, { toolId: ACME_COPY_TOOL, channel: 'mcp-ui' }));
@@ -152,7 +154,7 @@ test('copy: permission is re-checked after the answer and a revoked key is refus
   const dismissed = acmeCopy({ log: [], authorizeCalls: [] });
   assert.deepEqual(await dismissed.tool.handler(ctx('pick'), { emitSurface: async () => {
     setImmediate(() => dismissed.exchanges.deliver({ exchangeId: 'pick-1', principalId: 'owner', params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: ACME_COPY_TOOL, channel: 'mcp-ui' }));
-  } }), { granted: false });
+  } }), { granted: false, reason: 'dismissed', message: 'ACME closed' });
 });
 
 test('copy: the host\'s domain and catalog path name a catalog that drifted from its handlers', () => {
