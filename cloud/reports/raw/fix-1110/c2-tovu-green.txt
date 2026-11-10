@@ -1,0 +1,18 @@
+✔ the enable card names only the copy the host selection owner keeps, while the revision still covers every installed copy (10.652874ms)
+✔ foreign ids, catalog copy, permission and inactive public projection flow through list (6.940758ms)
+✔ foreign enable permission/entity and result copy flow through site-runtime disable (3.170251ms)
+✔ foreign enable permission/entity and result copy flow through agent-plugin disable (0.895042ms)
+✔ missing capability keeps the legacy installed-list override, but a switch still refuses lazily (1.55958ms)
+✔ host classifier uses canonical classes and unknown errors retain identity (0.482237ms)
+✔ foreign install input preserves authorize, parse, policy, preview and digest-pinned write order (1.094302ms)
+✔ foreign source ids dispatch through catalog permissions and preserve owner results (1.403941ms)
+✔ approval identity forwards the same sorted revisions to the foreign fingerprint owner (8.499071ms)
+✔ the foreign telemetry callback observes one durable OFF decision after the command owner (1.451337ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1354.233979

@@ -1,0 +1,251 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs > main > falls back to the real fs/console ports when none are injected
+▸ 候选资产 0 个(图片 0 / 字体 0)，开始下载…
+✅ 下载 0 成功 / 0 失败 → /tmp/wc1-vLBgwX/out
+/tmp/wc1-vLBgwX/out/asset-manifest.json
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs (23 tests) 42ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/interaction-probe.unit.test.mjs (20 tests) 41ms
+ ✓ scripts/__tests__/check-plugin-isolation.test.ts (93 tests) 51ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/recon-site.unit.test.mjs (10 tests) 23ms
+ ✓ scripts/__tests__/check-package-layers.test.ts (73 tests) 169ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-compare-Paj7Gm/R.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs (17 tests) 15ms
+ ✓ scripts/__tests__/check-subpath-isolation.test.ts (33 tests) 237ms
+ ✓ packages/cms/scripts/__tests__/check-packaging.test.ts (22 tests) 15ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-audit-QkTGmU/out.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs (21 tests) 40ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/route-crawl.unit.test.mjs (11 tests) 27ms
+ ✓ scripts/__tests__/plugin-release-consistency.test.ts (9 tests) 2000ms
+   ✓ imports the release preparation path in Node without running a release 368ms
+   ✓ compares two packed release sets and keeps same-version byte changes explicit 1572ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'calendly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/calendly-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/charts-echarts-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/charts-recharts-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/cloudflare-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/commerce-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/composio-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/fly-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/formspree-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/github-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/github-pages-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/google-forms-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/google-login-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/google-workspace-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/higgsfield-media-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/jev-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/langfuse-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/meilisearch-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/netlify-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/opentelemetry-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/posthog-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/railway-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/render-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/resend-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/s3-compatible-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/sentry-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/shopify-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/site-compliance-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/site-import-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/slide-design-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+/tmp/agent-plugin-subpaths-8DXzcX/slide-design-digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/software-engineering-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/stripe-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/supabase-seeding/ws/workspace-a
+
+ ✓ scripts/__tests__/extract-s3-checker.test.ts (23 tests) 14164ms
+   ✓ F1 CLI writes a reproducible original-pin manifest with the actual nonstandard build mapping 804ms
+   ✓ F1 roundtrip preserves unchanged old declaration edges and rejects a newly emitted forbidden edge 920ms
+   ✓ F1 actual build mapping excludes noEmit configs without inventing declarations 723ms
+   ✓ F1 writer refuses HEAD different from the requested provenance 860ms
+   ✓ F1 writer refuses dirty tracked source 741ms
+   ✓ F1 writer refuses a missing emitted declaration 863ms
+   ✓ F1 writer refuses unsafe source destination 752ms
+   ✓ F1 writer refuses unsafe ancestor destination 790ms
+   ✓ F1 writer refuses unsafe relative destination 723ms
+   ✓ F1 writer refuses unsafe symlink destination 699ms
+   ✓ F1 writer refuses to overwrite an immutable snapshot 1489ms
+   ✓ F6 XP2/XP3 compare modified type reference directive against the original source and emits 815ms
+   ✓ F6 XP3 detects declaration-only added type reference directive and preserves an old edge 789ms
+   ✓ F6 XP2/XP3 compare modified ambient module declaration against the original source and emits 817ms
+   ✓ F6 XP3 detects declaration-only added ambient module declaration and preserves an old edge 881ms
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/ui-ux-design-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+/tmp/agent-plugin-subpaths-8DXzcX/ui-ux-design-digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/vercel-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-8DXzcX/wordpress-seeding/ws/workspace-a
+
+ ✓ scripts/__tests__/standalone-agent-plugin.integration.test.ts (106 tests | 33 skipped) 12981ms
+   ✓ subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 952ms
+   ✓ subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 440ms
+   ✓ subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 1172ms
+   ✓ subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 548ms
+   ✓ subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 791ms
+   ✓ subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision 325ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs > main > uses the real fs and console when no ports are injected
+✅ design-dna 骨架已写入: /tmp/wc1-dna-NVDi10/d.json
+   下一步: 人工 Analyze 补全 ""，并从 _recon_signals 指派颜色角色。schema → references/design-dna.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs (13 tests) 21ms
+ ✓ scripts/__tests__/plugin-package-gates.test.ts (14 tests) 410ms
+   ✓ inspects actual tar bytes without executing package lifecycle hooks 365ms
+ ✓ scripts/__tests__/optional-peer-contract.test.ts (58 tests) 19472ms
+   ✓ agent-runtime default source entry never reaches an opt-in peer 692ms
+   ✓ all real default entries keep runtime libraries required and classify opt-in subpaths 10022ms
+   ✓ cms forms entries reach only required libraries or optional peers that name that entry 8419ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/visual-diff.unit.test.mjs (9 tests) 14ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/network-capture.unit.test.mjs (7 tests) 33ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/mirror-site.unit.test.mjs (8 tests) 18ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/sourcemap-hunt.unit.test.mjs (9 tests) 12ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/od-preview-rewrite.unit.test.mjs (11 tests) 20ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/lib-wc2.unit.test.mjs (17 tests) 356ms
+   ✓ loadPlaywright > resolves with the real require/env defaults (result depends on the install) 341ms
+ ✓ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests) 515ms
+   ✓ agent plugin content imports > the checked-in agent plugin content passes 447ms
+ ✓ scripts/__tests__/check-no-cross-package.test.ts (41 tests) 7776ms
+ ✓ scripts/__tests__/build-script-workspace-deps.test.ts (2 tests) 92ms
+ ✓ scripts/__tests__/extract-s4-import-equals.test.ts (6 tests) 2023ms
+   ✓ XP3 rejects a declaration-only import-equals edge and permits the unchanged pinned one 382ms
+   ✓ import-equals of core and of the own package are allowed; core may import no neighbour 336ms
+   ✓ the declaration tsc actually emits for import-equals is caught by XP3 721ms
+ ✓ scripts/__tests__/check-guard-drift.test.ts (10 tests) 7ms
+ ✓ scripts/__tests__/script-entrypoints.test.ts (6 tests) 2896ms
+   ✓ patch canary applies a real patch and refuses missing arguments through a canonical entry 348ms
+   ✓ guard drift actually reports its result through a canonical entry 481ms
+   ✓ patch canary applies a real patch and refuses missing arguments through a symlink entry 432ms
+   ✓ guard drift actually reports its result through a symlink entry 456ms
+   ✓ check-guard-drift.ts remains importable from stdin without running the command 1019ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-init-r6qkS1/demo-clone
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs (10 tests) 12ms
+ ✓ scripts/__tests__/peer-range-compatibility.unit.test.ts (11 tests) 26ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+ ✓ scripts/__tests__/leaf-import-closures.test.ts (7 tests) 10214ms
+   ✓ universal translation owner and SEO entries > keeps SEO and its HTTP adapter free of React and preserves the existing interpolation owner 9900ms
+ ✓ scripts/__tests__/walk-imports.test.ts (7 tests) 34ms
+ ✓ scripts/__tests__/connection-card.packed.test.ts (1 test) 16561ms
+   ✓ packed connection-card consumer > renders different host copy and delivers a real exchange through published entries 16560ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/script-cli.test.mjs (8 tests) 19ms
+ ✓ scripts/__tests__/plugin-release-prepare.test.ts (2 tests) 11ms
+ ✓ scripts/__tests__/extract-s3-source-contracts.test.ts (6 tests) 14ms
+ ✓ scripts/__tests__/packed-exports.unit.test.ts (11 tests) 6ms
+ ✓ scripts/__tests__/agent-plugin-subpaths.test.ts (3 tests) 78ms
+ ✓ scripts/__tests__/guard-drift-cli.unit.test.ts (1 test) 289ms
+ ✓ scripts/__tests__/storage-public-entries.test.ts (23 tests) 281ms
+ ✓ scripts/__tests__/npm-pack-json.test.ts (5 tests) 109ms
+ ✓ scripts/__tests__/retired-plugin-packages.test.ts (13 tests) 10ms
+ ✓ scripts/__tests__/packed-fixture.test.ts (7 tests) 24ms
+stdout | scripts/__tests__/publish-pending-summary.test.ts > writes the step summary for a read-only publication plan
+
+0 of 0 package(s) to publish.
+
+stdout | scripts/__tests__/publish-pending-summary.test.ts > writes a stopped result when release consistency fails before any upload
+
+0 of 0 package(s) to publish.
+
+ ✓ scripts/__tests__/publish-pending-summary.test.ts (2 tests) 8ms
+ ✓ scripts/__tests__/coupling-isolation.test.ts (21 tests) 27421ms
+   ✓ re-verify dependency and state regressions > keeps standalone plugin tooling on package public entries 12408ms
+   ✓ re-verify dependency and state regressions > declares the shared secret-input owner on the permitted optional UI layer edge 4471ms
+ ✓ scripts/__tests__/engine-neutrality-json.test.ts (1 test) 13ms
+ ✓ scripts/__tests__/sonar-standalone-config.test.ts (2 tests) 1407ms
+   ✓ does not activate unavailable rules from copied directives in generated payloads 1297ms
+ ✓ scripts/__tests__/check-model-fallback-freshness.test.ts (1 test) 808ms
+   ✓ guards Antigravity against newly reported models missing from its fallback 807ms
+ ✓ scripts/__tests__/guard-self-test.unit.test.ts (1 test) 141ms
+ ✓ scripts/__tests__/fetch-query-isolation.test.ts (3 tests) 14887ms
+   ✓ fetch-query optional adapter isolation > keeps TanStack out of the default runtime closure while the optional entry reaches it 14884ms
+
+ Test Files  50 passed (50)
+      Tests  805 passed | 33 skipped (838)
+   Start at  23:10:06
+   Duration  56.99s (transform 2.61s, setup 0ms, collect 10.48s, tests 135.84s, environment 10ms, prepare 3.61s)
+

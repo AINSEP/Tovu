@@ -1,0 +1,84 @@
+### apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts
+ℹ fail 2
+ℹ pass 1
+✖ tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions (8768.791385ms)
+✖ tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc (10150.491388ms)
+### apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts
+ℹ fail 1
+ℹ pass 1
+✖ observes real rendered evidence from a real page (5211.012628ms)
+### apps/website/src/server/__tests__/media-rendition-route.test.ts
+ℹ fail 0
+ℹ pass 20
+### apps/website/src/server/__tests__/routes/publish-content-media-wiring.test.ts
+ℹ fail 0
+ℹ pass 2
+### apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts
+ℹ fail 4
+ℹ pass 8
+✖ boot redemption refuses a minted session that Jini cannot validate before setting a cookie (203.624895ms)
+✖ boot redemption rejects a disabled owner before minting a session (249.834589ms)
+✖ boot redemption rejects a member owner before minting a session (217.037186ms)
+✖ boot redemption rejects a missing owner before minting a session (279.186411ms)
+### apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts
+ℹ fail 1
+ℹ pass 0
+✖ browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes (36.23427ms)
+### apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-http.integration.test.ts
+ℹ fail 1
+ℹ pass 0
+✖ real HTTP/browser TOTP enrollment and passkey registration/login withhold cookies until factor completion (624.08939ms)
+### apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts
+ℹ fail 1
+ℹ pass 0
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (3112.789746ms)
+### apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/site-title-preservation.integration.test.ts
+ℹ fail 1
+ℹ pass 11
+✖ AC-12 (REQ-07, T-W3): with the definition registered and the pin held open, a pre-existing site renders Tovu Demo Site, never its display name (2569.294904ms)
+### apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts
+ℹ fail 2
+ℹ pass 2
+✖ cost counters equal the baseline recorded before any move (2.234111ms)
+✖ counter: token lookup (contribution reload, credential opens) per getAccessToken (21.591437ms)
+### apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts
+ℹ fail 1
+ℹ pass 6
+✖ a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault (883.472094ms)
+### apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts
+ℹ fail 1
+ℹ pass 24
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (778.657ms)
+### apps/website/src/server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts
+ℹ fail 1
+ℹ pass 5
+✖ createSiteApp() on a SQLite composition adds no second copy of the serving app's event handlers (1124.917201ms)
+### apps/website/src/server/runtime/composition/__tests__/storage-secret.unit.test.ts
+ℹ fail 1
+ℹ pass 6
+✖ new-site sealing prepares its identified key file and the default reader reopens it (2411.436343ms)
+### apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-consent-rpc.integration.test.ts
+ℹ fail 0
+ℹ pass 10
+### apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts
+ℹ fail 2
+ℹ pass 20
+✖ a passive frontend stream cannot wake a daemon racing park (0.342908ms)
+✖ a refused parked mutation waits for replacement and is dispatched once (1.118432ms)
+### apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.integration.test.ts
+ℹ fail 1
+ℹ pass 9
+✖ a committed write whose response is dropped is OUTCOME UNKNOWN, ran once, and blocks a blind repeat (346.507572ms)
+### apps/website/src/server/runtime/composition/modules/__tests__/route-modules.unit.test.ts
+ℹ fail 1
+ℹ pass 16
+✖ module 'forms-admin': registers exactly its routes, in order, and nothing else (4.114897ms)
+### development/scripts/__tests__/check-idle-motion.test.ts
+ℹ fail 1
+ℹ pass 9
+✖ the live tree has no idle-CPU offenders and no stale allowlist entries (771.496505ms)
+### development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts
+ℹ fail 2
+ℹ pass 9
+✖ desktop dev CLI builds preload before watching and forwards Electron flags on normal exit (197.521194ms)
+✖ web dev CLI attaches to the selected running site and opens its admin URL (300.71695ms)

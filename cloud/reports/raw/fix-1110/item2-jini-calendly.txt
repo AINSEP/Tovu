@@ -1,0 +1,12 @@
+✔ every file the booking calendar names ships in the payload (3.060343ms)
+✔ the calendar needs no script and only reaches the declared booking host (1.004656ms)
+✔ the page stays usable without the frame: its fallback link uses the same prop (1.506028ms)
+✔ the sign-in is optional and the guidance never asks for it first (2.324617ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.983939

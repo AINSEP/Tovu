@@ -1,0 +1,37 @@
+✔ old entries keep the exact bytes recorded before the seams: copy card, create card, descriptors (34.214679ms)
+✔ Tovu binds namespace tovu and the exact app names its cards always reported (0.593774ms)
+✔ copy: a second host's tool id, namespace, card path, answer value and words are the ones used (8.79667ms)
+✔ copy: the host's new-key value routes to saveNew; Tovu's value is just an unoffered id (3.530105ms)
+✔ copy: the host's owner, input and channel messages are the refusals the model sees (1.574136ms)
+✔ copy: permission is re-checked after the answer and a revoked key is refused by use; nothing is granted (3.976244ms)
+✔ copy: the host's domain and catalog path name a catalog that drifted from its handlers (0.72215ms)
+✔ custom credentials: a second host's read/write permissions and entity type gate the tools (8.214521ms)
+✔ custom credentials: the host's domain and catalog path name a catalog that drifted from its handlers (0.809753ms)
+✔ create card: the second host's namespace, app and write permission are used; Tovu's are absent (3.681554ms)
+✔ old entries retain the four independently recorded card/descriptor hashes (27.450159ms)
+✔ foreign handler keys, catalog path, permissions and plugin-owned labels are actually consumed (2.981139ms)
+✔ injected recovery preserves the host-issued diagnostic object without decrypting (5.509319ms)
+✔ approval lifecycle and human-confirm use the foreign URI and SAME answer store; decline sends nothing (5.487326ms)
+✔ approved DELETE re-admits the permission, and revocation during the human wait prevents any request (3.548104ms)
+✔ foreign form/catalog/locale/default category/worksFor/cleanup feed save; invalidate and outcome follow persistence (10.104155ms)
+✔ plugin load/read/build and probe are injected; a failed probe cannot save or invalidate (5.345834ms)
+✔ rotation finds/applies the host card and preserves the current username in the injected replacement (2.881663ms)
+✔ host form rules and safe fallback prevent raw storage/driver messages reaching either projection (5.098425ms)
+✔ duplicate and public-field errors use foreign messages and canonical model rules (2.766722ms)
+✔ foreign file validator runs before authorization; one provider/plan survives decrypt to commit (1.468604ms)
+✔ missing interactive channel and plugin card use required foreign messages (1.082548ms)
+✔ real Tovu bindings retain the current registry/cache/repo and guard, with invalidation only after save (11.443691ms)
+✔ real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup (0.570205ms)
+✔ request validation decorates only callerSafeMessage and classifies the original once (0.806364ms)
+✔ request egress-refused decorates only callerSafeMessage and classifies the original once (0.504298ms)
+✔ request unknown rejections retain their original identity after classification (0.679983ms)
+✔ DELETE preflight classifies the original once and preserves the map prefix with caller-safe validation text (0.837685ms)
+✔ DELETE preflight preserves non-validation rejection identity after classifying once (1.357578ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2175.286109

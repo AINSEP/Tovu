@@ -1,0 +1,7 @@
+root ci exit 0
+rebuild 0
+admin ci exit 0
+desktop ci exit 0
+site-chat ci exit 0
+contracts
+sdk

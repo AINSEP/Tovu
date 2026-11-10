@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/__tests__/source-boundaries.test.ts (1 test) 28ms
+ ✓ src/__tests__/fetch-with-timeout.test.ts (14 tests) 93ms
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  22:17:57
+   Duration  511ms (transform 101ms, setup 0ms, collect 129ms, tests 120ms, environment 1ms, prepare 161ms)
+

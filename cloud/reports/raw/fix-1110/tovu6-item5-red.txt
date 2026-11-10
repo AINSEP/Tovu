@@ -1,0 +1,42 @@
+apps/website/src/features/agent-plugins/zz-tmp-fix1110.ts:167:28 lint/style/noNonNullAssertion ━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    165 │   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.
+    166 │   // This small id loader uses the SAME trusted pinned-ref resolver as the capability backstop.
+  > 167 │   const loadRegistration = buildDomainRegistrations({
+        │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 168 │     domain: 'agent-plugin-guidance', catalogModule: 'assistant/automatic-agent-plugins.ts',
+         ...
+  > 194 │     } },
+  > 195 │   })[0]!;
+        │   ^^^^^^
+    196 │   /** Dispose an attempt alias. Durable attempt replacement retains a pending exchange until its
+    197 │    * answer/normal exchange expiry; explicit disposal aborts it. O(1), no persistent writes.
+  
+
+apps/website/src/features/agent-plugins/zz-tmp-fix1110.ts:93:12 lint/suspicious/noAssignInExpressions ━━━━━━━━━━
+
+  × The assignment should not be in an expression.
+  
+    91 │   /** Keep the successful turn snapshot across attempts; failed preparation remains retryable. */
+    92 │   function preflight({ entry }: { entry: Entry }, _options = {}): Promise<string> {
+  > 93 │     return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned, maxPromptArgBytes: entry.context.maxPromptArgBytes })
+       │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 94 │       .catch(error => { entry.preflight = undefined; throw error; });
+       │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    95 │   }
+    96 │   /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
+  
+  i The use of assignments in expressions is confusing.
+    Expressions are often considered as side-effect free.
+  
+
+Checked 1 file in 13ms. No fixes applied.
+Found 1 error.
+Found 1 warning.
+lint ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+

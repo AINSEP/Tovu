@@ -1,0 +1,7 @@
+build 0 errors 0
+agent-plugins 0
+plugins 0
+test:scripts 1
+content 0
+cross-package 0
+guard 1

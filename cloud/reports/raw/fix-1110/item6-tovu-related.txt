@@ -1,0 +1,55 @@
+✔ the enable card names only the bundled copy the host uses, while the revision still covers every installed copy (26.784286ms)
+✔ foreign ids, catalog copy, permission and inactive public projection flow through list (4.687171ms)
+✔ foreign enable permission/entity and result copy flow through site-runtime disable (2.591545ms)
+✔ foreign enable permission/entity and result copy flow through agent-plugin disable (0.942291ms)
+✔ missing capability keeps the legacy installed-list override, but a switch still refuses lazily (1.427904ms)
+✔ host classifier uses canonical classes and unknown errors retain identity (0.487926ms)
+✔ foreign install input preserves authorize, parse, policy, preview and digest-pinned write order (0.874856ms)
+✔ foreign source ids dispatch through catalog permissions and preserve owner results (1.73188ms)
+✖ approval identity forwards the same sorted revisions to the foreign fingerprint owner (35.327262ms)
+✔ the foreign telemetry callback observes one durable OFF decision after the command owner (1.342611ms)
+✔ published package.json+dist imports in plain Node without writes, child processes or servers (562.452899ms)
+✔ resolved emitted contracts document the security and ordering obligations a second host needs (156.942936ms)
+✔ canonical owner errors cross the old shim and host classifier; lookalikes retain identity (21.988622ms)
+✔ OFF installed plugin text prefers its public summary over the description (1.346236ms)
+
+Interrupted while running:
+
+⚠ apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts (apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts:1:1)
+✖ apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts (891990.593598ms)
+✖ apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts
+ℹ tests 16
+ℹ suites 0
+ℹ pass 13
+ℹ fail 1
+ℹ cancelled 2
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 899811.665924
+
+✖ failing tests:
+
+test at apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-host-tools.unit.test.ts:1:7346
+✖ approval identity forwards the same sorted revisions to the foreign fingerprint owner (35.327262ms)
+  AssertionError [ERR_ASSERTION]: the Agent Plugin layout is never read when the host capability is bound
+      at Object.forWorkspace (/home/user/Tovu/apps/website/src/features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.ts:36:30)
+      at Object.preferInstalled (/home/user/Tovu/apps/website/src/features/plugin-runtime/agent-plugin-tool-binding.ts:33:149)
+      at pluginApprovalIdentity (/home/user/Jini/packages/plugins/src/host/tools/management.ts:155:69)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugin-runtime/__tests__/unit/extract-s7-host-tools.unit.test.ts:99:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts:1:1
+✖ apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts (891990.593598ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts:1:1
+✖ apps/website/src/features/plugin-runtime/__tests__/unit/plugins-set-enabled-consent.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'

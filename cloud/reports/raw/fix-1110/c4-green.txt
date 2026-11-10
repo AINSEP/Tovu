@@ -1,0 +1,14 @@
+✔ content_read.plugin uses a catalog line for off plugins without skills or exports (19.293997ms)
+✔ connecting an off OAuth plugin refuses without granting or saving anything, and keeps the connect retry (5.913733ms)
+Plugin 'railway' has no publisher-qualified id; using 'unknown/railway'.
+✔ connecting an off token plugin points to the key card it declares instead of a connect retry (123.294183ms)
+✔ an off site plugin retains its invalid status in the catalog (0.925948ms)
+✔ an off site plugin retains its incompatible status in the catalog (0.481322ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2035.748899

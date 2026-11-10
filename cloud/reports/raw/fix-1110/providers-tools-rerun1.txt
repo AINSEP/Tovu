@@ -1,0 +1,46 @@
+{"toolId":"credential_save","exchangeId":"exchange-t10","saved":false}
+{"toolId":"credential_save","exchangeId":"exchange-t10","saved":false}
+✔ t10 media credential form submit and cancel pass both MCP-UI callback gates (1.65391ms)
+✔ t10 media callback delivers a human key only to its parked call, rejects wrong principals and replay (39.493876ms)
+✔ t10 media registration risk, permissions and exact model input fields (1.33656ms)
+✔ t10 media list contains exact safe keys, includes configured and unconfigured image/video providers (2.548168ms)
+✔ t10 media form masks the key and submits through a bound exchange; save readback preserves other providers and metadata (8.11779ms)
+✔ t10 media decline has no writes and returns saved false (1.960016ms)
+✔ t10 media both tools deny permission before reading or opening a form (1.903324ms)
+✔ t10 media rejects extra model fields and unsupported providers before a form (1.446292ms)
+✔ t10 media fails closed without a surface channel or after abort (2.620063ms)
+✔ t10 media malformed submitted key "" saves nothing (1.984683ms)
+✔ t10 media malformed submitted key "   " saves nothing (1.798345ms)
+✔ t10 media malformed submitted key 42 saves nothing (1.877175ms)
+✔ t10 media raw save errors containing the key never reach the model or outcome surface (8.157023ms)
+✔ t10 media expired form closes without saving (2.305659ms)
+✔ t10 media initial emission failure releases the exchange (1.340965ms)
+✔ t10 media failed outcome emission still returns the persisted safe result (3.185954ms)
+✔ t10 media generation missing key names the human setup tool in its refusal (3.056503ms)
+✔ t10 media saving while a different provider rotates preserves the latest ciphertext and current metadata (5.063757ms)
+✔ an unimplemented media provider stays in the catalog and its save outcome names the limitation (2.776996ms)
+✔ t10 media abort during sealing writes nothing (2.272711ms)
+✔ media credential reasons longer than 1000 characters refuse before authorization or a form (0.992969ms)
+✔ a configured media provider can preserve its exact key with an empty submission (5.074541ms)
+✔ preserving a migrated media credential with unknown length reports success without a hint (3.578727ms)
+✔ non-Error media persistence failures use fixed safe outcomes and leave no credential (4.300332ms)
+✔ media token policy failures return the allowlisted message without saving (3.040266ms)
+✔ the media provider contributor builds a working read-only provider catalog (0.88883ms)
+✔ L241 openai saved result and outcome agree with hint=true (2.934535ms)
+✔ L241 openai saved result and outcome agree with hint=false (2.380796ms)
+✔ L241 replicate saved result and outcome agree with hint=true (2.600776ms)
+✔ L241 replicate saved result and outcome agree with hint=false (3.107897ms)
+✔ L241 blank pins the declined result and outcome visibility (1.956363ms)
+✔ L241 safe-failure pins the declined result and outcome visibility (2.857886ms)
+✔ L241 raw-failure pins the declined result and outcome visibility (2.935213ms)
+✔ L241 cancelled pins the declined result and outcome visibility (1.438208ms)
+✔ L241 expired pins the declined result and outcome visibility (1.592806ms)
+✔ L241 abandoned pins the declined result and outcome visibility (1.508827ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1638.589936

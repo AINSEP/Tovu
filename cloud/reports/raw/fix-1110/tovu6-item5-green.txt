@@ -1,0 +1,19 @@
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts:168:28 lint/style/noNonNullAssertion ━━━━━━━━━━
+
+  ! Forbidden non-null assertion.
+  
+    166 │   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.
+    167 │   // This small id loader uses the SAME trusted pinned-ref resolver as the capability backstop.
+  > 168 │   const loadRegistration = buildDomainRegistrations({
+        │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 169 │     domain: 'agent-plugin-guidance', catalogModule: 'assistant/automatic-agent-plugins.ts',
+         ...
+  > 195 │     } },
+  > 196 │   })[0]!;
+        │   ^^^^^^
+    197 │   /** Dispose an attempt alias. Durable attempt replacement retains a pending exchange until its
+    198 │    * answer/normal exchange expiry; explicit disposal aborts it. O(1), no persistent writes.
+  
+
+Checked 1 file in 80ms. No fixes applied.
+Found 1 warning.

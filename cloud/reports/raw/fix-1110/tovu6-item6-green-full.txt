@@ -1,0 +1,31 @@
+✔ workspace setting defaults disabled; generic writes validate installed roster, aliases, scope and theme.set before revisions (781.835416ms)
+✔ the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it (304.184641ms)
+✔ assistant tools sync the roster from the site folder first, and pass unexpected write faults through unchanged (349.091617ms)
+✔ assistant get/update use the ledger and active-theme permission; denied and invalid tools never write (227.812367ms)
+✔ live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert (1215.676098ms)
+✔ portable static copies export only the active theme when the preview switcher is enabled (1370.873709ms)
+[export] Theme previews: 2 themes, 10 additional pages, 1.93x export bytes (1.96x HTML); shared assets are deduplicated.
+✔ static manifest and real export include themed pages/assets, noindex, canonical, prefixed navigation and size multiplier (1427.860959ms)
+✔ static-export variants: unknown theme 404s, a bare variant path renders the variant root, and queries survive the prefix strip (432.734822ms)
+Error: presentation store offline
+    at InMemoryPresentationSettingsRepo.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:224:98)
+    at Object.apply (node:internal/test_runner/mock/mock:805:20)
+    at getPresentationSettings (/home/user/Jini/packages/cms/src/presentation/presentation.ts:82:45)
+    at resolveActiveThemeId (/home/user/Tovu/apps/website/src/features/presentation/active-theme-id.ts:49:32)
+    at preparePreviewPage (/home/user/Tovu/apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts:41:49)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts:64:26)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/user/Tovu/node_modules/express/lib/router/index.js:328:13)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:286:9
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:346:12)
+[theme] active theme 'preview-one' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'preview-one' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler (332.981605ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17846.214143

@@ -1,0 +1,1 @@
+b6e86d3a fix(agent-plugins): the lifecycle capability exposes the host's revision-selection owner

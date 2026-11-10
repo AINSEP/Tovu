@@ -1,0 +1,191 @@
+✔ boot redemption rejects an invalid token before reading the boot owner or minting (449.954745ms)
+[auth-boot-session] {
+  errorId: 'aa9d6b3c-2320-4e56-b29a-3ea4fac0fb67',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:503:34)\n' +
+    '    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:527:5)\n' +
+    '    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:60:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:527:35)\\n    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:60:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✖ boot redemption rejects a missing owner before minting a session (253.785875ms)
+[auth-boot-session] {
+  errorId: 'afeaee28-d9e8-4fcc-b585-bfa71840bee2',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:503:34)\n' +
+    '    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:527:5)\n' +
+    '    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:60:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:527:35)\\n    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:60:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✖ boot redemption rejects a disabled owner before minting a session (244.175769ms)
+[auth-boot-session] {
+  errorId: 'e9408aab-125c-4802-8c3a-aa7b184a59f5',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:503:34)\n' +
+    '    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:527:5)\n' +
+    '    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:60:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:527:35)\\n    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:60:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✖ boot redemption rejects a member owner before minting a session (233.420766ms)
+✔ boot redemption consumes proof before awaiting identity readiness and owner lookup (194.733823ms)
+✔ boot redemption propagates identityReady failure without minting or cookies (199.489219ms)
+✔ boot redemption propagates ownerPrincipalId failure without minting or cookies (238.654342ms)
+✔ boot redemption propagates repository failure without minting or cookies (186.894181ms)
+[auth-boot-session] {
+  errorId: '0ff2dd7e-4ceb-489a-9e34-cc5400cce811',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:503:34)\n' +
+    '    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:542:5)\n' +
+    '    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:118:16)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot session confirmation failed\\n    at redeemOwnerBootSession (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:542:35)\\n    at async TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:118:16)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot session confirmation failed"}}'
+}
+✖ boot redemption refuses a minted session that Jini cannot validate before setting a cookie (208.784567ms)
+✔ boot redemption with tovu_session preserves its existing superseded-session policy (181.110657ms)
+✔ boot redemption with tovu_session_local_303 preserves its existing superseded-session policy (192.091341ms)
+✔ an enrolled owner boot proof returns pending MFA without a session or cookie (241.024551ms)
+✖ real HTTP/browser TOTP enrollment and passkey registration/login withhold cookies until factor completion (615.551339ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 8
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21010.892532
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:1:1668
+✖ boot redemption rejects a missing owner before minting a session (253.785875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error aa9d6b3c-2320-4e56-b29a-3ea4fac0fb67)',
+  +   errorId: 'aa9d6b3c-2320-4e56-b29a-3ea4fac0fb67'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:62:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: 'aa9d6b3c-2320-4e56-b29a-3ea4fac0fb67', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error aa9d6b3c-2320-4e56-b29a-3ea4fac0fb67)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:1:1668
+✖ boot redemption rejects a disabled owner before minting a session (244.175769ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error afeaee28-d9e8-4fcc-b585-bfa71840bee2)',
+  +   errorId: 'afeaee28-d9e8-4fcc-b585-bfa71840bee2'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:62:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: 'afeaee28-d9e8-4fcc-b585-bfa71840bee2', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error afeaee28-d9e8-4fcc-b585-bfa71840bee2)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:1:1668
+✖ boot redemption rejects a member owner before minting a session (233.420766ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error e9408aab-125c-4802-8c3a-aa7b184a59f5)',
+  +   errorId: 'e9408aab-125c-4802-8c3a-aa7b184a59f5'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:62:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: 'e9408aab-125c-4802-8c3a-aa7b184a59f5', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error e9408aab-125c-4802-8c3a-aa7b184a59f5)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:1:4421
+✖ boot redemption refuses a minted session that Jini cannot validate before setting a cookie (208.784567ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 0ff2dd7e-4ceb-489a-9e34-cc5400cce811)',
+  +   errorId: '0ff2dd7e-4ceb-489a-9e34-cc5400cce811'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:121:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '0ff2dd7e-4ceb-489a-9e34-cc5400cce811', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 0ff2dd7e-4ceb-489a-9e34-cc5400cce811)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-http.integration.test.ts:1:948
+✖ real HTTP/browser TOTP enrollment and passkey registration/login withhold cookies until factor completion (615.551339ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/p-1109/Tovu/apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-http.integration.test.ts:44:34) {
+    name: 'Error',
+    log: []
+  }

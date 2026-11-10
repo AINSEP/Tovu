@@ -1,0 +1,15 @@
+▶ submission IP retention adapter and migration 0006 [sqlite]
+  ✔ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (187.942788ms)
+✔ submission IP retention adapter and migration 0006 [sqlite] (189.045147ms)
+▶ submission IP retention adapter and migration 0006 [pglite]
+  ✔ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (6229.595658ms)
+✔ submission IP retention adapter and migration 0006 [pglite] (6231.135972ms)
+✔ old NOT NULL schema rejects before changing a submission (152.338586ms)
+ℹ tests 3
+ℹ suites 2
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8966.277218

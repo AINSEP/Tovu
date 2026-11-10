@@ -1,0 +1,37 @@
+✔ content_read.plugin uses a catalog line for off plugins without skills or exports (4.39844ms)
+✔ connecting an off OAuth plugin refuses without granting or saving anything, and keeps the connect retry (1.690596ms)
+Plugin 'railway' has no publisher-qualified id; using 'unknown/railway'.
+✖ connecting an off token plugin points to the key card it declares instead of a connect retry (53.283206ms)
+✔ an off site plugin retains its invalid status in the catalog (1.901772ms)
+✔ an off site plugin retains its incompatible status in the catalog (0.653961ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1740.528468
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/off-plugin-boundaries.regression.test.ts:1:2772
+✖ connecting an off token plugin points to the key card it declares instead of a connect retry (53.283206ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /credential_save\(\{kind:"plugin-provider",target:"railway-api"\}\)/. Input:
+  
+  `The 'railway' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:"railway",enabled:true}), then retry agent_plugin_connect.`
+  
+      at Object.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/off-plugin-boundaries.regression.test.ts:61:14)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.rejects (node:assert:769:3)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/off-plugin-boundaries.regression.test.ts:59:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `The 'railway' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:"railway",enabled:true}), then retry agent_plugin_connect.`,
+    expected: /credential_save\(\{kind:"plugin-provider",target:"railway-api"\}\)/,
+    operator: 'match',
+    diff: 'simple'
+  }

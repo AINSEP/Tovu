@@ -1,0 +1,90 @@
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (47.829071ms)
+✖ API sign-in displays only the declaring plugin oauth card copy (22.583119ms)
+✔ a plugin that declares neither an OAuth MCP server nor an API connection is refused (5.587677ms)
+✔ a plugin declaring more than one API connection is refused before any sign-in starts (3.057834ms)
+✔ without an interactive channel the sign-in card cannot be shown and the call fails with that reason (6.913011ms)
+✔ an unconfigured sign-in client refuses as a ToolInputError carrying the safe, actionable message under the tool prefix (5.418594ms)
+✔ nobody finishing within the bounded wait returns waiting-for-sign-in with the ref, and no connected card (38.903481ms)
+✔ aborting while parked closes the card's exchange and returns waiting-for-sign-in promptly (7.60816ms)
+✖ a failed connected-card update never turns a real connection into a tool failure (7.774019ms)
+✔ an abort during the initial status read rejects before emitting a sign-in card (6.644577ms)
+✔ aborting closes the card at once, even while a status read is still in flight (12.503722ms)
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (6.885999ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 8
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5845.540796
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:3587
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (47.829071ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at onCard (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:69:115)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:71:95)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/5quHGTF3ZTHeVP_bowPyDwIgxsIgXn4d1SF4o71A_vw'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:4552
+✖ API sign-in displays only the declaring plugin oauth card copy (22.583119ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:106:49)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async Object.waitAtSignInCard (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:62:20) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/Gyi0pNOh7txXEGFHaiDiIJteSRYv3tZcszkZV6OaU0c'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:8596
+✖ a failed connected-card update never turns a real connection into a tool failure (7.774019ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at onCard (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:166:43)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:71:95)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/UGpfVZ6Z8P3yvjQ0_kZANc45sVtmSmbyQETVgR7pN7Q'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:11024
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (6.885999ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:221:79)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async Object.waitAtSignInCard (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:62:20) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/EMeCsbou6BrAxNW4RRlCN5uTU88yPX2JuOZBT47ngsw'
+  }

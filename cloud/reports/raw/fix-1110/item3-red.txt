@@ -1,0 +1,37 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ❯ src/__tests__/identity-extraction.boundary.test.ts (1 test | 1 failed) 13ms
+   × CMS removes identity entry points while preserving the media import subpath 12ms
+     → expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/identity-extraction.boundary.test.ts > CMS removes identity entry points while preserving the media import subpath
+AssertionError: expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+
+- Expected
++ Received
+
+  Object {
+    "@jini-ai/core": "workspace:^",
+    "mammoth": "^1.12.3",
++   "parse5": "^7.3.0",
+    "unpdf": "^1.8.1",
+  }
+
+ ❯ src/__tests__/identity-extraction.boundary.test.ts:36:33
+     34|   // deaf9cc: the document-text extractors' libraries are required, ne…
+     35|   // scripts/__tests__/optional-peer-contract.test.ts pins cms → mammo…
+     36|   expect(manifest.dependencies).toEqual({ "@jini-ai/core": "workspace:…
+       |                                 ^
+     37|   expect(Object.hasOwn(manifest.peerDependencies, "@jini-ai/core")).to…
+     38|   expect(Object.hasOwn(manifest.peerDependenciesMeta, "@jini-ai/core")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  22:17:08
+   Duration  290ms (transform 33ms, setup 0ms, collect 29ms, tests 13ms, environment 0ms, prepare 66ms)
+

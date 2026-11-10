@@ -1,0 +1,64 @@
+✔ old entries keep the exact bytes recorded before the seams: copy card, create card, descriptors (26.513606ms)
+✔ Tovu binds namespace tovu and the exact app names its cards always reported (0.55054ms)
+✔ copy: a second host's tool id, namespace, card path, answer value and words are the ones used (18.010931ms)
+✔ copy: the host's new-key value routes to saveNew; Tovu's value is just an unoffered id (2.635773ms)
+✔ copy: the host's owner, input and channel messages are the refusals the model sees (1.366498ms)
+✔ copy: permission is re-checked after the answer and a revoked key is refused by use; nothing is granted (3.652571ms)
+✔ copy: the host's domain and catalog path name a catalog that drifted from its handlers (0.558556ms)
+✔ custom credentials: a second host's read/write permissions and entity type gate the tools (7.057697ms)
+✔ custom credentials: the host's domain and catalog path name a catalog that drifted from its handlers (0.629437ms)
+✔ create card: the second host's namespace, app and write permission are used; Tovu's are absent (3.127712ms)
+✖ old entries retain the four independently recorded card/descriptor hashes (41.47484ms)
+✔ foreign handler keys, catalog path, permissions and plugin-owned labels are actually consumed (2.465958ms)
+✔ injected recovery preserves the host-issued diagnostic object without decrypting (0.523373ms)
+✔ approval lifecycle and human-confirm use the foreign URI and SAME answer store; decline sends nothing (11.561099ms)
+✔ approved DELETE re-admits the permission, and revocation during the human wait prevents any request (2.531435ms)
+✔ foreign form/catalog/locale/default category/worksFor/cleanup feed save; invalidate and outcome follow persistence (10.448007ms)
+✔ plugin load/read/build and probe are injected; a failed probe cannot save or invalidate (4.638526ms)
+✔ rotation finds/applies the host card and preserves the current username in the injected replacement (2.675515ms)
+✔ host form rules and safe fallback prevent raw storage/driver messages reaching either projection (5.861234ms)
+✔ duplicate and public-field errors use foreign messages and canonical model rules (2.742953ms)
+✔ foreign file validator runs before authorization; one provider/plan survives decrypt to commit (1.21419ms)
+✔ missing interactive channel and plugin card use required foreign messages (0.804638ms)
+✔ real Tovu bindings retain the current registry/cache/repo and guard, with invalidation only after save (8.262022ms)
+✔ real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup (0.413291ms)
+✔ request validation decorates only callerSafeMessage and classifies the original once (0.495051ms)
+✔ request egress-refused decorates only callerSafeMessage and classifies the original once (0.375435ms)
+✔ request unknown rejections retain their original identity after classification (0.47465ms)
+✔ DELETE preflight classifies the original once and preserves the map prefix with caller-safe validation text (0.562581ms)
+✔ DELETE preflight preserves non-validation rejection identity after classifying once (0.89047ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 28
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2188.225694
+
+✖ failing tests:
+
+test at apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts:1:12328
+✖ old entries retain the four independently recorded card/descriptor hashes (41.47484ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3',
+  +   copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1',
+  -   copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead',
+  -   copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea',
+      createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75',
+      credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts:181:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3', createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75', credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb', copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1' },
+    expected: { copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead', createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75', credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb', copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

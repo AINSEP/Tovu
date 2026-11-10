@@ -1,0 +1,50 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugins
+
+ ❯ src/host/tools/__tests__/public-entry.test.ts (4 tests | 1 failed) 31ms
+   × agent-plugin enable approval shows the copy the host selection owner keeps, while the revision covers every installed copy 19ms
+     → expected { Object (version, revision) } to deeply equal { Object (version, revision) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/host/tools/__tests__/public-entry.test.ts > agent-plugin enable approval shows the copy the host selection owner keeps, while the revision covers every installed copy
+AssertionError: expected { Object (version, revision) } to deeply equal { Object (version, revision) }
+
+- Expected
++ Received
+
+  Object {
+    "revision": Array [
+      Array [
+        "0.1.0",
+        "retained-digest",
+      ],
+      Array [
+        "1.0.0",
+        "shipped-digest",
+      ],
+      Array [
+        "1.0.1",
+        "operator-digest",
+      ],
+    ],
+-   "version": "1.0.0",
++   "version": "0.1.0, 1.0.0, 1.0.1",
+  }
+
+ ❯ src/host/tools/__tests__/public-entry.test.ts:89:100
+     87|   };
+     88|   const every = [['0.1.0', 'retained-digest'], ['1.0.0', 'shipped-dige…
+     89|   expect(await identity(copies => copies.filter(copy => copy.archiveDi…
+       |                                                                                                    ^
+     90|   // Without a recorded winner the host refuses to guess, so the card …
+     91|   expect(await identity(copies => copies)).toEqual({ version: '0.1.0, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  22:19:23
+   Duration  1.17s (transform 536ms, setup 0ms, collect 785ms, tests 31ms, environment 0ms, prepare 114ms)
+

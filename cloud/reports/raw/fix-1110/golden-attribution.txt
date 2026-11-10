@@ -1,0 +1,13 @@
+moved-tools.golden.json: baseline = Tovu 682d34ba (golden commit) + Jini 4ebd5d23 linked; golden test passes there (golden-baseline-682d34ba.txt).
+Per-tool catalog dump (id, description, inputSchema) on baseline vs integ (Jini 82afcd71 linked). 328 tools both sides, none added/removed.
+tool                          bytes          commit       line                      intent (commit message)
+credential_copy_from_project  424 -> 611     T 0b05623b   localhost-1109 (owner)    key-sharing descriptions (named intended in brief)
+pages_write_html            12150 -> 12425   T c53c64d0   localhost-1109 (owner)    "Page guidance now sends third-party widgets to plugin embeds, replacing the Calendly exception"
+pages_write_region          12935 -> 13210   T c53c64d0   localhost-1109 (owner)    same
+media_import_local_file      3486 -> 3486    T 4af069f6 / c22e7a18  both lines      "allow fifty local imports per batch" (25 -> 50, 0 bytes)
+site_guide                   2131 -> 2003    T 9e7b27bc   main                      "site_guide schema published to providers now has a plain string topic"
+total                      751493 -> 752102  (+187 +275 +275 +0 -128 = +609)
+cards.signInWaiting / signInWaitingWithCredentialCard: markup identical; sha256 changes only in the card script:
+  Jini 0abd656b (combine) "repeated Sign in clicks reuse the open request in progress"
+  Jini fa3f5d22 (combine) "a sign-in open request that never answers times out after 30 seconds"
+No unattributed byte change -> nothing reverted; golden re-recorded with exactly these.

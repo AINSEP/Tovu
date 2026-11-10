@@ -1,0 +1,114 @@
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ counter: skill tool call (file reads, bytes) per call (124.033014ms)
+✖ counter: token lookup (contribution reload, credential opens) per getAccessToken (16.167523ms)
+✔ counter: mail send per lane, provider cached and not cached (29.802437ms)
+✖ cost counters equal the baseline recorded before any move (2.467375ms)
+✔ owner 2026-10-09: both families share one live metadata lookup with workspace isolation (39.547012ms)
+✔ the executable site SDK receives only live metadata methods through the existing loader (13.410788ms)
+✔ the manifest adapter never includes malformed package bytes in its error (4.773966ms)
+✔ legacy metadata warns, preserves the install and never infers provides from permissions (2.144747ms)
+✔ cross-family identity admission refuses duplicates before publication and releases its lock (6.391198ms)
+✔ the composed installer reserves built-in publisher ids even without a cross-family host (7.490883ms)
+✔ plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization (6.102504ms)
+✔ search_tools indexes a site plugin keyword and provides capability (13.861566ms)
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (349.410057ms)
+✔ parallel host adapters serialize duplicate identity admission across plugin kinds (20.599419ms)
+✔ unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs (11.390884ms)
+✔ conflicting revisions retain every publisher reservation even when a bundled ledger selects one (14.188057ms)
+✔ a broken revision cannot hide the only valid operator revision (1.79044ms)
+✔ one malformed identity never hides healthy providers or blocks admission (2.570813ms)
+✔ rejected duplicate site records do not reappear in the host directory (1.562513ms)
+✔ same-name legacy plugins in different families are independently addressable (2.017458ms)
+✔ MCP provisioning logs each server and reason while preserving activation success (8.202406ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source false (66.338664ms)
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source true (46.711434ms)
+✔ L058b site discovery omits invalid identities and propagates activation read failures (3.716211ms)
+✔ L058b default agent activation is resolved through the lifecycle owner (9.06899ms)
+✔ L058b agent revision lookup and admission retain distinct selection contracts (7.926217ms)
+✔ the composed MCP port preserves store errors by identity and persists through the bound store (2.524932ms)
+✔ an approved enable reports the failed server and redacted reason to the owner (2.982061ms)
+✔ an approved enable missing its snapshot cannot provision connections (1.814402ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 26
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6208.662638
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:1:3816
+✖ counter: token lookup (contribution reload, credential opens) per getAccessToken (16.167523ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:102:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/2gJ2sSylI1abVG0OZzdx2uFhXzIj9eLJpjQ9sdSn04g'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:1:9068
+✖ cost counters equal the baseline recorded before any move (2.467375ms)
+  AssertionError [ERR_ASSERTION]: tokenLookup
+  + actual - expected
+  
+  + undefined
+  - {
+  -   first: {
+  -     contributionLoads: [
+  -       'tovu-connections.json'
+  -     ],
+  -     credentialOpens: 4
+  -   },
+  -   second: {
+  -     contributionLoads: [
+  -       'tovu-connections.json'
+  -     ],
+  -     credentialOpens: 4
+  -   }
+  - }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:196:55)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { first: { contributionLoads: [Array], credentialOpens: 4 }, second: { contributionLoads: [Array], credentialOpens: 4 } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:1:13560
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (349.410057ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(identity.provides.length > 0)
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:204:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

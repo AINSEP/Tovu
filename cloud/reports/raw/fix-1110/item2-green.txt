@@ -1,0 +1,44 @@
+✔ bundled mail credential card check discovers contribution packages (2.476174ms)
+✔ resend: every labelled mail adapter supplies its own usable credential card (1.59097ms)
+✔ calendly: declared key and sign-in cards have usable copy and contribution fields (1.998605ms)
+✔ charts-recharts: declared key and sign-in cards have usable copy and contribution fields (0.331452ms)
+✔ cloudflare: declared key and sign-in cards have usable copy and contribution fields (2.257664ms)
+✔ commerce: declared key and sign-in cards have usable copy and contribution fields (0.337367ms)
+✔ composio: declared key and sign-in cards have usable copy and contribution fields (0.496902ms)
+✔ fly: declared key and sign-in cards have usable copy and contribution fields (0.721577ms)
+✔ formspree: declared key and sign-in cards have usable copy and contribution fields (0.350466ms)
+✔ github: declared key and sign-in cards have usable copy and contribution fields (1.067148ms)
+✔ github-pages: declared key and sign-in cards have usable copy and contribution fields (0.860174ms)
+✔ google-forms: declared key and sign-in cards have usable copy and contribution fields (0.302624ms)
+✔ google-login: declared key and sign-in cards have usable copy and contribution fields (0.885577ms)
+✔ google-workspace: declared key and sign-in cards have usable copy and contribution fields (0.533754ms)
+✔ higgsfield-media: declared key and sign-in cards have usable copy and contribution fields (0.356727ms)
+✔ how-tovu-works: declared key and sign-in cards have usable copy and contribution fields (0.173997ms)
+✔ jev: declared key and sign-in cards have usable copy and contribution fields (0.167917ms)
+✔ meilisearch: declared key and sign-in cards have usable copy and contribution fields (21.970712ms)
+✔ netlify: declared key and sign-in cards have usable copy and contribution fields (0.752333ms)
+✔ opentelemetry: declared key and sign-in cards have usable copy and contribution fields (0.493897ms)
+✔ posthog: declared key and sign-in cards have usable copy and contribution fields (0.234807ms)
+✔ railway: declared key and sign-in cards have usable copy and contribution fields (0.223471ms)
+✔ render: declared key and sign-in cards have usable copy and contribution fields (0.280214ms)
+✔ resend: declared key and sign-in cards have usable copy and contribution fields (0.263607ms)
+✔ s3-compatible: declared key and sign-in cards have usable copy and contribution fields (1.408402ms)
+✔ sentry: declared key and sign-in cards have usable copy and contribution fields (0.264642ms)
+✔ site-compliance: declared key and sign-in cards have usable copy and contribution fields (0.144047ms)
+✔ site-import: declared key and sign-in cards have usable copy and contribution fields (0.118552ms)
+✔ slide-design: declared key and sign-in cards have usable copy and contribution fields (0.118831ms)
+✔ software-engineering: declared key and sign-in cards have usable copy and contribution fields (0.102283ms)
+✔ stripe: declared key and sign-in cards have usable copy and contribution fields (0.091601ms)
+✔ supabase: declared key and sign-in cards have usable copy and contribution fields (0.314631ms)
+✔ tovu-theme: declared key and sign-in cards have usable copy and contribution fields (0.124301ms)
+✔ ui-ux-design: declared key and sign-in cards have usable copy and contribution fields (0.127457ms)
+✔ vercel: declared key and sign-in cards have usable copy and contribution fields (0.345768ms)
+✔ wordpress: declared key and sign-in cards have usable copy and contribution fields (0.180616ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1189.029475

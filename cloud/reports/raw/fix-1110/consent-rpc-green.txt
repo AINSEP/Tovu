@@ -1,0 +1,18 @@
+✔ memory daemon consent reads and writes only the authenticated site owner ledger (105.392853ms)
+✔ accepted non-owner attempts cannot gain tool access through the private daemon channel (17.259721ms)
+✔ cancellation after the settings append rolls the private RPC grant back before commit (9.062958ms)
+✔ foreign, terminal, cancelled and unknown accepted attempts cannot approve any grant (21.695781ms)
+✔ consent RPC authenticates before JSON and rejects caller-supplied identities and site targets (11.161003ms)
+✔ tool consent refuses an active agent before snapshot or grant (6.816644ms)
+✔ tool consent refuses an active api_key before snapshot or grant (7.057179ms)
+✔ tool consent refuses an active system before snapshot or grant (6.312076ms)
+✔ tool consent refuses an disabled user before snapshot or grant (6.393925ms)
+✔ deactivation after the consent snapshot prevents the private RPC grant (9.120566ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2772.918996

@@ -1,0 +1,182 @@
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ Auto preflight delivers full primary guidance once before guarded writes (83.721465ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ pending Ask use: real recovery replaces the attempt without another card (76.730371ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (66.604518ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (51.489064ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (63.476517ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (48.359508ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (57.975456ms)
+✔ CLI onStarted retains the Codex prompt carrier and explicit reads stay complete (851.518816ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (481.735991ms)
+✔ load_agent_plugin carries maturity untested (82.038547ms)
+✔ load_agent_plugin carries maturity soon (27.426025ms)
+✔ load_agent_plugin carries maturity (absent) (94.45793ms)
+✔ automatic tool guidance warns before actions for an untested plugin (83.88086ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (64.85089ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ inactive plugin returns setup guidance and the activation call while tools remain off (180.29516ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ the first theme write loads installed tovu-theme after a note-only preflight (36.144469ms)
+✔ the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance (136.705702ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (17844.259633ms)
+✔ explicit loader and guarded write refuse ask through the real executor (114.71981ms)
+✔ explicit loader and guarded write refuse off through the real executor (43.849659ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (78.137551ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (25.059764ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (41.350554ms)
+✔ a tool without guidance capabilities loads no plugin guidance (30.667574ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (38.28457ms)
+✔ load_agent_plugin refuses unknown input keys (104.634294ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (55.112024ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (76.262587ms)
+✔ pending plugin use cannot override a newer personal Off preference (25.039164ms)
+✔ pending plugin auto cannot override a newer personal Off preference (42.340346ms)
+✔ automatic plugin access rechecks the real active person after the answer (31.750066ms)
+✔ a real Auto CAS failure after the post-card read retains no consent on the same controller (36.006512ms)
+✔ fresh child reads complete guidance after parent pinned delivery (84.717917ms)
+✔ fresh child reads complete guidance after parent explicit delivery (58.978863ms)
+✔ replacement preflight retains the exact prepared bytes without another resolution (24.161113ms)
+✔ a rejected preflight promise is cleared so the same turn can retry (38.809324ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (405.221622ms)
+✔ accepted adapter prompt budget preserves preflight delivery (claude, pinned=false) (524.334283ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (615.513688ms)
+✔ preflight carries only delivered plugin ids through real RPC (automatic) (383.692714ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned) (424.458937ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned-off) (463.561996ms)
+✔ later chat turns retain delivered IDs without repeating primary text (51.491528ms)
+✔ every tool description and explicit prompt call names only declared input arguments (471.761177ms)
+✔ CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add (0.872545ms)
+✔ every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description} (332.225625ms)
+✔ every content_read card preserves member inputs through published properties or canonical selector aliases (265.211817ms)
+✔ identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended (173.183805ms)
+✔ requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever (204.896039ms)
+✔ a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn (294.977936ms)
+✔ the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema (227.602357ms)
+✔ no rejection message echoes the offending value — a fields payload can carry operator content (216.628472ms)
+✔ a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion (325.103145ms)
+✔ tombstonedAt appears only when set, so an active type's payload carries no always-null key (519.634652ms)
+✔ content_read.collection_content_type returns every content type as the same model-facing view, regardless of status (202.282602ms)
+✔ content_read.collection_content_type returns an empty list rather than an error when the workspace has none (186.655183ms)
+✔ the returned fields array is a copy — a tool caller cannot mutate domain state through it (199.296845ms)
+✔ the real catalog and this layer's independent classification agree for every wired tool (264.058677ms)
+✔ a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build (5.823318ms)
+✔ an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse' (1.056423ms)
+✔ the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree (1.163926ms)
+✔ a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler (1.160221ms)
+✔ the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat (190.752181ms)
+✔ collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired (165.861659ms)
+✔ an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules (1.214076ms)
+✔ deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array (1295.023332ms)
+✔ both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it (399.785787ms)
+✔ deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable (526.738313ms)
+✔ search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it (318.61906ms)
+✔ both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them (278.571803ms)
+✔ search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through (373.720899ms)
+✔ describe_component executes through the REAL ToolExecutor and returns a known button's manifest (288.765401ms)
+✔ describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable (258.611514ms)
+✔ assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement (194.941418ms)
+✔ plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not (524.522834ms)
+✔ plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog (338.360524ms)
+✔ plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash (300.570571ms)
+✔ publish pull tools are wired with honest risk and the human-confirmed execute contract (889.581722ms)
+✔ root-added load_agent_plugin is discoverable and publishes the shared domain approval contract (778.446122ms)
+✔ opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance (94.669751ms)
+✔ each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills (37.955508ms)
+✔ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (34.22964ms)
+✔ the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has (25.184331ms)
+✔ calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names (21.763907ms)
+✔ when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so (27.989245ms)
+✔ an explicit, recognized 'skill' argument returns that skill's own guidance, not the default (14.519629ms)
+✔ an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error (19.143982ms)
+✔ a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful (23.296625ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub (53.967414ms)
+✔ SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output (105.846204ms)
+[agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ two installed digests of the same plugin id refuse that plugin loudly, without aborting the load (256.488011ms)
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+[agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source (415.306453ms)
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+✔ a current upgrade exposes only the accepted replacement's guidance (267.834712ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a load for workspace A sees nothing installed only under a different workspace (37.659558ms)
+✔ an empty (never-installed) workspace produces zero sources and an empty registration list, no throw (7.575141ms)
+✔ the executor denies cached guidance after disable (100.074226ms)
+✔ the executor denies cached guidance after uninstall (151.064868ms)
+[agent-plugins] 'coffee-roastery': tool call denied — activation could not be established (activations.json is not valid JSON (Expected property name or '}' in JSON at position 1 (line 1 column 2)))
+✔ the executor denies cached guidance after unreadable-activation (71.034668ms)
+✔ the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay (83.870051ms)
+✔ a refused host file keeps the overlay and skill guidance with a recovery note (243.843045ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ an untested plugin's caution stays ahead of its overlay guidance (319.009896ms)
+✔ a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged (108.845009ms)
+[agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-scJvDy/ws/55555555-5555-4555-8555-555555555555
+✔ the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access (7799.929738ms)
+✔ plugin guidance carries maturity and warns before keys/actions for every maturity flag (0.81717ms)
+✔ L025b guidance pins selection guards, reader recovery and sanitized unknown names (0.696726ms)
+✔ plugin preflight uses the site's live run identity and releases terminal consent (603.645781ms)
+✔ a stopped run cannot publish late plugin consent or receive a prepared prefix (446.063494ms)
+Plugin 'preflight-notes' has no publisher-qualified id; using 'unknown/preflight-notes'.
+✔ pinned preflight always inlines text and carries its identity, even with pointer environment delivery (856.327296ms)
+ℹ tests 108
+ℹ suites 0
+ℹ pass 108
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81511.005334

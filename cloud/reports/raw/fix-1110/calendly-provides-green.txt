@@ -1,0 +1,86 @@
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ moved tools, cards, approvals and counters match the golden recorded before any move (420.488847ms)
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site (329.458072ms)
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (9.969681ms)
+✔ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (20.473319ms)
+✔ Auto suggests only relevant bundled plugins: Import my old WordPress site (9.529479ms)
+✔ Auto suggests only relevant bundled plugins: what's 2+2 (17.483069ms)
+✔ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (5.356246ms)
+✔ bundled mail credential card check discovers contribution packages (1.626273ms)
+✔ resend: every labelled mail adapter supplies its own usable credential card (1.215418ms)
+✔ calendly: declared key and sign-in cards have usable copy and contribution fields (1.416075ms)
+✔ charts-recharts: declared key and sign-in cards have usable copy and contribution fields (0.199324ms)
+✔ cloudflare: declared key and sign-in cards have usable copy and contribution fields (1.484292ms)
+✔ commerce: declared key and sign-in cards have usable copy and contribution fields (0.308919ms)
+✔ composio: declared key and sign-in cards have usable copy and contribution fields (0.36945ms)
+✔ fly: declared key and sign-in cards have usable copy and contribution fields (0.519144ms)
+✔ formspree: declared key and sign-in cards have usable copy and contribution fields (0.211085ms)
+✔ github: declared key and sign-in cards have usable copy and contribution fields (0.721801ms)
+✔ github-pages: declared key and sign-in cards have usable copy and contribution fields (0.554372ms)
+✔ google-forms: declared key and sign-in cards have usable copy and contribution fields (0.210926ms)
+✔ google-login: declared key and sign-in cards have usable copy and contribution fields (0.562018ms)
+✔ google-workspace: declared key and sign-in cards have usable copy and contribution fields (0.383501ms)
+✔ higgsfield-media: declared key and sign-in cards have usable copy and contribution fields (0.184886ms)
+✔ how-tovu-works: declared key and sign-in cards have usable copy and contribution fields (0.089716ms)
+✔ jev: declared key and sign-in cards have usable copy and contribution fields (0.106436ms)
+✔ meilisearch: declared key and sign-in cards have usable copy and contribution fields (11.998188ms)
+✔ netlify: declared key and sign-in cards have usable copy and contribution fields (0.557511ms)
+✔ opentelemetry: declared key and sign-in cards have usable copy and contribution fields (0.4082ms)
+✔ posthog: declared key and sign-in cards have usable copy and contribution fields (0.256946ms)
+✔ railway: declared key and sign-in cards have usable copy and contribution fields (0.178466ms)
+✔ render: declared key and sign-in cards have usable copy and contribution fields (0.13928ms)
+✔ resend: declared key and sign-in cards have usable copy and contribution fields (0.275774ms)
+✔ s3-compatible: declared key and sign-in cards have usable copy and contribution fields (0.98306ms)
+✔ sentry: declared key and sign-in cards have usable copy and contribution fields (0.152146ms)
+✔ site-compliance: declared key and sign-in cards have usable copy and contribution fields (0.152221ms)
+✔ site-import: declared key and sign-in cards have usable copy and contribution fields (0.086394ms)
+✔ slide-design: declared key and sign-in cards have usable copy and contribution fields (0.080166ms)
+✔ software-engineering: declared key and sign-in cards have usable copy and contribution fields (0.071298ms)
+✔ stripe: declared key and sign-in cards have usable copy and contribution fields (0.078569ms)
+✔ supabase: declared key and sign-in cards have usable copy and contribution fields (0.185379ms)
+✔ tovu-theme: declared key and sign-in cards have usable copy and contribution fields (0.079187ms)
+✔ ui-ux-design: declared key and sign-in cards have usable copy and contribution fields (0.078486ms)
+✔ vercel: declared key and sign-in cards have usable copy and contribution fields (0.27824ms)
+✔ wordpress: declared key and sign-in cards have usable copy and contribution fields (0.081652ms)
+✔ owner 2026-10-09: both families share one live metadata lookup with workspace isolation (52.10482ms)
+✔ the executable site SDK receives only live metadata methods through the existing loader (16.860971ms)
+✔ the manifest adapter never includes malformed package bytes in its error (6.635006ms)
+✔ legacy metadata warns, preserves the install and never infers provides from permissions (3.154078ms)
+✔ cross-family identity admission refuses duplicates before publication and releases its lock (8.208414ms)
+✔ the composed installer reserves built-in publisher ids even without a cross-family host (8.31517ms)
+✔ plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization (7.747791ms)
+✔ search_tools indexes a site plugin keyword and provides capability (13.563312ms)
+✔ every bundled agent and site package declares a distinct publisher identity and discovery terms (524.516174ms)
+✔ parallel host adapters serialize duplicate identity admission across plugin kinds (16.601769ms)
+✔ unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs (9.601367ms)
+✔ conflicting revisions retain every publisher reservation even when a bundled ledger selects one (13.729558ms)
+✔ a broken revision cannot hide the only valid operator revision (1.990907ms)
+✔ one malformed identity never hides healthy providers or blocks admission (3.10674ms)
+✔ rejected duplicate site records do not reappear in the host directory (1.553421ms)
+✔ same-name legacy plugins in different families are independently addressable (2.003743ms)
+✔ MCP provisioning logs each server and reason while preserving activation success (9.615694ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source false (70.374413ms)
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source true (40.718709ms)
+✔ L058b site discovery omits invalid identities and propagates activation read failures (4.768234ms)
+✔ L058b default agent activation is resolved through the lifecycle owner (12.984539ms)
+✔ L058b agent revision lookup and admission retain distinct selection contracts (9.716939ms)
+✔ the composed MCP port preserves store errors by identity and persists through the bound store (2.909216ms)
+✔ an approved enable reports the failed server and redacted reason to the owner (3.254814ms)
+✔ an approved enable missing its snapshot cannot provision connections (1.38594ms)
+✔ Tovu guidance gives the calendly embed markup and the page tools that write it (0.897296ms)
+✔ the Calendly sign-in stays optional and names the tool (0.179233ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 70
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10848.722898

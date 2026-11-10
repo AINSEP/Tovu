@@ -1,0 +1,9 @@
+✔ the enable card names only the bundled copy the host uses, while the revision still covers every installed copy (24.795996ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1120.138473

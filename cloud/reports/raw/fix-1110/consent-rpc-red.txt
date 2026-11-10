@@ -1,0 +1,38 @@
+✖ memory daemon consent reads and writes only the authenticated site owner ledger (84.421673ms)
+✔ accepted non-owner attempts cannot gain tool access through the private daemon channel (18.633645ms)
+✔ cancellation after the settings append rolls the private RPC grant back before commit (9.956243ms)
+✔ foreign, terminal, cancelled and unknown accepted attempts cannot approve any grant (23.463917ms)
+✔ consent RPC authenticates before JSON and rejects caller-supplied identities and site targets (10.603213ms)
+✔ tool consent refuses an active agent before snapshot or grant (6.716455ms)
+✔ tool consent refuses an active api_key before snapshot or grant (7.59984ms)
+✔ tool consent refuses an active system before snapshot or grant (6.483201ms)
+✔ tool consent refuses an disabled user before snapshot or grant (5.759158ms)
+✔ deactivation after the consent snapshot prevents the private RPC grant (8.879962ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2664.163724
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-consent-rpc.integration.test.ts:1:2487
+✖ memory daemon consent reads and writes only the authenticated site owner ledger (84.421673ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-consent-rpc.integration.test.ts:42:48)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

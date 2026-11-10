@@ -1,0 +1,29 @@
+✖ live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert (1024.660181ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7719.284581
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:1:8186
+✖ live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert (1024.660181ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  81 !== 69
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:148:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 81,
+    expected: 69,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,58 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ❯ src/__tests__/integration-package.contract.test.ts (4 tests | 2 failed) 19ms
+   × keeps exports and entry runtime metadata synchronized 12ms
+     → expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+   × keeps the folded domain entries and optional adapter peers explicit 2ms
+     → expected undefined to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/integration-package.contract.test.ts > keeps exports and entry runtime metadata synchronized
+AssertionError: expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+
+- Expected
++ Received
+
+  Object {
+    "@jini-ai/core": "workspace:^",
+    "mammoth": "^1.12.3",
++   "parse5": "^7.3.0",
+    "unpdf": "^1.8.1",
+  }
+
+ ❯ src/__tests__/integration-package.contract.test.ts:28:33
+     26|   // deaf9cc: the document-text extractors' libraries are required, ne…
+     27|   // scripts/__tests__/optional-peer-contract.test.ts pins cms → mammo…
+     28|   expect(manifest.dependencies).toEqual({ "@jini-ai/core": "workspace:…
+       |                                 ^
+     29|   expect(Object.hasOwn(manifest.peerDependencies, "@jini-ai/core")).to…
+     30|   expect(Object.hasOwn(manifest.peerDependenciesMeta, "@jini-ai/core")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/integration-package.contract.test.ts > keeps the folded domain entries and optional adapter peers explicit
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/integration-package.contract.test.ts:79:61
+     77|   expect(manifest.jini.entries['./widgets/resolvers']).toBe('universal…
+     78|   expect(manifest.jini.entries['./widgets/sql']).toBe('node');
+     79|   expect(manifest.peerDependenciesMeta['parse5']?.optional).toBe(true);
+       |                                                             ^
+     80|   expect(manifest.peerDependenciesMeta['kysely']?.optional).toBe(true);
+     81|   expect(manifest.peerDependenciesMeta['@jini-ai/db']?.optional).toBe(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  22:17:28
+   Duration  335ms (transform 57ms, setup 0ms, collect 50ms, tests 19ms, environment 0ms, prepare 71ms)
+

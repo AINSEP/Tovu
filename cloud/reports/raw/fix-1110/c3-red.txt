@@ -1,0 +1,71 @@
+✔ a bundled ops manifest loads every contained module and refuses unknown ids (18.799375ms)
+✔ malformed manifests and missing modules are reported refusals, never thrown (4.941903ms)
+✔ parser refuses duplicate platforms, empty hosts and escaping paths (0.530853ms)
+▶ invalid descriptor fields return exact refusals and load no platforms
+  ✔ more than 32 platforms (2.521702ms)
+  ✔ non-object entry (2.678144ms)
+  ✔ invalid id (2.412499ms)
+  ✔ blank label (2.119501ms)
+✔ invalid descriptor fields return exact refusals and load no platforms (11.005554ms)
+▶ invalid module and secrets-adapter shapes return exact refusals and are not registered
+  ✔ partial secrets adapter (3.123286ms)
+  ✔ missing secret capabilities (9.26618ms)
+  ✔ non-function status (5.30324ms)
+✔ invalid module and secrets-adapter shapes return exact refusals and are not registered (18.456381ms)
+✔ installed fly package must be active and match the bundled digest (87.244062ms)
+✔ installed github package must be active and match the bundled digest (106.300886ms)
+✔ installed railway package must be active and match the bundled digest (51.688127ms)
+✔ installed render package must be active and match the bundled digest (36.391371ms)
+✔ bundled ops discovery unions categories, skips missing/non-package/retired sources and refuses duplicates in registry and enum (9.822212ms)
+Plugin 'example-pages' has no publisher-qualified id; using 'unknown/example-pages'.
+✔ a digest-trusted package outside the ops owners cannot become a parallel ops owner (32.966268ms)
+▶ secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason
+  ✔ capabilities without verbs (3.372864ms)
+  ✔ readSecret without verbs (3.642973ms)
+  ✔ unknown appliesOn (2.69021ms)
+  ✔ non-boolean supportsStaging (2.591323ms)
+  ✔ non-function optional verb (2.591491ms)
+  ✔ a complete secrets adapter loads (2.729757ms)
+✔ secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason (19.344386ms)
+✔ an unreadable manifest is a refusal for the registry and is skipped by enum discovery (4.512755ms)
+✔ a loader fault becomes one refusal, and requirePlatform names no platforms plus every refusal (1.292864ms)
+✖ an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal (10.145313ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3350.69086
+
+✖ failing tests:
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:1:17240
+✖ an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal (10.145313ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: "Unknown deployment ops platform 'railway'. Choose: (none)."
+  -   message: "Deployment ops platform 'railway' is provided by plugin 'railway', which is off; turn it on first."
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:228:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ToolInputError: Unknown deployment ops platform 'railway'. Choose: (none).
+        at requireDeployPlatform (/home/user/Jini/packages/devops/src/deploy/ops-registry.ts:9:11)
+        at requirePlatform (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/registry.ts:92:95)
+        at assert.throws.message (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:228:23)
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:228:10)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: { message: "Deployment ops platform 'railway' is provided by plugin 'railway', which is off; turn it on first." },
+    operator: 'throws',
+    diff: 'simple'
+  }

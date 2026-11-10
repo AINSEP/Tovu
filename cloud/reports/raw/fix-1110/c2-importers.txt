@@ -1,0 +1,441 @@
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ Auto preflight delivers full primary guidance once before guarded writes (97.764591ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ pending Ask use: real recovery replaces the attempt without another card (84.275601ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (63.046665ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (31.248365ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (37.506846ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (28.596775ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (19.664377ms)
+✔ CLI onStarted retains the Codex prompt carrier and explicit reads stay complete (593.935246ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (267.200245ms)
+✔ load_agent_plugin carries maturity untested (115.156455ms)
+✔ load_agent_plugin carries maturity soon (89.294073ms)
+✔ load_agent_plugin carries maturity (absent) (76.233411ms)
+✔ automatic tool guidance warns before actions for an untested plugin (63.679736ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (66.418516ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ inactive plugin returns setup guidance and the activation call while tools remain off (164.956787ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ the first theme write loads installed tovu-theme after a note-only preflight (36.756308ms)
+✔ the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance (41.791321ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (6648.579888ms)
+✔ explicit loader and guarded write refuse ask through the real executor (23.184629ms)
+✔ explicit loader and guarded write refuse off through the real executor (11.527869ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (22.55244ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (20.976251ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (11.292462ms)
+✔ a tool without guidance capabilities loads no plugin guidance (44.684771ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (15.937556ms)
+✔ load_agent_plugin refuses unknown input keys (13.364485ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (63.716088ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (48.892626ms)
+✔ pending plugin use cannot override a newer personal Off preference (17.678276ms)
+✔ pending plugin auto cannot override a newer personal Off preference (20.894078ms)
+✔ automatic plugin access rechecks the real active person after the answer (32.459015ms)
+✔ a real Auto CAS failure after the post-card read retains no consent on the same controller (22.218711ms)
+✔ fresh child reads complete guidance after parent pinned delivery (74.17592ms)
+✔ fresh child reads complete guidance after parent explicit delivery (42.358039ms)
+✔ replacement preflight retains the exact prepared bytes without another resolution (28.661477ms)
+✔ a rejected preflight promise is cleared so the same turn can retry (27.071959ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false) (264.068573ms)
+✔ accepted adapter prompt budget preserves preflight delivery (claude, pinned=false) (281.979552ms)
+✔ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (216.274156ms)
+✔ preflight carries only delivered plugin ids through real RPC (automatic) (350.631157ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned) (267.240268ms)
+✔ preflight carries only delivered plugin ids through real RPC (pinned-off) (297.263273ms)
+✔ later chat turns retain delivered IDs without repeating primary text (56.860697ms)
+✔ t10 credential_save ranks top 3 for credential setup requests (365.598042ms)
+✔ t10 deployment_ops_set_secret ranks top 3 for credential setup requests (272.066028ms)
+✔ t10 media_list_providers ranks top 3 for credential setup requests (273.960869ms)
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ complete production catalog classifies every reader and exercises every scoped read on B (4972.326533ms)
+ℹ 63 cross-site tools, 91 EXCLUDED tools
+✔ settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider) (899.913103ms)
+✔ mixed-scope card does not advertise a site supported by only one dispatch branch (1.148509ms)
+✔ reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input (965.403376ms)
+✔ form provider inventory stays available on the active site without opening a peer (884.198448ms)
+✔ generated guidance and memory tools carry explicit classification from their real handler family (3.453983ms)
+✔ an unclassified registration cannot enter the host policy adapter (0.526684ms)
+✔ extension registrations reject unclassified behavior families (0.581775ms)
+✔ installed registration rejects a new unclassified family and admits explicit behavior metadata (2.160713ms)
+✔ six real credential_save card paths retain saved/dismissed resources, frames and counters (266.615153ms)
+✔ Claude Edit spellings preserve exact replacement bytes and empty deletions (6.908645ms)
+✔ media query remains the declared search filter rather than being dropped (4.518729ms)
+✔ URL import title uses its declared filename field (0.440029ms)
+✔ preview accepts agreeing find and kind while rejecting disagreements (1.094358ms)
+✔ published page context rejection tells the model exactly which supported selectors to use (0.848252ms)
+✔ several guide topics get an actionable one-call-per-topic correction (0.772265ms)
+✔ a one-element guide topic array keeps the existing scalar service contract (0.405622ms)
+✔ the shared system pointer names tool alternatives to shell for routine site work (0.329367ms)
+✔ live checks, unsaved draft previews and finding text rank in the top three (436.758741ms)
+✔ every approval-gated native tool declares a friendly title and summary on its actual registration (78.613945ms)
+✔ every first-party registration has a reviewed action classification before read collapse (16.803135ms)
+✔ registering a new tool without classification fails construction (9.664519ms)
+✔ the final registered read cards and every frontend capability have classifications (42.635801ms)
+✔ the registered commit schema shows the selected target folder through the shared approval renderer (17.005424ms)
+✔ unclassified registration fails closed, regardless of readOnly hint (0.613494ms)
+✔ ordinary edits and draft creation run without an approval channel (1.404739ms)
+✔ publishing on this site through status is an ordinary reversible edit (0.336963ms)
+✔ reversible writes (publish on this site, trash, moderation) run without an approval channel (4.418658ms)
+✔ only read, edit and trash run directly; every other class, including an unknown one, asks (0.740707ms)
+✔ permanent deletes and actions that leave this site refuse without a human confirmation channel (24.088875ms)
+✔ one principal-bound confirmation approves one frozen call; cancel changes nothing (7.446288ms)
+✔ every supported locale translates the exact approval text and choices (11.2508ms)
+✔ unsupported approval locales fall back to English for every label (0.499905ms)
+✔ the target folder label is translated in every supported approval locale (0.384917ms)
+✔ page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask (0.858022ms)
+✔ direct page actions reject unclassified capability ids (0.270137ms)
+✔ page fill runs directly without a reviewed click handle (0.069604ms)
+✔ source-control export commits ask because they can remove stale exported paths; dry runs are direct (0.708485ms)
+✔ disclosed approval facts precede technical Input, computed from the frozen call before asking (1.071483ms)
+✔ generic approval input uses the shared structured renderer and escapes untrusted values (1.002269ms)
+✔ deployment approval shows catalog title and summary with technical input only behind Details (1.510696ms)
+✔ approval without metadata has a readable title and localized fallback choices (0.724277ms)
+✔ approval uses input-schema titles and descriptions through the shared field renderer (1.19978ms)
+✔ a disclose failure refuses the call before any card or effect (0.582043ms)
+✔ a failing locale lookup still asks, in English, and never bypasses the gate (0.975699ms)
+✔ published plugin details and inspect disclosures run directly; state-changing handles still ask (0.157367ms)
+✔ the shared domain confirmer refuses commerce without an interactive channel (0.322487ms)
+﹣ owner_guide_never_infers_missing_grants (0.838354ms) # SKIP
+﹣ expired_confirmation_is_not_reissued (0.140815ms) # SKIP
+✔ chat-input regression: theme_trash_file accepts items through the existing default batch owner (7.297148ms)
+✔ chat-input regression: fetch_published_page accepts items through the existing default batch owner (1.670355ms)
+✔ chat-input regression: menu canonical id and legacy menuId reach the same source selector (4.047699ms)
+✔ chat-input regression: empty theme replacement is valid input but still requires write permission (3.834712ms)
+✔ a raw media card without the host target adapter refuses unsupported filters (1.254787ms)
+✔ chat-input regression: media lookup retains the peer site selector and refuses conflicting aliases (1.077881ms)
+✔ raw page writers leave slug resolution to the shared host adapter (1.403312ms)
+✔ chat-input regression: filesystem reads explain unsupported find and listings require an explicit root (1.654146ms)
+[agent-plugins:migration-complete] /tmp/portable-host-guidance-BI1BYt/agent-plugins/ws/workspace-local
+✔ Tovu delivers host tool rules beside portable skills, including tools-first delivery (3392.989162ms)
+✔ provider tools preserve the ten tools, publish confirmation metadata and disclose pending count (155.354217ms)
+✔ provider switches require a real confirmation, known provider, current revision and rechecked authorization (69.803869ms)
+✔ new pending comments, stale cards and unavailable provider services fail closed (31.739208ms)
+✔ built-in selected while comments settings are off answers with the settings note, not a provider note (3.654489ms)
+✔ a selected provider whose adapter is not ready says so instead of blaming settings (0.777132ms)
+✔ consent_get_settings is read-only, permission checked and rejects model approval fields (162.621965ms)
+✔ consent_get_readiness is read-only, permission checked and rejects model approval fields (118.380106ms)
+✔ consent_explain_blocked is read-only, permission checked and rejects model approval fields (106.586888ms)
+✔ consent_update_settings refuses headless, cancelled, typed and revoked approvals without mutating published policy (127.690382ms)
+✔ consent_publish_settings refuses headless, cancelled, typed and revoked approvals without mutating published policy (125.890759ms)
+✔ confirmed draft and publish use fixed values; a changed draft invalidates an open publish card (127.585135ms)
+✔ consent_update_settings does not acknowledge a failed durable write (105.321383ms)
+✔ consent_publish_settings does not acknowledge a failed durable write (107.197218ms)
+✔ with no consent service bound, every tool fails closed instead of using a permissive fallback (104.157627ms)
+✔ consent_get_readiness accepts an omitted input and a string path, and refuses a non-string path (110.01382ms)
+✔ consent_explain_blocked accepts an omitted input and a string path, and refuses a non-string path (105.228525ms)
+✔ consent_get_settings accepts an omitted input the same as an empty one (113.000768ms)
+✔ consent_publish_settings refuses a missing or stale draft id before asking for approval (110.304691ms)
+✔ the publish approval card warns about the new prompt for an enabled policy (115.613196ms)
+✔ the publish approval card warns about the disabled enforcement for an disabled policy (128.10002ms)
+✔ contributeConsentTools contributes the consent domain builder and its derived risk table (0.165905ms)
+✔ consent_update_settings shows structured configuration changes with unchanged CSS collapsed (123.713884ms)
+✔ consent_publish_settings shows structured configuration changes with unchanged CSS collapsed (123.050715ms)
+✔ consent_update_settings preserves the retired flag without claiming page-wide script protection (112.057517ms)
+✔ consent_publish_settings preserves the retired flag without claiming page-wide script protection (112.562266ms)
+✔ hosted probe maps 401 to auth, without echoing upstream text (16.757456ms)
+✔ hosted probe maps 403 to auth, without echoing upstream text (3.710613ms)
+✔ hosted probe distinguishes AbortError (3.420201ms)
+✔ hosted probe distinguishes TimeoutError (3.239394ms)
+✔ hosted probe distinguishes Error (2.484511ms)
+✔ a successful hosted probe closes its session (3.248102ms)
+✔ chat card saves then probes; reports auth separately and includes the server-derived hint (44.888787ms)
+✔ chat stdio card has no probe target and explicitly says saved, not tested (5.137003ms)
+✔ chat validation precedes probe (Enter a token. Spaces alone are not a token.) (1.743092ms)
+✔ chat validation precedes probe (The token exceeds the 8192-character limit. Copy only the token.) (7.294011ms)
+✔ chat validation precedes probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).) (3.671711ms)
+✔ database destination uses real sealing, keeps blank updates, refuses whitespace, and never derives a hint from the URI (5.402735ms)
+✔ publish verifier validates before probing and maps 401/403 independently of provider reason (113.771764ms)
+✔ Jini protocol HTTP 403 is an auth verdict at the connection-check boundary (2.15276ms)
+✔ destination reporting leaves unrelated surfaces unchanged ({}) (1.269925ms)
+✔ destination reporting leaves unrelated surfaces unchanged ({"resource":{}}) (0.779393ms)
+✔ destination reporting leaves unrelated surfaces unchanged ({"resource":{"resource":{}}}) (0.342444ms)
+✔ destination reporting leaves unrelated surfaces unchanged ({"resource":{"resource":{"uri":"ui://another/form"}}}) (0.267972ms)
+✔ destination reporting preserves results without a displayable save outcome (null) (0.492334ms)
+✔ destination reporting preserves results without a displayable save outcome (7) (0.370476ms)
+✔ destination reporting preserves results without a displayable save outcome ({}) (0.367892ms)
+✔ destination reporting preserves results without a displayable save outcome ({"saved":false}) (0.447363ms)
+✔ destination reporting preserves results without a displayable save outcome ({"saved":false,"message":42}) (0.428775ms)
+✔ destination save failures translate their message and render a failure card without opening the saved address (1.011362ms)
+✔ successful destination reporting derives its hint from the stored value and uses the exchange locale (1.312934ms)
+✔ a missing saved destination omits the hint without losing a successful result (1.112856ms)
+✔ a unreadable saved destination omits the hint without losing a successful result (0.994686ms)
+✔ ok probes once before sealing (create) (61.095876ms)
+✔ probe 401 writes nothing (create) (5.799683ms)
+✔ probe 403 writes nothing (create) (3.664183ms)
+✔ probe 503 writes nothing (create) (3.345195ms)
+✔ probe 302 writes nothing (create) (10.776336ms)
+✔ abort after probe writes nothing (create) (2.350964ms)
+✔ legacy card skips HTTP (create) (15.457119ms)
+✔ transport failure is redacted and preserves storage (create) (2.447381ms)
+✔ ok probes once before sealing (rotate) (10.051575ms)
+✔ probe 401 writes nothing (rotate) (5.704095ms)
+✔ probe 403 writes nothing (rotate) (3.743162ms)
+✔ probe 503 writes nothing (rotate) (4.93305ms)
+✔ probe 302 writes nothing (rotate) (3.941268ms)
+✔ abort after probe writes nothing (rotate) (3.85428ms)
+✔ legacy card skips HTTP (rotate) (5.144206ms)
+✔ transport failure is redacted and preserves storage (rotate) (4.169063ms)
+✔ probe reuses the installed self-describing auth scheme instead of hard-coded Bearer (4.105467ms)
+✔ rotation probe keeps Basic auth and the stored username (5.596627ms)
+✔ real guarded transport never follows a probe redirect, including a same-origin redirect (6.328092ms)
+✔ abort during seal cannot reach vault persistence (create) (2.574019ms)
+✔ abort during seal cannot reach vault persistence (rotate) (4.318887ms)
+✔ legacy implicit API ownership still probes on rotation (3.553326ms)
+✔ old entries keep the exact bytes recorded before the seams: copy card, create card, descriptors (24.895721ms)
+✔ Tovu binds namespace tovu and the exact app names its cards always reported (0.536414ms)
+✔ copy: a second host's tool id, namespace, card path, answer value and words are the ones used (3.874646ms)
+✔ copy: the host's new-key value routes to saveNew; Tovu's value is just an unoffered id (2.478608ms)
+✔ copy: the host's owner, input and channel messages are the refusals the model sees (1.322817ms)
+✔ copy: permission is re-checked after the answer and a revoked key is refused by use; nothing is granted (3.988228ms)
+✔ copy: the host's domain and catalog path name a catalog that drifted from its handlers (0.559882ms)
+✔ custom credentials: a second host's read/write permissions and entity type gate the tools (5.268777ms)
+✔ custom credentials: the host's domain and catalog path name a catalog that drifted from its handlers (0.600113ms)
+✔ create card: the second host's namespace, app and write permission are used; Tovu's are absent (10.314772ms)
+✔ old entries keep the exact bytes recorded before the C2 part 2 seams (port wiring changed nothing Tovu emits) (29.541971ms)
+✔ verify and GET go through the injected request port: one call each, no target resolve, nothing decrypted here (7.860301ms)
+✔ egress refusal: the model sees the port's caller-safe error, never the resolved address (2.313835ms)
+✔ DELETE: the target resolves before the dialog, a decline sends nothing, and the same exchange store carries the answer (8.853127ms)
+✔ DELETE: approved → exactly one request, after the dialog; a refused target opens no dialog (4.052035ms)
+✔ write files: build, target check, then one decrypt, one plan and one commit on the SAME provider with the EXACT plan (3.94645ms)
+✔ write files: abort during the plan → no commit; a refused target → no decrypt and no plan (3.563367ms)
+[custom-credentials] credential_save: save failed exchange=acme-rot-1 credentialId=cred-2 error=CustomCredentialValidationError
+✔ plugin-card key probe goes through the injected port before sealing; a refusal keeps the old key (32.542361ms)
+✔ key cards open through the host's card functions over the SAME exchange store; the outcome follows the save (6.839397ms)
+✔ old entries retain the four independently recorded card/descriptor hashes (25.865319ms)
+✔ foreign handler keys, catalog path, permissions and plugin-owned labels are actually consumed (2.149386ms)
+✔ injected recovery preserves the host-issued diagnostic object without decrypting (0.603978ms)
+✔ approval lifecycle and human-confirm use the foreign URI and SAME answer store; decline sends nothing (10.732206ms)
+✔ approved DELETE re-admits the permission, and revocation during the human wait prevents any request (2.929323ms)
+✔ foreign form/catalog/locale/default category/worksFor/cleanup feed save; invalidate and outcome follow persistence (7.988601ms)
+✔ plugin load/read/build and probe are injected; a failed probe cannot save or invalidate (3.981885ms)
+✔ rotation finds/applies the host card and preserves the current username in the injected replacement (2.030331ms)
+✔ host form rules and safe fallback prevent raw storage/driver messages reaching either projection (3.831588ms)
+✔ duplicate and public-field errors use foreign messages and canonical model rules (2.501147ms)
+✔ foreign file validator runs before authorization; one provider/plan survives decrypt to commit (5.149089ms)
+✔ missing interactive channel and plugin card use required foreign messages (0.910261ms)
+✔ real Tovu bindings retain the current registry/cache/repo and guard, with invalidation only after save (8.06393ms)
+✔ real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup (0.41052ms)
+✔ request validation decorates only callerSafeMessage and classifies the original once (0.705219ms)
+✔ request egress-refused decorates only callerSafeMessage and classifies the original once (0.327357ms)
+✔ request unknown rejections retain their original identity after classification (0.351606ms)
+✔ DELETE preflight classifies the original once and preserves the map prefix with caller-safe validation text (0.507164ms)
+✔ DELETE preflight preserves non-validation rejection identity after classifying once (0.684147ms)
+✔ credential tool compatibility entries retain canonical public functions and error identities (1.394135ms)
+✔ the installed tool declarations retain named security and ordering notes and public factory notes (39.611534ms)
+✔ existing MCP access uses one fixed card and only the approved proposal is applied (25.522573ms)
+✔ cancel performs no MCP access write (3.101784ms)
+✔ abort performs no MCP access write (2.236294ms)
+✔ stale performs no MCP access write (2.576854ms)
+✔ revoked performs no MCP access write (7.092873ms)
+✔ missing frozen catalog refuses new names before a card or write (1.118758ms)
+✔ incomplete frozen catalog refuses new names before a card or write (1.342567ms)
+✔ enabling saved unknown names is widening and requires a verified catalog (1.345848ms)
+✔ grant removals and disabling remain available without a cached catalog (2.49705ms)
+✔ credential setup discloses fixed grant lists without editable access fields (0.709215ms)
+✔ configuration details still require current catalog before a card (4.690107ms)
+✔ configuration details still require current approver before a card (2.937683ms)
+✔ configuration save rechecks catalog after the card (10.591857ms)
+✔ configuration save rechecks approver after the card (2.871427ms)
+✔ configuration save rechecks permission after the card (2.514663ms)
+✔ configuration save rechecks source after the card (8.867623ms)
+✔ configuration approval keeps an explicitly disabled source disabled (3.954612ms)
+✔ a configuration card cannot transfer known grants to a different target (2.339858ms)
+✔ a card cannot keep known grants when a stdio connection changes its arguments (2.616862ms)
+✔ the card shows stored stdio arguments so an unchanged save, such as a token rotation, keeps target and grants (2.641222ms)
+✔ a disabled source without a catalog points to its usable connection settings (0.8863ms)
+✔ approver read failures are not described as permission loss during prepare (0.630654ms)
+✔ approver read failures are not described as permission loss during save (3.317683ms)
+✔ delegated filesystem tools read the picked folder while refusing unpicked paths (35.976273ms)
+{"toolId":"credential_save","exchangeId":"exchange-t10","saved":false}
+{"toolId":"credential_save","exchangeId":"exchange-t10","saved":false}
+✔ t10 media credential form submit and cancel pass both MCP-UI callback gates (1.498181ms)
+✔ t10 media callback delivers a human key only to its parked call, rejects wrong principals and replay (37.256398ms)
+✔ t10 media registration risk, permissions and exact model input fields (3.286227ms)
+✔ t10 media list contains exact safe keys, includes configured and unconfigured image/video providers (2.553896ms)
+✔ t10 media form masks the key and submits through a bound exchange; save readback preserves other providers and metadata (7.196453ms)
+✔ t10 media decline has no writes and returns saved false (2.140222ms)
+✔ t10 media both tools deny permission before reading or opening a form (4.822807ms)
+✔ t10 media rejects extra model fields and unsupported providers before a form (14.503021ms)
+✔ t10 media fails closed without a surface channel or after abort (4.74009ms)
+✔ t10 media malformed submitted key "" saves nothing (3.009209ms)
+✔ t10 media malformed submitted key "   " saves nothing (1.7644ms)
+✔ t10 media malformed submitted key 42 saves nothing (1.796422ms)
+✔ t10 media raw save errors containing the key never reach the model or outcome surface (12.702369ms)
+✔ t10 media expired form closes without saving (2.288666ms)
+✔ t10 media initial emission failure releases the exchange (1.584112ms)
+✔ t10 media failed outcome emission still returns the persisted safe result (4.490835ms)
+✔ t10 media generation missing key names the human setup tool in its refusal (3.540507ms)
+✔ t10 media saving while a different provider rotates preserves the latest ciphertext and current metadata (5.782874ms)
+✔ an unimplemented media provider stays in the catalog and its save outcome names the limitation (3.910854ms)
+✔ t10 media abort during sealing writes nothing (3.920077ms)
+✔ media credential reasons longer than 1000 characters refuse before authorization or a form (1.660577ms)
+✔ a configured media provider can preserve its exact key with an empty submission (6.578645ms)
+✔ preserving a migrated media credential with unknown length reports success without a hint (4.447238ms)
+✔ non-Error media persistence failures use fixed safe outcomes and leave no credential (6.011954ms)
+✔ media token policy failures return the allowlisted message without saving (4.05809ms)
+✔ the media provider contributor builds a working read-only provider catalog (1.293198ms)
+✔ L241 openai saved result and outcome agree with hint=true (3.890471ms)
+✔ L241 openai saved result and outcome agree with hint=false (2.719812ms)
+✔ L241 replicate saved result and outcome agree with hint=true (2.76126ms)
+✔ L241 replicate saved result and outcome agree with hint=false (3.221086ms)
+✔ L241 blank pins the declined result and outcome visibility (2.366733ms)
+✖ L241 safe-failure pins the declined result and outcome visibility (23.693453ms)
+✔ L241 raw-failure pins the declined result and outcome visibility (14.794314ms)
+✔ L241 cancelled pins the declined result and outcome visibility (5.277744ms)
+✔ L241 expired pins the declined result and outcome visibility (10.02828ms)
+✔ L241 abandoned pins the declined result and outcome visibility (10.26732ms)
+✔ H2: guidance points to plugin embeds, and owner-authorized page HTML is still saved unchanged (136.04099ms)
+✔ page writers refuse unresolved Media widget tokens before saving a broken visitor photo (147.883298ms)
+✔ chat can scaffold, write, seal and enable after one owner confirmation; updates replace helper module snapshots (301.094593ms)
+✔ new versions update active pointers across workspaces and the existing poll reloads another process once (197.706791ms)
+✔ removing a filter from a sealed manifest clears the old running hook (235.891684ms)
+✔ a newly installed package does not replace the active pointer at boot until controlled reload (379.839757ms)
+✔ reload failures return installed:true with a reason and pin the restored working version (201.90993ms)
+[plugin-runtime] Plugin 'site-rules' restored-version reload failed PluginLoadError: plugin 'site-rules' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"site-rules","reason":"INTEGRITY_FAILED"}
+✔ reload quarantines only when the restored version also cannot load (104.611289ms)
+✔ the scaffold documents real route/tool/widget registrations and required manifest grants (19.851541ms)
+✔ consent gap (2026-10-12): an assistant-sealed plugin cannot enable without an owner confirmation naming what it adds (214.100424ms)
+✔ an unchanged re-seal keeps its capability approval; each enable gets fresh consent and widening lists only additions (340.946244ms)
+✔ copied site packages lack site-owned provenance and keep their enable confirmation (110.220964ms)
+✔ hosted source sealing retains the Tovu opt-in hint and publishes no package (49.417255ms)
+✔ the deployment adapter treats desktop and dev as local and production/Fly as hosted (0.898212ms)
+✔ install policy uses injected host facts even when the env has no hosted hint (0.159897ms)
+✔ the enable card names only the copy the host selection owner keeps, while the revision still covers every installed copy (9.118221ms)
+✔ OFF installed plugin text prefers its public summary over the description (1.782627ms)
+✔ t10 source credential form submit and cancel pass both MCP-UI callback gates (2.075878ms)
+✔ t10 source callback delivers a human token only to its parked call, rejects wrong principals and replay (133.762442ms)
+✔ t10 source registration uses credential write permission, durable risk and exact non-secret model fields (0.865267ms)
+✔ t10 source form uses the provider declared masked field; submit saves a usable default and returns exact safe keys (25.447959ms)
+✔ t10 source cancellation returns saved false, cancelled true, with no credential or outcome (2.840943ms)
+✔ t10 source form states the backup repository rules next to the token rules (2.717559ms)
+✔ t10 source capabilities guidance asks for the repository and states its rules before the form (2.640183ms)
+✔ t10 source permission denied opens no surface and does not read credentials (1.244967ms)
+✔ t10 source failed outcome emission still returns the persisted safe result (11.555014ms)
+✔ t10 source rejects unexpected model fields and unavailable hosts with exact actionable refusals (2.721754ms)
+✔ t10 source missing channel and abort fail closed without an outcome (4.431234ms)
+✔ t10 source malformed submitted token "" saves nothing (2.292561ms)
+✔ t10 source malformed submitted token 42 saves nothing (2.831591ms)
+{"toolId":"credential_save","exchangeId":"source-exchange-t10","saved":false}
+✔ t10 source raw save errors stay secret and render the exact failure outcome (9.920701ms)
+✔ t10 source commit without a credential names the setup tool (2.663906ms)
+✔ t10 source expired form closes without saving or an outcome (4.869485ms)
+✔ t10 source initial emission failure releases the exchange (2.730992ms)
+✔ a non-default token name stays on the human form and saves as canonical connection.token (3.911083ms)
+✔ t10 source label over 200 characters is refused before any permission check or provider load (0.392425ms)
+✔ t10 source pre-aborted call returns declined without loading providers or opening a form (0.33413ms)
+✔ t10 source call aborted while providers load returns declined and opens no form (0.433178ms)
+✔ t10 source form without provider help shows the default hint, renders non-secret fields as text, saves with no injected fetch (2.204672ms)
+✔ t10 source abort during sealing writes nothing (6.001509ms)
+✔ all revision-backed theme replacement tools are covered and classified direct (2.3028ms)
+✔ theme_write_file: replacing two theme files emits no confirmation and keeps both previous files restorable (19.585177ms)
+✔ theme_write_file: a single overwrite with a surface channel runs directly and saves the old bytes (5.683142ms)
+✔ theme_write_file: a single overwrite without a surface channel runs directly and saves the old bytes (7.0124ms)
+✔ theme_edit_file: replacing two theme files emits no confirmation and keeps both previous files restorable (7.894438ms)
+✔ theme_edit_file: a single overwrite with a surface channel runs directly and saves the old bytes (8.343515ms)
+✔ theme_edit_file: a single overwrite without a surface channel runs directly and saves the old bytes (10.789363ms)
+✔ theme_reset_file: replacing two theme files emits no confirmation and keeps both previous files restorable (48.598475ms)
+✔ theme_reset_file: a single overwrite with a surface channel runs directly and saves the old bytes (28.109551ms)
+✔ theme_reset_file: a single overwrite without a surface channel runs directly and saves the old bytes (47.585705ms)
+✔ theme_import_file_from_url: replacing two theme files emits no confirmation and keeps both previous files restorable (45.34711ms)
+✔ theme_import_file_from_url: a single overwrite with a surface channel runs directly and saves the old bytes (42.400216ms)
+✔ theme_import_file_from_url: a single overwrite without a surface channel runs directly and saves the old bytes (24.589238ms)
+✔ theme_import_local_file: replacing two theme files emits no confirmation and keeps both previous files restorable (24.31957ms)
+✔ theme_import_local_file: a single overwrite with a surface channel runs directly and saves the old bytes (15.224222ms)
+✔ theme_import_local_file: a single overwrite without a surface channel runs directly and saves the old bytes (4.842291ms)
+✔ a newly created theme file needs no replacement card or revision (2.695673ms)
+✔ the previous theme revision can be restored through the existing restore tool (24.707933ms)
+✔ a later invalid theme destination prevents both earlier writes and a confirmation card (3.292389ms)
+✔ theme revisions refuse a trash symlink escaping the theme before replacing any bytes (2.239831ms)
+✔ a file changed while authorization yields is never overwritten (4.550822ms)
+✔ theme replacement retains the newest 20 revisions per file and never prunes manual trash (48.054714ms)
+✔ theme revision numbers increase across repeated timestamps and backward clock steps (4.110078ms)
+✔ a URL import preserves a destination created while its download waits (4.865025ms)
+✔ a URL import preserves a destination changed while its download waits (2.692124ms)
+✔ a committed theme replacement reloads despite pruning failure and retries retention next time (66.45153ms)
+✔ theme_write_file refuses oversized content before asking to replace an existing file (15.20142ms)
+✔ theme_write_file refuses oversized destination before asking to replace an existing file (11.099985ms)
+✔ screenshot viewers are offered singly and queued calls retain every image (16.11102ms)
+✔ delegated HTTP screenshot single calls return images instead of HTTP 400 busy (472.965994ms)
+✔ cancelling a queued screenshot does not release a running capture or block its successor (1.455827ms)
+✔ expired queued callers cannot capture later or let a successor overlap the active capture (0.721949ms)
+✔ queue deadline configuration cannot exceed sixty seconds (0.311486ms)
+ℹ tests 351
+ℹ suites 0
+ℹ pass 348
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 109158.308434
+
+✖ failing tests:
+
+test at apps/website/src/features/media-generation/__tests__/providers-tools.test.ts:1:24543
+✖ L241 safe-failure pins the declined result and outcome visibility (23.693453ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media-generation/__tests__/providers-tools.test.ts:447:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

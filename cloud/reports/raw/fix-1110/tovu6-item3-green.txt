@@ -1,0 +1,14 @@
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site (655.35205ms)
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (11.8488ms)
+✔ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (20.436251ms)
+✔ Auto suggests only relevant bundled plugins: Import my old WordPress site (12.743977ms)
+✔ Auto suggests only relevant bundled plugins: what's 2+2 (12.394482ms)
+✔ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (6.801321ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1833.235011

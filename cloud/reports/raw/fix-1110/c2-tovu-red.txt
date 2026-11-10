@@ -1,0 +1,30 @@
+✖ the enable card names only the copy the host selection owner keeps, while the revision still covers every installed copy (11.077003ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 738.075844
+
+✖ failing tests:
+
+test at apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-approval-version.unit.test.ts:1:483
+✖ the enable card names only the copy the host selection owner keeps, while the revision still covers every installed copy (11.077003ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '0.1.0, 1.0.0, 1.0.1'
+  - '1.0.0'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-approval-version.unit.test.ts:26:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '0.1.0, 1.0.0, 1.0.1',
+    expected: '1.0.0',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,20 @@
+✔ page guidance sends third-party widgets to plugin embeds and names no vendor host (1.083504ms)
+✔ theme data keeps the entire shared public header set byte-identical (1.410009ms)
+✔ origins derive from data, deduplicate stably, and retain all core directives (0.535071ms)
+✔ theme data reader uses its port and preserves malformed/missing-data failures (0.436756ms)
+✔ a page adds its declared hosts to the matching directives only, never twice or as policy text (0.407008ms)
+✔ no vendor name is hard-coded in the core policy (0.224631ms)
+✔ publishing carries current declared frame origins through its existing header data (5.524008ms)
+✔ publishing names an enabled plugin export host in the site-wide policy (1.68052ms)
+✔ a failed plugin catalog read still publishes with the base policy (1.195444ms)
+✔ H2: guidance points to plugin embeds, and owner-authorized page HTML is still saved unchanged (221.599895ms)
+✔ Tovu guidance gives the calendly embed markup and the page tools that write it (1.011801ms)
+✔ the Calendly sign-in stays optional and names the tool (0.154379ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9037.634662

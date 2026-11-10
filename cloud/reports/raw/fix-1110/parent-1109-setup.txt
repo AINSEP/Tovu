@@ -1,0 +1,7 @@
+jini 8f330f4a fix(agent-plugins): calendly ships host-neutral like every bundled plugin (LAND-1109-G) / tovu 3d0748bb LAND-1109-G: report, gates and evidence
+jini install 0
+jini build 0
+tovu ci 0
+rebuild 0
+sdk 0
+link 0
