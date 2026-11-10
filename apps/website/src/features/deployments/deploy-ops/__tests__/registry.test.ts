@@ -216,3 +216,15 @@ test("a loader fault becomes one refusal, and requirePlatform names no platforms
   assert.deepEqual(registry.refusals, ["deploy ops were not loaded: installed plugin packages could not be read"]);
   assert.throws(() => requirePlatform(registry, "example-host"), { message: "Unknown deployment ops platform 'example-host'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
 });
+
+test("an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal", async () => {
+  const { loadDeployOpsRegistry } = await import("../registry.js");
+  const railway = bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "tovu-deploy-ops.json" }).find(plugin => plugin.pluginId === "railway");
+  assert.ok(railway);
+  const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async (_input, options = {}) => {
+    await options.onInactive?.({ plugin: railway });
+    return { items: [], refusals: [] };
+  } });
+  assert.throws(() => requirePlatform(registry, "railway"), { message: "Deployment ops platform 'railway' is provided by plugin 'railway', which is off; turn it on first." });
+  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: (none)." });
+});

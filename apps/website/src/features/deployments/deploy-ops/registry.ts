@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
-import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 import { asDeployOpsModule, parseDeployOpsFile as parseDeployOpsDescriptors } from "@jini-ai/devops/deploy";
 import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "./types.js";
 
@@ -82,18 +82,25 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
     const owners = new Set(bundledContributionSources({
       sourceRoot: bundledAgentPluginsDir(), filename: DEPLOY_OPS_FILENAME,
     }).map(plugin => plugin.pluginId));
+    const switchedOff = new Map<string, string>();
     const load = await required.loadContributions({ ...ctx, definition: opsContribution }, {
       packageRefusal: ({ plugin }) => owners.has(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only bundled plugins shipping ${DEPLOY_OPS_FILENAME} may contribute`,
+      // A switched-off plugin's manifest is read as data (no module imported) so a refusal can name it.
+      onInactive: async ({ plugin }) => {
+        // An unreadable manifest only loses the name; it must not refuse every active platform.
+        const parsed = parseDeployOpsFile(await readTrustedPluginFile(plugin, DEPLOY_OPS_FILENAME).catch(() => ""));
+        for (const descriptor of parsed.ok ? parsed.descriptors : []) if (!switchedOff.has(descriptor.id)) switchedOff.set(descriptor.id, plugin.pluginId);
+      },
     });
-    return buildRegistry(load.items, load.refusals);
+    return buildRegistry(load.items, load.refusals, switchedOff);
   } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }
 }
 
 export function requirePlatform(registry:DeployOpsRegistry,id:string):LoadedDeployOps {return requireDeployPlatform({registry,id},{});}
 /** Index uniquely claimed ids. Ambiguous ids are refused for all claimants. O(platforms). */
-function buildRegistry(loaded: readonly LoadedDeployOps[], inputRefusals: readonly string[]): DeployOpsRegistry {
+function buildRegistry(loaded: readonly LoadedDeployOps[], inputRefusals: readonly string[], switchedOff?: ReadonlyMap<string, string>): DeployOpsRegistry {
   const map = new Map<string, LoadedDeployOps>(); const duplicates = new Set<string>(); const refusals = [...inputRefusals];
   for (const platform of loaded) { if (map.has(platform.descriptor.id)) duplicates.add(platform.descriptor.id); else map.set(platform.descriptor.id, platform); }
   for (const id of duplicates) { map.delete(id); refusals.push(`deploy ops platform '${id}' was not loaded: declared more than once`); }
-  return { get: id => map.get(id), list: () => [...map.values()], refusals };
+  return { get: id => map.get(id), list: () => [...map.values()], refusals, ...(switchedOff ? { switchedOff } : {}) };
 }
