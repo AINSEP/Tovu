@@ -1,0 +1,27 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { scanModule, resolveLocalImport } from "./coverage-changed-discovery.js";
+const listed = new Set(readFileSync(process.argv[2], "utf8").split("\n").filter(Boolean));
+const all = execFileSync("git", ["ls-files", "apps", "packages", "content"], { encoding: "utf8" }).split("\n").filter((f) => /\.(m?[jt]sx?)$/.test(f));
+const files = new Set(all);
+const isTest = (f: string) => /^(apps\/website\/src\/.*\.test\.ts|packages\/[^/]+\/src\/.*\.test\.ts|content\/agent-plugins\/.*\/__tests__\/[^/]+\.test\.mjs|content\/agent-plugin-overlays\/.*\/__tests__\/[^/]+\.test\.mjs|apps\/site-chat\/src\/.*\.test\.ts)$/.test(f);
+const cache = new Map<string, string[]>(); const reexp = new Map<string, Set<string>>();
+function imports(f: string): string[] {
+  if (cache.has(f)) return cache.get(f)!;
+  const src = readFileSync(f, "utf8"); const out: string[] = []; const re = new Set<string>();
+  for (const spec of scanModule({ file: f, source: src }).imports) { const r = resolveLocalImport({ file: f, specifier: spec, files }); if (r) out.push(r); }
+  for (const m of src.matchAll(/export\s+(?:type\s+)?(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s*from\s*["']([^"']+)["']/g)) { const r = resolveLocalImport({ file: f, specifier: m[1], files }); if (r) re.add(r); }
+  cache.set(f, out); reexp.set(f, re); return out;
+}
+const sel = new Map<string, string[]>(); const byFile = new Map<string, string[]>();
+for (const t of all.filter(isTest)) {
+  for (const m of imports(t)) {
+    const hits: string[] = [];
+    if (listed.has(m)) hits.push(m + " (direct)");
+    imports(m); for (const r of reexp.get(m)!) if (listed.has(r)) hits.push(r + " (via " + m + ")");
+    for (const h of hits) { sel.set(t, [...(sel.get(t) ?? []), h]); const k = h.split(" ")[0]; byFile.set(k, [...(byFile.get(k) ?? []), t]); }
+  }
+}
+writeFileSync(process.argv[3], [...sel.keys()].sort().join("\n") + "\n");
+writeFileSync(process.argv[4], [...listed].sort().map((f) => `${f}\t${[...new Set(byFile.get(f) ?? [])].length}\t${[...new Set(byFile.get(f) ?? [])].join(",")}`).join("\n") + "\n");
+console.log("tests", sel.size, "listed", listed.size, "with tests", [...listed].filter((f) => byFile.has(f)).length);

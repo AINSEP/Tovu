@@ -1,0 +1,31 @@
+# cwd: packages/commerce
+# cmd: npx vitest run -c vitest.coverage.config.ts --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcov --coverage.reportOnFailure=true --coverage.reportsDirectory=<scratch>/cov/commerce  --maxWorkers=2 --minWorkers=1
+
+ RUN  v2.1.9 /home/user/Jini/packages/commerce
+      Coverage enabled with v8
+
+ ✓ src/payments/ops/__tests__/reconciler.vitest.test.ts (30 tests) 185ms
+ ✓ src/payments/ingest/__tests__/worker.vitest.test.ts (29 tests) 58ms
+ ✓ src/payments/accounting/__tests__/apply-evidence.vitest.test.ts (45 tests) 1612ms
+   ✓ property: any delivery order of the same facts ends in the same ledger > memory: shuffled deliveries (responses, both webhook types, duplicates, a stale snapshot, timeouts), retrying only deferred ones 301ms
+   ✓ property: any delivery order of the same facts ends in the same ledger > sqlite: shuffled deliveries (responses, both webhook types, duplicates, a stale snapshot, timeouts), retrying only deferred ones 912ms
+ ✓ src/catalog/__tests__/unit/repo.vitest.test.ts (12 tests) 148ms
+ ✓ src/payments/ops/__tests__/intent.vitest.test.ts (54 tests) 203ms
+ ✓ src/payments/tools/__tests__/money-tools.vitest.test.ts (27 tests) 87ms
+ ✓ src/payments/ops/__tests__/capture-void.vitest.test.ts (24 tests) 166ms
+ ✓ src/payments/accounting/__tests__/plan-evidence.vitest.test.ts (38 tests) 35ms
+ ✓ src/payments/ledger/__tests__/migrations.vitest.test.ts (17 tests) 259ms
+ ✓ src/payments/ops/__tests__/refund.vitest.test.ts (25 tests) 257ms
+ ✓ src/payments/ledger/__tests__/rows.vitest.test.ts (50 tests) 484ms
+   ✓ entry points > payments/kernel carries the port, records and memory adapter; the SQL half (kysely, @jini-ai/db at runtime) is ledger/sql 447ms
+ ✓ src/http/__tests__/payments-webhook.vitest.test.ts (22 tests) 199ms
+ ✓ src/payments/ops/__tests__/intent-recovery.vitest.test.ts (19 tests) 584ms
+ ✓ src/browser/__tests__/checkout.vitest.test.ts (18 tests) 2079ms
+ ✓ src/payments/state/__tests__/status.vitest.test.ts (114 tests) 163ms
+ ✓ src/catalog/__tests__/unit/plugin-server.vitest.test.ts (29 tests) 114ms
+ ✓ src/payments/accounting/__tests__/apply-evidence-ops.vitest.test.ts (22 tests) 309ms
+ ✓ src/payments/ops/__tests__/reconciler-stale.vitest.test.ts (22 tests) 615ms
+ ✓ src/payments/ingest/__tests__/receive.vitest.test.ts (18 tests) 73ms
+ ✓ src/catalog/__tests__/unit/status-tools.vitest.test.ts (13 tests) 16ms
+ ✓ src/payments/accounting/__tests__/review-fixes.vitest.test.ts (22 tests) 527ms
+ ✓ src/catalog/__tests__/unit/pay-order.vitest.test.ts (13 tests) 105ms

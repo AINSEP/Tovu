@@ -1,0 +1,10 @@
+# cwd: packages/db
+# cmd: npx vitest run  --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcov --coverage.reportOnFailure=true --coverage.reportsDirectory=<scratch>/cov/db  --maxWorkers=2 --minWorkers=1
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+      Coverage enabled with v8
+
+ ✓ src/__tests__/tools/transfer-tools-paths.test.ts (31 tests) 59ms
+ ✓ src/__tests__/secrets-vault.repo.contract.test.ts (36 tests) 6933ms
+   ✓ secrets vault contract [pglite] > explicit false stays non-default and omitted/undefined flags auto-default only the first row 4679ms
+   ✓ secrets vault contract [pglite] > prepared service records commit through applyBatch inside a host transaction, reopen after a provider move and roll back late conflicts 361ms

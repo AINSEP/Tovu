@@ -1,0 +1,84 @@
+# cwd: packages/plugins
+# cmd: npx vitest run  --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcov --coverage.reportOnFailure=true --coverage.reportsDirectory=<scratch>/cov/plugins --coverage.include=src/** --maxWorkers=2 --minWorkers=1
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugins
+      Coverage enabled with v8
+
+ ✓ src/host/__tests__/unit/install.unit.test.ts (43 tests) 479ms
+ ✓ src/host/__tests__/integration/hook-registry.integration.test.ts (31 tests) 32ms
+ ✓ src/host/__tests__/unit/manifest.unit.test.ts (38 tests) 33ms
+ ✓ src/host/__tests__/unit/provider-contributions.unit.test.ts (18 tests) 275ms
+ ✓ src/host/__tests__/unit/package-files.unit.test.ts (20 tests) 83ms
+ ✓ src/host/__tests__/integration/loader.integration.test.ts (14 tests) 57ms
+ ✓ src/host/__tests__/unit/source-drafts.unit.test.ts (37 tests) 3235ms
+   ✓ file and aggregate size caps refuse writes before any mutation 443ms
+ ✓ src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts (8 tests) 44ms
+ ✓ src/host/__tests__/unit/plugin-claims.unit.test.ts (16 tests) 27ms
+ ✓ src/host/__tests__/unit/plugin-identity.unit.test.ts (15 tests) 244ms
+ ✓ src/host/__tests__/integration/discovery.integration.test.ts (7 tests) 122ms
+ ✓ src/host/__tests__/unit/module-snapshot-lifecycle.unit.test.ts (12 tests) 24ms
+ ✓ src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts (8 tests) 13ms
+ ✓ src/host/worker/__tests__/run-call.l237.characterization.test.ts (19 tests) 12ms
+ ✓ src/host/tools/__tests__/public-entry.test.ts (3 tests) 21ms
+ ✓ src/host/__tests__/unit/contributions.l121.characterization.unit.test.ts (36 tests) 50ms
+ ✓ src/host/__tests__/unit/discovery.unit.test.ts (9 tests) 140ms
+ ✓ src/host/__tests__/unit/runtime-core.extract-s6.unit.test.ts (2 tests) 119ms
+ ✓ src/host/__tests__/unit/uninstall.unit.test.ts (13 tests) 19ms
+ ✓ src/host/__tests__/unit/capability-sdk.unit.test.ts (36 tests) 23ms
+ ✓ src/host/__tests__/integration/browser-provider-assets.integration.test.ts (8 tests) 125ms
+ ✓ src/glue/__tests__/manifest.test.ts (25 tests) 15ms
+ ✓ src/host/__tests__/unit/loader.unit.test.ts (22 tests) 23ms
+ ✓ src/host/__tests__/unit/contribution-sdk.unit.test.ts (5 tests) 31ms
+ ✓ src/host/__tests__/unit/contributions.edges.unit.test.ts (20 tests) 37ms
+ ✓ src/host/__tests__/unit/tier2-import-seam.unit.test.ts (13 tests) 10ms
+ ✓ src/glue/__tests__/capability-gate.test.ts (25 tests) 15ms
+ ✓ src/glue/__tests__/tool-registration.test.ts (8 tests) 7ms
+ ✓ src/host/__tests__/unit/manifest.l121.characterization.unit.test.ts (43 tests) 29ms
+ ✓ src/host/__tests__/unit/tier2-run-call.unit.test.ts (13 tests) 12ms
+ ✓ src/host/__tests__/unit/l1c1.extract-s6.unit.test.ts (7 tests) 8ms
+ ✓ src/host/__tests__/unit/plugin-format.unit.test.ts (8 tests) 93ms
+ ✓ src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts (8 tests) 15ms
+ ✓ src/host/__tests__/unit/activation.unit.test.ts (11 tests) 32ms
+ ✓ src/host/__tests__/unit/claim-conflicts.unit.test.ts (16 tests) 16ms
+ ✓ src/host/__tests__/unit/browser-providers.l121.characterization.unit.test.ts (42 tests) 20ms
+ ✓ src/host/__tests__/unit/declarative-enable.unit.test.ts (8 tests) 16ms
+ ✓ src/host/__tests__/integration/repo.contract.integration.test.ts (10 tests) 50ms
+ ✓ src/host/__tests__/integration/provider-artifact.integration.test.ts (5 tests) 62ms
+ ✓ src/host/__tests__/unit/module-snapshot.unit.test.ts (6 tests) 73ms
+ ✓ src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts (2 tests) 15ms
+ ✓ src/host/__tests__/unit/provider-setting-required.unit.test.ts (6 tests) 11ms
+ ✓ src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts (4 tests) 22ms
+ ✓ src/host/worker/__tests__/protocol.l237.characterization.test.ts (35 tests) 14ms
+ ✓ src/__tests__/package-surface.integration.test.ts (3 tests) 608ms
+   ✓ each host entry barrel re-exports the runtime APIs its package.json entry promises 602ms
+ ✓ src/host/__tests__/unit/contributions.unit.test.ts (3 tests) 10ms
+ ✓ src/host/__tests__/unit/hook-registry-preview.unit.test.ts (5 tests) 19ms
+ ✓ src/host/__tests__/unit/quarantine-observer.unit.test.ts (3 tests) 9ms
+ ✓ src/host/__tests__/unit/attach-loaded-plugin.unit.test.ts (5 tests) 10ms
+ ✓ src/host/__tests__/unit/bundled-initialization.test.ts (3 tests) 10ms
+ ✓ src/glue/__tests__/injected-host.test.ts (4 tests) 17ms
+ ✓ src/host/__tests__/unit/provider-settings-migrations.unit.test.ts (2 tests) 11ms
+ ✓ src/host/__tests__/unit/tier2-protocol.unit.test.ts (13 tests) 8ms
+ ✓ src/host/__tests__/unit/quarantine.unit.test.ts (2 tests) 5ms
+ ✓ src/host/tools/__tests__/vocabulary.test.ts (1 test) 314ms
+   ✓ all moved implementation literals are host-neutral and owning imports never use a package barrel 312ms
+ ✓ src/host/__tests__/unit/provider-guidance.unit.test.ts (13 tests) 11ms
+ ✓ src/glue/__tests__/delegate-ownership.w8.test.ts (2 tests) 4ms
+ ✓ src/glue/__tests__/delegate-forwarding.test.ts (2 tests) 7ms
+ ✓ src/__tests__/args-convention.contract.test.ts (2 tests) 6ms
+ ✓ src/host/__tests__/unit/provider-schema-w2g.unit.test.ts (5 tests) 8ms
+ ✓ src/host/__tests__/unit/hook-quarantine-w2g.unit.test.ts (1 test) 18ms
+ ✓ src/host/tools/__tests__/optional-peers.test.ts (2 tests) 146ms
+ ✓ src/glue/__tests__/content-lifecycle.test.ts (2 tests) 6ms
+ ✓ src/glue/__tests__/events.test.ts (2 tests) 6ms
+ ✓ src/host/__tests__/host-entry-purity.test.ts (1 test) 59444ms
+   ✓ ./host is universal and never evaluates executable source 59442ms
+ ✓ src/host/__tests__/unit/open-flags.unit.test.ts (2 tests) 3ms
+
+ Test Files  66 passed (66)
+      Tests  813 passed (813)
+   Start at  01:52:43
+   Duration  81.00s (transform 3.05s, setup 0ms, collect 12.14s, tests 66.48s, environment 24ms, prepare 8.62s)
+
+# exit=0 secs=83
