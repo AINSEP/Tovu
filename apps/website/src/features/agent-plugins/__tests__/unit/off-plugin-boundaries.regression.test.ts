@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runAgentPluginConnect } from '../../connect-tool.js';
+import { createHash } from 'node:crypto';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { runAgentPluginConnect, type ResolvedAgentPluginForConnect } from '../../connect-tool.js';
+import { installAgentPlugin, removeFrozenPackageTree } from '../../lifecycle.js';
+import { resolveAgentPluginLayout } from '../../layout.js';
 import { context, harness, installedAgentPlugin, siteRecord } from '../../../plugin-runtime/__tests__/fixtures/plugins-tool-harness.js';
 import { credentialTestPort } from '../fixtures/connection-service-ports.js';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
@@ -20,19 +26,43 @@ test('content_read.plugin uses a catalog line for off plugins without skills or 
   assert.match(JSON.stringify(site.plugins), /installed, off: Site rules/);
 });
 
-test('connecting an off plugin refuses before resolving its connection instructions or saving anything', async () => {
+/** Connect an off plugin; nothing may be granted or saved. Its declarations are read only to word the refusal. */
+function connectOff(pluginId: string, routeDeps: { agentPluginLayout?: ReturnType<typeof resolveAgentPluginLayout>; resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null> } = {}) {
   const h = harness();
-  let resolved = false;
-  await assert.rejects(runAgentPluginConnect({
-    pluginId: 'higgsfield', ctx: context({ pluginId: 'higgsfield' }), surfaces: { surfaceExchanges: h.surfaceExchanges },
+  return runAgentPluginConnect({
+    pluginId, ctx: context({ pluginId }), surfaces: { surfaceExchanges: h.surfaceExchanges },
     routeDeps: { workspaceId: 'workspace-1', agentPluginLayout: h.deps.agentPluginLayout,
       authorize: async () => ({ allowed: true, reason: 'matched' }), credentials: credentialTestPort({}),
       mcp: { repo: new InMemoryExternalMcpServerRepo(), applyAccess: async () => assert.fail('OFF must not grant'), saveServer: async () => assert.fail('OFF must not save') },
       isPluginEnabled: async () => false,
-      resolveInstalledPlugin: async () => { resolved = true; return { servers: {} }; },
+      ...routeDeps,
     },
-  }), /plugins_set_enabled/);
-  assert.equal(resolved, false);
+  });
+}
+
+test('connecting an off OAuth plugin refuses without granting or saving anything, and keeps the connect retry', async () => {
+  await assert.rejects(connectOff('higgsfield', { resolveInstalledPlugin: async () => ({ servers: { media: { type: 'streamable-http', url: 'https://mcp.example.com/mcp', authMode: 'oauth' } } }) }),
+    /plugins_set_enabled\(\{family:"agent-plugin",pluginId:"higgsfield",enabled:true\}\), then retry agent_plugin_connect\.$/);
+});
+
+test('connecting an off token plugin points to the key card it declares instead of a connect retry', async () => {
+  const workspaceId = 'workspace-1';
+  const root = await mkdtemp(path.join(tmpdir(), 'tovu-off-token-plugin-'));
+  try {
+    const layout = resolveAgentPluginLayout({ siteDir: root });
+    const card = { target: 'railway-api', title: 'Connect Railway', label: 'Railway API', category: 'hosting', intro: 'Save a Railway token.', keyHint: 'Create a token in Railway.', saveKind: 'api', baseUrl: 'https://backboard.railway.com/graphql/v2' };
+    const manifest = JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'railway', version: '1.0.0', extensions: { jini: { credentialCards: [card] } } });
+    const archive = Buffer.from(manifest);
+    await installAgentPlugin({ layout, workspaceId, archive, expectedSha256: createHash('sha256').update(archive).digest('hex'), archiveReader: {
+      async *entries() { yield { kind: 'file' as const, entryPath: 'plugin.json', declaredSize: archive.length, executable: false, async *openReadStream() { yield archive; } }; },
+    } });
+    await assert.rejects(connectOff('railway', { agentPluginLayout: layout }), (error: Error) => {
+      assert.match(error.message, /plugins_set_enabled\(\{family:"agent-plugin",pluginId:"railway",enabled:true\}\)/);
+      assert.match(error.message, /credential_save\(\{kind:"plugin-provider",target:"railway-api"\}\)/);
+      assert.doesNotMatch(error.message, /then retry agent_plugin_connect/);
+      return true;
+    });
+  } finally { await removeFrozenPackageTree({ root }); }
 });
 
 for (const status of ['invalid', 'incompatible'] as const) {

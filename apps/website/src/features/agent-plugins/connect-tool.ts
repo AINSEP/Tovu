@@ -17,7 +17,8 @@ import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
 import { readInstalledMcpServers, classifyAgentPluginMcpServerTrust } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
-import { listInstalledPlugins } from "./lifecycle.js";
+import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
+import { parsePluginCredentialCards } from "./credential-cards.js";
 import { isAgentPluginEnabled } from './activation-effects.js';
 import type { McpServerConfig } from "./mcp-metadata.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
@@ -80,7 +81,8 @@ export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: s
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
-  return { servers: await readInstalledMcpServers(plugin.packageRoot) };
+  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile(plugin, "plugin.json") });
+  return { servers: await readInstalledMcpServers(plugin.packageRoot), credentialCards: cards.ok ? cards.descriptors : [] };
 }
 
 /** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
@@ -151,7 +153,9 @@ export const tovuAgentPluginConnectMessages: AgentPluginConnectMessages = {
   connectionNotSetUp: ({ pluginId, serverKey }) => `agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.`,
   multipleTokenServers: ({ pluginId }) => `agent_plugin_connect: '${pluginId}' declares more than one access-token sign-in.`,
   noTokenCardAdapter: () => `agent_plugin_connect: use the plugin's secure key card with credential_save; no token-card adapter is wired here.`,
-  pluginOff: ({ pluginId }) => `The '${pluginId}' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:${JSON.stringify(pluginId)},enabled:true}), then retry agent_plugin_connect.`,
+  // A plugin with no sign-in is pointed at its key card: a connect retry would only refuse again.
+  pluginOff: ({ pluginId }, { credentialCards = [] } = {}) => `The '${pluginId}' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:${JSON.stringify(pluginId)},enabled:true}), then ` +
+    (credentialCards[0] ? `save its key with credential_save({kind:"plugin-provider",target:${JSON.stringify(credentialCards[0].providerId)}}). It has no sign-in, so do not retry agent_plugin_connect.` : "retry agent_plugin_connect."),
   notInstalled: ({ pluginId }) => `agent_plugin_connect: '${pluginId}' is not an installed Agent Plugin in this workspace.`,
   noOAuthService: () => "agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.",
   multipleOAuthServers: ({ pluginId, serverKeys }) => `agent_plugin_connect: '${pluginId}' declares ${serverKeys.length} unconnected OAuth servers (${serverKeys.join(", ")}) — connect them one at a time.`,
