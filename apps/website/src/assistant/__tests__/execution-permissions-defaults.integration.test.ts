@@ -6,7 +6,7 @@ import { readAssistantCliPermissions } from "../subagent-settings.js";
 import { resolveAssistantCliPermissions } from "../../contracts/core/assistant-native-fallbacks.js";
 
 const localDefaults = {
-  shell: true, fileWrite: true, userMcp: false, subagents: true,
+  shell: true, fileWrite: true, userMcp: true, subagents: true,
   userSettings: true, web: true, workflows: true, loginEnvironment: true,
 };
 
@@ -25,7 +25,7 @@ async function bootDefinitions() {
   return { deps, read };
 }
 
-test("A4/A6: untouched local owner permissions default personal MCP OFF and other capabilities ON", async () => {
+test("A4/A6: untouched local owner permissions default every capability ON, personal MCP included", async () => {
   const { deps, read } = await bootDefinitions();
   assert.deepEqual(await getEffective({ repo: deps.settingsRepo }, {
     namespace: "core.assistant-full-cli", key: "permissions", scopeContext: { workspaceId: "site-a", principalId: "owner-a" },

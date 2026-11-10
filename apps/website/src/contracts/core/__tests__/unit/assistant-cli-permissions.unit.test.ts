@@ -4,20 +4,20 @@ import { resolveAssistantCliPermissions } from "../../assistant-native-fallbacks
 import { ASSISTANT_CLI_CAPABILITIES } from "../../../headless/index.js";
 import { assistantCliPermissions } from "../../../../assistant/assistant-subagents-policy.js";
 
-test("local owner capabilities default on except personal MCP, and explicit off choices survive", () => {
+test("local owner capabilities default on, personal MCP included (2026-11-10), and explicit off choices survive", () => {
   for (const { key } of ASSISTANT_CLI_CAPABILITIES) {
     const settings = assistantCliPermissions({ enabled: true, capabilities: { [key]: false } });
     const actual = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings });
     assert.equal(actual.capabilities[key], false);
-    for (const other of ASSISTANT_CLI_CAPABILITIES.filter(item => item.key !== key)) assert.equal(actual.capabilities[other.key], other.key !== "userMcp");
+    for (const other of ASSISTANT_CLI_CAPABILITIES.filter(item => item.key !== key)) assert.equal(actual.capabilities[other.key], true);
   }
 });
-test("the master resets capability defaults with personal MCP off, and individual switches can override", () => {
+test("the master resets every capability default, personal MCP included, and individual switches can override", () => {
   const settings = assistantCliPermissions({ enabled: false, capabilities: { shell: true } });
   assert.deepEqual(resolveAssistantCliPermissions({ isOwner: true, env: {}, settings }), settings);
   assert.ok(Object.values(assistantCliPermissions({ enabled: false }).capabilities).every(value => !value));
   const defaults = assistantCliPermissions({ enabled: true }).capabilities;
-  for (const { key } of ASSISTANT_CLI_CAPABILITIES) assert.equal(defaults[key], key !== "userMcp");
+  for (const { key } of ASSISTANT_CLI_CAPABILITIES) assert.equal(defaults[key], true);
 });
 for (const enabled of [false, true]) test(`personal MCP honors explicit owner choices with master ${enabled}`, () => {
   for (const userMcp of [true, false]) {

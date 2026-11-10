@@ -1,0 +1,34 @@
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (3550.600445ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3927.81035
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:1:1262
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (3550.600445ms)
+  AssertionError [ERR_ASSERTION]: expected the daemon to start listening, but it exited:
+  [agent-daemon] failed to start standalone daemon requires its site binding
+  
+  + actual - expected
+  
+  + 'exited'
+  - 'listening'
+  
+      at TestContext.<anonymous> (/tmp/claude-0/-home-user/4cd07dc7-316c-51c2-9157-edb7d235b167/scratchpad/base/apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:92:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'exited',
+    expected: 'listening',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

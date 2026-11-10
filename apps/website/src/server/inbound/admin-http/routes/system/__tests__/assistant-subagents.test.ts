@@ -87,7 +87,7 @@ test("owner enable and disable are audited and a separate daemon read sees the c
   assert.equal(await read(), false);
   const values = await f.values();
   assert.deepEqual(values.map((revision) => [revision.actor, revision.workspaceId, revision.scope, revision.afterJson]),
-    [["owner", "ws", "user", assistantCliPermissions({ enabled: true })], ["owner", "ws", "user", assistantCliPermissions({ enabled: false })]]);
+    [["owner", "ws", "user", { ...assistantCliPermissions({ enabled: true }), userMcpDefaultOn: true }], ["owner", "ws", "user", { ...assistantCliPermissions({ enabled: false }), userMcpDefaultOn: true }]]);
 });
 
 test("a non-owner with all settings permissions cannot enable OR disable", async () => {
@@ -221,7 +221,7 @@ test("explicit off survives boot, and re-enabling needs no acknowledgment or rec
   const receipt = (await f.repo.listActiveDefinitions({ workspaceId: null }))
     .find(def => def.namespace === namespace && def.key === "riskAcknowledgment")!;
   assert.equal(receipt, undefined, "ordinary owner changes require no consent receipt");
-  assert.deepEqual((await f.values()).map(row => [row.actor, row.afterJson]), [["owner", assistantCliPermissions({ enabled: false })], ["owner", assistantCliPermissions({ enabled: true })]]);
+  assert.deepEqual((await f.values()).map(row => [row.actor, row.afterJson]), [["owner", { ...assistantCliPermissions({ enabled: false }), userMcpDefaultOn: true }], ["owner", { ...assistantCliPermissions({ enabled: true }), userMcpDefaultOn: true }]]);
   assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), agents, permissionMode: "bypass", canEdit: true });
 });
 
@@ -244,10 +244,10 @@ test("selected-agent updates keep site defaults and sibling agents", async () =>
   const f = await fixture();
   const approved = await f.request("put", settingPath, { body: { enabled: true, agentId: "antigravity", capabilities: { userMcp: true } } });
   assert.equal(approved.statusCode, 200);
-  assert.equal((approved.jsonBody as { capabilities: { userMcp: boolean } }).capabilities.userMcp, false);
+  assert.equal((approved.jsonBody as { capabilities: { userMcp: boolean } }).capabilities.userMcp, true);
   assert.deepEqual((approved.jsonBody as { byAgent: unknown }).byAgent, { antigravity: { capabilities: { userMcp: true } } });
   assert.equal((await f.request("put", settingPath, { body: { enabled: true, agentId: "claude", capabilities: { shell: false } } })).statusCode, 200);
   const saved = await readAssistantCliPermissions({ ...f.deps, principalId: "owner", settingsReady: f.deps.settingsUiTabsReady });
-  assert.equal(saved.capabilities.userMcp, false);
+  assert.equal(saved.capabilities.userMcp, true);
   assert.deepEqual(saved.byAgent, { antigravity: { capabilities: { userMcp: true } }, claude: { capabilities: { shell: false } } });
 });

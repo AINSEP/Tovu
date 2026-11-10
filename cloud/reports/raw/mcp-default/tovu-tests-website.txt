@@ -1,0 +1,1606 @@
+✔ agent-daemon-port exports exactly the documented runtime surface, no more and no less (2.978824ms)
+✔ agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped (0.329016ms)
+✔ agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped (0.195618ms)
+✔ agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped (0.117627ms)
+✔ agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped (0.094065ms)
+✔ agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped (0.107915ms)
+✔ agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped (0.065608ms)
+✔ agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped (0.052666ms)
+✔ agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped (0.085709ms)
+✔ agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped (0.145701ms)
+✔ agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped (0.089512ms)
+✔ agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped (0.056224ms)
+✔ agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped (0.045884ms)
+✔ agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped (0.095627ms)
+✔ agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped (0.043815ms)
+✔ agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped (0.062979ms)
+✔ agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped (0.038852ms)
+✔ agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped (0.030329ms)
+✔ agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped (0.030566ms)
+✔ agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped (0.030444ms)
+✔ agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped (0.028343ms)
+✔ agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped (0.03032ms)
+✔ agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped (0.02789ms)
+✔ agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped (0.028839ms)
+✔ agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped (0.06994ms)
+✔ agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped (0.036828ms)
+✔ agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped (0.034069ms)
+✔ agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped (0.073091ms)
+✔ agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped (0.06739ms)
+✔ agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped (0.071607ms)
+✔ agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped (0.036193ms)
+✔ agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped (0.035326ms)
+✔ agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped (0.070988ms)
+✔ agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped (0.077087ms)
+✔ agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped (0.060426ms)
+✔ agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped (0.062053ms)
+✔ agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped (0.035825ms)
+✔ agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped (0.027463ms)
+✔ agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped (0.041889ms)
+✔ agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped (0.080298ms)
+✔ agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped (0.106084ms)
+✔ agent-daemon-port.askAgentPluginChoice is the owning module's own binding, defined and unwrapped (0.073684ms)
+✔ agent-daemon-port.applyToolApprovalPolicy is the owning module's own binding, defined and unwrapped (0.043923ms)
+✔ agent-daemon-port.createAssistantAgentInventory is the owning module's own binding, defined and unwrapped (0.114032ms)
+✔ agent-daemon-port.attachAssistantToolExtensions is the owning module's own binding, defined and unwrapped (0.036806ms)
+✔ agent-daemon-port.createStoredExternalMcpConnectionSource is the owning module's own binding, defined and unwrapped (0.040151ms)
+✔ agent-daemon-port.buildExternalMcpFederationDeps is the owning module's own binding, defined and unwrapped (0.030354ms)
+✔ agent-daemon-port.onExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped (0.025593ms)
+✔ agent-daemon-port.notifyExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped (0.02384ms)
+✔ agent-daemon-port.agentCarriesOwnMemory is the owning module's own binding, defined and unwrapped (0.025879ms)
+✔ agent-daemon-port.extractSessionRefFromEndEvent is the owning module's own binding, defined and unwrapped (0.02488ms)
+✔ agent-daemon-port.resolveResumeSessionField is the owning module's own binding, defined and unwrapped (0.025164ms)
+✔ agent-daemon-port.shouldClearSessionOnFailedResume is the owning module's own binding, defined and unwrapped (0.023917ms)
+✔ agent-daemon-port.wouldForcedColdStartLoseConversationContext is the owning module's own binding, defined and unwrapped (0.028445ms)
+✔ agent-daemon-port.CONCURRENT_RUN_REFUSAL_MESSAGE is the owning module's own binding, defined and unwrapped (0.045633ms)
+✔ agent-daemon-port.createLiveRunTracker is the owning module's own binding, defined and unwrapped (0.048352ms)
+✔ agent-daemon-port.failRunBeforeStart is the owning module's own binding, defined and unwrapped (0.03062ms)
+✔ agent-daemon-port.STOPPING_RUN_WAIT_MS is the owning module's own binding, defined and unwrapped (0.025371ms)
+✔ agent-daemon-port.waitForStoppingRuns is the owning module's own binding, defined and unwrapped (0.026829ms)
+✔ agent-daemon-port.agentAcceptsHostMintedSessionId is the owning module's own binding, defined and unwrapped (0.023028ms)
+✔ agent-daemon-port.resolveHostMintedSessionId is the owning module's own binding, defined and unwrapped (0.036906ms)
+✔ agent-daemon-port.resolveNewSessionField is the owning module's own binding, defined and unwrapped (0.02823ms)
+✔ agent-daemon-port.createConversationStartLock is the owning module's own binding, defined and unwrapped (0.023846ms)
+✔ agent-daemon-port.readChatPermanentDeletesPolicy is the owning module's own binding, defined and unwrapped (0.156535ms)
+✔ agent-daemon-port.createChatDeleteScope is the owning module's own binding, defined and unwrapped (0.039774ms)
+✔ agent-daemon-port.ALL_CHAT_DELETE_TOOLS is the owning module's own binding, defined and unwrapped (0.035227ms)
+✔ agent-daemon-port.readAssistantCliPermissions is the owning module's own binding, defined and unwrapped (0.030967ms)
+✔ agent-daemon-port.createLostFrontendBindings is the owning module's own binding, defined and unwrapped (0.026587ms)
+✔ agent-daemon-port.withPageNavigateErrorRewrap is the owning module's own binding, defined and unwrapped (0.059718ms)
+✔ agent-daemon-port.delegatedToolErrorDisclosure is the owning module's own binding, defined and unwrapped (0.03036ms)
+✔ agent-daemon-port.createRunActiveContextStore is the owning module's own binding, defined and unwrapped (0.040438ms)
+✔ agent-daemon-port.registerRunActiveContextRoute is the owning module's own binding, defined and unwrapped (0.029426ms)
+✔ agent-daemon-port.createRunScopedCredentials is the owning module's own binding, defined and unwrapped (0.030033ms)
+✔ launch permissions are read per site/owner and freshly on every turn (1.920844ms)
+✔ a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all (0.548321ms)
+✖ A4/A6: untouched local owner permissions default personal MCP OFF and other capabilities ON (7.102776ms)
+✖ A6: empty definition default inherits a persisted legacy OFF, including after another boot (1.62736ms)
+✔ a snapshot saved with personal MCP on by default preserves personal MCP false (1.831663ms)
+✔ a snapshot saved with personal MCP on by default preserves personal MCP true (0.206583ms)
+✔ a snapshot saved before personal MCP defaulted on reads its stored false as the default (0.255114ms)
+✔ a per-agent personal MCP choice is kept from a snapshot saved before personal MCP defaulted on (0.470732ms)
+✔ a snapshot from the definition default inherits the legacy boolean (0.267814ms)
+✔ a snapshot with a null value inherits the legacy boolean (0.159339ms)
+✔ no snapshot and no legacy value defaults full CLI access ON with personal MCP ON (0.191725ms)
+✔ a snapshot with a non-boolean enabled flag denies all access and logs only the safe warning (0.263946ms)
+✔ a snapshot with missing capabilities denies all access and logs only the safe warning (0.706528ms)
+✔ a snapshot with a non-boolean capability denies all access and logs only the safe warning (0.327345ms)
+✔ a snapshot with a missing capability denies all access and logs only the safe warning (0.223566ms)
+✔ a malformed snapshot rethrows the validation error when the caller opts into propagation (0.595102ms)
+✔ a failed legacy fallback denies all access instead of defaulting ON (0.371533ms)
+✔ a settings-ready failure rethrows the original error when propagation is requested (0.176565ms)
+✔ without a warn port the CLI permissions denial is logged through console.warn (0.534662ms)
+✔ the legacy boolean reads the workspace-scoped enabled key (0.214504ms)
+✔ the legacy boolean value true reads as true (0.092755ms)
+✔ the legacy boolean value false reads as false (0.270071ms)
+✔ the legacy boolean value "true" reads as false (0.054505ms)
+✔ a failed legacy read denies access with the safe warning and no storage detail (0.164212ms)
+✔ a failed legacy read rethrows the original error when propagation is requested (0.175092ms)
+✔ without a warn port the legacy denial is logged through console.warn (0.210749ms)
+✔ per-agent choices survive reads and apply only to the selected agent after the host gate (1.161013ms)
+✖ local owner capabilities default on except personal MCP, and explicit off choices survive (3.331751ms)
+✖ the master resets capability defaults with personal MCP off, and individual switches can override (1.74669ms)
+✔ personal MCP honors explicit owner choices with master false (0.42422ms)
+✔ personal MCP honors explicit owner choices with master true (0.178467ms)
+✔ host restrictions override every individual grant: {"TOVU_HOSTED":"1"} (0.187987ms)
+✔ host restrictions override every individual grant: {"TOVU_RUNTIME_MODE":"production"} (0.205042ms)
+✔ host restrictions override every individual grant: {"TOVU_PUBLIC_URL":"https://tovu.dev"} (0.120455ms)
+✔ non-owners cannot establish an individual grant (0.141775ms)
+✔ APP/MACHINE/ALLOC matrix [null,null,null] (5.496146ms)
+✔ APP/MACHINE/ALLOC matrix [null,null,""] (0.347048ms)
+✔ APP/MACHINE/ALLOC matrix [null,null," "] (0.269523ms)
+✔ APP/MACHINE/ALLOC matrix [null,null,"0"] (0.137658ms)
+✔ APP/MACHINE/ALLOC matrix [null,null,"alloc"] (0.179021ms)
+✔ APP/MACHINE/ALLOC matrix [null,"",null] (0.197661ms)
+✔ APP/MACHINE/ALLOC matrix [null,"",""] (0.143676ms)
+✔ APP/MACHINE/ALLOC matrix [null,""," "] (0.113925ms)
+✔ APP/MACHINE/ALLOC matrix [null,"","0"] (0.148965ms)
+✔ APP/MACHINE/ALLOC matrix [null,"","alloc"] (0.205612ms)
+✔ APP/MACHINE/ALLOC matrix [null," ",null] (0.164237ms)
+✔ APP/MACHINE/ALLOC matrix [null," ",""] (0.086379ms)
+✔ APP/MACHINE/ALLOC matrix [null," "," "] (0.120791ms)
+✔ APP/MACHINE/ALLOC matrix [null," ","0"] (0.112414ms)
+✔ APP/MACHINE/ALLOC matrix [null," ","alloc"] (0.098877ms)
+✔ APP/MACHINE/ALLOC matrix [null,"0",null] (0.111854ms)
+✔ APP/MACHINE/ALLOC matrix [null,"0",""] (0.059761ms)
+✔ APP/MACHINE/ALLOC matrix [null,"0"," "] (0.126961ms)
+✔ APP/MACHINE/ALLOC matrix [null,"0","0"] (0.139267ms)
+✔ APP/MACHINE/ALLOC matrix [null,"0","alloc"] (0.087569ms)
+✔ APP/MACHINE/ALLOC matrix [null,"machine",null] (0.114826ms)
+✔ APP/MACHINE/ALLOC matrix [null,"machine",""] (0.078666ms)
+✔ APP/MACHINE/ALLOC matrix [null,"machine"," "] (0.067324ms)
+✔ APP/MACHINE/ALLOC matrix [null,"machine","0"] (0.041271ms)
+✔ APP/MACHINE/ALLOC matrix [null,"machine","alloc"] (0.064209ms)
+✔ APP/MACHINE/ALLOC matrix ["",null,null] (0.155513ms)
+✔ APP/MACHINE/ALLOC matrix ["",null,""] (0.122256ms)
+✔ APP/MACHINE/ALLOC matrix ["",null," "] (0.094453ms)
+✔ APP/MACHINE/ALLOC matrix ["",null,"0"] (0.074163ms)
+✔ APP/MACHINE/ALLOC matrix ["",null,"alloc"] (0.042803ms)
+✔ APP/MACHINE/ALLOC matrix ["","",null] (0.111636ms)
+✔ APP/MACHINE/ALLOC matrix ["","",""] (0.058501ms)
+✔ APP/MACHINE/ALLOC matrix ["",""," "] (0.087201ms)
+✔ APP/MACHINE/ALLOC matrix ["","","0"] (0.043998ms)
+✔ APP/MACHINE/ALLOC matrix ["","","alloc"] (0.04214ms)
+✔ APP/MACHINE/ALLOC matrix [""," ",null] (0.066364ms)
+✔ APP/MACHINE/ALLOC matrix [""," ",""] (0.038641ms)
+✔ APP/MACHINE/ALLOC matrix [""," "," "] (0.040221ms)
+✔ APP/MACHINE/ALLOC matrix [""," ","0"] (0.040881ms)
+✔ APP/MACHINE/ALLOC matrix [""," ","alloc"] (0.043908ms)
+✔ APP/MACHINE/ALLOC matrix ["","0",null] (0.040436ms)
+✔ APP/MACHINE/ALLOC matrix ["","0",""] (0.036891ms)
+✔ APP/MACHINE/ALLOC matrix ["","0"," "] (0.05324ms)
+✔ APP/MACHINE/ALLOC matrix ["","0","0"] (0.044917ms)
+✔ APP/MACHINE/ALLOC matrix ["","0","alloc"] (0.034494ms)
+✔ APP/MACHINE/ALLOC matrix ["","machine",null] (0.089311ms)
+✔ APP/MACHINE/ALLOC matrix ["","machine",""] (0.037038ms)
+✔ APP/MACHINE/ALLOC matrix ["","machine"," "] (0.035162ms)
+✔ APP/MACHINE/ALLOC matrix ["","machine","0"] (0.03626ms)
+✔ APP/MACHINE/ALLOC matrix ["","machine","alloc"] (0.036646ms)
+✔ APP/MACHINE/ALLOC matrix [" ",null,null] (0.100729ms)
+✔ APP/MACHINE/ALLOC matrix [" ",null,""] (0.061563ms)
+✔ APP/MACHINE/ALLOC matrix [" ",null," "] (0.050586ms)
+✔ APP/MACHINE/ALLOC matrix [" ",null,"0"] (0.048233ms)
+✔ APP/MACHINE/ALLOC matrix [" ",null,"alloc"] (0.062644ms)
+✔ APP/MACHINE/ALLOC matrix [" ","",null] (0.090679ms)
+✔ APP/MACHINE/ALLOC matrix [" ","",""] (0.183845ms)
+✔ APP/MACHINE/ALLOC matrix [" ",""," "] (0.082484ms)
+✔ APP/MACHINE/ALLOC matrix [" ","","0"] (0.058063ms)
+✔ APP/MACHINE/ALLOC matrix [" ","","alloc"] (0.047382ms)
+✔ APP/MACHINE/ALLOC matrix [" "," ",null] (0.045656ms)
+✔ APP/MACHINE/ALLOC matrix [" "," ",""] (0.047428ms)
+✔ APP/MACHINE/ALLOC matrix [" "," "," "] (0.046067ms)
+✔ APP/MACHINE/ALLOC matrix [" "," ","0"] (0.153573ms)
+✔ APP/MACHINE/ALLOC matrix [" "," ","alloc"] (0.073088ms)
+✔ APP/MACHINE/ALLOC matrix [" ","0",null] (0.073413ms)
+✔ APP/MACHINE/ALLOC matrix [" ","0",""] (0.046878ms)
+✔ APP/MACHINE/ALLOC matrix [" ","0"," "] (0.20158ms)
+✔ APP/MACHINE/ALLOC matrix [" ","0","0"] (0.14448ms)
+✔ APP/MACHINE/ALLOC matrix [" ","0","alloc"] (0.095256ms)
+✔ APP/MACHINE/ALLOC matrix [" ","machine",null] (0.060882ms)
+✔ APP/MACHINE/ALLOC matrix [" ","machine",""] (0.044927ms)
+✔ APP/MACHINE/ALLOC matrix [" ","machine"," "] (0.041909ms)
+✔ APP/MACHINE/ALLOC matrix [" ","machine","0"] (0.038065ms)
+✔ APP/MACHINE/ALLOC matrix [" ","machine","alloc"] (0.036568ms)
+✔ APP/MACHINE/ALLOC matrix ["0",null,null] (0.05419ms)
+✔ APP/MACHINE/ALLOC matrix ["0",null,""] (0.043712ms)
+✔ APP/MACHINE/ALLOC matrix ["0",null," "] (0.041069ms)
+✔ APP/MACHINE/ALLOC matrix ["0",null,"0"] (0.086727ms)
+✔ APP/MACHINE/ALLOC matrix ["0",null,"alloc"] (0.04174ms)
+✔ APP/MACHINE/ALLOC matrix ["0","",null] (0.038133ms)
+✔ APP/MACHINE/ALLOC matrix ["0","",""] (0.109479ms)
+✔ APP/MACHINE/ALLOC matrix ["0",""," "] (0.038586ms)
+✔ APP/MACHINE/ALLOC matrix ["0","","0"] (0.036712ms)
+✔ APP/MACHINE/ALLOC matrix ["0","","alloc"] (0.036911ms)
+✔ APP/MACHINE/ALLOC matrix ["0"," ",null] (0.116173ms)
+✔ APP/MACHINE/ALLOC matrix ["0"," ",""] (0.048944ms)
+✔ APP/MACHINE/ALLOC matrix ["0"," "," "] (0.075372ms)
+✔ APP/MACHINE/ALLOC matrix ["0"," ","0"] (0.055422ms)
+✔ APP/MACHINE/ALLOC matrix ["0"," ","alloc"] (0.04027ms)
+✔ APP/MACHINE/ALLOC matrix ["0","0",null] (0.039872ms)
+✔ APP/MACHINE/ALLOC matrix ["0","0",""] (0.056237ms)
+✔ APP/MACHINE/ALLOC matrix ["0","0"," "] (0.049746ms)
+✔ APP/MACHINE/ALLOC matrix ["0","0","0"] (0.042933ms)
+✔ APP/MACHINE/ALLOC matrix ["0","0","alloc"] (0.037285ms)
+✔ APP/MACHINE/ALLOC matrix ["0","machine",null] (0.07321ms)
+✔ APP/MACHINE/ALLOC matrix ["0","machine",""] (0.043919ms)
+✔ APP/MACHINE/ALLOC matrix ["0","machine"," "] (0.08267ms)
+✔ APP/MACHINE/ALLOC matrix ["0","machine","0"] (0.06827ms)
+✔ APP/MACHINE/ALLOC matrix ["0","machine","alloc"] (0.052874ms)
+✔ APP/MACHINE/ALLOC matrix ["app",null,null] (0.065102ms)
+✔ APP/MACHINE/ALLOC matrix ["app",null,""] (0.069267ms)
+✔ APP/MACHINE/ALLOC matrix ["app",null," "] (0.054283ms)
+✔ APP/MACHINE/ALLOC matrix ["app",null,"0"] (0.040133ms)
+✔ APP/MACHINE/ALLOC matrix ["app",null,"alloc"] (0.040798ms)
+✔ APP/MACHINE/ALLOC matrix ["app","",null] (0.042585ms)
+✔ APP/MACHINE/ALLOC matrix ["app","",""] (0.085053ms)
+✔ APP/MACHINE/ALLOC matrix ["app",""," "] (0.048544ms)
+✔ APP/MACHINE/ALLOC matrix ["app","","0"] (0.042867ms)
+✔ APP/MACHINE/ALLOC matrix ["app","","alloc"] (0.081255ms)
+✔ APP/MACHINE/ALLOC matrix ["app"," ",null] (0.04557ms)
+✔ APP/MACHINE/ALLOC matrix ["app"," ",""] (0.057049ms)
+✔ APP/MACHINE/ALLOC matrix ["app"," "," "] (0.037418ms)
+✔ APP/MACHINE/ALLOC matrix ["app"," ","0"] (0.036451ms)
+✔ APP/MACHINE/ALLOC matrix ["app"," ","alloc"] (0.074834ms)
+✔ APP/MACHINE/ALLOC matrix ["app","0",null] (0.042961ms)
+✔ APP/MACHINE/ALLOC matrix ["app","0",""] (0.036194ms)
+✔ APP/MACHINE/ALLOC matrix ["app","0"," "] (0.076168ms)
+✔ APP/MACHINE/ALLOC matrix ["app","0","0"] (0.083897ms)
+✔ APP/MACHINE/ALLOC matrix ["app","0","alloc"] (0.043529ms)
+✔ APP/MACHINE/ALLOC matrix ["app","machine",null] (0.037967ms)
+✔ APP/MACHINE/ALLOC matrix ["app","machine",""] (0.033591ms)
+✔ APP/MACHINE/ALLOC matrix ["app","machine"," "] (0.035088ms)
+✔ APP/MACHINE/ALLOC matrix ["app","machine","0"] (0.076577ms)
+✔ APP/MACHINE/ALLOC matrix ["app","machine","alloc"] (0.044758ms)
+✔ explicit proxy override always wins, even when host defaults conflict (0.937239ms)
+✔ packaged desktop exempts only NODE_ENV from hosted install policy (0.46519ms)
+✔ an explicitly empty evaluated declaration has no hints; independent core switches still apply (0.14893ms)
+✔ core fallback is immutable, and complete unambiguous declarations retain their identity (0.34991ms)
+✔ empty, partial, changed and ambiguous security declarations select the complete fallback (0.346756ms)
+✔ matched facts only restrict; conflicting proxy hops never grant arbitrary trust (0.193608ms)
+✔ the headless barrel exposes exactly the owning modules' runtime values (1.673694ms)
+[routes/settings] {
+  errorId: 'ce6e58de-43de-4784-8ddb-06a5024a6824',
+  diagnostic: 'Error: getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route\n' +
+    '    at getAuthedPrincipal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:320:11)\n' +
+    '    at Object.authenticate (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/settings/shared.ts:247:79)\n' +
+    '    at async <anonymous> (/home/user/Jini/packages/http-kit/src/adapter.ts:123:47)\n' +
+    '    at async Object.request (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:61:7)\n' +
+    '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:167:17)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[routes/settings] {
+  errorId: 'b178b72d-2ec0-4f3a-b373-63b13eba119f',
+  diagnostic: 'Error: settings store unavailable\n' +
+    '    at Object.f.deps.getEffective (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:238:45)\n' +
+    '    at readAssistantCliPermissions (/home/user/Tovu/apps/website/src/assistant/subagent-settings.ts:15:35)'
+}
+✔ the picker receives the same effective permission mode as the launch gate (17.991228ms)
+✔ boot defaults on, registration is idempotent, and reads expose owner editability (7.265555ms)
+✖ owner enable and disable are audited and a separate daemon read sees the current grant (584.581645ms)
+✔ a non-owner with all settings permissions cannot enable OR disable (1.970002ms)
+✔ one capability override is persisted for this owner/site and observed by the next launch (9.006842ms)
+✔ unknown or malformed per-capability values never create a revision (7.091216ms)
+✔ hosted sites return disabled permissions and reject owner writes (5.163964ms)
+✔ a local env kill switch locks the owner's switches with a reason instead of snapping back (3.759976ms)
+✔ malformed writes never create a revision (6.970089ms)
+✔ workspace, authentication, and permission boundaries fail closed (19.291301ms)
+✔ generic set, clear, reset and definition edits cannot bypass the owner setting route (1.392994ms)
+✔ generic mutations also refuse an alias to the protected grant, including reset (1.141479ms)
+✔ missing values default on, while unavailable or malformed reads deny delegation (1.280666ms)
+✖ explicit off survives boot, and re-enabling needs no acknowledgment or receipt (25.114805ms)
+✔ boot reconciles an old OFF definition for an install with no stored value (2.708251ms)
+✔ HTTP read failure stays unknown instead of presenting a false OFF setting (2.267514ms)
+✖ selected-agent updates keep site defaults and sibling agents (3.131943ms)
+✔ consent RPC accepts only a run-bound target and explicit bounded capability keys (5.731436ms)
+✔ daemon consent client uses the existing authenticated RPC without local writes or caller identities (29.662619ms)
+✔ open passive streams do not prevent park (2.217557ms)
+✔ run without conversationId prevents park (138.06237ms)
+✔ delegated call approval upload and cleanup prevent premature park (0.703218ms)
+✔ a terminal run stays busy until its retained attachment cleanup finishes (51.299276ms)
+✔ park sends a frame before closing streams (1.094408ms)
+✔ idle zero never parks (0.167283ms)
+✔ graceful shutdown fences intake while allowing already accepted cleanup to finish (0.25015ms)
+✔ staged attachment survives park wake (27.400546ms)
+✔ mid-run reload reattaches and replays without parking the run (2.358642ms)
+✔ default idle is fifteen minutes and invalid input warns without logging its value (0.40312ms)
+✔ the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules (348.079584ms)
+✔ daemon local tools never load federation clients or the desktop capability (257.309975ms)
+✔ the walk resolves relative and #src imports from the real daemon entry and never throws (101.026301ms)
+✔ type-only imports and dynamic import() are not runtime edges; every other import form is (0.808891ms)
+✔ the forbidden list matches the ADR's modules and nothing next to them (0.49541ms)
+✔ agent-daemon-server.ts imports installUnhandledRejectionGuard from the shared process-error-guards module (0.808046ms)
+✔ agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditionally at module load, before this process's own first real I/O (26.673768ms)
+✔ post-boot uploaded attachment resolves through the daemon owner (97.096889ms)
+✔ attachment lookup refuses missing and run-scoped credentials before parsing (33.172496ms)
+✔ delegation records tool_use and tool_result (9427.791831ms)
+✔ cancel aborts the server handler (246.065925ms)
+✔ committed write with dropped response dispatches once (248.826039ms)
+✔ memory site writes are visible in the server (179.383655ms)
+✔ read-only delegation refuses a server write before routing it (193.57999ms)
+✔ a dropped remote write remains unknown to the durable gateway and a blind repeat is refused (266.162363ms)
+✔ two sites sharing one workspace id each get their own scope, and withdrawing one keeps the other (3.678543ms)
+✔ a shared-host registration without a scope key is refused in plain words (0.73254ms)
+✔ site idle shutdown cannot be sent to the shared daemon's scope control (0.377448ms)
+✔ standalone scope identity requires its site directory before it can be registered (0.232813ms)
+✔ Claude Local-CLI claiming and delegated discovery share the actual accepted-message binding (221.718467ms)
+▶ resolveAttachmentRunFields — no claimed attachment is silently dropped
+  ✔ all claimed refs reach preparation and its paths, pixels and notice reach the executor (2.033327ms)
+  ✔ the old kind === "image" filter is absent from executable preparation wiring (0.302665ms)
+✔ resolveAttachmentRunFields — no claimed attachment is silently dropped (3.531128ms)
+▶ real AttachmentStore + a genuine binary non-image fixture
+  ✔ the production resolver delivers a real PDF and image to the daemon executor (177.306162ms)
+✔ real AttachmentStore + a genuine binary non-image fixture (177.698034ms)
+▶ resolveAttachmentRunFields
+  ✔ a message without attachments contributes no fields and never touches the store (87.929649ms)
+  ✔ a claim before the store is ready fails the run with a plain reason (9.842788ms)
+  ✔ a claim that yields no batch directory contributes no fields (11.022378ms)
+  ✔ a failed claim fails the run and logs the error message (8.213423ms)
+  ✔ a non-Error rejection is logged as its string form (6.886166ms)
+  ✔ a staged batch returns prepared paths, pixels and notice without adding directories (7.333487ms)
+  ✔ the default agent's definition is used when the run names none (6.092324ms)
+  ✔ native image delivery receives image access (6.173761ms)
+  ✔ prompt-path image delivery receives image access (8.854541ms)
+  ✔ a stream-json prompt receives image access (24.212409ms)
+  ✔ unsupported image delivery does not receive image access (12.419936ms)
+  ✔ an unknown agent does not receive image access (6.180768ms)
+✔ resolveAttachmentRunFields (197.417763ms)
+✔ the real durable guard binds live attempt message ids, fences deleted rows, and clears at terminal (124.720599ms)
+✔ agent-daemon-server.ts creates its run lifecycle with dropEventsOnEviction (1.124413ms)
+✔ agent-daemon-server.ts keeps the event log on its bounded defaults (0.323004ms)
+✔ server executable plugin tools share the server's confirmation store (3.159768ms)
+✔ the daemon has no independent federation, installed-extension or consent controller (3.500868ms)
+✔ onStarted reads the site's federation refusal prefix afresh for each run (161.666106ms)
+[reload-test] mcp-federation: 'probe' registered 1 federated tool(s): mcp__probe__lookup
+✔ the server executor diagnoses a refusal introduced after construction (361.063355ms)
+✔ a real federation reload makes native and newly admitted tools searchable and describable through existing daemon routes (59.615582ms)
+✔ the mounted relay accepts its live run credential without a proxy principal or ownership record (135.44505ms)
+✔ claim rejects missing, invalid and proxy credentials before parsing their bodies (34.153446ms)
+✔ claim binds URL scope to the credential and refuses caller-selected scope (23.176917ms)
+✔ relay access admits only the claim POST and preserves other run-route restrictions (27.429113ms)
+✔ agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps (1.057356ms)
+✔ agent-daemon-server.ts never calls a RouteDeps factory directly, or starts plugin polling (1.406754ms)
+✔ agent-daemon-server.ts starts no outbox drain of its own (3.40655ms)
+✔ the daemon's actual loop asks one chat card before an opaque click; HTTP human acceptance runs the frozen input once (107.008334ms)
+✔ reviewed direct page clicks run without a card or confirmation channel (7.373828ms)
+✔ an opaque page click has no effect after cancel (5.716737ms)
+✔ an opaque page click has no effect after typed-yes (4.455522ms)
+✔ an opaque page click has no effect after abort (5.024785ms)
+✔ an opaque daemon click without a human card transport refuses before effects (5.356553ms)
+✔ a navigation away and back while a card is pending invalidates its accepted click (4.493352ms)
+✔ a missing browser view revision refuses before a card or click (7.968322ms)
+✔ the run prompt renders decoded.pageContext directly after the dispatch marker (1.044934ms)
+✔ onStarted forwards page context and the operator's words to the executor (165.395073ms)
+✔ imports withPageNavigateErrorRewrap directly from the Tovu-side implementation leaf (1.157931ms)
+▶ the toolRegistrations registration loop
+  ✔ the loop iterates withPageNavigateErrorRewrap(frontendControl.toolRegistrations), not the bare array (0.314914ms)
+  ✔ the loop marks the read-only frontend capabilities before registering (0.242935ms)
+  ✔ every registration is still handed to registry.register — the rewrap must not replace registration itself (0.125363ms)
+  ✔ a run whose bind token was unknown gets the reload message: bind errors are recorded and every tool is wrapped (0.241931ms)
+✔ the toolRegistrations registration loop (1.537221ms)
+✔ the daemon loop registers every frontend tool and preserves navigation success, rewrap and lost-binding guidance (1362.235699ms)
+✔ standalone daemon finish analytics omits an absent outcome (124.067171ms)
+✔ standalone daemon finish analytics succeeded (45.672068ms)
+✔ standalone daemon finish analytics failed (33.413839ms)
+✔ standalone daemon finish analytics canceled (30.936573ms)
+▶ resolveSessionBinding — which stored session a run resumes
+  ✔ an ordinary turn resumes the conversation's stored session (99.082539ms)
+  ✔ reconstruction recovery never resumes the stored session and mints a fresh one (58.924608ms)
+  ✔ native recovery resumes the recovery session instead of the stored one (50.952183ms)
+  ✔ native recovery without a recovery session starts cold (33.698643ms)
+  ✔ the run's own agent keys the session lookup and is the agent launched (42.794021ms)
+  ✔ a run that names no agent uses the default agent (32.690507ms)
+  ✔ saved copilot starts with the default agent without a user error (30.441733ms)
+  ✔ saved removed-agent starts with the default agent without a user error (31.009645ms)
+  ✔ a run outside any conversation never reads or writes a session (39.453102ms)
+✔ resolveSessionBinding — which stored session a run resumes (420.861623ms)
+▶ resolveSessionBinding — concurrency gate
+  ✔ a concurrent live run refuses a memory-carrying agent that would lose its stored history (34.218774ms)
+  ✔ a concurrent live run with nothing stored starts cold under a minted id (28.231135ms)
+✔ resolveSessionBinding — concurrency gate (62.906829ms)
+▶ resolveSessionBinding — where the minted id is persisted
+  ✔ a non-durable cold start persists the minted id to the conversation's session store (27.618052ms)
+  ✔ a durable cold start captures the minted id on its attempt, unconfirmed, not in the session store (34.92833ms)
+  ✔ a failed dispatch-time write is logged and the run still starts (22.729692ms)
+  ✔ a resumed turn mints and persists nothing (24.721539ms)
+✔ resolveSessionBinding — where the minted id is persisted (110.343577ms)
+▶ onStarted continuation — durable attempt ownership
+  ✔ a queued durable attempt still owns its answer and starts (26.569643ms)
+  ✔ a missing durable attempt is refused (23.84404ms)
+  ✔ a cancelled durable attempt is refused (22.525618ms)
+  ✔ a durable attempt whose answer already finished is refused (26.201929ms)
+  ✔ a durable attempt with no run status is refused (41.589654ms)
+  ✔ a durable message id without a durable ledger skips the ownership check (22.005065ms)
+✔ onStarted continuation — durable attempt ownership (163.300847ms)
+▶ onStarted continuation — early stops and prompt assembly
+  ✔ a refused attachment claim stops before the executor (1001.747229ms)
+  ✔ a refused plugin prefix stops before the executor (24.09219ms)
+  ✔ the server's joined automatic and pinned prefix reaches the executor ahead of the prompt (25.113705ms)
+  ✔ the daemon sends only its run id and cancellation signal to server plugin preflight (20.229442ms)
+  ✔ an unavailable automatic preflight is warned about and the run starts without it (20.484073ms)
+  ✔ an unavailable preflight cannot silently omit an explicitly selected plugin (17.911999ms)
+  ✔ a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context (34.00083ms)
+  ✔ a resumed turn keeps its tail prompt even when a cold-start context is sent (20.42178ms)
+  ✔ a cold start of an agent without its own memory keeps the prompt it was sent (19.567998ms)
+  ✔ a cold start without a cold-start context keeps the prompt it was sent (19.725268ms)
+✔ onStarted continuation — early stops and prompt assembly (1204.511091ms)
+✔ the launch reads preferSubagents fresh for the launching person (127.507881ms)
+✔ the real overlay enables message relay guidance for Codex and excludes native Claude input (84.123431ms)
+✔ the real overlay excludes engines without an injected MCP bridge (8.236536ms)
+✔ ON + Claude Code + Task/Agent allowed: the run's overlay carries the delegation guidance (37.510756ms)
+✔ OFF, a denied Task/Agent, or a runtime without native subagents: no delegation guidance (98.997695ms)
+✔ Chrome OFF (default) on Claude Code: explicit --no-chrome, no Chrome tools allowed, no Chrome guidance (38.127193ms)
+✔ Chrome ON for the owner: --chrome, the whole server allowed, guidance present, every deny kept (58.42011ms)
+✔ Chrome ON stays off for a non-owner, and is omitted for a runtime without Chrome support (55.427006ms)
+✔ Chrome ON for the owner on a CLI whose --help lacks --chrome: no flag, no Chrome tools, no Chrome guidance (41.463868ms)
+✔ reply length reaches each run's actual overlay without leaking into the next run (352.237758ms)
+✔ runtime: cold and resumed CLI cwd defaults to the site directory (137.095065ms)
+✔ runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23) (50.029658ms)
+✔ runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt (41.726803ms)
+✔ runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations (39.242676ms)
+✔ runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn (61.274644ms)
+✔ runtime: concurrent dispatches serialize the lookup and pending write, minting only one session (31.521451ms)
+▶ Defect 1 wiring — the conversation/session binding must be written at DISPATCH
+  ✔ imports the host-minting decisions from the pure decision module (0.66301ms)
+  ✔ a binding write exists at dispatch rather than only in the event subscription (3.465346ms)
+  ✔ the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned (0.389996ms)
+  ✔ the minted id is both persisted and handed to AgentExecutor.run — one id, not two (0.30106ms)
+  ✔ the mint decision is gated on the def actually accepting a host-minted id (0.200752ms)
+✔ Defect 1 wiring — the conversation/session binding must be written at DISPATCH (5.610803ms)
+▶ Defect 1 wiring — run starts must be serialized per conversation
+  ✔ imports createConversationStartLock and constructs exactly one module-level instance (0.266119ms)
+  ✔ the stored-session lookup AND the dispatch-time write both run inside the lock (0.145828ms)
+  ✔ agentExecutor.run is NOT inside the locked section (0.114447ms)
+✔ Defect 1 wiring — run starts must be serialized per conversation (0.690344ms)
+▶ H1 wiring — a failed resume must clear its dead stored session id
+  ✔ imports shouldClearSessionOnFailedResume from the pure decision module (0.841167ms)
+  ✔ the stream subscription calls shouldClearSessionOnFailedResume and, when true, clears the stored session id (0.275767ms)
+  ✔ attemptedResumeSessionId is assigned from the gated resume value actually attempted — the value the decision checks must reflect what onStarted really passed to agentExecutor.run, not the raw pre-gating lookup (0.160838ms)
+✔ H1 wiring — a failed resume must clear its dead stored session id (2.517121ms)
+▶ H2 wiring — overlapping runs on one conversation must not both resume
+  ✔ imports createLiveRunTracker and constructs exactly one module-level instance (0.394042ms)
+  ✔ a run registers itself in the tracker before any await in onStarted's synchronous prefix (0.116996ms)
+  ✔ a run unregisters itself from the tracker on its own terminal event (209.609818ms)
+  ✔ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (0.223695ms)
+✔ H2 wiring — overlapping runs on one conversation must not both resume (210.675024ms)
+▶ H2-context-loss wiring — a forced-cold run must not silently drop conversation history
+  ✔ imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module (0.403835ms)
+  ✔ getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable (0.224562ms)
+  ✔ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.225926ms)
+  ✔ effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume (0.177458ms)
+✔ H2-context-loss wiring — a forced-cold run must not silently drop conversation history (1.330681ms)
+▶ Send right after Stop — wait for the stopped run, and say why when refusing
+  ✔ waits for a stopped run on the same chat before deciding whether another run holds the session (0.107251ms)
+  ✔ the concurrent-run refusal puts its plain reason on the run's stream (0.049525ms)
+✔ Send right after Stop — wait for the stopped run, and say why when refusing (0.232851ms)
+✔ onStarted's real stream clears only the resumed conversation-agent binding (92.015884ms)
+✔ onStarted's real stream persists the CLI's reconfirmed session (24.391438ms)
+✔ onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call (34.552539ms)
+✔ onStarted registers the conversation synchronously while instruction refresh is held (31.01182ms)
+✖ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (40.923583ms)
+✔ fresh and resumed in-app launches honor user MCP false and disclose native permissions (115.427221ms)
+✔ fresh and resumed in-app launches honor user MCP true and disclose native permissions (85.293272ms)
+✔ site capabilities read the server registry while the daemon carries only its descriptor view (2.514709ms)
+✔ the server's actual catalog reader exposes a late tool and applies the daemon caller's delete grant (373.134148ms)
+▶ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted
+  ✔ imports the shared tool policy resolver from assistant-system-overlay.ts (1.018838ms)
+  ✔ agentExecutor.run() receives hook settings when the guard exists (147.184512ms)
+  ✔ agentExecutor.run() receives only the assistant setting sources (112.163789ms)
+✔ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted (261.690009ms)
+✔ onStarted hands the executor the enforced tool restrictions (71.866664ms)
+✔ native Windows shell launches emit the required value-free limitation notice (43.012819ms)
+✔ onStarted forwards the exact search hook settings through to Claude launch arguments (38.747858ms)
+✔ onStarted disables auto-memory through Claude launch settings even when the hook file is absent (42.450387ms)
+✔ a non-owner cannot use a true owner setting to change any provider's grant (90.204114ms)
+✔ real per-launch reads apply enable AND revoke without restarting the daemon (209.340808ms)
+✔ a failed fresh subagent read still launches Claude with every default tool restriction (27.070605ms)
+✔ catalog identity survives a parser continuation using the pre-existing request resource (63.375324ms)
+✔ the real prompt augmenter receives the same fresh grant as each concurrent launch (100.007143ms)
+✔ host startup IDs reach a typed MCP call and the existing Tovu executor (116.625715ms)
+✔ startup publication prioritizes late theme tools within the budget and preserves remaining catalog order (34.421412ms)
+✔ startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs (56.361361ms)
+✔ overlapping runs isolate grants, credentials and publication and read the live registry at launch (34.117128ms)
+✔ typed and legacy calls recheck authorization after publication (20.481098ms)
+✔ typed and legacy bridge ingress preserve the executor's confirm decision (40.27357ms)
+✔ typed and legacy bridge ingress preserve the executor's deny decision (20.109624ms)
+✔ the site hands host-owned bridge approval to its executor (10.068416ms)
+✔ bridge approval still waits for a person's confirm card answer (18.682747ms)
+✔ bridge approval still waits for a person's cancel card answer (12.865ms)
+✔ A cancelled delegated confirmation executes zero times and rejects late approval (13.56171ms)
+✔ An expired delegated confirmation executes zero times and rejects late approval (14.705958ms)
+✔ host bridge approval cannot authorize a confirmation-required action without a human channel (9.188347ms)
+✔ concurrent principals have isolated catalogs and terminal cleanup (43.480459ms)
+✔ component requests refresh the server snapshot and fail closed without a core fallback (7.709652ms)
+[agent-daemon] site catalog unavailable: /internal/component-catalog
+✔ a catalog read completing after terminal cleanup cannot resurrect its principal (10.576231ms)
+✔ component snapshot reads reject oversized and malformed provider metadata (8.658942ms)
+✔ the inherited site tool token is removed before any CLI or plugin runtime can inherit it (958.914281ms)
+[agent-daemon] site catalog unavailable: /internal/tool-catalog
+✔ an obsolete start failure cannot remove a newer start of the same run (7.796383ms)
+✔ a live run cannot be rebound to another principal (2.131874ms)
+✔ plugin preflight sends only the live run id and closes after receiving its prepared prefix (2.106622ms)
+✔ the agent launches only after site catalog and plugin preparation finish (137.359992ms)
+✔ onStarted saves the preparation stage and cause on a pre-spawn rejection (143.219685ms)
+✔ server plugin consent reaches only its live owning daemon run (122.514676ms)
+▶ createLiveRunTracker
+  ✔ run-to-conversation lookup isolates live registrations and removes only the unregistered run (4.724243ms)
+  ✔ hasConcurrentLiveRun is false for a conversation with no registered runs at all (0.272068ms)
+  ✔ hasConcurrentLiveRun is false for the only run registered for a conversation (checking against itself) (0.122198ms)
+  ✔ H2: hasConcurrentLiveRun is true for each of two runs registered concurrently on the same conversation (0.102755ms)
+  ✔ unregistering the other run clears the concurrency signal for the one still live (0.082629ms)
+  ✔ unregister is a silent no-op for a runId that was never registered (0.136962ms)
+  ✔ two different conversationIds never see each other's live runs (0.127927ms)
+  ✔ a fresh tracker instance starts with no memory of a prior instance's registrations (matches an in-process map's empty state after a daemon restart) (0.319701ms)
+✔ createLiveRunTracker (7.034615ms)
+▶ waitForStoppingRuns
+  ✔ waits for a run the user stopped to end, then no longer counts it as live (11.538539ms)
+  ✔ does not wait for a live run nobody stopped (0.409391ms)
+  ✔ gives up after the timeout when the stopped run never ends (20.685099ms)
+✔ waitForStoppingRuns (34.231875ms)
+▶ failRunBeforeStart
+  ✔ puts the plain reason on the run's stream before finishing it failed (0.975245ms)
+  ✔ still finishes the run when the stream refuses the event (0.383709ms)
+✔ failRunBeforeStart (1.544937ms)
+▶ agentAcceptsHostMintedSessionId — which defs the host may mint a session id for
+  ✔ claude accepts a host-minted session id (0.680842ms)
+  ✔ codex does NOT — it is capture-style, the CLI mints its own id (0.161042ms)
+  ✔ opencode does NOT — also capture-style (0.091611ms)
+  ✔ amr does NOT — ACP `session/load` resume, whose handle is the ACP session, not a CLI flag (0.068776ms)
+  ✔ an unknown agent id does NOT — fails closed, same default as agentCarriesOwnMemory (0.104458ms)
+  ✔ every def this returns true for actually consumes newSessionId in its own buildArgs (0.675894ms)
+✔ agentAcceptsHostMintedSessionId — which defs the host may mint a session id for (2.833991ms)
+▶ resolveHostMintedSessionId — when a fresh id is minted at dispatch
+  ✔ mints on a cold start for a specify-style agent in a known conversation (0.214507ms)
+  ✔ does not mint when this run is resuming — the stored id already binds the conversation (0.110434ms)
+  ✔ does not mint for a capture-style agent — the CLI owns the id (0.128655ms)
+  ✔ does not mint without a conversation id — there is nothing to file the binding under (0.1727ms)
+  ✔ mints a DISTINCT id per call — two cold conversations must not share one CLI session (0.124873ms)
+✔ resolveHostMintedSessionId — when a fresh id is minted at dispatch (1.152975ms)
+▶ resolveNewSessionField — the AgentExecutor.run() spread
+  ✔ carries the minted id (0.725994ms)
+  ✔ is an EMPTY object for null — not `{ newSessionId: undefined }` (0.089085ms)
+✔ resolveNewSessionField — the AgentExecutor.run() spread (0.929953ms)
+▶ resolveResumeSessionField
+  ✔ returns an empty object for a null stored session id (no prior turn to resume) (1.377193ms)
+  ✔ returns { resumeSessionId } for a stored session id (0.365711ms)
+✔ resolveResumeSessionField (3.237043ms)
+▶ extractSessionRefFromEndEvent
+  ✔ returns undefined for a non-'end' event, even one that happens to carry a similarly-shaped field (0.55904ms)
+  ✔ returns undefined for an 'end' event with no sessionRef (a def with no resumesSessionViaCli support) (0.254381ms)
+  ✔ returns undefined for an 'end' event with an empty-string sessionRef (0.175691ms)
+  ✔ returns the sessionRef for a terminal 'end' event that carries one (0.138014ms)
+  ✔ returns the sessionRef even for a failed run that still reported a resumable session (0.282046ms)
+✔ extractSessionRefFromEndEvent (2.219499ms)
+▶ shouldClearSessionOnFailedResume
+  ✔ true: this run attempted a resume, reached its terminal end event, and the CLI never reconfirmed a session id (1.20495ms)
+  ✔ false: this run never attempted a resume (cold first turn) — nothing was stored to protect (0.363858ms)
+  ✔ false: the end event DID carry a sessionRef — the resume succeeded (or reconfirmed), nothing dead to clear (0.41465ms)
+  ✔ false: not a terminal end event — a mid-run progress event says nothing about whether the resume ultimately failed (0.218803ms)
+✔ shouldClearSessionOnFailedResume (2.561216ms)
+▶ agentCarriesOwnMemory
+  ✔ true for a def declaring resumesSessionViaCli (e.g. claude) (0.460393ms)
+  ✔ true for a def declaring resumesSessionViaAcpLoad (e.g. amr) (0.3575ms)
+  ✔ false for a def declaring neither (e.g. qoder — native attachment delivery, but no CLI/ACP resume) (0.14534ms)
+  ✔ false for an unknown agentId (no matching def) (0.07263ms)
+✔ agentCarriesOwnMemory (1.18729ms)
+▶ wouldForcedColdStartLoseConversationContext
+  ✔ true: a stored session exists, another run is live for the conversation, and the agent carries its own memory (0.127761ms)
+  ✔ false: no stored session — a genuine first turn has no history to lose (0.088548ms)
+  ✔ false: no concurrent live run — this run may simply resume normally (0.0431ms)
+  ✔ false: agent does not carry its own memory — the client already sent the full transcript, so a cold start loses nothing (0.033018ms)
+✔ wouldForcedColdStartLoseConversationContext (0.51747ms)
+✔ personal MCP opt-in discloses its boundary; personal hooks and permissions are always excluded (1.148342ms)
+✔ Windows shell disclosure follows the shell grant and only the Claude sandbox exception (0.225134ms)
+✔ the delegation guidance is the owner's exact text (1.13133ms)
+✔ delegation is effective only when the setting, the runtime and the run's capability all allow it (0.243372ms)
+✔ guidance text: the exact sentence when effective, empty otherwise (0.123253ms)
+✔ the overlay block appends a trailing space per sentence and is empty when nothing applies (0.247701ms)
+✔ the Claude in Chrome guidance is the owner's exact text (0.20592ms)
+✔ Claude in Chrome is effective only for the owner, with the setting ON, on a supporting runtime (0.281052ms)
+✔ run options: --chrome + the whole server allowed when effective, explicit OFF otherwise, nothing for other runtimes (0.812807ms)
+✔ launch: defaults on Claude Code for the owner — delegation guidance on, Chrome on (owner default 2026-10-22) (0.496181ms)
+✔ launch: the Chrome default still yields --no-chrome for a non-owner, and an explicit OFF wins for the owner (0.978486ms)
+✔ launch: a runtime without native subagents, a denied Task/Agent or an OFF setting disables delegation (1.569726ms)
+✔ launch: Chrome ON for the owner on Claude Code passes --chrome and allows the server (0.744373ms)
+✔ launch: Chrome ON stays off for a non-owner and is omitted for a runtime without support (0.47289ms)
+✔ launch: the host's own def lookup decides runtime support (0.336666ms)
+✔ launch: a declared-but-unprobed or probe-rejected CLI gets no Chrome guidance, no Chrome tools and no flag (0.344842ms)
+✔ launch: a runtime that does not declare Chrome support is never probed (0.132716ms)
+✔ chrome probe: fills the runtime's capability gate for the launch path, then reads its chrome flag (0.451965ms)
+✔ chrome probe: a CLI whose --help lacks --chrome, or a probe that recorded nothing, reads false (0.232422ms)
+✔ chrome probe: unknown agent, unresolved binary and a def without env (0.218239ms)
+✔ chrome probe: a throwing launch resolver or probe fails closed (0.192843ms)
+✔ reply length contributes the exact instruction, or nothing for Normal and absent input (0.073964ms)
+✔ reply guidance appends once alongside the existing guidance without changing Normal's bytes (0.222467ms)
+✔ launch: reply length applies independently of runtime capabilities, with invalid values defaulting to Normal (1.212605ms)
+✔ run guidance includes the exact bounded chat settings snapshot (0.457737ms)
+✔ relay guidance is included verbatim only when enabled for the run (1.621401ms)
+✔ resolveBashProhibitionEnabled defaults to false with no env var set (0.152445ms)
+✔ resolveBashProhibitionEnabled is false for anything other than the exact sentinel '1' (0.174989ms)
+✔ resolveBashProhibitionEnabled reads the '1' sentinel exactly (0.075294ms)
+✔ buildBashProhibitionBlock(false) is BASH_GUIDANCE_BLOCK verbatim, unmodified (0.07412ms)
+✔ buildBashProhibitionBlock(true) is BASH_PROHIBITION_BLOCK verbatim, unmodified (0.1118ms)
+✔ default (flag off): the base overlay carries the original steering text, not the prohibition (0.099666ms)
+✔ flag on: the base overlay contains the prohibition block verbatim, not the steering text (0.09507ms)
+✔ the rest of the base overlay is identical whether the flag is on or off (0.605765ms)
+✔ search-first applies when no visible tool fits or before a native fallback (0.603097ms)
+✔ native file fallbacks and Tool gap reports require a search and retry with named queries (0.204744ms)
+✔ native fallback guidance maps shell intents to existing tools and states the PDF limit (0.27413ms)
+✔ native fallback guidance stops after one denial and confines genuine shell gaps for every CLI (0.11924ms)
+✔ every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids (0.240966ms)
+✔ every overlay names where file searches may run, so the no-system-search hook and 20 s search timeouts are avoided (0.324133ms)
+✔ every overlay tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up (0.163969ms)
+✔ neither overlay names a coverage percentage — a hardcoded retrieval number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today (0.194222ms)
+✔ ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the security report flagged as dangerous and unused (0.76704ms)
+✔ one full-access grant controls native tools on every CLI while preserving Read path denies (0.219598ms)
+✔ delegation guidance follows the subagent capability without claiming full CLI access (0.416806ms)
+✔ enabled subagents require budget handoffs and immediate successors with a no-progress limit (0.212299ms)
+✔ disabled subagents omit budget, handoff and successor instructions (0.202115ms)
+✔ shell OFF with subagents ON names the disabled capabilities without denying delegation (0.101506ms)
+✔ disabled subagents do not claim independently enabled workflows are unavailable (0.173193ms)
+✔ ASSISTANT_DISALLOWED_TOOLS also blocks the other host-CLI write and background-shell builtins: MultiEdit, NotebookEdit, BashOutput, KillShell (0.077304ms)
+✔ ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, in home, on legacy key filenames, and on /proc (0.129753ms)
+✔ ASSISTANT_DISALLOWED_TOOLS does not name a tool the assistant has real observed use of (Read, ToolSearch, or Tovu's own catalog names) (0.081448ms)
+✔ ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, project or local CLI settings (0.04244ms)
+✔ resolveAssistantRunSettings: auto-memory is disabled alongside the no-system-search hook, same matcher and timeout (0.247855ms)
+✔ resolveAssistantRunSettings: absent hook still disables auto-memory without adding hooks (0.061891ms)
+✔ published content guidance prioritizes the live URL and requires explicit overwrite (0.065212ms)
+✔ every assistant overlay explains automatic editor updates and slug navigation after content edits (0.195544ms)
+✔ all post/page write descriptions explain editor synchronization without recommending a reload (0.444637ms)
+✔ default prompt describes the enforced host tool grant (0.21689ms)
+✔ every overlay tells the model to batch the same operation on several items into one items call (0.144458ms)
+✔ buildBashGuidanceBlock: the live grant disallows Bash, so the default block is the 'unavailable' text (0.09051ms)
+✔ buildBashGuidanceBlock: a grant that leaves Bash available narrows it to reading Tovu's own source (0.135002ms)
+✔ Allow patches only selected keys while preserving raw fields, site defaults and sibling entries (13.133633ms)
+✔ non-owner cannot grant tools even with a live run (1.467778ms)
+✔ hosted cannot grant tools even with a live run (1.374817ms)
+✔ environment lock cannot grant tools even with a live run (1.158401ms)
+✔ a cancelled run and a stale card revision leave permissions untouched (1.354649ms)
+✔ terminal completion during authorization cannot commit a previously approved card (1.142063ms)
+✔ owner identity alone does not bypass the existing settings authorization (1.425954ms)
+✔ an unknown consent key is rejected without widening or writing any grant (0.851886ms)
+✔ terminal completion in the settings writer authorization cannot enable a dead run (1.168917ms)
+✔ the real addressed-layer CAS returns stale instead of overwriting a concurrent edit (1.182511ms)
+✔ personal MCP consent discloses the project list, inherited run key and external settings write (2.221355ms)
+✔ stale cards say so and only the supplied qualified alternatives are offered (0.375573ms)
+✔ the real exchange rejects another principal, ignores altered grant fields and cannot be replayed (16.198118ms)
+✔ ending the originating run closes its pending card and never writes (3.736625ms)
+✔ SETUP offers only qualified Use Agent buttons and no Allow action (1.417566ms)
+✔ SETUP cancellation and unknown choices never select an agent (0.227442ms)
+✔ SETUP does not open a card without alternatives or after the run ends (0.209974ms)
+✔ SETUP rechecks run liveness after the human click (0.3619ms)
+✔ readProcessStart reads a stable, non-empty OS start identity for a live process (39.497821ms)
+✔ readProcessStart answers null for a PID with no process, so the child is proven dead (12.331119ms)
+✔ readProcessStart rejects when ps itself fails (not ps's exit-1 'no such process'), leaving the identity uncertain (4.03201ms)
+✔ the preflight launches the real bridge with no token and no startup tool fetch (1.344328ms)
+✔ the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory (94.904041ms)
+✔ BYOK reads only this message's refs as the authenticated owner and delivers exact pixels (0.785562ms)
+✔ BYOK refuses unreadable or foreign image refs instead of producing a name-only answer (0.683755ms)
+✔ BYOK's default reader reads the injected upload directory, not the env/cwd site (16.594474ms)
+✔ resolveCapabilityManifestArm defaults to off with no env var (0.96934ms)
+✔ resolveCapabilityManifestArm falls back to off for an unrecognized value (0.19398ms)
+✔ resolveCapabilityManifestArm reads passive, gate and mandate exactly (0.159037ms)
+✔ buildCapabilityManifestPrefix('off') is empty — matches today's behavior exactly (0.098628ms)
+✔ an 'off' prefix leaves the assembled prompt byte-for-byte unchanged (0.102669ms)
+✔ buildCapabilityManifestPrefix('passive') is exactly the manifest text, no gate instruction (0.106118ms)
+✔ buildCapabilityManifestPrefix('gate') is the manifest text PLUS the imperative instruction (0.155297ms)
+✔ buildCapabilityManifestPrefix('mandate') is the manifest text PLUS an unconditional first-turn instruction (0.132571ms)
+✔ the mandate instruction carries NO precondition — this is the whole reason it exists (0.304896ms)
+✔ the mandate instruction closes the two escape routes real runs actually took (0.394296ms)
+✔ manifest text names the search surface and the fallback bucket (0.134518ms)
+✔ manifest text never points the agent at the removed capability_search tool (0.099518ms)
+✔ manifest text is phrased as a pointer to a search vocabulary, never an existence claim (0.172642ms)
+✔ the complete mandate instruction keeps its unconditional scope and both escape-route prohibitions (0.090678ms)
+▶ createConversationStartLock
+  ✔ runs two critical sections for one conversation strictly one after the other (22.54919ms)
+  ✔ the second section observes the first section's write — the read-modify-write this exists for (11.014566ms)
+  ✔ different conversations do not block each other (30.300291ms)
+  ✔ a rejected section does not wedge the conversation for every later run (0.994023ms)
+  ✔ a rejection propagates to its own caller only, not to the next section in line (6.309086ms)
+  ✔ an absent conversation id runs immediately and serializes nothing (21.067921ms)
+  ✔ does not retain per-conversation state after its queue drains (1.346883ms)
+✔ createConversationStartLock (95.694399ms)
+✔ a third section arriving after the first finishes still waits for the held second section (1.556323ms)
+✔ daemon attachment and catalog fixtures inspect the site factory while shutdown fixtures inspect the process entry (2.189594ms)
+✔ the delegated route blocks an unknown identical mutation with exact structured error and allows read-only verification (2.218923ms)
+✔ a read-only gateway call is never ledgered: the daemon runs it read-only or refuses it unexecuted (0.348041ms)
+✔ an unregistered tool id reaches the daemon without a 409 or any durable tool event (0.494964ms)
+✔ a stale delegated attempt is fenced even for a read-only tool and even after its message binding disappears (0.269831ms)
+✔ the mutation response is withheld until its completed result is durably recorded (0.633319ms)
+✔ durable daemon starts use the accepted attempt id and never dispatch an unowned or canceled binding (0.539546ms)
+✔ duplicate accepted POSTs keep the chosen attempt id and call the executor once (0.537042ms)
+✔ daemon intake sanitizes both bound and headless starts before lifecycle persistence (2.854634ms)
+✔ credential intake passes absent bodies and non-string contextRef values through unchanged (0.444123ms)
+✔ credential intake rejects invalid JSON and non-object JSON with the exact 400 (0.493592ms)
+✔ durable starts pass absent bodies and non-string runId values to the ordinary daemon route (0.278847ms)
+✔ durable starts reject terminal and missing run statuses before dispatch (0.594486ms)
+✔ durable starts prefer a supplied string context and return the lifecycle's latest run (0.303588ms)
+✔ durable starts fall back to saved context, empty principal and the started run without dispatching duplicates (0.589082ms)
+✔ durable start failures reach next(err) without sending a success (0.40343ms)
+✔ delegated calls pass absent bodies and either non-string id through before consulting registration (0.290973ms)
+✔ delegated calls without a durable store fall through without read-only or binding lookups (0.13698ms)
+✔ only literal requireReadOnly true bypasses mutation guarding (0.457822ms)
+✔ registered read-only metadata skips both mutation guarding and completed-result capture (0.309635ms)
+✔ a missing durable run without a chat binding retains the daemon's execution policy (0.271052ms)
+✔ canceled and inactive delegated attempts are fenced before mutation or read-only execution (0.729336ms)
+✔ a stale guardTool outcome is reported as stale rather than an unknown mutation (0.303373ms)
+✔ mutations without a toolUseId are guarded but do not capture completed responses (0.457728ms)
+✔ captured responses pass non-completed and absent results through without persistence (0.593076ms)
+✔ queued mutations persist completed outputs including the undefined-to-null fallback (0.489256ms)
+✔ completed-result persistence rejection returns 503 TOOL_OUTCOME_UNKNOWN without publishing success (0.26322ms)
+✔ delegated guard failures reach next(err) without execution or a response (0.378461ms)
+✔ codex first status persists its session and OS child identity without waiting for end (2.850431ms)
+✔ opencode first status persists its session and OS child identity without waiting for end (0.399155ms)
+✔ stale attempt session capture cannot overwrite the conversation's newer session (0.443723ms)
+✔ null and primitive event payloads yield no session locator (0.255221ms)
+✔ session locators without a numeric child PID persist without process lookup (0.471803ms)
+✔ end remains compatible but non-status events never fabricate a session locator (0.329868ms)
+✔ native resume verifies OS start identity; daemon PID reuse is not evidence (1.198446ms)
+✔ unbound legacy clients retain end-session persistence without weakening durable generation guards (0.439765ms)
+✔ an unreadable child process identity still keeps the committed session locator, and records no child (0.493679ms)
+✔ an empty child start identity is not recorded as the child (0.674569ms)
+✔ only a string end sessionRef and a non-empty string status sessionId count as a session locator (0.246111ms)
+✔ a host with no durable run store persists the locator through the session store and never reads the child identity (0.427722ms)
+✔ an event that carries no session locator writes nothing and reads no process identity (0.383553ms)
+✔ antigravity: missing config is installed only after explicit consent (29.978462ms)
+✔ cursor: missing config is installed only after explicit consent (8.510232ms)
+✔ approved repair preserves other servers, unrelated settings, file mode and backup (11.616557ms)
+✔ an already valid entry requires consent and is not rewritten (8.009296ms)
+✔ foreign stale or disabled jini entry is retained rather than overwritten (5.885049ms)
+✔ the static Electron switch is safe to persist after Allow (8.200834ms)
+✔ planned JINI_RUN_ID values are refused before any config write (2.325144ms)
+✔ planned JINI_DAEMON_URL values are refused before any config write (1.788624ms)
+✔ planned JINI_DAEMON_TOKEN values are refused before any config write (2.046921ms)
+✔ planned JINI_MESSAGE_RELAY_NONCE values are refused before any config write (1.879501ms)
+✔ planned SECRET values are refused before any config write (1.615657ms)
+✔ invalid JSON is left untouched (6.642575ms)
+✔ symlink config is refused and target remains unchanged (6.886883ms)
+✔ adapter propagates installer failures without fabricating successful repair (1.260904ms)
+✔ adapter forwards consent and static launch spec to the Jini owner (1.324831ms)
+✔ host-defaults.fixture.contract: Tovu defaults are the shared Jini host contract with personal MCP on (owner 2026-11-10) (3.93528ms)
+✔ a fresh local owner and an existing site with no explicit choice run Claude Code, Codex and Antigravity without asking (1.983936ms)
+✔ an owner who turned personal MCP off in settings still gets ASK (0.851154ms)
+✔ all 28 registered CLIs get RUN, ASK or SETUP before launch under actual default settings (1.443843ms)
+ℹ amr: RUN
+ℹ claude: RUN
+ℹ codex: RUN
+ℹ devin: RUN
+ℹ opencode: RUN
+ℹ hermes: RUN
+ℹ trae-cli: RUN
+ℹ grok-build: RUN
+ℹ kimi: RUN
+ℹ cursor-agent: RUN
+ℹ qwen: RUN
+ℹ qoder: RUN
+ℹ amp: RUN
+ℹ pi: RUN
+ℹ kiro: RUN
+ℹ kilo: RUN
+ℹ vibe: RUN
+ℹ deepseek: RUN
+ℹ aider: RUN
+ℹ antigravity: RUN
+ℹ reasonix: RUN
+ℹ codebuddy: RUN
+ℹ mimo: RUN
+ℹ cline: RUN
+ℹ goose: RUN
+ℹ auggie: RUN
+ℹ crush: RUN
+ℹ droid: RUN
+✔ host restrictions override per-agent grants and never offer Allow (0.987037ms)
+✔ rejects a request with no bearer token — 401, guarded by the same daemon-wide gate as every other route (33.34629ms)
+✔ rejects a request with the wrong bearer token — 401 (8.688559ms)
+✔ with the correct bearer token, serves exactly the report snapshot handed to it at registration — no live daemon needed to observe the boot capture (13.162451ms)
+✔ isPreset rides along unmodified for both a preset and a roster connection — this route never reshapes the snapshot (4.441302ms)
+✔ an empty snapshot (no connections reached admission) is served as an empty list, not an error (4.021002ms)
+✔ re-reads reports and config failures after a reload replaces both arrays (5.898125ms)
+✔ carries a boot-time config-resolution failure alongside the admission reports, for a connection that never even reached admission (3.872078ms)
+✔ omits configFailures entirely (not as an empty list) when the caller never wired it — byte-identical to the pre-2026-09-13 wire shape (3.625534ms)
+✔ rejects a request with no bearer token — 401, same daemon-wide gate as every other route (43.236034ms)
+✔ with the correct bearer token, relays a successful reload's newlyAdmittedConnectionIds verbatim (15.607981ms)
+✔ a reload() with nothing new to admit still answers 200 with an empty list, not an error (8.877575ms)
+[agent-daemon] mcp-federation: reload failed — simulated roster read failure
+✔ a rejected reload() is reported as a real failure — never a silent 200 — per the feature's visible-failure requirement (14.345906ms)
+✔ a reload() that rejects with a non-Error value is still a visible 500 and logs the stringified reason (6.989169ms)
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (2620.48238ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+✔ the agent daemon boots and listens — no import cycle on its entry path (4413.903837ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+✔ the real agent daemon closes gracefully on the sidecar's stdin EOF (3741.372389ms)
+✔ the daemon exchanges both current-message refs for exact pixels and native CLI image paths (60.936836ms)
+✔ the daemon forwards prepared pixels and names a local video before executor dispatch (94.246493ms)
+✔ mid-run screenshot refs become authorized pixels on the same message as its text (45.090071ms)
+✔ text-only live messages preserve the accepted ID without reading uploads (6.895383ms)
+✔ unreadable or foreign screenshots never deliver their text alone (6.113579ms)
+✔ non-image files defer the complete message to idle delivery (6.667366ms)
+✔ unsupported or ended live inputs report a fallback without consuming the upload (28.37212ms)
+✔ real local-owner dispatch grants Bash/edit while retaining security denies and audit subscription (127.303953ms)
+✔ A7: the actual owner launch subscription records a Bash event with production secret redaction (41.986877ms)
+✔ non-owner and hosted owner launches explicitly lock native tools (69.751909ms)
+✔ prompt and runtime share the per-run grant across concurrent contexts (5.298565ms)
+✔ fresh consent and pre-spawn snapshots control all native tools, configuration and parity (81.062866ms)
+✔ non-owner and production/hosted paths never consult the owner setting or login environment (105.707879ms)
+✔ the real launch snapshot carries each independent OFF choice into Claude argv or configuration (297.44759ms)
+✔ Antigravity never receives implicit full access with switches off (owner: daemon-test-principal) (33.601643ms)
+✔ Antigravity never receives implicit full access with switches off (owner: another-admin) (30.652349ms)
+✔ Antigravity host restrictions cannot be overridden by stored full-access choices (103.800844ms)
+✔ Antigravity bridge repair requires an effective owner grant (owner: daemon-test-principal) (41.011808ms)
+✔ Antigravity bridge repair requires an effective owner grant (owner: another-admin) (38.530717ms)
+✔ Claude and Codex retain the owner’s workspace limits rather than receiving full-only projection (78.113326ms)
+✔ a picked folder is named in the run guidance as read-only, with writes into it only through fs_write_files (1.494279ms)
+✔ no picked folder adds no guidance (0.227636ms)
+✔ assemblePromptWithPluginPrefix leaves the base prompt untouched when the prefix is empty (the common no-plugin-pinned case) (1.332938ms)
+✔ assemblePromptWithPluginPrefix prepends a non-empty prefix with exactly one blank-line separator (0.258753ms)
+✔ resolveAgentPluginPromptPrefix resolves to an empty prefix and never touches the filesystem when pluginRefIds is empty (11.751985ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design SKILL.md and the daemon's own prepend puts it before the base prompt (79.129916ms)
+[agent-daemon] run 60d0dd96-c462-4084-83c8-47ac9f2563e6: Agent Plugin resolution failed Agent Plugin 'not-a-real-installed-plugin-id' is not installed in this workspace — pinned by the composer but not found under any installed package
+✔ resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycle) when a pinned pluginRefId is not installed (4.190082ms)
+[agent-daemon] run c94dfb1c-1cf1-42b3-bd37-41cecd70f8a7: Agent Plugin resolution failed Agent Plugin 'not-a-real-installed-plugin-id' is not installed in this workspace — pinned by the composer but not found under any installed package
+✔ resolveAgentPluginPromptPrefix tells the user why the run could not start (an error event before end) (4.382084ms)
+Plugin 'fly' has no publisher-qualified id; using 'unknown/fly'.
+✔ resolveAgentPluginPromptPrefix resolves a run that pinned the retired 'deploy' to Fly's installed skill (Phase B7) (17.797168ms)
+✔ no AI-trace provider configured: the lifecycle is returned untouched (1.485202ms)
+✔ a configured sink records each run from start to its terminal outcome (5.283832ms)
+✔ a throwing sink is reported by error class only and never changes the run's result (1.381213ms)
+✔ dispose releases open traces: a run ending afterwards records nothing more (14.440319ms)
+✔ without a warn sink, a non-Error sink failure is reported to the console by its type (1.594766ms)
+✔ a sink's explicit full-capture policy records the late-bound daemon prompt on its first generation (7.698468ms)
+✔ terminal log retains the existing failed-run line byte-for-byte (0.905289ms)
+✔ terminal log retains defaults and successful zero exit codes (0.197311ms)
+✔ bridge error log includes its code, message and two-line stderr from protocol error.details (0.353684ms)
+✔ error log handles absent codes and non-diagnostic protocol details (0.171139ms)
+✔ error diagnostics collapse CRLF and CR to one line without dropping either line (0.148749ms)
+✔ preflight success log includes elapsed milliseconds (0.128583ms)
+✔ preflight failure log includes exit, signal and collapsed stderr (0.486918ms)
+▶ resolveStoredSessionId
+  ✔ an ordinary turn resumes the conversation's stored session (0.847741ms)
+  ✔ reconstruction never resumes, even with a stored or recovery session (0.167175ms)
+  ✔ native recovery resumes the recovery session over the stored one (0.149142ms)
+  ✔ native recovery without a recovery session resumes nothing (0.09993ms)
+✔ resolveStoredSessionId (2.337692ms)
+▶ agentReceivesImageAttachments
+  ✔ native image delivery → true (0.389769ms)
+  ✔ prompt-path image delivery → true (0.097818ms)
+  ✔ a stream-json prompt → true (0.07653ms)
+  ✔ unsupported delivery with a text prompt → false (0.124669ms)
+  ✔ a definition naming neither → false (0.089998ms)
+  ✔ an unknown agent → false (0.155274ms)
+  ✔ an absent definition → false (0.067403ms)
+✔ agentReceivesImageAttachments (1.462618ms)
+▶ durableAttemptOwnsAnswer
+  ✔ an uncancelled queued attempt owns its answer (0.358299ms)
+  ✔ an uncancelled running attempt owns its answer (0.061526ms)
+  ✔ a missing attempt does not own its answer (0.144909ms)
+  ✔ a cancelled attempt does not own its answer even while running (0.079031ms)
+  ✔ an attempt whose message is succeeded does not own its answer (0.118416ms)
+  ✔ an attempt whose message is failed does not own its answer (0.058043ms)
+  ✔ an attempt whose message is canceled does not own its answer (0.028106ms)
+  ✔ an attempt whose message is undefined does not own its answer (0.025887ms)
+✔ durableAttemptOwnsAnswer (1.129912ms)
+▶ selectRunHistoryPrompt
+  ✔ a memory-carrying cold start takes the full cold-start context (0.13283ms)
+  ✔ a resumed turn keeps the tail prompt (0.046301ms)
+  ✔ a cold start without a cold-start context keeps the tail prompt (0.04152ms)
+  ✔ an agent without its own memory keeps the tail prompt (0.0348ms)
+✔ selectRunHistoryPrompt (0.366647ms)
+✔ site scopes never read ambient environment or working directory (9.39935ms)
+✔ credential selects site despite forged tenant and principal hints (87.161509ms)
+✔ equal identifiers remain isolated across two sites and two hosts (memory) (54.48385ms)
+✔ equal identifiers remain isolated across two sites and two hosts (sqlite) (56.174568ms)
+✔ disposing one site leaves another run streaming and refuses late callbacks (20.884077ms)
+✔ withdrawing a site while its reply prepares finishes disposal and leaves another site streaming (141.830297ms)
+✔ identical upload batches and principal IDs remain scoped to their site (55.70283ms)
+✔ concurrent scope launches keep filesystem roots and host permission signals separate (249.265092ms)
+[agent-daemon] site catalog unavailable: /internal/tool-catalog
+[agent-daemon] run 2cb20eef-c875-40a8-9938-efc5089bdc87 failed to start [TypeError: fetch failed] {
+  [cause]: Error: bad port
+      at makeNetworkError (node:internal/deps/undici/undici:11898:35)
+      at mainFetch (node:internal/deps/undici/undici:13280:22)
+      at fetching (node:internal/deps/undici/undici:13267:7)
+      at fetch (node:internal/deps/undici/undici:13131:20)
+      at fetch (node:internal/deps/undici/undici:17998:10)
+      at fetch (node:internal/bootstrap/web/exposed-window-or-worker:83:12)
+      at executeFetchWithTimeout (/home/user/Jini/packages/platform/src/fetch-with-timeout.ts:390:52)
+      at fetchTextWithTimeout (/home/user/Jini/packages/platform/src/fetch-with-timeout.ts:361:10)
+      at read (/home/user/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts:62:40)
+      at Object.start (/home/user/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts:88:47)
+}
+✔ withdrawing a site releases its finished-run owner retention timers (20.78786ms)
+✔ lowering control rejects unauthenticated requests and caller-selected identities (85.089068ms)
+✔ cleanup failure returns 503 and successful control waits for cleanup (16.68693ms)
+✔ successful lowering control responds only after cleanup and rejects oversized selectors (11.388335ms)
+✔ an attached picture and saved tool result have a safe first read in every chat permission mode (1.162201ms)
+✔ a pending image job advertises a real wait before polling without a red Bash sleep row (0.340628ms)
+✔ BYOK adds only its run-scoped guidance loader to the shared base and preserves all resource sets (488.96183ms)
+✔ the daemon construction seam and real BYOK root expose identical installed-skill, native-tool and resource sets (1044.549823ms)
+✔ BYOK's search_tools catalog finds an installed skill's tool once ready resolves — proving the catalog rebuild, not just the registry, picks it up (316.13304ms)
+✔ BYOK's federation is a real, non-stubbed FederationRuntime that boots lazily — built but not started before any turn (297.266443ms)
+✔ daemon dev mode passes bypass in the executor's options bag (22.13708ms)
+✔ daemon termination signals stay registered throughout asynchronous disposal (7.411145ms)
+✔ daemon shutdown waits for publication even when durability fails after rename (13.458508ms)
+ℹ tests 770
+ℹ suites 32
+ℹ pass 761
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 155142.957714
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/execution-permissions-defaults.integration.test.ts:1:1277
+✖ A4/A6: untouched local owner permissions default personal MCP OFF and other capabilities ON (7.102776ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      capabilities: {
+        fileWrite: true,
+        loginEnvironment: true,
+        shell: true,
+        subagents: true,
+  +     userMcp: true,
+  -     userMcp: false,
+        userSettings: true,
+        web: true,
+        workflows: true
+      },
+      enabled: true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/execution-permissions-defaults.integration.test.ts:34:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { enabled: true, capabilities: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true } },
+    expected: { enabled: true, capabilities: { shell: true, fileWrite: true, userMcp: false, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/execution-permissions-defaults.integration.test.ts:1:1839
+✖ A6: empty definition default inherits a persisted legacy OFF, including after another boot (1.62736ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/execution-permissions-defaults.integration.test.ts:40:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, userMcp: false, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts:1:304
+✖ local owner capabilities default on except personal MCP, and explicit off choices survive (3.331751ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts:12:93)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts:1:799
+✖ the master resets capability defaults with personal MCP off, and individual switches can override (1.74669ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts:20:60)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:1:4995
+✖ owner enable and disable are audited and a separate daemon read sees the current grant (584.581645ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+        'owner',
+        'ws',
+        'user',
+  ...
+          enabled: true,
+  +       userMcpDefaultOn: true
+        }
+      ],
+      [
+        'owner',
+        'ws',
+  ...
+          enabled: false,
+  +       userMcpDefaultOn: true
+        }
+      ]
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:89:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'owner', 'ws', 'user', [Object] ], [ 'owner', 'ws', 'user', [Object] ] ],
+    expected: [ [ 'owner', 'ws', 'user', [Object] ], [ 'owner', 'ws', 'user', [Object] ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:1:12314
+✖ explicit off survives boot, and re-enabling needs no acknowledgment or receipt (25.114805ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+        'owner',
+        {
+          capabilities: {
+  ...
+          enabled: false,
+  +       userMcpDefaultOn: true
+        }
+      ],
+      [
+        'owner',
+        {
+  ...
+          enabled: true,
+  +       userMcpDefaultOn: true
+        }
+      ]
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:224:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'owner', [Object] ], [ 'owner', [Object] ] ],
+    expected: [ [ 'owner', [Object] ], [ 'owner', [Object] ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:1:14296
+✖ selected-agent updates keep site defaults and sibling agents (3.131943ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:247:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:19289
+✖ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (40.923583ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:410:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:1:1262
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (2620.48238ms)
+  AssertionError [ERR_ASSERTION]: expected the daemon to start listening, but it exited:
+  [agent-daemon] failed to start standalone daemon requires its site binding
+  
+  + actual - expected
+  
+  + 'exited'
+  - 'listening'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:92:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'exited',
+    expected: 'listening',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1
