@@ -1,0 +1,137 @@
+✔ a snapshot saved with personal MCP on by default preserves personal MCP false (3.46121ms)
+✔ a snapshot saved with personal MCP on by default preserves personal MCP true (0.406962ms)
+✖ a snapshot saved before personal MCP defaulted on reads its stored false as the default (5.023506ms)
+✔ a per-agent personal MCP choice is kept from a snapshot saved before personal MCP defaulted on (0.907149ms)
+✔ a snapshot from the definition default inherits the legacy boolean (0.709203ms)
+✔ a snapshot with a null value inherits the legacy boolean (0.458605ms)
+✖ no snapshot and no legacy value defaults full CLI access ON with personal MCP ON (0.985764ms)
+✔ a snapshot with a non-boolean enabled flag denies all access and logs only the safe warning (0.733698ms)
+✔ a snapshot with missing capabilities denies all access and logs only the safe warning (0.499255ms)
+✔ a snapshot with a non-boolean capability denies all access and logs only the safe warning (0.720284ms)
+✔ a snapshot with a missing capability denies all access and logs only the safe warning (0.468343ms)
+✔ a malformed snapshot rethrows the validation error when the caller opts into propagation (1.048039ms)
+✔ a failed legacy fallback denies all access instead of defaulting ON (0.715528ms)
+✔ a settings-ready failure rethrows the original error when propagation is requested (0.404623ms)
+✔ without a warn port the CLI permissions denial is logged through console.warn (1.027725ms)
+✔ the legacy boolean reads the workspace-scoped enabled key (0.330424ms)
+✔ the legacy boolean value true reads as true (0.290844ms)
+✔ the legacy boolean value false reads as false (0.128859ms)
+✔ the legacy boolean value "true" reads as false (0.080088ms)
+✔ a failed legacy read denies access with the safe warning and no storage detail (0.314481ms)
+✔ a failed legacy read rethrows the original error when propagation is requested (0.437888ms)
+✔ without a warn port the legacy denial is logged through console.warn (0.484436ms)
+✔ per-agent choices survive reads and apply only to the selected agent after the host gate (1.912732ms)
+✖ host-defaults.fixture.contract: Tovu defaults are the shared Jini host contract with personal MCP on (owner 2026-11-10) (8.202923ms)
+✖ a fresh local owner and an existing site with no explicit choice run Claude Code, Codex and Antigravity without asking (2.362874ms)
+✔ an owner who turned personal MCP off in settings still gets ASK (1.273123ms)
+✖ all 28 registered CLIs get RUN, ASK or SETUP before launch under actual default settings (1.332269ms)
+✔ host restrictions override per-agent grants and never offer Allow (1.39431ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 23
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1360.999592
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/subagent-settings.unit.test.ts:1:1446
+✖ a snapshot saved before personal MCP defaulted on reads its stored false as the default (5.023506ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/subagent-settings.unit.test.ts:34:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/subagent-settings.unit.test.ts:1:2925
+✖ no snapshot and no legacy value defaults full CLI access ON with personal MCP ON (0.985764ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/subagent-settings.unit.test.ts:58:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:1:2140
+✖ host-defaults.fixture.contract: Tovu defaults are the shared Jini host contract with personal MCP on (owner 2026-11-10) (8.202923ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      capabilities: {
+        fileWrite: true,
+        loginEnvironment: true,
+        shell: true,
+        subagents: true,
+  +     userMcp: false,
+  -     userMcp: true,
+        userSettings: true,
+        web: true,
+        workflows: true
+      },
+      enabled: true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:43:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { enabled: true, capabilities: { shell: true, fileWrite: true, userMcp: false, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true } },
+    expected: { enabled: true, capabilities: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:1:2433
+✖ a fresh local owner and an existing site with no explicit choice run Claude Code, Codex and Antigravity without asking (2.362874ms)
+  AssertionError [ERR_ASSERTION]: fresh claude
+  
+  'ASK' !== 'RUN'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:49:49)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'ASK',
+    expected: 'RUN',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:1:3371
+✖ all 28 registered CLIs get RUN, ASK or SETUP before launch under actual default settings (1.332269ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:70:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

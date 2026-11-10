@@ -1,16 +1,17 @@
 import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "#src/contracts/core/host-signals";
 
-/** The master supplies defaults except personal MCP, which requires an explicit owner grant
- * (2026-10-23). Inherited MCP configuration stays excluded by default, even with CLI parity;
- * Tovu's staged MCP catalog remains available.
+/** The master supplies every default, personal MCP included: owner decision 2026-11-10
+ * ("defaulted to yes"; it can be turned off in chat settings) supersedes the 2026-10-23
+ * explicit-grant rule. Hosted, visitor and non-owner runs stay off through
+ * resolveAssistantCliPermissions, which forces the master off before this projection.
  * @param required - The master default and any explicit per-capability owner choices.
  * @returns A fresh, fixed-size permissions snapshot; pure, with no I/O or errors.
  * @complexity O(1) time/space for the fixed capability list.
  * @example assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }); */
 export function assistantCliPermissions(required: { enabled: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>>; byAgent?: AssistantCliPermissions["byAgent"] }, _optional = {}): AssistantCliPermissions {
   return { ...(required.byAgent ? { byAgent: required.byAgent } : {}), enabled: required.enabled, capabilities: Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) =>
-    [key, required.capabilities?.[key] ?? (key === "userMcp" ? false : required.enabled)])) as Record<AssistantCliCapability, boolean> };
+    [key, required.capabilities?.[key] ?? required.enabled])) as Record<AssistantCliCapability, boolean> };
 }
 
 /** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */

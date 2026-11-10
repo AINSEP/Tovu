@@ -30,11 +30,16 @@ export async function readAssistantCliPermissions(required: {
  * @complexity O(c) for the fixed capability list.
  */
 function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCliPermissions {
-  const { enabled, capabilities, byAgent } = required.value as Partial<AssistantCliPermissions>;
+  const { enabled, capabilities, byAgent, userMcpDefaultOn } = required.value as Partial<AssistantCliPermissions> & { userMcpDefaultOn?: unknown };
   if (typeof enabled !== "boolean" || !capabilities ||
     !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof capabilities[key] === "boolean")) throw new Error("Invalid CLI permissions");
   if (byAgent !== undefined) validateAgentPermissions({ byAgent });
-  return assistantCliPermissions({ enabled, capabilities, ...(byAgent ? { byAgent } : {}) });
+  // Site-level saves before 2026-11-10 persisted personal MCP false as the default, whatever the
+  // owner meant; read that false as unset. Saves since carry userMcpDefaultOn, so their false is the
+  // owner's choice. Per-agent entries are only written by the owner's switch and are always kept.
+  const { userMcp, ...rest } = capabilities;
+  const site = userMcpDefaultOn === true || userMcp ? capabilities : rest;
+  return assistantCliPermissions({ enabled, capabilities: site, ...(byAgent ? { byAgent } : {}) });
 }
 
 /** Shared read-failure policy: HTTP readers propagate the error; the daemon logs a safe diagnostic

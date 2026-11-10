@@ -1,0 +1,65 @@
+✔ a snapshot saved with personal MCP on by default preserves personal MCP false (2.273397ms)
+✔ a snapshot saved with personal MCP on by default preserves personal MCP true (0.210399ms)
+✔ a snapshot saved before personal MCP defaulted on reads its stored false as the default (0.418222ms)
+✔ a per-agent personal MCP choice is kept from a snapshot saved before personal MCP defaulted on (0.39639ms)
+✔ a snapshot from the definition default inherits the legacy boolean (0.413959ms)
+✔ a snapshot with a null value inherits the legacy boolean (0.290732ms)
+✔ no snapshot and no legacy value defaults full CLI access ON with personal MCP ON (0.27514ms)
+✔ a snapshot with a non-boolean enabled flag denies all access and logs only the safe warning (0.313797ms)
+✔ a snapshot with missing capabilities denies all access and logs only the safe warning (0.138287ms)
+✔ a snapshot with a non-boolean capability denies all access and logs only the safe warning (0.250566ms)
+✔ a snapshot with a missing capability denies all access and logs only the safe warning (0.186101ms)
+✔ a malformed snapshot rethrows the validation error when the caller opts into propagation (0.668565ms)
+✔ a failed legacy fallback denies all access instead of defaulting ON (0.280295ms)
+✔ a settings-ready failure rethrows the original error when propagation is requested (0.224165ms)
+✔ without a warn port the CLI permissions denial is logged through console.warn (0.488079ms)
+✔ the legacy boolean reads the workspace-scoped enabled key (0.134396ms)
+✔ the legacy boolean value true reads as true (0.096639ms)
+✔ the legacy boolean value false reads as false (0.0422ms)
+✔ the legacy boolean value "true" reads as false (0.032525ms)
+✔ a failed legacy read denies access with the safe warning and no storage detail (0.162686ms)
+✔ a failed legacy read rethrows the original error when propagation is requested (0.258657ms)
+✔ without a warn port the legacy denial is logged through console.warn (0.302657ms)
+✔ per-agent choices survive reads and apply only to the selected agent after the host gate (1.394526ms)
+✔ host-defaults.fixture.contract: Tovu defaults are the shared Jini host contract with personal MCP on (owner 2026-11-10) (3.514666ms)
+✔ a fresh local owner and an existing site with no explicit choice run Claude Code, Codex and Antigravity without asking (1.826391ms)
+✔ an owner who turned personal MCP off in settings still gets ASK (0.766072ms)
+✔ all 28 registered CLIs get RUN, ASK or SETUP before launch under actual default settings (1.470344ms)
+ℹ amr: RUN
+ℹ claude: RUN
+ℹ codex: RUN
+ℹ devin: RUN
+ℹ opencode: RUN
+ℹ hermes: RUN
+ℹ trae-cli: RUN
+ℹ grok-build: RUN
+ℹ kimi: RUN
+ℹ cursor-agent: RUN
+ℹ qwen: RUN
+ℹ qoder: RUN
+ℹ amp: RUN
+ℹ pi: RUN
+ℹ kiro: RUN
+ℹ kilo: RUN
+ℹ vibe: RUN
+ℹ deepseek: RUN
+ℹ aider: RUN
+ℹ antigravity: RUN
+ℹ reasonix: RUN
+ℹ codebuddy: RUN
+ℹ mimo: RUN
+ℹ cline: RUN
+ℹ goose: RUN
+ℹ auggie: RUN
+ℹ crush: RUN
+ℹ droid: RUN
+✔ host restrictions override per-agent grants and never offer Allow (0.917844ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1103.918475
+exit 0
