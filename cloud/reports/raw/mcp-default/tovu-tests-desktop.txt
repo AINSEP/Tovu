@@ -1,0 +1,106 @@
+✖ desktop turn access defaults on locally and passes host exclusions to the login reader (10.64569ms)
+✔ desktop turn access re-reads boolean grants with the captured addressee each turn (1.118066ms)
+✔ desktop turn access preserves granular overrides without reading a disabled login environment (0.631747ms)
+✔ desktop turn access derives the native grant from capabilities rather than the master default (0.340244ms)
+✔ desktop turn access skips settings and login reads when the host denies full CLI access (0.800161ms)
+✔ a desktop turn uses declared host facts while a packaged local runtime keeps CLI access (0.3211ms)
+✔ desktop turn access propagates a settings read failure without reading the login environment (0.861718ms)
+✔ desktop turn access propagates a login environment read failure (0.509083ms)
+✔ desktop executor binds launch, state, environment and policies to the supplied runtime (13.09939ms)
+✔ desktop chat detection and executor receive the same app runtime across list and rescan (6.753191ms)
+✖ desktop owner setting and environment control the same provider grant and scoped cwd on each turn (9.892896ms)
+✔ bearerToken reads the token from an Authorization header, case-insensitively and trimmed (1.825055ms)
+✔ the bridge gate denies by default and binds a delegated call to the credential's own run (1.388732ms)
+✔ the catalog ranks by matched terms, honours the limit, and lists everything for an empty query (0.817189ms)
+✔ the catalog describes a known tool with its schema when it has one, and null for an unknown id (0.429611ms)
+✔ the turn prompt names the on-screen site, or says only desktop tools apply (0.2778ms)
+✔ the runtime registers the built tools plus the owner gap list, and wires the bridge into the executor (18.350341ms)
+✔ every listener request needs a credential for a live run; a turn's credential reaches its own catalog and tools (105.501321ms)
+✔ a turn with full CLI access gets the full overlay, and attachments, model and reasoning reach the executor (5.234464ms)
+✔ native tool use during a turn is recorded in the owner's gap store, redacted, and listed back (5.232762ms)
+✔ a gap-store write failure is logged, not thrown into the turn (5.147569ms)
+✔ an executor that rejects before terminalizing the run fails the run with a readable error, never leaving it live (4.771449ms)
+✔ an executor that rejects after the run already finished leaves the finished run alone (7.242661ms)
+✔ a hosted runtime runs every turn restricted, with no native tool access (4.280056ms)
+✔ a bridge credential can only be minted for a run that is live (3.977374ms)
+✔ without an injected executor the turn runs on Jini's own executor, which fails an unknown agent cleanly (6.909334ms)
+✔ with no injected reader, an enabled login environment is read from the real login shell (29.942439ms)
+✔ a run another path terminalizes while the failed start is being handled keeps that outcome, with no second terminal (4.915661ms)
+✔ the tool-gap audit is readable by the desktop operator only (0.452889ms)
+✔ a failed start whose own fallback finish also fails is swallowed, after reporting the error to the run (6.184917ms)
+✔ Antigravity installs its static connector before a desktop turn and refuses an unapproved install (6.767464ms)
+✔ the generated script executes each staged package and reports its individual failure (188.977301ms)
+✔ the generated script preserves hostile require paths exactly without executing injected statements (1.718551ms)
+✔ resolves a mac-prefixed *.app layout (e.g. release/mac-arm64/Tovu.app) (0.303606ms)
+✔ resolves a plain 'mac' output directory the same way as 'mac-arm64' (0.2593ms)
+✔ resolves a win-unpacked layout when no mac-prefixed directory is present (0.209311ms)
+✔ a mac-prefixed directory takes precedence over win-unpacked when both are present (0.17414ms)
+✔ throws a clear error when neither layout is found under platformDir (3.92305ms)
+✔ an entry merely starting with 'mac' as a substring elsewhere is not mistaken for the mac layout (e.g. 'macos-notes') (1.348735ms)
+✔ all three checks ok -> overall ok true (0.423602ms)
+✔ any single check failing makes the overall result false, and the failing check's error is preserved (0.62252ms)
+✔ malformed JSON is a parse failure, not a silent pass -- a safe stdout excerpt is included for diagnosis (0.717709ms)
+✔ empty stdout (process crashed before printing) is a parse failure (0.29651ms)
+✔ a missing check key (e.g. the child process died between checks) is treated as a failure, not skipped (0.138674ms)
+✔ JSON that parses but is not an object (e.g. a bare number or array) is treated as every check missing, not a crash (0.118076ms)
+✔ embeds the resolved node_modules dir as a JSON-quoted absolute require path for each package (0.183658ms)
+✔ a node_modules dir containing a quote or backslash is embedded safely (JSON.stringify escaping), not string-concatenated raw (0.490617ms)
+✔ the generated script is syntactically valid JavaScript (constructible, never invoked) (0.276243ms)
+✔ desktop main's source module graph resolves without the test-only TypeScript remapper (780.23504ms)
+✔ shared desktop source platform/site-dir/sites-home imports without a test remapper (123.996488ms)
+✔ shared desktop source contracts/core/assistant-native-fallbacks imports without a test remapper (91.578967ms)
+✔ every desktop source import has a real JavaScript target or an owning compiler (395.866397ms)
+✔ entry-load check fails and reports missing named export (101.789119ms)
+✔ entry-load check fails and reports invalid syntax (89.111866ms)
+✔ entry-load check fails and reports unsupported file extension (89.487035ms)
+✔ the entry-load script names the HTTP module and all shipped process entries (0.234277ms)
+✔ the entry-load script reports every unresolvable static import without evaluating any module (636.735209ms)
+✔ entry-load output that is not JSON throws; any other shape fails (0.675335ms)
+✔ native smoke malformed JSON and module errors expose only bounded redacted diagnostics (8.161155ms)
+✔ owner-store status requires no legacy owner store and zero entries/grants without echoing diagnostics (0.692331ms)
+ℹ tests 60
+ℹ suites 0
+ℹ pass 58
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5288.979546
+
+✖ failing tests:
+
+test at src/desktop-agent-runtime.test.ts:14:1
+✖ desktop turn access defaults on locally and passes host exclusions to the login reader (10.64569ms)
+  AssertionError [ERR_ASSERTION]: personal MCP defaults OFF without an owner setting
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/desktop-agent-runtime.test.ts:35:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/desktop-agent-runtime.test.ts:216:1
+✖ desktop owner setting and environment control the same provider grant and scoped cwd on each turn (9.892896ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/desktop-agent-runtime.test.ts:243:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

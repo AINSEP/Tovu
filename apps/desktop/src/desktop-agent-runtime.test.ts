@@ -32,7 +32,7 @@ test("desktop turn access defaults on locally and passes host exclusions to the 
     parityEnv,
   });
   assert.equal(access.parityEnv, parityEnv);
-  assert.equal(access.nativeCapabilities.userMcp, false, 'personal MCP defaults OFF without an owner setting');
+  assert.equal(access.nativeCapabilities.userMcp, true, 'personal MCP defaults ON for the local owner (2026-11-10)');
   assert.equal(loginReads, 1);
 });
 
@@ -240,11 +240,11 @@ test('desktop owner setting and environment control the same provider grant and 
     const input = captured.at(-1)!;
     assert.equal(input.cliParity, grant); assert.equal(input.nativeToolAccess, grant);
     assert.deepEqual(input.nativeCapabilities, settings.capabilities);
-    assert.equal(input.nativeCapabilities?.userMcp, userMcp === true);
+    assert.equal(input.nativeCapabilities?.userMcp, userMcp ?? grant);
     const args = getAgentDef({ id: 'claude' })!.buildArgs({ prompt: '', imagePaths: [] }, {
       options: input, runtimeContext: { mcpJsonPath: '/staged/desktop-mcp.json' },
     });
-    assert.equal(args.includes('--strict-mcp-config'), userMcp !== true, 'desktop honors the owner MCP choice with default OFF');
+    assert.equal(args.includes('--strict-mcp-config'), !(userMcp ?? grant), 'desktop honors the owner MCP choice; the master supplies the default');
     assert.equal(args[args.indexOf('--mcp-config') + 1], '/staged/desktop-mcp.json');
     assert.deepEqual(input.env, grant ? { PATH: '/operator/bin' } : undefined);
     for (const tool of ['Bash', 'Edit', 'Write', 'Task', 'Workflow']) assert.equal(input.disallowedTools?.includes(tool), !grant);
