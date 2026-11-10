@@ -1,0 +1,42 @@
+(node:7412) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a popup whose URL only STARTS WITH the app origin is denied — userinfo is not the host (3.000244ms)
+✔ a popup to the same host on a different port is denied (0.26948ms)
+✔ a popup to the same host and port over a different scheme is denied (0.333534ms)
+✔ a same-origin popup is still allowed in the app, and nothing is handed to the OS (0.356857ms)
+✔ a denied http(s) popup is handed to the OS browser, exactly as requested (0.413099ms)
+✔ a popup with any non-http(s) scheme is denied and never reaches shell.openExternal (1.067568ms)
+✔ in-window navigation to another origin is prevented and handed to the OS browser (0.583538ms)
+✔ in-window navigation to a non-http(s) scheme is prevented and never reaches shell.openExternal (1.13267ms)
+✔ in-window same-origin navigation is left alone — the admin has to keep working (0.385746ms)
+✔ a main-frame server redirect to another origin is prevented and handed to the OS browser (0.436282ms)
+✔ a same-origin main-frame redirect, and any subframe redirect, is left alone (1.016304ms)
+✔ isSameOrigin compares parsed origins, and an opaque or unparseable origin never matches (0.260538ms)
+✔ isExternalBrowserUrl admits only parseable http and https URLs (0.711048ms)
+✔ guest popup: an ordinary https(s) link is denied in-app and handed to the OS browser (0.443232ms)
+✔ guest popup: a supervised site's own url is still handed to the OS browser (0.232662ms)
+✔ guest popup: a non-http(s) scheme is denied and never reaches shell.openExternal (0.389407ms)
+✔ guest popup: a throwing openExternal never escapes the handler — a guest callback throw blanks the window (0.255975ms)
+✔ isShellPageUrl admits a supervised site's pages (0.264566ms)
+✔ isShellPageUrl admits attach mode's origin by parsed origin, and nothing when there is no attach url (0.186835ms)
+✔ isShellPageUrl admits the sites home renderer's own file, whatever its hash or query, and no other file (0.155212ms)
+✔ isShellPageUrl refuses foreign pages and garbage without throwing (0.232334ms)
+✔ main.ts registers the speech channels with the shell-page sender check (0.860021ms)
+✔ sites home: navigating the window to a remote page is prevented and handed to the OS browser (0.311889ms)
+✔ sites home: navigating to any other file, or a non-http(s) scheme, is prevented and never reaches the OS (0.132374ms)
+✔ sites home: the renderer's own file still loads, whatever its hash or query (0.087618ms)
+✔ sites home: a remote popup is denied and handed to the OS browser; a main-frame redirect off the renderer is prevented (0.100285ms)
+✔ registered guest opens a same-session isolated sign-in window: /api/admin/v1/workspaces/ws-1/mcp-servers/widget/oauth/sign-in (4.972493ms)
+✔ registered guest opens a same-session isolated sign-in window: /api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (3.189578ms)
+✔ registered guest keeps other paths, origins, ports and schemes out of the sign-in window (5.688544ms)
+✔ registered guest requires a supervised site even when the sign-in origin matches (10.441372ms)
+✔ registered sign-in windows deny permissions while the site guest remains granted (2.106637ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 608.899671
+EXIT 0

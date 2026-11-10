@@ -1,0 +1,27 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts (35 tests | 1 failed) 604ms
+   × calendly loads unchanged in another host 10ms
+     → expected undefined to be defined
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts > calendly loads unchanged in another host
+AssertionError: expected undefined to be defined
+ ❯ src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts:26:36
+     24|   const packageRoot = path.join(root, pluginId);
+     25|   const manifest = JSON.parse(await readFile(path.join(packageRoot, 'p…
+     26|   expect(manifest.extensions.jini).toBeDefined();
+       |                                    ^
+     27|   expect(manifest.extensions.tovu).toBeUndefined();
+     28|   expect(manifest.description ?? '').not.toMatch(hostSpecificGuidance);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 34 passed (35)
+   Start at  06:54:25
+   Duration  1.99s (transform 700ms, setup 0ms, collect 1.09s, tests 604ms, environment 0ms, prepare 80ms)
+
+EXIT 1

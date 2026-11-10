@@ -1,0 +1,54 @@
+### apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+### apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+not ok 1 - a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+not ok 2 - API sign-in displays only the declaring plugin oauth card copy
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+not ok 9 - a failed connected-card update never turns a real connection into a tool failure
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+not ok 12 - with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+### apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+not ok 1 - vertical slice: connect -> public callback -> plugin access token -> form-delivery credential
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+not ok 2 - security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+### apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+not ok 16 - workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect)
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+### apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts
+not ok 2 - a successful contact form is hidden by the emitted stylesheet in a browser
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_TEST_FAILURE'
+not ok 3 - contact form fallback error and success colors apply in both modes without theme tokens
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_TEST_FAILURE'
+not ok 4 - checkbox fields render inline before their label with only the emitted stylesheet
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_TEST_FAILURE'
+### apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts
+not ok 1 - a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected:
+  actual:

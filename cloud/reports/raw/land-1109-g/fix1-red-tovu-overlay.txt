@@ -1,0 +1,33 @@
+node:fs:483
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/content/agent-plugin-overlays/calendly/GUIDANCE.md'
+    at readFileSync (node:fs:483:20)
+    at file:///home/user/Tovu/content/agent-plugin-overlays/calendly/__tests__/guidance.test.mjs:7:18
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/Tovu/content/agent-plugin-overlays/calendly/GUIDANCE.md'
+}
+
+Node.js v24.22.2
+✖ content/agent-plugin-overlays/calendly/__tests__/guidance.test.mjs (96.008237ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 106.751776
+
+✖ failing tests:
+
+test at content/agent-plugin-overlays/calendly/__tests__/guidance.test.mjs:1:1
+✖ content/agent-plugin-overlays/calendly/__tests__/guidance.test.mjs (96.008237ms)
+  'test failed'
+EXIT 1

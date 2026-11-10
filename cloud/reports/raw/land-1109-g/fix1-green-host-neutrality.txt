@@ -1,0 +1,27 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+stderr | src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts > calendly loads unchanged in another host
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+
+ ✓ src/lifecycle/__tests__/unit/plugins-host-neutrality.test.ts (35 tests) 231ms
+
+ Test Files  1 passed (1)
+      Tests  35 passed (35)
+   Start at  06:55:01
+   Duration  1.92s (transform 848ms, setup 0ms, collect 1.15s, tests 231ms, environment 0ms, prepare 158ms)
+
+EXIT 0
+✔ every file the booking calendar names ships in the payload (5.097248ms)
+✔ the calendar needs no script and only reaches the declared booking host (1.113172ms)
+✔ the page stays usable without the frame: its fallback link uses the same prop (4.539794ms)
+✔ the sign-in is optional and the guidance never asks for it first (11.611043ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 327.538489
+EXIT 0

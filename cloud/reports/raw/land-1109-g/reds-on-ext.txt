@@ -1,0 +1,34 @@
+### apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+ℹ pass 3
+ℹ fail 0
+### apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+ℹ pass 12
+ℹ fail 0
+### apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+ℹ pass 26
+ℹ fail 0
+### apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+ℹ pass 20
+ℹ fail 0
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts
+ℹ pass 10
+ℹ fail 0
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+ℹ pass 9
+ℹ fail 0
+### apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (77.664246ms)
+✖ contact form fallback error and success colors apply in both modes without theme tokens (75.005735ms)
+✖ checkbox fields render inline before their label with only the emitted stylesheet (13.780921ms)
+ℹ pass 1
+ℹ fail 3
+✖ failing tests:
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (77.664246ms)
+✖ contact form fallback error and success colors apply in both modes without theme tokens (75.005735ms)
+✖ checkbox fields render inline before their label with only the emitted stylesheet (13.780921ms)
+### apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (532.133194ms)
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (532.133194ms)

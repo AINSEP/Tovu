@@ -1,0 +1,46 @@
+✔ U1: the bundled contract pins the host link, fixed label, consent and static fallback (1.924901ms)
+✔ U1: each variant passes the real fragment policy with native keyboard navigation and local assets (14.402222ms)
+✔ U1: disabled, unconfigured and foreign-owner providers cannot render a button (3.277953ms)
+✔ U1: arbitrary variant, label and URL props are rejected, including a mixed valid/invalid batch (2.343026ms)
+✔ U1: static mode keeps authored fallback and bundles deduplicated CSS and G artwork references (1.376236ms)
+✖ U1: every bundled public export template passes the single CMS fragment validator (12.202438ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 758.406211
+
+✖ failing tests:
+
+test at content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:96:1
+✖ U1: every bundled public export template passes the single CMS fragment validator (12.202438ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "executable or unsupported widget element"
+      at TestContext.<anonymous> (file:///tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Tovu-fix/content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:111:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: executable or unsupported widget element
+        at assertAllowedNode (/tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Jini-fix/packages/cms/src/widgets/html/server-fragment.ts:38:112)
+        at assertAllowedNode (/tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Jini-fix/packages/cms/src/widgets/html/server-fragment.ts:41:40)
+        at validateServerWidgetFragment (/tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Jini-fix/packages/cms/src/widgets/html/server-fragment.ts:51:39)
+        at fillPluginExportTemplate (/tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Jini-fix/packages/cms/src/widgets/html/plugin-export.ts:160:3)
+        at file:///tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Tovu-fix/content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:111:33
+        at getActual (node:assert:611:5)
+        at strict.doesNotThrow (node:assert:779:32)
+        at TestContext.<anonymous> (file:///tmp/claude-0/-home-user/1f4747ae-53ed-5eaf-8adc-7292c21c5d23/scratchpad/par/Tovu-fix/content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:111:14)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+EXIT 1

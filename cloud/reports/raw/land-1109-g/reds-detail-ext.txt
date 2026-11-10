@@ -1,0 +1,26 @@
+### apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+### apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+### apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+### apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+### apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts
+not ok 2 - a successful contact form is hidden by the emitted stylesheet in a browser
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_TEST_FAILURE'
+not ok 3 - contact form fallback error and success colors apply in both modes without theme tokens
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_TEST_FAILURE'
+not ok 4 - checkbox fields render inline before their label with only the emitted stylesheet
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_TEST_FAILURE'
+### apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts
+not ok 1 - a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected:
+  actual:

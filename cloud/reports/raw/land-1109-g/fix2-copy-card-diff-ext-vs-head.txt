@@ -1,0 +1,8 @@
+242c242
+< <p class=\"mcpui-description\">Nothing is copied. This site can use only the one you choose.</p>
+---
+> <p class=\"mcpui-description\">A key saved on another site is added to Shared Keys first. This site can use only the one you choose.</p>
+689c689
+<    "description": "Use a saved key or OAuth connection on this site. Opens the owner-only Shared Keys picker and one approval card. No key is copied. Choose Enter a new key to open the normal secure key card. Accepts no selections, site identity or secrets from the model; returns only the approved credentialId.",
+---
+>    "description": "Use a saved key or OAuth connection on this site. Opens the owner-only picker of Shared Keys and keys saved on other sites of this install, with one approval card. Choose Enter a new key to open the normal secure key card. Accepts no selections, site identity or secrets from the model. Returns only the approved credentialId, or {granted:false, reason} where reason is dismissed (owner closed the card), interrupted (the run ended first) or nothing-to-pick (no saved keys exist).",

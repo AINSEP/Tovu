@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/__tests__/folder-zip-node.test.ts (5 tests) 913ms
+   ✓ local folder collection bounds directory entries as well as files 876ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  06:56:28
+   Duration  1.42s (transform 145ms, setup 0ms, collect 162ms, tests 913ms, environment 0ms, prepare 105ms)
+
+EXIT 0

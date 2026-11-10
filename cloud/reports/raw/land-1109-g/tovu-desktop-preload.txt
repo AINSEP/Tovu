@@ -1,0 +1,6 @@
+npm error Missing script: "build:preload"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-11-10T06_51_47_727Z-debug-0.log
+EXIT 1

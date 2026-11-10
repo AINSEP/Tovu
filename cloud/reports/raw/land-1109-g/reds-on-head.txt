@@ -1,0 +1,66 @@
+### apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts
+✖ R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval (41.097158ms)
+ℹ pass 2
+ℹ fail 1
+✖ failing tests:
+✖ R4 other host: approve -> provision -> sign in -> revalidate, one sign-in start, host ids on every approval (41.097158ms)
+### apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (59.380024ms)
+✖ API sign-in displays only the declaring plugin oauth card copy (25.650295ms)
+✖ a failed connected-card update never turns a real connection into a tool failure (5.700753ms)
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (8.709339ms)
+ℹ pass 8
+ℹ fail 4
+✖ failing tests:
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (59.380024ms)
+✖ API sign-in displays only the declaring plugin oauth card copy (25.650295ms)
+✖ a failed connected-card update never turns a real connection into a tool failure (5.700753ms)
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (8.709339ms)
+### apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+✖ vertical slice: connect -> public callback -> plugin access token -> form-delivery credential (172.313312ms)
+✖ security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request (46.975725ms)
+ℹ pass 24
+ℹ fail 2
+✖ failing tests:
+✖ vertical slice: connect -> public callback -> plugin access token -> form-delivery credential (172.313312ms)
+✖ security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request (46.975725ms)
+### apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+✖ workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect) (3.185581ms)
+ℹ pass 19
+ℹ fail 1
+✖ failing tests:
+✖ workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect) (3.185581ms)
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts
+✖ old entries keep the exact bytes recorded before the seams: copy card, create card, descriptors (7.508873ms)
+✖ copy: a second host's tool id, namespace, card path, answer value and words are the ones used (2.882283ms)
+✖ copy: the host's new-key value routes to saveNew; Tovu's value is just an unoffered id (16.120817ms)
+✖ copy: permission is re-checked after the answer and a revoked key is refused by use; nothing is granted (5.815456ms)
+ℹ pass 6
+ℹ fail 4
+✖ failing tests:
+✖ old entries keep the exact bytes recorded before the seams: copy card, create card, descriptors (7.508873ms)
+✖ copy: a second host's tool id, namespace, card path, answer value and words are the ones used (2.882283ms)
+✖ copy: the host's new-key value routes to saveNew; Tovu's value is just an unoffered id (16.120817ms)
+✖ copy: permission is re-checked after the answer and a revoked key is refused by use; nothing is granted (5.815456ms)
+### apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+✖ old entries keep the exact bytes recorded before the C2 part 2 seams (port wiring changed nothing Tovu emits) (12.969147ms)
+ℹ pass 8
+ℹ fail 1
+✖ failing tests:
+✖ old entries keep the exact bytes recorded before the C2 part 2 seams (port wiring changed nothing Tovu emits) (12.969147ms)
+### apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (54.375535ms)
+✖ contact form fallback error and success colors apply in both modes without theme tokens (18.103271ms)
+✖ checkbox fields render inline before their label with only the emitted stylesheet (7.67782ms)
+ℹ pass 1
+ℹ fail 3
+✖ failing tests:
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (54.375535ms)
+✖ contact form fallback error and success colors apply in both modes without theme tokens (18.103271ms)
+✖ checkbox fields render inline before their label with only the emitted stylesheet (7.67782ms)
+### apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (1551.045874ms)
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (1551.045874ms)

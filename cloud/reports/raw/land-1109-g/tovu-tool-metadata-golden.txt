@@ -1,0 +1,14 @@
+a0d6b428be4ea369f6abdf70a9892f0ce13db651ac4ac560e43dc2993fa2a0b6  apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json
+✔ projected search, approval and callback metadata exactly matches the reviewed baseline (4.736043ms)
+✔ every baseline ID retains its exchange and fresh-callback refusal rules (1.257695ms)
+✔ the production domain registrations carry their projected action policy (401.428784ms)
+✔ permanent-delete baseline pins all 13 opt-in ids and the two forbidden operations (2.092366ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6465.92792
+exit 0

@@ -1,0 +1,39 @@
+✔ one owner card approves only its selected reference; metadata stays out of the model result (7.275114ms)
+✔ the key dropdown opens on a plain prompt, never on a dash (1.420129ms)
+✔ cancel, expiry and forged site identity never create a grant (3.019828ms)
+✔ an interrupted run reports interrupted, never a choice by the owner (1.085164ms)
+✔ nothing to pick says so; the card still offers a new key (1.228779ms)
+✔ a key saved on another site is offered by name, adopted after approval, and the secret never returns (1.779359ms)
+✔ a non-owner session is refused before any site is read (0.640625ms)
+✔ permissions are rechecked after approval and deleted entries cannot be granted (1.754017ms)
+✔ new-key choice opens the normal secret card and model selection is rejected (1.074143ms)
+✔ a successful normal-card fallback creates its site grant through the common save-result owner (1.200131ms)
+✔ old entries keep the exact bytes recorded before the seams: copy card, create card, descriptors (30.733572ms)
+✔ Tovu binds namespace tovu and the exact app names its cards always reported (0.61816ms)
+✔ copy: a second host's tool id, namespace, card path, answer value and words are the ones used (5.998863ms)
+✔ copy: the host's new-key value routes to saveNew; Tovu's value is just an unoffered id (4.466493ms)
+✔ copy: the host's owner, input and channel messages are the refusals the model sees (1.906089ms)
+✔ copy: permission is re-checked after the answer and a revoked key is refused by use; nothing is granted (5.813257ms)
+✔ copy: the host's domain and catalog path name a catalog that drifted from its handlers (1.000455ms)
+✔ custom credentials: a second host's read/write permissions and entity type gate the tools (6.030352ms)
+✔ custom credentials: the host's domain and catalog path name a catalog that drifted from its handlers (0.55193ms)
+✔ create card: the second host's namespace, app and write permission are used; Tovu's are absent (2.404007ms)
+✔ old entries keep the exact bytes recorded before the C2 part 2 seams (port wiring changed nothing Tovu emits) (27.477884ms)
+✔ verify and GET go through the injected request port: one call each, no target resolve, nothing decrypted here (10.755054ms)
+✔ egress refusal: the model sees the port's caller-safe error, never the resolved address (3.585264ms)
+✔ DELETE: the target resolves before the dialog, a decline sends nothing, and the same exchange store carries the answer (6.560128ms)
+✔ DELETE: approved → exactly one request, after the dialog; a refused target opens no dialog (4.989868ms)
+✔ write files: build, target check, then one decrypt, one plan and one commit on the SAME provider with the EXACT plan (4.324658ms)
+✔ write files: abort during the plan → no commit; a refused target → no decrypt and no plan (6.706758ms)
+[custom-credentials] credential_save: save failed exchange=acme-rot-1 credentialId=cred-2 error=CustomCredentialValidationError
+✔ plugin-card key probe goes through the injected port before sealing; a refusal keeps the old key (49.900891ms)
+✔ key cards open through the host's card functions over the SAME exchange store; the outcome follows the save (9.411891ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3375.844557
+EXIT 0
