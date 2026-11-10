@@ -69,7 +69,7 @@ Every updated test asserted the old default (`userMcp` false or omitted, or `--s
 |---|---|---|
 | Jini `pnpm install` / `pnpm --no-bail -r build` | exit 0 / exit 0, 0 TS errors | `jini-install.txt`, `jini-build.txt` |
 | Jini vitest for touched packages | **None touched**: no Jini file changed, so none was run. | — |
-| Jini `pnpm check:cross-package` (XP1–XP5) | See the addendum at the end of this file. | `xp3-snapshot.txt`, `jini-cross-package.txt` |
+| Jini `pnpm check:cross-package` (XP1–XP5) | **"XP1–XP5 clean", exit 0**. The `JINI_DECLARATION_BASELINE_DIR` snapshot is a fresh clone at `35c4961a`: install 0, core build 0, recursive build 0, `--write-baseline` gives "3308 source mappings", the same count as land-1109-g. The first `--write-baseline` attempt exited 1: the script does not exist at `35c4961a`, so it was rerun from Jini `8f330f4a` with the snapshot as the working directory, exit 0. | `xp3-snapshot.txt`, `jini-cross-package.txt` |
 | Tovu `npm ci` | exit 0; `npm rebuild better-sqlite3 argon2 esbuild` done; `apps/admin` `npm ci`; `@tovu/sdk` built before `link:jini` (exit 0 / 0) | `tovu-npm-ci.txt`, `tovu-sdk-build.txt`, `tovu-link-jini.txt` |
 | Tovu typecheck (root + e2e) | **exit 0**, 0 errors | `tovu-typecheck.txt` |
 | Tovu lint (`biome lint . --max-diagnostics=none --diagnostic-level=error`) | **600 errors, the same as 600**. The per-file/per-rule key diff against land-1109-g is empty, so **0 new**. No changed file appears. | `tovu-lint.txt`, `.keys`, `tovu-lint-perfile-vs-land-1109-g.txt` |
