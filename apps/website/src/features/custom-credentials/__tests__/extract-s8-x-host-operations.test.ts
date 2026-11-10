@@ -177,12 +177,14 @@ async function submit(f: ReturnType<typeof fixture>, handler: ToolHandler, input
   return { result, emitted };
 }
 
+// copyCard and copyDescriptors re-recorded after 0b05623b changed the card and tool descriptions
+// (the same values extract-s8-c2p2-host-inputs.test.ts pins; createCard/credentialDescriptors unchanged).
 test('old entries retain the four independently recorded card/descriptor hashes', async () => {
   assert.deepEqual(await oldEntryHashes(), {
-    copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead',
+    copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3',
     createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75',
     credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb',
-    copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea',
+    copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1',
   });
 });
 
