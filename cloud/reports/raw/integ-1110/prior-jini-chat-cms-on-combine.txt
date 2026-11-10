@@ -1,0 +1,119 @@
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-combine/packages/cms
+
+ ❯ src/__tests__/integration-package.contract.test.ts (4 tests | 2 failed) 63ms
+   × keeps exports and entry runtime metadata synchronized 42ms
+     → expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+   × keeps the folded domain entries and optional adapter peers explicit 6ms
+     → expected undefined to be true // Object.is equality
+ ❯ src/__tests__/identity-extraction.boundary.test.ts (1 test | 1 failed) 28ms
+   × CMS removes identity entry points while preserving the media import subpath 27ms
+     → expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/identity-extraction.boundary.test.ts > CMS removes identity entry points while preserving the media import subpath
+AssertionError: expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+
+- Expected
++ Received
+
+  Object {
+    "@jini-ai/core": "workspace:^",
+    "mammoth": "^1.12.3",
++   "parse5": "^7.3.0",
+    "unpdf": "^1.8.1",
+  }
+
+ ❯ src/__tests__/identity-extraction.boundary.test.ts:36:33
+     34|   // deaf9cc: the document-text extractors' libraries are required, ne…
+     35|   // scripts/__tests__/optional-peer-contract.test.ts pins cms → mammo…
+     36|   expect(manifest.dependencies).toEqual({ "@jini-ai/core": "workspace:…
+       |                                 ^
+     37|   expect(Object.hasOwn(manifest.peerDependencies, "@jini-ai/core")).to…
+     38|   expect(Object.hasOwn(manifest.peerDependenciesMeta, "@jini-ai/core")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/__tests__/integration-package.contract.test.ts > keeps exports and entry runtime metadata synchronized
+AssertionError: expected { Object (@jini-ai/core, parse5, ...) } to deeply equal { Object (@jini-ai/core, unpdf, ...) }
+
+- Expected
++ Received
+
+  Object {
+    "@jini-ai/core": "workspace:^",
+    "mammoth": "^1.12.3",
++   "parse5": "^7.3.0",
+    "unpdf": "^1.8.1",
+  }
+
+ ❯ src/__tests__/integration-package.contract.test.ts:28:33
+     26|   // deaf9cc: the document-text extractors' libraries are required, ne…
+     27|   // scripts/__tests__/optional-peer-contract.test.ts pins cms → mammo…
+     28|   expect(manifest.dependencies).toEqual({ "@jini-ai/core": "workspace:…
+       |                                 ^
+     29|   expect(Object.hasOwn(manifest.peerDependencies, "@jini-ai/core")).to…
+     30|   expect(Object.hasOwn(manifest.peerDependenciesMeta, "@jini-ai/core")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/__tests__/integration-package.contract.test.ts > keeps the folded domain entries and optional adapter peers explicit
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/integration-package.contract.test.ts:79:61
+     77|   expect(manifest.jini.entries['./widgets/resolvers']).toBe('universal…
+     78|   expect(manifest.jini.entries['./widgets/sql']).toBe('node');
+     79|   expect(manifest.peerDependenciesMeta['parse5']?.optional).toBe(true);
+       |                                                             ^
+     80|   expect(manifest.peerDependenciesMeta['kysely']?.optional).toBe(true);
+     81|   expect(manifest.peerDependenciesMeta['@jini-ai/db']?.optional).toBe(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 2 passed (5)
+   Start at  21:14:15
+   Duration  834ms (transform 265ms, setup 0ms, collect 420ms, tests 91ms, environment 0ms, prepare 276ms)
+
+cms exit 1
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-combine/packages/chat
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx (31 tests | 1 failed) 301ms
+   × useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass 19ms
+     → expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx > useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass
+AssertionError: expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+- Expected: 
+/streaming/
+
++ Received: 
+"cannot send: A reply is still running. Stop it first."
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx:183:5
+    181|     await waitFor(() => expect(pane().conversation.isStreaming).toBe(t…
+    182| 
+    183|     await expect(
+       |     ^
+    184|       context.tools.get('chat.send_message')?.execute({ prompt: 'secon…
+    185|     ).rejects.toThrow(/streaming/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 30 passed (31)
+   Start at  21:14:18
+   Duration  3.91s (transform 1.77s, setup 153ms, collect 2.38s, tests 301ms, environment 399ms, prepare 172ms)
+
+chat exit 1

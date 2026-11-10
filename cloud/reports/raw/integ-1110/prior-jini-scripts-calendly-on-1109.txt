@@ -1,0 +1,216 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-localhost-1109
+
+ ❯ scripts/__tests__/agent-plugin-subpaths.test.ts (3 tests | 1 failed) 102ms
+   × every table row is a real plugin folder published as its own subpath of the agent-plugins package 96ms
+     → expected [ 'charts-echarts', …(33) ] to deeply equal [ 'calendly', 'charts-echarts', …(33) ]
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/charts-echarts-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/charts-recharts-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/cloudflare-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/commerce-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/composio-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/fly-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/formspree-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/github-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/github-pages-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/google-forms-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/google-login-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/google-workspace-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/higgsfield-media-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/jev-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/langfuse-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/meilisearch-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/netlify-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/opentelemetry-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/posthog-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/railway-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/render-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/resend-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/s3-compatible-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/sentry-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/shopify-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/site-compliance-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/site-import-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/slide-design-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+/tmp/agent-plugin-subpaths-ZQmSnE/slide-design-digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/software-engineering-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/stripe-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/supabase-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/ui-ux-design-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+/tmp/agent-plugin-subpaths-ZQmSnE/ui-ux-design-digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/vercel-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-ZQmSnE/wordpress-seeding/ws/workspace-a
+
+ ❯ scripts/__tests__/standalone-agent-plugin.integration.test.ts (103 tests | 1 failed | 32 skipped) 17742ms
+   × the tarball passes the packed isolation gate and carries no test folder 10ms
+     → expected [Function] to not throw an error but 'TypeError: @jini-ai/agent-plugins: co…' was thrown
+   ✓ subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 805ms
+   ✓ subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 339ms
+   ✓ subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 342ms
+   ✓ subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 858ms
+   ✓ subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 430ms
+   ✓ subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 1220ms
+   ✓ subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 325ms
+   ✓ subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 765ms
+   ✓ subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 671ms
+   ✓ subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision 307ms
+   ✓ subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 429ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/agent-plugin-subpaths.test.ts > every table row is a real plugin folder published as its own subpath of the agent-plugins package
+AssertionError: expected [ 'charts-echarts', …(33) ] to deeply equal [ 'calendly', 'charts-echarts', …(33) ]
+
+- Expected
++ Received
+
+  Array [
+-   "calendly",
+    "charts-echarts",
+    "charts-recharts",
+    "cloudflare",
+    "commerce",
+    "composio",
+    "fly",
+    "formspree",
+    "github",
+    "github-pages",
+    "google-forms",
+    "google-login",
+    "google-workspace",
+    "higgsfield-media",
+    "jev",
+    "langfuse",
+    "meilisearch",
+    "netlify",
+    "opentelemetry",
+    "posthog",
+    "railway",
+    "render",
+    "resend",
+    "s3-compatible",
+    "sentry",
+    "shopify",
+    "site-compliance",
+    "site-import",
+    "slide-design",
+    "software-engineering",
+    "stripe",
+    "supabase",
+    "ui-ux-design",
+    "vercel",
+    "wordpress",
+  ]
+
+ ❯ scripts/__tests__/agent-plugin-subpaths.test.ts:28:56
+     26|     if (await fs.stat(path.join(workspace, 'packages/agent-plugins', n…
+     27|   }
+     28|   expect(agentPluginPackages.map(entry => entry.name)).toEqual(folders…
+       |                                                        ^
+     29| });
+     30| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  scripts/__tests__/standalone-agent-plugin.integration.test.ts > the tarball passes the packed isolation gate and carries no test folder
+AssertionError: expected [Function] to not throw an error but 'TypeError: @jini-ai/agent-plugins: co…' was thrown
+
+- Expected: 
+undefined
+
++ Received: 
+"TypeError: @jini-ai/agent-plugins: core package publishes plugin payload calendly/plugin.json"
+
+ ❯ scripts/__tests__/standalone-agent-plugin.integration.test.ts:61:105
+     59| test('the tarball passes the packed isolation gate and carries no test…
+     60|   const manifest = JSON.parse(await fs.readFile(path.join(installed, '…
+     61|   expect(() => assertPluginPackageIsolation({ manifest, packedPaths: p…
+       |                                                                                                         ^
+     62|   expect(packedFiles.filter(file => file.split('/').includes('__tests_…
+     63|   for (const hook of ['preinstall', 'install', 'postinstall', 'prepare…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 72 passed | 32 skipped (106)
+   Start at  21:00:37
+   Duration  20.19s (transform 990ms, setup 0ms, collect 1.50s, tests 17.84s, environment 6ms, prepare 333ms)
+
+exit 1

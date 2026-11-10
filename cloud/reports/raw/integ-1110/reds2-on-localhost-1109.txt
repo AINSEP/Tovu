@@ -1,0 +1,70 @@
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site (1425.906643ms)
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (7.961938ms)
+✔ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (15.804307ms)
+✔ Auto suggests only relevant bundled plugins: Import my old WordPress site (7.610493ms)
+✔ Auto suggests only relevant bundled plugins: what's 2+2 (5.865979ms)
+✔ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (6.424495ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3634.804995
+exit 0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts
+✖ old entries retain the four independently recorded card/descriptor hashes (89.266784ms)
+✔ foreign handler keys, catalog path, permissions and plugin-owned labels are actually consumed (7.614787ms)
+✔ injected recovery preserves the host-issued diagnostic object without decrypting (0.708648ms)
+✔ approval lifecycle and human-confirm use the foreign URI and SAME answer store; decline sends nothing (4.161669ms)
+✔ approved DELETE re-admits the permission, and revocation during the human wait prevents any request (8.113947ms)
+✔ foreign form/catalog/locale/default category/worksFor/cleanup feed save; invalidate and outcome follow persistence (8.678283ms)
+✔ plugin load/read/build and probe are injected; a failed probe cannot save or invalidate (29.545635ms)
+✔ rotation finds/applies the host card and preserves the current username in the injected replacement (5.160671ms)
+✔ host form rules and safe fallback prevent raw storage/driver messages reaching either projection (15.452956ms)
+✔ duplicate and public-field errors use foreign messages and canonical model rules (2.722435ms)
+✔ foreign file validator runs before authorization; one provider/plan survives decrypt to commit (1.423984ms)
+✔ missing interactive channel and plugin card use required foreign messages (1.287541ms)
+✔ real Tovu bindings retain the current registry/cache/repo and guard, with invalidation only after save (10.947813ms)
+✔ real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup (0.682675ms)
+✔ request validation decorates only callerSafeMessage and classifies the original once (0.861879ms)
+✔ request egress-refused decorates only callerSafeMessage and classifies the original once (0.509017ms)
+✔ request unknown rejections retain their original identity after classification (0.554091ms)
+✔ DELETE preflight classifies the original once and preserves the map prefix with caller-safe validation text (0.798563ms)
+✔ DELETE preflight preserves non-validation rejection identity after classifying once (1.067438ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2716.963739
+
+✖ failing tests:
+
+test at apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts:1:12328
+✖ old entries retain the four independently recorded card/descriptor hashes (89.266784ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3',
+  +   copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1',
+  -   copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead',
+  -   copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea',
+      createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75',
+      credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb'
+    }
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts:181:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3', createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75', credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb', copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1' },
+    expected: { copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead', createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75', credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb', copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts

@@ -1,0 +1,89 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+
+Not implemented: Window's confirm() method
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/oauth4webapi@3.8.8/node_modules/oauth4webapi/build/index.js" points to missing source files
+8:59:31 PM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+Not implemented: Window's scrollTo() method
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+ ❯ src/__tests__/unit/chat-fab-z-order-css.unit.test.ts (4 tests | 1 failed) 331ms
+     × sits above every in-page layer; only blocking modals and their popovers go higher 82ms
+ ❯ src/lib/__tests__/credential-copy-card-frame.unit.test.ts (2 tests | 1 failed) 37ms
+   × saved-key cards grow from content rather than reserving blank frame space (approve=false) 27ms
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/chat-fab-z-order-css.unit.test.ts > chat FAB z-order > sits above every in-page layer; only blocking modals and their popovers go higher
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "components/AdminFailureNotice/admin-failure-notice.css .admin-failure-notice z-index: 1000",
++ ]
+
+ ❯ src/__tests__/unit/chat-fab-z-order-css.unit.test.ts:82:19
+     80|       .filter((layer) => !ABOVE_FAB.has(layer.selector))
+     81|       .map((layer) => `${layer.file} ${layer.selector} z-index: ${laye…
+     82|     expect(above).toEqual([]);
+       |                   ^
+     83|   });
+     84|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/__tests__/credential-copy-card-frame.unit.test.ts > saved-key cards grow from content rather than reserving blank frame space (approve=false)
+AssertionError: expected { granted: false, …(2) } to deeply equal { granted: false }
+
+- Expected
++ Received
+
+  {
+    "granted": false,
++   "message": "The owner closed the card without choosing a key.",
++   "reason": "dismissed",
+  }
+
+ ❯ src/lib/__tests__/credential-copy-card-frame.unit.test.ts:42:25
+     40|   expect(resources[0]!.resource.text).toContain("Production");
+     41|   expect(answer(approve ? { credentialId: "one" } : { [SURFACE_DISMISS…
+     42|   expect(await pending).toEqual(approve ? { granted: true, credentialI…
+       |                         ^
+     43|   expect(await attachments.isAttached({ siteId: "target", keyId: "one"…
+     44|   expect(await vault.find({ workspaceId: "project", id: "one" })).toEq…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 881 passed (883)
+      Tests  2 failed | 14371 passed | 2 skipped (14375)
+   Start at  20:54:10
+   Duration  1517.98s (transform 115.91s, setup 169.78s, import 1041.80s, tests 755.07s, environment 828.40s)
+
+exit 1

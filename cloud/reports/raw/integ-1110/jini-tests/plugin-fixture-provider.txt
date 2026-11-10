@@ -1,0 +1,17 @@
+
+> @jini-ai/plugin-fixture-provider@0.6.19 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-fixture-provider
+
+ ✓ __tests__/package.test.ts (2 tests) 771ms
+   ✓ packs exactly the selected versioned payload with verified integrity and retained attribution 761ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:26:24
+   Duration  2.51s (transform 877ms, setup 0ms, collect 1.35s, tests 771ms, environment 0ms, prepare 137ms)
+
+exit 0 seconds 3

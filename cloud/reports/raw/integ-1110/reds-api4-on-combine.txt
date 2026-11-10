@@ -1,0 +1,353 @@
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (51.555656ms)
+✖ API sign-in displays only the declaring plugin oauth card copy (27.470253ms)
+✔ a plugin that declares neither an OAuth MCP server nor an API connection is refused (4.319659ms)
+✔ a plugin declaring more than one API connection is refused before any sign-in starts (3.070454ms)
+✔ without an interactive channel the sign-in card cannot be shown and the call fails with that reason (3.688924ms)
+✔ an unconfigured sign-in client refuses as a ToolInputError carrying the safe, actionable message under the tool prefix (3.058245ms)
+✔ nobody finishing within the bounded wait returns waiting-for-sign-in with the ref, and no connected card (34.783519ms)
+✔ aborting while parked closes the card's exchange and returns waiting-for-sign-in promptly (6.998186ms)
+✖ a failed connected-card update never turns a real connection into a tool failure (12.42052ms)
+✔ an abort during the initial status read rejects before emitting a sign-in card (5.135311ms)
+✔ aborting closes the card at once, even while a status read is still in flight (10.453283ms)
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (4.68534ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 8
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6658.364098
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:3587
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (51.555656ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at onCard (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:69:115)
+      at emitSurface (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:71:95)
+      at Object.send (/home/user/scratch/wt-jini-combine/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/scratch/wt-jini-combine/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:3)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/oDGUYzvBoKhDKPVV-mKbUaAt_Lz9HubFmymwZ3Kt3e4'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:4552
+✖ API sign-in displays only the declaring plugin oauth card copy (27.470253ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at emitSurface (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:106:49)
+      at Object.send (/home/user/scratch/wt-jini-combine/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/scratch/wt-jini-combine/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:3)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async waitAtSignInCard (/home/user/scratch/wt-jini-combine/packages/ui/src/features/mcp-ui/sign-in-card.ts:62:20) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/GQTjhX86X1UAzkTz13xmfbdNweHFd6j1gWY42-ZlvzM'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:8596
+✖ a failed connected-card update never turns a real connection into a tool failure (12.42052ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at onCard (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:166:43)
+      at emitSurface (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:71:95)
+      at Object.send (/home/user/scratch/wt-jini-combine/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/scratch/wt-jini-combine/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:3)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/caFRzJleMhCawZa5kT7dj1i-mjdi7J7oTYkGZfLuDIA'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:1:11024
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (4.68534ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at emitSurface (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:221:79)
+      at Object.send (/home/user/scratch/wt-jini-combine/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/scratch/wt-jini-combine/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:3)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async waitAtSignInCard (/home/user/scratch/wt-jini-combine/packages/ui/src/features/mcp-ui/sign-in-card.ts:62:20) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/SOBf6wTduhBgt7Ct5YRWn4b6UtbB98Bqjg3z3ppgjhQ'
+  }
+exit 1 apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+✔ connections: an undeclared id, another plugin, another workspace and a call without an admin all get the same refusal (306.730438ms)
+✔ connections: a start parameter the connection does not declare is refused before any sign-in starts (38.410525ms)
+✔ callback fields: only the declared ones are kept, only the owner plugin can take them, and only once (133.796757ms)
+✔ desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only (65.501407ms)
+✔ disconnect: revocation is reported verbatim, never 'confirmed' unless the provider confirmed (71.334638ms)
+✔ issued sign-ins: only links recorded inside a collection, only https, and concurrent collections never mix (1.379525ms)
+✔ issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not (0.671297ms)
+✔ plugin state: another plugin or workspace never sees a value; malformed keys and oversized values are refused (7.206416ms)
+✔ plugin state: a plugin's key count is capped; existing keys still update at the cap (311.418503ms)
+✔ tools: plugin state is read-only and scoped to the calling plugin and workspace, whatever the store exposes (3.426558ms)
+✔ security: a surface handler's HTTP reaches only the https origins its plugin's connections declare (12.119796ms)
+✔ public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null (0.896628ms)
+✔ form delivery: the credential allows only the connection's declared https API origins; an http origin refuses the declaration (20.169629ms)
+✔ attempt id (hosted): the plugin gets the service's random attempt id, never the OAuth state or a digest of it (9.325948ms)
+✔ attempt id (desktop): the plugin gets the service's random attempt id, never the OAuth state or a digest of it (9.040098ms)
+✖ workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect) (2.916972ms)
+✔ desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes (19.450418ms)
+✔ status: a staged switch's account label disappears once the switch expired, in status and in action results (25.478159ms)
+[admin-surfaces] desktop sign-in for 'acme-office' did not complete: authorization-failed
+✔ desktop: a sign-in that fails after the browser opened shows a safe code and next action in status; a later success clears it (30.079738ms)
+✔ hosted: status carries no sign-in attempt (the public callback page reports hosted failures) (10.55792ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 19
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3378.564138
+
+✖ failing tests:
+
+test at apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:1:19616
+✖ workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect) (2.916972ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at providerUrlOf (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:115:63)
+      at consent (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:119:15)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:351:63)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:349:21)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/Iz4unyHjifyeEAykgt3JmtQjVyrZh4yL7txyFFEemeY'
+  }
+exit 1 apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+▶ submission IP retention adapter and migration 0006 [sqlite]
+  ✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (313.146913ms)
+✖ submission IP retention adapter and migration 0006 [sqlite] (314.039482ms)
+▶ submission IP retention adapter and migration 0006 [pglite]
+  ✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (10246.9326ms)
+✖ submission IP retention adapter and migration 0006 [pglite] (10248.300248ms)
+✔ old NOT NULL schema rejects before changing a submission (157.604007ms)
+ℹ tests 3
+ℹ suites 2
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13532.054042
+
+✖ failing tests:
+
+test at apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:1:1637
+✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (313.146913ms)
+  AssertionError [ERR_ASSERTION]: published DTO gets an empty display string for the cleared IP
+  
+  null !== ''
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:50:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:1:1637
+✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (10246.9326ms)
+  AssertionError [ERR_ASSERTION]: published DTO gets an empty display string for the cleared IP
+  
+  null !== ''
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:50:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts
+✖ vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition (32.274403ms)
+✖ vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it (9.642549ms)
+✖ security: the shared connection port refuses another workspace's target and reads no account for it (10.82352ms)
+✖ security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation) (19.516681ms)
+✖ security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer (8.131204ms)
+✖ security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output (6.352249ms)
+✔ security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context (13.828034ms)
+✔ security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself (99.383947ms)
+✖ vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery (12.810035ms)
+✖ security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned (43.374722ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 2
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7061.729726
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:1698
+✖ vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition (32.274403ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:48:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/3GJBwHLwe75NRg0L4vGRCz-FIvkdjMqPZSdtJuwS9VY'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:3327
+✖ vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it (9.642549ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:71:3)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/YlmrVN6qji-rklQYXGymTrFOXFCrlhM-ME5UqcdxT1I'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:5893
+✖ security: the shared connection port refuses another workspace's target and reads no account for it (10.82352ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:101:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/se0roZ_0GxhuC3hn7_8sYulxFv7NcBvVe9-Ze9D8GsQ'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:6831
+✖ security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation) (19.516681ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:113:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/28MJoTB5e5QbDuGykjR8J0cWptpHGDU0cTJtz4LVH6Y'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:9891
+✖ security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer (8.131204ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:156:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/40wZ6CihjcQHwUPuclJVBuPpG3xl8Ls74AVMfzqR_-Q'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:10739
+✖ security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output (6.352249ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:167:3)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/lQYHZ2IzyMC-fw1WuMflGutRljrXmXBAUG126MAMYy8'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:13640
+✖ vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery (12.810035ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:216:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/eCXK2_7ohsqV4sTn2xYyjrgLUPDDnMnro8vfieK0ftQ'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:17708
+✖ security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned (43.374722ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:163:13)
+      at async runApiConnectionConnect (/home/user/scratch/wt-tovu-combine/apps/website/src/features/api-connections/connect.ts:215:96)
+      at async connectForRef (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:286:5)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/1hF1xXfB-x7-4PVBlwlO-RjZ8O7nbQRUEdjhX2exZR8'
+  }
+exit 1 apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts

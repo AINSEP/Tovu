@@ -1,0 +1,15 @@
+
+> @jini-ai/daemon@0.6.23 test:postgres
+> vitest run --config vitest.postgres.config.ts src/store/agent-sessions/__tests__/postgres.postgres.test.ts
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/store/agent-sessions/__tests__/postgres.postgres.test.ts (8 tests) 474ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:23:49
+   Duration  1.75s (transform 490ms, setup 0ms, collect 817ms, tests 474ms, environment 0ms, prepare 73ms)
+
+exit 0

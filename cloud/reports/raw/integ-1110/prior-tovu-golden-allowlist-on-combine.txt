@@ -1,0 +1,46 @@
+✔ the parser enumerates alternate opener shapes and reports unresolved bindings (3.243487ms)
+✔ the parser follows identity dialogs to prepared confirmation IDs and fails closed for unknown flows (6.339867ms)
+✔ the federated card adapter permits only its reviewed dynamic spec expression (0.397153ms)
+✔ the sealer adapter exemption leaves other unresolved open calls visible (0.365436ms)
+✔ reviewed non-exchange open calls do not hide new surface bindings in the same file (1.109649ms)
+✖ every surfaceExchanges.open(...) call names a toolId constant this scan can resolve (5.453545ms)
+✔ the scan finds the known exchange openers (guards against a scan that silently matches nothing) (0.377079ms)
+✔ every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS (0.197181ms)
+✔ the completeness check reports a tool whose allowlist entry is missing (0.206283ms)
+✔ every allowlisted id opens an exchange or is a named carve-out (3.206611ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10879.500716
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts:48:480
+✖ every surfaceExchanges.open(...) call names a toolId constant this scan can resolve (5.453545ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'cli/commands/import-local.ts:151: file'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts:315:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'cli/commands/import-local.ts:151: file' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1

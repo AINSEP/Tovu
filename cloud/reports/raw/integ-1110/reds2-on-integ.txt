@@ -1,0 +1,177 @@
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site (593.30515ms)
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (15.195886ms)
+✖ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (18.523458ms)
+✖ Auto suggests only relevant bundled plugins: Import my old WordPress site (7.25474ms)
+✔ Auto suggests only relevant bundled plugins: what's 2+2 (6.639085ms)
+✖ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (16.577312ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2195.124078
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site (593.30515ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'tovu-theme',
+  -   'ui-ux-design'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu-theme' ],
+    expected: [ 'tovu-theme', 'ui-ux-design' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (15.195886ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'tovu-theme',
+  -   'ui-ux-design'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu-theme' ],
+    expected: [ 'tovu-theme', 'ui-ux-design' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (18.523458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'vercel'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'vercel' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Import my old WordPress site (7.25474ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'site-import',
+      'wordpress'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'wordpress' ],
+    expected: [ 'site-import', 'wordpress' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (16.577312ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'tovu-theme',
+  -   'ui-ux-design'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu-theme' ],
+    expected: [ 'tovu-theme', 'ui-ux-design' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts
+✖ old entries retain the four independently recorded card/descriptor hashes (106.428041ms)
+✔ foreign handler keys, catalog path, permissions and plugin-owned labels are actually consumed (17.017646ms)
+✔ injected recovery preserves the host-issued diagnostic object without decrypting (0.839274ms)
+✔ approval lifecycle and human-confirm use the foreign URI and SAME answer store; decline sends nothing (14.759296ms)
+✔ approved DELETE re-admits the permission, and revocation during the human wait prevents any request (4.463747ms)
+✔ foreign form/catalog/locale/default category/worksFor/cleanup feed save; invalidate and outcome follow persistence (10.679434ms)
+✔ plugin load/read/build and probe are injected; a failed probe cannot save or invalidate (5.615339ms)
+✔ rotation finds/applies the host card and preserves the current username in the injected replacement (2.808291ms)
+✔ host form rules and safe fallback prevent raw storage/driver messages reaching either projection (10.014385ms)
+✔ duplicate and public-field errors use foreign messages and canonical model rules (5.686283ms)
+✔ foreign file validator runs before authorization; one provider/plan survives decrypt to commit (1.325067ms)
+✔ missing interactive channel and plugin card use required foreign messages (10.926318ms)
+✔ real Tovu bindings retain the current registry/cache/repo and guard, with invalidation only after save (28.09482ms)
+✔ real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup (0.500818ms)
+✔ request validation decorates only callerSafeMessage and classifies the original once (0.709324ms)
+✔ request egress-refused decorates only callerSafeMessage and classifies the original once (0.37858ms)
+✔ request unknown rejections retain their original identity after classification (0.500425ms)
+✔ DELETE preflight classifies the original once and preserves the map prefix with caller-safe validation text (0.54733ms)
+✔ DELETE preflight preserves non-validation rejection identity after classifying once (1.088105ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2294.952771
+
+✖ failing tests:
+
+test at apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts:1:12328
+✖ old entries retain the four independently recorded card/descriptor hashes (106.428041ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3',
+  +   copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1',
+  -   copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead',
+  -   copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea',
+      createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75',
+      credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts:181:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { copyCard: 'cb44d9f7877e4d5549f0fbbd94c7f4a8e4aeb8456145d518aee35634ffb2f3f3', createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75', credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb', copyDescriptors: '2c672a02b463975fd653fcf53f9bea388f85f79929b0d433b5797575492a71d1' },
+    expected: { copyCard: 'cdf8d6691215f1f310e4d539e65ee2acd64c6cb8a3212a98f017ff6b289ecead', createCard: '63acf4f1ca0d7ccbd35f7415f086baf8c1f4225ec49d85aa0dd355b187251a75', credentialDescriptors: '657345d5ad0d9c5491c2d8d26ac3645a9752eeefba30697b775cd4ff446df6cb', copyDescriptors: 'b2a05ee1ffdcbec0503b8ea59506ea3056789d14772e28934b84a00b201f6eea' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts

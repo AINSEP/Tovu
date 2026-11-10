@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-localhost-1109/packages/platform
+
+ ✓ src/__tests__/source-boundaries.test.ts (1 test) 47ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:37:45
+   Duration  861ms (transform 63ms, setup 0ms, collect 53ms, tests 47ms, environment 0ms, prepare 106ms)
+
+exit 0

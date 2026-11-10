@@ -1,0 +1,44 @@
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-localhost-1109/packages/agent-plugins
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+ ✓ src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts (1 test) 64ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:00:59
+   Duration  1.95s (transform 884ms, setup 0ms, collect 1.23s, tests 64ms, environment 0ms, prepare 180ms)
+
+exit 0

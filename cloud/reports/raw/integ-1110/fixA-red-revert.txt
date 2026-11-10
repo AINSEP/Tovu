@@ -1,0 +1,47 @@
+✔ conflicts constructed without version metadata expose explicit nulls (1.078828ms)
+✔ throws ChangeSetNotFoundError when no change set matches (workspace + id) (0.674248ms)
+✔ throws ChangeSetInvalidStatusError when the change set is not 'applied' (0.289391ms)
+✔ throws RevertNotPossibleError when no reverter is registered for the item's (entityType, operation) (0.399819ms)
+✔ throws RevertNotPossibleError when the item has no inverse payload (0.301041ms)
+✔ throws RevertConflictError with 'missing' when the entity no longer exists (currentVersion returns null) (0.30907ms)
+✔ throws RevertConflictError with the found version when the entity has since moved on (version mismatch) (0.280819ms)
+✔ applies inverses in descending position order (last-applied item is reverted first) (1.354042ms)
+✔ throws ChangeSetInvalidStatusError ('already reverted concurrently') when the status changed between the initial read and the CAS re-check (1.694606ms)
+✔ enqueues a change-set.reverted event on the outbox when one is provided (0.587703ms)
+✔ completes without enqueuing anything when no outbox is provided (0.433934ms)
+✔ conflict message names the actor when the reverter resolves one via currentActor (0.324629ms)
+✔ conflict message omits the actor suffix when a currentActor method exists but resolves null (0.238391ms)
+✔ force:true past a stale-version conflict resolves without throwing and applies the inverse anyway (0.163957ms)
+✔ force:true does NOT bypass a missing entity — still throws RevertConflictError (0.247877ms)
+✔ force omitted/false with a real mismatch is unchanged — the default path still refuses (0.19361ms)
+✔ force:true with an agent principal throws RevertForbiddenError before any repo read (0.211487ms)
+✔ an agent principal WITHOUT force reverts normally — the restriction is force-specific, not agent-specific (0.171766ms)
+✔ checks every item's version before applying any inverse or emitting/saving a reverted record (0.342019ms)
+✔ a change set deleted during inverse application cannot be saved back as reverted (0.250635ms)
+✔ L079: inverse availability is checked before any version read, including under force (0.211204ms)
+✖ L079: force without principal kind is refused before any write (3.173203ms)
+✔ L079: a later inverse failure leaves earlier writes applied (reported, not fixed) (0.429389ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 22
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 352.799762
+
+✖ failing tests:
+
+test at apps/website/src/contracts/core/commands/__tests__/revert.unit.test.ts:1:18022
+✖ L079: force without principal kind is refused before any write (3.173203ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/commands/__tests__/revert.unit.test.ts:598:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+exit 1

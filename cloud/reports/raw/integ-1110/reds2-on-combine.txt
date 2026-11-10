@@ -1,0 +1,123 @@
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site (828.572208ms)
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (16.937253ms)
+✖ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (23.130892ms)
+✖ Auto suggests only relevant bundled plugins: Import my old WordPress site (11.776302ms)
+✔ Auto suggests only relevant bundled plugins: what's 2+2 (9.941344ms)
+✖ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (11.296631ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2834.88285
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site (828.572208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'tovu-theme',
+  -   'ui-ux-design'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu-theme' ],
+    expected: [ 'tovu-theme', 'ui-ux-design' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (16.937253ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'tovu-theme',
+  -   'ui-ux-design'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu-theme' ],
+    expected: [ 'tovu-theme', 'ui-ux-design' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (23.130892ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'vercel'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'vercel' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Import my old WordPress site (11.776302ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'site-import',
+      'wordpress'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'wordpress' ],
+    expected: [ 'site-import', 'wordpress' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:1:1860
+✖ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (11.296631ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'tovu-theme',
+  -   'ui-ux-design'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts:56:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu-theme' ],
+    expected: [ 'tovu-theme', 'ui-ux-design' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts
+MISSING apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts

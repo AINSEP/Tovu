@@ -1,0 +1,159 @@
+✖ observes real rendered evidence from a real page (6836.003372ms)
+✔ a server-side redirect off the origin is refused after navigation, with the target redacted to its origin (2394.93584ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12056.820206
+
+✖ failing tests:
+
+test at apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts:28:1311
+✖ observes real rendered evidence from a real page (6836.003372ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts:186:44) {
+    name: 'Error',
+    log: []
+  }
+exit 1 apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts
+✖ preview tag under the "sticky" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (59.426548ms)
+✖ preview tag under the "sticky" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (6.249015ms)
+✖ preview tag under the "fixed" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (6.963523ms)
+✖ preview tag under the "fixed" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (2.148522ms)
+✖ preview tag under the "hostile" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (5.837062ms)
+✖ preview tag under the "hostile" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (3.642707ms)
+✖ preview tag with more choices than fit a phone scrolls from the start instead of clipping the label (5.582112ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 0
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2673.147585
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:2740
+✖ preview tag under the "sticky" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (59.426548ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:2740
+✖ preview tag under the "sticky" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (6.249015ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:2740
+✖ preview tag under the "fixed" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (6.963523ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:2740
+✖ preview tag under the "fixed" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (2.148522ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:2740
+✖ preview tag under the "hostile" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (5.837062ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:2740
+✖ preview tag under the "hostile" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (3.642707ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:1:3962
+✖ preview tag with more choices than fit a phone scrolls from the start instead of clipping the label (5.582112ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:83:34) {
+    name: 'Error',
+    log: []
+  }
+exit 1 apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts

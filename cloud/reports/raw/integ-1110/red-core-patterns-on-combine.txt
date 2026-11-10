@@ -1,0 +1,111 @@
+✔ full website/admin roots include contracts; desktop scope remains the existing two files (74.195366ms)
+✔ traversal preserves exclusions, supports TS variants and scans overlapping roots once (161.322771ms)
+✔ comments never count; executable strings, template substitutions and TSX do (52.737766ms)
+✔ the raw pre-filter cannot hide comment-separated provider or environment syntax (35.247841ms)
+✔ manifest canonical IDs and literal aliases do not depend on plugin activation (9.575814ms)
+✔ deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere (1.069116ms)
+✔ vendor words respect identifier boundaries and ordinary replicate prose without path exceptions (0.725974ms)
+✔ Render React/rendering terminology and the ordinary resend verb stay allowed (5.21635ms)
+✔ unified mail rules preserve branded names, domains, old adapter, selections and secrets (1.244302ms)
+✔ exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys (4.610971ms)
+✔ pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail (8.438494ms)
+✔ malformed policy data and supplemental vendor declarations fail closed (39.807601ms)
+✔ outside-scan release infrastructure is documented and never treated as a source allowance (1.768882ms)
+✔ tool search metadata has no hosting product names; plugin manifests own vendor search words (131.202699ms)
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (17456.764944ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20916.516883
+
+✖ failing tests:
+
+test at apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:1:11351
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (17456.764944ms)
+  AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+  + actual - expected
+  
+  + [
+  +   'apps/admin/src/lib/admin-nav-i18n.ts: commerce 22',
+  +   'apps/admin/src/panels.tsx: commerce 4',
+  +   'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,security,settings,skills}/**,hooks/admin-execution-credential-dependencies.hooks.ts,lib/execution-settings.ts}: anthropic 100 -> 121',
+  +   'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,skills}/**,lib/execution-settings.ts}: google 13 -> 159',
+  +   'apps/website/src/assistant/host-contracts.ts: commerce 1',
+  +   'apps/website/src/assistant/tool-registrations.ts: commerce 1',
+  +   'apps/website/src/contracts/core/tool-metadata/index.ts: commerce 4',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: charts-recharts 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: commerce 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: composio 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: formspree 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google 3',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-forms 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-login 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-workspace 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: higgsfield-media 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: meilisearch 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: opentelemetry 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: posthog 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: sentry 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: slide-design 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: software-engineering 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: stripe 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: supabase 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: wordpress 1',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: cloudflare 11 -> 12',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: fly 4 -> 5',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github 3 -> 5',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github-pages 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: netlify 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: railway 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: s3-compatible 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: vercel 1 -> 2',
+  +   'apps/website/src/features/forms/agent-tools.ts: cloudflare 1',
+  +   'apps/website/src/features/source-control/provider-module.ts: github 2',
+  +   'apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts: commerce 2',
+  +   'apps/website/src/platform/db/migrations/checksums.ts: commerce 1',
+  +   'apps/website/src/platform/db/migrations/index.ts: commerce 2',
+  +   'apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: commerce 4',
+  +   'apps/website/src/server/inbound/public-http/http/site/render.ts: commerce 1',
+  +   'apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts: commerce 22',
+  +   'apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts: commerce 13',
+  +   'apps/website/src/server/inbound/public-http/routes/site/products.ts: commerce 2',
+  +   'apps/website/src/server/routes/types.ts: commerce 2',
+  +   'apps/website/src/server/runtime/composition/app.ts: charts-recharts 1',
+  +   'apps/website/src/server/runtime/composition/app.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/charts-recharts-source.ts: charts-recharts 2',
+  +   'apps/website/src/server/runtime/composition/commerce-drain.ts: commerce 3',
+  +   'apps/website/src/server/runtime/composition/commerce-http.ts: commerce 12',
+  +   'apps/website/src/server/runtime/composition/commerce-origin.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/commerce-settings.ts: commerce 5',
+  +   'apps/website/src/server/runtime/composition/commerce-worker.ts: commerce 2',
+  +   'apps/website/src/server/runtime/composition/commerce.ts: commerce 28',
+  +   'apps/website/src/server/runtime/composition/deps.ts: charts-recharts 1',
+  +   'apps/website/src/server/runtime/composition/deps.ts: commerce 4',
+  +   'apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts: anthropic 1',
+  +   'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1',
+  +   'apps/website/src/server/runtime/composition/provider-contracts.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/provider-plugins.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/tool-catalog-manifest.ts: commerce 6',
+  +   'apps/{admin/src/features/skills/**,website/src/features/skills/**,website/src/server/inbound/admin-http/routes/skills/**,website/src/contracts/headless/assistant-tool-approval-policy.ts}: github 16 -> 77'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:194:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/admin/src/lib/admin-nav-i18n.ts: commerce 22', 'apps/admin/src/panels.tsx: commerce 4', 'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,security,settings,skills}/**,hooks/admin-execution-credential-dependencies.hooks.ts,lib/execution-settings.ts}: anthropic 100 -> 121', 'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,skills}/**,lib/execution-settings.ts}: google 13 -> 159', 'apps/website/src/assistant/host-contracts.ts: commerce 1', 'apps/website/src/assistant/tool-registrations.ts: commerce 1', 'apps/website/src/contracts/core/tool-metadata/index.ts: commerce 4', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: charts-recharts 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: commerce 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: composio 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: formspree 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google 3', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-forms 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-login 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-workspace 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: higgsfield-media 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: meilisearch 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: opentelemetry 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: posthog 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: sentry 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: slide-design 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: software-engineering 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: stripe 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: supabase 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: wordpress 1', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: cloudflare 11 -> 12', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: fly 4 -> 5', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github 3 -> 5', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github-pages 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: netlify 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: railway 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: s3-compatible 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: vercel 1 -> 2', 'apps/website/src/features/forms/agent-tools.ts: cloudflare 1', 'apps/website/src/features/source-control/provider-module.ts: github 2', 'apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts: commerce 2', 'apps/website/src/platform/db/migrations/checksums.ts: commerce 1', 'apps/website/src/platform/db/migrations/index.ts: commerce 2', 'apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: commerce 4', 'apps/website/src/server/inbound/public-http/http/site/render.ts: commerce 1', 'apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts: commerce 22', 'apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts: commerce 13', 'apps/website/src/server/inbound/public-http/routes/site/products.ts: commerce 2', 'apps/website/src/server/routes/types.ts: commerce 2', 'apps/website/src/server/runtime/composition/app.ts: charts-recharts 1', 'apps/website/src/server/runtime/composition/app.ts: commerce 1', 'apps/website/src/server/runtime/composition/charts-recharts-source.ts: charts-recharts 2', 'apps/website/src/server/runtime/composition/commerce-drain.ts: commerce 3', 'apps/website/src/server/runtime/composition/commerce-http.ts: commerce 12', 'apps/website/src/server/runtime/composition/commerce-origin.ts: commerce 1', 'apps/website/src/server/runtime/composition/commerce-settings.ts: commerce 5', 'apps/website/src/server/runtime/composition/commerce-worker.ts: commerce 2', 'apps/website/src/server/runtime/composition/commerce.ts: commerce 28', 'apps/website/src/server/runtime/composition/deps.ts: charts-recharts 1', 'apps/website/src/server/runtime/composition/deps.ts: commerce 4', 'apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts: anthropic 1', 'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1', 'apps/website/src/server/runtime/composition/provider-contracts.ts: commerce 1', 'apps/website/src/server/runtime/composition/provider-plugins.ts: commerce 1', 'apps/website/src/server/runtime/composition/tool-catalog-manifest.ts: commerce 6', 'apps/{admin/src/features/skills/**,website/src/features/skills/**,website/src/server/inbound/admin-http/routes/skills/**,website/src/contracts/headless/assistant-tool-approval-policy.ts}: github 16 -> 77' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1

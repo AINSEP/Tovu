@@ -1,0 +1,124 @@
+(node:7688) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7688) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✖ the desktop journey harness loads through Playwright on the supported Node runtime (19606.820407ms)
+✔ desktop app creates one runtime outside window/site callbacks (3.693256ms)
+✖ quit waits for owned runtime disposal even without sites and disposes once across repeated quits (2.130955ms)
+✔ the entry defines lifecycle cleanup that clears maintenance, retries and recovering windows (168.296586ms)
+✖ before-quit waits on in-flight teardowns, not only on openSites (20.775746ms)
+✖ Quit during a card Stop waits for its tracked teardown after openSites becomes empty (56.358351ms)
+✔ a quit attempt during the drain is held until the drain completes, not let through (1.088363ms)
+✔ the drain arms the force-exit deadline itself, so a held quit cannot outlive a hung drain (0.508369ms)
+✔ the runtime contracts declare a nonempty IPC surface (1.207798ms)
+✖ every channel the contracts declare has a stub or a real handler (5.620925ms)
+✔ every stubbed channel is declared by a contract (3.420011ms)
+✔ no channel is both stubbed and implemented for real (0.211318ms)
+✔ the push-only channels are NOT stubbed (0.257017ms)
+✔ registerRunnerIpcStubs registers one handler per channel (1.038332ms)
+✔ every registered handler throws rather than returning any value (4.137396ms)
+✔ notPortedError names the channel it was built for, not a shared one (0.239086ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 11
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23100.338882
+
+✖ failing tests:
+
+test at src/e2e-harness-import.test.ts:9:1
+✖ the desktop journey harness loads through Playwright on the supported Node runtime (19606.820407ms)
+  AssertionError [ERR_ASSERTION]: Error: Cannot find module 'electron'
+  Require stack:
+  - /home/user/scratch/wt-tovu-combine/apps/desktop/package.json
+      at Module.<anonymous> (node:internal/modules/cjs/loader:1564:15)
+      at Module.resolveFilename [as _resolveFilename] (/home/user/scratch/wt-tovu-combine/node_modules/playwright/lib/common/index.js:1185:36)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at Module._load (node:internal/modules/cjs/loader:1341:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+      at Module.require (node:internal/modules/cjs/loader:1674:12)
+      at desktopRequire (node:internal/modules/helpers:157:16)
+      at file:///home/user/scratch/wt-tovu-combine/development/e2e/desktop/_fixtures.ts:49:69
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+      at node:internal/modules/esm/loader:647:26
+      at requireOrImport (/home/user/scratch/wt-tovu-combine/node_modules/playwright/lib/common/index.js:1147:12) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/user/scratch/wt-tovu-combine/apps/desktop/package.json' ]
+  }
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/user/scratch/wt-tovu-combine/apps/desktop/src/e2e-harness-import.test.ts:56:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main-agent-runtime-wiring.test.ts:38:1
+✖ quit waits for owned runtime disposal even without sites and disposes once across repeated quits (2.130955ms)
+  ReferenceError [Error]: stopRunningImports is not defined
+      at evalmachine.<anonymous>:14:39
+      at TestContext.<anonymous> (file:///home/user/scratch/wt-tovu-combine/apps/desktop/src/main-agent-runtime-wiring.test.ts:88:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at src/main-shutdown-wiring.test.ts:67:1
+✖ before-quit waits on in-flight teardowns, not only on openSites (20.775746ms)
+  ReferenceError [Error]: stopRunningImports is not defined
+      at evalmachine.<anonymous>:14:39
+      at TestContext.<anonymous> (file:///home/user/scratch/wt-tovu-combine/apps/desktop/src/main-shutdown-wiring.test.ts:109:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at src/main-shutdown-wiring.test.ts:130:1
+✖ Quit during a card Stop waits for its tracked teardown after openSites becomes empty (56.358351ms)
+  ReferenceError [Error]: stopRunningImports is not defined
+      at evalmachine.<anonymous>:14:39
+      at TestContext.<anonymous> (file:///home/user/scratch/wt-tovu-combine/apps/desktop/src/main-shutdown-wiring.test.ts:176:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/runner-ipc-stubs.test.ts:103:1
+✖ every channel the contracts declare has a stub or a real handler (5.620925ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'runner:sites:import-archive',
+  +   'runner:sites:cancel-import'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/user/scratch/wt-tovu-combine/apps/desktop/src/runner-ipc-stubs.test.ts:107:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'runner:sites:import-archive', 'runner:sites:cancel-import' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1

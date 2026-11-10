@@ -1,0 +1,575 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-combine
+
+ ✓ scripts/__tests__/agent-plugin-subpaths.test.ts (3 tests) 53ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/charts-echarts-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-echarts' has no publisher-qualified id; using 'unknown/charts-echarts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-echarts' has no publisher-qualified id; using 'unknown/charts-echarts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-echarts' has no publisher-qualified id; using 'unknown/charts-echarts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-echarts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-echarts' has no publisher-qualified id; using 'unknown/charts-echarts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/charts-recharts-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-recharts' has no publisher-qualified id; using 'unknown/charts-recharts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-recharts' has no publisher-qualified id; using 'unknown/charts-recharts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-recharts' has no publisher-qualified id; using 'unknown/charts-recharts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'charts-recharts' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'charts-recharts' has no publisher-qualified id; using 'unknown/charts-recharts'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/cloudflare-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/commerce-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'commerce' has no publisher-qualified id; using 'unknown/commerce'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'commerce' has no publisher-qualified id; using 'unknown/commerce'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'commerce' has no publisher-qualified id; using 'unknown/commerce'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'commerce' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'commerce' has no publisher-qualified id; using 'unknown/commerce'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/composio-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'composio' has no publisher-qualified id; using 'unknown/composio'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'composio' has no publisher-qualified id; using 'unknown/composio'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'composio' has no publisher-qualified id; using 'unknown/composio'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'composio' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'composio' has no publisher-qualified id; using 'unknown/composio'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/fly-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'fly' has no publisher-qualified id; using 'unknown/fly'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'fly' has no publisher-qualified id; using 'unknown/fly'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'fly' has no publisher-qualified id; using 'unknown/fly'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'fly' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'fly' has no publisher-qualified id; using 'unknown/fly'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/formspree-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'formspree' has no publisher-qualified id; using 'unknown/formspree'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'formspree' has no publisher-qualified id; using 'unknown/formspree'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'formspree' has no publisher-qualified id; using 'unknown/formspree'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'formspree' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'formspree' has no publisher-qualified id; using 'unknown/formspree'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/github-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github' has no publisher-qualified id; using 'unknown/github'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github' has no publisher-qualified id; using 'unknown/github'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github' has no publisher-qualified id; using 'unknown/github'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github' has no publisher-qualified id; using 'unknown/github'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/github-pages-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github-pages' has no publisher-qualified id; using 'unknown/github-pages'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github-pages' has no publisher-qualified id; using 'unknown/github-pages'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github-pages' has no publisher-qualified id; using 'unknown/github-pages'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'github-pages' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'github-pages' has no publisher-qualified id; using 'unknown/github-pages'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/google-forms-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-forms' has no publisher-qualified id; using 'unknown/google-forms'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-forms' has no publisher-qualified id; using 'unknown/google-forms'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-forms' has no publisher-qualified id; using 'unknown/google-forms'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-forms' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-forms' has no publisher-qualified id; using 'unknown/google-forms'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/google-login-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-login' has no publisher-qualified id; using 'unknown/google-login'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-login' has no publisher-qualified id; using 'unknown/google-login'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-login' has no publisher-qualified id; using 'unknown/google-login'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-login' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-login' has no publisher-qualified id; using 'unknown/google-login'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/google-workspace-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-workspace' has no publisher-qualified id; using 'unknown/google-workspace'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-workspace' has no publisher-qualified id; using 'unknown/google-workspace'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-workspace' has no publisher-qualified id; using 'unknown/google-workspace'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'google-workspace' has no publisher-qualified id; using 'unknown/google-workspace'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/higgsfield-media-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'higgsfield-media' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/jev-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'jev' has no publisher-qualified id; using 'unknown/jev'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'jev' has no publisher-qualified id; using 'unknown/jev'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'jev' has no publisher-qualified id; using 'unknown/jev'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'jev' has no publisher-qualified id; using 'unknown/jev'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/langfuse-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'langfuse' has no publisher-qualified id; using 'unknown/langfuse'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'langfuse' has no publisher-qualified id; using 'unknown/langfuse'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'langfuse' has no publisher-qualified id; using 'unknown/langfuse'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'langfuse' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'langfuse' has no publisher-qualified id; using 'unknown/langfuse'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/meilisearch-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'meilisearch' has no publisher-qualified id; using 'unknown/meilisearch'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'meilisearch' has no publisher-qualified id; using 'unknown/meilisearch'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'meilisearch' has no publisher-qualified id; using 'unknown/meilisearch'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'meilisearch' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'meilisearch' has no publisher-qualified id; using 'unknown/meilisearch'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/netlify-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'netlify' has no publisher-qualified id; using 'unknown/netlify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'netlify' has no publisher-qualified id; using 'unknown/netlify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'netlify' has no publisher-qualified id; using 'unknown/netlify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'netlify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'netlify' has no publisher-qualified id; using 'unknown/netlify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/opentelemetry-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'opentelemetry' has no publisher-qualified id; using 'unknown/opentelemetry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'opentelemetry' has no publisher-qualified id; using 'unknown/opentelemetry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'opentelemetry' has no publisher-qualified id; using 'unknown/opentelemetry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'opentelemetry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'opentelemetry' has no publisher-qualified id; using 'unknown/opentelemetry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/posthog-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'posthog' has no publisher-qualified id; using 'unknown/posthog'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'posthog' has no publisher-qualified id; using 'unknown/posthog'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'posthog' has no publisher-qualified id; using 'unknown/posthog'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'posthog' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'posthog' has no publisher-qualified id; using 'unknown/posthog'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/railway-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'railway' has no publisher-qualified id; using 'unknown/railway'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'railway' has no publisher-qualified id; using 'unknown/railway'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'railway' has no publisher-qualified id; using 'unknown/railway'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'railway' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'railway' has no publisher-qualified id; using 'unknown/railway'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/render-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'render' has no publisher-qualified id; using 'unknown/render'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'render' has no publisher-qualified id; using 'unknown/render'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'render' has no publisher-qualified id; using 'unknown/render'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'render' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'render' has no publisher-qualified id; using 'unknown/render'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/resend-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'resend' has no publisher-qualified id; using 'unknown/resend'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'resend' has no publisher-qualified id; using 'unknown/resend'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'resend' has no publisher-qualified id; using 'unknown/resend'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'resend' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'resend' has no publisher-qualified id; using 'unknown/resend'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/s3-compatible-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 's3-compatible' has no publisher-qualified id; using 'unknown/s3-compatible'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 's3-compatible' has no publisher-qualified id; using 'unknown/s3-compatible'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 's3-compatible' has no publisher-qualified id; using 'unknown/s3-compatible'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 's3-compatible' has no publisher-qualified id; using 'unknown/s3-compatible'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/sentry-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'sentry' has no publisher-qualified id; using 'unknown/sentry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'sentry' has no publisher-qualified id; using 'unknown/sentry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'sentry' has no publisher-qualified id; using 'unknown/sentry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'sentry' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'sentry' has no publisher-qualified id; using 'unknown/sentry'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/shopify-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'shopify' has no publisher-qualified id; using 'unknown/shopify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'shopify' has no publisher-qualified id; using 'unknown/shopify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'shopify' has no publisher-qualified id; using 'unknown/shopify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'shopify' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'shopify' has no publisher-qualified id; using 'unknown/shopify'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/site-compliance-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-compliance' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/site-import-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-import' has no publisher-qualified id; using 'unknown/site-import'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-import' has no publisher-qualified id; using 'unknown/site-import'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-import' has no publisher-qualified id; using 'unknown/site-import'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'site-import' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'site-import' has no publisher-qualified id; using 'unknown/site-import'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/slide-design-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+/tmp/agent-plugin-subpaths-3sFT0F/slide-design-digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'slide-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'slide-design' has no publisher-qualified id; using 'unknown/slide-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/software-engineering-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'software-engineering' has no publisher-qualified id; using 'unknown/software-engineering'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'software-engineering' has no publisher-qualified id; using 'unknown/software-engineering'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'software-engineering' has no publisher-qualified id; using 'unknown/software-engineering'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'software-engineering' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'software-engineering' has no publisher-qualified id; using 'unknown/software-engineering'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/stripe-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'stripe' has no publisher-qualified id; using 'unknown/stripe'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'stripe' has no publisher-qualified id; using 'unknown/stripe'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'stripe' has no publisher-qualified id; using 'unknown/stripe'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'stripe' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'stripe' has no publisher-qualified id; using 'unknown/stripe'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/supabase-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/ui-ux-design-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+/tmp/agent-plugin-subpaths-3sFT0F/ui-ux-design-digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'ui-ux-design' > the seeded digest selects the subpath payload over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/vercel-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'vercel' has no publisher-qualified id; using 'unknown/vercel'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'vercel' has no publisher-qualified id; using 'unknown/vercel'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'vercel' has no publisher-qualified id; using 'unknown/vercel'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'vercel' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'vercel' has no publisher-qualified id; using 'unknown/vercel'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+/tmp/agent-plugin-subpaths-3sFT0F/wordpress-seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'wordpress' has no publisher-qualified id; using 'unknown/wordpress'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'wordpress' has no publisher-qualified id; using 'unknown/wordpress'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'wordpress' has no publisher-qualified id; using 'unknown/wordpress'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > subpath 'wordpress' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement
+Plugin 'wordpress' has no publisher-qualified id; using 'unknown/wordpress'.
+
+ ✓ scripts/__tests__/standalone-agent-plugin.integration.test.ts (103 tests | 32 skipped) 14028ms
+   ✓ subpath 'cloudflare' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 750ms
+   ✓ subpath 'github' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 540ms
+   ✓ subpath 'google-workspace' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 1517ms
+   ✓ subpath 'jev' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 302ms
+   ✓ subpath 's3-compatible' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 571ms
+   ✓ subpath 'supabase' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 584ms
+   ✓ subpath 'ui-ux-design' > real seeding of the staged folder installs only this plugin with readable skills; repeat boots keep operator disablement 774ms
+
+ Test Files  2 passed (2)
+      Tests  74 passed | 32 skipped (106)
+   Start at  20:55:49
+   Duration  17.33s (transform 1.01s, setup 0ms, collect 1.64s, tests 14.08s, environment 0ms, prepare 309ms)
+
+exit 0

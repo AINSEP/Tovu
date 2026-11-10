@@ -1,0 +1,56 @@
+▶ submission IP retention adapter and migration 0006 [sqlite]
+  ✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (122.371153ms)
+✖ submission IP retention adapter and migration 0006 [sqlite] (123.369951ms)
+▶ submission IP retention adapter and migration 0006 [pglite]
+  ✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (5318.315788ms)
+✖ submission IP retention adapter and migration 0006 [pglite] (5320.132964ms)
+✔ old NOT NULL schema rejects before changing a submission (115.807926ms)
+ℹ tests 3
+ℹ suites 2
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7294.94409
+
+✖ failing tests:
+
+test at apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:1:1637
+✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (122.371153ms)
+  AssertionError [ERR_ASSERTION]: published DTO gets an empty display string for the cleared IP
+  
+  null !== ''
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:50:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:1:1637
+✖ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (5318.315788ms)
+  AssertionError [ERR_ASSERTION]: published DTO gets an empty display string for the cleared IP
+  
+  null !== ''
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-combine/apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts:50:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

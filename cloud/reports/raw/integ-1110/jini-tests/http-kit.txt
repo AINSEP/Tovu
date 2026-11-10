@@ -1,0 +1,59 @@
+
+> @jini-ai/http-kit@0.6.22 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+
+ ✓ src/__tests__/rate-limit.test.ts (31 tests) 37ms
+ ✓ src/__tests__/api-security-middleware.test.ts (57 tests) 53ms
+stderr | src/__tests__/adapter.test.ts > http adapter > leaves no dangling close listener after a route that throws
+[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=00d35633-75dc-44ca-b6e7-224df3ca3b71) Error: boom
+    at Object.handle (/home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:340:15)
+    at Object.GET /boom-cleanup (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:347:43
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/__tests__/adapter.test.ts (16 tests) 40ms
+ ✓ src/__tests__/origin-validation.test.ts (69 tests) 24ms
+ ✓ src/__tests__/sse.test.ts (29 tests) 43ms
+ ✓ src/__tests__/verified-origin-registry.test.ts (29 tests) 17ms
+ ✓ src/__tests__/adapter-pins.test.ts (21 tests) 31ms
+ ✓ src/__tests__/local-daemon-request.test.ts (61 tests) 34ms
+ ✓ src/__tests__/verified-origin-configured.test.ts (24 tests) 7ms
+ ✓ src/__tests__/raw-sse.test.ts (19 tests) 636ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > keeps the stream open while a bodyless GET client stays connected 310ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > closes the stream when the client actually disconnects 308ms
+ ✓ src/__tests__/verified-origin-site-path.test.ts (36 tests) 16ms
+ ✓ src/__tests__/route-registration-guard.test.ts (15 tests) 45ms
+ ✓ src/__tests__/adapter-ports.test.ts (8 tests) 13ms
+ ✓ src/__tests__/observability.test.ts (19 tests) 41ms
+ ✓ src/__tests__/http-error-log-redaction.test.ts (24 tests) 1191ms
+   ✓ HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 791ms
+   ✓ HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages 343ms
+ ✓ src/__tests__/body-size-limit.test.ts (7 tests) 5ms
+ ✓ src/__tests__/verified-origin-branches.test.ts (8 tests) 20ms
+ ✓ src/__tests__/html-response.test.ts (4 tests) 89ms
+ ✓ src/__tests__/pack-http.test.ts (4 tests) 73ms
+ ✓ src/__tests__/local-daemon-request-pins.test.ts (37 tests) 22ms
+ ✓ src/__tests__/verified-origin-normalize.test.ts (13 tests) 9ms
+ ✓ src/__tests__/verified-origin-repo.test.ts (5 tests) 4ms
+ ✓ src/__tests__/origin.test.ts (4 tests) 7ms
+ ✓ src/__tests__/compat.test.ts (5 tests) 20ms
+ ✓ src/__tests__/index.test.ts (16 tests) 17ms
+ ✓ src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts (10 tests) 6ms
+ ✓ src/__tests__/response.test.ts (4 tests) 5ms
+ ✓ src/__tests__/request.test.ts (4 tests) 4ms
+
+ Test Files  28 passed (28)
+      Tests  579 passed (579)
+   Start at  21:23:32
+   Duration  8.24s (transform 1.41s, setup 0ms, collect 4.82s, tests 2.51s, environment 5ms, prepare 2.42s)
+
+exit 0 seconds 8

@@ -1,0 +1,236 @@
+✖ tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc (23297.389653ms)
+✖ tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions (20657.088461ms)
+✔ tovu introspect --format <bad>: rejected as VALIDATION (exit 2), not a silent fallback (21951.240968ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67603.387446
+
+✖ failing tests:
+
+test at apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:1:909
+✖ tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc (23297.389653ms)
+  AssertionError [ERR_ASSERTION]: introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'owner-store status',
+      'owner-store list',
+      'owner-store put',
+      'owner-store delete',
+  ...
+      'import',
+  +   'import-local',
+      'sites move-home',
+      'plugin install',
+      'plugin integrity',
+      'init',
+      'agent-plugins token-sign-in',
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:40:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'owner-store status',          'owner-store list',
+      'owner-store put',             'owner-store delete',
+      'owner-store import',          'owner-store disconnect',
+      'reset-owner',                 'site rename',
+      'import',                      'import-local',
+      'sites move-home',             'plugin install',
+      'plugin integrity',            'init',
+      'agent-plugins token-sign-in', 'storage move',
+      'adopt',                       'serve',
+      'export',                      'theme validate',
+      'theme migrate',               'theme generate-index',
+      'theme sync-originals',        'theme normalize-build',
+      'deploy config'
+    ],
+    expected: [
+      'owner-store status',    'owner-store list',
+      'owner-store put',       'owner-store delete',
+      'owner-store import',    'owner-store disconnect',
+      'reset-owner',           'site rename',
+      'import',                'sites move-home',
+      'plugin install',        'plugin integrity',
+      'init',                  'agent-plugins token-sign-in',
+      'storage move',          'adopt',
+      'serve',                 'export',
+      'theme validate',        'theme migrate',
+      'theme generate-index',  'theme sync-originals',
+      'theme normalize-build', 'deploy config'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:1:2055
+✖ tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions (20657.088461ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'tovu_owner-store_status',
+      'tovu_owner-store_list',
+      'tovu_owner-store_put',
+      'tovu_owner-store_delete',
+  ...
+      'tovu_import',
+  +   'tovu_import-local',
+      'tovu_sites_move-home',
+      'tovu_plugin_install',
+      'tovu_plugin_integrity',
+      'tovu_init',
+      'tovu_agent-plugins_token-sign-in',
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:71:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu_owner-store_status', 'tovu_owner-store_list', 'tovu_owner-store_put', 'tovu_owner-store_delete', 'tovu_owner-store_import', 'tovu_owner-store_disconnect', 'tovu_reset-owner', 'tovu_site_rename', 'tovu_import', 'tovu_import-local', 'tovu_sites_move-home', 'tovu_plugin_install', 'tovu_plugin_integrity', 'tovu_init', 'tovu_agent-plugins_token-sign-in', 'tovu_storage_move', 'tovu_adopt', 'tovu_serve', 'tovu_export', 'tovu_theme_validate', 'tovu_theme_migrate', 'tovu_theme_generate-index', 'tovu_theme_sync-originals', 'tovu_theme_normalize-build', 'tovu_deploy_config' ],
+    expected: [ 'tovu_owner-store_status', 'tovu_owner-store_list', 'tovu_owner-store_put', 'tovu_owner-store_delete', 'tovu_owner-store_import', 'tovu_owner-store_disconnect', 'tovu_reset-owner', 'tovu_site_rename', 'tovu_import', 'tovu_sites_move-home', 'tovu_plugin_install', 'tovu_plugin_integrity', 'tovu_init', 'tovu_agent-plugins_token-sign-in', 'tovu_storage_move', 'tovu_adopt', 'tovu_serve', 'tovu_export', 'tovu_theme_validate', 'tovu_theme_migrate', 'tovu_theme_generate-index', 'tovu_theme_sync-originals', 'tovu_theme_normalize-build', 'tovu_deploy_config' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts
+(node:4033) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4033) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ runServeCommand's body actually CALLS pinServedSiteDirIntoEnv(target), not just imports/defines it (3.950966ms)
+✔ sanity: the exact call-site text is not also the primitive's own declaration line (a regex that matched both would prove nothing) (0.299197ms)
+✔ runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST) (0.178467ms)
+✔ runServeCommand's body passes the resolved host into app.listen(port, host) (0.133863ms)
+✔ program.ts registers --host and threads it into runServeCommand's input (0.256604ms)
+✔ the BR-07 shutdown uses the shared bounded store close with the composition and boot work (0.271276ms)
+tovu serve: warning: listening on 0.0.0.0; this site is reachable from other machines on your network (--host/TOVU_HOST)
+tovu serve: warning: listening on all interfaces; this site is reachable from other machines on your network (--host/TOVU_HOST)
+✔ runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting (16314.82102ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18614.166518
+exit 0 apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+✔ the scanner reports a vendor word with its file and line, in any case (4.036727ms)
+✖ no generic seam file names the first provider (291.223979ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2059.018684
+
+✖ failing tests:
+
+test at apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts:1:3341
+✖ no generic seam file names the first provider (291.223979ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'apps/website/src/features/agent-plugins/__tests__/unit/overlay-guidance-single-copy.unit.test.ts:33',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts:43',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts:44',
+  +   'apps/website/src/features/api-connections/shared-owner.ts:81'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts:91:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/website/src/features/agent-plugins/__tests__/unit/overlay-guidance-single-copy.unit.test.ts:33', 'apps/website/src/features/agent-plugins/bundled-catalog.ts:43', 'apps/website/src/features/agent-plugins/bundled-catalog.ts:44', 'apps/website/src/features/api-connections/shared-owner.ts:81' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts
+✔ bundled mail credential card check discovers contribution packages (1.755968ms)
+✔ resend: every labelled mail adapter supplies its own usable credential card (1.426468ms)
+✖ calendly: declared key and sign-in cards have usable copy and contribution fields (11.815638ms)
+✔ charts-recharts: declared key and sign-in cards have usable copy and contribution fields (0.338584ms)
+✔ cloudflare: declared key and sign-in cards have usable copy and contribution fields (2.869961ms)
+✔ commerce: declared key and sign-in cards have usable copy and contribution fields (0.266511ms)
+✔ composio: declared key and sign-in cards have usable copy and contribution fields (1.375387ms)
+✔ fly: declared key and sign-in cards have usable copy and contribution fields (0.610887ms)
+✔ formspree: declared key and sign-in cards have usable copy and contribution fields (0.404305ms)
+✔ github: declared key and sign-in cards have usable copy and contribution fields (4.708726ms)
+✔ github-pages: declared key and sign-in cards have usable copy and contribution fields (7.500176ms)
+✔ google-forms: declared key and sign-in cards have usable copy and contribution fields (12.919451ms)
+✔ google-login: declared key and sign-in cards have usable copy and contribution fields (8.265663ms)
+✔ google-workspace: declared key and sign-in cards have usable copy and contribution fields (0.424202ms)
+✔ higgsfield-media: declared key and sign-in cards have usable copy and contribution fields (0.197167ms)
+✔ how-tovu-works: declared key and sign-in cards have usable copy and contribution fields (0.094627ms)
+✔ jev: declared key and sign-in cards have usable copy and contribution fields (0.093255ms)
+✔ meilisearch: declared key and sign-in cards have usable copy and contribution fields (45.182846ms)
+✔ netlify: declared key and sign-in cards have usable copy and contribution fields (0.8128ms)
+✔ opentelemetry: declared key and sign-in cards have usable copy and contribution fields (3.688185ms)
+✔ posthog: declared key and sign-in cards have usable copy and contribution fields (0.291454ms)
+✔ railway: declared key and sign-in cards have usable copy and contribution fields (0.341497ms)
+✔ render: declared key and sign-in cards have usable copy and contribution fields (0.178454ms)
+✔ resend: declared key and sign-in cards have usable copy and contribution fields (0.208148ms)
+✔ s3-compatible: declared key and sign-in cards have usable copy and contribution fields (0.989121ms)
+✔ sentry: declared key and sign-in cards have usable copy and contribution fields (0.199975ms)
+✔ site-compliance: declared key and sign-in cards have usable copy and contribution fields (0.193227ms)
+✔ site-import: declared key and sign-in cards have usable copy and contribution fields (0.139987ms)
+✔ slide-design: declared key and sign-in cards have usable copy and contribution fields (0.094217ms)
+✔ software-engineering: declared key and sign-in cards have usable copy and contribution fields (0.073901ms)
+✔ stripe: declared key and sign-in cards have usable copy and contribution fields (0.074969ms)
+✔ supabase: declared key and sign-in cards have usable copy and contribution fields (0.203172ms)
+✔ tovu-theme: declared key and sign-in cards have usable copy and contribution fields (0.083666ms)
+✔ ui-ux-design: declared key and sign-in cards have usable copy and contribution fields (0.133905ms)
+✔ vercel: declared key and sign-in cards have usable copy and contribution fields (0.259071ms)
+✔ wordpress: declared key and sign-in cards have usable copy and contribution fields (0.077549ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 35
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2621.757611
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts:1:1946
+✖ calendly: declared key and sign-in cards have usable copy and contribution fields (11.815638ms)
+  AssertionError [ERR_ASSERTION]: calendly: missing sign-in permissions
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts:54:45)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts

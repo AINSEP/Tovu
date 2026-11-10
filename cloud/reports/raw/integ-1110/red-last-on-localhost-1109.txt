@@ -1,0 +1,483 @@
+✔ exportSite: --base-path unset leaves every written byte identical to a plain export (1749.604221ms)
+✔ exportSite: the site-assistant widget is OFF in a static export even when the workspace setting is enabled (1256.025765ms)
+✔ live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control (1684.399918ms)
+✔ exportSite: the exporter's own temporary server is bound to 127.0.0.1, not every interface (866.376174ms)
+✔ exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute sitemap <loc> entries and robots.txt's Sitemap line untouched, and never double-prefixes anything already prefixed (931.69641ms)
+✔ exportSite: --base-path 'repo', '/repo', and '/repo/' all normalize to the same '/repo' and produce byte-identical output (2498.091674ms)
+✔ exportSite: writes the expected file tree for the seeded demo workspace, with zero failures (842.807071ms)
+✔ exportSite: every succeeded route/asset carries its own bytes and content-type as data, matching what's on disk (722.400677ms)
+✔ exportSite: reports theme files present on disk but never rendered or crawled, without flagging real ones (833.06396ms)
+✔ exportSite: crawls and writes theme assets referenced by rendered pages (879.296415ms)
+✔ exportSite: follows one hop out of a fetched CSS file's own url(...) reference and writes the referenced asset too (657.267901ms)
+✔ exportSite: an asset URL discovered via a CSS file's own url(...) reference that itself fails to fetch is reported as a failed asset (693.626344ms)
+✔ exportSite: preserves existing files by default and clears stale files when clean is set (1573.714197ms)
+✔ exportSite: creates outputDir when it does not exist yet, rather than requiring the caller to pre-create it (656.440228ms)
+✔ exportSite: clean:false preserves multiple existing files in a non-empty output directory (661.690103ms)
+[site/pages] GET /:slug failed (slug=welcome) Error: forced failure for export-engine regression test
+    at FailingSlugPostRepo.findBySlug (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/site-export/__tests__/site-exporter.test.ts:63:48)
+    at getPublishedPostBySlug (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/post/post.ts:2324:41)
+    at resolvePostAfterMarketingCheck (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/routes/site/pages.ts:2054:26)
+    at <anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/routes/site/pages.ts:3085:26)
+✔ exportSite: a route that fails to render is reported as a failure, not silently missing from the output (586.477579ms)
+✔ exportSite: a post embedding a media image exports it under its readable /m/<slug>/... URL, not the id (readable-slugs S4/P7) (753.32635ms)
+✔ exportSite: a route whose render hangs past the fetch timeout is recorded as a timed-out failure, not a crashed export (875.720344ms)
+✔ exportSite: an exact-match active redirect rule is exported as a static meta-refresh stub (1006.369487ms)
+✔ exportSite: 51 WordPress date-permalink rules with trailing slashes all export as stubs, with zero redirect failures (1507.719525ms)
+✔ exportSite: multi-segment exact active redirect rules are exported as static meta-refresh stubs (767.119618ms)
+✔ exportSite: a redirect stub safely renders javascript:alert(document.cookie) (857.58322ms)
+✔ exportSite: a redirect stub safely renders data:text/html,unsafe (738.513013ms)
+✔ exportSite: a redirect stub safely renders vbscript:msgbox(1) (687.381258ms)
+✔ exportSite: a prefix redirect rule shadowing the 404 probe's own path makes the probe fetch return <400, reported as a route failure (537.698401ms)
+✔ exportSite: a crashed 404-page render (500) is rejected as a route failure, never written as the site's production 404.html (670.399855ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ exportSite: --base-path does not double-prefix a redirect target that already carries the base path (981.594774ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ exportSite: unreferencedThemeFiles is empty when no active theme was resolved (324.486737ms)
+✔ firstExportFailure: undefined when nothing failed (0.610277ms)
+✔ firstExportFailure: reports the first route failure, with the route collection's own count (0.233062ms)
+✔ firstExportFailure: reports the first asset failure when there are no route failures (0.139256ms)
+✔ firstExportFailure: checks routes before assets when both have failures (0.176206ms)
+✔ redirectOutcomeFor: a non-3xx status is not a redirect (0.142088ms)
+✔ redirectOutcomeFor: a status of 400 or above is ALSO not a redirect, independent of the below-300 case (0.200648ms)
+✔ redirectOutcomeFor: a 3xx with a Location header redirects to it, even when a manifest fallback is also present (0.103751ms)
+✔ redirectOutcomeFor: a 3xx with no Location header falls back to the manifest's redirectTarget (0.065562ms)
+✔ redirectOutcomeFor: a 3xx with neither a Location header nor a manifest redirectTarget fails (0.063568ms)
+✔ exportSite: a redirect-kind route whose live response is intercepted into a non-3xx is reported as a route failure (715.911193ms)
+✔ exportSite: a hostile asset reference embedded in rendered HTML that would resolve outside outputDir is refused as a failed asset, never fetched or written (695.823438ms)
+✔ exportSite: base-path rewrites script/image src and both attribute quote styles exactly (765.360803ms)
+✔ exportSite: network failures are isolated to affected routes/assets and close the server (324.293802ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+✔ exportSite: body failures are isolated to affected routes/assets and close the server (324.411113ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'json-listing-export-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'json-listing-export-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'json-listing-export-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'json-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'json-listing-export-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+✔ exportSite: a see-more listing with a card <template> exports its JSON batches as .json files, following nextCursor to the end (760.247048ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paged-listing-export-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paged-listing-export-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paged-listing-export-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paged-listing-export-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paged-listing-export-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paged-listing-export-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paged-listing-export-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ exportSite: a paged post listing exports every page as <page>/page/<n>/index.html (Bug C) (594.787943ms)
+[theme] static page 'inactive-export/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'inactive-export/inactive-only' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ exportSite: explicit inactive theme owns its manifest, HTML and assets without changing presentation (509.307267ms)
+✔ exportSite: selected theme binds app and manifest together through the existing transport (257.742045ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39795.326421
+exit 0 apps/website/src/features/site-export/__tests__/site-exporter.test.ts
+✔ workspace setting defaults disabled; generic writes validate installed roster, aliases, scope and theme.set before revisions (329.626672ms)
+✔ the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it (153.530971ms)
+✔ assistant tools sync the roster from the site folder first, and pass unexpected write faults through unchanged (172.511984ms)
+✔ assistant get/update use the ledger and active-theme permission; denied and invalid tools never write (245.941994ms)
+✖ live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert (821.704944ms)
+✔ portable static copies export only the active theme when the preview switcher is enabled (985.023856ms)
+[export] Theme previews: 2 themes, 10 additional pages, 1.93x export bytes (1.96x HTML); shared assets are deduplicated.
+✔ static manifest and real export include themed pages/assets, noindex, canonical, prefixed navigation and size multiplier (966.148689ms)
+✔ static-export variants: unknown theme 404s, a bare variant path renders the variant root, and queries survive the prefix strip (286.189686ms)
+Error: presentation store offline
+    at InMemoryPresentationSettingsRepo.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:222:98)
+    at Object.apply (node:internal/test_runner/mock/mock:805:20)
+    at getPresentationSettings (/home/user/scratch/wt-jini-localhost-1109/packages/cms/src/presentation/presentation.ts:82:45)
+    at resolveActiveThemeId (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/presentation/active-theme-id.ts:49:32)
+    at preparePreviewPage (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts:41:49)
+    at <anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts:64:26)
+    at Layer.handle [as handle_request] (/home/user/scratch/wt-tovu-localhost-1109/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/user/scratch/wt-tovu-localhost-1109/node_modules/express/lib/router/index.js:328:13)
+    at /home/user/scratch/wt-tovu-localhost-1109/node_modules/express/lib/router/index.js:286:9
+    at router.process_params (/home/user/scratch/wt-tovu-localhost-1109/node_modules/express/lib/router/index.js:346:12)
+[theme] active theme 'preview-one' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'preview-one' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler (371.38572ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11891.704071
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:1:8186
+✖ live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert (821.704944ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  81 !== 69
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:148:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 81,
+    expected: 69,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts
+✔ comment stripping: prose never counts, SQL in strings and templates does (13.614433ms)
+✔ a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement (1.524071ms)
+✔ an object-literal `.prepare({...})` (the secrets vault port) is not a prepared statement (1.382062ms)
+✔ better-sqlite3's inTransaction property counts; the kernel port's inTransaction() call does not (1.975673ms)
+✔ literal computed prepare calls cannot bypass the SQLite ratchet (2.27512ms)
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks) (2344.415578ms)
+✔ prepare calls distinguish SQL statements from the export writer's two-object lifecycle (1.577735ms)
+✔ destructured writer shadows the outer writer exemption: function inspect({ nested: { value: writer } }) { CALL } (0.444363ms)
+✔ destructured writer shadows the outer writer exemption: { const { nested: { value: writer } } = connection; CALL } (0.317576ms)
+✔ destructured writer shadows the outer writer exemption: { const { nested: { value: writer } } = makeWriter({}, {}); CALL } (0.389396ms)
+✔ destructured writer shadows the outer writer exemption: try {} catch ({ nested: { value: writer } }) { CALL } (0.280881ms)
+✔ destructured writer shadows the outer writer exemption: for (const { nested: { value: writer } } of connections) { CALL } (0.189174ms)
+✔ destructured writer shadows the outer writer exemption: for (let { nested: { value: writer } } = connection; ready; next()) { CALL } (0.147322ms)
+✔ destructured writer shadows the outer writer exemption: for (const { nested: { value: writer } } in connections) { CALL } (0.406592ms)
+✔ destructured makeWriter shadows the outer writer exemption: function inspect({ nested: { value: makeWriter } }) { CALL } (0.308998ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const { nested: { value: makeWriter } } = connection; CALL } (2.076203ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const { nested: { value: makeWriter } } = makeWriter({}, {}); CALL } (0.318638ms)
+✔ destructured makeWriter shadows the outer writer exemption: try {} catch ({ nested: { value: makeWriter } }) { CALL } (0.234181ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const { nested: { value: makeWriter } } of connections) { CALL } (0.183383ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (let { nested: { value: makeWriter } } = connection; ready; next()) { CALL } (0.148203ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const { nested: { value: makeWriter } } in connections) { CALL } (0.290683ms)
+✔ destructured writer shadows the outer writer exemption: function inspect([, [writer]]) { CALL } (0.260922ms)
+✔ destructured writer shadows the outer writer exemption: { const [, [writer]] = connection; CALL } (0.191149ms)
+✔ destructured writer shadows the outer writer exemption: { const [, [writer]] = makeWriter({}, {}); CALL } (0.184542ms)
+✔ destructured writer shadows the outer writer exemption: try {} catch ([, [writer]]) { CALL } (0.365822ms)
+✔ destructured writer shadows the outer writer exemption: for (const [, [writer]] of connections) { CALL } (0.298593ms)
+✔ destructured writer shadows the outer writer exemption: for (let [, [writer]] = connection; ready; next()) { CALL } (0.25549ms)
+✔ destructured writer shadows the outer writer exemption: for (const [, [writer]] in connections) { CALL } (0.351476ms)
+✔ destructured makeWriter shadows the outer writer exemption: function inspect([, [makeWriter]]) { CALL } (0.314721ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const [, [makeWriter]] = connection; CALL } (0.183098ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const [, [makeWriter]] = makeWriter({}, {}); CALL } (0.235202ms)
+✔ destructured makeWriter shadows the outer writer exemption: try {} catch ([, [makeWriter]]) { CALL } (0.198355ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const [, [makeWriter]] of connections) { CALL } (0.228852ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (let [, [makeWriter]] = connection; ready; next()) { CALL } (0.239694ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const [, [makeWriter]] in connections) { CALL } (0.278476ms)
+✔ destructured writer shadows the outer writer exemption: function inspect({ ...writer }) { CALL } (0.271384ms)
+✔ destructured writer shadows the outer writer exemption: { const { ...writer } = connection; CALL } (0.202313ms)
+✔ destructured writer shadows the outer writer exemption: { const { ...writer } = makeWriter({}, {}); CALL } (0.244922ms)
+✔ destructured writer shadows the outer writer exemption: try {} catch ({ ...writer }) { CALL } (0.217586ms)
+✔ destructured writer shadows the outer writer exemption: for (const { ...writer } of connections) { CALL } (0.149152ms)
+✔ destructured writer shadows the outer writer exemption: for (let { ...writer } = connection; ready; next()) { CALL } (0.133288ms)
+✔ destructured writer shadows the outer writer exemption: for (const { ...writer } in connections) { CALL } (0.128347ms)
+✔ destructured makeWriter shadows the outer writer exemption: function inspect({ ...makeWriter }) { CALL } (4.912165ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const { ...makeWriter } = connection; CALL } (0.438577ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const { ...makeWriter } = makeWriter({}, {}); CALL } (0.371196ms)
+✔ destructured makeWriter shadows the outer writer exemption: try {} catch ({ ...makeWriter }) { CALL } (0.205485ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const { ...makeWriter } of connections) { CALL } (0.15557ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (let { ...makeWriter } = connection; ready; next()) { CALL } (0.252992ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const { ...makeWriter } in connections) { CALL } (0.235804ms)
+✔ destructured writer shadows the outer writer exemption: function inspect([...writer]) { CALL } (0.154496ms)
+✔ destructured writer shadows the outer writer exemption: { const [...writer] = connection; CALL } (0.103286ms)
+✔ destructured writer shadows the outer writer exemption: { const [...writer] = makeWriter({}, {}); CALL } (0.110563ms)
+✔ destructured writer shadows the outer writer exemption: try {} catch ([...writer]) { CALL } (0.147407ms)
+✔ destructured writer shadows the outer writer exemption: for (const [...writer] of connections) { CALL } (0.128144ms)
+✔ destructured writer shadows the outer writer exemption: for (let [...writer] = connection; ready; next()) { CALL } (0.189598ms)
+✔ destructured writer shadows the outer writer exemption: for (const [...writer] in connections) { CALL } (0.170206ms)
+✔ destructured makeWriter shadows the outer writer exemption: function inspect([...makeWriter]) { CALL } (0.29532ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const [...makeWriter] = connection; CALL } (0.445744ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const [...makeWriter] = makeWriter({}, {}); CALL } (0.195283ms)
+✔ destructured makeWriter shadows the outer writer exemption: try {} catch ([...makeWriter]) { CALL } (3.360424ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const [...makeWriter] of connections) { CALL } (0.280401ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (let [...makeWriter] = connection; ready; next()) { CALL } (0.141207ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const [...makeWriter] in connections) { CALL } (0.093345ms)
+✔ destructured writer shadows the outer writer exemption: function inspect({ value: writer = fallback }) { CALL } (0.2023ms)
+✔ destructured writer shadows the outer writer exemption: { const { value: writer = fallback } = connection; CALL } (0.119812ms)
+✔ destructured writer shadows the outer writer exemption: { const { value: writer = fallback } = makeWriter({}, {}); CALL } (0.124076ms)
+✔ destructured writer shadows the outer writer exemption: try {} catch ({ value: writer = fallback }) { CALL } (0.093903ms)
+✔ destructured writer shadows the outer writer exemption: for (const { value: writer = fallback } of connections) { CALL } (0.119321ms)
+✔ destructured writer shadows the outer writer exemption: for (let { value: writer = fallback } = connection; ready; next()) { CALL } (0.083675ms)
+✔ destructured writer shadows the outer writer exemption: for (const { value: writer = fallback } in connections) { CALL } (0.13362ms)
+✔ destructured makeWriter shadows the outer writer exemption: function inspect({ value: makeWriter = fallback }) { CALL } (0.148984ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const { value: makeWriter = fallback } = connection; CALL } (0.135292ms)
+✔ destructured makeWriter shadows the outer writer exemption: { const { value: makeWriter = fallback } = makeWriter({}, {}); CALL } (2.189897ms)
+✔ destructured makeWriter shadows the outer writer exemption: try {} catch ({ value: makeWriter = fallback }) { CALL } (0.25417ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const { value: makeWriter = fallback } of connections) { CALL } (0.117305ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (let { value: makeWriter = fallback } = connection; ready; next()) { CALL } (0.090275ms)
+✔ destructured makeWriter shadows the outer writer exemption: for (const { value: makeWriter = fallback } in connections) { CALL } (0.091806ms)
+✔ writer resolution uses binding identifiers and stops at the nearest declaration (0.261962ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 77
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3674.8768
+
+✖ failing tests:
+
+test at apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:1:1784
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks) (2344.415578ms)
+  AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+  + actual - expected
+  
+  + [
+  +   'apps/website/src/features/project-keys/attachments.ts: sqlite-json 0 -> 2',
+  +   'apps/website/src/server/runtime/composition/project-store.ts: sqlite-json 0 -> 3'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/website/src/features/project-keys/attachments.ts: sqlite-json 0 -> 2', 'apps/website/src/server/runtime/composition/project-store.ts: sqlite-json 0 -> 3' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts
+✔ repeated Builder forms across embeds and regions keep every ID and association within its occurrence (5.499754ms)
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (17.407494ms)
+✖ contact form fallback error and success colors apply in both modes without theme tokens (4.093155ms)
+✖ checkbox fields render inline before their label with only the emitted stylesheet (3.414754ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1138.193959
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:1:1866
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (17.407494ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:37:34) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:1:2544
+✖ contact form fallback error and success colors apply in both modes without theme tokens (4.093155ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:54:34) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:1:3701
+✖ checkbox fields render inline before their label with only the emitted stylesheet (3.414754ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:87:34) {
+    name: 'Error',
+    log: []
+  }
+exit 1 apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (412.407999ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6721.032543
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts:1:637
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (412.407999ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'POST /api/federation/reload'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/scratch/wt-tovu-localhost-1109/apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts:53:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'POST /api/federation/reload' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1 apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts

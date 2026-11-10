@@ -1,0 +1,128 @@
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated @jini-ai/infra@0.6.19: Compatibility shim: use @jini-ai/db/core and @jini-ai/db/sqlite directly.
+
+> tovu@0.1.0 prepare
+> node development/scripts/prepare-desktop-hooks.mjs
+
+
+added 776 packages, and audited 779 packages in 35s
+
+229 packages are looking for funding
+  run `npm fund` for details
+
+51 vulnerabilities (18 moderate, 30 high, 3 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+npm warn install-scripts 5 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   esbuild@0.18.20 (postinstall: node install.js)
+npm warn install-scripts   argon2@0.44.0 (install: cross-env ZERO_AR_DATE=1 node-gyp-build)
+npm warn install-scripts   better-sqlite3@13.0.3 (install: node-gyp rebuild)
+npm warn install-scripts   esbuild@0.19.12 (postinstall: node install.js)
+npm warn install-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+npm ci exit 0
+npm warn rebuild 5 packages have install scripts not yet covered by allowScripts. Run `npm install-scripts ls` to review.
+rebuilt dependencies successfully
+rebuild exit 0
+
+> @tovu/sdk@0.1.0 build
+> tsc -p tsconfig.json
+
+sdk build exit 0
+
+> tovu@0.1.0 link:jini
+> node development/scripts/link-jini.mjs
+
+
+.:
+  link agent-plugins -> ../../../wt-jini-localhost-1109/packages/agent-plugins (was installed-copy)
+  link agent-runtime -> ../../../wt-jini-localhost-1109/packages/agent-runtime (was installed-copy)
+  link agentic -> ../../../wt-jini-localhost-1109/packages/agentic (was installed-copy)
+  link analytics -> ../../../wt-jini-localhost-1109/packages/analytics (was installed-copy)
+  link capability-providers -> ../../../wt-jini-localhost-1109/packages/capability-providers (was installed-copy)
+  link chat -> ../../../wt-jini-localhost-1109/packages/chat (was installed-copy)
+  link cli -> ../../../wt-jini-localhost-1109/packages/cli (was installed-copy)
+  link cms -> ../../../wt-jini-localhost-1109/packages/cms (was installed-copy)
+  link commerce -> ../../../wt-jini-localhost-1109/packages/commerce (was installed-copy)
+  link cookie-consent -> ../../../wt-jini-localhost-1109/packages/cookie-consent (was installed-copy)
+  link core -> ../../../wt-jini-localhost-1109/packages/core (was installed-copy)
+  link daemon -> ../../../wt-jini-localhost-1109/packages/daemon (was installed-copy)
+  link db -> ../../../wt-jini-localhost-1109/packages/db (was installed-copy)
+  link desktop-host -> ../../../wt-jini-localhost-1109/packages/desktop-host (was installed-copy)
+  link devops -> ../../../wt-jini-localhost-1109/packages/devops (was installed-copy)
+  link diagnostics -> ../../../wt-jini-localhost-1109/packages/diagnostics (was installed-copy)
+  link http-kit -> ../../../wt-jini-localhost-1109/packages/http-kit (was installed-copy)
+  link infra -> ../../../wt-jini-localhost-1109/packages/infra (was installed-copy)
+  link integrations -> ../../../wt-jini-localhost-1109/packages/integrations (was installed-copy)
+  link mcp -> ../../../wt-jini-localhost-1109/packages/mcp (was installed-copy)
+  link oauth -> ../../../wt-jini-localhost-1109/packages/oauth (was installed-copy)
+  link platform -> ../../../wt-jini-localhost-1109/packages/platform (was installed-copy)
+  link plugin-catalog -> ../../../wt-jini-localhost-1109/packages/plugin-catalog (was installed-copy)
+  link plugins -> ../../../wt-jini-localhost-1109/packages/plugins (was installed-copy)
+  link protocol -> ../../../wt-jini-localhost-1109/packages/protocol (was installed-copy)
+  link provider-plugins -> ../../../wt-jini-localhost-1109/packages/provider-plugins (was installed-copy)
+  link registry -> ../../../wt-jini-localhost-1109/packages/registry (was installed-copy)
+  link sandbox -> ../../../wt-jini-localhost-1109/packages/sandbox (was installed-copy)
+  link search -> ../../../wt-jini-localhost-1109/packages/search (was installed-copy)
+  link server -> ../../../wt-jini-localhost-1109/packages/server (was installed-copy)
+  link sidecar -> ../../../wt-jini-localhost-1109/packages/sidecar (was installed-copy)
+  link ui -> ../../../wt-jini-localhost-1109/packages/ui (was installed-copy)
+  link ui-kit -> ../../../wt-jini-localhost-1109/packages/ui-kit (was installed-copy)
+  link user-management -> ../../../wt-jini-localhost-1109/packages/user-management (was installed-copy)
+  link vibecoding -> ../../../wt-jini-localhost-1109/packages/vibecoding (was installed-copy)
+
+apps/admin:
+  link admin -> ../../../../../wt-jini-localhost-1109/packages/admin (was missing)
+  link agent-plugins -> ../../../../../wt-jini-localhost-1109/packages/agent-plugins (was missing)
+  link agent-runtime -> ../../../../../wt-jini-localhost-1109/packages/agent-runtime (was missing)
+  link agentic -> ../../../../../wt-jini-localhost-1109/packages/agentic (was missing)
+  link chat -> ../../../../../wt-jini-localhost-1109/packages/chat (was missing)
+  link cms -> ../../../../../wt-jini-localhost-1109/packages/cms (was missing)
+  link core -> ../../../../../wt-jini-localhost-1109/packages/core (was missing)
+  link integrations -> ../../../../../wt-jini-localhost-1109/packages/integrations (was missing)
+  link platform -> ../../../../../wt-jini-localhost-1109/packages/platform (was missing)
+  link plugins -> ../../../../../wt-jini-localhost-1109/packages/plugins (was missing)
+  link protocol -> ../../../../../wt-jini-localhost-1109/packages/protocol (was missing)
+  link ui -> ../../../../../wt-jini-localhost-1109/packages/ui (was missing)
+  link ui-kit -> ../../../../../wt-jini-localhost-1109/packages/ui-kit (was missing)
+  link user-management -> ../../../../../wt-jini-localhost-1109/packages/user-management (was missing)
+
+apps/site-chat:
+  link agentic -> ../../../../../wt-jini-localhost-1109/packages/agentic (was missing)
+  link chat -> ../../../../../wt-jini-localhost-1109/packages/chat (was missing)
+  link protocol -> ../../../../../wt-jini-localhost-1109/packages/protocol (was missing)
+  link ui -> ../../../../../wt-jini-localhost-1109/packages/ui (was missing)
+
+apps/desktop:
+  link agent-runtime -> ../../../../../wt-jini-localhost-1109/packages/agent-runtime (was missing)
+  link agentic -> ../../../../../wt-jini-localhost-1109/packages/agentic (was missing)
+  link chat -> ../../../../../wt-jini-localhost-1109/packages/chat (was missing)
+  link core -> ../../../../../wt-jini-localhost-1109/packages/core (was missing)
+  link daemon -> ../../../../../wt-jini-localhost-1109/packages/daemon (was missing)
+  link db -> ../../../../../wt-jini-localhost-1109/packages/db (was missing)
+  link desktop-host -> ../../../../../wt-jini-localhost-1109/packages/desktop-host (was missing)
+  link devops -> ../../../../../wt-jini-localhost-1109/packages/devops (was missing)
+  link diagnostics -> ../../../../../wt-jini-localhost-1109/packages/diagnostics (was missing)
+  link integrations -> ../../../../../wt-jini-localhost-1109/packages/integrations (was missing)
+  link mcp -> ../../../../../wt-jini-localhost-1109/packages/mcp (was missing)
+  link platform -> ../../../../../wt-jini-localhost-1109/packages/platform (was missing)
+  link protocol -> ../../../../../wt-jini-localhost-1109/packages/protocol (was missing)
+  link sidecar -> ../../../../../wt-jini-localhost-1109/packages/sidecar (was missing)
+  link ui -> ../../../../../wt-jini-localhost-1109/packages/ui (was missing)
+
+Linked @jini-ai/* from /home/user/scratch/wt-jini-localhost-1109/packages (68 link(s) changed).
+Builds are blocked while linked (check-no-linked-jini.mjs) — run `npm run unlink:jini` before building for real.
+
+link exit 0

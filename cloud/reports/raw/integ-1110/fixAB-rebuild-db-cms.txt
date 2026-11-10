@@ -1,0 +1,6 @@
+Scope: 2 of 48 workspace projects
+packages/db build$ tsc -p tsconfig.build.json
+packages/db build: Done
+packages/cms build$ tsc -p tsconfig.json
+packages/cms build: Done
+rebuild exit 0

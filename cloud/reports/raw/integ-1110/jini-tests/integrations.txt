@@ -1,0 +1,110 @@
+
+> @jini-ai/integrations@0.6.19 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/integrations
+
+ ✓ src/credentialed-http/__tests__/credentialed-request.unit.test.ts (99 tests) 40ms
+ ✓ src/media-providers/dispatch/__tests__/engine.test.ts (61 tests) 170ms
+ ✓ src/api-connections/__tests__/security-pins.test.ts (86 tests) 600ms
+ ✓ src/media-providers/dispatch/__tests__/operation-runtime.test.ts (37 tests) 274ms
+ ✓ src/webhooks/__tests__/delivery.test.ts (22 tests) 16ms
+ ✓ src/media-providers/__tests__/video-request.test.ts (72 tests) 41ms
+ ✓ src/media-providers/dispatch/providers/__tests__/aihubmix.test.ts (41 tests) 79ms
+ ✓ src/media-providers/__tests__/staging.test.ts (41 tests) 179ms
+ ✓ src/api-connections/token-store/__tests__/vault-token-store.security.test.ts (30 tests) 132ms
+ ✓ src/media-providers/dispatch/__tests__/async-operation-store.contract.test.ts (87 tests) 132ms
+ ✓ src/media-providers/dispatch/__tests__/openai-compatible.test.ts (73 tests) 49ms
+ ✓ src/media-providers/dispatch/providers/__tests__/senseaudio.test.ts (40 tests) 104ms
+ ✓ src/media-providers/dispatch/providers/__tests__/openai.test.ts (34 tests) 108ms
+ ✓ src/saved-requests/__tests__/execute.test.ts (71 tests) 134ms
+ ✓ src/credentialed-http/__tests__/auth-failure-diagnostic.unit.test.ts (17 tests) 8ms
+ ✓ src/media-providers/dispatch/__tests__/sqlite-async-operation-store.test.ts (17 tests) 1045ms
+ ✓ src/media-providers/dispatch/__tests__/media-egress.regression.test.ts (46 tests) 90ms
+ ✓ src/media-providers/__tests__/sqlite-task-store.test.ts (58 tests) 1201ms
+ ✓ src/media-providers/dispatch/__tests__/media-provider-registry.test.ts (31 tests) 99ms
+ ✓ src/media-providers/dispatch/providers/__tests__/imagerouter-video-async.test.ts (24 tests) 33ms
+ ✓ src/media-providers/dispatch/__tests__/ssrf-guard.test.ts (39 tests) 81ms
+ ✓ src/media-providers/dispatch/providers/__tests__/openrouter.test.ts (26 tests) 94ms
+ ✓ src/media-providers/dispatch/__tests__/async-operation-store.test.ts (17 tests) 23ms
+ ✓ src/media-providers/__tests__/task-store.test.ts (52 tests) 41ms
+ ✓ src/api-connections/__tests__/account-actions.unit.test.ts (24 tests) 16ms
+ ✓ src/api-connections/token-store/__tests__/vault-token-store.unit.test.ts (21 tests) 114ms
+ ✓ src/media-providers/dispatch/providers/__tests__/nanobanana.test.ts (18 tests) 85ms
+ ✓ src/webhooks/__tests__/delivery-cancellation.test.ts (7 tests) 63ms
+ ✓ src/media-providers/dispatch/__tests__/outbound.test.ts (36 tests) 91ms
+ ✓ src/media-providers/dispatch/providers/__tests__/elevenlabs.test.ts (19 tests) 93ms
+ ✓ src/api-connections/__tests__/real-oauth-conformance.integration.test.ts (8 tests) 158ms
+ ✓ src/saved-requests/__tests__/definition.test.ts (120 tests) 46ms
+ ✓ src/media-providers/dispatch/__tests__/response-parsers.test.ts (23 tests) 25ms
+ ✓ src/webhooks/__tests__/subscriptions.test.ts (18 tests) 8ms
+ ✓ src/credentialed-http/__tests__/credential-probe.unit.test.ts (49 tests) 64ms
+ ✓ src/api-connections/__tests__/access-token.unit.test.ts (18 tests) 39ms
+ ✓ src/credentialed-http/sets/__tests__/extract-s8-sets.unit.test.ts (5 tests) 36ms
+ ✓ src/api-connections/__tests__/finish-authorization.unit.test.ts (19 tests) 21ms
+ ✓ src/credentialed-http/__tests__/auth-schemes.unit.test.ts (23 tests) 6ms
+ ✓ src/media-providers/dispatch/providers/__tests__/minimax.test.ts (15 tests) 39ms
+ ✓ src/media-providers/dispatch/__tests__/context.test.ts (19 tests) 15ms
+ ✓ src/media-providers/dispatch/providers/__tests__/grok.test.ts (13 tests) 49ms
+ ✓ src/api-connections/__tests__/shared.unit.test.ts (24 tests) 50ms
+ ✓ src/webhooks/__tests__/worker.test.ts (9 tests) 96ms
+ ✓ src/media-providers/dispatch/__tests__/vendor-adapter.test.ts (9 tests) 81ms
+ ✓ src/media-providers/__tests__/policy.test.ts (16 tests) 19ms
+ ✓ src/media-providers/dispatch/__tests__/vendor-registry.test.ts (11 tests) 9ms
+ ✓ src/media-providers/dispatch/providers/__tests__/aihubmix-shared.test.ts (22 tests) 35ms
+ ✓ src/media-providers/dispatch/__tests__/node.integration.test.ts (7 tests) 108ms
+ ✓ src/media-providers/dispatch/providers/__tests__/imagerouter.test.ts (12 tests) 69ms
+ ✓ src/api-connections/__tests__/authorization.unit.test.ts (15 tests) 38ms
+ ✓ src/api-connections/__tests__/descriptor.unit.test.ts (25 tests) 12ms
+ ✓ src/convention-tests/merge-contracts.test.ts (4 tests) 11ms
+ ✓ src/api-connections/__tests__/hosted-sign-in.unit.test.ts (10 tests) 59ms
+ ✓ src/api-connections/token-store/__tests__/record.unit.test.ts (23 tests) 15ms
+ ✓ src/api-connections/__tests__/attempt-state.unit.test.ts (14 tests) 13ms
+ ✓ src/media-providers/__tests__/providers.test.ts (15 tests) 36ms
+ ✓ src/api-connections/hosted-mcp/__tests__/shared-owner.test.ts (2 tests) 12ms
+ ✓ src/media-providers/dispatch/providers/__tests__/custom-image.test.ts (9 tests) 31ms
+ ✓ src/media-providers/dispatch/providers/__tests__/volcengine.test.ts (6 tests) 36ms
+ ✓ src/media-providers/dispatch/providers/__tests__/fishaudio.test.ts (8 tests) 36ms
+ ✓ src/api-connections/__tests__/service.unit.test.ts (12 tests) 14ms
+ ✓ src/media-providers/dispatch/__tests__/stub.test.ts (12 tests) 9ms
+ ✓ src/credentialed-http/__tests__/response-redaction.unit.test.ts (17 tests) 8ms
+ ✓ src/credentialed-http/tools/__tests__/contracts-closure.test.ts (4 tests) 410ms
+ ✓ src/api-connections/__tests__/request-checks.unit.test.ts (21 tests) 11ms
+ ✓ src/webhooks/__tests__/vocabulary.contract.test.ts (3 tests) 8ms
+ ✓ src/credentialed-http/__tests__/ports.contract.test.ts (6 tests) 14ms
+ ✓ src/api-connections/__tests__/host-seams.unit.test.ts (4 tests) 18ms
+ ✓ src/api-connections/__tests__/declarations.unit.test.ts (7 tests) 8ms
+ ✓ src/api-connections/__tests__/credential-status.integration.test.ts (4 tests) 17ms
+ ✓ src/media-providers/__tests__/catalog.test.ts (5 tests) 10ms
+ ✓ src/saved-requests/__tests__/projection.test.ts (20 tests) 11ms
+ ✓ src/webhooks/__tests__/signing.keyring.test.ts (3 tests) 5ms
+ ✓ src/webhooks/__tests__/signing.test.ts (6 tests) 5ms
+ ✓ src/api-connections/token-store/__tests__/vault-token-store.slice.test.ts (2 tests) 18ms
+ ✓ src/media-providers/__tests__/hardwiring-ports.test.ts (3 tests) 26ms
+ ✓ src/api-connections/__tests__/byo-origin-order.unit.test.ts (3 tests) 12ms
+ ✓ src/api-connections/__tests__/records.unit.test.ts (6 tests) 12ms
+ ✓ src/api-connections/__tests__/vertical-slice.integration.test.ts (1 test) 75ms
+ ✓ src/media-providers/dispatch/__tests__/async-operation-schema-version.test.ts (5 tests) 10ms
+ ✓ src/api-connections/__tests__/keys.unit.test.ts (6 tests) 5ms
+ ✓ src/media-providers/__tests__/capability-registry.test.ts (8 tests) 11ms
+ ✓ src/media-providers/dispatch/__tests__/node.test.ts (3 tests) 30ms
+ ✓ src/media-providers/dispatch/__tests__/polling-adapter.test.ts (4 tests) 19ms
+ ✓ src/media-providers/__tests__/index.test.ts (9 tests) 8ms
+ ✓ src/saved-requests/__tests__/schema-boundaries.unit.test.ts (5 tests) 10ms
+ ✓ src/saved-requests/__tests__/schema.test.ts (4 tests) 9ms
+ ✓ src/media-providers/dispatch/__tests__/credentials.test.ts (5 tests) 8ms
+ ✓ src/media-providers/dispatch/__tests__/lazy-vendor-registration.test.ts (1 test) 117ms
+ ✓ src/saved-requests/__tests__/credential-description-w2g.unit.test.ts (1 test) 39ms
+ ✓ src/credentialed-http/tools/__tests__/vocabulary.test.ts (1 test) 146ms
+ ✓ src/__tests__/package-surface.test.ts (1 test) 7ms
+ ✓ src/convention-tests/public-args.test.ts (2 tests) 5ms
+ ✓ src/media-providers/__tests__/seed.test.ts (2 tests) 12ms
+ ✓ src/media-providers/__tests__/tokens.test.ts (2 tests) 5ms
+
+ Test Files  96 passed (96)
+      Tests  2015 passed (2015)
+   Start at  21:23:47
+   Duration  29.56s (transform 4.21s, setup 0ms, collect 17.23s, tests 7.64s, environment 31ms, prepare 9.43s)
+
+exit 0 seconds 30

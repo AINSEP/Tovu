@@ -1,0 +1,32 @@
+✔ conflicts constructed without version metadata expose explicit nulls (1.142838ms)
+✔ throws ChangeSetNotFoundError when no change set matches (workspace + id) (0.755283ms)
+✔ throws ChangeSetInvalidStatusError when the change set is not 'applied' (0.237696ms)
+✔ throws RevertNotPossibleError when no reverter is registered for the item's (entityType, operation) (0.446669ms)
+✔ throws RevertNotPossibleError when the item has no inverse payload (0.43237ms)
+✔ throws RevertConflictError with 'missing' when the entity no longer exists (currentVersion returns null) (0.394435ms)
+✔ throws RevertConflictError with the found version when the entity has since moved on (version mismatch) (0.289895ms)
+✔ applies inverses in descending position order (last-applied item is reverted first) (1.516968ms)
+✔ throws ChangeSetInvalidStatusError ('already reverted concurrently') when the status changed between the initial read and the CAS re-check (0.450391ms)
+✔ enqueues a change-set.reverted event on the outbox when one is provided (0.671261ms)
+✔ completes without enqueuing anything when no outbox is provided (0.367005ms)
+✔ conflict message names the actor when the reverter resolves one via currentActor (0.3032ms)
+✔ conflict message omits the actor suffix when a currentActor method exists but resolves null (0.312047ms)
+✔ force:true past a stale-version conflict resolves without throwing and applies the inverse anyway (0.300177ms)
+✔ force:true does NOT bypass a missing entity — still throws RevertConflictError (0.270468ms)
+✔ force omitted/false with a real mismatch is unchanged — the default path still refuses (0.234423ms)
+✔ force:true with an agent principal throws RevertForbiddenError before any repo read (0.236804ms)
+✔ an agent principal WITHOUT force reverts normally — the restriction is force-specific, not agent-specific (0.297546ms)
+✔ checks every item's version before applying any inverse or emitting/saving a reverted record (0.316596ms)
+✔ a change set deleted during inverse application cannot be saved back as reverted (0.235974ms)
+✔ L079: inverse availability is checked before any version read, including under force (0.245431ms)
+✔ L079: force without principal kind is refused before any write (0.405242ms)
+✔ L079: a later inverse failure leaves earlier writes applied (reported, not fixed) (2.469393ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 297.355219
+exit 0

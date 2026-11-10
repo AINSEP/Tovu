@@ -1,0 +1,36 @@
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-combine/packages/platform
+
+ ❯ src/__tests__/source-boundaries.test.ts (1 test | 1 failed) 30ms
+   × platform source never references host source paths or aliases 29ms
+     → expected [ Array(1) ] to deeply equal []
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/source-boundaries.test.ts > platform source never references host source paths or aliases
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/scratch/wt-jini-combine/packages/platform/src/__tests__/fetch-with-timeout.test.ts",
++ ]
+
+ ❯ src/__tests__/source-boundaries.test.ts:18:73
+     16| 
+     17| test("platform source never references host source paths or aliases", …
+     18|   expect(hostReferences(fileURLToPath(new URL("..", import.meta.url)))…
+       |                                                                         ^
+     19| });
+     20| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:37:43
+   Duration  430ms (transform 53ms, setup 0ms, collect 38ms, tests 30ms, environment 0ms, prepare 91ms)
+
+exit 1

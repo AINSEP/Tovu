@@ -1,0 +1,62 @@
+admin npm ci exit 0
+relink exit 0
+
+ RUN  v4.1.11 /home/user/scratch/wt-tovu-localhost-1109/apps/admin
+
+ ❯ src/__tests__/unit/chat-fab-z-order-css.unit.test.ts (4 tests | 1 failed) 476ms
+     × sits above every in-page layer; only blocking modals and their popovers go higher 96ms
+ ❯ src/lib/__tests__/credential-copy-card-frame.unit.test.ts (2 tests | 1 failed) 19ms
+   × saved-key cards grow from content rather than reserving blank frame space (approve=false) 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/chat-fab-z-order-css.unit.test.ts > chat FAB z-order > sits above every in-page layer; only blocking modals and their popovers go higher
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "components/AdminFailureNotice/admin-failure-notice.css .admin-failure-notice z-index: 1000",
++ ]
+
+ ❯ src/__tests__/unit/chat-fab-z-order-css.unit.test.ts:82:19
+     80|       .filter((layer) => !ABOVE_FAB.has(layer.selector))
+     81|       .map((layer) => `${layer.file} ${layer.selector} z-index: ${laye…
+     82|     expect(above).toEqual([]);
+       |                   ^
+     83|   });
+     84|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/__tests__/credential-copy-card-frame.unit.test.ts > saved-key cards grow from content rather than reserving blank frame space (approve=false)
+AssertionError: expected { granted: false, …(2) } to deeply equal { granted: false }
+
+- Expected
++ Received
+
+  {
+    "granted": false,
++   "message": "The owner closed the card without choosing a key.",
++   "reason": "dismissed",
+  }
+
+ ❯ src/lib/__tests__/credential-copy-card-frame.unit.test.ts:42:25
+     40|   expect(resources[0]!.resource.text).toContain("Production");
+     41|   expect(answer(approve ? { credentialId: "one" } : { [SURFACE_DISMISS…
+     42|   expect(await pending).toEqual(approve ? { granted: true, credentialI…
+       |                         ^
+     43|   expect(await attachments.isAttached({ siteId: "target", keyId: "one"…
+     44|   expect(await vault.find({ workspaceId: "project", id: "one" })).toEq…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 4 passed (6)
+   Start at  21:20:44
+   Duration  2.52s (transform 1.01s, setup 1.01s, import 835ms, tests 495ms, environment 2.09s)
+
+exit 1

@@ -1,0 +1,48 @@
+
+> @jini-ai/cli@0.6.19 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/cli
+
+ ✓ src/__tests__/http.test.ts (43 tests) 239ms
+ ✓ src/__tests__/run-command.test.ts (59 tests) 375ms
+ ✓ src/__tests__/prompt.test.ts (31 tests) 127ms
+ ✓ src/__tests__/http.pins.test.ts (38 tests) 194ms
+ ✓ src/__tests__/daemon-command.test.ts (19 tests) 120ms
+ ✓ src/__tests__/version-command.test.ts (17 tests) 43ms
+ ✓ src/__tests__/errors.test.ts (23 tests) 77ms
+ ✓ src/__tests__/main.test.ts (31 tests) 1534ms
+   ✓ module top-level entrypoint guard > C20: prints root help when argv[1] is an npm-style jini bin symlink 535ms
+   ✓ module top-level entrypoint guard > runs main() for real when process.argv[1] matches this module's own resolved path 341ms
+   ✓ module top-level entrypoint guard > does not run main() for real when process.argv[1] is undefined 332ms
+ ✓ src/__tests__/daemon-url.pins.test.ts (111 tests) 95ms
+ ✓ src/__tests__/daemon-url.test.ts (24 tests) 54ms
+ ✓ src/__tests__/introspection.test.ts (8 tests) 19ms
+ ✓ src/__tests__/run-command.pins.test.ts (20 tests) 39ms
+ ✓ src/__tests__/command-registry.test.ts (16 tests) 14ms
+ ✓ src/__tests__/main.pins.test.ts (13 tests) 59ms
+ ✓ src/__tests__/local-daemon-discovery.test.ts (7 tests) 322ms
+ ✓ src/__tests__/errors.pins.test.ts (15 tests) 47ms
+ ✓ src/__tests__/flags.test.ts (22 tests) 28ms
+ ✓ src/__tests__/flags.pins.test.ts (19 tests) 15ms
+ ✓ src/__tests__/command-registry.pins.test.ts (10 tests) 12ms
+ ✓ src/__tests__/introspection.cov-j2.test.ts (2 tests) 7ms
+ ✓ src/__tests__/prompt.pins.test.ts (8 tests) 146ms
+ ✓ src/__tests__/prompt-read-file-settled.test.ts (2 tests) 70ms
+ ✓ src/__tests__/http-contradictions.unit.test.ts (13 tests) 82ms
+ ✓ src/__tests__/integration-surface.test.ts (3 tests) 42ms
+ ✓ src/__tests__/usage.test.ts (7 tests) 7ms
+ ✓ src/__tests__/core-redaction-migration.test.ts (3 tests) 13ms
+ ✓ src/__tests__/index.test.ts (2 tests) 3ms
+ ✓ src/__tests__/redact.test.ts (5 tests) 49ms
+ ✓ src/__tests__/audit-regressions.test.ts (2 tests) 21ms
+ ✓ src/__tests__/args-convention.test.ts (1 test) 41ms
+ ✓ src/__tests__/tokens.test.ts (1 test) 3ms
+
+ Test Files  31 passed (31)
+      Tests  575 passed (575)
+   Start at  21:10:22
+   Duration  17.98s (transform 3.50s, setup 0ms, collect 9.08s, tests 3.90s, environment 28ms, prepare 5.43s)
+
+exit 0 seconds 19

@@ -1,0 +1,49 @@
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-combine/packages/agent-plugins
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+stderr | src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+Plugin 'synthetic' has no publisher-qualified id; using 'unknown/synthetic'.
+
+ ❯ src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts (1 test | 1 failed) 202ms
+   × enable, load and supporting reads share admission after loading, including revocation and refused files 201ms
+     → expected { status: 'loaded', …(1) } to deeply equal { status: 'already-loaded', …(1) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts > enable, load and supporting reads share admission after loading, including revocation and refused files
+AssertionError: expected { status: 'loaded', …(1) } to deeply equal { status: 'already-loaded', …(1) }
+
+- Expected
++ Received
+
+  Object {
+-   "guidance": "",
+-   "status": "already-loaded",
++   "guidance": "<<AGENT_PLUGIN pluginId=\"synthetic\">>
++ # Primary guidance: read references/permissions.md first.
++
++ The SKILL.md above is this Agent Plugin's own instructions — follow them, including any files it directs you to load before starting work. Readable supporting files are listed relative to this skill folder. Request one with host_read_plugin({\"pluginId\":\"synthetic\",\"skill\":\"synthetic\",\"file\":\"<relative path>\"}).
++ files: [\"references/permissions.md\"]
++ <</AGENT_PLUGIN>>",
++   "status": "loaded",
+  }
+
+ ❯ src/lifecycle/__tests__/unit/load-supporting-files.unit.test.ts:59:49
+     57|     expect(loaded.guidance).not.toContain('load_agent_plugin');
+     58|     expect(loaded.guidance).not.toContain('agent_plugin_synthetic');
+     59|     expect(await controller.load({ pluginId })).toEqual({ status: 'alr…
+       |                                                 ^
+     60|     const reference = await controller.load(request);
+     61|     expect(reference.status).toBe('loaded');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  20:55:07
+   Duration  2.98s (transform 1.77s, setup 0ms, collect 1.95s, tests 202ms, environment 0ms, prepare 195ms)
+
+exit 1

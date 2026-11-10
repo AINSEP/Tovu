@@ -1,0 +1,110 @@
+
+> @jini-ai/agentic@0.6.23 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/agentic
+
+ ✓ src/core/dom/__tests__/dom-page-driver-elements.test.ts (67 tests) 1273ms
+stderr | src/core/dom/__tests__/dom-page-driver.test.ts > duplicate data-agent-element handles > refuses to click a handle published on more than one element, rather than silently acting on the first
+"dup" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+
+stderr | src/core/dom/__tests__/dom-page-driver.test.ts > duplicate data-agent-element handles > refuses describeState on an ambiguous handle too, instead of quietly reading the first
+"dup" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+
+stderr | src/core/dom/__tests__/dom-page-driver.test.ts > duplicate data-agent-element handles > refuses fill on an ambiguous handle too
+"dup" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+
+ ✓ src/core/dom/__tests__/dom-page-driver.test.ts (118 tests) 3584ms
+   ✓ findElements > smoothly centers the resolved entity after navigation without opening its details 529ms
+   ✓ a contenteditable region holding a secret > names the region by its accessible label instead, when the page supplies one 310ms
+   ✓ a contenteditable region holding a secret > withholds the contents from state.text, through the executor 304ms
+stderr | src/core/dom/__tests__/dom-page-driver-l183.pin.test.ts > L183 raw state characterization > returns null for missing and private handles and refuses invalid or ambiguous ones
+"duplicate" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+
+ ✓ src/core/dom/__tests__/dom-page-driver-l183.pin.test.ts (39 tests) 331ms
+ ✓ src/core/dom/__tests__/annotated-actions.test.ts (10 tests) 721ms
+   ✓ annotated browser actions > registers only public actions, never native forms, cross-origin links, inputs or submit buttons 337ms
+ ✓ src/core/dom/__tests__/visitor-publication.test.ts (9 tests) 668ms
+ ✓ src/core/dom/__tests__/model-context.test.ts (9 tests) 10ms
+ ✓ src/core/dom/__tests__/dom-page-driver-private.test.ts (9 tests) 452ms
+ ✓ src/core/dom/__tests__/dom-page-driver-conversion.regression.test.ts (4 tests) 260ms
+ ✓ src/core/dom/__tests__/native-model-context.test.ts (4 tests) 36ms
+ ✓ src/core/dom/__tests__/args-convention.contract.test.ts (2 tests) 570ms
+   ✓ separates required DOM ports, optional page identity and optional selection state 557ms
+ ✓ src/core/dom/__tests__/index.test.ts (3 tests) 445ms
+   ✓ @jini-ai/agentic/dom public barrel > re-exports a working createDomPageDriver, resolving a published handle end to end 430ms
+ ✓ src/core/__tests__/page-executor.test.ts (97 tests) 221ms
+ ✓ src/core/a2ui/__tests__/interpreter.test.ts (62 tests) 147ms
+ ✓ src/core/a2ui/__tests__/spec-fixtures.test.ts (45 tests) 49ms
+ ✓ src/core/a2ui/__tests__/resolve.test.ts (56 tests) 137ms
+ ✓ src/core/a2ui/__tests__/json-pointer.test.ts (104 tests) 29ms
+ ✓ src/core/a2ui/__tests__/catalog.test.ts (150 tests) 169ms
+ ✓ src/core/gen-ui/__tests__/encoder.test.ts (35 tests) 35ms
+ ✓ src/core/__tests__/mcp-ui-apps.test.ts (30 tests) 59ms
+ ✓ src/core/__tests__/guards.test.ts (24 tests) 20ms
+ ✓ src/core/__tests__/page-executor.l077.characterization.test.ts (46 tests) 94ms
+ ✓ src/core/__tests__/webmcp.test.ts (37 tests) 91ms
+ ✓ src/core/__tests__/capability.test.ts (24 tests) 18ms
+ ✓ src/skills/install/__tests__/github.pin.test.ts (61 tests) 1066ms
+   ✓ fetchGitHubSkill response refusals > refuses when declared sizes pass 8 MiB before fetching that blob 393ms
+   ✓ fetchGitHubSkill response refusals > refuses when decoded content passes 8 MiB despite small declared sizes 310ms
+ ✓ src/skills/install/__tests__/install-service.test.ts (18 tests) 844ms
+   ✓ aggregate cap rejects a mixed bundle before writes 392ms
+ ✓ src/core/site-guide/__tests__/site-guide.test.ts (13 tests) 87ms
+ ✓ src/skills/install/__tests__/validation.pin.test.ts (59 tests) 732ms
+   ✓ validateSkillFiles refusals > refuses once the combined decoded size passes 8 MiB 350ms
+ ✓ src/core/site-guide/__tests__/site-guide.pin.test.ts (31 tests) 64ms
+ ✓ src/skills/install/__tests__/source-port.contract.test.ts (17 tests) 224ms
+ ✓ src/core/a2ui/__tests__/tree.test.ts (14 tests) 415ms
+ ✓ src/skills/install/__tests__/state.pin.test.ts (43 tests) 37ms
+ ✓ src/core/a2ui/__tests__/agent-to-renderer.test.ts (19 tests) 35ms
+ ✓ src/skills/install/__tests__/archive.pin.test.ts (28 tests) 106ms
+ ✓ src/skills/install/__tests__/live-registration.test.ts (7 tests) 11ms
+ ✓ src/core/__tests__/ag-ui.test.ts (11 tests) 19ms
+ ✓ src/skills/install/__tests__/validation-and-live-registration.contract.test.ts (3 tests) 36ms
+ ✓ src/skills/install/__tests__/install-service.guards.test.ts (16 tests) 38ms
+ ✓ src/core/a2ui/__tests__/renderer-to-agent.test.ts (15 tests) 48ms
+ ✓ src/core/site-guide/__tests__/topic-schema.test.ts (19 tests) 31ms
+ ✓ src/core/__tests__/args-convention.contract.test.ts (5 tests) 12ms
+ ✓ src/core/__tests__/page-navigation.test.ts (11 tests) 30ms
+ ✓ src/core/__tests__/handle-grammar-conformance.test.ts (35 tests) 30ms
+ ✓ src/skills/install/__tests__/set-skill-enabled-cleanup.regression.test.ts (2 tests) 75ms
+ ✓ src/skills/install/__tests__/github-fetch.conv-agent-plugins.test.ts (3 tests) 26ms
+ ✓ src/skills/install/__tests__/yauzl-adapter.hwa.test.ts (5 tests) 29ms
+ ✓ src/core/__tests__/list-handles.test.ts (8 tests) 9ms
+ ✓ src/skills/install/__tests__/validation-parity.dbpkg-infra.test.ts (4 tests) 791ms
+   ✓ bundle validation preserves guidance and rejects duplicate keys and combined oversize 734ms
+ ✓ src/skills/install/__tests__/fetch-adapter.integration.test.ts (2 tests) 15ms
+ ✓ src/skills/install/__tests__/node-filesystem.integration.test.ts (4 tests) 145ms
+ ✓ src/skills/install/__tests__/archive-state.test.ts (3 tests) 26ms
+ ✓ src/core/__tests__/capability.l077.characterization.test.ts (18 tests) 8ms
+ ✓ src/core/a2ui/__tests__/surface-properties.test.ts (5 tests) 18ms
+ ✓ src/__tests__/package-surface.integration.test.ts (2 tests) 42ms
+ ✓ src/core/__tests__/handle.test.ts (5 tests) 6ms
+ ✓ src/core/__tests__/mcp-ui-apps.l077.characterization.test.ts (28 tests) 13ms
+ ✓ src/skills/install/__tests__/integration-contracts.test.ts (2 tests) 16ms
+ ✓ src/core/gen-ui/__tests__/protocol-contract.test.ts (2 tests) 24ms
+ ✓ src/skills/install/__tests__/layout.test.ts (13 tests) 32ms
+ ✓ src/skills/install/__tests__/workspace-layout.contract.test.ts (3 tests) 17ms
+ ✓ src/core/a2ui/__tests__/index.test.ts (3 tests) 6ms
+ ✓ src/core/__tests__/handle-segment.test.ts (2 tests) 7ms
+ ✓ src/skills/install/__tests__/args-convention.test.ts (3 tests) 10ms
+ ✓ src/core/__tests__/agent-handle-props.test.ts (5 tests) 4ms
+ ✓ src/skills/install/__tests__/ports.p5.test.ts (1 test) 6ms
+ ✓ src/core/__tests__/guards.l077.characterization.test.ts (12 tests) 10ms
+ ✓ src/core/a2ui/__tests__/common-types.test.ts (2 tests) 26ms
+ ✓ src/core/__tests__/gen-ui-barrel.test.ts (2 tests) 9ms
+ ✓ src/core/__tests__/element-handles.test.ts (2 tests) 6ms
+ ✓ src/__tests__/afix-agentic-host-boundaries.test.ts (1 test) 17ms
+ ✓ src/__tests__/integration-host-neutrality.test.ts (1 test) 9ms
+ ✓ src/skills/install/__tests__/public-surface.w8.test.ts (1 test) 2ms
+ ✓ src/core/__tests__/messages.contract.test.ts (1 test) 5ms
+ ✓ src/__tests__/root-entry.contract.test.ts (1 test) 5ms
+
+ Test Files  73 passed (73)
+      Tests  1555 passed (1555)
+   Start at  20:51:41
+   Duration  51.22s (transform 4.36s, setup 0ms, collect 11.97s, tests 14.70s, environment 16.26s, prepare 14.12s)
+
+exit 0 seconds 53

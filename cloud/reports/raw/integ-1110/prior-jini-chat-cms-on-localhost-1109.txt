@@ -1,0 +1,46 @@
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-localhost-1109/packages/cms
+
+ ✓ src/__tests__/integration-package.contract.test.ts (4 tests) 31ms
+ ✓ src/__tests__/identity-extraction.boundary.test.ts (1 test) 14ms
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  21:14:23
+   Duration  1.05s (transform 167ms, setup 0ms, collect 190ms, tests 45ms, environment 0ms, prepare 513ms)
+
+cms exit 0
+
+ RUN  v2.1.9 /home/user/scratch/wt-jini-localhost-1109/packages/chat
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx (31 tests | 1 failed) 325ms
+   × useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass 27ms
+     → expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx > useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass
+AssertionError: expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+- Expected: 
+/streaming/
+
++ Received: 
+"cannot send: A reply is still running. Stop it first."
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx:183:5
+    181|     await waitFor(() => expect(pane().conversation.isStreaming).toBe(t…
+    182| 
+    183|     await expect(
+       |     ^
+    184|       context.tools.get('chat.send_message')?.execute({ prompt: 'secon…
+    185|     ).rejects.toThrow(/streaming/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 30 passed (31)
+   Start at  21:14:25
+   Duration  3.53s (transform 1.16s, setup 206ms, collect 1.58s, tests 325ms, environment 644ms, prepare 103ms)
+
+chat exit 1
