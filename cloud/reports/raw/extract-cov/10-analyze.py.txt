@@ -1,0 +1,54 @@
+import json,os,sys,glob,re
+S=os.path.dirname(os.path.abspath(__file__))
+def ranges(ls):
+    ls=sorted(ls); out=[]
+    for l in ls:
+        if out and l==out[-1][1]+1: out[-1][1]=l
+        else: out.append([l,l])
+    return ','.join(f"{a}" if a==b else f"{a}-{b}" for a,b in out)
+# Jini
+rows=[]
+for line in open(S+'/jini-class.txt'):
+    cls,f=line.rstrip('\n').split('\t')
+    if cls!='CODE': continue
+    pkg=f.split('/')[1]
+    cf=f"{S}/cov/{pkg}/coverage-final.json"
+    absf='/home/user/Jini/'+f
+    if not os.path.exists(cf):
+        rows.append(('jini',f,None,None,None,f'no coverage output for package {pkg}')); continue
+    d=json.load(open(cf))
+    if absf not in d:
+        rows.append(('jini',f,None,None,None,'not in coverage report: no test in the package suite loaded it (or outside the config include)')); continue
+    e=d[absf]; lm={}
+    for k,c in e['s'].items():
+        ln=e['statementMap'][k]['start']['line']
+        if ln not in lm or lm[ln]<c: lm[ln]=c
+    tot=len(lm); unc=[l for l,c in lm.items() if c==0]
+    if tot==0: rows.append(('jini',f,0,0,None,'0 executable lines (v8 found no statements)')); continue
+    rows.append(('jini',f,tot,tot-len(unc),ranges(unc),''))
+# Tovu
+mode=sys.argv[1] if len(sys.argv)>1 else ''
+lc={}
+for p in sorted(glob.glob(S+'/tovu-0*.lcov')):
+    cur=None
+    for l in open(p):
+        l=l.strip()
+        if l.startswith('SF:'): cur=lc.setdefault(l[3:],{})
+        elif l.startswith('DA:') and cur is not None:
+            a,b=l[3:].split(',')[:2]; a=int(a); b=int(b); cur[a]=max(cur.get(a,0),b)
+sel={}
+for l in open(S+'/tovu-sel-map.tsv'):
+    f,n,ts=l.rstrip('\n').split('\t'); sel[f]=(int(n),ts)
+for line in open(S+'/tovu-class.txt'):
+    cls,f=line.rstrip('\n').split('\t')
+    if cls!='CODE': continue
+    absf='/home/user/Tovu/'+f
+    n,ts=sel.get(f,(0,''))
+    if n==0: rows.append(('tovu',f,None,None,None,'no test imports it directly or through one re-export')); continue
+    if not lc: rows.append(('tovu',f,None,None,None,'Tovu run produced no lcov')); continue
+    if absf not in lc: rows.append(('tovu',f,None,None,None,f'NOT LOADED by its {len(ts.split(","))} selected test(s)')); continue
+    dm=lc[absf]; unc=[a for a,b in dm.items() if b==0]
+    rows.append(('tovu',f,len(dm),len(dm)-len(unc),ranges(unc),''))
+with open(S+'/results.tsv','w') as o:
+    for r in rows: o.write('\t'.join('' if x is None else str(x) for x in r)+'\n')
+print(len(rows))

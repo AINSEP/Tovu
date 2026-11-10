@@ -1,0 +1,13 @@
+#!/bin/bash
+export PATH=$HOME/.local/node24/bin:$PATH
+S=<scratch>; cd /home/user/Tovu; R=cloud/reports/raw/extract-cov
+for b in 00 01 02 03; do
+  out=$R/08-tovu-batch-$b.txt
+  echo "# cmd: TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 --experimental-test-coverage --test-coverage-exclude='**/__no_route_coverage_gate_exclusions__/**' --test-reporter=lcov --test-reporter-destination=<scratch>/tovu-$b.lcov --test-reporter=dot --test-reporter-destination=stdout <files in 07-tovu-selected-tests.txt batch $b>" > $out
+  s=$(date +%s)
+  env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json timeout 900 node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 --experimental-test-coverage --test-coverage-exclude='**/__no_route_coverage_gate_exclusions__/**' --test-reporter=lcov --test-reporter-destination=$S/tovu-$b.lcov --test-reporter=tap --test-reporter-destination=$S/tovu-$b.tap --test-reporter=dot --test-reporter-destination=stdout $(cat $S/tovu-batch-$b) >> $out 2>&1
+  echo "# exit=$? secs=$(( $(date +%s)-s ))" >> $out
+  grep -E '^# (tests|pass|fail|cancelled|skipped|todo|duration_ms)' $S/tovu-$b.tap >> $out
+  grep -E '^not ok' $S/tovu-$b.tap >> $out
+done
+echo TOVUDONE

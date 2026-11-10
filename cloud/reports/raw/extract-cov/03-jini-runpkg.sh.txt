@@ -1,0 +1,13 @@
+#!/bin/bash
+export PATH=$HOME/.local/node24/bin:$PATH
+p=$1; S=<scratch>; R=/home/user/Tovu/cloud/reports/raw/extract-cov
+cd /home/user/Jini/packages/$p
+CFG=""; [ $p = commerce ] && CFG="-c vitest.coverage.config.ts"
+INC=""; [ $p = plugins ] && INC="--coverage.include=src/**"
+CMD="npx vitest run $CFG --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcov --coverage.reportOnFailure=true --coverage.reportsDirectory=$S/cov/$p $INC --maxWorkers=2 --minWorkers=1"
+start=$(date +%s)
+{ echo "# cwd: packages/$p"; echo "# cmd: ${CMD//$S/<scratch>}"; } > $R/03-jini-$p.txt
+timeout 1200 $CMD >> $R/03-jini-$p.txt 2>&1; rc=$?
+echo "# exit=$rc secs=$(( $(date +%s)-start ))" >> $R/03-jini-$p.txt
+sed -i "s#$S#<scratch>#g" $R/03-jini-$p.txt
+echo "$p rc=$rc"

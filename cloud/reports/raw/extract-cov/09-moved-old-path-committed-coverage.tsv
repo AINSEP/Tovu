@@ -1,0 +1,153 @@
+packages/agent-plugins/src/admin-surfaces/connections/connections.ts	apps/website/src/features/api-connections/surface-connections.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/admin-surfaces/connections/index.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/admin-surfaces/connections/ports.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/admin-surfaces/plugin-state-persistence.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/admin-surfaces/plugin-state.ts	apps/website/src/features/api-connections/plugin-state.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/access-token-tool.ts	apps/website/src/features/agent-plugins/access-token-tool.ts	sweep-c2: lines 95.9%, branches 74.3%, 12 uncovered lines
+packages/agent-plugins/src/connect/apply-connect-defaults.ts	apps/website/src/features/agent-plugins/apply-connect-defaults.ts	sweep-c2: lines 100.0%, branches 82.6%, 0 uncovered lines
+packages/agent-plugins/src/connect/apply-tool-renames.ts	apps/website/src/features/agent-plugins/apply-tool-renames.ts	sweep-c2: lines 98.3%, branches 75.0%, 2 uncovered lines
+packages/agent-plugins/src/connect/connect-card-ui.ts	apps/website/src/features/agent-plugins/connect-card-ui.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/connect-destination.ts	apps/website/src/features/agent-plugins/connect-destination.ts	no committed result (file did not exist at sweep-c2)
+packages/agent-plugins/src/connect/connect-sign-in-wait.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/connect/connect-tool.ts	apps/website/src/features/agent-plugins/connect-tool.ts	sweep-c2: lines 99.5%, branches 89.0%, 2 uncovered lines
+packages/agent-plugins/src/connect/connection-status.ts	apps/website/src/features/agent-plugins/connection-status.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/credential-cards.ts	apps/website/src/features/agent-plugins/credential-cards.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/credential-save-tool.ts	apps/website/src/features/custom-credentials/credential-save-tool.ts	sweep-c2: lines 100.0%, branches 75.0%, 0 uncovered lines
+packages/agent-plugins/src/connect/enable-access.ts	apps/website/src/features/agent-plugins/enable-access.ts	no committed result (file did not exist at sweep-c2)
+packages/agent-plugins/src/connect/executable/approval.ts	apps/website/src/features/agent-plugins/executable-tools/approval.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/executable/host-capabilities.ts	apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/executable/index.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/connect/executable/ports.ts	apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/executable/register.ts	apps/website/src/features/agent-plugins/executable-tools/register.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/federate-mcp.ts	apps/website/src/features/agent-plugins/federate-mcp.ts	sweep-c2: lines 99.4%, branches 67.5%, 3 uncovered lines
+packages/agent-plugins/src/connect/grant-signed-in-defaults.ts	apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts	no committed result (file did not exist at sweep-c2)
+packages/agent-plugins/src/connect/import-access-token.ts	apps/website/src/features/agent-plugins/import-access-token.ts	sweep-c2: lines 98.8%, branches 68.3%, 2 uncovered lines
+packages/agent-plugins/src/connect/index.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/connect/plugin-credential-card.ts	apps/website/src/features/custom-credentials/plugin-credential-card.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/connect/plugin-host/index.ts	apps/website/src/server/runtime/composition/plugin-host.ts	sweep-c2: lines 99.3%, branches 69.3%, 1 uncovered lines
+packages/agent-plugins/src/connect/ports.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/connect/switch-on-saved-token.ts	apps/website/src/features/agent-plugins/switch-on-saved-token.ts	sweep-c2: lines 100.0%, branches 79.4%, 0 uncovered lines
+packages/agent-plugins/src/connect/token-sign-in.ts	apps/website/src/features/agent-plugins/token-sign-in.ts	sweep-c2: lines 100.0%, branches 95.7%, 0 uncovered lines
+packages/agent-plugins/src/lifecycle/credential-card-metadata.ts	apps/website/src/features/agent-plugins/credential-cards.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/lifecycle/host-tools/identity.ts	apps/website/src/features/agent-plugins/identity.ts	sweep-c2: lines 100.0%, branches 75.0%, 0 uncovered lines
+packages/agent-plugins/src/lifecycle/host-tools/index.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/lifecycle/host-tools/memory-tools.ts	apps/website/src/features/agent-plugins/memory-tools.ts	sweep-c2: lines 93.9%, branches 96.0%, 3 uncovered lines
+packages/agent-plugins/src/lifecycle/host-tools/ports.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/lifecycle/host-tools/provider-status-tool.ts	apps/website/src/features/plugin-runtime/provider-status-tool.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/lifecycle/host-tools/search-tool.ts	apps/website/src/features/agent-plugins/tool-registrations.ts	sweep-c2: lines 99.1%, branches 80.6%, 9 uncovered lines
+packages/agent-plugins/src/lifecycle/host-tools/skill-tool.ts	apps/website/src/features/agent-plugins/tool-registrations.ts	sweep-c2: lines 99.1%, branches 80.6%, 9 uncovered lines
+packages/agent-plugins/src/lifecycle/host-tools/write-note-tool.ts	apps/website/src/features/agent-plugins/write-note-tool.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts	apps/website/src/features/agent-plugins/mail-adapter-registry.ts	sweep-c2: lines 100.0%, branches 67.5%, 0 uncovered lines
+packages/agent-plugins/src/lifecycle/mail/catalog.ts	apps/website/src/server/runtime/boot/mail-provider-catalog.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/lifecycle/mail/configuration.ts	apps/website/src/server/runtime/boot/mail-provider-configuration.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/lifecycle/mail/contribution.ts	apps/website/src/features/agent-plugins/mail-adapter-registry.ts	sweep-c2: lines 100.0%, branches 67.5%, 0 uncovered lines
+packages/agent-plugins/src/lifecycle/mail/host-mailer.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/lifecycle/mail/index.ts	(no Tovu source matched)	-
+packages/agent-plugins/src/lifecycle/mail/selection.ts	apps/website/src/server/runtime/composition/site-mailer.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/agent-plugins/src/lifecycle/metadata.ts	(no Tovu source matched)	-
+packages/cms/src/core/commands/appliers.ts	apps/website/src/contracts/core/commands/appliers.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/cms/src/core/commands/index.ts	(no Tovu source matched)	-
+packages/cms/src/core/commands/repo.memory.ts	apps/website/src/contracts/core/commands/repo.memory.ts	sweep-c2: lines 100.0%, branches 90.2%, 0 uncovered lines
+packages/cms/src/core/commands/revert.ts	apps/website/src/contracts/core/commands/revert.ts	sweep-c2: lines 100.0%, branches 68.3%, 0 uncovered lines
+packages/cms/src/forms/destination-contracts.ts	apps/website/src/features/form-destinations/types.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/cms/src/forms/destination-descriptors.ts	apps/website/src/features/form-destinations/registry.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/cookie-consent/src/contracts/consent-file.ts	apps/website/src/features/consent/region-plugins.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/core/src/contracts/cards.ts	(no Tovu source matched)	-
+packages/core/src/contracts/content-types.ts	apps/admin/src/lib/api.ts	sweep-c2: lines 91.1%, branches 88.2%, 32 uncovered lines
+packages/core/src/contracts/credentials.ts	(no Tovu source matched)	-
+packages/core/src/contracts/hosted-mcp.ts	(no Tovu source matched)	-
+packages/core/src/contracts/hosted-mcp/config.ts	apps/website/src/features/external-mcp/contracts.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/core/src/contracts/hosted-mcp/record.ts	apps/website/src/features/external-mcp/contracts.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/core/src/contracts/hosted-mcp/vocabulary.ts	apps/website/src/features/external-mcp/contracts.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/core/src/contracts/mail.ts	(no Tovu source matched)	-
+packages/core/src/contracts/mail/adapter-module.ts	(no Tovu source matched)	-
+packages/core/src/contracts/mail/engine-contracts.ts	(no Tovu source matched)	-
+packages/core/src/contracts/mail/ports.ts	(no Tovu source matched)	-
+packages/core/src/contracts/mail/provider.ts	(no Tovu source matched)	-
+packages/core/src/contracts/oauth.ts	(no Tovu source matched)	-
+packages/core/src/contracts/oauth/details.ts	(no Tovu source matched)	-
+packages/core/src/contracts/oauth/flow.ts	(no Tovu source matched)	-
+packages/core/src/contracts/vault.ts	(no Tovu source matched)	-
+packages/core/src/contracts/vault/ports.ts	(no Tovu source matched)	-
+packages/core/src/contracts/vault/records.ts	(no Tovu source matched)	-
+packages/core/src/contracts/vault/vendor-credential-sets.ts	apps/admin/src/lib/api.ts	sweep-c2: lines 91.1%, branches 88.2%, 32 uncovered lines
+packages/core/src/surface-cards.ts	(no Tovu source matched)	-
+packages/core/src/text/descriptor-i18n.ts	apps/website/src/features/agent-plugins/descriptor-i18n.ts	sweep-c2: lines 100.0%, branches 75.0%, 0 uncovered lines
+packages/db/src/data-modules/data-module.ts	apps/website/src/features/plugins/data-module.ts	sweep-c2: lines 99.8%, branches 76.0%, 2 uncovered lines
+packages/db/src/data-modules/disk-headroom.ts	apps/website/src/features/plugins/disk-headroom.ts	sweep-c2: lines 100.0%, branches 64.3%, 0 uncovered lines
+packages/db/src/data-modules/index.ts	(no Tovu source matched)	-
+packages/db/src/data-modules/migration-journal.ts	apps/website/src/features/plugins/migration-journal.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/db/src/data-modules/migration-recovery.ts	apps/website/src/features/plugins/migration-recovery.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/db/src/data-modules/plugin-identity.ts	apps/website/src/features/plugins/plugin-identity.ts	sweep-c2: lines 100.0%, branches 94.7%, 0 uncovered lines
+packages/db/src/data-modules/plugin-store.ts	apps/website/src/features/plugins/plugin-store.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/db/src/data-modules/restore.ts	apps/website/src/features/plugins/restore.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/db/src/data-modules/snapshot.ts	apps/website/src/features/plugins/snapshot.ts	sweep-c2: lines 100.0%, branches 84.6%, 0 uncovered lines
+packages/devops/src/deploy/config-contracts.ts	apps/website/src/features/deployments/deploy-config.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/devops/src/deploy/config-descriptors.ts	apps/website/src/features/deployments/deploy-config-registry.ts	sweep-c2: lines 100.0%, branches 72.1%, 0 uncovered lines
+packages/devops/src/deploy/ops-contracts.ts	apps/website/src/features/deployments/deploy-ops/types.ts	sweep-c2: NEVER LOADED (0%)
+packages/devops/src/deploy/ops-descriptors.ts	apps/website/src/features/deployments/deploy-ops/registry.ts	sweep-c2: lines 97.9%, branches 78.0%, 3 uncovered lines
+packages/devops/src/deploy/ops-registry.ts	apps/website/src/features/deployments/deploy-ops/registry.ts	sweep-c2: lines 97.9%, branches 78.0%, 3 uncovered lines
+packages/devops/src/deploy/ops-runner.ts	apps/website/src/features/deployments/deploy-ops/run-ops.ts	sweep-c2: lines 98.4%, branches 88.4%, 4 uncovered lines
+packages/devops/src/deploy/ops-secret-card.ts	apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts	sweep-c2: lines 98.5%, branches 85.2%, 1 uncovered lines
+packages/devops/src/deploy/ops-secrets.ts	apps/website/src/features/deployments/deploy-ops/secrets.ts	sweep-c2: lines 100.0%, branches 89.6%, 0 uncovered lines
+packages/devops/src/deploy/ops-tool-contracts.ts	(no Tovu source matched)	-
+packages/devops/src/deploy/ops-tools.ts	apps/website/src/features/deployments/deploy-ops/tool-registrations.ts	sweep-c2: lines 95.2%, branches 89.8%, 7 uncovered lines
+packages/devops/src/deploy/target-contracts.ts	apps/website/src/features/deployments/deploy-targets/types.ts	sweep-c2: NEVER LOADED (0%)
+packages/devops/src/deploy/target-descriptors.ts	apps/website/src/features/deployments/deploy-targets/registry.ts	sweep-c2: lines 98.4%, branches 67.7%, 5 uncovered lines
+packages/integrations/src/api-connections/budgets.ts	apps/website/src/features/api-connections/budgets.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/byo-client.ts	apps/website/src/features/api-connections/byo-client.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/connect.ts	apps/website/src/features/api-connections/connect.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/declarations.ts	apps/website/src/features/api-connections/contribution.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/hook-http.ts	apps/website/src/features/api-connections/hook-http.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/host-ports.ts	(no Tovu source matched)	-
+packages/integrations/src/api-connections/host.ts	apps/website/src/features/api-connections/host.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/hosted-mcp/contracts.ts	apps/website/src/features/external-mcp/contracts.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/hosted-mcp/index.ts	(no Tovu source matched)	-
+packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts	apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts	no committed result (file did not exist at sweep-c2)
+packages/integrations/src/api-connections/hosted-mcp/sign-in.ts	apps/website/src/features/external-mcp/external-mcp-oauth.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/integrations/src/api-connections/oauth-capabilities.ts	(no Tovu source matched)	-
+packages/integrations/src/credentialed-http/sets/host.ts	(no Tovu source matched)	-
+packages/integrations/src/credentialed-http/sets/index.ts	(no Tovu source matched)	-
+packages/integrations/src/credentialed-http/sets/store.ts	apps/website/src/features/custom-credentials/store.ts	sweep-c2: lines 96.3%, branches 62.9%, 15 uncovered lines
+packages/integrations/src/credentialed-http/sets/vault-repo.ts	apps/website/src/features/custom-credentials/vault-repo.ts	sweep-c2: lines 98.8%, branches 75.2%, 1 uncovered lines
+packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts	apps/website/src/features/custom-credentials/credential-copy-tool.ts	sweep-c2: lines 100.0%, branches 89.1%, 0 uncovered lines
+packages/integrations/src/credentialed-http/tools/credential-tool-host.ts	(no Tovu source matched)	-
+packages/integrations/src/credentialed-http/tools/credential-tool-operations.ts	(no Tovu source matched)	-
+packages/integrations/src/credentialed-http/tools/index.ts	(no Tovu source matched)	-
+packages/integrations/src/credentialed-http/tools/tool-registrations.ts	apps/website/src/features/custom-credentials/tool-registrations.ts	sweep-c2: lines 99.9%, branches 89.5%, 1 uncovered lines
+packages/mcp/src/federation/hosted/access.ts	apps/website/src/contracts/core/external-mcp-access.ts	no committed result (file did not exist at sweep-c2)
+packages/mcp/src/federation/hosted/auth.ts	apps/website/src/contracts/core/external-mcp-auth.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/connection-gate.ts	apps/website/src/features/external-mcp/external-mcp-oauth.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/index.ts	(no Tovu source matched)	-
+packages/mcp/src/federation/hosted/projections.ts	(no Tovu source matched)	-
+packages/mcp/src/federation/hosted/revocation.ts	apps/website/src/features/external-mcp/external-mcp-revocation.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/store-ports.ts	(no Tovu source matched)	-
+packages/mcp/src/federation/hosted/store.memory.ts	apps/website/src/features/external-mcp/external-mcp-store.memory.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/store.ts	apps/website/src/features/external-mcp/external-mcp-store.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/unconfigured-error.ts	apps/website/src/features/external-mcp/external-mcp-store.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/validation-error.ts	apps/website/src/contracts/core/external-mcp-access.ts	no committed result (file did not exist at sweep-c2)
+packages/mcp/src/federation/hosted/vault.ts	apps/website/src/features/external-mcp/external-mcp-vault.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/mcp/src/federation/hosted/vocabulary.ts	(no Tovu source matched)	-
+packages/oauth/src/flow-operations.ts	(no Tovu source matched)	-
+packages/oauth/src/protocol-error-codes.ts	(no Tovu source matched)	-
+packages/platform/src/mail/plugin-abi.ts	apps/website/src/platform/mail/purpose-scoped-mailer.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/platform/src/mail/provider-mailer.ts	apps/website/src/server/runtime/boot/mail-provider-catalog.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/platform/src/mail/provider-setup.ts	apps/website/src/features/agent-plugins/mail-provider-setup.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/platform/src/object-store/descriptors.ts	apps/website/src/features/object-storage/registry.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/plugins/src/host/admin-response.ts	apps/website/src/features/plugin-runtime/admin-response.ts	sweep-c2: lines 100.0%, branches 84.6%, 0 uncovered lines
+packages/plugins/src/host/capability-tools.ts	apps/website/src/features/plugin-runtime/capability-tool-registrations.ts	sweep-c2: lines 100.0%, branches 79.8%, 0 uncovered lines
+packages/plugins/src/host/declarative-content-types.ts	apps/website/src/features/plugin-runtime/declarative-content-types.ts	sweep-c2: lines 100.0%, branches 98.5%, 0 uncovered lines
+packages/plugins/src/host/node/archive-policy.ts	apps/website/src/features/plugin-runtime/install-archive.ts	sweep-c2: lines 100.0%, branches 76.4%, 0 uncovered lines
+packages/plugins/src/host/node/invocation-binding.ts	apps/website/src/features/plugin-runtime/invocation-core-deps.ts	sweep-c2: lines 100.0%, branches 88.6%, 0 uncovered lines
+packages/plugins/src/host/node/runtime-core.ts	apps/website/src/server/runtime/composition/plugin-runtime.ts	sweep-c2: lines 98.4%, branches 57.4%, 10 uncovered lines
+packages/plugins/src/host/plugin-tool-errors.ts	(no Tovu source matched)	-
+packages/plugins/src/host/tools/contract.ts	(no Tovu source matched)	-
+packages/plugins/src/host/tools/index.ts	(no Tovu source matched)	-
+packages/plugins/src/host/tools/install.ts	(no Tovu source matched)	-
+packages/plugins/src/host/tools/management.ts	apps/website/src/features/plugin-runtime/tool-registrations.ts	sweep-c2: lines 95.7%, branches 62.3%, 35 uncovered lines
+packages/plugins/src/host/tools/source.ts	apps/website/src/features/plugin-runtime/source-tools.ts	sweep-c2: lines 98.4%, branches 92.1%, 2 uncovered lines
+packages/plugins/src/host/worker/start.ts	apps/website/src/server/runtime/plugin-tier2/worker.ts	sweep-c2: lines 100.0%, branches 92.9%, 0 uncovered lines
+packages/ui/src/features/mcp-ui/cards.ts	(no Tovu source matched)	-
+packages/ui/src/features/mcp-ui/credential-card.ts	apps/website/src/contracts/core/plugin-credential-card.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/user-management/src/server/login-providers.ts	apps/website/src/features/member-login/providers.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
+packages/user-management/src/server/login-types.ts	apps/website/src/features/member-login/types.ts	sweep-c2: 100% lines+branches (absent from below-100 table)
