@@ -65,15 +65,15 @@ describe("dock permission port", () => {
     expect(result.current.capabilities.filter(item => item.key !== "shell").every(item => !item.enabled)).toBe(true);
     await waitFor(() => expect(result.current.busy).toBe(false));
     act(() => result.current.onChange({ enabled: true }));
-    await waitFor(() => expect(result.current.capabilities.filter(item => item.key !== "userMcp").every(item => item.enabled)).toBe(true));
-    expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(false);
+    // Personal MCP follows the master like every capability (owner 2026-11-10).
+    await waitFor(() => expect(result.current.capabilities.every(item => item.enabled)).toBe(true));
   });
-  it("personal MCP defaults OFF and the owner can persist both ON and OFF", async () => {
+  it("personal MCP defaults ON and the owner can persist both OFF and ON", async () => {
     const f = fixture({ ...assistantCliPermissions({ enabled: true }), canEdit: true });
     const { result } = renderHook(() => useDockAgentPermissions({ t: key => key, port: f.port }));
     await waitFor(() => expect(result.current.canEdit).toBe(true));
-    expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(false);
-    for (const enabled of [true, false]) {
+    expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(true);
+    for (const enabled of [false, true]) {
       await waitFor(() => expect(result.current.busy).toBe(false));
       act(() => result.current.onChange({ key: "userMcp", enabled }));
       await waitFor(() => expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(enabled));
