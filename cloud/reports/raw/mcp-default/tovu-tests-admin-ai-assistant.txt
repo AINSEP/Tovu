@@ -1,0 +1,59 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+ ❯ src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx (12 tests | 2 failed) 1925ms
+     × persists one override, then lets the master restore capability defaults 290ms
+     × personal MCP defaults OFF and the owner can persist both ON and OFF 55ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx > dock permission port > persists one override, then lets the master restore capability defaults
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx:69:87
+     67|     act(() => result.current.onChange({ enabled: true }));
+     68|     await waitFor(() => expect(result.current.capabilities.filter(item…
+     69|     expect(result.current.capabilities.find(item => item.key === "user…
+       |                                                                                       ^
+     70|   });
+     71|   it("personal MCP defaults OFF and the owner can persist both ON and …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx > dock permission port > personal MCP defaults OFF and the owner can persist both ON and OFF
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx:75:87
+     73|     const { result } = renderHook(() => useDockAgentPermissions({ t: k…
+     74|     await waitFor(() => expect(result.current.canEdit).toBe(true));
+     75|     expect(result.current.capabilities.find(item => item.key === "user…
+       |                                                                                       ^
+     76|     for (const enabled of [true, false]) {
+     77|       await waitFor(() => expect(result.current.busy).toBe(false));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 22 passed (23)
+      Tests  2 failed | 372 passed (374)
+   Start at  20:57:41
+   Duration  41.40s (transform 17.92s, setup 3.20s, import 43.65s, tests 14.90s, environment 16.14s)
+
+exit 1
