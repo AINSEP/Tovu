@@ -39,7 +39,8 @@ it.each([false, true])("saved-key cards grow from content rather than reserving 
   expect(resources[0]!.resource.text).toContain("Use a saved key or connection on this site");
   expect(resources[0]!.resource.text).toContain("Production");
   expect(answer(approve ? { credentialId: "one" } : { [SURFACE_DISMISSED_PARAM]: true })).toEqual({ ok: true });
-  expect(await pending).toEqual(approve ? { granted: true, credentialId: "one" } : { granted: false });
+  expect(await pending).toEqual(approve ? { granted: true, credentialId: "one" }
+    : { granted: false, reason: "dismissed", message: "The owner closed the card without choosing a key." });
   expect(await attachments.isAttached({ siteId: "target", keyId: "one" })).toBe(approve);
   expect(await vault.find({ workspaceId: "project", id: "one" })).toEqual(key);
   expect(resources).toHaveLength(1);
