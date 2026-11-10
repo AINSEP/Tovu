@@ -1,0 +1,32 @@
+[hardwiring] HW1-env-default: 17 total; 0 new
+[hardwiring] HW2-vendor-adapter: 16 total; 0 new
+[hardwiring] HW3-module-state: 135 total; 0 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[guard:drift] 14 NEW guard violation(s), not covered by scripts/guard-baseline.json:
+  - [SI-resolution] packages/agent-plugins/cloudflare/lib/forms.mjs: ./cloudflare/form-destinations/cloudflare-d1.mjs: cannot resolve ./cms-forms.mjs
+  - [SI-resolution] packages/agent-plugins/cloudflare/lib/forms.mjs: ./cloudflare/lib/forms.mjs: cannot resolve ./cms-forms.mjs
+  - [SI-resolution] packages/agent-plugins/cloudflare/lib/forms.mjs: ./cloudflare/lib/target.mjs: cannot resolve ./cms-forms.mjs
+  - [SI-resolution] packages/agent-plugins/cloudflare/lib/forms.mjs: ./cloudflare/lib/workers-upload.mjs: cannot resolve ./cms-forms.mjs
+  - [SI-resolution] packages/agent-plugins/cloudflare/lib/forms.mjs: ./cloudflare/targets/cloudflare-pages.mjs: cannot resolve ./cms-forms.mjs
+  - [SI-resolution] packages/agent-plugins/cloudflare/lib/forms.mjs: ./cloudflare/targets/cloudflare-workers.mjs: cannot resolve ./cms-forms.mjs
+  - [SI-resolution] packages/agent-plugins/cloudflare/worker/forms-receiver.mjs: ./cloudflare/worker/forms-receiver.mjs: cannot resolve ./portable-validation.mjs
+  - [R10-chatpane-public-surface] packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports "Icon" from "../../../components/Icon.js" (resolves outside features/chat-pane/**), but "Icon" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+  - [R13-model-fallback-freshness] packages/agent-runtime/src/defs/claude.ts: could not load the def module (Cannot find package '@jini-ai/platform' imported from /home/user/cmb/Jini/packages/agent-runtime/src/claude-filesystem-policy.ts
+Did you mean to import "file:///home/user/Jini/packages/platform/dist/fs/guarded-reader.js"?)
+  - [R13-model-fallback-freshness] packages/agent-runtime/src/defs/codex.ts: could not load the def module (Cannot find package '@jini-ai/platform' imported from /home/user/cmb/Jini/packages/agent-runtime/src/model-discovery-adapters.ts
+Did you mean to import "file:///home/user/Jini/packages/platform/dist/command.js"?)
+  - [R13-model-fallback-freshness] packages/agent-runtime/src/defs/antigravity/index.ts: could not load the def module (Cannot find package '@jini-ai/platform' imported from /home/user/cmb/Jini/packages/agent-runtime/src/model-discovery-adapters.ts
+Did you mean to import "file:///home/user/Jini/packages/platform/dist/command.js"?)
+  - [R13-model-fallback-freshness] packages/agent-runtime/src/defs/pi.ts: could not load the def module (Cannot find package '@jini-ai/platform' imported from /home/user/cmb/Jini/packages/agent-runtime/src/model-discovery-adapters.ts
+Did you mean to import "file:///home/user/Jini/packages/platform/dist/command.js"?)
+  - [R13-model-fallback-freshness] packages/agent-runtime/src/defs/aider.ts: could not load the def module (Cannot find package '@jini-ai/platform' imported from /home/user/cmb/Jini/packages/agent-runtime/src/model-discovery-adapters.ts
+Did you mean to import "file:///home/user/Jini/packages/platform/dist/command.js"?)
+  - [R13-model-fallback-freshness] packages/agent-runtime/src/defs/opencode.ts: could not load the def module (Cannot find package '@jini-ai/platform' imported from /home/user/cmb/Jini/packages/agent-runtime/src/model-discovery-adapters.ts
+Did you mean to import "file:///home/user/Jini/packages/platform/dist/command.js"?)
+
+Fix the violation, or — only if it is genuinely intentional — add it to scripts/guard-baseline.json with a justification in an update to that file's own _comment.
