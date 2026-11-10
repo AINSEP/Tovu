@@ -1,0 +1,2998 @@
+{
+"total": {
+"lines": {
+"total": 8333,
+"covered": 6742,
+"skipped": 0,
+"pct": 80.9
+},
+"statements": {
+"total": 8333,
+"covered": 6742,
+"skipped": 0,
+"pct": 80.9
+},
+"functions": {
+"total": 788,
+"covered": 689,
+"skipped": 0,
+"pct": 87.43
+},
+"branches": {
+"total": 3016,
+"covered": 2885,
+"skipped": 0,
+"pct": 95.65
+},
+"branchesTrue": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/args.ts": {
+"lines": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/argument-error.ts": {
+"lines": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/access-token.ts": {
+"lines": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/account-actions.ts": {
+"lines": {
+"total": 83,
+"covered": 83,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 9,
+"covered": 9,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 83,
+"covered": 83,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 59,
+"covered": 59,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/attempt-state.ts": {
+"lines": {
+"total": 53,
+"covered": 53,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 53,
+"covered": 53,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/authorization.ts": {
+"lines": {
+"total": 91,
+"covered": 91,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 9,
+"covered": 9,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 91,
+"covered": 91,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 50,
+"covered": 50,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/budgets.ts": {
+"lines": {
+"total": 60,
+"covered": 52,
+"skipped": 0,
+"pct": 86.66
+},
+"functions": {
+"total": 8,
+"covered": 7,
+"skipped": 0,
+"pct": 87.5
+},
+"statements": {
+"total": 60,
+"covered": 52,
+"skipped": 0,
+"pct": 86.66
+},
+"branches": {
+"total": 23,
+"covered": 15,
+"skipped": 0,
+"pct": 65.21
+}
+},
+"Jini/packages/integrations/src/api-connections/byo-client.ts": {
+"lines": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 16,
+"covered": 16,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/connect.ts": {
+"lines": {
+"total": 103,
+"covered": 3,
+"skipped": 0,
+"pct": 2.91
+},
+"functions": {
+"total": 8,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 103,
+"covered": 3,
+"skipped": 0,
+"pct": 2.91
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/declarations.ts": {
+"lines": {
+"total": 110,
+"covered": 101,
+"skipped": 0,
+"pct": 91.81
+},
+"functions": {
+"total": 17,
+"covered": 13,
+"skipped": 0,
+"pct": 76.47
+},
+"statements": {
+"total": 110,
+"covered": 101,
+"skipped": 0,
+"pct": 91.81
+},
+"branches": {
+"total": 71,
+"covered": 52,
+"skipped": 0,
+"pct": 73.23
+}
+},
+"Jini/packages/integrations/src/api-connections/deps.ts": {
+"lines": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/descriptor.ts": {
+"lines": {
+"total": 85,
+"covered": 85,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 85,
+"covered": 85,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 59,
+"covered": 59,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/errors.ts": {
+"lines": {
+"total": 18,
+"covered": 18,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 18,
+"covered": 18,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/finish-authorization.ts": {
+"lines": {
+"total": 89,
+"covered": 89,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 89,
+"covered": 89,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 58,
+"covered": 58,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/hook-http.ts": {
+"lines": {
+"total": 15,
+"covered": 15,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 15,
+"covered": 15,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/host-ports.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/host.ts": {
+"lines": {
+"total": 208,
+"covered": 2,
+"skipped": 0,
+"pct": 0.96
+},
+"functions": {
+"total": 13,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 208,
+"covered": 2,
+"skipped": 0,
+"pct": 0.96
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/hosted-sign-in.ts": {
+"lines": {
+"total": 34,
+"covered": 34,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 34,
+"covered": 34,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 19,
+"covered": 19,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/index.ts": {
+"lines": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/install-credential.ts": {
+"lines": {
+"total": 13,
+"covered": 13,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 13,
+"covered": 13,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/keys.ts": {
+"lines": {
+"total": 17,
+"covered": 17,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 17,
+"covered": 17,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 9,
+"covered": 9,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/oauth-capabilities.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/ports.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/records.ts": {
+"lines": {
+"total": 35,
+"covered": 35,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 35,
+"covered": 35,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/request-checks.ts": {
+"lines": {
+"total": 51,
+"covered": 51,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 51,
+"covered": 51,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/service.ts": {
+"lines": {
+"total": 14,
+"covered": 14,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 14,
+"covered": 14,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/shared.ts": {
+"lines": {
+"total": 86,
+"covered": 86,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 86,
+"covered": 86,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 51,
+"covered": 43,
+"skipped": 0,
+"pct": 84.31
+}
+},
+"Jini/packages/integrations/src/api-connections/status.ts": {
+"lines": {
+"total": 27,
+"covered": 27,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 27,
+"covered": 27,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 17,
+"covered": 17,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/types.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/hosted-mcp/contracts.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/hosted-mcp/index.ts": {
+"lines": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"functions": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"branches": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+}
+},
+"Jini/packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts": {
+"lines": {
+"total": 255,
+"covered": 164,
+"skipped": 0,
+"pct": 64.31
+},
+"functions": {
+"total": 39,
+"covered": 19,
+"skipped": 0,
+"pct": 48.71
+},
+"statements": {
+"total": 255,
+"covered": 164,
+"skipped": 0,
+"pct": 64.31
+},
+"branches": {
+"total": 62,
+"covered": 24,
+"skipped": 0,
+"pct": 38.7
+}
+},
+"Jini/packages/integrations/src/api-connections/hosted-mcp/sign-in.ts": {
+"lines": {
+"total": 571,
+"covered": 22,
+"skipped": 0,
+"pct": 3.85
+},
+"functions": {
+"total": 37,
+"covered": 4,
+"skipped": 0,
+"pct": 10.81
+},
+"statements": {
+"total": 571,
+"covered": 22,
+"skipped": 0,
+"pct": 3.85
+},
+"branches": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/token-store/errors.ts": {
+"lines": {
+"total": 30,
+"covered": 30,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 30,
+"covered": 30,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/token-store/index.ts": {
+"lines": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/token-store/record.ts": {
+"lines": {
+"total": 75,
+"covered": 75,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 75,
+"covered": 75,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 63,
+"covered": 63,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/api-connections/token-store/vault-token-store.ts": {
+"lines": {
+"total": 151,
+"covered": 151,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 19,
+"covered": 19,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 151,
+"covered": 151,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 112,
+"covered": 112,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/contracts/credentialed-request-errors.ts": {
+"lines": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/auth-schemes.ts": {
+"lines": {
+"total": 45,
+"covered": 45,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 45,
+"covered": 45,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/credentialed-request.ts": {
+"lines": {
+"total": 305,
+"covered": 304,
+"skipped": 0,
+"pct": 99.67
+},
+"functions": {
+"total": 35,
+"covered": 35,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 305,
+"covered": 304,
+"skipped": 0,
+"pct": 99.67
+},
+"branches": {
+"total": 169,
+"covered": 168,
+"skipped": 0,
+"pct": 99.4
+}
+},
+"Jini/packages/integrations/src/credentialed-http/index.ts": {
+"lines": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/ports.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/response-redaction.ts": {
+"lines": {
+"total": 47,
+"covered": 47,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 47,
+"covered": 47,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/sets/host.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/sets/index.ts": {
+"lines": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/sets/store.ts": {
+"lines": {
+"total": 262,
+"covered": 151,
+"skipped": 0,
+"pct": 57.63
+},
+"functions": {
+"total": 33,
+"covered": 23,
+"skipped": 0,
+"pct": 69.69
+},
+"statements": {
+"total": 262,
+"covered": 151,
+"skipped": 0,
+"pct": 57.63
+},
+"branches": {
+"total": 85,
+"covered": 40,
+"skipped": 0,
+"pct": 47.05
+}
+},
+"Jini/packages/integrations/src/credentialed-http/sets/vault-repo.ts": {
+"lines": {
+"total": 107,
+"covered": 67,
+"skipped": 0,
+"pct": 62.61
+},
+"functions": {
+"total": 16,
+"covered": 10,
+"skipped": 0,
+"pct": 62.5
+},
+"statements": {
+"total": 107,
+"covered": 67,
+"skipped": 0,
+"pct": 62.61
+},
+"branches": {
+"total": 36,
+"covered": 28,
+"skipped": 0,
+"pct": 77.77
+}
+},
+"Jini/packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts": {
+"lines": {
+"total": 83,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"functions": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 83,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"branches": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+}
+},
+"Jini/packages/integrations/src/credentialed-http/tools/credential-tool-host.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/tools/credential-tool-operations.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/credentialed-http/tools/index.ts": {
+"lines": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"functions": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"branches": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+}
+},
+"Jini/packages/integrations/src/credentialed-http/tools/tool-registrations.ts": {
+"lines": {
+"total": 391,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"functions": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 391,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"branches": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+}
+},
+"Jini/packages/integrations/src/media-providers/capability-registry.ts": {
+"lines": {
+"total": 19,
+"covered": 19,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 19,
+"covered": 19,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/catalog.ts": {
+"lines": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/index.ts": {
+"lines": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/policy.ts": {
+"lines": {
+"total": 29,
+"covered": 29,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 29,
+"covered": 29,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 19,
+"covered": 19,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/providers.ts": {
+"lines": {
+"total": 208,
+"covered": 208,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 208,
+"covered": 208,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/seed.ts": {
+"lines": {
+"total": 96,
+"covered": 96,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 96,
+"covered": 96,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/sqlite-driver.adapter.ts": {
+"lines": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/sqlite-task-store.ts": {
+"lines": {
+"total": 133,
+"covered": 133,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 133,
+"covered": 133,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 49,
+"covered": 49,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/staging.ts": {
+"lines": {
+"total": 107,
+"covered": 107,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 9,
+"covered": 9,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 107,
+"covered": 107,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 62,
+"covered": 62,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/task-lifecycle.ts": {
+"lines": {
+"total": 98,
+"covered": 98,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 98,
+"covered": 98,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 50,
+"covered": 50,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/task-store.ts": {
+"lines": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 28,
+"covered": 28,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/tokens.ts": {
+"lines": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/ui-defaults.ts": {
+"lines": {
+"total": 130,
+"covered": 130,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 130,
+"covered": 130,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/video-request.ts": {
+"lines": {
+"total": 184,
+"covered": 184,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 22,
+"covered": 22,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 184,
+"covered": 184,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 127,
+"covered": 127,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/async-operation-store.ts": {
+"lines": {
+"total": 238,
+"covered": 238,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 238,
+"covered": 238,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 107,
+"covered": 107,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/builtin-vendors.ts": {
+"lines": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/context.ts": {
+"lines": {
+"total": 34,
+"covered": 34,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 34,
+"covered": 34,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 23,
+"covered": 23,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/credentials.ts": {
+"lines": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/engine.ts": {
+"lines": {
+"total": 130,
+"covered": 130,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 130,
+"covered": 130,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 73,
+"covered": 73,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/index.ts": {
+"lines": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/media-provider-registry.ts": {
+"lines": {
+"total": 106,
+"covered": 106,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 22,
+"covered": 22,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 106,
+"covered": 106,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 84,
+"covered": 84,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/node.ts": {
+"lines": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/openai-compatible.ts": {
+"lines": {
+"total": 174,
+"covered": 174,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 21,
+"covered": 21,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 174,
+"covered": 174,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 97,
+"covered": 97,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/operation-runtime.ts": {
+"lines": {
+"total": 244,
+"covered": 244,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 14,
+"covered": 14,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 244,
+"covered": 244,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 86,
+"covered": 86,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/outbound.ts": {
+"lines": {
+"total": 44,
+"covered": 44,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 44,
+"covered": 44,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 22,
+"covered": 22,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/polling-adapter.ts": {
+"lines": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/response-parsers.ts": {
+"lines": {
+"total": 69,
+"covered": 69,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 69,
+"covered": 69,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 32,
+"covered": 32,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts": {
+"lines": {
+"total": 127,
+"covered": 127,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 127,
+"covered": 127,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 39,
+"covered": 39,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/ssrf-guard.ts": {
+"lines": {
+"total": 75,
+"covered": 75,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 75,
+"covered": 75,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 46,
+"covered": 46,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/stub.ts": {
+"lines": {
+"total": 85,
+"covered": 85,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 85,
+"covered": 85,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 26,
+"covered": 26,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/vendor-adapter.ts": {
+"lines": {
+"total": 15,
+"covered": 15,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 15,
+"covered": 15,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/vendor-registry-core.ts": {
+"lines": {
+"total": 29,
+"covered": 29,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 29,
+"covered": 29,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 13,
+"covered": 13,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/vendor-registry.ts": {
+"lines": {
+"total": 37,
+"covered": 37,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 37,
+"covered": 37,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/aihubmix-shared.ts": {
+"lines": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 31,
+"covered": 31,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/aihubmix.ts": {
+"lines": {
+"total": 146,
+"covered": 146,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 146,
+"covered": 146,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/custom-image.ts": {
+"lines": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 67,
+"covered": 67,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 30,
+"covered": 30,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/elevenlabs.ts": {
+"lines": {
+"total": 124,
+"covered": 124,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 124,
+"covered": 124,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 29,
+"covered": 29,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/fishaudio.ts": {
+"lines": {
+"total": 53,
+"covered": 53,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 53,
+"covered": 53,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/grok.ts": {
+"lines": {
+"total": 82,
+"covered": 82,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 82,
+"covered": 82,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 16,
+"covered": 16,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/imagerouter-video-async.ts": {
+"lines": {
+"total": 95,
+"covered": 95,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 95,
+"covered": 95,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 45,
+"covered": 45,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/imagerouter.ts": {
+"lines": {
+"total": 100,
+"covered": 100,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 100,
+"covered": 100,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/minimax.ts": {
+"lines": {
+"total": 56,
+"covered": 56,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 3,
+"covered": 3,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 56,
+"covered": 56,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 13,
+"covered": 13,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/nanobanana.ts": {
+"lines": {
+"total": 94,
+"covered": 94,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 94,
+"covered": 94,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 38,
+"covered": 38,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/openai.ts": {
+"lines": {
+"total": 138,
+"covered": 138,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 138,
+"covered": 138,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 47,
+"covered": 47,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/openrouter.ts": {
+"lines": {
+"total": 85,
+"covered": 85,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 85,
+"covered": 85,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/senseaudio.ts": {
+"lines": {
+"total": 141,
+"covered": 141,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 9,
+"covered": 9,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 141,
+"covered": 141,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 50,
+"covered": 50,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/media-providers/dispatch/providers/volcengine.ts": {
+"lines": {
+"total": 45,
+"covered": 45,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 4,
+"covered": 4,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 45,
+"covered": 45,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/definition.ts": {
+"lines": {
+"total": 70,
+"covered": 70,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 70,
+"covered": 70,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 29,
+"covered": 29,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/execute.ts": {
+"lines": {
+"total": 74,
+"covered": 74,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 74,
+"covered": 74,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 40,
+"covered": 40,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/index.ts": {
+"lines": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/projection.ts": {
+"lines": {
+"total": 38,
+"covered": 38,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 38,
+"covered": 38,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 23,
+"covered": 23,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/schema.ts": {
+"lines": {
+"total": 62,
+"covered": 62,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 62,
+"covered": 62,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 33,
+"covered": 33,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/types.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/saved-requests/validation.ts": {
+"lines": {
+"total": 53,
+"covered": 53,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 53,
+"covered": 53,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 28,
+"covered": 28,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/delivery.ts": {
+"lines": {
+"total": 241,
+"covered": 241,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 11,
+"covered": 11,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 241,
+"covered": 241,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 65,
+"covered": 65,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/index.ts": {
+"lines": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/ports.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/signing.keyring.ts": {
+"lines": {
+"total": 13,
+"covered": 13,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 13,
+"covered": 13,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/signing.ts": {
+"lines": {
+"total": 63,
+"covered": 63,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 63,
+"covered": 63,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 39,
+"covered": 39,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/subscriptions.ts": {
+"lines": {
+"total": 139,
+"covered": 139,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 6,
+"covered": 6,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 139,
+"covered": 139,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 40,
+"covered": 40,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/types.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/integrations/src/webhooks/worker.ts": {
+"lines": {
+"total": 66,
+"covered": 66,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 14,
+"covered": 14,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 66,
+"covered": 66,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 32,
+"covered": 32,
+"skipped": 0,
+"pct": 100
+}
+}
+}

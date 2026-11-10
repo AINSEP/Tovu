@@ -33,7 +33,7 @@ for p in sorted(glob.glob(S+'/tovu-0*.lcov')):
     cur=None
     for l in open(p):
         l=l.strip()
-        if l.startswith('SF:'): cur=lc.setdefault(l[3:],{})
+        if l.startswith('SF:'): cur=lc.setdefault(os.path.normpath(os.path.join('/home/user/Tovu',l[3:])),{})
         elif l.startswith('DA:') and cur is not None:
             a,b=l[3:].split(',')[:2]; a=int(a); b=int(b); cur[a]=max(cur.get(a,0),b)
 sel={}

@@ -1,0 +1,49 @@
+import os,re,subprocess
+S=os.path.dirname(os.path.abspath(__file__))
+rows=[l.rstrip('\n').split('\t') for l in open(S+'/results.tsv')]
+moved={}
+for l in open(S+'/moved-old-cov.tsv'):
+    j,o,r=l.rstrip('\n').split('\t'); moved[j]=(o,r)
+def pct(r): return int(r[3])/int(r[2])*100 if r[2] not in ('','0') else None
+meas=[r for r in rows if r[2] not in ('',) and r[2]!='0']
+zero=[r for r in rows if r[2]=='0']
+full=[r for r in meas if r[3]==r[2]]
+below=sorted([r for r in meas if r[3]!=r[2]], key=lambda r:(-(int(r[2])-int(r[3])), r[1]))
+notm=[r for r in rows if r[2]=='']
+out=[]
+dh={}
+for l in open(S+'/dist-hits.tsv'):
+    a,b=l.rstrip('\n').split('\t'); dh[a]=b
+def tbl(rs, extra=False):
+    if extra:
+        out.append('| # | repo | path | lines | covered % | uncovered | uncovered line ranges | Tovu-run hits on Jini `dist` .js (indicative) |')
+        out.append('|---:|---|---|---:|---:|---:|---|---|')
+    else:
+        out.append('| repo | path | lines | covered % | uncovered | uncovered line ranges |')
+        out.append('|---|---|---:|---:|---:|---|')
+    for i,r in enumerate(rs,1):
+        base=f"| {r[0]} | `{r[1]}` | {r[2]} | {pct(r):.1f} | {int(r[2])-int(r[3])} | {r[4] or '—'} |"
+        if extra: out.append(f"| {i} " + base + (f" {dh.get(r[1],'-')} |" if r[0]=='jini' else ' n/a |'))
+        else: out.append(base)
+open(S+'/sections.md','w')
+import json
+json.dump({'full':len(full),'below':len(below),'notm':len(notm),'zero':len(zero)},open(S+'/counts.json','w'))
+out.append(f"## Files below 100% lines ({len(below)}), sorted by uncovered line count\n")
+tbl(below, True)
+out.append(f"\n## Files at 100% lines ({len(full)})\n")
+tbl(sorted(full,key=lambda r:(r[0],r[1])))
+out.append(f"\n## Files not measured ({len(notm)+len(zero)})\n")
+out.append('| repo | path | reason |'); out.append('|---|---|---|')
+for r in sorted(notm+zero,key=lambda r:(r[0],r[1])): out.append(f"| {r[0]} | `{r[1]}` | {r[5]} |")
+out.append(f"\n## Moved files: Jini file → old Tovu path at combine (7cf9658e5) and the committed result for it\n")
+out.append('Committed result source: Tovu `ADS-memory/reports/2026-10-16-sweep-c2/COVERAGE.md` (table of files below 100% lines+branches) and `NEVER-LOADED.txt`, both present at combine. No committed coverage artifact (lcov/json) for real source exists in either repo at combine; Jini has only test fixtures.\n')
+out.append('| Jini file | old Tovu path at combine | committed result for old path | Jini lines % now |'); out.append('|---|---|---|---|')
+byj={r[1]:r for r in rows if r[0]=='jini'}
+for j,(o,r) in sorted(moved.items()):
+    if o.startswith('('): continue
+    jr=byj.get(j); now = (f"{pct(jr):.1f}" if jr and jr[2] not in ('','0') else ('types/re-export only' if not jr else 'not measured'))
+    out.append(f"| `{j}` | `{o}` | {r} | {now} |")
+nm=[j for j,(o,r) in moved.items() if o.startswith('(')]
+out.append(f"\nAdded Jini files with no matching Tovu source at combine (new code, not moved; {len(nm)}): " + ', '.join(f'`{j}`' for j in sorted(nm)))
+open(S+'/sections.md','w').write('\n'.join(out)+'\n')
+print(len(full),len(below),len(notm),len(zero))

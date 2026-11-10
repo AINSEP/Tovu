@@ -1,0 +1,606 @@
+{
+"total": {
+"lines": {
+"total": 1137,
+"covered": 679,
+"skipped": 0,
+"pct": 59.71
+},
+"statements": {
+"total": 1137,
+"covered": 679,
+"skipped": 0,
+"pct": 59.71
+},
+"functions": {
+"total": 132,
+"covered": 75,
+"skipped": 0,
+"pct": 56.81
+},
+"branches": {
+"total": 423,
+"covered": 354,
+"skipped": 0,
+"pct": 83.68
+},
+"branchesTrue": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": "Unknown"
+}
+},
+"Jini/packages/devops/src/deploy/config-contracts.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/config-descriptors.ts": {
+"lines": {
+"total": 62,
+"covered": 60,
+"skipped": 0,
+"pct": 96.77
+},
+"functions": {
+"total": 10,
+"covered": 10,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 62,
+"covered": 60,
+"skipped": 0,
+"pct": 96.77
+},
+"branches": {
+"total": 49,
+"covered": 42,
+"skipped": 0,
+"pct": 85.71
+}
+},
+"Jini/packages/devops/src/deploy/host-kit.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/index.ts": {
+"lines": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/naming.ts": {
+"lines": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 12,
+"covered": 12,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/node.ts": {
+"lines": {
+"total": 38,
+"covered": 38,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 7,
+"covered": 7,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 38,
+"covered": 38,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 28,
+"covered": 28,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/ops-contracts.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/ops-descriptors.ts": {
+"lines": {
+"total": 52,
+"covered": 52,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 52,
+"covered": 52,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 50,
+"covered": 45,
+"skipped": 0,
+"pct": 90
+}
+},
+"Jini/packages/devops/src/deploy/ops-registry.ts": {
+"lines": {
+"total": 9,
+"covered": 2,
+"skipped": 0,
+"pct": 22.22
+},
+"functions": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 9,
+"covered": 2,
+"skipped": 0,
+"pct": 22.22
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/ops-runner.ts": {
+"lines": {
+"total": 212,
+"covered": 17,
+"skipped": 0,
+"pct": 8.01
+},
+"functions": {
+"total": 24,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 212,
+"covered": 17,
+"skipped": 0,
+"pct": 8.01
+},
+"branches": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+}
+},
+"Jini/packages/devops/src/deploy/ops-secret-card.ts": {
+"lines": {
+"total": 47,
+"covered": 1,
+"skipped": 0,
+"pct": 2.12
+},
+"functions": {
+"total": 1,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 47,
+"covered": 1,
+"skipped": 0,
+"pct": 2.12
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/ops-secrets.ts": {
+"lines": {
+"total": 134,
+"covered": 7,
+"skipped": 0,
+"pct": 5.22
+},
+"functions": {
+"total": 22,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 134,
+"covered": 7,
+"skipped": 0,
+"pct": 5.22
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/ops-tool-contracts.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/ops-tools.ts": {
+"lines": {
+"total": 82,
+"covered": 7,
+"skipped": 0,
+"pct": 8.53
+},
+"functions": {
+"total": 9,
+"covered": 0,
+"skipped": 0,
+"pct": 0
+},
+"statements": {
+"total": 82,
+"covered": 7,
+"skipped": 0,
+"pct": 8.53
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/publish-jobs.ts": {
+"lines": {
+"total": 51,
+"covered": 51,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 8,
+"covered": 8,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 51,
+"covered": 51,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 44,
+"covered": 35,
+"skipped": 0,
+"pct": 79.54
+}
+},
+"Jini/packages/devops/src/deploy/reachability.ts": {
+"lines": {
+"total": 170,
+"covered": 170,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 14,
+"covered": 14,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 170,
+"covered": 170,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 90,
+"covered": 90,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/redirect-guard.ts": {
+"lines": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/target-contracts.ts": {
+"lines": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/target-descriptors.ts": {
+"lines": {
+"total": 193,
+"covered": 187,
+"skipped": 0,
+"pct": 96.89
+},
+"functions": {
+"total": 20,
+"covered": 20,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 193,
+"covered": 187,
+"skipped": 0,
+"pct": 96.89
+},
+"branches": {
+"total": 137,
+"covered": 90,
+"skipped": 0,
+"pct": 65.69
+}
+},
+"Jini/packages/devops/src/deploy/tokens.ts": {
+"lines": {
+"total": 15,
+"covered": 15,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 1,
+"covered": 1,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 15,
+"covered": 15,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/tool.ts": {
+"lines": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 5,
+"covered": 5,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 36,
+"covered": 36,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 17,
+"covered": 17,
+"skipped": 0,
+"pct": 100
+}
+},
+"Jini/packages/devops/src/deploy/types.ts": {
+"lines": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"functions": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+},
+"statements": {
+"total": 2,
+"covered": 2,
+"skipped": 0,
+"pct": 100
+},
+"branches": {
+"total": 0,
+"covered": 0,
+"skipped": 0,
+"pct": 100
+}
+}
+}

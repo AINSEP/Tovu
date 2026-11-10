@@ -1,2 +1,3 @@
 # cwd: packages/integrations
 # cmd: npx vitest run  --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcov --coverage.reportOnFailure=true --coverage.reportsDirectory=<scratch>/cov/integrations  --maxWorkers=2 --minWorkers=1
+# exit=1 secs=47

@@ -100,3 +100,4 @@
  ✓ src/__tests__/tools/restore-points.test.ts (9 tests) 11ms
  ✓ src/__tests__/tools/timeline.test.ts (8 tests) 10ms
  ✓ src/pglite/__tests__/socket-server.characterization.test.ts (7 tests) 5477ms
+# exit=1 secs=232
