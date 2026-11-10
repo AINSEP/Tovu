@@ -144,7 +144,7 @@ Results: `tsc --noEmit -p tsconfig.json` exit 0, with no output. `type-cycles.te
 |---|---|---|---|
 | Jini `packages/agent-plugins` full vitest (`--maxWorkers=2 --minWorkers=1`) | 0 | 125 files; **1651 passed, 2 skipped** (1653) | `gate-jini-agent-plugins.txt` |
 | Jini `pnpm test:agent-plugins:content` | 0 | **1406/1406** | `gate-jini-agent-plugins-content.txt` |
-| Jini `pnpm check:cross-package` (XP1–XP5) | see below | see below | `gate-jini-cross-package*.txt`, `xp3-snapshot.txt` |
+| Jini `pnpm check:cross-package` (XP1–XP5), with `JINI_DECLARATION_BASELINE_DIR` set | 0 | **"XP1–XP5 clean"** | `gate-jini-cross-package-xp3.txt`, `xp3-snapshot.txt` |
 | Tovu `content/agent-plugin-overlays/**/__tests__` (node:test, `--test-concurrency=1`) | 0 | **444/444** | `gate-tovu-overlay-tests.txt` |
 | Tovu `apps/website/src/features/agent-plugins/__tests__/unit/**` | 0 | 1161 tests: **1157 pass, 0 fail, 4 skipped** | `gate-tovu-agent-plugins-unit.txt` |
 | Tovu lint (`biome lint . --max-diagnostics=none --diagnostic-level=error`) | 1 | **600 errors**. Per-file counts are identical to X2-F's 600 (`gate-tovu-lint-perfile-vs-x2f.txt` is empty), and X2-F was 0 new against combine's 607, so **0 new**. Neither new test file has a diagnostic. | `gate-tovu-lint.txt`, `.keys` |
@@ -152,7 +152,16 @@ Results: `tsc --noEmit -p tsconfig.json` exit 0, with no output. `type-cycles.te
 
 **Lint errors.** All 600 are prior. None is in a file this job touched. Every error is listed in `gate-tovu-lint.txt`, and per file and rule in `gate-tovu-lint.txt.keys`.
 
-**Cross-package.** XP3_PLACEHOLDER
+**Cross-package.** The XP3 snapshot was rebuilt as S10 describes:
+- a clean clone at `35c4961af718f0f30591c46d2ea2756c4484a731`
+- `pnpm install --frozen-lockfile`, the core build, then the recursive build, each exit 0
+- the current script run by absolute path with `--write-baseline`, giving "3308 source mappings"
+- `manifest.json` SHA-256 `d836eba0b0e29efb9fe2e79f8a1c2f61655190008d70e74c0c86ae518728d459`, which matches S10
+
+Three runs, in order:
+1. **Without the baseline variable** (`gate-jini-cross-package.txt`): exit 1. All 74 lines are XP3 `Error: absolute JINI_DECLARATION_BASELINE_DIR required`. These are setup errors; XP3 had no baseline to compare against.
+2. **With the variable, before rebuilding agent-plugins**: exit 1, with one finding: `XP3 packages/agent-plugins/src/lifecycle/contribution-types.ts: Error: ENOENT … dist/lifecycle/contribution-types.d.ts`. The new file had no declaration output yet.
+3. **After `pnpm --filter @jini-ai/agent-plugins build` (exit 0)**: exit 0, "XP1–XP5 clean".
 
 **Tovu agent-plugins unit skips.** These are the suite's own conditional skips; this job added none:
 - "a publication permission failure without a concurrent winner is still rejected": requires Unix write permissions enforced for a non-root user.
@@ -162,7 +171,7 @@ Results: `tsc --noEmit -p tsconfig.json` exit 0, with no output. `type-cycles.te
 
 ## Last green pair
 
-Tovu `TOVU_LAST` / Jini `ebc1e0c5`.
+Jini `ebc1e0c5` with Tovu at the commit holding this report on `cloud/extract-s10`, which is the tip after `2ecdbf7e`. Every gate above ran on this pair, except that the Tovu gates ran before the report-only commits.
 
 ## Processes
 

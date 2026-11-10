@@ -1,3 +1,6 @@
 35c4961a docs(db): add agent-notes to the data-module host contracts
 install 0
 core build 0
+recursive build 0
+declaration baseline: 35c4961af718f0f30591c46d2ea2756c4484a731; 3308 source mappings; /tmp/claude-0/s/xp3-baseline
+write-baseline 0
