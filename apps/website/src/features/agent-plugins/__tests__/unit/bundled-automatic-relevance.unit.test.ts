@@ -42,7 +42,8 @@ for (const [query, expected] of [
     const candidates = await bundledCandidates();
     const rank = ({ query, candidates, limit }: { query: string; candidates: readonly AgentPluginSearchCandidate[]; limit: number }) =>
       rankInstalledAgentPlugins(query, candidates, limit, { automatic: true });
-    assert.deepEqual(rank({ query, candidates, limit: 12 }).map(plugin => plugin.pluginId).sort(), [...expected].sort());
+    const ranked = rank({ query, candidates, limit: 12 }).map(plugin => plugin.pluginId);
+    assert.deepEqual([...ranked].sort(), [...expected].sort());
     const loaded: string[] = [];
     const controller = createAutomaticAgentPluginUse({ mode: 'auto', ports: {
       formatPluginToolPointer,
@@ -51,9 +52,9 @@ for (const [query, expected] of [
       ask: async () => { throw new Error('Auto must not ask'); },
       saveAuto: async () => {}, publish: async () => {},
     } });
-    // Auto discloses relevant plugins in a note; guidance loads only on demand or at the write backstop.
+    // Jini 3665df68: Auto delivers the top-ranked plugin's guidance in full and discloses the rest in a note.
     const note = await controller.prepare({ query });
-    assert.deepEqual([...note.matchAll(/\(([^()\s]+)\) — /g)].map(match => match[1]).sort(), [...expected].sort());
-    assert.deepEqual(loaded, []);
+    assert.deepEqual([...note.matchAll(/\(([^()\s]+)\) — /g)].map(match => match[1]).sort(), ranked.slice(1).sort());
+    assert.deepEqual(loaded, ranked.slice(0, 1));
   });
 }
