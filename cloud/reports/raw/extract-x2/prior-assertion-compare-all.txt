@@ -1,0 +1,37 @@
+SAME	apps/website/src/server/__tests__/routes/forms-submit.test.ts::POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response
+SAME	apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts::../../../inbound/assistant/agent-daemon-server.ts: desktop accepts 
+SAME	apps/website/src/server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts::createSiteApp() on a SQLite composition adds no second c
+SAME	apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts::a refused parked mutation waits for replacement and is dispatched once
+SAME	apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts::a passive frontend stream cannot wake a daemon racing park
+SAME	apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts::handlebars-worker.ts source graph contains no @jini-ai package roots, includi
+SAME	apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts::handlebars-worker.ts loads no database, blob-store or agent packages
+SAME	apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts::liquid-worker.ts source graph contains no @jini-ai package roots, including d
+SAME	apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts::liquid-worker.ts loads no database, blob-store or agent packages
+SAME	apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.integration.test.ts::a committed write whose response is dropped is OUTCOME UNKNOWN, ran
+SAME	development/scripts/__tests__/bundled-agent-plugin-selection.test.ts::the composed bundled id set is pinned, and no id ships from both content and a package
+SAME	development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts::web dev CLI attaches to the selected running site and opens its admin URL
+SAME	development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts::desktop dev CLI builds preload before watching and forwards Electron flags on normal exit
+SAME	apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts::an accepted memory-mode answer reaches CLI launch through the sit
+SAME	apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts::every surfaceExchanges.open(...) call names a toolId constant this scan can resolve
+SAME	apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts::no generic seam file names the first provider
+SAME	apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts::no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+SAME	apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts::a project store that can't open (EACCES on its folder): the site boot
+SAME	apps/website/src/server/runtime/composition/__tests__/storage-secret.unit.test.ts::new-site sealing prepares its identified key file and the default reader reopens it
+SAME	apps/website/src/server/runtime/composition/modules/__tests__/route-modules.unit.test.ts::module 'forms-admin': registers exactly its routes, in order, and nothing else
+SAME	apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts::tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches t
+SAME	apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts::tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions
+DIFF	apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts::real core tree has only reviewed pattern exceptions, each with its exac
+   was- +   'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1',
+SAME	apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts::boot redemption rejects a missing owner before minting a session
+SAME	apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts::boot redemption rejects a disabled owner before minting a session
+SAME	apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts::boot redemption rejects a member owner before minting a session
+SAME	apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts::boot redemption refuses a minted session that Jini cannot validate before setting a
+SAME	apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts::the real daemon answers component-catalog search, describe, 
+SAME	apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/site-title-preservation.integration.test.ts::AC-12 (REQ-07, T-W3): with the definition regis
+SAME	apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts::a roster change after createApp traces the agent daemon's federation re
+SAME	packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts::SDK external type contracts are declared package dependencies for standalone consumers
+DIFF	development/scripts/__tests__/check-idle-motion.test.ts::the live tree has no idle-CPU offenders and no stale allowlist entries
+   now+ +     line: 979,
+   was- +     line: 994,
+SAME	development/scripts/__tests__/dead-path-sweep.test.ts::dead-path sweep: no path reference outside the known-broken register resolves to nothing
+SAME	development/scripts/__tests__/dead-path-sweep.test.ts::generated coverage artifacts are not reported as dead paths

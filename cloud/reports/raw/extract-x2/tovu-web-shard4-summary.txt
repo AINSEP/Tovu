@@ -1,0 +1,9 @@
+shard4 exit=1 secs=2387 files=390
+# tests 3860
+# suites 50
+# pass 3857
+# fail 1
+# cancelled 0
+# skipped 2
+# todo 0
+# duration_ms 2387294.459773
