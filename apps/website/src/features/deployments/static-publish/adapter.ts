@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployPublishProgress, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
 
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
+import { withDeclaredHosts } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -220,6 +221,8 @@ export interface StaticPublishDeps {
   readonly credentialSource: PublishCredentialSource;
   /** Current public policy supplied by the host; publishing carries it to the target as data. */
   readonly publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+  /** External hosts of enabled plugin exports, added to the site-wide header set a static host applies. */
+  readonly pluginExportHosts?: () => Promise<import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts>;
   /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the only
    *  place a target id, its config fields and its host behavior come from. */
   readonly loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
@@ -542,7 +545,10 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   const forms = await prepareFormDestination({ deps, input });
   if (!forms.ok) return forms.outcome;
   const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
-  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting, deps.publicPageSecurityHeaders);
+  // Report-only data: a catalog read failure must not stop a publish.
+  const hosts = await deps.pluginExportHosts?.().catch(() => undefined);
+  const baseHeaders = deps.publicPageSecurityHeaders ?? (() => publicPageSecurityHeaders({}));
+  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting, () => hosts ? withDeclaredHosts({ headers: baseHeaders(), hosts }) : baseHeaders());
   await saveReceiverKey({ outcome, save: forms.save });
   const reported = publishConsentWarning({ outcome, warning: exportResult.report.consentWarning });
   return finishPublishOutcome({ outcome: reported, credential: credentialResult.credential, target: plan.target });

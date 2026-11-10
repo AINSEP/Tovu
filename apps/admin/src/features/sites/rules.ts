@@ -174,6 +174,12 @@ export function siteNameErrorKey(raw: string): string | null {
   return null;
 }
 
+/** The serving card's reason it offers no Stop; also the server's refusal when the last other site
+ *  stopped between the list read and the click. */
+export const NO_SWITCH_TARGET_KEY = "No other site is running, so there is nothing to switch to. Start another site first.";
+/** Said on the serving card and in its Stop confirmation while a chat runs on that site. */
+export const SERVING_CHAT_WARNING_KEY = "A chat is running on this site. Stopping it will interrupt that chat.";
+
 /** Each write error code this feature has its own copy for, mapped to that English copy key. A
  *  `Map` rather than an object literal so a code that happens to name an `Object.prototype` member
  *  (`toString`, `constructor`) still falls through to the shared fallback. */
@@ -183,6 +189,7 @@ const SITE_WRITE_ERROR_KEYS: ReadonlyMap<string | undefined, string> = new Map([
   ["SITE_LIMIT", "Stop a site before starting another."],
   ["SITE_RUNNING", "Stop this site before moving it to Trash."],
   ["SITE_SERVING", "The serving site cannot be stopped or moved to Trash."],
+  ["SITE_NO_SWITCH_TARGET", NO_SWITCH_TARGET_KEY],
   ["SITE_STOP_FAILED", "The site could not be fully stopped. Try Stop again."],
   ["SITE_START_FAILED", "The site could not start."],
   ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],

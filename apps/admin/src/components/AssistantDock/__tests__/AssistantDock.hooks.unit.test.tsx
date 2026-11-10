@@ -337,13 +337,14 @@ describe("openMcpUiLink", () => {
 
     openMcpUiLink("https://example.com/docs");
 
-    expect(openSpy).toHaveBeenCalledExactlyOnceWith("https://example.com/docs", "_blank", "noopener,noreferrer");
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith("https://example.com/docs", "_blank", "noopener,noreferrer");
   });
 
   it("refuses a javascript: URL — a View cannot run script in this admin origin via a rendered link", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    openMcpUiLink("javascript:alert(document.cookie)");
+    expect(() => openMcpUiLink("javascript:alert(document.cookie)")).toThrow("Could not open the link.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });
@@ -355,32 +356,36 @@ describe("openMcpUiLink", () => {
     "blob:https://admin.example.com/1234",
   ])("refuses a non-https URL: %s", (url) => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
-    openMcpUiLink(url);
+    expect(() => openMcpUiLink(url)).toThrow("Could not open the link.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
-  it("refuses an unparseable URL rather than throwing", () => {
+  it("reports an unparseable URL to the host", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("not a url")).not.toThrow();
+    expect(() => openMcpUiLink("not a url")).toThrow("Could not open the link.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
   // Owner 2026-10-08: every chat link opens a new tab, in-app links included. A View's `<a href="/admin/…">`
   // reaches this handler unresolved (the sandbox proxy is an opaque `data:` document with no base to
   // resolve against), so a root-relative path means this admin's own page.
-  it("opens a root-relative in-app path from a View against this admin's own origin", () => {
+  it.each([
+    "/api/admin/v1/workspaces/ws-1/mcp-servers/widget/oauth/sign-in",
+    `/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/${"a".repeat(43)}`,
+  ])("opens the relative sign-in card path against the admin origin: %s", (url) => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    openMcpUiLink("/admin/pages/x");
+    openMcpUiLink(url);
 
-    expect(openSpy).toHaveBeenCalledExactlyOnceWith(`${window.location.origin}/admin/pages/x`, "_blank", "noopener,noreferrer");
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(`${window.location.origin}${url}`, "_blank", "noopener,noreferrer");
   });
 
   it("refuses a protocol-relative URL — it names another host, not an in-app path", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    openMcpUiLink("//evil.example.com/x");
+    expect(() => openMcpUiLink("//evil.example.com/x")).toThrow("Could not open the link.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });

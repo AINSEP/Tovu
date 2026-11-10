@@ -81,7 +81,17 @@ test("connected but missing a scope the connection now requests: a new sign-in c
   const result = await run(host, { showSignIn: async ({ signInUrl }) => { cards.push(signInUrl); } });
   assert.deepEqual(result, { status: "waiting-for-sign-in", connectionRef });
   assert.equal(cards.length, 1);
-  assert.match(new URL(harness.providerUrl(cards[0]!)).searchParams.get("scope") ?? "", /acme\.audit/);
+  assert.match(new URL(harness.providerUrl(new URL(cards[0]!, harness.siteOrigin).href)).searchParams.get("scope") ?? "", /acme\.audit/);
+});
+
+test("hosted: the card gets only the sign-in hop path while the redirect URI stays absolute", async () => {
+  const cards: string[] = [];
+  const result = await run(harness.makeHost(), { showSignIn: async ({ signInUrl }) => { cards.push(signInUrl); } });
+  assert.equal(result.status, "waiting-for-sign-in");
+  assert.equal(cards.length, 1);
+  assert.match(cards[0]!, /^\/api\/admin\/v1\/workspaces\/ws-1\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
+  const provider = new URL(harness.providerUrl(new URL(cards[0]!, harness.siteOrigin).href));
+  assert.equal(provider.searchParams.get("redirect_uri"), `${harness.siteOrigin}/api/agent-plugins/connections/oauth/callback`);
 });
 
 test("hosted: the call polls the record until the public callback installs a newer credential", async () => {
@@ -90,7 +100,7 @@ test("hosted: the call polls the record until the public callback installs a new
   const result = await run(host, {
     waitTimeoutMs: 5_000,
     // The person finishes consent a little after the card is shown, so the first polls see no new credential.
-    showSignIn: async ({ signInUrl }) => { consented = new Promise((resolve) => { setTimeout(() => resolve(harness.consent(signInUrl)), 50); }); },
+    showSignIn: async ({ signInUrl }) => { consented = new Promise((resolve) => { setTimeout(() => resolve(harness.consent(new URL(signInUrl, harness.siteOrigin).href)), 50); }); },
   });
   assert.equal(result.status, "connected");
   assert.equal(await consented, 200);

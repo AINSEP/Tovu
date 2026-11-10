@@ -110,6 +110,12 @@ function SiteCardFlag({ site, snapshot, t }: { site: AdminSiteListEntry; snapsho
   );
 }
 
+/** The serving card's one sentence about Stop, or nothing. */
+function SiteCardServingNote({ noteKey, t }: { noteKey?: string; t: Translate }) {
+  if (noteKey === undefined) return null;
+  return <p className="field-hint">{t(noteKey)}</p>;
+}
+
 /** The status pill's tone class → the shared card's status tone. */
 const STATUS_TONES: Record<string, SiteCardTone> = { "status-ok": "running", "status-warning": "warning", "status-error": "danger", "status-neutral": "neutral" };
 
@@ -180,7 +186,7 @@ function SiteCard({
       )}
       details={resolveSiteCardMeta({ site, snapshot, activatingName, t })}
       status={<SiteCardStatus label={pill.label} tone={STATUS_TONES[pill.toneClass] ?? "neutral"} title={resolveSiteRunningTitle({ site, t })} />}
-      notes={<SiteCardFlag site={site} snapshot={snapshot} t={t} />}
+      notes={<><SiteCardFlag site={site} snapshot={snapshot} t={t} /><SiteCardServingNote noteKey={view.noteKey} t={t} /></>}
       actions={<SiteCardActions site={site} view={view} controller={localSites} t={t} />}
     />
   );

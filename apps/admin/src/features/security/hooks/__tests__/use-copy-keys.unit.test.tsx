@@ -1,4 +1,4 @@
-import { act, renderHook } from '@/__tests__/fetch-query-render';
+import { act, renderHook, waitFor } from '@/__tests__/fetch-query-render';
 import type { ChangeEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCopyKeys } from '../use-copy-keys.hooks';
@@ -59,6 +59,20 @@ describe('saved-key grant controller', () => {
   it('does not render another site inventory returned by an older host', async () => {
     const { result } = await open(fakeCopyKeysPort([{ siteId: 'other-site', name: 'Private', keys: [{ id: 'private-id', kind: 'vendor', label: 'Private key', provider: null }] }]));
     expect(result.current.keys).toEqual([]);
+    expect(result.current.disabled).toBe(true);
+  });
+
+  it("a locked site key shows why and cannot be approved; a usable site key reads as just its name", async () => {
+    const port = { listCredentialCopySources: vi.fn().mockResolvedValue({ sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: [
+      { kind: "vendor", id: "saved-on-site:a:1", label: "Vercel, thetayway", provider: null, siteName: "thetayway" },
+      { kind: "vendor", id: "saved-on-site:b:2", label: "Vercel, old-site", provider: null, siteName: "old-site", locked: "Open old-site in Tovu and recover its key, then try again." },
+    ] }] }), copyCredentials: vi.fn() };
+    const { result } = renderHook(() => useCopyKeys({ t }, { port }));
+    act(() => result.current.show({ currentTarget: { focus: vi.fn() } } as never));
+    await waitFor(() => expect(result.current.keys).toHaveLength(2));
+    expect(result.current.keys[0]).toMatchObject({ text: "Vercel, thetayway", locked: "" });
+    expect(result.current.keys[1]?.locked).toContain("recover its key");
+    act(() => result.current.changeKey({ currentTarget: { checked: true, value: "saved-on-site:b:2" } } as never));
     expect(result.current.disabled).toBe(true);
   });
 });

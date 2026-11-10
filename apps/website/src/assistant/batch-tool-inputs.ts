@@ -20,6 +20,8 @@ export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
   ].map(toolId => ({ toolId, maxItems: ROW_LEVEL_MAX_ITEMS })),
   { toolId: "theme_read_file", maxItems: 20 },
   { toolId: 'plugin_source_read', maxItems: 20 },
+  // Bulk local media imports; each item still runs the single-file path one at a time.
+  { toolId: "media_import_local_file", maxItems: 50 },
   // 10 pages x 8,000 characters keeps one result near what a single default fetch used to return.
   { toolId: "web_fetch_page", maxItems: 10, itemDefaults: { maxChars: 8_000 }, validateItem: ({ input }) => {
     if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {

@@ -7,19 +7,34 @@ export type { PluginExportCatalogRow } from '../../../contracts/headless/plugin-
 import type { LoginProvider } from "../../member-login/types.js";
 import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
+import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 import { pluginExportFileUrl, type PluginExportPackage, type PluginExportSource } from "./source.js";
+import type { DeclaredPageHosts } from "../../../contracts/core/public-page-security-headers.js";
 
 export interface PluginExportRenderSession extends PluginExportsPort {
   headHtml(required: Record<string, never>, options?: Record<string, never>): string;
+  /** External hosts of the exports this page actually shows, for its content-security policy. */
+  declaredHosts(required: Record<string, never>, options?: Record<string, never>): DeclaredPageHosts;
 }
 export interface PluginExportRuntime extends PluginExportCatalogPort {
   forRender(required: { mode: "live" | "static" }, options?: Record<string, never>): PluginExportRenderSession;
   validateHtml(required: { workspaceId: string; html: string }, options?: Record<string, never>): Promise<readonly PluginEmbedDiagnostic[]>;
+  /** Hosts of every enabled export: a static host's header file covers the whole site at once. */
+  declaredHosts(required: { workspaceId: string }, options?: Record<string, never>): Promise<DeclaredPageHosts>;
 }
 interface RuntimeDeps {
   readonly workspaceId: string;
   readonly source: PluginExportSource;
   readonly listProviders: (input: { workspaceId: string }) => Promise<readonly LoginProvider[]>;
+  /** True when the site turned its consent banner off, so declared resources load directly. */
+  readonly embedConsentOff?: () => boolean;
+}
+type HostSets = Record<keyof DeclaredPageHosts, Set<string>>;
+const newHostSets = (): HostSets => ({ script: new Set(), frame: new Set(), connect: new Set() });
+const hostLists = (sets: HostSets): DeclaredPageHosts => ({ script: [...sets.script], frame: [...sets.frame], connect: [...sets.connect] });
+function addHosts(required: { sets: HostSets; definition: AgentPluginExport }, _options = {}): void {
+  const declared = required.definition.externalHosts ?? {};
+  for (const kind of ["script", "frame", "connect"] as const) for (const origin of declared[kind] ?? []) required.sets[kind].add(origin);
 }
 
 /** Each host link must belong to this plugin's ready provider, not merely share a provider id.
@@ -55,12 +70,28 @@ function collectHead(required: { selected: SelectedPluginExport; mode: "live" | 
   }
 }
 
+/** Queue declared scripts in manifest order. A consent-gated one stays inert until the consent client
+ * activates it; a static copy runs scripts only for a `full` export.
+ * @complexity O(s) scripts; Map keys deduplicate across repeated occurrences.
+ */
+function collectScripts(required: { selected: SelectedPluginExport; mode: "live" | "static"; head: Map<string, string>; consentOff: boolean }, _options = {}): void {
+  const { owner, component, definition } = required.selected;
+  if (required.mode === "static" && definition.staticExport !== "full") return;
+  const held = definition.consent !== "necessary" && !required.consentOff;
+  for (const script of definition.scripts ?? []) {
+    const url = escapeHtml({ text: script.startsWith("https://") ? script : pluginExportFileUrl({ pluginId: owner.plugin.pluginId, component, filename: script }) });
+    required.head.set(`script:${url}`, held
+      ? `<script type="text/plain" data-consent-category="${definition.consent}" data-src="${url}"></script>`
+      : `<script src="${url}" defer></script>`);
+  }
+}
+
 /** Resolve one occurrence; CMS alone fills/validates HTML and stamps its preserved wrapper.
  * @complexity O(p + e + props) catalog selection and schema check, plus one contained template read.
  */
 async function resolveExport(required: {
   config: Readonly<Record<string, unknown>>; deps: RuntimeDeps; packages: Promise<readonly PluginExportPackage[]>;
-  providers: Promise<readonly LoginProvider[]>; mode: "live" | "static"; head: Map<string, string>;
+  providers: Promise<readonly LoginProvider[]>; mode: "live" | "static"; head: Map<string, string>; hosts: HostSets;
 }, _options = {}): Promise<PluginExportTemplate | undefined> {
   const selection = selectPluginExport({ packages: await required.packages, config: required.config });
   if (!("selected" in selection)) return undefined;
@@ -70,8 +101,12 @@ async function resolveExport(required: {
   if (required.mode === "static" && selected.definition.staticExport === "fallback-only") return undefined;
   const host = await publicHost({ selected, deps: required.deps, providers: required.providers });
   if (!host) return undefined;
+  const consentOff = required.deps.embedConsentOff?.() === true;
+  collectScripts({ selected, mode: required.mode, head: required.head, consentOff });
+  addHosts({ sets: required.hosts, definition: selected.definition });
   return { plugin: selected.owner.id, component: selected.component, version: selected.definition.version,
-    minVersion: selected.definition.minVersion, consent: selected.definition.consent,
+    minVersion: selected.definition.minVersion, consent: selected.definition.consent, consentOff,
+    frameHosts: selected.definition.externalHosts?.frame ?? [], scriptData: (selected.definition.scripts?.length ?? 0) > 0,
     template: await required.deps.source.readFile({ plugin: selected.owner.plugin, filename: selected.definition.template }),
     props: (required.config.props === undefined ? {} : required.config.props) as Readonly<Record<string, unknown>>, host };
 }
@@ -136,7 +171,7 @@ async function catalogAvailability(required: {
 }
 
 /** Bind to one site. Request-local memoization shares catalog/readiness across occurrences; a new
- * request observes plugin toggles. Static full/link-only exports use the same script-free template.
+ * request observes plugin toggles. Static full/link-only exports use the same template.
  * @complexity O(1) construction; work is deferred to the bounded CMS occurrence pass.
  */
 export function createPluginExportRuntime(required: RuntimeDeps, _options = {}): PluginExportRuntime {
@@ -145,18 +180,28 @@ export function createPluginExportRuntime(required: RuntimeDeps, _options = {}):
       let packages: Promise<readonly PluginExportPackage[]> | undefined;
       let providers: Promise<readonly LoginProvider[]> | undefined;
       const head = new Map<string, string>();
+      const hosts = newHostSets();
       return {
         resolve: async ({ config, workspaceId }, _options = {}) => {
           if (workspaceId !== required.workspaceId) return undefined;
           packages ??= required.source.list({ workspaceId });
           // Readiness failures are a public fallback, never an unhandled rejected lazy promise.
           providers ??= required.listProviders({ workspaceId }).catch(() => []);
-          return resolveExport({ config, deps: required, packages, providers, mode, head });
+          return resolveExport({ config, deps: required, packages, providers, mode, head, hosts });
         },
         headHtml: (_input, _options = {}) => [...head.values()].join("\n"),
+        declaredHosts: (_input, _options = {}) => hostLists(hosts),
       };
     },
     validateHtml: (input, _options = {}) => validateHtml({ input, deps: required }),
+    declaredHosts: async ({ workspaceId }, _options = {}) => {
+      const sets = newHostSets();
+      if (workspaceId !== required.workspaceId) return hostLists(sets);
+      for (const owner of await required.source.list({ workspaceId })) {
+        if (owner.enabled) for (const definition of Object.values(owner.exports)) addHosts({ sets, definition });
+      }
+      return hostLists(sets);
+    },
     catalog: async ({ workspaceId }, _options = {}) => workspaceId === required.workspaceId
       ? catalogRows({ packages: await required.source.list({ workspaceId }), deps: required }) : new Map(),
   };

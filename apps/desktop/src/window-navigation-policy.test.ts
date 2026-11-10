@@ -13,6 +13,12 @@
  * `sites-home-window.test.ts`, `guest-navigation.test.ts`).
  */
 import test from "node:test";
+import { EventEmitter } from "node:events";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import { installWebviewGuestPolicy } from "./main/windows/guest-navigation.ts";
+import * as signInLinks from "../../website/src/contracts/core/hosted-sign-in-links.ts";
+import { renderOAuthCallbackPage } from "../../website/src/server/inbound/public-http/routes/oauth/callback-page.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -336,4 +342,120 @@ test("sites home: a remote popup is denied and handed to the OS browser; a main-
   assert.deepEqual(fake.windowOpen("https://evil.example/"), { action: "deny" });
   assert.deepEqual(fake.opened, ["https://evil.example/"]);
   assert.equal(fake.redirect("https://evil.example/", true), true);
+});
+
+/** Execute the real registrar without booting the Electron application. */
+function registeredSignInGuest(current = `${APP_ORIGIN}/admin`) {
+  let requestPermission = (_contents: object, _permission: string, callback: (allowed: boolean) => void) => callback(true);
+  let checkPermission = (_contents: object | null) => true;
+  class Contents extends EventEmitter {
+    session = {
+      setPermissionRequestHandler(handler: typeof requestPermission) { requestPermission = handler; },
+      setPermissionCheckHandler(handler: typeof checkPermission) { checkPermission = handler; },
+    };
+    open!: (details: { url: string }) => WindowOpenResponse;
+    getType() { return "webview"; }
+    getURL() { return current; }
+    setWindowOpenHandler(handler: Contents["open"]) { this.open = handler; }
+  }
+  const windows: Popup[] = [];
+  class Popup {
+    webContents = new Contents();
+    loaded = "";
+    closed = false;
+    readonly options: { webPreferences: Record<string, unknown> };
+    constructor(options: Popup["options"]) { this.options = options; windows.push(this); }
+    async loadURL(url: string) { this.loaded = url; }
+    close() { this.closed = true; }
+  }
+  const app = new EventEmitter();
+  const guest = new Contents();
+  const opened: string[] = [];
+  const source = fs.readFileSync(path.join(__dirname, "main/index.ts"), "utf8");
+  const start = source.indexOf("function registerGuestNavigationPolicy(");
+  const registrar = source.slice(start, source.indexOf("\n}\n", start) + 2);
+  const permissionWindows = source.match(/^const signInWindows = .+;$/m)?.[0] ?? "";
+  runInNewContext(`${stripTypeScriptTypes(permissionWindows + "\n" + registrar)}; registerGuestNavigationPolicy();`, {
+    app, BrowserWindow: Popup, URL, shell: { openExternal: (url: string) => opened.push(url) },
+    installWebviewGuestPolicy, installGuestWindowOpenPolicy, isSameOrigin, isExternalBrowserUrl, ...signInLinks,
+    isSupervisedGuestUrl: (url: string) => { try { return [APP_ORIGIN, "http://127.0.0.1:4568"].includes(new URL(url).origin); } catch { return false; } },
+  });
+  app.emit("web-contents-created", {}, guest);
+  return { guest, windows, opened, requestPermission: (contents: object, permission: string, callback: (allowed: boolean) => void) => requestPermission(contents, permission, callback), checkPermission: (contents: object | null) => checkPermission(contents) };
+}
+
+const SIGN_IN_PATHS = [
+  "/api/admin/v1/workspaces/ws-1/mcp-servers/widget/oauth/sign-in",
+  `/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/${"a".repeat(43)}`,
+];
+
+for (const pathname of SIGN_IN_PATHS) {
+  test(`registered guest opens a same-session isolated sign-in window: ${pathname}`, () => {
+    const { guest, windows, opened } = registeredSignInGuest();
+    assert.deepEqual(guest.open({ url: APP_ORIGIN + pathname }), { action: "deny" });
+    assert.equal(windows.length, 1);
+    const popup = windows[0]!;
+    assert.equal(popup.loaded, APP_ORIGIN + pathname);
+    assert.deepEqual({ ...popup.options.webPreferences }, { session: guest.session, sandbox: true, contextIsolation: true, nodeIntegration: false });
+    assert.deepEqual(opened, []);
+    for (const url of ["https://provider.example/consent", "http://provider.example/consent", "file:///etc/passwd", "javascript:alert(1)"]) {
+      let prevented = false;
+      const event = { preventDefault: () => { prevented = true; } };
+      popup.webContents.emit("will-navigate", event, url);
+      assert.equal(prevented, !isExternalBrowserUrl(url), url);
+      prevented = false;
+      popup.webContents.emit("will-redirect", { ...event, url, isMainFrame: true });
+      assert.equal(prevented, !isExternalBrowserUrl(url), url);
+    }
+    assert.deepEqual(popup.webContents.open({ url: "https://provider.example/help" }), { action: "deny" });
+    assert.deepEqual(opened, ["https://provider.example/help"]);
+    assert.equal(popup.webContents.listenerCount("did-navigate"), 0);
+    const html = renderOAuthCallbackPage({ ok: true, messageType: "connected" });
+    const script = /<script>([\s\S]*?)<\/script>/.exec(html)![1]!;
+    let finish: (() => void) | undefined;
+    runInNewContext(script, { window: { close: () => popup.close() }, setTimeout: (callback: () => void, delay: number) => { assert.equal(delay, 400); finish = callback; } });
+    assert.equal(popup.closed, false);
+    assert.ok(finish);
+    finish();
+    assert.equal(popup.closed, true, "the callback script requests close; native Electron admission is a separate smoke check");
+  });
+}
+
+test("registered guest keeps other paths, origins, ports and schemes out of the sign-in window", () => {
+  const { guest, windows, opened } = registeredSignInGuest();
+  const urls = [
+    `${APP_ORIGIN}/admin`, `https://provider.example${SIGN_IN_PATHS[0]}`,
+    `http://127.0.0.1:4568${SIGN_IN_PATHS[0]}`, `https://127.0.0.1:4567${SIGN_IN_PATHS[0]}`,
+    `${APP_ORIGIN}@evil.example${SIGN_IN_PATHS[0]}`, `${APP_ORIGIN}${SIGN_IN_PATHS[0]}/more`,
+    `${APP_ORIGIN}/api/admin/v1/workspaces/ws-1/mcp-servers//oauth/sign-in`,
+    `${APP_ORIGIN}${SIGN_IN_PATHS[1]!.slice(0, -1)}`, "file:///etc/passwd", "javascript:alert(1)", "not a url",
+  ];
+  for (const url of urls) assert.deepEqual(guest.open({ url }), { action: "deny" }, url);
+  assert.equal(windows.length, 0);
+  assert.deepEqual(opened, urls.filter(isExternalBrowserUrl));
+  assert.equal(signInLinks.isHostedSignInLinkPath({ pathname: SIGN_IN_PATHS[0]! }), false);
+});
+
+test("registered guest requires a supervised site even when the sign-in origin matches", () => {
+  const { guest, windows, opened } = registeredSignInGuest("https://unmanaged.example/admin");
+  const url = `https://unmanaged.example${SIGN_IN_PATHS[0]}`;
+  assert.deepEqual(guest.open({ url }), { action: "deny" });
+  assert.equal(windows.length, 0);
+  assert.deepEqual(opened, [url]);
+});
+
+test("registered sign-in windows deny permissions while the site guest remains granted", () => {
+  const { guest, windows, requestPermission, checkPermission } = registeredSignInGuest();
+  for (const pathname of SIGN_IN_PATHS) guest.open({ url: APP_ORIGIN + pathname });
+  assert.equal(windows.length, 2);
+  for (const contents of [...windows.map(popup => popup.webContents), guest]) {
+    const expected = contents === guest;
+    for (const permission of ["media", "geolocation", "clipboard-read", "notifications"]) {
+      let allowed: boolean | undefined;
+      requestPermission(contents, permission, result => { allowed = result; });
+      assert.equal(allowed, expected, permission);
+    }
+    assert.equal(checkPermission(contents), expected);
+  }
+  assert.equal(checkPermission(null), true);
 });

@@ -1,3 +1,4 @@
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
@@ -99,6 +100,8 @@ import { setServerLogTraceReader } from '../../../platform/server-logs/index.js'
 import { withToolUseEvents } from "./tool-use-events.js";
 import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "./provider-config-source.js";
 import { localOwnerStoreEnabled, openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
+import { createOtherSiteKeys } from "./other-site-keys.js";
+import { isLocalTovuHost } from "./registered-sites.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { createTelemetryConsent } from "./telemetry-consent.js";
@@ -183,7 +186,7 @@ import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/content-db";
-import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { sqliteConnectionOf, closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { createSite } from "./site-dir.js";
@@ -1963,7 +1966,10 @@ async function composeSiteRouteDeps(
     return projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
       describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
       siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
-      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
+      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences,
+      // The site registry exists only on a desktop or self-hosted multi-site install.
+      ...(projectSiteId && isLocalTovuHost({}, {}) ? { siteKeys: createOtherSiteKeys({ target: { siteId: projectSiteId, name: resolvedSiteBinding.name, dir: resolvedSiteBinding.dir, file: sqliteConnectionOf(kernel)?.name }, project: projectStore.vault }) } : {}),
+      bindOAuth: input => {
         if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
         return bindSharedApiOAuth(input);
       } }) : undefined;
@@ -2219,7 +2225,7 @@ async function composeSiteRouteDeps(
   }, {
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
   });
-  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
+  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   // ONE composed MCP port: routeDeps.mcp and the sign-in grant share its projections and classifier.
   const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
@@ -2284,6 +2290,7 @@ async function composeSiteRouteDeps(
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
+    docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
@@ -2378,6 +2385,7 @@ async function composeSiteRouteDeps(
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
     publicPageSecurityHeaders: () => publicPageSecurityHeaders({ formCollectionProviders: () => formCollectionProviders() }),
+    pluginExportHosts: () => pluginExports.declaredHosts({ workspaceId }),
     ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),

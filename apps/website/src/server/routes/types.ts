@@ -817,6 +817,8 @@ export interface PostDeps {
    * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
+  /** Renders a doc Page body as Page HTML, so an assistant edit keeps what the page already holds. */
+  docBodyAsPageHtml?: (bodyJson: unknown) => string;
   /**
    * SPEC-009 REQ-15 — routing's slug-change slot lookup (`getSlugChangeCapture`), handed to every
    * `updatePost` call a route or agent tool makes so a published entry's rename leaves a 301 from
@@ -1658,6 +1660,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   publishOutputRootDir: string;
   /** Current public security headers, including app-scoped collection frame declarations. */
   publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+  pluginExportHosts?: () => Promise<import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts>;
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config

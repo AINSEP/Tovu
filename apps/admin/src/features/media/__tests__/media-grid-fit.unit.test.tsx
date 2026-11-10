@@ -154,6 +154,14 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     expect(css).toMatch(/--media-card-min:\s*280px/);
   });
 
+  it("Extra large always shows fewer columns than Large once Large has more than one", () => {
+    const css = readFileSync(path.resolve(__dirname, "../../../styles/media.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const xl = Number(/\.media-grid\[data-size="xl"\]\s*{\s*--media-card-min:\s*(\d+)px/.exec(css)?.[1]);
+    const gap = 16;
+    const columns = (width: number, min: number) => Math.max(1, Math.floor((width + gap) / (min + gap)));
+    for (let width = 576; width <= 2400; width++) expect(columns(width, xl), `content width ${width}`).toBeLessThan(columns(width, 280));
+  });
+
   it("the icon buttons show a real tooltip bubble on hover and on keyboard focus (a bare title does not show reliably)", async () => {
     const user = userEvent.setup();
     render(<FetchQueryProvider><Media tabId="videos" /></FetchQueryProvider>);

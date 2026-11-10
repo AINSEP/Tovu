@@ -94,7 +94,7 @@ export interface AccessTokensTabProps {
   useOtherCredentialsHook?: typeof useWiredOtherCredentials;
   useCopyKeysHook?: typeof useWiredCopyKeys;
   /** Whether the "Use a saved key" entry renders; defaults to
-   *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11). */
+   *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11; shown again per owner 2026-11-08). */
   showCopyKeysEntry?: boolean;
 }
 
@@ -111,7 +111,7 @@ function resolveOtherCredentialsHook(override: typeof useWiredOtherCredentials |
 }
 
 /** Whether the "Use a saved key" entry renders above the list (see its render site). */
-const SHOW_COPY_KEYS_ENTRY = false;
+const SHOW_COPY_KEYS_ENTRY = true;
 
 export function AccessTokensTab(props: AccessTokensTabProps) {
   useAdminLocale();
@@ -133,9 +133,8 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
         label: "Every access token and other saved credential this install holds, across all eight stores, searchable and filterable by category",
       })}
     >
-      {/* Hidden per owner 2026-10-11 ("get rid of this button for now"). The dialog, hook and route
-          stay wired, and the chat's copy-keys card is unaffected — flip `SHOW_COPY_KEYS_ENTRY` to
-          restore the entry. */}
+      {/* Owner 2026-11-08: back on ("be able to share keys among databases") after being hidden
+          2026-10-11. Same picker and route as the chat card. */}
       {(props.showCopyKeysEntry ?? SHOW_COPY_KEYS_ENTRY) ? (
         <>
           <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Use a saved key")}</button>

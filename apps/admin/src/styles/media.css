@@ -55,7 +55,8 @@
 
 .media-grid[data-size="small"] { --media-card-min: 93px; }
 .media-grid[data-size="medium"] { --media-card-min: 187px; }
-.media-grid[data-size="xl"] { --media-card-min: 420px; }
+/* 440, not 1.5x (420): at 420 two columns fit at the same widths as Large, so the choice looked broken. */
+.media-grid[data-size="xl"] { --media-card-min: 440px; }
 /* Small cards are a third of the normal width: the name (ellipsis), the menu and the date are what
    fits, so the Active tag and the specs are hidden (owner OK'd hiding row 2's specs; the tag goes
    too). A non-active status still shows. The date ellipsizes rather than wrapping. */

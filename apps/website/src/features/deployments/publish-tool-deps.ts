@@ -33,6 +33,7 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
   readonly hostKit?: StaticPublishDeps["hostKit"];
   readonly publicPageSecurityHeaders?: StaticPublishDeps["publicPageSecurityHeaders"];
+  readonly pluginExportHosts?: StaticPublishDeps["pluginExportHosts"];
   /** `RouteDeps.formDestination`: the site's forms and receiver key, for a host that receives submissions. */
   readonly formDestination?: StaticPublishDeps["formDestination"];
   readonly ownerPrincipalId?: Promise<string>;

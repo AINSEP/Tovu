@@ -1,4 +1,4 @@
-/** Public declarative export assets; no plugin scripts, templates or undeclared files are served. */
+/** Public declarative export assets; templates and undeclared files are never served. */
 import type { Express, Response } from "express";
 import type { Clock } from "@jini-ai/core/primitives";
 import { ADMIN_SURFACE_FILES_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -11,8 +11,8 @@ interface ExportFilesDeps {
   readonly agentPluginLifecycle: TovuAgentPluginLifecycle;
 }
 
-/** The only public export file kinds: one stylesheet plus PNG/SVG artwork. */
-const EXPORT_FILE_TYPES: Readonly<Record<string, string>> = { ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml" };
+/** The only public export file kinds: stylesheet, PNG/SVG artwork and declared scripts. */
+const EXPORT_FILE_TYPES: Readonly<Record<string, string>> = { ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml", ".js": "text/javascript; charset=utf-8" };
 
 /** Fixed refusal never exposes containment errors or local package paths. */
 function notFound({ res }: { res: Response }, _options = {}): void {
@@ -29,10 +29,13 @@ async function resolveFile(required: { source: PluginExportSource; workspaceId: 
   const owner = owners[0]!;
   const entry = Object.entries(owner.exports).find(([name]) => name === required.component)?.[1];
   if (!entry) return undefined;
-  const declared = [entry.styles, ...Object.values(entry.assets ?? {})];
+  // A remote script is declared by URL and loaded from its own host; only package files are served here.
+  const scripts = (entry.scripts ?? []).filter(script => !script.startsWith("https://"));
+  const declared = [entry.styles, ...Object.values(entry.assets ?? {}), ...scripts];
   const type = EXPORT_FILE_TYPES[required.path.slice(required.path.lastIndexOf(".")).toLowerCase()];
-  // An unknown extension (e.g. a declared .html or .js) is refused, never served under an image type.
-  if (!type || !declared.includes(required.path)) return undefined;
+  // An unknown extension (e.g. a declared .html) is refused, never served under an image type.
+  // JavaScript is served only from `scripts`; a .js path declared under assets is still refused.
+  if (!type || !declared.includes(required.path) || (type.startsWith("text/javascript") && !scripts.includes(required.path))) return undefined;
   const body = await required.source.readAsset({ plugin: owner.plugin, filename: required.path });
   return { body, type };
 }

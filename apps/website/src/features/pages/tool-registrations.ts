@@ -416,6 +416,8 @@ export interface PagesToolDeps {
   themes?: DiscoveredTheme[];
   themesDir?: string;
   resolveActiveThemeId?: () => Promise<string>;
+  /** Renders a doc body as Page HTML. Absent only in standalone page-store consumers. */
+  docBodyAsPageHtml?: (bodyJson: unknown) => string;
 }
 
 /**
@@ -456,9 +458,11 @@ async function readDocPageFallback(
   // case an empty, freshly-created Page is — see this function's `note` below for why the
   // model must be told before it calls `pages_write_html` and silently discards it.
   const hasDocContent = Array.isArray(row.bodyJson.content) && row.bodyJson.content.length > 0;
+  // Without this the model sees an empty page and any addition erases the owner's text and form.
+  const html = hasDocContent && deps.docBodyAsPageHtml ? deps.docBodyAsPageHtml(row.bodyJson) : "";
   return {
     id,
-    html: "",
+    html,
     regions: [],
     bodyFormat: row.bodyFormat,
     version: row.version,
@@ -466,9 +470,11 @@ async function readDocPageFallback(
     theme: await readPageTheme({ deps }),
     ...(hasDocContent
       ? {
-          note:
-            "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
-            "replaces that rich-text body; the previous body is kept in the page's revision history.",
+          note: html
+            ? "This rich-text (doc) page is shown here as HTML. Keep what is there, make the change, and send the whole " +
+              "page to pages_write_html. That makes it an HTML page; the previous body stays in its revision history."
+            : "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
+              "replaces that rich-text body; the previous body is kept in the page's revision history.",
         }
       : {}),
   };

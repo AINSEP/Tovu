@@ -76,6 +76,17 @@ test("admin inventory keeps an unattached key visible, reports exact site usage,
   assert.equal(await resolveCustomCredentialByLabel(write, { workspaceId: deps.workspaceId, label: saved.label }), null);
 });
 
+test("the Secrets inventory never opens other sites' databases", async t => {
+  const { deps } = inventoryFixture();
+  let scans = 0;
+  const inputs = { vault: new InMemoryVaultRepo({}), attachments: fakeAttachments(), siteId: "shop-id", siteName: "Shop",
+    transaction: async <T>({ run }: { run: () => Promise<T> }) => run(), providerUsage: async () => assert.fail("no provider usage"), reapply: async () => "now" as const };
+  const siteKeys = { list: async () => { scans++; return []; }, find: async () => null, adopt: async () => assert.fail("listing never adopts") };
+  const read = await inventoryClient({ t, deps: { ...deps, projectKeys: createProjectKeys({ ...inputs, siteKeys }) } });
+  assert.equal((await read()).status, 200);
+  assert.equal(scans, 0, "this route runs on every Secrets page load, so it must not scan every registered site");
+});
+
 test("local admin save preserves a separate shared key", async t => {
   const { deps, save, keys } = inventoryFixture();
   const project = await save({ label: "Shared label" });

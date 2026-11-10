@@ -633,7 +633,7 @@ export function mediaUploadAccept(tab: MediaContentTabId): string {
 }
 
 /** Grid card sizes (owner, 2026-11-01), relative to the original card width: Small 1/3, Medium 2/3,
- *  Large = unchanged, Extra large 1.5x. Medium is the default. The choice only moves the grid's column minimum (CSS). */
+ *  Large = unchanged, Extra large about 1.6x. Medium is the default. The choice only moves the grid's column minimum (CSS). */
 export const MEDIA_GRID_SIZES = [
   { id: "small", label: "Small" },
   { id: "medium", label: "Medium" },

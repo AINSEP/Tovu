@@ -1827,9 +1827,9 @@ export function openMcpUiLink(url: string): void {
   try {
     parsed = new URL(url);
   } catch {
-    return;
+    throw new Error("Could not open the link.");
   }
-  if (parsed.protocol !== "https:") return;
+  if (parsed.protocol !== "https:") throw new Error("Could not open the link.");
   window.open(url, "_blank", "noopener,noreferrer");
 }
 

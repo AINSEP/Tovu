@@ -72,6 +72,17 @@ it("localizes the Export Site and Import Site tabs in every Sites locale", () =>
   expect(t({ locale: "de", key: "New site" })).toBe("Neue Website");
 });
 
+// The serving card's Stop (2026-11-09): every translated locale must own all four new strings.
+it.each(["ar","bn","de","es","fa","fr","hi","hu","id","it","ja","ko","pl","pt-BR","ru","th","tr","uk","ur","zh-CN","zh-TW"])("localizes the serving card's Stop in %s", locale => {
+  for (const key of ["Stop this site?",
+    "Stop {name} and move this address to {target}? {target} restarts here, and anything running on either site stops.",
+    "No other site is running, so there is nothing to switch to. Start another site first.",
+    "A chat is running on this site. Stopping it will interrupt that chat."]) {
+    expect(t({ locale, key })).not.toBe(key);
+    if (key.includes("{target}")) expect(t({ locale, key })).toMatch(/\{name\}[\s\S]*\{target\}|\{target\}[\s\S]*\{name\}/);
+  }
+});
+
 it("carries every Export/Import key in all 21 locales", async () => {
   const { SITE_TRANSFER_DICT } = await import("../site-transfer-i18n");
   const locales = Object.keys(SITE_TRANSFER_DICT);

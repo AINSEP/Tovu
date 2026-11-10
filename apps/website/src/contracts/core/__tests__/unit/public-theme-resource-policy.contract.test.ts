@@ -4,18 +4,14 @@ import test from 'node:test';
 import { createPublicPageSecurityHeaderSet } from '../../public-page-security-headers.js';
 import { publicPageSecurityHeaders, readPublicThemeResources } from '../../../../features/theme/public-page-security-headers.js';
 import { PAGE_HTML_CONTRACT } from '../../page-html.js';
-import { PAGE_EMBED_ORIGINS } from '../../page-embed-origins.js';
+import { addDeclaredHostsToPolicy } from '../../public-page-security-headers.js';
 
-test('every external embed origin permitted by page guidance is allowed by the public CSP', () => {
+test('page guidance sends third-party widgets to plugin embeds and names no vendor host', () => {
   const guidance = PAGE_HTML_CONTRACT.split('- EXTERNAL RESOURCES:')[1]!.split('\n')[0]!;
-  const origins = guidance.match(/https:\/\/[a-z0-9.-]+/g)!;
-  assert.equal(origins.length, 2, 'the vetted script and booking frame are both described');
-  const csp = createPublicPageSecurityHeaderSet({ resources: { scripts: [], styles: [], fonts: [], fontPreconnects: {} } })['Content-Security-Policy-Report-Only']!;
-  for (const [index, directive] of ['script-src', 'frame-src'].entries()) {
-    const sources = csp.split('; ').find(part => part.startsWith(`${directive} `))!.split(' ').slice(1);
-    assert.ok(sources.includes(origins[index]!), `${directive} must allow guidance origin ${origins[index]}`);
-    assert.ok(sources.every(source => !source.includes('*') && source !== 'https:'), 'embed exceptions must not admit arbitrary hosts');
-  }
+  assert.match(guidance, /no <script src>/);
+  assert.match(guidance, /plugin's embed/);
+  assert.doesNotMatch(PAGE_HTML_CONTRACT, /calendly/i);
+  assert.match(PAGE_HTML_CONTRACT, /\\?"type\\?":\\?"plugin\\?"/);
 });
 
 test('theme data keeps the entire shared public header set byte-identical', () => {
@@ -29,7 +25,7 @@ test('origins derive from data, deduplicate stably, and retain all core directiv
   const resources = { scripts: ['https://scripts.example.test/a.js', 'https://scripts.example.test/b.js'], styles: ['https://styles.example.test/a.css'], fonts: ['https://files.example.test/a.woff2'], fontPreconnects: {} };
   const headers = createPublicPageSecurityHeaderSet({ resources });
   const csp = headers['Content-Security-Policy-Report-Only'];
-  assert.ok(csp?.includes(`script-src 'self' 'unsafe-inline' https://scripts.example.test ${PAGE_EMBED_ORIGINS.script};`));
+  assert.ok(csp?.includes(`script-src 'self' 'unsafe-inline' https://scripts.example.test;`));
   assert.ok(csp?.includes("style-src 'self' 'unsafe-inline' https://styles.example.test;"));
   assert.ok(csp?.includes("font-src 'self' data: https://files.example.test;"));
   assert.equal(csp?.match(/https:\/\/scripts\.example\.test/g)?.length, 1);
@@ -47,4 +43,16 @@ test('theme data reader uses its port and preserves malformed/missing-data failu
   } }), data);
   assert.throws(() => readPublicThemeResources({ resourceFile: '/missing' }, { readText: () => { throw new Error('missing'); } }), /missing/);
   assert.throws(() => readPublicThemeResources({ resourceFile: '/bad' }, { readText: () => '{' }), SyntaxError);
+});
+
+test('a page adds its declared hosts to the matching directives only, never twice or as policy text', () => {
+  const policy = "default-src 'self'; script-src 'self' https://a.test; frame-src 'self' https://b.test; connect-src 'self'; object-src 'none'";
+  assert.equal(addDeclaredHostsToPolicy({ policy, hosts: { script: ['https://c.test', 'https://a.test'], frame: ['https://d.test'], connect: ['https://e.test'] } }),
+    "default-src 'self'; script-src 'self' https://a.test https://c.test; frame-src 'self' https://b.test https://d.test; connect-src 'self' https://e.test; object-src 'none'");
+  assert.equal(addDeclaredHostsToPolicy({ policy, hosts: { script: ["https://c.test; object-src *", "'unsafe-eval'", 'https://x.test/path'], frame: [], connect: [] } }), policy);
+});
+
+test('no vendor name is hard-coded in the core policy', () => {
+  const csp = createPublicPageSecurityHeaderSet({ resources: { scripts: [], styles: [], fonts: [], fontPreconnects: {} } })['Content-Security-Policy-Report-Only'];
+  assert.doesNotMatch(csp ?? '', /calendly/i);
 });

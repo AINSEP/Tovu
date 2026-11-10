@@ -19,6 +19,20 @@ import {
   writeThemeFile,
 } from "../theme-files.js";
 
+test("a theme with more media files than the listing cap still lists its pages", () => {
+  const themesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "theme-list-cap-"));
+  try {
+    const themeDir = path.join(themesRoot, "static", "big");
+    fs.mkdirSync(path.join(themeDir, "assets", "wall"), { recursive: true });
+    fs.mkdirSync(path.join(themeDir, "render", "pages"), { recursive: true });
+    fs.writeFileSync(path.join(themeDir, "render", "pages", "portfolio.html"), "<p>page</p>");
+    for (let i = 0; i < 2_050; i++) fs.writeFileSync(path.join(themeDir, "assets", "wall", `s${i}.webp`), "x");
+    assert.ok(listThemeFiles({ themeDir, themesRoot: path.join(themesRoot, "static") }).includes("render/pages/portfolio.html"));
+  } finally {
+    fs.rmSync(themesRoot, { recursive: true, force: true });
+  }
+});
+
 test("theme file APIs expose reversible moves without the unused hard-delete capability", async () => {
   const files = await import("../theme-files.js");
   const feature = await import("../index.js");

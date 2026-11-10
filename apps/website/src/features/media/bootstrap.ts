@@ -21,7 +21,7 @@ import { getLatestTransformDefinition, registerTransform, type RegisterTransform
 export const CORE_PUBLIC_TRANSFORM_NAME = "public";
 
 /**
- * Idempotently ensures the workspace's `"public"` and `"og"` core transform definitions exist, so the
+ * Idempotently ensures the workspace's `"public"`, `"og"` and `"thumb"` core transform definitions exist, so the
  * `/m/{assetId}/public.v{version}/...` URL always resolves for any active asset (subject to the
  * generation-bound rules `resolveMediaRendition` itself enforces). Mirrors
  * `newsletter/lists.ts`'s `ensureDefaultList` shape exactly: find-latest-or-create, called once
@@ -45,11 +45,13 @@ export const CORE_PUBLIC_TRANSFORM_NAME = "public";
  * content with zero correctness benefit over `webp` for this baseline's purpose. A resize-capable
  * transform (`thumb`, `hero`, ...) is a separate registration. The `og` share-card variant
  * deliberately crops to 1200 × 630 and uses JPEG quality 82 for messaging/social crawlers;
- * it leaves this transparency-safe public baseline intact.
+ * it leaves this transparency-safe public baseline intact. `thumb` is for image grids: 640 wide,
+ * no `height`, so every image keeps its own shape. Nothing generates it ahead of time: a request
+ * for the latest version renders and stores it, so images already in Media need no re-import.
  *
- * @complexity O(v) in the combined number of existing "public" and "og" versions, from
+ * @complexity O(v) in the combined number of existing core transform versions, from
  * {@link getLatestTransformDefinition}'s version scan — negligible at this registry's real scale
- * (two core-owned names).
+ * (three core-owned names).
  * @overallScore 100
  */
 export async function ensureCoreMediaTransform(
@@ -62,6 +64,7 @@ export async function ensureCoreMediaTransform(
   for (const transform of [
     { name: CORE_PUBLIC_TRANSFORM_NAME, params: { format: "webp" as const } },
     { name: "og", params: { format: "jpeg" as const, width: 1200, height: 630, fit: "cover" as const, quality: 82 } },
+    { name: "thumb", params: { format: "webp" as const, width: 640 } },
   ]) {
     const existing = await getLatestTransformDefinition({
       deps: { transformRepo: deps.transformRepo },

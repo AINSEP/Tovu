@@ -91,12 +91,14 @@ function htmlOf(emission: SurfaceEmission): string {
   return (emission.payload.resource as { resource: { text: string } }).resource.text;
 }
 
-test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token", async (t) => {
+test("agent_plugin_connect: an HTTP listener with no public URL emits only the hosted hop path and keeps an absolute redirect URI", async (t) => {
   const store = makeStoreDeps();
   const previousOrigin = process.env.TOVU_PUBLIC_URL;
-  process.env.TOVU_PUBLIC_URL = "https://public.example/site-path";
+  delete process.env.TOVU_PUBLIC_URL;
+  const origin = "http://127.0.0.1:4567";
+  const hopPath = `/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers/widget/oauth/sign-in`;
   t.after(() => { if (previousOrigin === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previousOrigin; });
-  const originalOAuth = fakeOAuth(store.repo, "https://mcp.example.com/authorize?state=abc123");
+  const originalOAuth = fakeOAuth(store.repo, origin + hopPath);
   const beginInputs: unknown[] = [];
   const oauth: AgentPluginOAuthPort = { ...originalOAuth, beginConnect: async input => { beginInputs.push(input); return originalOAuth.beginConnect(input); } };
   const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
@@ -109,6 +111,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
     clock: CLOCK,
     mcp: mcpTestPort(store), credentials: credentialTestPort({}),
     externalMcpOAuth: oauth,
+    derivedPublicOrigin: origin,
     pollIntervalMs: 5,
     waitTimeoutMs: 30,
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
@@ -116,13 +119,12 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
 
   const result = await runAgentPluginConnect(deps, surfaces, ctx, "widget-store");
   assert.deepEqual(result, { status: "waiting-for-sign-in" });
-  assert.deepEqual(beginInputs, [{ serverId: "widget", redirectUri: "https://public.example/api/mcp-servers/oauth/callback/widget", delivery: 'hosted' }]);
+  assert.deepEqual(beginInputs, [{ serverId: "widget", redirectUri: `${origin}/api/mcp-servers/oauth/callback/widget`, delivery: 'hosted' }]);
   assert.equal(emissions.length, 1, "exactly one card sent while nobody has signed in yet");
 
   const html = htmlOf(emissions[0]!);
-  const linkMatches = html.match(/https:\/\/[^"'\\]+/g) ?? [];
-  assert.equal(linkMatches.length, 1, `expected exactly one https link in the card, got: ${JSON.stringify(linkMatches)}`);
-  assert.equal(linkMatches[0], "https://mcp.example.com/authorize?state=abc123");
+  assert.ok(html.includes(`var OPEN_URL = ${JSON.stringify(hopPath)}`), "the card contains the hosted path");
+  assert.ok(!html.includes(origin), "the card must not expose the listener origin");
   // Visible copy only: the shared bridge script and stylesheet are not what the human reads.
   const visible = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "");
   assert.doesNotMatch(visible.toLowerCase(), /token/, "the card must never mention a token");

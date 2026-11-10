@@ -26,9 +26,9 @@ export interface CredentialCopyToolDeps {
   readonly projectKeys?: ProjectKeysPort;
 }
 export const catalog: AgentToolDefinition[] = [{ name: CREDENTIAL_COPY_TOOL_ID,
-  description: 'Use a saved key or OAuth connection on this site. Opens the owner-only Shared Keys picker and one approval card. ' +
-    'No key is copied. Choose Enter a new key to open the normal secure key card. ' +
-    'Accepts no selections, site identity or secrets from the model; returns only the approved credentialId.',
+  description: 'Use a saved key or OAuth connection on this site. Opens the owner-only picker of Shared Keys and keys saved on other sites of this install, with one approval card. ' +
+    'Choose Enter a new key to open the normal secure key card. Accepts no selections, site identity or secrets from the model. ' +
+    'Returns only the approved credentialId, or {granted:false, reason} where reason is dismissed (owner closed the card), interrupted (the run ended first) or nothing-to-pick (no saved keys exist).',
   sideEffects: 'mutates-durable-state', authorization: { permission: 'system.write' },
   inputSchema: { type: 'object', additionalProperties: false, properties: {} } }];
 export const credentialCopyDerivedRisk: DerivedRiskByToolId = new Map([[CREDENTIAL_COPY_TOOL_ID, 'mutates-durable-state']]);
@@ -47,7 +47,15 @@ const TOVU_CREDENTIAL_COPY_HOST: CredentialCopyToolHost = {
     keysUnavailable: 'Shared Keys could not open. Open the normal key card to save a key for this site.',
     needsInteractive: 'Using a saved key requires an interactive confirmation channel. Open this action in chat.',
     cardTitle: 'Use a saved key or connection on this site', siteLabel: 'Site', siteFallback: 'This site',
-    cardDescription: 'Nothing is copied. This site can use only the one you choose.',
+    // A site key is added to Shared Keys on approval; say so, the owner is approving it.
+    cardDescription: 'A key saved on another site is added to Shared Keys first. This site can use only the one you choose.',
+    emptyCardDescription: 'No saved keys yet on this computer. Enter a new key to save one.',
+    lockedLabel: ({ names }) => `Can't use yet: ${names.join('; ')}`,
+    outcomes: {
+      dismissed: 'The owner closed the card without choosing a key.',
+      interrupted: 'The run ended before the owner chose a key.',
+      nothingToPick: 'No saved keys were available to pick from.',
+    },
     fieldLabel: 'Shared Keys', fieldPlaceholder: 'Choose a key', newKeyLabel: 'Enter a new key',
     submitLabel: 'Use this key', cancelLabel: 'Cancel',
   },

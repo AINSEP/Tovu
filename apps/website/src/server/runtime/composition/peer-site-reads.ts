@@ -1,4 +1,5 @@
 /** Write-free host composition for owner-only reads of registered local SQLite sites. */
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import fs from 'node:fs';
 import path from 'node:path';
 import { sql } from 'kysely';
@@ -232,6 +233,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
     postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
+    docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo(kernel), assetRenditionRepo: new SqliteAssetRenditionRepo(kernel), mediaContentTypeStore, transformDefinitionRepo,
     imageCodec: new SharpImageTransformer(),

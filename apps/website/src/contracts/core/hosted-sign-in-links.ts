@@ -4,3 +4,7 @@
 export function isHostedSignInLinkPath(required: { readonly pathname: string }, _optional: Record<string, never> = {}): boolean {
   return /^\/api\/admin\/v1\/workspaces\/[^/]+\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/.test(required.pathname);
 }
+
+export function isHostedMcpSignInLinkPath(required: { readonly pathname: string }, _optional: Record<string, never> = {}): boolean {
+  return /^\/api\/admin\/v1\/workspaces\/[^/]+\/mcp-servers\/[^/]+\/oauth\/sign-in$/.test(required.pathname);
+}
