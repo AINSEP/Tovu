@@ -1,0 +1,162 @@
+
+> tovu@0.1.0 check:architecture
+> tsx development/scripts/check-architecture.ts
+
+check:architecture — 2165 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              447
+  propagation cost (all-import)                        12.43%
+  propagation cost (runtime-only)                      3.09%
+  back-edges into composition root                     5
+    └ back-edges, runtime-only (informational)         5
+  module cycles (mutual pairs, runtime-only)           6
+  largest strongly-connected component (runtime-only)  61
+  module API surface (files exposed)                   870
+    └ deep-import edges (informational)                2774
+  bidirectional hub count                              17.37% (376/2165)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/connect.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/contribution.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/external-mcp/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/agent-plugins/lifecycle.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/attachments.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/site-references.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/surface-connection-bindings.ts -> apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-copy-tool.ts -> apps/website/src/features/project-keys/service.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-ports.ts -> apps/website/src/features/source-control/provider-registry.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/vault-repo.ts -> apps/website/src/features/project-keys/attached-vault.ts
+  NEW cross-feature edge: apps/website/src/features/database-transfer/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/run-ops.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-targets/registry.ts -> apps/website/src/features/form-destinations/types.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-agent-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/static-publish/publish-consent.ts -> apps/website/src/features/consent/service.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/entries/repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/entries/trash-aware-memory-repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/entries/unreadable-owner-entries-repair.ts -> apps/website/src/features/content-types/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-store.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/forms/form-file-maintenance.ts -> apps/website/src/features/media/purge-media.ts
+  NEW cross-feature edge: apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/test-send.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail/attempts.repo.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/agent-tools.ts -> apps/website/src/features/fs-files/site-file-request.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media/access-evidence.ts -> apps/website/src/features/post/post.ts
+  NEW cross-feature edge: apps/website/src/features/media/import-media-entity.ts -> apps/website/src/features/publish-content/type-registry.ts
+  NEW cross-feature edge: apps/website/src/features/media/where-used.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-policy.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/plugin-runtime/service-ports.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/post/repo.memory.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/post/repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/shared-oauth-disconnect.ts -> apps/website/src/features/api-connections/shared-owner.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/site-references.ts -> apps/website/src/features/api-connections/vault-stores.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/site-sealer.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/file-tree-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/push-plan.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/entries/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/taxonomy/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/seo/cover-image.ts -> apps/website/src/features/post/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/bundled-export-file-policy.ts -> apps/website/src/features/agent-plugins/bundled-catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/theme/active-theme.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/widgets/media-html.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/package-file-inventory.ts -> apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-backend.ts -> apps/website/src/features/theme/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-database/repo.sqlite.ts -> apps/website/src/features/settings/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/export-html-policy.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/site-exporter.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-download-landing.ts -> apps/website/src/features/post/html-plain-text.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-download-layout.ts -> apps/website/src/features/site-export/export-html-policy.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/export-html-policy.ts -> apps/website/src/features/webmcp/published-html.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/active-theme.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/theme-id-aliases.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/settings.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/sites/site-admin.ts -> apps/website/src/features/agent-plugins/service-ports.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-policy.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-zip.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-copy.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-layout.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/credential-setup.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+  NEW cross-feature edge: apps/website/src/features/theme/preview-switcher-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/render-entry.ts
+  NEW cross-feature edge: apps/website/src/features/trash/adapters/redirect.ts -> apps/website/src/features/redirects/index.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/content-types/write-service.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post.ts
+
+  module cycles — 3 new pair(s) introduced:
+    + assistant <-> server
+    + features/site-backup <-> features/source-control
+    + platform <-> server
+
+  largest strongly-connected component grew: 22 → 61
+
+  module cycles — 2 pair(s) removed since baseline:
+    - assistant <-> features/agent-plugins
+    - features/agent-plugins <-> features/api-connections
+
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.09
+
+  back-edges into composition root regressed: 0 → 5
+
+  module API surface (files exposed) regressed: 821 → 870
+
+  WARNING (ratchet, non-blocking): bidirectional hub count regressed: 335 → 376
+
+  propagation cost (all-import) improved: 15.52 → 12.43
+
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.09  (+0.03 pts, +0.98%)
+  regressed: back-edges into composition root    0 → 5  (+5, n/a)
+  regressed: module API surface (files exposed)  821 → 870  (+49, +5.97%)
+  regressed: bidirectional hub count             335 → 376  (+41, +12.24%)
+  regressed: module cycles / SCC (runtime-only)  +3 cycle pair(s), -2 cycle pair(s), largest SCC 22 → 61
+  improved:  propagation cost (all-import)       15.52 → 12.43  (-3.09 pts, -19.91%)
+========================================================================
+
+check:architecture — FAILED: 4 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.

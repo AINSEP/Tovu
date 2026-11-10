@@ -1,0 +1,19 @@
+NEW
+warn no-circular: apps/website/src/features/agent-plugins/bundled-contribution-sources.ts → 
+warn no-circular: apps/website/src/features/api-connections/byo-client.ts → 
+warn no-circular: apps/website/src/features/api-connections/host-bindings.ts → 
+warn no-circular: apps/website/src/features/api-connections/host-bindings.ts → 
+warn no-circular: apps/website/src/features/api-connections/surface-connection-bindings.ts → 
+warn no-circular: apps/website/src/features/plugin-runtime/agent-plugin-tool-binding.ts → 
+warn no-circular: apps/website/src/features/plugin-runtime/host-tool-binding.ts → 
+warn no-circular: apps/website/src/features/plugin-runtime/install-tool-binding.ts → 
+warn no-circular: apps/website/src/features/source-control/provider-registry.ts → 
+warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+GONE
+warn no-circular: apps/website/src/features/api-connections/connect.ts → 
+warn no-circular: apps/website/src/features/api-connections/hook-http.ts → 
+warn no-circular: apps/website/src/features/api-connections/host.ts → 
+warn no-circular: apps/website/src/features/api-connections/host.ts → 
+warn no-circular: apps/website/src/features/external-mcp/contracts.ts → 
+warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/executable-tools/register.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+warn no-deep-imports:platform/mail: apps/website/src/features/agent-plugins/mail-adapter-registry.ts → apps/website/src/platform/mail/purpose-scoped-mailer.ts

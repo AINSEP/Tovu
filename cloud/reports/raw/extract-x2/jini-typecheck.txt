@@ -1,0 +1,173 @@
+Scope: 47 of 48 workspace projects
+
+> @jini-app/nlweb-demo@0.0.0 typecheck /home/user/Jini/examples/nlweb-demo
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/cookie-consent@0.6.19 typecheck /home/user/Jini/packages/cookie-consent
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/core@0.6.23 typecheck /home/user/Jini/packages/core
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/memory@0.6.19 typecheck /home/user/Jini/packages/memory
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/protocol@0.6.19 typecheck /home/user/Jini/packages/protocol
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/sandbox@0.6.19 typecheck /home/user/Jini/packages/sandbox
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/ui-kit@0.6.23 typecheck /home/user/Jini/packages/ui-kit
+> tsc --noEmit
+
+
+> @jini-ai/agentic@0.6.23 typecheck /home/user/Jini/packages/agentic
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.dom.json --noEmit
+
+
+> @jini-ai/artifacts@0.6.19 typecheck /home/user/Jini/packages/artifacts
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/desktop-host@0.6.19 typecheck /home/user/Jini/packages/desktop-host
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/platform@0.6.23 typecheck /home/user/Jini/packages/platform
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-app/reference-desktop@0.0.6 typecheck /home/user/Jini/examples/reference-desktop
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/capability-providers@0.6.19 typecheck /home/user/Jini/packages/capability-providers
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/db@0.6.19 typecheck /home/user/Jini/packages/db
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/http-kit@0.6.22 typecheck /home/user/Jini/packages/http-kit
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/oauth@0.6.19 typecheck /home/user/Jini/packages/oauth
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/sidecar@0.6.22 typecheck /home/user/Jini/packages/sidecar
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/vibecoding@0.6.19 typecheck /home/user/Jini/packages/vibecoding
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/cli@0.6.19 typecheck /home/user/Jini/packages/cli
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/cms@0.6.22 typecheck /home/user/Jini/packages/cms
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/infra@0.6.19 typecheck /home/user/Jini/packages/infra
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/integrations@0.6.19 typecheck /home/user/Jini/packages/integrations
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/plugins@0.6.22 typecheck /home/user/Jini/packages/plugins
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/registry@0.6.19 typecheck /home/user/Jini/packages/registry
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/agent-runtime@0.6.23 typecheck /home/user/Jini/packages/agent-runtime
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/cms-forms@0.6.19 typecheck /home/user/Jini/packages/cms/forms
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/analytics@0.6.22 typecheck /home/user/Jini/packages/analytics
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/ui@0.6.23 typecheck /home/user/Jini/packages/ui
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/commerce@0.6.19 typecheck /home/user/Jini/packages/commerce
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/diagnostics@0.6.22 typecheck /home/user/Jini/packages/diagnostics
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/agent-plugins@0.6.24 typecheck /home/user/Jini/packages/agent-plugins
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/chat@0.6.23 typecheck /home/user/Jini/packages/chat
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/provider-plugins@0.6.24 typecheck /home/user/Jini/packages/provider-plugins
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit
+
+
+> @jini-ai/admin@0.6.22 typecheck /home/user/Jini/packages/admin
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/daemon@0.6.23 typecheck /home/user/Jini/packages/daemon
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/search@0.6.19 typecheck /home/user/Jini/packages/search
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/devops@0.6.22 typecheck /home/user/Jini/packages/devops
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/mcp@0.6.23 typecheck /home/user/Jini/packages/mcp
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/server@0.6.19 typecheck /home/user/Jini/packages/server
+> tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/sqlite@0.6.23 typecheck /home/user/Jini/packages/sqlite
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-ai/user-management@0.6.22 typecheck /home/user/Jini/packages/user-management
+> tsc -p tsconfig.json --noEmit
+
+
+> @jini-example/neutral-host@0.0.0 typecheck /home/user/Jini/examples/neutral-host
+> tsc -p tsconfig.json
+
+
+> @jini-app/reference-web@0.0.6 typecheck /home/user/Jini/examples/reference-web
+> tsc -p tsconfig.json --noEmit
+

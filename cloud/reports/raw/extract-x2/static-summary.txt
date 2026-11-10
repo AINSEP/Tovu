@@ -1,0 +1,10 @@
+jini-guard exit=1 secs=35
+jini-typecheck exit=0 secs=295
+jini-typecheck-scripts exit=0 secs=3
+tovu-static-typecheck-root exit=0 secs=35
+tovu-static-typecheck-e2e exit=0 secs=37
+tovu-static-typecheck-tests exit=2 secs=90
+tovu-static-lint exit=1 secs=28
+tovu-static-check-architecture exit=1 secs=33
+tovu-static-check-boundaries exit=15 secs=34
+STATIC DONE Tue Nov 10 00:05:42 UTC 2026

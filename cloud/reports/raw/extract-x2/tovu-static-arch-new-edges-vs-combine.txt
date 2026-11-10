@@ -1,0 +1,8 @@
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/agent-plugins/lifecycle.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/surface-connection-bindings.ts -> apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-ports.ts -> apps/website/src/features/source-control/provider-registry.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/run-ops.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-targets/registry.ts -> apps/website/src/features/form-destinations/types.ts
