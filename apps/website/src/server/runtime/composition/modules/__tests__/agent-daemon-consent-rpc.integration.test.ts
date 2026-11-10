@@ -39,7 +39,8 @@ async function fixture(t: import('node:test').TestContext) {
 test('memory daemon consent reads and writes only the authenticated site owner ledger', async t => {
   const f = await fixture(t);
   const snapshot = await f.client.readToolConsentSnapshot(f.target);
-  assert.equal(snapshot.allowed, true); assert.equal(snapshot.permissions.capabilities.userMcp, false); assert.equal(snapshot.revisionSeq, 0);
+  // Personal MCP is on by default for the local owner (cloud/mcp-default 134e7ca9); the grant below still writes the ledger.
+  assert.equal(snapshot.allowed, true); assert.equal(snapshot.permissions.capabilities.userMcp, true); assert.equal(snapshot.revisionSeq, 0);
   assert.equal(await f.client.allowRunTools({ ...f.target, keys: ['userMcp'], expectedRevisionSeq: snapshot.revisionSeq }), true);
   const layer = await f.layer();
   assert.equal((layer.raw.byAgent as { antigravity: { capabilities: { userMcp: boolean } } }).antigravity.capabilities.userMcp, true);
