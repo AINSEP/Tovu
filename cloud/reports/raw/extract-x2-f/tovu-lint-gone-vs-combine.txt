@@ -1,0 +1,6 @@
+apps/website/src/contracts/core/commands/revert.ts|lint/suspicious/noEmptyInterface 1 0
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts|lint/suspicious/noAssignInExpressions 1 0
+apps/website/src/features/agent-plugins/connect-tool.ts|lint/suspicious/noImplicitAnyLet 1 0
+apps/website/src/features/agent-plugins/credential-cards.ts|lint/correctness/noVoidTypeReturn 1 0
+apps/website/src/features/agent-plugins/host-signals.ts|lint/suspicious/noControlCharactersInRegex 2 0
+apps/website/src/features/deployments/deploy-ops/run-ops.ts|lint/suspicious/noImplicitAnyLet 1 0

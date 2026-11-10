@@ -1,0 +1,757 @@
+check:architecture — 2165 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              447
+  propagation cost (all-import)                        12.43%
+  propagation cost (runtime-only)                      3.09%
+  back-edges into composition root                     5
+    └ back-edges, runtime-only (informational)         5
+  module cycles (mutual pairs, runtime-only)           6
+  largest strongly-connected component (runtime-only)  61
+  module API surface (files exposed)                   870
+    └ deep-import edges (informational)                2774
+  bidirectional hub count                              17.37% (376/2165)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+
+--- back-edges into src/server/**, by target file (all-import) ---
+    3 → apps/website/src/server/runtime/boot/startup-secrets.ts
+    1 → apps/website/src/server/runtime/lifecycle/warm-site-agent.ts
+    1 → apps/website/src/server/inbound/public-http/routes/oauth/public-origin.ts
+
+--- same, runtime-only (informational — shows which of the above are real coupling vs. type-only noise) ---
+    3 → apps/website/src/server/runtime/boot/startup-secrets.ts
+    1 → apps/website/src/server/runtime/lifecycle/warm-site-agent.ts
+    1 → apps/website/src/server/inbound/public-http/routes/oauth/public-origin.ts
+
+--- module cycles (runtime-only graph) ---
+    assistant <-> features/external-mcp
+    assistant <-> server
+    features/custom-credentials <-> features/deployments
+    features/custom-credentials <-> features/source-control
+    features/site-backup <-> features/source-control
+    platform <-> server
+
+  strongly-connected components (mutually inseparable modules):
+    [61] assistant, features/agent-plugins, features/analytics, features/api-connections, features/asset-transfer, features/comments, features/consent, features/content-types, features/custom-credentials, features/database-transfer, features/deployments, features/email-templates, features/entries, features/external-mcp, features/form-destinations, features/forms, features/fs-files, features/identity, features/image-transform, features/mail, features/mail-status, features/media, features/media-generation, features/media-import, features/member-login, features/members, features/navigation, features/newsletter, features/object-storage, features/pages, features/plugin-runtime, features/post, features/presentation, features/project-keys, features/publish-content, features/publish-trust, features/redirects, features/seo, features/server-logs, features/settings, features/site-backup, features/site-evidence, features/site-export, features/site-guide, features/site-inspection, features/site-search, features/sites, features/skills, features/source-control, features/taxonomy, features/theme, features/tool-audit, features/trash, features/vendor-credentials, features/web, features/web-screenshot, features/webhooks, features/widgets, features/workspace, platform, server
+
+--- deep imports bypassing index.ts, by target module (all-import) ---
+    640 edges, 115 distinct file(s) → contracts
+    610 edges, 111 distinct file(s) → platform
+    175 edges, 51 distinct file(s) → features/agent-plugins
+    153 edges, 45 distinct file(s) → features/publish-content
+    133 edges, 74 distinct file(s) → assistant
+    57 edges, 29 distinct file(s) → features/theme
+    55 edges, 15 distinct file(s) → features/identity
+    47 edges, 23 distinct file(s) → features/media
+    45 edges, 9 distinct file(s) → features/external-mcp
+    44 edges, 15 distinct file(s) → features/deployments
+    44 edges, 23 distinct file(s) → features/site-backup
+    42 edges, 31 distinct file(s) → server
+    38 edges, 12 distinct file(s) → features/newsletter
+    36 edges, 10 distinct file(s) → features/publish-trust
+    35 edges, 20 distinct file(s) → features/plugin-runtime
+    34 edges, 11 distinct file(s) → features/webhooks
+    34 edges, 9 distinct file(s) → features/fs-files
+    33 edges, 16 distinct file(s) → features/settings
+    33 edges, 11 distinct file(s) → features/post
+    29 edges, 10 distinct file(s) → features/api-connections
+    28 edges, 8 distinct file(s) → features/project-keys
+    26 edges, 8 distinct file(s) → features/source-control
+    24 edges, 11 distinct file(s) → features/consent
+    23 edges, 8 distinct file(s) → features/database
+    22 edges, 10 distinct file(s) → features/custom-credentials
+    22 edges, 11 distinct file(s) → features/taxonomy
+    20 edges, 6 distinct file(s) → features/widgets
+    16 edges, 11 distinct file(s) → features/forms
+    15 edges, 9 distinct file(s) → features/entries
+    15 edges, 10 distinct file(s) → features/mail-status
+    14 edges, 6 distinct file(s) → features/vendor-credentials
+    14 edges, 9 distinct file(s) → features/navigation
+    14 edges, 9 distinct file(s) → features/recovery
+    13 edges, 5 distinct file(s) → features/mail
+    11 edges, 4 distinct file(s) → features/skills
+    11 edges, 3 distinct file(s) → features/media-import
+    11 edges, 7 distinct file(s) → features/comments
+    11 edges, 2 distinct file(s) → features/site-guide
+    10 edges, 4 distinct file(s) → features/members
+    9 edges, 5 distinct file(s) → features/analytics
+    9 edges, 6 distinct file(s) → features/tool-audit
+    8 edges, 3 distinct file(s) → features/form-destinations
+    8 edges, 4 distinct file(s) → features/redirects
+    7 edges, 5 distinct file(s) → features/database-transfer
+    7 edges, 4 distinct file(s) → features/content-types
+    6 edges, 5 distinct file(s) → features/trash
+    6 edges, 5 distinct file(s) → features/plugins
+    5 edges, 2 distinct file(s) → features/content-duplication
+    5 edges, 4 distinct file(s) → features/site-search
+    5 edges, 2 distinct file(s) → features/permanent-delete
+    5 edges, 4 distinct file(s) → features/seo
+    5 edges, 3 distinct file(s) → features/site-inspection
+    5 edges, 2 distinct file(s) → features/presentation
+    5 edges, 5 distinct file(s) → features/web-screenshot
+    4 edges, 2 distinct file(s) → features/webmcp
+    4 edges, 3 distinct file(s) → features/member-login
+    4 edges, 3 distinct file(s) → features/site-export
+    4 edges, 3 distinct file(s) → features/media-generation
+    4 edges, 3 distinct file(s) → features/pages
+    3 edges, 2 distinct file(s) → features/sites
+    3 edges, 3 distinct file(s) → features/asset-transfer
+    3 edges, 3 distinct file(s) → features/server-logs
+    2 edges, 1 distinct file(s) → features/change-sets
+    2 edges, 1 distinct file(s) → features/image-transform
+    2 edges, 1 distinct file(s) → features/observability
+    2 edges, 1 distinct file(s) → features/site-evidence
+    2 edges, 1 distinct file(s) → features/workspace
+    2 edges, 2 distinct file(s) → features/web
+    1 edges, 1 distinct file(s) → features/email-templates
+
+--- Martin instability (stable → unstable, all-import) ---
+    I=0.00  Ca=   4 Ce=   0  features/webmcp
+    I=0.00  Ca=  11 Ce=   0  features/plugins
+    I=0.00  Ca= 640 Ce=   1  contracts
+    I=0.06  Ca= 610 Ce=  38  platform
+    I=0.07  Ca= 103 Ce=   8  features/webhooks
+    I=0.11  Ca=  34 Ce=   4  features/fs-files
+    I=0.15  Ca=  22 Ce=   4  features/presentation
+    I=0.16  Ca=  36 Ce=   7  features/publish-trust
+    I=0.18  Ca=  14 Ce=   3  features/analytics
+    I=0.18  Ca=  14 Ce=   3  features/site-guide
+    I=0.18  Ca= 175 Ce=  39  features/agent-plugins
+    I=0.22  Ca=  46 Ce=  13  features/members
+    I=0.22  Ca=  28 Ce=   8  features/project-keys
+    I=0.23  Ca=  55 Ce=  16  features/identity
+    I=0.23  Ca=  24 Ce=   7  features/consent
+    I=0.25  Ca= 153 Ce=  50  features/publish-content
+    I=0.26  Ca=  20 Ce=   7  features/vendor-credentials
+    I=0.27  Ca=  51 Ce=  19  features/newsletter
+    I=0.27  Ca=  16 Ce=   6  features/mail
+    I=0.27  Ca=  95 Ce=  36  features/media
+    I=0.28  Ca=  75 Ce=  29  features/settings
+    I=0.28  Ca=  23 Ce=   9  features/database
+    I=0.29  Ca=  10 Ce=   4  features/form-destinations
+    I=0.29  Ca=  29 Ce=  12  features/api-connections
+    I=0.29  Ca=  12 Ce=   5  features/workspace
+    I=0.31  Ca=   9 Ce=   4  features/tool-audit
+    I=0.31  Ca=  11 Ce=   5  features/skills
+    I=0.32  Ca=  21 Ce=  10  features/content-types
+    I=0.34  Ca=  35 Ce=  18  features/taxonomy
+    I=0.35  Ca=  89 Ce=  48  features/theme
+    I=0.38  Ca=  80 Ce=  48  features/post
+    I=0.38  Ca=   5 Ce=   3  features/content-duplication
+    I=0.38  Ca=  23 Ce=  14  features/navigation
+    I=0.39  Ca=  45 Ce=  29  features/external-mcp
+    I=0.42  Ca=  14 Ce=  10  features/recovery
+    I=0.42  Ca=  23 Ce=  17  features/trash
+    I=0.44  Ca=   9 Ce=   7  features/redirects
+    I=0.45  Ca=  16 Ce=  13  features/comments
+    I=0.45  Ca=  28 Ce=  23  features/forms
+    I=0.45  Ca=  12 Ce=  10  features/member-login
+    I=0.47  Ca=  35 Ce=  31  features/plugin-runtime
+    I=0.47  Ca=  20 Ce=  18  features/widgets
+    I=0.48  Ca=  24 Ce=  22  features/entries
+    I=0.50  Ca=  15 Ce=  15  features/seo
+    I=0.50  Ca=   2 Ce=   2  features/change-sets
+    I=0.50  Ca=   2 Ce=   2  features/observability
+    I=0.50  Ca=   5 Ce=   5  features/permanent-delete
+    I=0.50  Ca=   1 Ce=   1  features/origin
+    I=0.51  Ca=  46 Ce=  47  features/custom-credentials
+    I=0.52  Ca= 164 Ce= 175  assistant
+    I=0.52  Ca=  10 Ce=  11  features/site-inspection
+    I=0.55  Ca=  13 Ce=  16  features/site-export
+    I=0.57  Ca=   3 Ce=   4  features/server-logs
+    I=0.58  Ca=  11 Ce=  15  features/sites
+    I=0.58  Ca=   5 Ce=   7  features/web-screenshot
+    I=0.59  Ca=  11 Ce=  16  features/media-import
+    I=0.59  Ca=  30 Ce=  44  features/source-control
+    I=0.61  Ca=  44 Ce=  69  features/site-backup
+    I=0.62  Ca=  53 Ce=  85  features/deployments
+    I=0.64  Ca=  13 Ce=  23  features/pages
+    I=0.67  Ca=   3 Ce=   6  features/email-templates
+    I=0.67  Ca=   2 Ce=   4  features/site-evidence
+    I=0.67  Ca=   4 Ce=   8  features/domain-dns
+    I=0.67  Ca=  15 Ce=  31  features/mail-status
+    I=0.71  Ca=   5 Ce=  12  features/site-search
+    I=0.71  Ca=   7 Ce=  17  features/database-transfer
+    I=0.71  Ca=   2 Ce=   5  features/web
+    I=0.80  Ca=   1 Ce=   4  features/object-storage
+    I=0.83  Ca=   2 Ce=  10  features/image-transform
+    I=0.83  Ca=   4 Ce=  20  features/media-generation
+    I=0.89  Ca=   3 Ce=  25  features/asset-transfer
+    I=0.98  Ca=  42 Ce=1869  server
+    I=1.00  Ca=   0 Ce= 111  cli
+
+--- bidirectional hubs (fan-in > median AND fan-out > median, all-import), by combined degree ---
+    fanIn= 417 fanOut=1028  [server]  apps/website/src/server/routes/types.ts
+    fanIn= 327 fanOut=1063  [server]  apps/website/src/server/inbound/admin-http/dev-auth.ts
+    fanIn= 359 fanOut=1030  [server]  apps/website/src/server/runtime/composition/site-paths.ts
+    fanIn= 328 fanOut=1055  [server]  apps/website/src/server/inbound/admin-http/owner-recovery-routes.ts
+    fanIn= 335 fanOut=1040  [server]  apps/website/src/server/runtime/boot/local-owner-signin.ts
+    fanIn= 337 fanOut=1037  [server]  apps/website/src/server/inbound/admin-http/routes/users/deps.ts
+    fanIn= 336 fanOut=1038  [server]  apps/website/src/server/runtime/boot/boot-readiness-warnings.ts
+    fanIn= 341 fanOut=1032  [server]  apps/website/src/server/runtime/composition/host-signals.ts
+    fanIn= 328 fanOut=1043  [server]  apps/website/src/server/inbound/admin-http/owner-mfa-routes.ts
+    fanIn= 329 fanOut=1041  [server]  apps/website/src/server/inbound/admin-http/local-admin-request.ts
+    fanIn= 331 fanOut=1038  [server]  apps/website/src/server/inbound/admin-http/owner-mfa-deps.ts
+    fanIn= 328 fanOut=1040  [server]  apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts
+    fanIn= 334 fanOut=1031  [server]  apps/website/src/server/inbound/public-http/middleware/site-consent.ts
+    fanIn= 432 fanOut= 926  [assistant]  apps/website/src/assistant/tool-registrations.ts
+    fanIn= 418 fanOut= 931  [assistant]  apps/website/src/assistant/host-ports.ts
+    fanIn= 873 fanOut=  78  [contracts]  apps/website/src/contracts/headless/index.ts
+    fanIn= 885 fanOut=  61  [contracts]  apps/website/src/contracts/core/tool-metadata/index.ts
+    fanIn= 877 fanOut=  62  [contracts]  apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+    fanIn= 874 fanOut=  62  [contracts]  apps/website/src/contracts/headless/secret-form-cards.ts
+    fanIn= 434 fanOut= 495  [features/publish-content]  apps/website/src/features/publish-content/tool-registrations.ts
+    fanIn= 434 fanOut= 465  [features/site-backup]  apps/website/src/features/site-backup/backup-service.ts
+    fanIn= 433 fanOut= 466  [features/site-backup]  apps/website/src/features/site-backup/tool-registrations.ts
+    fanIn= 436 fanOut= 449  [features/site-backup]  apps/website/src/features/site-backup/import-backend.ts
+    fanIn= 438 fanOut= 446  [features/site-backup]  apps/website/src/features/site-backup/import-restore.ts
+    fanIn= 439 fanOut= 440  [features/site-backup]  apps/website/src/features/site-backup/import-verifier.ts
+    fanIn= 435 fanOut= 426  [features/site-backup]  apps/website/src/features/site-backup/share-backend.ts
+    fanIn= 439 fanOut= 414  [features/site-backup]  apps/website/src/features/site-backup/import-plugin-state.ts
+    fanIn= 436 fanOut= 417  [features/site-backup]  apps/website/src/features/site-backup/share-preparation.ts
+    fanIn= 433 fanOut= 400  [features/source-control]  apps/website/src/features/source-control/tool-registrations.ts
+    fanIn= 456 fanOut= 371  [features/site-backup]  apps/website/src/features/site-backup/archive-manifest.ts
+    fanIn= 448 fanOut= 372  [features/site-backup]  apps/website/src/features/site-backup/archive-paths.ts
+    fanIn= 435 fanOut= 384  [features/publish-content]  apps/website/src/features/publish-content/publish-tool.ts
+    fanIn= 438 fanOut= 379  [features/site-backup]  apps/website/src/features/site-backup/share-zip.ts
+    fanIn= 434 fanOut= 382  [features/source-control]  apps/website/src/features/source-control/commit-site.ts
+    fanIn= 440 fanOut= 375  [features/site-backup]  apps/website/src/features/site-backup/import-verifier-projection.ts
+    fanIn= 441 fanOut= 373  [features/site-backup]  apps/website/src/features/site-backup/import-verifier-inventory.ts
+    fanIn= 442 fanOut= 372  [features/site-backup]  apps/website/src/features/site-backup/plan-store.ts
+    fanIn= 440 fanOut= 373  [features/site-backup]  apps/website/src/features/site-backup/archive-media.ts
+    fanIn= 440 fanOut= 373  [features/site-backup]  apps/website/src/features/site-backup/push-engine.ts
+    fanIn= 436 fanOut= 375  [features/publish-content]  apps/website/src/features/publish-content/tool-deps.ts
+    fanIn= 437 fanOut= 373  [features/site-backup]  apps/website/src/features/site-backup/archive-extensions.ts
+    fanIn= 436 fanOut= 374  [features/site-backup]  apps/website/src/features/site-backup/push-jobs.ts
+    fanIn= 433 fanOut= 371  [features/permanent-delete]  apps/website/src/features/permanent-delete/tool-registrations.ts
+    fanIn= 434 fanOut= 369  [features/deployments]  apps/website/src/features/deployments/publish-agent-tools.ts
+    fanIn= 466 fanOut= 336  [features/members]  apps/website/src/features/members/index.ts
+    fanIn= 437 fanOut= 364  [features/publish-content]  apps/website/src/features/publish-content/pull.ts
+    fanIn= 719 fanOut=  81  [contracts]  apps/website/src/contracts/core/human-confirm.ts
+    fanIn= 720 fanOut=  79  [contracts]  apps/website/src/contracts/core/chat-delete-grant.ts
+    fanIn= 441 fanOut= 357  [features/publish-content]  apps/website/src/features/publish-content/peer-transport.ts
+    fanIn= 438 fanOut= 358  [features/publish-content]  apps/website/src/features/publish-content/composite-blob-source.ts
+    fanIn= 436 fanOut= 360  [features/publish-content]  apps/website/src/features/publish-content/push-plan.ts
+    fanIn= 435 fanOut= 360  [features/seo]  apps/website/src/features/seo/index.ts
+    fanIn= 433 fanOut= 362  [features/seo]  apps/website/src/features/seo/tool-registrations.ts
+    fanIn= 635 fanOut= 159  [features/agent-plugins]  apps/website/src/features/agent-plugins/bundled-contribution-sources.ts
+    fanIn= 635 fanOut= 159  [features/agent-plugins]  apps/website/src/features/agent-plugins/layout.ts
+    fanIn= 635 fanOut= 159  [features/agent-plugins]  apps/website/src/features/agent-plugins/lifecycle.ts
+    fanIn= 635 fanOut= 159  [features/agent-plugins]  apps/website/src/features/agent-plugins/memory.ts
+    fanIn= 635 fanOut= 159  [features/agent-plugins]  apps/website/src/features/agent-plugins/service-ports.ts
+    fanIn= 635 fanOut= 159  [features/agent-plugins]  apps/website/src/features/agent-plugins/supersession.ts
+    fanIn= 635 fanOut= 159  [features/api-connections]  apps/website/src/features/api-connections/byo-client.ts
+    fanIn= 635 fanOut= 159  [features/api-connections]  apps/website/src/features/api-connections/connect.ts
+    fanIn= 635 fanOut= 159  [features/api-connections]  apps/website/src/features/api-connections/contribution.ts
+    fanIn= 635 fanOut= 159  [features/api-connections]  apps/website/src/features/api-connections/host-bindings.ts
+    fanIn= 635 fanOut= 159  [features/api-connections]  apps/website/src/features/api-connections/host.ts
+    fanIn= 635 fanOut= 159  [features/api-connections]  apps/website/src/features/api-connections/shared-api.ts
+    fanIn= 635 fanOut= 159  [features/custom-credentials]  apps/website/src/features/custom-credentials/credential-ports.ts
+    fanIn= 635 fanOut= 159  [features/custom-credentials]  apps/website/src/features/custom-credentials/index.ts
+    fanIn= 657 fanOut= 137  [features/media]  apps/website/src/features/media/index.ts
+    fanIn= 565 fanOut= 229  [features/post]  apps/website/src/features/post/index.ts
+    fanIn= 635 fanOut= 159  [features/source-control]  apps/website/src/features/source-control/provider-registry.ts
+    fanIn= 433 fanOut= 359  [features/theme]  apps/website/src/features/theme/tool-registrations.ts
+    fanIn= 435 fanOut= 354  [features/deployments]  apps/website/src/features/deployments/static-publish/domain-publish-tool.ts
+    fanIn= 488 fanOut= 301  [features/site-export]  apps/website/src/features/site-export/site-exporter.ts
+    fanIn= 467 fanOut= 321  [features/members]  apps/website/src/features/members/password-auth.ts
+    fanIn= 469 fanOut= 319  [features/members]  apps/website/src/features/members/write-service.ts
+    fanIn= 437 fanOut= 350  [features/deployments]  apps/website/src/features/deployments/publish-tool-deps.ts
+    fanIn= 436 fanOut= 351  [features/deployments]  apps/website/src/features/deployments/static-publish/publish-consent.ts
+    fanIn= 456 fanOut= 330  [features/deployments]  apps/website/src/features/deployments/static-publish/index.ts
+    fanIn= 457 fanOut= 326  [features/deployments]  apps/website/src/features/deployments/static-publish/publish-run.ts
+    fanIn= 433 fanOut= 348  [features/pages]  apps/website/src/features/pages/tool-registrations.ts
+    fanIn= 459 fanOut= 321  [features/deployments]  apps/website/src/features/deployments/static-publish/adapter.ts
+    fanIn= 457 fanOut= 322  [features/deployments]  apps/website/src/features/deployments/static-publish/inspection.ts
+    fanIn= 473 fanOut= 303  [features/email-templates]  apps/website/src/features/email-templates/operations.ts
+    fanIn= 475 fanOut= 301  [features/pages]  apps/website/src/features/pages/index.ts
+    fanIn= 489 fanOut= 287  [features/site-export]  apps/website/src/features/site-export/theme-preview-manifest.ts
+    fanIn= 435 fanOut= 341  [features/site-inspection]  apps/website/src/features/site-inspection/index.ts
+    fanIn= 436 fanOut= 340  [features/site-inspection]  apps/website/src/features/site-inspection/tool-registrations.ts
+    fanIn= 420 fanOut= 356  [server]  apps/website/src/server/runtime/composition/modules/site-search.ts
+    fanIn= 471 fanOut= 304  [features/email-templates]  apps/website/src/features/email-templates/index.ts
+    fanIn= 470 fanOut= 305  [features/members]  apps/website/src/features/members/auth-mail.ts
+    fanIn= 437 fanOut= 338  [features/site-inspection]  apps/website/src/features/site-inspection/deps.ts
+    fanIn= 711 fanOut=  64  [platform]  apps/website/src/platform/db/migrations/index.ts
+    fanIn= 490 fanOut= 284  [features/site-export]  apps/website/src/features/site-export/route-manifest.ts
+    fanIn= 478 fanOut= 293  [features/pages]  apps/website/src/features/pages/html-document-store.sqlite.ts
+    fanIn= 479 fanOut= 292  [features/pages]  apps/website/src/features/pages/html-document-store.ts
+    fanIn= 438 fanOut= 333  [features/site-inspection]  apps/website/src/features/site-inspection/live-url.ts
+    fanIn= 476 fanOut= 294  [features/pages]  apps/website/src/features/pages/html-document-store.memory.ts
+    fanIn= 703 fanOut=  67  [platform]  apps/website/src/platform/db/sqlite/content-db.ts
+    fanIn= 704 fanOut=  65  [platform]  apps/website/src/platform/db/sqlite/fresh-content-db.ts
+    fanIn= 463 fanOut= 302  [features/site-export]  apps/website/src/features/site-export/index.ts
+    fanIn= 458 fanOut= 306  [features/site-backup]  apps/website/src/features/site-backup/static-copy.ts
+    fanIn= 435 fanOut= 327  [features/sites]  apps/website/src/features/sites/index.ts
+    fanIn= 421 fanOut= 339  [features/site-search]  apps/website/src/features/site-search/access.ts
+    fanIn= 422 fanOut= 338  [features/site-search]  apps/website/src/features/site-search/cms-document-source.ts
+    fanIn= 440 fanOut= 318  [features/site-backup]  apps/website/src/features/site-backup/package-file-inventory.ts
+    fanIn= 437 fanOut= 319  [features/sites]  apps/website/src/features/sites/tool-registrations.ts
+    fanIn= 433 fanOut= 322  [features/members]  apps/website/src/features/members/tool-registrations.ts
+    fanIn= 438 fanOut= 317  [features/sites]  apps/website/src/features/sites/deps.ts
+    fanIn= 440 fanOut= 315  [features/sites]  apps/website/src/features/sites/site-admin.ts
+    fanIn= 439 fanOut= 316  [features/sites]  apps/website/src/features/sites/warm-switch.ts
+    fanIn= 433 fanOut= 320  [features/deployments]  apps/website/src/features/deployments/deploy-ops/tool-registrations.ts
+    fanIn= 433 fanOut= 320  [features/sites]  apps/website/src/features/sites/list-tool.ts
+    fanIn= 439 fanOut= 311  [features/site-backup]  apps/website/src/features/site-backup/static-download-layout.ts
+    fanIn= 659 fanOut=  84  [features/media]  apps/website/src/features/media/library-save-attachment.ts
+    fanIn= 659 fanOut=  79  [features/media]  apps/website/src/features/media/read-chat-attachment.ts
+    fanIn= 435 fanOut= 301  [features/publish-trust]  apps/website/src/features/publish-trust/connect.ts
+    fanIn= 434 fanOut= 298  [features/deployments]  apps/website/src/features/deployments/deploy-ops/agent-tools.ts
+    fanIn= 437 fanOut= 295  [features/deployments]  apps/website/src/features/deployments/index.ts
+    fanIn= 436 fanOut= 295  [features/asset-transfer]  apps/website/src/features/asset-transfer/asset-destinations.ts
+    fanIn= 435 fanOut= 296  [features/asset-transfer]  apps/website/src/features/asset-transfer/asset-sources.ts
+    fanIn= 433 fanOut= 298  [features/image-transform]  apps/website/src/features/image-transform/tool.ts
+    fanIn= 440 fanOut= 288  [features/deployments]  apps/website/src/features/deployments/deploy-ops/registry.ts
+    fanIn= 438 fanOut= 288  [features/deployments]  apps/website/src/features/deployments/deploy-config-registry.ts
+    fanIn= 434 fanOut= 291  [features/theme]  apps/website/src/features/theme/import-theme-file-tool.ts
+    fanIn= 433 fanOut= 280  [features/post]  apps/website/src/features/post/tool-registrations.ts
+    fanIn= 439 fanOut= 272  [features/media-import]  apps/website/src/features/media-import/tool-registrations.ts
+    fanIn= 684 fanOut=  25  [features/vendor-credentials]  apps/website/src/features/vendor-credentials/vault-adapter.ts
+    fanIn= 567 fanOut= 138  [features/post]  apps/website/src/features/post/featured-image.ts
+    fanIn= 678 fanOut=  26  [features/vendor-credentials]  apps/website/src/features/vendor-credentials/repo.memory.ts
+    fanIn= 676 fanOut=  27  [features/vendor-credentials]  apps/website/src/features/vendor-credentials/index.ts
+    fanIn= 515 fanOut= 184  [features/theme]  apps/website/src/features/theme/index.ts
+    fanIn= 434 fanOut= 261  [features/post]  apps/website/src/features/post/preview-tool.ts
+    fanIn= 435 fanOut= 259  [features/post]  apps/website/src/features/post/template-options.ts
+    fanIn= 664 fanOut=  23  [features/media]  apps/website/src/features/media/provider-credential-vault.ts
+    fanIn= 660 fanOut=  24  [features/media]  apps/website/src/features/media/provider-credential-store.ts
+    fanIn= 653 fanOut=  30  [features/custom-credentials]  apps/website/src/features/custom-credentials/tovu-credential-sets.ts
+    fanIn= 648 fanOut=  32  [features/custom-credentials]  apps/website/src/features/custom-credentials/store.ts
+    fanIn= 438 fanOut= 242  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/agent-plugin-tool-binding.ts
+    fanIn= 438 fanOut= 242  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/host-tool-binding.ts
+    fanIn= 438 fanOut= 242  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/tool-registrations.ts
+    fanIn= 523 fanOut= 156  [features/theme]  apps/website/src/features/theme/asset-operations.ts
+    fanIn= 446 fanOut= 231  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/service-ports.ts
+    fanIn= 524 fanOut= 153  [features/theme]  apps/website/src/features/theme/theme-file-import.ts
+    fanIn= 437 fanOut= 239  [features/fs-files]  apps/website/src/features/fs-files/tool-registrations.ts
+    fanIn= 639 fanOut=  33  [features/custom-credentials]  apps/website/src/features/custom-credentials/vault-repo.ts
+    fanIn= 637 fanOut=  35  [features/custom-credentials]  apps/website/src/features/custom-credentials/write-files-validation.ts
+    fanIn= 439 fanOut= 233  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/lower-tool-access.ts
+    fanIn= 433 fanOut= 239  [features/taxonomy]  apps/website/src/features/taxonomy/tool-registrations.ts
+    fanIn= 636 fanOut=  34  [features/custom-credentials]  apps/website/src/features/custom-credentials/repo.memory.ts
+    fanIn= 636 fanOut=  33  [features/custom-credentials]  apps/website/src/features/custom-credentials/credentialed-request.ts
+    fanIn= 526 fanOut= 138  [features/media-import]  apps/website/src/features/media-import/fetch-image.ts
+    fanIn= 418 fanOut= 245  [server]  apps/website/src/server/runtime/composition/commerce.ts
+    fanIn= 566 fanOut=  93  [features/post]  apps/website/src/features/post/repo.sqlite.ts
+    fanIn= 566 fanOut=  91  [features/post]  apps/website/src/features/post/search-index.memory.ts
+    fanIn= 507 fanOut= 147  [platform]  apps/website/src/platform/site-dir/index.ts
+    fanIn= 436 fanOut= 216  [features/skills]  apps/website/src/features/skills/tool-registrations.ts
+    fanIn= 434 fanOut= 217  [features/skills]  apps/website/src/features/skills/install-service.ts
+    fanIn= 433 fanOut= 218  [features/skills]  apps/website/src/features/skills/install-tool.ts
+    fanIn= 433 fanOut= 217  [features/mail-status]  apps/website/src/features/mail-status/tool-registrations.ts
+    fanIn= 480 fanOut= 170  [features/publish-content]  apps/website/src/features/publish-content/type-registry.ts
+    fanIn= 465 fanOut= 182  [features/agent-plugins]  apps/website/src/features/agent-plugins/access-token-tool.ts
+    fanIn= 514 fanOut= 133  [platform]  apps/website/src/platform/site-dir/local-site-intent.ts
+    fanIn= 513 fanOut= 134  [platform]  apps/website/src/platform/site-dir/local-site-supervisor.ts
+    fanIn= 515 fanOut= 132  [platform]  apps/website/src/platform/site-dir/site-registry.ts
+    fanIn= 467 fanOut= 179  [features/agent-plugins]  apps/website/src/features/agent-plugins/connect-sign-in-wait.ts
+    fanIn= 467 fanOut= 179  [features/agent-plugins]  apps/website/src/features/agent-plugins/connect-tool.ts
+    fanIn= 441 fanOut= 204  [features/site-backup]  apps/website/src/features/site-backup/share-preparation-steps.ts
+    fanIn= 518 fanOut= 127  [platform]  apps/website/src/platform/site-dir/init-site.ts
+    fanIn= 483 fanOut= 160  [features/agent-plugins]  apps/website/src/features/agent-plugins/exports/source.ts
+    fanIn= 508 fanOut= 135  [platform]  apps/website/src/platform/site-dir/site-trash.ts
+    fanIn= 481 fanOut= 161  [features/agent-plugins]  apps/website/src/features/agent-plugins/exports/diagnostics.ts
+    fanIn= 508 fanOut= 134  [platform]  apps/website/src/platform/site-dir/duplicate-site.ts
+    fanIn= 480 fanOut= 160  [features/agent-plugins]  apps/website/src/features/agent-plugins/activation-effects.ts
+    fanIn= 469 fanOut= 171  [features/agent-plugins]  apps/website/src/features/agent-plugins/apply-connect-defaults.ts
+    fanIn= 456 fanOut= 183  [features/agent-plugins]  apps/website/src/features/agent-plugins/import-access-token.ts
+    fanIn= 508 fanOut= 131  [platform]  apps/website/src/platform/site-dir/repair-site.ts
+    fanIn= 473 fanOut= 165  [features/agent-plugins]  apps/website/src/features/agent-plugins/federate-mcp.ts
+    fanIn= 476 fanOut= 162  [features/agent-plugins]  apps/website/src/features/agent-plugins/mcp-host-bindings.ts
+    fanIn= 466 fanOut= 172  [features/agent-plugins]  apps/website/src/features/agent-plugins/switch-on-saved-token.ts
+    fanIn= 476 fanOut= 161  [features/agent-plugins]  apps/website/src/features/agent-plugins/capability-projection.ts
+    fanIn= 470 fanOut= 166  [features/agent-plugins]  apps/website/src/features/agent-plugins/enable-access.ts
+    fanIn= 451 fanOut= 185  [features/agent-plugins]  apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+    fanIn= 452 fanOut= 184  [features/agent-plugins]  apps/website/src/features/agent-plugins/token-sign-in.ts
+    fanIn= 434 fanOut= 202  [features/mail-status]  apps/website/src/features/mail-status/provider-tool-registrations.ts
+    fanIn= 473 fanOut= 161  [features/agent-plugins]  apps/website/src/features/agent-plugins/provider-plugin-link.ts
+    fanIn= 471 fanOut= 163  [features/agent-plugins]  apps/website/src/features/agent-plugins/set-enabled.ts
+    fanIn= 424 fanOut= 207  [server]  apps/website/src/server/inbound/public-http/http/site/render.ts
+    fanIn= 468 fanOut= 161  [features/agent-plugins]  apps/website/src/features/agent-plugins/connect-card-ui.ts
+    fanIn= 433 fanOut= 196  [features/custom-credentials]  apps/website/src/features/custom-credentials/tool-registrations.ts
+    fanIn= 434 fanOut= 193  [assistant]  apps/website/src/assistant/host-contracts.ts
+    fanIn= 489 fanOut= 138  [features/site-export]  apps/website/src/features/site-export/media-original-urls.ts
+    fanIn= 439 fanOut= 186  [features/agent-plugins]  apps/website/src/features/agent-plugins/tool-registrations.ts
+    fanIn= 440 fanOut= 185  [features/agent-plugins]  apps/website/src/features/agent-plugins/write-note-tool.ts
+    fanIn= 452 fanOut= 173  [features/publish-content]  apps/website/src/features/publish-content/planner.ts
+    fanIn= 483 fanOut= 141  [features/publish-content]  apps/website/src/features/publish-content/backstop-ports.ts
+    fanIn= 458 fanOut= 166  [features/site-backup]  apps/website/src/features/site-backup/sources.ts
+    fanIn= 435 fanOut= 187  [features/agent-plugins]  apps/website/src/features/agent-plugins/automatic-agent-plugins.ts
+    fanIn= 434 fanOut= 188  [features/theme]  apps/website/src/features/theme/preview-switcher-tools.ts
+    fanIn= 439 fanOut= 181  [features/publish-content]  apps/website/src/features/publish-content/gated-hooks.ts
+    fanIn= 442 fanOut= 176  [features/publish-content]  apps/website/src/features/publish-content/export-bundle.ts
+    fanIn= 434 fanOut= 182  [features/deployments]  apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts
+    fanIn= 440 fanOut= 174  [features/publish-content]  apps/website/src/features/publish-content/run-repo.ts
+    fanIn= 441 fanOut= 171  [features/publish-content]  apps/website/src/features/publish-content/seed-hash.ts
+    fanIn= 437 fanOut= 174  [features/publish-content]  apps/website/src/features/publish-content/report-labels.ts
+    fanIn= 434 fanOut= 176  [features/source-control]  apps/website/src/features/source-control/credential-setup.ts
+    fanIn= 442 fanOut= 164  [features/agent-plugins]  apps/website/src/features/agent-plugins/host-tool-ports.ts
+    fanIn= 435 fanOut= 171  [features/mail-status]  apps/website/src/features/mail-status/provider-operations.ts
+    fanIn= 437 fanOut= 168  [features/deployments]  apps/website/src/features/deployments/deploy-ops/run-ops.ts
+    fanIn= 434 fanOut= 169  [features/deployments]  apps/website/src/features/deployments/deploy-ops/secrets.ts
+    fanIn= 418 fanOut= 185  [server]  apps/website/src/server/inbound/public-http/http/site/page-head.ts
+    fanIn= 520 fanOut=  81  [platform]  apps/website/src/platform/site-dir/ports.ts
+    fanIn= 519 fanOut=  82  [platform]  apps/website/src/platform/site-dir/read-template.ts
+    fanIn= 521 fanOut=  80  [platform]  apps/website/src/platform/site-dir/site-store.ts
+    fanIn= 440 fanOut= 160  [features/source-control]  apps/website/src/features/source-control/store.ts
+    fanIn= 432 fanOut= 167  [features/agent-plugins]  apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts
+    fanIn= 431 fanOut= 168  [features/agent-plugins]  apps/website/src/features/agent-plugins/executable-tools/register.ts
+    fanIn= 510 fanOut=  89  [platform]  apps/website/src/platform/site-dir/key-only-site-meta.ts
+    fanIn= 435 fanOut= 162  [features/agent-plugins]  apps/website/src/features/agent-plugins/admin-surfaces/surfaces.ts
+    fanIn= 441 fanOut= 156  [features/forms]  apps/website/src/features/forms/index.ts
+    fanIn= 433 fanOut= 163  [features/agent-plugins]  apps/website/src/features/agent-plugins/admin-surfaces/handlers.ts
+    fanIn= 567 fanOut=  29  [features/post]  apps/website/src/features/post/repo.ts
+    fanIn= 438 fanOut= 155  [features/fs-files]  apps/website/src/features/fs-files/agent-tools.ts
+    fanIn= 444 fanOut= 149  [features/fs-files]  apps/website/src/features/fs-files/layout.ts
+    fanIn= 442 fanOut= 151  [features/fs-files]  apps/website/src/features/fs-files/site-file-request.ts
+    fanIn= 435 fanOut= 158  [features/theme]  apps/website/src/features/theme/file-mutation-tools.ts
+    fanIn= 440 fanOut= 152  [features/media-import]  apps/website/src/features/media-import/agent-tools.ts
+    fanIn= 433 fanOut= 158  [features/forms]  apps/website/src/features/forms/tool-registrations.ts
+    fanIn= 570 fanOut=  20  [features/post]  apps/website/src/features/post/repo.rows.ts
+    fanIn= 436 fanOut= 154  [features/sites]  apps/website/src/features/sites/site-preview/playwright-site-preview-capture.ts
+    fanIn= 419 fanOut= 170  [features/mail]  apps/website/src/features/mail/index.ts
+    fanIn= 521 fanOut=  68  [platform]  apps/website/src/platform/db/prepare-content-store.ts
+    fanIn= 569 fanOut=  19  [features/post]  apps/website/src/features/post/search-index.ts
+    fanIn= 437 fanOut= 151  [features/site-backup]  apps/website/src/features/site-backup/import-backend-steps.ts
+    fanIn= 438 fanOut= 150  [features/site-backup]  apps/website/src/features/site-backup/import-registry.ts
+    fanIn= 439 fanOut= 148  [features/deployments]  apps/website/src/features/deployments/deploy-config.ts
+    fanIn= 442 fanOut= 145  [features/media]  apps/website/src/features/media/tool-registrations.ts
+    fanIn= 420 fanOut= 166  [features/mail]  apps/website/src/features/mail/site-feedback-route.ts
+    fanIn= 437 fanOut= 149  [features/sites]  apps/website/src/features/sites/site-preview/site-preview-service.ts
+    fanIn= 438 fanOut= 148  [features/sites]  apps/website/src/features/sites/site-preview/site-preview-store.ts
+    fanIn= 438 fanOut= 148  [features/skills]  apps/website/src/features/skills/layout.ts
+    fanIn= 423 fanOut= 160  [features/mail]  apps/website/src/features/mail/feedback-sources.ts
+    fanIn= 444 fanOut= 138  [features/media]  apps/website/src/features/media/view-video-tool.ts
+    fanIn= 418 fanOut= 163  [features/agent-plugins]  apps/website/src/features/agent-plugins/exports/runtime.ts
+    fanIn= 421 fanOut= 160  [features/agent-plugins]  apps/website/src/features/agent-plugins/search-provider-registry.ts
+    fanIn= 433 fanOut= 148  [features/media-generation]  apps/website/src/features/media-generation/tool-registrations.ts
+    fanIn= 443 fanOut= 138  [features/media]  apps/website/src/features/media/view-image-tool.ts
+    fanIn= 442 fanOut= 138  [features/forms]  apps/website/src/features/forms/form-file-storage.ts
+    fanIn= 507 fanOut=  73  [features/presentation]  apps/website/src/features/presentation/index.ts
+    fanIn= 418 fanOut= 162  [features/source-control]  apps/website/src/features/source-control/index.ts
+    fanIn= 509 fanOut=  70  [features/presentation]  apps/website/src/features/presentation/repo.sqlite.ts
+    fanIn= 509 fanOut=  70  [platform]  apps/website/src/platform/site-dir/duplicate-pglite-store.ts
+    fanIn= 418 fanOut= 160  [features/agent-plugins]  apps/website/src/features/agent-plugins/auth-schemes.ts
+    fanIn= 434 fanOut= 142  [features/theme]  apps/website/src/features/theme/trash-theme-tool.ts
+    fanIn= 511 fanOut=  65  [platform]  apps/website/src/platform/site-dir/read-applied-schema-identity.ts
+    fanIn= 434 fanOut= 140  [features/post]  apps/website/src/features/post/content-stats-tool.ts
+    fanIn= 433 fanOut= 136  [server]  apps/website/src/server/runtime/lifecycle/warm-site-agent.ts
+    fanIn= 433 fanOut= 131  [features/newsletter]  apps/website/src/features/newsletter/delivery/tool-registrations.ts
+    fanIn= 473 fanOut=  90  [features/settings]  apps/website/src/features/settings/index.ts
+    fanIn= 467 fanOut=  94  [features/members]  apps/website/src/features/members/repo.sqlite.ts
+    fanIn= 445 fanOut= 116  [features/trash]  apps/website/src/features/trash/index.ts
+    fanIn= 508 fanOut=  52  [platform]  apps/website/src/platform/site-dir/site-key-dependent-data.ts
+    fanIn= 474 fanOut=  79  [features/settings]  apps/website/src/features/settings/operator-locale.ts
+    fanIn= 525 fanOut=  24  [platform]  apps/website/src/platform/db/repos/oauth-pending-store.ts
+    fanIn= 523 fanOut=  26  [platform]  apps/website/src/platform/db/vault-credential-inventory.ts
+    fanIn= 446 fanOut= 102  [features/trash]  apps/website/src/features/trash/trash-item-tool.ts
+    fanIn= 450 fanOut=  97  [features/trash]  apps/website/src/features/trash/permissions.ts
+    fanIn= 447 fanOut=  99  [features/trash]  apps/website/src/features/trash/move-to-trash.ts
+    fanIn= 519 fanOut=  27  [platform]  apps/website/src/platform/db/site-store-copy.ts
+    fanIn= 435 fanOut= 107  [features/mail-status]  apps/website/src/features/mail-status/test-send.ts
+    fanIn= 516 fanOut=  26  [features/theme]  apps/website/src/features/theme/migration/migrate-theme.ts
+    fanIn= 518 fanOut=  23  [features/theme]  apps/website/src/features/theme/duplicate-theme.ts
+    fanIn= 517 fanOut=  23  [features/theme]  apps/website/src/features/theme/static-render.ts
+    fanIn= 517 fanOut=  23  [features/theme]  apps/website/src/features/theme/validation/validate-theme-package.ts
+    fanIn= 434 fanOut= 105  [features/theme]  apps/website/src/features/theme/duplicate-theme-tool.ts
+    fanIn= 516 fanOut=  21  [features/theme]  apps/website/src/features/theme/page-publish-tool.ts
+    fanIn= 509 fanOut=  27  [platform]  apps/website/src/platform/db/key-dependent-data.ts
+    fanIn= 516 fanOut=  20  [platform]  apps/website/src/platform/site-dir/site-running.ts
+    fanIn= 436 fanOut=  99  [features/external-mcp]  apps/website/src/features/external-mcp/deps.ts
+    fanIn= 420 fanOut= 115  [server]  apps/website/src/server/runtime/composition/provider-plugins.ts
+    fanIn= 437 fanOut=  97  [features/theme]  apps/website/src/features/theme/set-active-theme-tool.ts
+    fanIn= 433 fanOut= 101  [features/trash]  apps/website/src/features/trash/tool-registrations.ts
+    fanIn= 438 fanOut=  94  [features/theme]  apps/website/src/features/theme/verify-active-theme.ts
+    fanIn= 451 fanOut=  81  [features/trash]  apps/website/src/features/trash/adapters/redirect.ts
+    fanIn= 434 fanOut=  98  [features/trash]  apps/website/src/features/trash/agent-tools.ts
+    fanIn= 433 fanOut=  97  [features/consent]  apps/website/src/features/consent/tool-registrations.ts
+    fanIn= 433 fanOut=  97  [features/settings]  apps/website/src/features/settings/tool-registrations.ts
+    fanIn= 433 fanOut=  96  [features/comments]  apps/website/src/features/comments/tool-registrations.ts
+    fanIn= 433 fanOut=  96  [features/recovery]  apps/website/src/features/recovery/tool-registrations.ts
+    fanIn= 437 fanOut=  91  [features/comments]  apps/website/src/features/comments/settings.ts
+    fanIn= 433 fanOut=  95  [features/database]  apps/website/src/features/database/tool-registrations.ts
+    fanIn= 437 fanOut=  91  [features/seo]  apps/website/src/features/seo/settings.ts
+    fanIn= 452 fanOut=  75  [features/redirects]  apps/website/src/features/redirects/index.ts
+    fanIn= 447 fanOut=  79  [assistant]  apps/website/src/assistant/assistant-tool-approval-policy.ts
+    fanIn= 434 fanOut=  92  [features/comments]  apps/website/src/features/comments/agent-tools.ts
+    fanIn= 434 fanOut=  92  [features/seo]  apps/website/src/features/seo/agent-tools.ts
+    fanIn= 441 fanOut=  83  [assistant]  apps/website/src/assistant/tool-approval-policy.ts
+    fanIn= 456 fanOut=  68  [features/redirects]  apps/website/src/features/redirects/repo.sqlite.ts
+    fanIn= 434 fanOut=  89  [features/settings]  apps/website/src/features/settings/visitor-tools-registrations.ts
+    fanIn= 433 fanOut=  90  [features/webhooks]  apps/website/src/features/webhooks/tool-registrations.ts
+    fanIn= 439 fanOut=  83  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/enable-confirmation-ui.ts
+    fanIn= 419 fanOut= 102  [features/external-mcp]  apps/website/src/features/external-mcp/operations-tools.ts
+    fanIn= 442 fanOut=  79  [features/forms]  apps/website/src/features/forms/agent-tools.ts
+    fanIn= 442 fanOut=  79  [features/forms]  apps/website/src/features/forms/delivery-status.ts
+    fanIn= 439 fanOut=  82  [features/plugin-runtime]  apps/website/src/features/plugin-runtime/uninstall-confirmation-ui.ts
+    fanIn= 433 fanOut=  85  [features/identity]  apps/website/src/features/identity/tool-registrations.ts
+    fanIn= 433 fanOut=  84  [assistant]  apps/website/src/assistant/ask-choice-tool.ts
+    fanIn= 434 fanOut=  82  [features/custom-credentials]  apps/website/src/features/custom-credentials/delete-request-confirmation-ui.ts
+    fanIn= 436 fanOut=  79  [assistant]  apps/website/src/assistant/assistant-permanent-deletes-policy.ts
+    fanIn= 435 fanOut=  79  [assistant]  apps/website/src/assistant/component-catalog-query.ts
+    fanIn= 435 fanOut=  79  [assistant]  apps/website/src/assistant/permanent-delete-settings.ts
+    fanIn= 433 fanOut=  80  [assistant]  apps/website/src/assistant/component-catalog-tool.ts
+    fanIn= 434 fanOut=  79  [assistant]  apps/website/src/assistant/content-target-inputs.ts
+    fanIn= 433 fanOut=  80  [assistant]  apps/website/src/assistant/tool-contribution-registry.ts
+    fanIn= 434 fanOut=  79  [features/custom-credentials]  apps/website/src/features/custom-credentials/custom-credential-set-token-ui.ts
+    fanIn= 433 fanOut=  79  [assistant]  apps/website/src/assistant/batch-tool-inputs.ts
+    fanIn= 421 fanOut=  91  [features/site-search]  apps/website/src/features/site-search/settings.ts
+    fanIn= 490 fanOut=  19  [features/theme]  apps/website/src/features/theme/preview-switcher-html.ts
+    fanIn= 489 fanOut=  19  [features/theme]  apps/website/src/features/theme/catalog.ts
+    fanIn= 419 fanOut=  88  [features/entries]  apps/website/src/features/entries/repo.sqlite.ts
+    fanIn= 347 fanOut= 160  [features/identity]  apps/website/src/features/identity/wiring.ts
+    fanIn= 422 fanOut=  83  [assistant]  apps/website/src/assistant/mcp-services.ts
+    fanIn= 342 fanOut= 161  [features/agent-plugins]  apps/website/src/features/agent-plugins/host-signals.ts
+    fanIn= 435 fanOut=  65  [assistant]  apps/website/src/assistant/content-read-tool.ts
+    fanIn= 436 fanOut=  64  [assistant]  apps/website/src/assistant/tool-search-keywords.ts
+    fanIn= 437 fanOut=  62  [assistant]  apps/website/src/assistant/tool-search-doc2query.ts
+    fanIn= 461 fanOut=  37  [features/deployments]  apps/website/src/features/deployments/static-publish/credentials.ts
+    fanIn= 457 fanOut=  41  [features/deployments]  apps/website/src/features/deployments/static-publish/verify.ts
+    fanIn= 468 fanOut=  30  [features/members]  apps/website/src/features/members/repo.ts
+    fanIn= 419 fanOut=  79  [features/taxonomy]  apps/website/src/features/taxonomy/repo.sqlite.ts
+    fanIn= 427 fanOut=  71  [features/workspace]  apps/website/src/features/workspace/index.ts
+    fanIn= 464 fanOut=  33  [features/deployments]  apps/website/src/features/deployments/publish-credentials/store.ts
+    fanIn= 428 fanOut=  69  [features/workspace]  apps/website/src/features/workspace/repo.sqlite.ts
+    fanIn= 477 fanOut=  19  [features/newsletter]  apps/website/src/features/newsletter/launch-gate.ts
+    fanIn= 473 fanOut=  21  [features/newsletter]  apps/website/src/features/newsletter/index.ts
+    fanIn= 463 fanOut=  29  [features/deployments]  apps/website/src/features/deployments/static-publish/publish-history.ts
+    fanIn= 467 fanOut=  24  [features/members]  apps/website/src/features/members/subscriber-directory.ts
+    fanIn= 468 fanOut=  23  [features/publish-content]  apps/website/src/features/publish-content/peers.ts
+    fanIn= 337 fanOut= 148  [server]  apps/website/src/server/runtime/boot/bind-host.ts
+    fanIn= 434 fanOut=  50  [features/newsletter]  apps/website/src/features/newsletter/tool-registrations.ts
+    fanIn= 463 fanOut=  20  [features/site-backup]  apps/website/src/features/site-backup/share-file-policy.ts
+    fanIn= 440 fanOut=  41  [features/site-backup]  apps/website/src/features/site-backup/import-restore-placement.ts
+    fanIn= 444 fanOut=  33  [features/custom-credentials]  apps/website/src/features/custom-credentials/plugin-credential-card.ts
+    fanIn= 435 fanOut=  42  [features/newsletter]  apps/website/src/features/newsletter/send-pipeline.ts
+    fanIn= 439 fanOut=  37  [features/deployments]  apps/website/src/features/deployments/publish-credentials/index.ts
+    fanIn= 434 fanOut=  36  [features/custom-credentials]  apps/website/src/features/custom-credentials/agent-tools.ts
+    fanIn= 439 fanOut=  31  [features/newsletter]  apps/website/src/features/newsletter/unsubscribe.ts
+    fanIn= 433 fanOut=  36  [assistant]  apps/website/src/assistant/external-mcp-reauth-tool.ts
+    fanIn= 434 fanOut=  34  [features/custom-credentials]  apps/website/src/features/custom-credentials/credential-recovery.ts
+    fanIn= 435 fanOut=  33  [features/external-mcp]  apps/website/src/features/external-mcp/external-mcp-oauth.ts
+    fanIn= 434 fanOut=  33  [features/custom-credentials]  apps/website/src/features/custom-credentials/card-token.ts
+    fanIn= 440 fanOut=  27  [features/deployments]  apps/website/src/features/deployments/publish-credentials/repo.memory.ts
+    fanIn= 441 fanOut=  26  [features/external-mcp]  apps/website/src/features/external-mcp/external-mcp-store.ts
+    fanIn= 438 fanOut=  28  [features/publish-content]  apps/website/src/features/publish-content/destination-credential.ts
+    fanIn= 440 fanOut=  22  [assistant]  apps/website/src/assistant/assistant-vault.ts
+    fanIn= 440 fanOut=  21  [features/site-backup]  apps/website/src/features/site-backup/static-export-selection.ts
+    fanIn= 437 fanOut=  24  [features/site-inspection]  apps/website/src/features/site-inspection/agent-tools.ts
+    fanIn= 435 fanOut=  25  [features/publish-content]  apps/website/src/features/publish-content/connect-destination.ts
+    fanIn= 439 fanOut=  21  [features/site-backup]  apps/website/src/features/site-backup/import-keep-off.ts
+    fanIn= 439 fanOut=  20  [features/newsletter]  apps/website/src/features/newsletter/confirmation.ts
+    fanIn= 440 fanOut=  19  [features/publish-trust]  apps/website/src/features/publish-trust/handshake-client.ts
+    fanIn= 439 fanOut=  19  [features/site-inspection]  apps/website/src/features/site-inspection/site-profile.ts
+    fanIn= 433 fanOut=  24  [assistant]  apps/website/src/assistant/execution-credential-store.ts
+    fanIn= 435 fanOut=  22  [features/newsletter]  apps/website/src/features/newsletter/agent-tools.ts
+    fanIn= 436 fanOut=  21  [features/newsletter]  apps/website/src/features/newsletter/campaign-write-service.ts
+    fanIn= 432 fanOut=  24  [assistant]  apps/website/src/assistant/site-credential-store.ts
+    fanIn= 435 fanOut=  21  [features/newsletter]  apps/website/src/features/newsletter/subscriptions.ts
+    fanIn= 435 fanOut=  20  [features/newsletter]  apps/website/src/features/newsletter/lists.ts
+    fanIn= 433 fanOut=  20  [features/widgets]  apps/website/src/features/widgets/tool-registrations.ts
+    fanIn= 423 fanOut=  23  [features/post]  apps/website/src/features/post/read-model.ts
+    fanIn= 426 fanOut=  20  [features/theme]  apps/website/src/features/theme/font-links.ts
+    fanIn= 419 fanOut=  26  [features/source-control]  apps/website/src/features/source-control/repo.memory.ts
+    fanIn= 421 fanOut=  23  [features/database-transfer]  apps/website/src/features/database-transfer/destination-store.ts
+    fanIn= 420 fanOut=  24  [features/entries]  apps/website/src/features/entries/repo.ts
+    fanIn= 423 fanOut=  20  [server]  apps/website/src/server/runtime/composition/provider-config-source.ts
+    fanIn= 337 fanOut=  96  [features/comments]  apps/website/src/features/comments/index.ts
+    fanIn= 348 fanOut=  70  [features/identity]  apps/website/src/features/identity/repo.sqlite.ts
+
+--- bidirectional hub membership by module ---
+    36  features/agent-plugins
+    29  features/site-backup
+    24  platform
+    23  features/deployments
+    21  server
+    21  assistant
+    19  features/theme
+    18  features/publish-content
+    15  features/custom-credentials
+    12  features/post
+    11  features/newsletter
+    9  features/sites
+    8  features/members
+    8  features/media
+    7  features/source-control
+    7  features/plugin-runtime
+    7  features/trash
+    6  contracts
+    6  features/api-connections
+    6  features/site-inspection
+    5  features/site-export
+    5  features/pages
+    5  features/forms
+    4  features/seo
+    4  features/fs-files
+    4  features/skills
+    4  features/mail-status
+    4  features/settings
+    4  features/external-mcp
+    4  features/comments
+    3  features/site-search
+    3  features/media-import
+    3  features/vendor-credentials
+    3  features/mail
+    3  features/identity
+    2  features/email-templates
+    2  features/publish-trust
+    2  features/asset-transfer
+    2  features/taxonomy
+    2  features/presentation
+    2  features/redirects
+    2  features/entries
+    2  features/workspace
+    1  features/permanent-delete
+    1  features/image-transform
+    1  features/media-generation
+    1  features/consent
+    1  features/recovery
+    1  features/database
+    1  features/webhooks
+    1  features/widgets
+    1  features/database-transfer
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/connect.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/contribution.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/external-mcp/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/agent-plugins/lifecycle.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/attachments.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/site-references.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/surface-connection-bindings.ts -> apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-copy-tool.ts -> apps/website/src/features/project-keys/service.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-ports.ts -> apps/website/src/features/source-control/provider-registry.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/vault-repo.ts -> apps/website/src/features/project-keys/attached-vault.ts
+  NEW cross-feature edge: apps/website/src/features/database-transfer/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/run-ops.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-targets/registry.ts -> apps/website/src/features/form-destinations/types.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-agent-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/static-publish/publish-consent.ts -> apps/website/src/features/consent/service.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/entries/repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/entries/trash-aware-memory-repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/entries/unreadable-owner-entries-repair.ts -> apps/website/src/features/content-types/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-store.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/forms/form-file-maintenance.ts -> apps/website/src/features/media/purge-media.ts
+  NEW cross-feature edge: apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/test-send.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail/attempts.repo.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/agent-tools.ts -> apps/website/src/features/fs-files/site-file-request.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media/access-evidence.ts -> apps/website/src/features/post/post.ts
+  NEW cross-feature edge: apps/website/src/features/media/import-media-entity.ts -> apps/website/src/features/publish-content/type-registry.ts
+  NEW cross-feature edge: apps/website/src/features/media/where-used.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-policy.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/plugin-runtime/service-ports.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/post/repo.memory.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/post/repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/shared-oauth-disconnect.ts -> apps/website/src/features/api-connections/shared-owner.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/site-references.ts -> apps/website/src/features/api-connections/vault-stores.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/site-sealer.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/file-tree-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/push-plan.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/entries/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/taxonomy/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/seo/cover-image.ts -> apps/website/src/features/post/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/bundled-export-file-policy.ts -> apps/website/src/features/agent-plugins/bundled-catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/theme/active-theme.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/widgets/media-html.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/package-file-inventory.ts -> apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-backend.ts -> apps/website/src/features/theme/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-database/repo.sqlite.ts -> apps/website/src/features/settings/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/export-html-policy.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/site-exporter.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-download-landing.ts -> apps/website/src/features/post/html-plain-text.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-download-layout.ts -> apps/website/src/features/site-export/export-html-policy.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/export-html-policy.ts -> apps/website/src/features/webmcp/published-html.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/active-theme.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/theme-id-aliases.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/settings.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/sites/site-admin.ts -> apps/website/src/features/agent-plugins/service-ports.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-policy.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-zip.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-copy.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-layout.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/credential-setup.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+  NEW cross-feature edge: apps/website/src/features/theme/preview-switcher-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/render-entry.ts
+  NEW cross-feature edge: apps/website/src/features/trash/adapters/redirect.ts -> apps/website/src/features/redirects/index.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/content-types/write-service.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post.ts
+
+  module cycles — 3 new pair(s) introduced:
+    + assistant <-> server
+    + features/site-backup <-> features/source-control
+    + platform <-> server
+
+  largest strongly-connected component grew: 22 → 61
+
+  module cycles — 2 pair(s) removed since baseline:
+    - assistant <-> features/agent-plugins
+    - features/agent-plugins <-> features/api-connections
+
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.09
+
+  back-edges into composition root regressed: 0 → 5
+
+  module API surface (files exposed) regressed: 821 → 870
+
+  WARNING (ratchet, non-blocking): bidirectional hub count regressed: 335 → 376
+
+  propagation cost (all-import) improved: 15.52 → 12.43
+
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.09  (+0.03 pts, +0.98%)
+  regressed: back-edges into composition root    0 → 5  (+5, n/a)
+  regressed: module API surface (files exposed)  821 → 870  (+49, +5.97%)
+  regressed: bidirectional hub count             335 → 376  (+41, +12.24%)
+  regressed: module cycles / SCC (runtime-only)  +3 cycle pair(s), -2 cycle pair(s), largest SCC 22 → 61
+  improved:  propagation cost (all-import)       15.52 → 12.43  (-3.09 pts, -19.91%)
+========================================================================
+
+check:architecture — FAILED: 4 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.

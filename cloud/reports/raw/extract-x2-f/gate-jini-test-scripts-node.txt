@@ -1,0 +1,143 @@
+
+> jini@ test:scripts:node /home/user/Jini
+> node --import tsx --test --test-concurrency=1 scripts/__tests__/check-hardwiring.test.ts scripts/__tests__/integration/infra-retirement.integration.test.ts scripts/__tests__/sync-software-engineering.test.mjs
+
+✔ boot identity waiver retains exact file, fingerprint and occurrence count (29.88906ms)
+✔ Jini guard scans nested package source and excludes tests; clean DI does not add debt (5.663096ms)
+✔ Jini package imports cannot connect site and agent plugin owners (3.540713ms)
+✔ the import observation sees static, type-only, re-export, dynamic and CommonJS reaches (10.508042ms)
+✔ Jini consumers have no imports or re-exports of the retired package (8345.840199ms)
+✔ Jini consumer manifests have no dependency on the retired package (3.392784ms)
+✖ Tovu consumers have no imports or re-exports of the retired package (8391.009303ms)
+✖ Tovu consumer manifests have no dependency on the retired package (1.680961ms)
+✖ j05 final state removes the infra workspace, including stale generated leftovers (0.418537ms)
+✔ sync uses pinned Git bytes, repeats deterministically and rejects incomplete or oversized updates without writing (683.19086ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 7
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18804.188776
+
+✖ failing tests:
+
+test at scripts/__tests__/integration/infra-retirement.integration.test.ts:2:4626
+✖ Tovu consumers have no imports or re-exports of the retired package (8391.009303ms)
+  AssertionError [ERR_ASSERTION]: Retirement requires every consumer import to move first
+  + actual - expected
+  
+  + [
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/enqueue-only-outbox.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/jini-outbox-adapter.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-retry-policies.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Jini/scripts/__tests__/integration/infra-retirement.integration.test.ts:86:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { path: '/home/user/Tovu/apps/website/src/contracts/core/events/enqueue-only-outbox.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/jini-outbox-adapter.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-retry-policies.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts', specifier: '@jini-ai/infra/events/outbox' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/__tests__/integration/infra-retirement.integration.test.ts:2:5238
+✖ Tovu consumer manifests have no dependency on the retired package (1.680961ms)
+  AssertionError [ERR_ASSERTION]: Retirement requires every consumer dependency to move first
+  + actual - expected
+  
+  + [
+  +   {
+  +     path: '/home/user/Tovu/package.json',
+  +     section: 'dependencies'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Jini/scripts/__tests__/integration/infra-retirement.integration.test.ts:99:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { path: '/home/user/Tovu/package.json', section: 'dependencies' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/__tests__/integration/infra-retirement.integration.test.ts:2:5992
+✖ j05 final state removes the infra workspace, including stale generated leftovers (0.418537ms)
+  AssertionError [ERR_ASSERTION]: Retirement is incomplete: retain infra until its release gate and outbox ownership are resolved
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Jini/scripts/__tests__/integration/infra-retirement.integration.test.ts:104:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+ ELIFECYCLE  Command failed with exit code 1.
+exit 1
