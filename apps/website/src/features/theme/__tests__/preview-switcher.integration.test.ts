@@ -22,6 +22,8 @@ async function fixture(t: TestContext) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const deps = createRouteDeps();
   await deps.siteTitleReady;
+  // Boot registers core.consent.* definitions in the background; settle it so ledger checks see only preview writes.
+  await deps.siteConsentReady;
   deps.themesDir = join(root, "themes");
   const themes: DiscoveredTheme[] = ["preview-one", "preview-two"].map(id => {
     const dir = join(deps.themesDir, "static", id);
