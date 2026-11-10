@@ -1,0 +1,97 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/__tests__/manifest.test.ts (15 tests | 2 failed) 20ms
+   × ui-ux-design plugin > has a plugin.json that validates as a PluginManifest 6ms
+     → expected '0.6.3' to be '0.6.2' // Object.is equality
+   × slide-design plugin > has a plugin.json the strict parser accepts, with its publisher id and capability 6ms
+     → expected { displayName: 'Slide Design', …(9) } to match object { name: 'slide-design', …(4) }
+(6 matching properties omitted from actual)
+stderr | src/__tests__/integration-contract.test.ts > archive installation accepts native filesystem effects through the public facade
+Plugin 'toolkit' has no publisher-qualified id; using 'unknown/toolkit'.
+
+ ❯ src/__tests__/integration-contract.test.ts (6 tests | 1 failed) 62ms
+   × identity namespace injection preserves the legacy plugin format and selects host metadata 13ms
+     → expected { ok: true, manifest: { …(9) }, …(1) } to match object { ok: true, manifest: { …(2) }, …(1) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/integration-contract.test.ts > identity namespace injection preserves the legacy plugin format and selects host metadata
+AssertionError: expected { ok: true, manifest: { …(9) }, …(1) } to match object { ok: true, manifest: { …(2) }, …(1) }
+
+- Expected
++ Received
+
+  Object {
+    "manifest": Object {
+      "id": "legacy/toolkit",
+      "provides": Array [
+        "source-control",
+      ],
+    },
+    "ok": true,
+-   "warnings": Array [],
++   "warnings": Array [
++     "Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.",
++   ],
+  }
+
+ ❯ src/__tests__/integration-contract.test.ts:29:47
+     27|     },
+     28|   };
+     29|   expect(parseAgentPluginManifest({ value })).toMatchObject({
+       |                                               ^
+     30|     ok: true, manifest: { id: 'legacy/toolkit', provides: ['source-con…
+     31|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/__tests__/manifest.test.ts > ui-ux-design plugin > has a plugin.json that validates as a PluginManifest
+AssertionError: expected '0.6.3' to be '0.6.2' // Object.is equality
+
+Expected: "0.6.2"
+Received: "0.6.3"
+
+ ❯ src/__tests__/manifest.test.ts:50:55
+     48|     expect(isPluginManifest(manifest)).toBe(true);
+     49|     expect((manifest as { name: string }).name).toBe('ui-ux-design');
+     50|     expect((manifest as { version: string }).version).toBe('0.6.2');
+       |                                                       ^
+     51|   });
+     52| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/__tests__/manifest.test.ts > slide-design plugin > has a plugin.json the strict parser accepts, with its publisher id and capability
+AssertionError: expected { displayName: 'Slide Design', …(9) } to match object { name: 'slide-design', …(4) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "id": "jini/slide-design",
+    "license": "Apache-2.0",
+    "name": "slide-design",
+    "provides": Array [
+      "slide-design",
+    ],
+-   "version": "0.1.0",
++   "version": "0.1.1",
+  }
+
+ ❯ src/__tests__/manifest.test.ts:98:29
+     96|     const parsed = parseAgentPluginManifest({ value: JSON.parse(readFi…
+     97|     if (!parsed.ok) throw new Error(parsed.errors.join('; '));
+     98|     expect(parsed.manifest).toMatchObject({ name: 'slide-design', id: …
+       |                             ^
+     99|   });
+    100| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 18 passed (21)
+   Start at  01:56:08
+   Duration  1.15s (transform 670ms, setup 0ms, collect 1.04s, tests 82ms, environment 0ms, prepare 157ms)
+

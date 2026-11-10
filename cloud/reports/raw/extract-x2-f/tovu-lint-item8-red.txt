@@ -1,0 +1,26 @@
+apps/website/src/features/plugins/migration-recovery.ts:5:98 lint/correctness/noVoidTypeReturn ━━━━━━━━━━
+
+  × The function should not return a value because its return type is void.
+  
+    4 │ export function recoverIncompleteDataModuleMigrations(required: Parameters<typeof recover>[0]): Promise<RecoveryResult> { return recover(required); }
+  > 5 │ export function restoreSqliteSnapshots(dbPath: string, entries: readonly JournalEntry[]): void { return restore({ dbPath, entries }); }
+      │                                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    6 │ 
+  
+  i The function is here:
+  
+    4 │ export function recoverIncompleteDataModuleMigrations(required: Parameters<typeof recover>[0]): Promise<RecoveryResult> { return recover(required); }
+  > 5 │ export function restoreSqliteSnapshots(dbPath: string, entries: readonly JournalEntry[]): void { return restore({ dbPath, entries }); }
+      │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    6 │ 
+  
+  i 'void' signals the absence of value. The returned value is likely to be ignored by the caller.
+  
+
+Checked 1 file in 8ms. No fixes applied.
+Found 1 error.
+lint ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+

@@ -1,0 +1,74 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ❯ src/__tests__/zz-red-import-isolation.test.ts (16 tests | 1 failed) 440ms
+   × database import isolation > scans every production TypeScript file and confines optional dependencies 429ms
+     → expected [ …(4) ] to deeply equal []
+ ❯ src/__tests__/zz-red-loads-without-driver.test.ts (28 tests | 1 failed) 8157ms
+   × @jini-ai/db in an install with no database driver present > exports exactly the subpaths under test (no root barrel that would load everything) 11ms
+     → expected [ 'core', 'data-modules', …(17) ] to deeply equal [ 'core', 'kernel', …(16) ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/zz-red-import-isolation.test.ts > database import isolation > scans every production TypeScript file and confines optional dependencies
+AssertionError: expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/db/src/data-modules/data-module.ts: kysely outside kernel/migrate: kysely",
++   "/home/user/Jini/packages/db/src/data-modules/migration-journal.ts: kysely outside kernel/migrate: kysely",
++   "/home/user/Jini/packages/db/src/data-modules/plugin-identity.ts: kysely outside kernel/migrate: kysely",
++   "/home/user/Jini/packages/db/src/data-modules/plugin-store.ts: kysely outside kernel/migrate: kysely",
++ ]
+
+ ❯ src/__tests__/zz-red-import-isolation.test.ts:63:129
+     61|     expect(files).toContain(join(sourceRoot, "pglite/owner.ts"));
+     62|     expect(files).toContain(join(sourceRoot, "kernel/port.ts"));
+     63|     expect(files.flatMap(file => violations(relative(sourceRoot, file)…
+       |                                                                                                                                 ^
+     64|   });
+     65| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/zz-red-loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > exports exactly the subpaths under test (no root barrel that would load everything)
+AssertionError: expected [ 'core', 'data-modules', …(17) ] to deeply equal [ 'core', 'kernel', …(16) ]
+
+- Expected
++ Received
+
+  Array [
+    "core",
++   "data-modules",
+    "kernel",
+    "kernel/pglite",
+    "kernel/postgres",
+    "kernel/sqlite",
+    "kernel/store-copy",
+    "migrate",
+    "owner-store",
+    "package.json",
+    "pglite",
+    "postgres",
+    "recovery",
+    "recovery/*",
+    "secrets-vault",
+    "sqlite",
+    "testing/pg-fixture",
+    "tools",
+    "transfer",
+  ]
+
+ ❯ src/__tests__/zz-red-loads-without-driver.test.ts:251:61
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 42 passed (44)
+   Start at  01:54:16
+   Duration  8.49s (transform 76ms, setup 0ms, collect 529ms, tests 8.60s, environment 1ms, prepare 167ms)
+

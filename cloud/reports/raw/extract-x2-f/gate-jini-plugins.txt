@@ -1,0 +1,83 @@
+
+> @jini-ai/plugins@0.6.22 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugins
+
+ ✓ src/host/__tests__/unit/install.unit.test.ts (43 tests) 421ms
+ ✓ src/host/__tests__/integration/hook-registry.integration.test.ts (31 tests) 17ms
+ ✓ src/host/__tests__/unit/manifest.unit.test.ts (38 tests) 16ms
+ ✓ src/host/__tests__/unit/provider-contributions.unit.test.ts (18 tests) 249ms
+ ✓ src/host/__tests__/unit/package-files.unit.test.ts (20 tests) 86ms
+ ✓ src/host/__tests__/integration/loader.integration.test.ts (14 tests) 46ms
+ ✓ src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts (8 tests) 15ms
+ ✓ src/host/__tests__/unit/plugin-claims.unit.test.ts (16 tests) 19ms
+ ✓ src/host/__tests__/unit/source-drafts.unit.test.ts (37 tests) 3115ms
+ ✓ src/host/__tests__/unit/plugin-identity.unit.test.ts (15 tests) 126ms
+ ✓ src/host/__tests__/unit/module-snapshot-lifecycle.unit.test.ts (12 tests) 9ms
+ ✓ src/host/__tests__/integration/discovery.integration.test.ts (7 tests) 65ms
+ ✓ src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts (8 tests) 10ms
+ ✓ src/host/worker/__tests__/run-call.l237.characterization.test.ts (19 tests) 6ms
+ ✓ src/host/tools/__tests__/public-entry.test.ts (3 tests) 14ms
+ ✓ src/host/__tests__/unit/contributions.l121.characterization.unit.test.ts (36 tests) 15ms
+ ✓ src/host/__tests__/unit/discovery.unit.test.ts (9 tests) 100ms
+ ✓ src/host/__tests__/unit/runtime-core.extract-s6.unit.test.ts (2 tests) 52ms
+ ✓ src/host/__tests__/unit/uninstall.unit.test.ts (13 tests) 9ms
+ ✓ src/host/__tests__/unit/capability-sdk.unit.test.ts (36 tests) 9ms
+ ✓ src/host/__tests__/integration/browser-provider-assets.integration.test.ts (8 tests) 86ms
+ ✓ src/glue/__tests__/manifest.test.ts (25 tests) 5ms
+ ✓ src/host/__tests__/unit/loader.unit.test.ts (22 tests) 17ms
+ ✓ src/host/__tests__/unit/contribution-sdk.unit.test.ts (5 tests) 14ms
+ ✓ src/host/__tests__/unit/contributions.edges.unit.test.ts (20 tests) 33ms
+ ✓ src/host/__tests__/unit/tier2-import-seam.unit.test.ts (13 tests) 7ms
+ ✓ src/glue/__tests__/capability-gate.test.ts (25 tests) 10ms
+ ✓ src/glue/__tests__/tool-registration.test.ts (8 tests) 4ms
+ ✓ src/host/__tests__/unit/tier2-run-call.unit.test.ts (13 tests) 10ms
+ ✓ src/host/__tests__/unit/manifest.l121.characterization.unit.test.ts (43 tests) 23ms
+ ✓ src/host/__tests__/unit/l1c1.extract-s6.unit.test.ts (7 tests) 7ms
+ ✓ src/host/__tests__/unit/plugin-format.unit.test.ts (8 tests) 90ms
+ ✓ src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts (8 tests) 10ms
+ ✓ src/host/__tests__/unit/activation.unit.test.ts (11 tests) 13ms
+ ✓ src/host/__tests__/unit/claim-conflicts.unit.test.ts (16 tests) 7ms
+ ✓ src/host/__tests__/unit/browser-providers.l121.characterization.unit.test.ts (42 tests) 21ms
+ ✓ src/host/__tests__/unit/declarative-enable.unit.test.ts (8 tests) 9ms
+ ✓ src/host/__tests__/integration/repo.contract.integration.test.ts (10 tests) 29ms
+ ✓ src/host/__tests__/integration/provider-artifact.integration.test.ts (5 tests) 47ms
+ ✓ src/host/__tests__/unit/module-snapshot.unit.test.ts (6 tests) 38ms
+ ✓ src/host/__tests__/unit/provider-setting-required.unit.test.ts (6 tests) 6ms
+ ✓ src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts (2 tests) 10ms
+ ✓ src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts (4 tests) 12ms
+ ✓ src/__tests__/package-surface.integration.test.ts (3 tests) 334ms
+   ✓ each host entry barrel re-exports the runtime APIs its package.json entry promises 331ms
+ ✓ src/host/worker/__tests__/protocol.l237.characterization.test.ts (35 tests) 7ms
+ ✓ src/host/__tests__/unit/hook-registry-preview.unit.test.ts (5 tests) 7ms
+ ✓ src/host/__tests__/unit/contributions.unit.test.ts (3 tests) 10ms
+ ✓ src/host/__tests__/unit/quarantine-observer.unit.test.ts (3 tests) 7ms
+ ✓ src/host/__tests__/unit/attach-loaded-plugin.unit.test.ts (5 tests) 3ms
+ ✓ src/host/__tests__/unit/bundled-initialization.test.ts (3 tests) 5ms
+ ✓ src/glue/__tests__/injected-host.test.ts (4 tests) 4ms
+ ✓ src/host/__tests__/unit/provider-settings-migrations.unit.test.ts (2 tests) 8ms
+ ✓ src/host/__tests__/unit/tier2-protocol.unit.test.ts (13 tests) 4ms
+ ✓ src/host/__tests__/unit/quarantine.unit.test.ts (2 tests) 3ms
+ ✓ src/host/tools/__tests__/vocabulary.test.ts (1 test) 85ms
+ ✓ src/host/__tests__/unit/provider-guidance.unit.test.ts (13 tests) 7ms
+ ✓ src/glue/__tests__/delegate-ownership.w8.test.ts (2 tests) 4ms
+ ✓ src/glue/__tests__/delegate-forwarding.test.ts (2 tests) 6ms
+ ✓ src/__tests__/args-convention.contract.test.ts (2 tests) 3ms
+ ✓ src/host/__tests__/unit/provider-schema-w2g.unit.test.ts (5 tests) 7ms
+ ✓ src/host/__tests__/unit/hook-quarantine-w2g.unit.test.ts (1 test) 5ms
+ ✓ src/host/tools/__tests__/optional-peers.test.ts (2 tests) 101ms
+ ✓ src/glue/__tests__/content-lifecycle.test.ts (2 tests) 4ms
+ ✓ src/glue/__tests__/events.test.ts (2 tests) 3ms
+ ✓ src/host/__tests__/host-entry-purity.test.ts (1 test) 9429ms
+   ✓ ./host is universal and never evaluates executable source 9428ms
+ ✓ src/host/__tests__/unit/open-flags.unit.test.ts (2 tests) 2ms
+
+ Test Files  66 passed (66)
+      Tests  813 passed (813)
+   Start at  01:53:07
+   Duration  21.58s (transform 1.89s, setup 0ms, collect 6.86s, tests 14.95s, environment 13ms, prepare 4.33s)
+
+exit 0

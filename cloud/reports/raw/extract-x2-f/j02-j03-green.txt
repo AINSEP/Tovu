@@ -1,0 +1,15 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ✓ src/__tests__/import-isolation.test.ts (16 tests) 345ms
+   ✓ database import isolation > scans every production TypeScript file and confines optional dependencies 335ms
+ ✓ src/__tests__/loads-without-driver.test.ts (30 tests) 7555ms
+   ✓ @jini-ai/db in an install with no database driver present > built both fixtures without drivers or an ORM 312ms
+
+ Test Files  2 passed (2)
+      Tests  46 passed (46)
+   Start at  01:53:52
+   Duration  7.89s (transform 111ms, setup 0ms, collect 536ms, tests 7.90s, environment 0ms, prepare 149ms)
+
+ ✓ src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > POSITIVE CONTROL: ./data-modules requires kysely in the empty fixture
+ ✓ src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./data-modules imports alone, works, and loads only data-modules + kernel

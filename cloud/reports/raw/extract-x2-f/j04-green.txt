@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+
+ ✓ src/__tests__/http-error-log-redaction.test.ts (24 tests) 669ms
+   ✓ HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 437ms
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  01:52:51
+   Duration  1.33s (transform 51ms, setup 0ms, collect 420ms, tests 669ms, environment 0ms, prepare 75ms)
+

@@ -1,0 +1,14 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/__tests__/manifest.test.ts (15 tests) 17ms
+stderr | src/__tests__/integration-contract.test.ts > archive installation accepts native filesystem effects through the public facade
+Plugin 'toolkit' has no publisher-qualified id; using 'unknown/toolkit'.
+
+ ✓ src/__tests__/integration-contract.test.ts (6 tests) 57ms
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  01:56:10
+   Duration  1.07s (transform 640ms, setup 0ms, collect 960ms, tests 74ms, environment 0ms, prepare 161ms)
+

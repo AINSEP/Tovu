@@ -1,0 +1,102 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/__tests__/type-cycles.test.ts (7 tests | 4 failed) 61ms
+   × shared contracts have no implementation import cycles > keeps lifecycle ports acyclic 26ms
+     → expected [ …(7) ] to deeply equal []
+   × installed package read ownership > installed-package-index.ts reaches no installation or removal module 5ms
+     → expected [ …(7) ] to deeply equal []
+   × installed package read ownership > resolve-agent-plugin-refs.ts reaches no installation or removal module 8ms
+     → expected [ …(7) ] to deeply equal []
+   × installed package read ownership > install.ts stays acyclic while reusing uninstall removal 11ms
+     → expected [ …(7) ] to deeply equal []
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/__tests__/type-cycles.test.ts > shared contracts have no implementation import cycles > keeps lifecycle ports acyclic
+AssertionError: expected [ …(7) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/ports.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/manifest.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/credential-card-metadata.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/contribution-loader.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/activation.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/ports.ts",
++ ]
+
+ ❯ src/lifecycle/__tests__/type-cycles.test.ts:55:97
+     53|   // REGRESSION: fails if ports.ts imports AgentPluginDeliveryMode fro…
+     54|   it('keeps lifecycle ports acyclic', () => {
+     55|     expect(findCycle({ entry: resolve(packagesRoot, 'agent-plugins/src…
+       |                                                                                                 ^
+     56|   });
+     57| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lifecycle/__tests__/type-cycles.test.ts > installed package read ownership > installed-package-index.ts reaches no installation or removal module
+ FAIL  src/lifecycle/__tests__/type-cycles.test.ts > installed package read ownership > resolve-agent-plugin-refs.ts reaches no installation or removal module
+AssertionError: expected [ …(7) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/manifest.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/credential-card-metadata.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/contribution-loader.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/activation.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/ports.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/manifest.ts",
++ ]
+
+ ❯ src/lifecycle/__tests__/type-cycles.test.ts:80:13
+     78|       expect(findCycle({ entry: resolve(root, filename), forbidden: [
+     79|         resolve(root, 'install.ts'), resolve(root, 'uninstall.ts'),
+     80|       ] })).toEqual([]);
+       |             ^
+     81|     });
+     82|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lifecycle/__tests__/type-cycles.test.ts > installed package read ownership > install.ts stays acyclic while reusing uninstall removal
+AssertionError: expected [ …(7) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/ports.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/manifest.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/credential-card-metadata.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/contribution-loader.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/activation.ts",
++   "/home/user/Jini/packages/agent-plugins/src/lifecycle/ports.ts",
++ ]
+
+ ❯ src/lifecycle/__tests__/type-cycles.test.ts:84:99
+     82|   }
+     83|   it('install.ts stays acyclic while reusing uninstall removal', () =>…
+     84|     expect(findCycle({ entry: resolve(packagesRoot, 'agent-plugins/src…
+       |                                                                                                   ^
+     85|   });
+     86| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 3 passed (7)
+   Start at  01:51:14
+   Duration  720ms (transform 35ms, setup 0ms, collect 398ms, tests 61ms, environment 0ms, prepare 80ms)
+

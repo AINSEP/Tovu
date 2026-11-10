@@ -1,0 +1,24 @@
+✖ Send and Stop receive real coordinate clicks beside the effort selector at 320px dock width (3184.882615ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3444.637452
+
+✖ failing tests:
+
+test at e2e/composer-hit-targets.test.mjs:7:1
+✖ Send and Stop receive real coordinate clicks beside the effort selector at 320px dock width (3184.882615ms)
+  locator.waitFor: Error: strict mode violation: getByRole('button', { name: 'Send', exact: true }) resolved to 2 elements:
+      1) <button title="Send" type="button" aria-label="Send" data-agent-label="Send" data-agent-role="button" class="jini-composer-send" data-agent-element="ui-h-63102a5d4ac9eea4-send">…</button> aka getByRole('button', { name: 'Send' }).first()
+      2) <button title="Send" type="button" aria-label="Send" data-agent-label="Send" data-agent-role="button" class="jini-composer-send" data-agent-element="ui-h-632b6a5d4ae1231c-send">…</button> aka getByRole('button', { name: 'Send' }).nth(1)
+  
+  Call log:
+  [2m  - waiting for getByRole('button', { name: 'Send', exact: true }) to be visible[22m
+  
+      at TestContext.<anonymous> (/home/user/cmb/Jini/examples/reference-web/e2e/composer-hit-targets.test.mjs:24:18) {
+    log: [ "  - waiting for getByRole('button', { name: 'Send', exact: true }) to be visible" ]
+  }

@@ -1,0 +1,112 @@
+✖ Supabase instructions use its displayed callback and human-only secret entry (1.455677ms)
+✖ Tovu guidance preserves configured base paths, requires first-link proof and explains unlink (5.186219ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80.556663
+
+✖ failing tests:
+
+test at __tests__/setup-guidance.test.mjs:7:1
+✖ Supabase instructions use its displayed callback and human-only secret entry (1.455677ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /card is unnecessary unless this site also uses Tovu members/. Input:
+  
+  '\n' +
+    '\n' +
+    "1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.\n" +
+    "2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. The host's credential card is unnecessary unless this site also uses site members.\n" +
+    "3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.\n" +
+    "4. One Google Web application client can list both the Supabase callback and the host's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.\n" +
+    "5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.\n" +
+    "6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with site members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).\n" +
+    '\n'
+  
+      at TestContext.<anonymous> (file:///home/user/Jini/packages/agent-plugins/google-login/__tests__/setup-guidance.test.mjs:14:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "\n\n1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.\n2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. The host's credential card is unnecessary unless this site also uses site members.\n3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.\n4. One Google Web application client can list both the Supabase callback and the host's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.\n5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.\n6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with site members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).\n\n",
+    expected: /card is unnecessary unless this site also uses Tovu members/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at __tests__/setup-guidance.test.mjs:21:1
+✖ Tovu guidance preserves configured base paths, requires first-link proof and explains unlink (5.186219ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const callback = new URL\(configuredSiteAddress\)/. Input:
+  
+  '---\n' +
+    'name: google-login\n' +
+    "description: Set up Google member sign-in for site members or Google via an app's existing Supabase Auth.\n" +
+    '---\n' +
+    '\n' +
+    '# Google login\n' +
+    '\n' +
+    'This integration is marked **soon** and has not been tested with a real Google account. Tell the person this before configuring it; do not claim it works until the real sign-in has been checked.\n' +
+    '\n' +
+    '## Choose the destination first\n' +
+    '\n' +
+    'Ask whether the site uses **site members** or **Supabase Auth**, or check whether the supabase plugin is active at runtime. An active plugin is a clue; confirm which authentication system the target app actually uses. Never import the supabase plugin or add a Supabase runtime dependency. Its branch below is instructions only.\n' +
+    '\n' +
+    'Site member login and Google Workspace have separate credentials and activation. Use this plugin for visitor sign-in; Google Workspace owns operator file access. Never replace a working client unless asked. Never ask for the Client Secret in chat, tool arguments, pasted configuration, screenshots, or logs. The person enters it in the secure card or Supabase dashboard themselves.\n' +
+    '\n' +
+    '## Prepare the Google client\n' +
+    '\n' +
+    "1. Open [Google Cloud Console](https://console.cloud.google.com/auth/clients) and select or create the app's project.\n" +
+    '2. In Google Auth Platform, configure **Branding** (app identity and support contact), **Audience**, and **Data Access**. Choose External unless access is intentionally restricted to one Workspace organization. Request only `openid email profile`; do not add Drive, Sheets, Gmail, offline access, or refresh-token permissions.\n' +
+    '3. Under **Clients → Create client**, choose **Web application**. The older navigation is **APIs & Services → Credentials → Create Credentials → OAuth client ID**.\n' +
+    '4. Add the exact authorized redirect URI for the chosen branch below. HTTPS is required for production; Google permits localhost development exceptions. Scheme, host, port, path and any configured base path must match exactly. A JavaScript origin is not a replacement for a redirect URI.\n' +
+    "5. Check Audience's Testing/Production status before rollout. Identity-only `openid email profile` requests have an exception to the usual testing-user restrictions. Additional permissions can change those rules. Publishing and verification are separate; consult [Google's production readiness guidance](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview) for the app's current requirements.\n" +
+    '\n' +
+    '## Site members\n' +
+    '\n' +
+    "Enable Google Login through the host's plugin controls. Use the host's configured canonical\n" +
+    'address and exact member sign-in callback URI, including any configured base path. Open the\n' +
+    'secure connection card for the client ID and secret; never receive either secret in chat.\n' +
+    'The host owns browser binding, state, PKCE, token validation, linking, unlinking and member\n' +
+    "sessions. Verify sign-in, sign-out and unlinking through the host's existing member flow.\n" +
+    '\n' +
+    '## Google via Supabase Auth\n' +
+    '\n' +
+    "1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.\n" +
+    "2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. The host's credential card is unnecessary unless this site also uses site members.\n" +
+    "3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.\n" +
+    "4. One Google Web application client can list both the Supabase callback and the host's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.\n" +
+    "5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.\n" +
+    "6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with site members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).\n" +
+    '\n' +
+    '## Troubleshooting without exposing secrets\n' +
+    '\n' +
+    "- `redirect_uri_mismatch`: compare the exact configured callback with Google's authorized list, including scheme, port and base path.\n" +
+    '- Missing sign-in button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.\n' +
+    '- Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.\n' +
+    '- Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.\n' +
+    '\n' +
+    '## Embed the sign-in button on a public page\n' +
+    '\n' +
+    "Use the host's public plugin-component capability to embed this plugin's sign-in button.\n" +
+    'Choose an explicit light, dark or neutral variant, keep an authored fallback when sign-in is\n' +
+    "unavailable, and follow Google's branding rules. The host owns its sign-in routes and secure\n" +
+    'member-session flow; use its exact callback URI and activation controls.\n'
+  
+      at TestContext.<anonymous> (file:///home/user/Jini/packages/agent-plugins/google-login/__tests__/setup-guidance.test.mjs:23:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "---\nname: google-login\ndescription: Set up Google member sign-in for site members or Google via an app's existing Supabase Auth.\n---\n\n# Google login\n\nThis integration is marked **soon** and has not been tested with a real Google account. Tell the person this before configuring it; do not claim it works until the real sign-in has been checked.\n\n## Choose the destination first\n\nAsk whether the site uses **site members** or **Supabase Auth**, or check whether the supabase plugin is active at runtime. An active plugin is a clue; confirm which authentication system the target app actually uses. Never import the supabase plugin or add a Supabase runtime dependency. Its branch below is instructions only.\n\nSite member login and Google Workspace have separate credentials and activation. Use this plugin for visitor sign-in; Google Workspace owns operator file access. Never replace a working client unless asked. Never ask for the Client Secret in chat, tool arguments, pasted configuration, screenshots, or logs. The person enters it in the secure card or Supabase dashboard themselves.\n\n## Prepare the Google client\n\n1. Open [Google Cloud Console](https://console.cloud.google.com/auth/clients) and select or create the app's project.\n2. In Google Auth Platform, configure **Branding** (app identity and support contact), **Audience**, and **Data Access**. Choose External unless access is intentionally restricted to one Workspace organization. Request only `openid email profile`; do not add Drive, Sheets, Gmail, offline access, or refresh-token permissions.\n3. Under **Clients → Create client**, choose **Web application**. The older navigation is **APIs & Services → Credentials → Create Credentials → OAuth client ID**.\n4. Add the exact authorized redirect URI for the chosen branch below. HTTPS is required for production; Google permits localhost development exceptions. Scheme, host, port, path and any configured base path must match exactly. A JavaScript origin is not a replacement for a redirect URI.\n5. Check Audience's Testing/Production status before rollout. Identity-only `openid email profile` requests have an exception to the usual testing-user restrictions. Additional permissions can change those rules. Publishing and verification are separate; consult [Google's production readiness guidance](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview) for the app's current requirements.\n\n## Site members\n\nEnable Google Login through the host's plugin controls. Use the host's configured canonical\naddress and exact member sign-in callback URI, including any configured base path. Open the\nsecure connection card for the client ID and secret; never receive either secret in chat.\nThe host owns browser binding, state, PKCE, token validation, linking, unlinking and member\nsessions. Verify sign-in, sign-out and unlinking through the host's existing member flow.\n\n## Google via Supabase Auth\n\n1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.\n2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. The host's credential card is unnecessary unless this site also uses site members.\n3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.\n4. One Google Web application client can list both the Supabase callback and the host's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.\n5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.\n6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with site members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).\n\n## Troubleshooting without exposing secrets\n\n- `redirect_uri_mismatch`: compare the exact configured callback with Google's authorized list, including scheme, port and base path.\n- Missing sign-in button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.\n- Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.\n- Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.\n\n## Embed the sign-in button on a public page\n\nUse the host's public plugin-component capability to embed this plugin's sign-in button.\nChoose an explicit light, dark or neutral variant, keep an authored fallback when sign-in is\nunavailable, and follow Google's branding rules. The host owns its sign-in routes and secure\nmember-session flow; use its exact callback URI and activation controls.\n",
+    expected: /const callback = new URL\(configuredSiteAddress\)/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/__tests__/type-cycles.test.ts (7 tests) 62ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  01:51:20
+   Duration  736ms (transform 40ms, setup 0ms, collect 439ms, tests 62ms, environment 0ms, prepare 77ms)
+

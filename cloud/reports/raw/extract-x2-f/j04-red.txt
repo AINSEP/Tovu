@@ -1,0 +1,50 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+
+ ❯ src/__tests__/http-error-log-redaction.test.ts (24 tests | 1 failed) 635ms
+   ✓ HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 389ms
+   × HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages 218ms
+     → expected [ …(9) ] to deeply equal []
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/http-error-log-redaction.test.ts > HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages
+AssertionError: expected [ …(9) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/plugins/src/host/capability-tools.ts: console.warn(
++         text.activationReadDenied({ pluginId, detail: error instanceof Error ? error.message : String(error) }),
++       )",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(\"[plugin-runtime] bundled discovery failed; chart providers remain unavailable\", error)",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(`[plugin-runtime] bundled initialization failed for '${failure.pluginId}'`, failure.error)",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(`[plugin-runtime] boot conflict check failed, no plugin attached: ${error instanceof Error ? error.message : String(error)}`)",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(
++         `[plugin-runtime] boot re-attach failed for '${pluginId}': ${
++           error instanceof Error ? error.message : String(error)
++         }`
++       )",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(`[plugin-runtime] provider plugin '${record.id}' failed to load; its contract stays on the noop: ${error instanceof Error ? error.message : String(error)}`)",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, rollbackError)",
++   "/home/user/Jini/packages/plugins/src/host/tools/management.ts: console.warn(`[agent-plugins] '${request.pluginId}': ${routeDeps.toolIds.setEnabled} refused — ${error.message}`)",
++   "/home/user/Jini/packages/plugins/src/host/tools/management.ts: console.warn(`[agent-plugins] '${request.pluginId}': ${routeDeps.toolIds.setEnabled} refused — ${error.message}`)",
++ ]
+
+ ❯ src/__tests__/http-error-log-redaction.test.ts:141:24
+    139|       sources(join(packages, name, 'src')).flatMap(path => rawCaughtEr…
+    140|     );
+    141|     expect(violations).toEqual([]);
+       |                        ^
+    142|   });
+    143| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 passed (24)
+   Start at  01:51:52
+   Duration  1.30s (transform 55ms, setup 0ms, collect 428ms, tests 635ms, environment 0ms, prepare 71ms)
+

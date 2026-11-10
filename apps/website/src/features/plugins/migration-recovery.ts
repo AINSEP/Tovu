@@ -2,4 +2,4 @@ import { recoverIncompleteDataModuleMigrations as recover, restoreSqliteSnapshot
 export type { RecoveryResult } from "@jini-ai/db/data-modules";
 
 export function recoverIncompleteDataModuleMigrations(required: Parameters<typeof recover>[0]): Promise<RecoveryResult> { return recover(required); }
-export function restoreSqliteSnapshots(dbPath: string, entries: readonly JournalEntry[]): void { return restore({ dbPath, entries }); }
+export function restoreSqliteSnapshots(dbPath: string, entries: readonly JournalEntry[]): void { restore({ dbPath, entries }); }
