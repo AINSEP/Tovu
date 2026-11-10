@@ -2,44 +2,11 @@
 
 These rules specialize the portable plugin guidance for Tovu.
 
-
 ## Host details for skills/google-login/SKILL.md
 
 Ask whether the site uses **Tovu members** or **Supabase Auth**, or check whether the supabase plugin is active at runtime. An active plugin is a clue; confirm which authentication system the target app actually uses. Never import the supabase plugin or add a Supabase runtime dependency. Its branch below is instructions only.
 
 Tovu member login and Google Workspace have separate credentials and activation. Use this plugin for visitor sign-in; Google Workspace owns operator file access. Never replace a working client unless asked. Never ask for the Client Secret in chat, tool arguments, pasted configuration, screenshots, or logs. The person enters it in the secure card or Supabase dashboard themselves.
-
-## Tovu members
-
-   For example, `http://localhost:3000/api/members/v1/workspaces/<workspaceId>/oidc/google/callback`. Replace the placeholder before showing it to the person. Copy the resulting URI into Google's **Authorized redirect URIs**. Use separate local and deployed clients when appropriate.
-3. Open the existing secure card with `credential_save { kind: "plugin-provider", target: "google-login-oauth-client" }`. The person pastes the Client ID into **Google client ID** (`username`) and the Client Secret into the masked secret field (`token`). The existing vault seals it; the assistant never receives it. No extra callback field is needed on the card.
-4. Visit `/signin` and try **Sign in with Google**. Success returns to `/account`. This creates or links a site member, with no administrator privileges. Tovu core owns state, browser binding, PKCE, token validation and member sessions; do not implement a second flow in this plugin.
-5. Explain initial linking: Google-verified `@gmail.com`/`@googlemail.com` addresses and verified Google Workspace accounts with an `hd` claim auto-link directly. Other Google addresses require **one emailed code** to the member's address before the first auto-link, because Google's email verification can outlive mailbox ownership. Later sign-ins use issuer + subject, even if email changes. Disabled or trashed members cannot sign in.
-6. Check sign-out and `/account` **Unlink Google**. Unlink requires a recent sign-in and another usable sign-in method; set a password if directed. Unlink must remain effective on the next Google sign-in. Reconnect deliberately with **Connect Google** from the signed-in `/account` page. It does not revoke Google Workspace file access.
-
-1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.
-2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. Tovu's credential card is unnecessary unless this site also uses Tovu members.
-3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.
-4. One Google Web application client can list both the Supabase callback and Tovu's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.
-5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.
-6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with Tovu members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).
-
-- `redirect_uri_mismatch`: compare the exact configured callback with Google's authorized list, including scheme, port and base path.
-- Missing Tovu button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.
-- Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.
-- Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.
-
-Use the existing `content_read.plugin` export contract for `tovu/google-login` → `sign-in-button`.
-The plugin must be enabled and its Google client configured. `host-unavailable` means finish
-setup first; `props-required` means the host is configured and the author must choose a variant.
-The required `variant` is `light`, `dark`, or `neutral`; no template defaults or logic are added.
-Use the marker owner to serialize config; do not construct a second JSON attribute escaper.
-
-```html
-<div data-embed-config='{"type":"plugin","plugin":"tovu/google-login","component":"sign-in-button","version":1,"props":{"variant":"light"}}'>
-  <p>Google sign-in is currently unavailable.</p>
-</div>
-```
 
 ## Tovu members
 
@@ -61,7 +28,21 @@ Use the marker owner to serialize config; do not construct a second JSON attribu
 5. Explain initial linking: Google-verified `@gmail.com`/`@googlemail.com` addresses and verified Google Workspace accounts with an `hd` claim auto-link directly. Other Google addresses require **one emailed code** to the member's address before the first auto-link, because Google's email verification can outlive mailbox ownership. Later sign-ins use issuer + subject, even if email changes. Disabled or trashed members cannot sign in.
 6. Check sign-out and `/account` **Unlink Google**. Unlink requires a recent sign-in and another usable sign-in method; set a password if directed. Unlink must remain effective on the next Google sign-in. Reconnect deliberately with **Connect Google** from the signed-in `/account` page. It does not revoke Google Workspace file access.
 
+## Google via Supabase Auth
 
+1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.
+2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. Tovu's credential card is unnecessary unless this site also uses Tovu members.
+3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.
+4. One Google Web application client can list both the Supabase callback and Tovu's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.
+5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.
+6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with Tovu members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).
+
+## Troubleshooting without exposing secrets
+
+- `redirect_uri_mismatch`: compare the exact configured callback with Google's authorized list, including scheme, port and base path.
+- Missing Tovu button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.
+- Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.
+- Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.
 
 ## Embed the sign-in button on a public page
 
