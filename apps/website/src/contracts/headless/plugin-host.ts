@@ -80,6 +80,8 @@ export interface AgentPluginHostCapability {
   /** Persist a declined source proposal through the same connection decision owner. */
   recordDeclinedAccess?(required: { accessKey: string }, optional?: Record<string, never>): Promise<void>;
   listInstalled(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly InstalledAgentPlugin[]>;
+  /** The revision-selection owner (bundled digests win): the copies of `installed` the host would use. */
+  preferInstalled?(required: { installed: readonly InstalledAgentPlugin[] }, optional?: Record<string, never>): Promise<readonly InstalledAgentPlugin[]>;
   assertWritable(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
   setEnabled(required: AgentPluginEnableInput, optional?: Record<string, never>): Promise<SetAgentPluginEnabledResult>;
   provisionMcp(required: { pluginId: string; principalId: string }, optional?: { readonly approvedEnable?: boolean; readonly approvedEnableKey?: string }): Promise<void>;

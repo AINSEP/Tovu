@@ -26,12 +26,22 @@ function capability(deps: PluginsToolDeps) {
   return value;
 }
 /** The approval-identity shim reads revisions without constructing destructive operations. */
-export function bindAgentPluginIdentity({ deps }: { deps: PluginsToolDeps }, _optional: Record<string, never> = {}): Pick<PluginLifecycleToolsPort, 'listInstalled' | 'previewEnableAccess'> {
+export function bindAgentPluginIdentity({ deps }: { deps: PluginsToolDeps }, _optional: Record<string, never> = {}): Pick<PluginLifecycleToolsPort, 'listInstalled' | 'previewEnableAccess' | 'preferInstalled'> {
   return {
     previewEnableAccess: input => capability(deps).previewEnableAccess?.(input, {}) ?? Promise.resolve(undefined),
     listInstalled: async () => (await (deps.listInstalledAgentPlugins
       ? deps.listInstalledAgentPlugins(deps.agentPluginLayout.forWorkspace(deps.workspaceId).root)
       : capability(deps).listInstalled({}, {}))).map(safeRevision),
+    // The enable card names the copy the host's selection owner keeps. Only the bound capability
+    // has that owner; the listing override (no capability) keeps every copy, as before.
+    preferInstalled: async ({ installed }) => {
+      const host = deps.listInstalledAgentPlugins ? undefined : capability(deps);
+      if (!host?.preferInstalled) return installed;
+      const offered = new Set(installed.map(plugin => plugin.archiveDigest));
+      const kept = await host.preferInstalled({ installed: (await host.listInstalled({}, {})).filter(plugin => offered.has(plugin.archiveDigest)) }, {});
+      const keptDigests = new Set(kept.map(plugin => plugin.archiveDigest));
+      return installed.filter(plugin => keptDigests.has(plugin.archiveDigest));
+    },
   };
 }
 export function bindAgentPluginTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces: AssistantSurfaceDeps }): PluginLifecycleToolsPort {
