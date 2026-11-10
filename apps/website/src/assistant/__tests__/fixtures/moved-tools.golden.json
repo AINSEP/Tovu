@@ -532,7 +532,7 @@
   },
   "catalog": {
     "names": 328,
-    "bytes": 751493
+    "bytes": 752102
   },
   "staticDenied": {
     "status": "failed",
@@ -552,13 +552,13 @@
     "signInWaiting": {
       "uri": "ui://tovu/agent-plugins-connect/acme-office",
       "mimeType": "text/html;profile=mcp-app",
-      "sha256": "57232aa3f52b525dfe0220a0e3b16576b46b2245668f7493ff50f1a574d56e80",
+      "sha256": "6f00566b31a43078fca213279d95742dccd6a7875b06696590467e632a573912",
       "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Let&#39;s connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Let&#39;s connect Acme Office</h1>\n<p class=\"mcpui-description\">It&#39;s free and takes about two minutes.</p>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"partial\">Waiting for you to sign in...</p>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"open-link\" data-agent-element=\"mcpui-action-open-link\" data-agent-role=\"button\" data-agent-label=\"Sign in to Acme Office\">Sign in to Acme Office</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Skip\">Skip</button>\n</div>\n</main>\n</body>\n</html>"
     },
     "signInWaitingWithCredentialCard": {
       "uri": "ui://tovu/agent-plugins-connect/acme-office",
       "mimeType": "text/html;profile=mcp-app",
-      "sha256": "4f0d5bcb6eb0dab2607e2f824794c520c31d223d7722f1d6df9d1cc89075d79e",
+      "sha256": "eb274f3b3f4fe42d071ebedf1b1334e14a5a6e01c9f92b664e4a5e03f568aac4",
       "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme Office</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme Office</h1>\n<p class=\"mcpui-description\">Acme Office needs a key. Use a read-write key.</p>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"partial\">Waiting for you to sign in...</p>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"open-link\" data-agent-element=\"mcpui-action-open-link\" data-agent-role=\"button\" data-agent-label=\"Sign in to Acme Office\">Sign in to Acme Office</button>\n</div>\n</main>\n</body>\n</html>"
     },
     "signInConnected": {
