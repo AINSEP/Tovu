@@ -215,7 +215,7 @@ Old/new/old saved replay, cost counters and disk growth were X1's subject and we
 - **Running as root**: chmod/EACCES cases self-skip; W-row `deps-provider-plugin-boot` EACCES is PRIOR and probably root-caused.
 - **Not run (out of scope, as in release-check)**: Playwright journeys, soak/visual, `test:cov*`, the other `check:*` scripts, admin type-check, Tovu `build` (blocked while linked), and anything packaged or live (X1/X3).
 - **Per-test diff of desktop main** (2,222 tests vs 2,230 at combine) not done.
-- **Test pollution**: the website run left untracked `chat.db` (repo root) and `sites/tovu-dev/.form-files-protected-v1` in the Tovu checkout, the same pollution release-check saw. They were not committed.
+- **Test pollution**: the website run left untracked `chat.db` (repo root), `sites/tovu-dev/.form-files-protected-v1` and `sites/tovu-dev/agent-plugins/` in the Tovu checkout, the same pollution release-check saw. They were not committed.
 
 ## 9. Jini changeset
 
