@@ -47,7 +47,7 @@ describeEachDialect("submission IP retention adapter and migration 0006", {
     assert.equal(await repo.clearExpiredIps({ submittedBeforeOrAt: CUTOFF }, { limit: 500 }), 3);
     const after = await kernel.run(db => db.selectFrom("form_submissions").selectAll().orderBy("id").execute());
     assert.deepEqual(after, before.map(row => ({ ...row, source_ip: row.submitted_at <= CUTOFF ? null : row.source_ip })));
-    assert.equal(toSubmissionRecord(after.find(row => row.id === "90d")!).sourceIp, "", "published DTO gets an empty display string for the cleared IP");
+    assert.equal(toSubmissionRecord(after.find(row => row.id === "90d")!).sourceIp, null, "the published DTO reads a cleared IP back as null (Jini 9ee2680c)");
     assert.equal(await repo.clearExpiredIps({ submittedBeforeOrAt: CUTOFF }, { limit: 500 }), 0);
     // Existing unique/FK/index and Trash state must survive a SQLite table rebuild too.
     await assert.rejects(kernel.run(db => db.insertInto("form_submissions").values({ ...before[0]!, id: "bad-fk", form_definition_id: "missing" }).execute()));
