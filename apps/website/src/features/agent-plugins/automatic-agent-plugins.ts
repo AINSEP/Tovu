@@ -90,8 +90,9 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
   }
   /** Keep the successful turn snapshot across attempts; failed preparation remains retryable. */
   function preflight({ entry }: { entry: Entry }, _options = {}): Promise<string> {
-    return entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned, maxPromptArgBytes: entry.context.maxPromptArgBytes })
+    entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned, maxPromptArgBytes: entry.context.maxPromptArgBytes })
       .catch(error => { entry.preflight = undefined; throw error; });
+    return entry.preflight;
   }
   /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
   function withLateAnswer({ context }: { context: AutomaticPluginRun }): AutomaticPluginRun {
