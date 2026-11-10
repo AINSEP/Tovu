@@ -1,0 +1,81 @@
+
+> jini@ check:cross-package /home/user/Jini
+> node --import tsx ./scripts/check-no-cross-package.ts --base 35c4961af
+
+XP3 packages/agent-plugins/src/admin-surfaces/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/core/identity-namespace.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/contribution-loader.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/contribution-types.ts: Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/agent-plugins/dist/lifecycle/contribution-types.d.ts'
+XP3 packages/agent-plugins/src/lifecycle/credential-card-metadata.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/host-tools/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/installed-package-index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/mail/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/agent-plugins/src/lifecycle/ports.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/cms/src/content-types/types.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/core/src/surface-cards.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/devops/src/deploy/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/devops/src/deploy/ops-contracts.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/access-token.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/attempt-state.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/authorization.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/deps.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/descriptor.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/finish-authorization.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/hosted-sign-in.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/install-credential.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/ports.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/request-checks.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/token-store/record.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/integrations/src/api-connections/token-store/vault-token-store.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/mcp/src/federation/adapter.http.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/mcp/src/federation/config.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/args.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/authorization-code.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/device-code.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/discovery-policy.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/discovery.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/errors.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/messages.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/pending-authorizations.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/ports.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/refresh.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/registration.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/registry.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/sealed-state.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/oauth/src/token-endpoint.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/mail/adapter-module.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/mail/engine-contracts.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/mail/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/mail/ports.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/mail/provider.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/mail/types.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/secrets/credential-sets/types.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/secrets/credential-sets/vault.types.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/secrets/ports.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/platform/src/secrets/types.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/manifest.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/node/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/node/install.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/node/source-drafts.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/plugin-claims.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/plugin-format.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/plugins/src/host/worker/index.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/secret-card.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/bridge.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/confirmation.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/document.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/fields.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/form.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/outcome.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/select.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/structured-details.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/text-input.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/ui/src/features/mcp-ui/surfaces/tokens.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/user-management/src/server/login-providers.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+XP3 packages/user-management/src/server/login-types.ts: Error: absolute JINI_DECLARATION_BASELINE_DIR required
+ ELIFECYCLE  Command failed with exit code 1.
+exit 1

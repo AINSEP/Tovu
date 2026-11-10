@@ -1,0 +1,26 @@
+1,4c1
+< ---
+< name: google-login
+< description: Set up Google member sign-in in Tovu or Google via an app's existing Supabase Auth.
+< ---
+---
+> # Tovu host guidance for google-login
+6c3
+< # Google login
+---
+> These rules specialize the portable plugin guidance for Tovu.
+8,10c5
+< This integration is marked **soon** and has not been tested with a real Google account. Tell the person this before configuring it; do not claim it works until the real sign-in has been checked.
+< 
+< ## Choose the destination first
+---
+> ## Host details for skills/google-login/SKILL.md
+15,22d9
+< 
+< ## Prepare the Google client
+< 
+< 1. Open [Google Cloud Console](https://console.cloud.google.com/auth/clients) and select or create the app's project.
+< 2. In Google Auth Platform, configure **Branding** (app identity and support contact), **Audience**, and **Data Access**. Choose External unless access is intentionally restricted to one Workspace organization. Request only `openid email profile`; do not add Drive, Sheets, Gmail, offline access, or refresh-token permissions.
+< 3. Under **Clients → Create client**, choose **Web application**. The older navigation is **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
+< 4. Add the exact authorized redirect URI for the chosen branch below. HTTPS is required for production; Google permits localhost development exceptions. Scheme, host, port, path and any configured base path must match exactly. A JavaScript origin is not a replacement for a redirect URI.
+< 5. Check Audience's Testing/Production status before rollout. Identity-only `openid email profile` requests have an exception to the usual testing-user restrictions. Additional permissions can change those rules. Publishing and verification are separate; consult [Google's production readiness guidance](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview) for the app's current requirements.

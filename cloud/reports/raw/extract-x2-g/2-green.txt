@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/__tests__/unit/manifest-namespace.unit.test.ts (5 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  04:46:26
+   Duration  516ms (transform 156ms, setup 0ms, collect 217ms, tests 6ms, environment 0ms, prepare 81ms)
+

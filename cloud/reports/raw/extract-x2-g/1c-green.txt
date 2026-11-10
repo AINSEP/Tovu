@@ -1,0 +1,9 @@
+✔ no overlay GUIDANCE.md repeats a ## heading or a fenced/embed block (5.769555ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 190.330837

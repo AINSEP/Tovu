@@ -1,0 +1,268 @@
+2c2,4
+<       3 apps/admin/src/App.tsx lint/a
+---
+>       1 apps/admin/src/App.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/App.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/App.tsx lint/a11y/useKeyWithClickEvents
+4c6
+<       1 apps/admin/src/__tests__/unit/sidebar-labels.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/__tests__/unit/sidebar-labels.unit.test.tsx lint/a11y/useValidAnchor
+8,9c10,14
+<       5 apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx lint/a
+<       1 apps/admin/src/components/AssistantDock/MessageOverflowModal.tsx lint/a
+---
+>       1 apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx lint/a11y/useAriaPropsForRole
+>       1 apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx lint/a11y/useAriaPropsSupportedByRole
+>       1 apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx lint/a11y/useFocusableInteractive
+>       2 apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/components/AssistantDock/MessageOverflowModal.tsx lint/a11y/useKeyWithClickEvents
+14,15c19,20
+<       2 apps/admin/src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx lint/a
+<       2 apps/admin/src/components/AssistantDock/__tests__/unit/commit-approval.integration.test.tsx lint/a
+---
+>       2 apps/admin/src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx lint/a11y/useButtonType
+>       2 apps/admin/src/components/AssistantDock/__tests__/unit/commit-approval.integration.test.tsx lint/a11y/useButtonType
+18c23
+<       5 apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx lint/a
+---
+>       5 apps/admin/src/components/AssistantDock/__tests__/use-composer-send-stop-guard.hooks.unit.test.tsx lint/a11y/useButtonType
+26,28c31,33
+<       1 apps/admin/src/components/DevicePreview/DevicePreviewToggle.tsx lint/a
+<       1 apps/admin/src/components/InstallTabCard/InstallTabCard.tsx lint/a
+<       1 apps/admin/src/components/MediaEditDialog/MediaEditDialog.tsx lint/a
+---
+>       1 apps/admin/src/components/DevicePreview/DevicePreviewToggle.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/components/InstallTabCard/InstallTabCard.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/components/MediaEditDialog/MediaEditDialog.tsx lint/a11y/useSemanticElements
+34c39
+<       1 apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx lint/a
+---
+>       1 apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx lint/a11y/useSemanticElements
+41,44c46,49
+<       1 apps/admin/src/components/__tests__/ComingSoonPanel.unit.test.tsx lint/a
+<       3 apps/admin/src/components/device-preview-icons.tsx lint/a
+<       2 apps/admin/src/features/admin-themes/AdminThemes.tsx lint/a
+<       1 apps/admin/src/features/ai-assistant/AiAssistant.tsx lint/a
+---
+>       1 apps/admin/src/components/__tests__/ComingSoonPanel.unit.test.tsx lint/a11y/useButtonType
+>       3 apps/admin/src/components/device-preview-icons.tsx lint/a11y/noSvgWithoutTitle
+>       2 apps/admin/src/features/admin-themes/AdminThemes.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/ai-assistant/AiAssistant.tsx lint/a11y/noSvgWithoutTitle
+48,50c53,56
+<       3 apps/admin/src/features/auth/Login.tsx lint/a
+<       1 apps/admin/src/features/auth/OwnerRecoverySignIn.tsx lint/a
+<       1 apps/admin/src/features/authentication/Authentication.tsx lint/a
+---
+>       2 apps/admin/src/features/auth/Login.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/auth/Login.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/auth/OwnerRecoverySignIn.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/authentication/Authentication.tsx lint/a11y/useAriaPropsSupportedByRole
+57c63
+<       2 apps/admin/src/features/database/database-visuals.tsx lint/a
+---
+>       2 apps/admin/src/features/database/database-visuals.tsx lint/a11y/noSvgWithoutTitle
+59c65
+<       5 apps/admin/src/features/deployment/deployment-visuals.tsx lint/a
+---
+>       5 apps/admin/src/features/deployment/deployment-visuals.tsx lint/a11y/noSvgWithoutTitle
+61c67
+<       1 apps/admin/src/features/email/EmailTemplateEditor.tsx lint/a
+---
+>       1 apps/admin/src/features/email/EmailTemplateEditor.tsx lint/a11y/useSemanticElements
+68,70c74,78
+<       1 apps/admin/src/features/import-export/import-export-tabs.tsx lint/a
+<       2 apps/admin/src/features/library/Library.hooks.tsx lint/a
+<       4 apps/admin/src/features/library/Library.tsx lint/a
+---
+>       1 apps/admin/src/features/import-export/import-export-tabs.tsx lint/a11y/noSvgWithoutTitle
+>       2 apps/admin/src/features/library/Library.hooks.tsx lint/a11y/noSvgWithoutTitle
+>       2 apps/admin/src/features/library/Library.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/library/Library.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/features/library/Library.tsx lint/a11y/useKeyWithClickEvents
+72,76c80,86
+<       5 apps/admin/src/features/media/Media.hooks.tsx lint/a
+<       2 apps/admin/src/features/media/Media.tsx lint/a
+<       2 apps/admin/src/features/media/__tests__/use-edit-media-modal.hooks.unit.test.tsx lint/a
+<       4 apps/admin/src/features/menus/MenuEditor.tsx lint/a
+<       1 apps/admin/src/features/menus/Menus.tsx lint/a
+---
+>       5 apps/admin/src/features/media/Media.hooks.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/features/media/Media.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/media/Media.tsx lint/a11y/useMediaCaption
+>       1 apps/admin/src/features/media/__tests__/use-edit-media-modal.hooks.unit.test.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/media/__tests__/use-edit-media-modal.hooks.unit.test.tsx lint/a11y/useKeyWithClickEvents
+>       4 apps/admin/src/features/menus/MenuEditor.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/menus/Menus.tsx lint/a11y/useButtonType
+78c88
+<       7 apps/admin/src/features/observability/observability-visuals.tsx lint/a
+---
+>       7 apps/admin/src/features/observability/observability-visuals.tsx lint/a11y/noSvgWithoutTitle
+80c90
+<       1 apps/admin/src/features/pages/ThemePageDetailsModal.tsx lint/a
+---
+>       1 apps/admin/src/features/pages/ThemePageDetailsModal.tsx lint/a11y/useKeyWithClickEvents
+83,85c93,98
+<       4 apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx lint/a
+<       2 apps/admin/src/features/plugins/AgentPluginRow.tsx lint/a
+<       1 apps/admin/src/features/plugins/PackageFilesModal.tsx lint/a
+---
+>       1 apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx lint/a11y/noStaticElementInteractions
+>       2 apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/plugins/AgentPluginRow.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/features/plugins/AgentPluginRow.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/plugins/PackageFilesModal.tsx lint/a11y/useKeyWithClickEvents
+88,91c101,107
+<       4 apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx lint/a
+<       2 apps/admin/src/features/plugins/PluginRow.tsx lint/a
+<       1 apps/admin/src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx lint/a
+<       4 apps/admin/src/features/plugins/__tests__/confirm-dialogs-focus-trap.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx lint/a11y/noStaticElementInteractions
+>       2 apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/plugins/PluginRow.tsx lint/a11y/noInteractiveElementToNoninteractiveRole
+>       1 apps/admin/src/features/plugins/PluginRow.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx lint/a11y/useButtonType
+>       4 apps/admin/src/features/plugins/__tests__/confirm-dialogs-focus-trap.unit.test.tsx lint/a11y/useButtonType
+94c110
+<       8 apps/admin/src/features/plugins/agent-plugins-visuals.tsx lint/a
+---
+>       8 apps/admin/src/features/plugins/agent-plugins-visuals.tsx lint/a11y/noSvgWithoutTitle
+99,102c115,119
+<       1 apps/admin/src/features/plugins/plugins-visuals.tsx lint/a
+<      30 apps/admin/src/features/posts/PostEditor.tsx lint/a
+<       1 apps/admin/src/features/posts/__tests__/PostUrlDialog.chromecheck.unit.test.tsx lint/a
+<       1 apps/admin/src/features/posts/__tests__/post-author.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/features/plugins/plugins-visuals.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/features/posts/PostEditor.tsx lint/a11y/noSvgWithoutTitle
+>      29 apps/admin/src/features/posts/PostEditor.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/posts/__tests__/PostUrlDialog.chromecheck.unit.test.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/posts/__tests__/post-author.unit.test.tsx lint/a11y/useButtonType
+107c124
+<       1 apps/admin/src/features/providers/Providers.tsx lint/a
+---
+>       1 apps/admin/src/features/providers/Providers.tsx lint/a11y/noSvgWithoutTitle
+112,113c129,131
+<       2 apps/admin/src/features/redirects/redirects-i18n.tsx lint/a
+<       2 apps/admin/src/features/roles/Roles.hooks.tsx lint/a
+---
+>       1 apps/admin/src/features/redirects/redirects-i18n.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/features/redirects/redirects-i18n.tsx lint/a11y/useKeyWithClickEvents
+>       2 apps/admin/src/features/roles/Roles.hooks.tsx lint/a11y/noSvgWithoutTitle
+115,118c133,137
+<       2 apps/admin/src/features/security/AccessTokensTab.tsx lint/a
+<       1 apps/admin/src/features/security/OtherCredentialsSection.tsx lint/a
+<       2 apps/admin/src/features/security/RecoveryCodesCard.tsx lint/a
+<       1 apps/admin/src/features/security/__tests__/CopyKeysDialog.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/features/security/AccessTokensTab.tsx lint/a11y/useAriaPropsSupportedByRole
+>       1 apps/admin/src/features/security/AccessTokensTab.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/security/OtherCredentialsSection.tsx lint/a11y/noSvgWithoutTitle
+>       2 apps/admin/src/features/security/RecoveryCodesCard.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/security/__tests__/CopyKeysDialog.unit.test.tsx lint/a11y/useButtonType
+121c140
+<       3 apps/admin/src/features/security/security-visuals.tsx lint/a
+---
+>       3 apps/admin/src/features/security/security-visuals.tsx lint/a11y/noSvgWithoutTitle
+123,125c142,146
+<       1 apps/admin/src/features/settings/AdminAppearance.tsx lint/a
+<       4 apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx lint/a
+<       1 apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx lint/a
+---
+>       1 apps/admin/src/features/settings/AdminAppearance.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx lint/a11y/noStaticElementInteractions
+>       2 apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx lint/a11y/useSemanticElements
+128,129c149,151
+<       3 apps/admin/src/features/settings/ExternalMcpToolsModal.tsx lint/a
+<       1 apps/admin/src/features/settings/SettingsUi.tsx lint/a
+---
+>       1 apps/admin/src/features/settings/ExternalMcpToolsModal.tsx lint/a11y/noStaticElementInteractions
+>       2 apps/admin/src/features/settings/ExternalMcpToolsModal.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/settings/SettingsUi.tsx lint/a11y/noSvgWithoutTitle
+131,132c153,154
+<       1 apps/admin/src/features/settings/__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx lint/a
+<       2 apps/admin/src/features/settings/__tests__/use-settings-active-tab-scroll.hooks.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/features/settings/__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx lint/a11y/useButtonType
+>       2 apps/admin/src/features/settings/__tests__/use-settings-active-tab-scroll.hooks.unit.test.tsx lint/a11y/useButtonType
+140,143c162,166
+<       1 apps/admin/src/features/sites/AllSitesTab.tsx lint/a
+<       2 apps/admin/src/features/sites/CreateSiteOnboarding.tsx lint/a
+<       1 apps/admin/src/features/sites/SiteTrashTab.tsx lint/a
+<       1 apps/admin/src/features/sites/SitesHomeSetting.tsx lint/a
+---
+>       1 apps/admin/src/features/sites/AllSitesTab.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/sites/CreateSiteOnboarding.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/sites/CreateSiteOnboarding.tsx lint/a11y/useAriaPropsSupportedByRole
+>       1 apps/admin/src/features/sites/SiteTrashTab.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/sites/SitesHomeSetting.tsx lint/a11y/noAutofocus
+146c169
+<       1 apps/admin/src/features/sites/StaticExportPicker.tsx lint/a
+---
+>       1 apps/admin/src/features/sites/StaticExportPicker.tsx lint/a11y/useSemanticElements
+148c171
+<       1 apps/admin/src/features/sites/__tests__/sites-idle-requests.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/features/sites/__tests__/sites-idle-requests.unit.test.tsx lint/a11y/useButtonType
+151,156c174,185
+<       5 apps/admin/src/features/sites/sites-visuals.tsx lint/a
+<       3 apps/admin/src/features/skills/SkillInstallConfirmation.tsx lint/a
+<       3 apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx lint/a
+<       1 apps/admin/src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx lint/a
+<       1 apps/admin/src/features/source-control/source-control-visuals.tsx lint/a
+<       5 apps/admin/src/features/taxonomy/Taxonomy.tsx lint/a
+---
+>       5 apps/admin/src/features/sites/sites-visuals.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/features/skills/SkillInstallConfirmation.tsx lint/a11y/noStaticElementInteractions
+>       2 apps/admin/src/features/skills/SkillInstallConfirmation.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx lint/a11y/noStaticElementInteractions
+>       2 apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/features/source-control/source-control-visuals.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/features/taxonomy/Taxonomy.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/taxonomy/Taxonomy.tsx lint/a11y/noNoninteractiveElementToInteractiveRole
+>       1 apps/admin/src/features/taxonomy/Taxonomy.tsx lint/a11y/noStaticElementInteractions
+>       1 apps/admin/src/features/taxonomy/Taxonomy.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/taxonomy/Taxonomy.tsx lint/a11y/useSemanticElements
+160,161c189,194
+<       4 apps/admin/src/features/themes/ThemeExplore.tsx lint/a
+<       2 apps/admin/src/features/themes/Themes.tsx lint/a
+---
+>       1 apps/admin/src/features/themes/ThemeExplore.tsx lint/a11y/noAutofocus
+>       1 apps/admin/src/features/themes/ThemeExplore.tsx lint/a11y/useButtonType
+>       1 apps/admin/src/features/themes/ThemeExplore.tsx lint/a11y/useKeyWithClickEvents
+>       1 apps/admin/src/features/themes/ThemeExplore.tsx lint/a11y/useSemanticElements
+>       1 apps/admin/src/features/themes/Themes.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/features/themes/Themes.tsx lint/a11y/useSemanticElements
+165,166c198,199
+<       1 apps/admin/src/features/themes/themes-visuals.tsx lint/a
+<       1 apps/admin/src/features/voice-input/PushToTalkMicButton.tsx lint/a
+---
+>       1 apps/admin/src/features/themes/themes-visuals.tsx lint/a11y/noSvgWithoutTitle
+>       1 apps/admin/src/features/voice-input/PushToTalkMicButton.tsx lint/a11y/noSvgWithoutTitle
+169c202
+<       1 apps/admin/src/features/webmcp/BrowserAgentSettingsPanel.tsx lint/a
+---
+>       1 apps/admin/src/features/webmcp/BrowserAgentSettingsPanel.tsx lint/a11y/useSemanticElements
+172c205,206
+<       8 apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx lint/a
+---
+>       1 apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx lint/a11y/noNoninteractiveTabindex
+>       7 apps/admin/src/hooks/__tests__/use-focus-trap.hooks.test.tsx lint/a11y/useButtonType
+175c209
+<       3 apps/admin/src/hooks/__tests__/use-sidebar-empty-click-toggle.hooks.test.tsx lint/a
+---
+>       3 apps/admin/src/hooks/__tests__/use-sidebar-empty-click-toggle.hooks.test.tsx lint/a11y/noSvgWithoutTitle
+183c217
+<       1 apps/admin/src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx lint/a
+---
+>       1 apps/admin/src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx lint/a11y/useButtonType
+194c228
+<       1 apps/admin/src/lib/media-embed-extension.tsx lint/a
+---
+>       1 apps/admin/src/lib/media-embed-extension.tsx lint/a11y/useMediaCaption

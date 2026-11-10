@@ -1,0 +1,109 @@
+✖ Tovu members guidance preserves configured base paths, requires first-link proof and explains unlink (3.516797ms)
+✖ the Supabase branch names Tovu members and Tovu's callback (1.654687ms)
+✖ the overlay is one copy: each heading and the embed block appear once (1.486756ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.417041
+
+✖ failing tests:
+
+test at content/agent-plugin-overlays/google-login/__tests__/guidance.test.mjs:11:1
+✖ Tovu members guidance preserves configured base paths, requires first-link proof and explains unlink (3.516797ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const callback = new URL\(configuredSiteAddress\)/. Input:
+  
+  '\n' +
+    "   For example, `http://localhost:3000/api/members/v1/workspaces/<workspaceId>/oidc/google/callback`. Replace the placeholder before showing it to the person. Copy the resulting URI into Google's **Authorized redirect URIs**. Use separate local and deployed clients when appropriate.\n" +
+    '3. Open the existing secure card with `credential_save { kind: "plugin-provider", target: "google-login-oauth-client" }`. The person pastes the Client ID into **Google client ID** (`username`) and the Client Secret into the masked secret field (`token`). The existing vault seals it; the assistant never receives it. No extra callback field is needed on the card.\n' +
+    '4. Visit `/signin` and try **Sign in with Google**. Success returns to `/account`. This creates or links a site member, with no administrator privileges. Tovu core owns state, browser binding, PKCE, token validation and member sessions; do not implement a second flow in this plugin.\n' +
+    "5. Explain initial linking: Google-verified `@gmail.com`/`@googlemail.com` addresses and verified Google Workspace accounts with an `hd` claim auto-link directly. Other Google addresses require **one emailed code** to the member's address before the first auto-link, because Google's email verification can outlive mailbox ownership. Later sign-ins use issuer + subject, even if email changes. Disabled or trashed members cannot sign in.\n" +
+    '6. Check sign-out and `/account` **Unlink Google**. Unlink requires a recent sign-in and another usable sign-in method; set a password if directed. Unlink must remain effective on the next Google sign-in. Reconnect deliberately with **Connect Google** from the signed-in `/account` page. It does not revoke Google Workspace file access.\n' +
+    '\n' +
+    "1. Open the target project's **Supabase dashboard → Authentication → Providers → Google** and enable Google.\n" +
+    "2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. Tovu's credential card is unnecessary unless this site also uses Tovu members.\n" +
+    "3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client's **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.\n" +
+    "4. One Google Web application client can list both the Supabase callback and Tovu's callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.\n" +
+    "5. In Supabase **Authentication → URL Configuration**, configure the app's own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.\n" +
+    "6. Test through the app's existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with Tovu members or replace the app's session system. See [Supabase's Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).\n" +
+    '\n' +
+    "- `redirect_uri_mismatch`: compare the exact configured callback with Google's authorized list, including scheme, port and base path.\n" +
+    '- Missing Tovu button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.\n' +
+    '- Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.\n' +
+    '- Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.\n' +
+    '\n' +
+    'Use the existing `content_read.plugin` export contract for `tovu/google-login` → `sign-in-button`.\n' +
+    'The plugin must be enabled and its Google client configured. `host-unavailable` means finish\n' +
+    'setup first; `props-required` means the host is configured and the author must choose a variant.\n' +
+    'The required `variant` is `light`, `dark`, or `neutral`; no template defaults or logic are added.\n' +
+    'Use the marker owner to serialize config; do not construct a second JSON attribute escaper.\n' +
+    '\n' +
+    '```html\n' +
+    `<div data-embed-config='{"type":"plugin","plugin":"tovu/google-login","component":"sign-in-button","version":1,"props":{"variant":"light"}}'>\n` +
+    '  <p>Google sign-in is currently unavailable.</p>\n' +
+    '</div>\n' +
+    '```\n'
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-login/__tests__/guidance.test.mjs:14:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '\n   For example, `http://localhost:3000/api/members/v1/workspaces/<workspaceId>/oidc/google/callback`. Replace the placeholder before showing it to the person. Copy the resulting URI into Google\'s **Authorized redirect URIs**. Use separate local and deployed clients when appropriate.\n3. Open the existing secure card with `credential_save { kind: "plugin-provider", target: "google-login-oauth-client" }`. The person pastes the Client ID into **Google client ID** (`username`) and the Client Secret into the masked secret field (`token`). The existing vault seals it; the assistant never receives it. No extra callback field is needed on the card.\n4. Visit `/signin` and try **Sign in with Google**. Success returns to `/account`. This creates or links a site member, with no administrator privileges. Tovu core owns state, browser binding, PKCE, token validation and member sessions; do not implement a second flow in this plugin.\n5. Explain initial linking: Google-verified `@gmail.com`/`@googlemail.com` addresses and verified Google Workspace accounts with an `hd` claim auto-link directly. Other Google addresses require **one emailed code** to the member\'s address before the first auto-link, because Google\'s email verification can outlive mailbox ownership. Later sign-ins use issuer + subject, even if email changes. Disabled or trashed members cannot sign in.\n6. Check sign-out and `/account` **Unlink Google**. Unlink requires a recent sign-in and another usable sign-in method; set a password if directed. Unlink must remain effective on the next Google sign-in. Reconnect deliberately with **Connect Google** from the signed-in `/account` page. It does not revoke Google Workspace file access.\n\n1. Open the target project\'s **Supabase dashboard → Authentication → Providers → Google** and enable Google.\n2. The person enters the **same Google Client ID and Client Secret** directly in that Supabase panel themselves, never in chat. Tovu\'s credential card is unnecessary unless this site also uses Tovu members.\n3. Copy the exact **Callback URL (for OAuth)** shown on that panel. Add it to the Google OAuth client\'s **Authorized redirect URIs**. A hosted callback commonly looks like `https://<project-ref>.supabase.co/auth/v1/callback`; use the displayed value, including a custom domain if configured. For local Supabase, use the callback shown by that instance.\n4. One Google Web application client can list both the Supabase callback and Tovu\'s callback when both systems are used. Keep both exact URIs in Google; do not substitute one for the other.\n5. In Supabase **Authentication → URL Configuration**, configure the app\'s own allowed return URL. The Google-to-Supabase callback and the Supabase-to-app return URL serve different steps.\n6. Test through the app\'s existing Supabase sign-in flow. These instructions do not automatically associate Supabase users with Tovu members or replace the app\'s session system. See [Supabase\'s Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).\n\n- `redirect_uri_mismatch`: compare the exact configured callback with Google\'s authorized list, including scheme, port and base path.\n- Missing Tovu button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.\n- Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.\n- Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.\n\nUse the existing `content_read.plugin` export contract for `tovu/google-login` → `sign-in-button`.\nThe plugin must be enabled and its Google client configured. `host-unavailable` means finish\nsetup first; `props-required` means the host is configured and the author must choose a variant.\nThe required `variant` is `light`, `dark`, or `neutral`; no template defaults or logic are added.\nUse the marker owner to serialize config; do not construct a second JSON attribute escaper.\n\n```html\n<div data-embed-config=\'{"type":"plugin","plugin":"tovu/google-login","component":"sign-in-button","version":1,"props":{"variant":"light"}}\'>\n  <p>Google sign-in is currently unavailable.</p>\n</div>\n```\n',
+    expected: /const callback = new URL\(configuredSiteAddress\)/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/google-login/__tests__/guidance.test.mjs:25:1
+✖ the Supabase branch names Tovu members and Tovu's callback (1.654687ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /card is unnecessary unless this site also uses Tovu members/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-login/__tests__/guidance.test.mjs:27:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /card is unnecessary unless this site also uses Tovu members/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/google-login/__tests__/guidance.test.mjs:31:1
+✖ the overlay is one copy: each heading and the embed block appear once (1.486756ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      '## Host details for skills/google-login/SKILL.md',
+      '## Tovu members',
+  +   '## Tovu members',
+      '## Embed the sign-in button on a public page'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-login/__tests__/guidance.test.mjs:33:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '## Host details for skills/google-login/SKILL.md', '## Tovu members', '## Tovu members', '## Embed the sign-in button on a public page' ],
+    expected: [ '## Host details for skills/google-login/SKILL.md', '## Tovu members', '## Embed the sign-in button on a public page' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
