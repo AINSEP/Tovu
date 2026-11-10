@@ -1,0 +1,40 @@
+ DEPRECATED  "environmentMatchGlobs" is deprecated. Use `test.projects` to define different configurations instead.
+
+ RUN  v3.2.7 /home/user/Jini/packages/vibecoding
+
+ ✓ src/core/__tests__/history.test.ts (24 tests) 15ms
+ ✓ src/html/__tests__/edit.test.ts (58 tests) 43ms
+ ✓ src/html/__tests__/regions.test.ts (23 tests) 12ms
+ ✓ src/html/node/__tests__/parse5-region-parser.test.ts (17 tests) 33ms
+ ✓ src/node/__tests__/project-turn.test.ts (12 tests) 1146ms
+ ✓ src/html/node/__tests__/scan.test.ts (29 tests) 36ms
+ ✓ src/html/node/__tests__/parse5-region-parser.l189.characterization.test.ts (22 tests) 30ms
+ ✓ src/node/__tests__/unit/project-contracts.unit.test.ts (18 tests) 2280ms
+   ✓ maps validator refusals to per-edit corrections and direct target errors  318ms
+   ✓ project sessions discard cached bytes after redo and snapshot restore, including a no-op restore  515ms
+ ✓ src/core/__tests__/apply.test.ts (13 tests) 22ms
+ ✓ src/node/__tests__/unit/store-corruption.unit.test.ts (39 tests) 1358ms
+ ✓ src/node/__tests__/project-history.test.ts (7 tests) 2069ms
+   ✓ npm-style drift is captured before undo, so undo first reverses the external revision  361ms
+   ✓ snapshot restore is undoable and objects shared by revisions are retained  351ms
+   ✓ garbage collection expires unpinned snapshots without pruning a pinned redo  371ms
+   ✓ injected session shares pointer history and invalidates caches across delete/undo and drift  397ms
+ ✓ src/node/__tests__/store-recovery.test.ts (9 tests) 373ms
+ ✓ src/__tests__/integration.test.ts (2 tests) 17ms
+ ✓ src/node/__tests__/paths.test.ts (32 tests) 43ms
+ ✓ src/html/node/__tests__/unit/scanner-contracts.unit.test.ts (2 tests) 19ms
+ ✓ src/session/__tests__/session-exports.test.ts (2 tests) 1141ms
+   ✓ packed ./session imports and runs with every React resolution forbidden  1139ms
+ ✓ src/react/__tests__/session.test.ts (17 tests) 14ms
+ ✓ src/react/__tests__/tools.test.ts (14 tests) 12ms
+ ✓ src/react/__tests__/use-vibecoding-session.test.ts (4 tests) 347ms
+ ✓ src/react/__tests__/components/VibecodingWorkbench.test.tsx (6 tests) 551ms
+ ✓ src/react/__tests__/components/PartsViewer.test.tsx (6 tests) 150ms
+ ✓ src/react/__tests__/components/DocumentPreview.test.tsx (4 tests) 87ms
+
+ Test Files  22 passed (22)
+      Tests  360 passed (360)
+   Start at  00:05:25
+   Duration  12.22s (transform 1.28s, setup 842ms, collect 3.30s, tests 9.80s, environment 2.52s, prepare 1.74s)
+
+JSON report written to /home/user/raw-x2/jini-json-vibecoding.json

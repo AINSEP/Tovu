@@ -1,0 +1,26 @@
+✔ a long unbroken host header keeps the header and composer inside a 379px dock (4013.698199ms)
+✔ the standalone settings stylesheet bounds scrolling, styles controls, and preserves focus at phone width (2856.024102ms)
+✖ Send and Stop receive real coordinate clicks beside the effort selector at 320px dock width (3267.296844ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10657.706211
+
+✖ failing tests:
+
+test at e2e/composer-hit-targets.test.mjs:7:1
+✖ Send and Stop receive real coordinate clicks beside the effort selector at 320px dock width (3267.296844ms)
+  locator.waitFor: Error: strict mode violation: getByRole('button', { name: 'Send', exact: true }) resolved to 2 elements:
+      1) <button title="Send" type="button" aria-label="Send" data-agent-label="Send" data-agent-role="button" class="jini-composer-send" data-agent-element="ui-h-63102a5d4ac9eea4-send">…</button> aka getByRole('button', { name: 'Send' }).first()
+      2) <button title="Send" type="button" aria-label="Send" data-agent-label="Send" data-agent-role="button" class="jini-composer-send" data-agent-element="ui-h-632b6a5d4ae1231c-send">…</button> aka getByRole('button', { name: 'Send' }).nth(1)
+  
+  Call log:
+  [2m  - waiting for getByRole('button', { name: 'Send', exact: true }) to be visible[22m
+  
+      at TestContext.<anonymous> (/home/user/Jini/examples/reference-web/e2e/composer-hit-targets.test.mjs:24:18) {
+    log: [ "  - waiting for getByRole('button', { name: 'Send', exact: true }) to be visible" ]
+  }

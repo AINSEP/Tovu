@@ -1,0 +1,6 @@
+minimal-host exit=0 secs=126
+neutral-host exit=0 secs=10
+nlweb-demo exit=0 secs=2
+reference-desktop exit=0 secs=1
+reference-web exit=1 secs=6
+LANE DONE Tue Nov 10 00:31:57 UTC 2026

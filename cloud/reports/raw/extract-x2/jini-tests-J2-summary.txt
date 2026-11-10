@@ -1,0 +1,22 @@
+chat exit=1 secs=472
+admin exit=0 secs=159
+daemon exit=0 secs=119
+agent-runtime exit=0 secs=58
+platform exit=0 secs=47
+db exit=1 secs=161
+user-management exit=0 secs=64
+desktop-host exit=0 secs=17
+agentic exit=0 secs=21
+devops exit=0 secs=33
+diagnostics exit=0 secs=14
+provider-plugins exit=0 secs=55
+oauth exit=0 secs=11
+http-kit exit=1 secs=9
+server exit=0 secs=38
+ui-kit exit=0 secs=10
+capability-providers exit=0 secs=6
+cookie-consent exit=0 secs=8
+sandbox exit=0 secs=8
+agent-plugins exit=1 secs=52
+cli exit=0 secs=8
+LANE DONE Tue Nov 10 00:29:32 UTC 2026

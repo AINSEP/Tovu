@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/examples/nlweb-demo
+
+ ✓ src/__tests__/ask.test.ts (18 tests) 33ms
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  00:31:49
+   Duration  449ms (transform 105ms, setup 0ms, collect 113ms, tests 33ms, environment 0ms, prepare 91ms)
+
+JSON report written to /home/user/raw-x2/jini-json-nlweb-demo.json

@@ -1,0 +1,20 @@
+ui exit=0 secs=369
+cms exit=0 secs=140
+core exit=0 secs=33
+mcp exit=0 secs=32
+integrations exit=0 secs=27
+commerce exit=0 secs=46
+plugins exit=0 secs=28
+vibecoding exit=0 secs=13
+search exit=0 secs=5
+sidecar exit=0 secs=5
+sqlite exit=0 secs=19
+registry exit=0 secs=7
+protocol exit=0 secs=3
+analytics exit=0 secs=3
+artifacts exit=0 secs=4
+infra exit=0 secs=5
+plugin-catalog exit=0 secs=2
+plugin-fixture-provider exit=0 secs=2
+memory exit=0 secs=4
+LANE DONE Tue Nov 10 00:06:36 UTC 2026

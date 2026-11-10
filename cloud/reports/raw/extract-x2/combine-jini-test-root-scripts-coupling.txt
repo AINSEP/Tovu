@@ -1,0 +1,13 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/cmb/Jini
+
+ ✓ scripts/__tests__/coupling-isolation.test.ts (21 tests) 21328ms
+   ✓ re-verify dependency and state regressions > keeps standalone plugin tooling on package public entries 10455ms
+   ✓ re-verify dependency and state regressions > declares the shared secret-input owner on the permitted optional UI layer edge 3751ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  00:35:35
+   Duration  22.46s (transform 170ms, setup 0ms, collect 659ms, tests 21.33s, environment 0ms, prepare 75ms)
+

@@ -1,0 +1,197 @@
+## part1 node:test catalog
+✔ a zero compare-at price is preserved in both directions rather than treated as absent (1.518729ms)
+✔ an absent compare-at price and billing interval use SQL null and decode as undefined (0.186168ms)
+✔ checkout: snapshots the price as Money into a pending order whose total passes the payments kernel's moneyProblem (2.511276ms)
+✔ checkout: quantity defaults to 1 (0.313393ms)
+✔ checkout: refuses a quantity that is not an integer in 1..MAX_CHECKOUT_QUANTITY, writing nothing (0.838508ms)
+✔ checkout: a missing or archived price is not found (0.302985ms)
+✔ checkout: a missing or archived product is not found (0.643189ms)
+✔ checkout: a line total past the safe-integer range is refused, never rounded (0.39591ms)
+✔ orderTotal: sums same-currency lines with exact integer arithmetic (0.291317ms)
+✔ orderTotal: mixed currencies are refused with a typed error, never summed (0.386146ms)
+✔ orderTotal: a sum past the safe-integer range is refused with the typed validation error (0.513935ms)
+✔ orderTotal: validates each line itself (public API) — quantity positive integer, unit amount normalized Money (1.240427ms)
+▶ commerce errors
+  ✔ instantiates CommerceProductNotFoundError as an Error (8.465432ms)
+  ✔ instantiates CommercePriceNotFoundError as an Error (0.196057ms)
+  ✔ instantiates CommerceOrderNotFoundError as an Error (0.118548ms)
+  ✔ instantiates CommerceCheckoutValidationError with default and custom fieldErrors (0.717004ms)
+  ✔ instantiates CommerceProductSlugConflictError carrying the conflicting slug (0.158292ms)
+  ✔ instantiates CommerceCurrencyMismatchError carrying both currencies (0.141926ms)
+✔ commerce errors (10.985424ms)
+✔ restart with changed account/mode/origin preserves durable original scope and blocks new checkout (2.022778ms)
+✔ removing configuration during restart still reconstructs the original credential-free scope (0.30659ms)
+✔ restoring original settings enables checkout, and settled work permits a new selection (0.193091ms)
+✔ equivalent deployed origin spelling does not block an original account (0.167071ms)
+✔ removed configuration without pending work retains read access but disables new checkout (0.139523ms)
+✔ old non-replayable rows require original configuration instead of inventing callback URLs (0.111572ms)
+✔ price, order and order-item Money round-trips through the unchanged *_cents columns (2.141194ms)
+✔ an order with no provider refs or event cursor writes SQL null and decodes as undefined (0.237811ms)
+✔ legacy lowercase rows read back UPPERCASE (0.270395ms)
+✔ lowercase currency on write is normalized once, at the row boundary, and stored UPPERCASE (0.152962ms)
+✔ a value that is not Money is refused on write, before any row is produced (0.666234ms)
+✔ a compare-at amount in a different currency than the unit amount is refused with a typed error (0.318826ms)
+✔ a stored row whose currency is not an alpha-3 code fails loudly on read instead of returning non-Money (0.233119ms)
+✔ product and product-image rows map every column; NULL columns decode as undefined and specs round-trip as compact JSON (0.308429ms)
+✔ webhook row preserves provider event identity, raw payload and independent occurrence and receipt times (1.343234ms)
+✔ an unexpected payment-adapter failure propagates instead of reporting an unavailable runtime (1.079008ms)
+✔ an available runtime with no providers still exposes discovery and a fresh configuration snapshot (0.813188ms)
+✔ commerce status tool remains read-only (1.190986ms)
+✔ commerce status tool refuses before entering provider code (1.432779ms)
+✔ commerce status: truthful absence; available runtime only enables provider discovery (0.644451ms)
+✔ commerce status: reports an honest unavailable snapshot when no payment runtime is composed (1.453564ms)
+✔ commerce status: preserves runtime provider declarations without promoting them to operational readiness (0.501219ms)
+✔ pickDisplayPrice: returns null when no price is active (1.366555ms)
+✔ pickDisplayPrice: prefers a one-time price over a recurring one (0.247724ms)
+✔ pickDisplayPrice: among ties, picks the cheapest (0.137631ms)
+✔ pickDisplayPrice: an archived price is never picked even if it's cheaper (0.12402ms)
+✔ toSiteProduct: maps name -> title, unitAmount.minorUnits -> price, compareAtAmount.minorUnits -> compareAtPrice, unitAmount.currency -> currency (0.806751ms)
+✔ toSiteProduct: specs pass through unchanged, in author-chosen order -- safe because product.liquid renders spec.label/spec.value escaped (no `| raw`), unlike description (0.150456ms)
+✔ toSiteProduct: specs is undefined, not an empty array, when the product has none (0.096352ms)
+✔ toSiteProduct: compareAtPrice is undefined, not present-but-null, when not on sale (0.237141ms)
+✔ toSiteProducts: a product with no active price is skipped, not thrown or rendered priceless (0.289799ms)
+✔ toSiteProducts: images/stock are absent from the mapped shape (not fabricated -- see file header) (0.196459ms)
+✔ toSiteProducts: description is absent from the mapped shape even when the source product has one -- product.liquid renders description via `| raw` (unescaped), and Commerce's description column has no HTML-sanitization contract (see file header); wiring it through here would be a live XSS hole the moment any text containing markup reaches it (0.16535ms)
+✔ recurring-only products use the cheapest active price across billing intervals (0.18566ms)
+ℹ tests 52
+ℹ suites 1
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2712.556571
+part1 exit 0
+## part2 vitest
+
+ RUN  v2.1.9 /home/user/Jini/packages/commerce
+
+ ✓ src/react/__tests__/Payments.unit.test.tsx (3 tests) 293ms
+ ✓ src/react/__tests__/Payments.boundaries.unit.test.tsx (5 tests) 408ms
+ ✓ src/react/__tests__/Payments.locale.unit.test.tsx (2 tests) 237ms
+
+ Test Files  3 passed (3)
+      Tests  10 passed (10)
+   Start at  00:04:13
+   Duration  3.26s (transform 543ms, setup 337ms, collect 1.30s, tests 938ms, environment 1.51s, prepare 267ms)
+
+JSON report written to /home/user/raw-x2/jini-json-commerce-p2.json
+part2 exit 0
+## part3 vitest kernel
+
+ RUN  v2.1.9 /home/user/Jini/packages/commerce
+
+ ✓ src/payments/ops/__tests__/reconciler.vitest.test.ts (30 tests) 137ms
+ ✓ src/payments/ingest/__tests__/worker.vitest.test.ts (29 tests) 49ms
+ ✓ src/payments/accounting/__tests__/apply-evidence.vitest.test.ts (45 tests) 1297ms
+   ✓ property: any delivery order of the same facts ends in the same ledger > sqlite: shuffled deliveries (responses, both webhook types, duplicates, a stale snapshot, timeouts), retrying only deferred ones 689ms
+ ✓ src/catalog/__tests__/unit/repo.vitest.test.ts (12 tests) 140ms
+ ✓ src/payments/ops/__tests__/intent.vitest.test.ts (54 tests) 168ms
+ ✓ src/payments/ops/__tests__/capture-void.vitest.test.ts (24 tests) 146ms
+ ✓ src/payments/tools/__tests__/money-tools.vitest.test.ts (27 tests) 116ms
+ ✓ src/payments/accounting/__tests__/plan-evidence.vitest.test.ts (38 tests) 19ms
+ ✓ src/payments/ledger/__tests__/migrations.vitest.test.ts (17 tests) 215ms
+ ✓ src/payments/ops/__tests__/refund.vitest.test.ts (25 tests) 104ms
+ ✓ src/payments/ledger/__tests__/rows.vitest.test.ts (50 tests) 390ms
+   ✓ entry points > payments/kernel carries the port, records and memory adapter; the SQL half (kysely, @jini-ai/db at runtime) is ledger/sql 365ms
+ ✓ src/http/__tests__/payments-webhook.vitest.test.ts (22 tests) 186ms
+ ✓ src/browser/__tests__/checkout.vitest.test.ts (18 tests) 1517ms
+ ✓ src/payments/state/__tests__/status.vitest.test.ts (114 tests) 24ms
+ ✓ src/catalog/__tests__/unit/plugin-server.vitest.test.ts (29 tests) 29ms
+ ✓ src/payments/accounting/__tests__/apply-evidence-ops.vitest.test.ts (22 tests) 215ms
+ ✓ src/payments/ops/__tests__/reconciler-stale.vitest.test.ts (22 tests) 259ms
+ ✓ src/payments/ingest/__tests__/receive.vitest.test.ts (18 tests) 20ms
+ ✓ src/catalog/__tests__/unit/status-tools.vitest.test.ts (13 tests) 11ms
+ ✓ src/payments/ops/__tests__/intent-recovery.vitest.test.ts (28 tests) 4727ms
+   ✓ intent recovery postgres > restart recovers the durable original request with the same charge key 571ms
+   ✓ intent recovery postgres > concurrent reconcilers claim a single replay while the provider is in flight 416ms
+   ✓ intent recovery postgres > stops after three spaced recovery attempts and keeps unknown money unresolved 520ms
+   ✓ intent recovery postgres > does not spend the recovery budget in minutes; retries span the provider retention window 648ms
+   ✓ intent recovery postgres > expired reference-less ambiguity stays unknown until an audited owner resolution 385ms
+   ✓ intent recovery postgres > changed amount conflicts before recovery and expired provider keys are never replayed 401ms
+   ✓ intent recovery postgres > a crash after replay response cannot close the attempt before evidence commits 309ms
+   ✓ intent recovery postgres > provider-specific extras are never persisted or automatically replayed 492ms
+   ✓ intent recovery postgres > legacy unknown rows without a dispatch snapshot remain unresolved 512ms
+ ✓ src/payments/accounting/__tests__/review-fixes.vitest.test.ts (22 tests) 262ms
+ ✓ src/catalog/__tests__/unit/storefront-rows.vitest.test.ts (13 tests) 9ms
+ ✓ src/catalog/__tests__/unit/pay-order.vitest.test.ts (13 tests) 43ms
+ ✓ src/catalog/__tests__/unit/checkout-boundaries.vitest.test.ts (31 tests) 18ms
+ ✓ src/payments/ingest/__tests__/outbox-relay.vitest.test.ts (6 tests) 26ms
+ ✓ src/payments/testkit/__tests__/provider-conformance.vitest.test.ts (19 tests) 33ms
+ ✓ src/catalog/__tests__/unit/settle-order-payment.vitest.test.ts (45 tests) 23ms
+ ✓ src/payments/ops/__tests__/operator.vitest.test.ts (24 tests) 136ms
+ ✓ src/payments/tools/__tests__/approval-boundaries.vitest.test.ts (18 tests) 37ms
+ ✓ src/catalog/__tests__/unit/catalog-tools.vitest.test.ts (16 tests) 36ms
+ ✓ src/payments/ops/__tests__/transaction-boundaries.vitest.test.ts (10 tests) 24ms
+ ✓ src/payments/testkit/__tests__/lipay-fake.vitest.test.ts (8 tests) 11ms
+ ✓ src/payments/tools/__tests__/resolve-unknown.vitest.test.ts (11 tests) 56ms
+ ✓ src/payments/ingest/__tests__/worker-boundaries.vitest.test.ts (16 tests) 399ms
+ ✓ src/catalog/__tests__/unit/repo.storefront.vitest.test.ts (6 tests) 151ms
+ ✓ src/payments/accounting/__tests__/plan-evidence-boundaries.vitest.test.ts (23 tests) 19ms
+ ✓ src/payments/accounting/__tests__/writer-boundaries.vitest.test.ts (26 tests) 219ms
+ ✓ src/payments/ops/__tests__/lost-response.vitest.test.ts (4 tests) 128ms
+ ✓ src/payments/__tests__/kernel/provider-contract.vitest.test.ts (11 tests) 20ms
+ ✓ src/payments/ingest/__tests__/receive-boundaries.vitest.test.ts (10 tests) 221ms
+ ✓ src/payments/tools/__tests__/registrations.vitest.test.ts (9 tests) 25ms
+ ✓ src/catalog/__tests__/unit/load-payable-order.vitest.test.ts (18 tests) 11ms
+ ✓ src/catalog/__tests__/unit/repo.order-payments.vitest.test.ts (11 tests) 66ms
+ ✓ src/payments/contract/__tests__/risk.vitest.test.ts (18 tests) 11ms
+ ✓ src/payments/ingest/__tests__/worker-sqlite.vitest.test.ts (3 tests) 427ms
+   ✓ inbox worker on SQLite > a signed charge webhook is received, applied and purged 309ms
+ ✓ src/payments/__tests__/kernel/provider-contexts.vitest.test.ts (15 tests) 11ms
+ ✓ src/payments/ops/__tests__/grants.vitest.test.ts (18 tests) 17ms
+ ✓ src/payments/ops/__tests__/outcome-boundaries.vitest.test.ts (14 tests) 27ms
+ ✓ src/payments/ledger/__tests__/sqlite.vitest.test.ts (58 tests) 537ms
+ ✓ src/payments/ingest/__tests__/outbox-recovery.vitest.test.ts (4 tests) 205ms
+ ✓ src/money/__tests__/boundaries.vitest.test.ts (76 tests) 41ms
+ ✓ src/catalog/__tests__/unit/order-projection.vitest.test.ts (8 tests) 49ms
+ ✓ src/payments/__tests__/kernel/provider-module-guard.vitest.test.ts (29 tests) 11ms
+ ✓ src/payments/contract/__tests__/contract.vitest.test.ts (17 tests) 6ms
+ ✓ src/catalog/__tests__/unit/repo.mark-paid.vitest.test.ts (6 tests) 33ms
+ ✓ src/money/__tests__/money.vitest.test.ts (7 tests) 6ms
+ ✓ src/payments/__tests__/kernel/provider-registry.vitest.test.ts (12 tests) 8ms
+ ✓ src/catalog/__tests__/unit/buyer-order.vitest.test.ts (8 tests) 5ms
+ ✓ src/payments/tools/__tests__/read-tools.vitest.test.ts (7 tests) 16ms
+ ✓ src/payments/ops/__tests__/service.vitest.test.ts (4 tests) 12ms
+ ✓ src/payments/__tests__/kernel/checkout-client.vitest.test.ts (19 tests) 23ms
+ ✓ src/catalog/__tests__/unit/repo.price-refs.vitest.test.ts (8 tests) 79ms
+ ✓ src/payments/ledger/__tests__/memory.vitest.test.ts (59 tests) 98ms
+ ✓ src/catalog/__tests__/unit/merchant-drain-ledger.vitest.test.ts (3 tests) 5ms
+ ✓ src/payments/ledger/__tests__/open-payments.vitest.test.ts (2 tests) 43ms
+ ✓ src/payments/contract/__tests__/alerts.vitest.test.ts (2 tests) 2129ms
+   ✓ noopAlertPort > fulfillment-blocked is an alert kind accepted by the host port 2128ms
+ ✓ src/payments/ledger/__tests__/quarantine-limit.vitest.test.ts (2 tests) 32ms
+ ✓ src/__tests__/packaging.vitest.test.ts (1 test) 3164ms
+   ✓ ships the Open SaaS MIT attribution in the commerce npm file list 3160ms
+ ✓ src/payments/providers/__tests__/lipay-signing.vitest.test.ts (3 tests) 5ms
+ ✓ src/payments/ledger/__tests__/empty-attempt-ops.vitest.test.ts (1 test) 34ms
+ ✓ src/payments/ledger/__tests__/postgres.vitest.test.ts (55 tests) 15480ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > round-trips every column, starting at version 1 437ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > the idempotency key is unique per workspace + mode, and may repeat across them 329ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > the provider ref is unique per workspace + mode + provider account; NULL refs never collide 337ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > updatePayment is optimistic: applies the patch and bumps the version only at the expected version 387ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > lockPayment reads the payment under its lock, fenced by workspace and mode, or null 426ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > lockPayment outside a transaction throws: a lock nothing holds protects nothing 364ms
+   ✓ PaymentsLedger contract: sql/postgres > payments > every integer is guarded on write: a fraction, NaN or unsafe number throws TypeError and writes nothing 442ms
+   ✓ PaymentsLedger contract: sql/postgres > refunds > findRefund matches OUR correlation id first, then the provider's ref 304ms
+   ✓ PaymentsLedger contract: sql/postgres > webhook inbox > a different event reusing a row id is a unique violation 314ms
+   ✓ PaymentsLedger contract: sql/postgres > webhook inbox > apply purges the payload but keeps the body hash 393ms
+   ✓ PaymentsLedger contract: sql/postgres > webhook inbox > only an open (received/parked) row moves on: applied and dead rows are final 398ms
+   ✓ PaymentsLedger contract: sql/postgres > webhook inbox > park counts the attempt and reschedules; dead stops retries; only due rows are listed, soonest first 462ms
+   ✓ PaymentsLedger contract: sql/postgres > reconciliation scans > unknown intents updated before the cutoff, least recently updated first, bounded, optionally scoped 320ms
+   ✓ PaymentsLedger contract: sql/postgres > operator actions > an action needs its payment in its own scope, a unique id, and every required column 300ms
+   ✓ PaymentsLedger contract: sql/postgres > structural rules > CHECK and NOT NULL: an unknown mode, a negative amount and a NULL required column (the primary key included) are refused 342ms
+   ✓ PaymentsLedger contract: sql/postgres > structural rules > a child row must name its payment in its own workspace and mode 314ms
+   ✓ PaymentsLedger contract: sql/postgres > boundary and recovery regressions > 'disputes' with equal timestamps list by id, regardless of insertion order 322ms
+   ✓ PaymentsLedger contract: sql/postgres > boundary and recovery regressions > nullable child patches clear stored errors, refund references, reasons and dispute deadlines 344ms
+   ✓ PaymentsLedger contract: sql/postgres > boundary and recovery regressions > refund and attempt cursors keep equal-time later ids while excluding earlier times and other scopes 320ms
+   ✓ PaymentsLedger contract: sql/postgres > transactions > a throw rolls back every write in the transaction and rethrows 384ms
+ ✓ src/money/__tests__/display.vitest.test.ts (6 tests) 16ms
+
+ Test Files  72 passed (72)
+      Tests  1472 passed (1472)
+   Start at  00:04:17
+   Duration  38.88s (transform 2.48s, setup 0ms, collect 14.55s, tests 34.27s, environment 13ms, prepare 5.45s)
+
+JSON report written to /home/user/raw-x2/jini-json-commerce-p3.json
+part3 exit 0
