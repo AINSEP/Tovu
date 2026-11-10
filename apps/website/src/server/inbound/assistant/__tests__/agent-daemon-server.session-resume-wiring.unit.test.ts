@@ -407,7 +407,8 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
     assert.ok(launched);
     assert.equal(launched.nativeToolAccess, true);
     assert.equal(launched.cliParity, true);
-    assert.equal(launched.nativeCapabilities?.userMcp, userMcp === true);
+    const personal = userMcp ?? true; // on by default since 2026-11-10
+    assert.equal(launched.nativeCapabilities?.userMcp, personal);
     assert.equal(launched.nativeCapabilities?.shell, shell);
     assert.equal(launched.resumeSessionId, resumed ? "unused-session-id" : undefined);
     const args = getAgentDef({ id: "claude" })!.buildArgs({ prompt: launched.prompt, imagePaths: [] }, {
@@ -415,15 +416,15 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
         ...(launched.resumeSessionId ? { resumeSessionId: launched.resumeSessionId } : {}),
         ...(launched.newSessionId ? { newSessionId: launched.newSessionId } : {}) },
     });
-    assert.equal(args.includes("--strict-mcp-config"), userMcp !== true, "the owner MCP opt-in survives both fresh and resumed site launches");
-    assert.equal(overlay.includes("Personal MCP servers are not folder-limited."), userMcp === true);
+    assert.equal(args.includes("--strict-mcp-config"), !personal, "the owner MCP opt-in survives both fresh and resumed site launches");
+    assert.equal(overlay.includes("Personal MCP servers are not folder-limited."), personal);
     assert.match(overlay, /does not inherit your personal Claude hooks or permissions/);
     assert.equal(args.includes("--resume"), resumed);
     assert.equal(args[args.indexOf("--mcp-config") + 1], "/staged/tovu-mcp.json");
     assert.equal(args.includes("Bash"), !shell, "shell choice must reach actual CLI arguments");
     assert.doesNotMatch(overlay, /Full CLI access is ON/);
     assert.match(overlay, /Native agents\/subagents\/Task are available/);
-    assert.equal(overlay.includes("Your MCP servers"), userMcp !== true);
+    assert.equal(overlay.includes("Your MCP servers"), !personal);
     assert.match(overlay, /use these Tovu tools instead of Bash\/shell for site work/);
     assert.equal(/Disabled native capabilities for this chat: [^.]*Bash\/shell/.test(overlay), !shell);
     overlays.push(overlay);

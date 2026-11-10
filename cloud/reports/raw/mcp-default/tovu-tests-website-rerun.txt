@@ -1,0 +1,106 @@
+✔ A4/A6: untouched local owner permissions default every capability ON, personal MCP included (4.166799ms)
+✔ A6: empty definition default inherits a persisted legacy OFF, including after another boot (2.44348ms)
+✔ local owner capabilities default on, personal MCP included (2026-11-10), and explicit off choices survive (1.751602ms)
+✔ the master resets every capability default, personal MCP included, and individual switches can override (0.98609ms)
+✔ personal MCP honors explicit owner choices with master false (1.286856ms)
+✔ personal MCP honors explicit owner choices with master true (0.297175ms)
+✔ host restrictions override every individual grant: {"TOVU_HOSTED":"1"} (0.362464ms)
+✔ host restrictions override every individual grant: {"TOVU_RUNTIME_MODE":"production"} (0.279662ms)
+✔ host restrictions override every individual grant: {"TOVU_PUBLIC_URL":"https://tovu.dev"} (0.257267ms)
+✔ non-owners cannot establish an individual grant (0.353164ms)
+[routes/settings] {
+  errorId: '816a477e-08d4-47e7-99e9-14dbc7838714',
+  diagnostic: 'Error: getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route\n' +
+    '    at getAuthedPrincipal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:320:11)\n' +
+    '    at Object.authenticate (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/settings/shared.ts:247:79)\n' +
+    '    at async <anonymous> (/home/user/Jini/packages/http-kit/src/adapter.ts:123:47)\n' +
+    '    at async Object.request (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:61:7)\n' +
+    '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:167:17)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[routes/settings] {
+  errorId: 'd65163f3-2011-48ff-a937-698990521aff',
+  diagnostic: 'Error: settings store unavailable\n' +
+    '    at Object.f.deps.getEffective (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts:238:45)\n' +
+    '    at readAssistantCliPermissions (/home/user/Tovu/apps/website/src/assistant/subagent-settings.ts:15:35)'
+}
+✔ the picker receives the same effective permission mode as the launch gate (27.67702ms)
+✔ boot defaults on, registration is idempotent, and reads expose owner editability (9.344194ms)
+✔ owner enable and disable are audited and a separate daemon read sees the current grant (553.96235ms)
+✔ a non-owner with all settings permissions cannot enable OR disable (2.342347ms)
+✔ one capability override is persisted for this owner/site and observed by the next launch (6.57506ms)
+✔ unknown or malformed per-capability values never create a revision (4.936881ms)
+✔ hosted sites return disabled permissions and reject owner writes (3.6555ms)
+✔ a local env kill switch locks the owner's switches with a reason instead of snapping back (2.569023ms)
+✔ malformed writes never create a revision (4.645239ms)
+✔ workspace, authentication, and permission boundaries fail closed (20.776238ms)
+✔ generic set, clear, reset and definition edits cannot bypass the owner setting route (1.296211ms)
+✔ generic mutations also refuse an alias to the protected grant, including reset (1.012348ms)
+✔ missing values default on, while unavailable or malformed reads deny delegation (1.268457ms)
+✔ explicit off survives boot, and re-enabling needs no acknowledgment or receipt (8.989806ms)
+✔ boot reconciles an old OFF definition for an install with no stored value (2.904683ms)
+✔ HTTP read failure stays unknown instead of presenting a false OFF setting (4.524379ms)
+✔ selected-agent updates keep site defaults and sibling agents (7.735071ms)
+▶ H1 wiring — a failed resume must clear its dead stored session id
+  ✔ imports shouldClearSessionOnFailedResume from the pure decision module (0.990188ms)
+  ✔ the stream subscription calls shouldClearSessionOnFailedResume and, when true, clears the stored session id (0.189609ms)
+  ✔ attemptedResumeSessionId is assigned from the gated resume value actually attempted — the value the decision checks must reflect what onStarted really passed to agentExecutor.run, not the raw pre-gating lookup (0.272165ms)
+✔ H1 wiring — a failed resume must clear its dead stored session id (2.627432ms)
+▶ H2 wiring — overlapping runs on one conversation must not both resume
+  ✔ imports createLiveRunTracker and constructs exactly one module-level instance (0.499659ms)
+  ✔ a run registers itself in the tracker before any await in onStarted's synchronous prefix (0.211476ms)
+  ✔ a run unregisters itself from the tracker on its own terminal event (250.664023ms)
+  ✔ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (0.432388ms)
+✔ H2 wiring — overlapping runs on one conversation must not both resume (252.249989ms)
+▶ H2-context-loss wiring — a forced-cold run must not silently drop conversation history
+  ✔ imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module (0.416495ms)
+  ✔ getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable (0.23664ms)
+  ✔ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.46183ms)
+  ✔ effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume (0.229325ms)
+✔ H2-context-loss wiring — a forced-cold run must not silently drop conversation history (1.611721ms)
+▶ Send right after Stop — wait for the stopped run, and say why when refusing
+  ✔ waits for a stopped run on the same chat before deciding whether another run holds the session (0.099181ms)
+  ✔ the concurrent-run refusal puts its plain reason on the run's stream (0.039331ms)
+✔ Send right after Stop — wait for the stopped run, and say why when refusing (0.203106ms)
+✔ onStarted's real stream clears only the resumed conversation-agent binding (76.594728ms)
+✔ onStarted's real stream persists the CLI's reconfirmed session (33.251132ms)
+✔ onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call (42.855046ms)
+✔ onStarted registers the conversation synchronously while instruction refresh is held (45.499013ms)
+✔ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (98.33443ms)
+✔ fresh and resumed in-app launches honor user MCP false and disclose native permissions (96.528976ms)
+✔ fresh and resumed in-app launches honor user MCP true and disclose native permissions (87.603653ms)
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (2563.151805ms)
+ℹ tests 48
+ℹ suites 4
+ℹ pass 47
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9802.012711
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:1:1262
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (2563.151805ms)
+  AssertionError [ERR_ASSERTION]: expected the daemon to start listening, but it exited:
+  [agent-daemon] failed to start standalone daemon requires its site binding
+  
+  + actual - expected
+  
+  + 'exited'
+  - 'listening'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:92:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'exited',
+    expected: 'listening',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1
