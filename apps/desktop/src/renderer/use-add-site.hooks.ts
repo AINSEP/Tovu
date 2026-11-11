@@ -79,12 +79,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     try {
       const added = folder === undefined ? await bridge.addSite() : await bridge.addDroppedSite?.({ folder });
       if (!added) return;
-      setProjects((current) => mergeAddedSite(current, added));
-      onAdded?.(added);
-      const message = addedSiteMessage({ added });
-      setAddError(message);
-      setAddNotice(message ? { siteId: added.id, message } : null);
-      if (message) onAlreadyTracked?.(added.id);
+      showAddedSite(added, { setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked });
     } catch (error) {
       const message = describeAddFailure(error);
       setAddError(message);
@@ -96,6 +91,30 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
 
   const addSite = useCallback(() => add(), [add]);
   return { adding, addError, addDetails, addNotice, addSite, addDroppedFolder: add, clearAddError };
+}
+
+/**
+ * A successful add: the card appears at once, the Import page hears of it, and a site that was
+ * already tracked says so and opens its existing tab instead of looking like a fresh add.
+ *
+ * @complexity O(n) in the current project count, via {@link mergeAddedSite}.
+ */
+function showAddedSite(
+  added: SiteRecord & { alreadyTracked?: boolean },
+  { setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked }: {
+    setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
+    setAddError: (message: string | null) => void;
+    setAddNotice: (notice: { siteId: string; message: string } | null) => void;
+    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
+    onAlreadyTracked?: (id: string) => void;
+  },
+): void {
+  setProjects((current) => mergeAddedSite(current, added));
+  onAdded?.(added);
+  const message = addedSiteMessage({ added });
+  setAddError(message);
+  setAddNotice(message ? { siteId: added.id, message } : null);
+  if (message) onAlreadyTracked?.(added.id);
 }
 
 /**

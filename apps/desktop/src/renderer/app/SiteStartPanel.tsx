@@ -40,14 +40,7 @@ export function SiteStartPanel({
   const starting = ownStart || project.status === 'starting';
 
   const handleStart = startThenNotify(start, onStarted);
-  const wakeAttempted = useRef(false);
-  useEffect(() => {
-    if (project.status !== 'sleeping') { wakeAttempted.current = false; return; }
-    if (!wakeOnOpen || wakeAttempted.current) return;
-    // Claim the attempt before starting: re-renders and StrictMode must not start a second boot.
-    wakeAttempted.current = true;
-    void handleStart();
-  }, [project.status, wakeOnOpen, handleStart]);
+  useWakeOnOpen({ status: project.status, wakeOnOpen, handleStart });
 
   return (
     <div className="workspace__idle">
@@ -74,7 +67,7 @@ export function SiteStartPanel({
           onClick={() => void handleStart()}
           disabled={starting}
         >
-          {starting ? 'Starting…' : project.status === 'sleeping' ? 'Wake site' : 'Start site'}
+          {startButtonLabel({ starting, status: project.status })}
         </button>
       )}
       {error && <p className="workspace__error">{error}</p>}
@@ -83,6 +76,27 @@ export function SiteStartPanel({
   );
 }
 
+/** Wakes a sleeping site once per sleep when this is the visible workspace; hidden tabs never wake it. */
+function useWakeOnOpen({ status, wakeOnOpen, handleStart }: {
+  status: SiteRecord['status'];
+  wakeOnOpen: boolean;
+  handleStart: () => Promise<unknown>;
+}) {
+  const wakeAttempted = useRef(false);
+  useEffect(() => {
+    if (status !== 'sleeping') { wakeAttempted.current = false; return; }
+    if (!wakeOnOpen || wakeAttempted.current) return;
+    // Claim the attempt before starting: re-renders and StrictMode must not start a second boot.
+    wakeAttempted.current = true;
+    void handleStart();
+  }, [status, wakeOnOpen, handleStart]);
+}
+
+/** The Start button's words: progress while booting, otherwise the verb that fits the state. */
+function startButtonLabel({ starting, status }: { starting: boolean; status: SiteRecord['status'] }): string {
+  if (starting) return 'Starting…';
+  return status === 'sleeping' ? 'Wake site' : 'Start site';
+}
 
 /** Selectable diagnostics belong only to the terminal error; sleep and manual stops stay neutral. */
 function SiteFailureDetails({ project }: { project: SiteRecord }) {

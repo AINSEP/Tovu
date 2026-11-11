@@ -886,21 +886,29 @@ function droppedPath({ value }: { value: unknown }): string {
   return value;
 }
 
+/** A dropped archive: it must at least be a .zip on this computer; what is inside it is checked by the importer. */
+function droppedArchive({ value }: { value: unknown }): SiteArchiveSource {
+  const file = droppedPath({ value });
+  if (!/\.zip$/i.test(file)) throw new Error("That is not a .tovu.zip file. Export a website from Tovu to get one.");
+  return { file };
+}
+
+/** Main's archive file dialog; `null` when cancelled, which is a completed choice, not a failure. */
+async function pickArchive(deps: Pick<ProjectIpcDeps, "dialog">): Promise<SiteArchiveSource | null> {
+  const picked = await deps.dialog.showOpenDialog({ title: "Choose a .tovu.zip file", buttonLabel: "Import website",
+    properties: ["openFile"], filters: [{ name: "Tovu website", extensions: ["zip"] }] });
+  return picked.canceled || picked.filePaths.length === 0 ? null : { file: picked.filePaths[0]! };
+}
+
 /** Which archive to import; `null` when the dialog was cancelled. Remote input is checked by the importer. */
 async function archiveSource(
   { input }: { input: { file?: unknown; url?: unknown; pick?: unknown } | null | undefined },
   deps: Pick<ProjectIpcDeps, "dialog">,
 ): Promise<SiteArchiveSource | null> {
   if (typeof input?.url === "string") return { url: input.url };
-  if (input?.file !== undefined) {
-    const file = droppedPath({ value: input.file });
-    if (!/\.zip$/i.test(file)) throw new Error("That is not a .tovu.zip file. Export a website from Tovu to get one.");
-    return { file };
-  }
+  if (input?.file !== undefined) return droppedArchive({ value: input.file });
   if (input?.pick !== true) throw new Error("Import needs a file or a share link.");
-  const picked = await deps.dialog.showOpenDialog({ title: "Choose a .tovu.zip file", buttonLabel: "Import website",
-    properties: ["openFile"], filters: [{ name: "Tovu website", extensions: ["zip"] }] });
-  return picked.canceled || picked.filePaths.length === 0 ? null : { file: picked.filePaths[0]! };
+  return pickArchive(deps);
 }
 
 /**
