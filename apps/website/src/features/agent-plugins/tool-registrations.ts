@@ -32,6 +32,7 @@ import {
 import type { AgentPluginLayout } from "./layout.js";
 import type { ToolContributor } from "@jini-ai/core";
 import { AGENT_PLUGIN_HOST_TOOL_MESSAGES, AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
+import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 
 export type { AgentPluginSkillDetail, AgentPluginToolSource, AgentPluginToolIdentity, AgentPluginToolGate, IdentifiedAgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 export { agentPluginSearchDerivedRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
@@ -88,18 +89,31 @@ export interface AgentPluginSearchToolDeps {
   readonly agentPluginLayout: AgentPluginLayout;
 }
 
-/** `search_agent_plugin_local`'s one-entry catalog, for the contracts test and the static seam. */
-export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use }, { messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES });
-
-/** Every installed plugin of one workspace, enabled or not, as a search candidate. Also read by the
- *  admin installed-plugin listing. */
-export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
-  return loadHostAgentPluginSearchCandidates({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
+/** "Soon" plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Jini builds the search tool's
+ *  description and has no hook for this, so Tovu appends it to both the catalog and the registration. */
+export const SOON_PLUGIN_SEARCH_NOTE = "A result with maturity 'soon' isn't ready and can't be turned on: never offer to enable, connect or use it; you may say it's coming soon.";
+function withSoonNote<T extends { readonly description?: string }>(entry: T): T {
+  return { ...entry, description: `${entry.description ?? ""} ${SOON_PLUGIN_SEARCH_NOTE}`.trim() };
 }
 
-/** The `search_agent_plugin_local` registration; its handler reads the installed plugins per call. */
+/** `search_agent_plugin_local`'s one-entry catalog, for the contracts test and the static seam. */
+export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use }, { messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES }).map(withSoonNote);
+
+/** Every installed plugin of one workspace, enabled or not, as a search candidate. Also read by the
+ *  admin installed-plugin listing, so an unflagged plugin on Tovu's host Soon list
+ *  (`HOST_SOON_AGENT_PLUGINS`) shows as Soon there; a manifest flag still wins. */
+export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
+  const candidates = await loadHostAgentPluginSearchCandidates({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
+  return candidates.map(candidate => candidate.maturity === undefined && HOST_SOON_AGENT_PLUGINS.has(candidate.pluginId) ? { ...candidate, maturity: "soon" as const } : candidate);
+}
+
+/** The `search_agent_plugin_local` registration; its handler reads the installed plugins per call.
+ *  KNOWN GAP: Jini's handler loads its own candidates, so its results don't mark the host-listed
+ *  Soon faces until Jini gets a host-maturity port (`development/open-bugs.md`). Enabling one is
+ *  still refused in plain words. */
 export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchToolDeps): ToolRegistration[] {
-  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps) });
+  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps) })
+    .map(registration => ({ ...registration, descriptor: withSoonNote(registration.descriptor) }));
 }
 
 /**

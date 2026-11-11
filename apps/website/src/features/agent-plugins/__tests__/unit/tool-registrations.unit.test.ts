@@ -9,7 +9,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, mock } from "node:test";
@@ -46,7 +46,7 @@ import {
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { UNTESTED_PLUGIN_GUIDANCE } from "../../identity.js";
-import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
+import { composedBundledSourceRoot, selectedPluginSourceRoot } from "../fixtures/bundled-source-root.js";
 
 // The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as
 // `@jini-ai/agent-plugins/supabase` since D-W6), composed once for this file.
@@ -644,7 +644,16 @@ test("a disabled plugin's call is denied before the overlay is read, and no over
 test("the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access", async () => {
   await withAgentPluginsDir(async () => {
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_A, sourceRoot: bundledSource.root });
+    // Supabase is a "Soon" plugin, locked off (`soon-lock.ts`); this test is about reconnect mechanics,
+    // so it seeds a copy without the flag. `soon-lock.unit.test.ts` covers the lock itself.
+    const source = await selectedPluginSourceRoot({ pluginIds: ["supabase"] });
+    try {
+      const manifestPath = path.join(source.root, "supabase", "plugin.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      for (const extension of Object.values(manifest.extensions ?? {}) as { maturity?: unknown }[]) delete extension.maturity;
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_A, sourceRoot: source.root });
+    } finally { await source.dispose(); }
     // Installation does not grant activation; the saved-sign-in fixture explicitly enables it.
     await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_A).root, pluginId: "supabase", enabled: true, actor: "test" });
     const repo = new InMemoryExternalMcpServerRepo();

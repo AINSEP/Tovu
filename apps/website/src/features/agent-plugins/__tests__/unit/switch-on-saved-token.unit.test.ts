@@ -4,12 +4,12 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import { agentPluginActivations } from "../../activation-effects.js";
 const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import fs from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test, { after } from "node:test";
+import test from "node:test";
 import { ACTIVATIONS_LOCK_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
@@ -22,12 +22,9 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory, seedBundledAgentPlugins } from "../../lifecycle.js";
 import { AGENT_PLUGINS_SCREEN, describeSavedTokenSwitch, EXTERNAL_MCP_SCREEN, switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
 import { forceRemove } from "../fixtures/force-remove.js";
-import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
-
-// The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as
-// `@jini-ai/agent-plugins/supabase` since D-W6), composed once for this file.
-const bundledSource = await composedBundledSourceRoot();
-after(() => bundledSource.dispose());
+// Supabase ships as `@jini-ai/agent-plugins/supabase` since D-W6; the one test that seeds it copies
+// just that package (below) rather than composing the whole shipped bundle.
+import { selectedPluginSourceRoot } from "../fixtures/bundled-source-root.js";
 
 /**
  * @file `switchOnSavedTokenConnection` reports "on" only when BOTH the connection row and the plugin's
@@ -153,7 +150,16 @@ test("no activation record reads as on and writes nothing", async () => {
 
 test("the production fallback enables an untouched saved-token row with the installed plugin's declared grants", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE, sourceRoot: bundledSource.root });
+    // Supabase is a "Soon" plugin, locked off (`soon-lock.ts`); this test is about the saved-token
+    // switch, so it seeds a copy without the flag. `soon-lock.unit.test.ts` covers the lock itself.
+    const source = await selectedPluginSourceRoot({ pluginIds: ["supabase"] });
+    try {
+      const manifestPath = path.join(source.root, "supabase", "plugin.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      for (const extension of Object.values(manifest.extensions ?? {}) as { maturity?: unknown }[]) delete extension.maturity;
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE, sourceRoot: source.root });
+    } finally { await source.dispose(); }
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);

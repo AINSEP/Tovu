@@ -7,7 +7,7 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError,
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError, AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -201,6 +201,11 @@ function sendSetEnabledError(res: Response, pluginId: string, error: unknown): v
   // Not for this host (enable only), or an interrupted update awaits boot recovery
   // (PLUGIN_UPDATE_PENDING): both conflicts with the installed state, never a 500.
   if (error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginUpdateError) {
+    res.status(409).json({ code: error.code, error: error.message });
+    return;
+  }
+  // A "Soon" plugin is locked off (`features/agent-plugins/soon-lock.ts`); nothing was written.
+  if (error instanceof AgentPluginNotReadyError) {
     res.status(409).json({ code: error.code, error: error.message });
     return;
   }

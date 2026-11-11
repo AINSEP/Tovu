@@ -103,7 +103,9 @@ test("production ports read the shipped links and switch the real activation rec
   assert.equal(await ports.isFaceActive({ pluginId: "posthog" }), false, "bundled faces seed inactive");
   const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports });
   await repo.save(row("analytics-posthog", true));
-  assert.equal(await ports.isFaceActive({ pluginId: "posthog" }), true);
+  // These shipped faces are "Soon" plugins (`soon-lock.ts`, owner 2026-11-10): locked off, so the
+  // real record stays off even when the provider plugin is switched on.
+  assert.equal(await ports.isFaceActive({ pluginId: "posthog" }), false);
   assert.equal(await ports.isFaceActive({ pluginId: "sentry" }), false);
 });
 

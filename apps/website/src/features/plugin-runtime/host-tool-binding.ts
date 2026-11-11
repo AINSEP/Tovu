@@ -18,6 +18,28 @@ import type { PluginApprovalPort, PluginManagementToolsRequired, PluginSourceToo
 function approvals(surfaces: AssistantSurfaceDeps): PluginApprovalPort<HumanConfirmSpec> {
   return { handler: (steps, options) => approvalToolHandler({ surfaces, ...steps }, options), notConfirmed: notConfirmedResult };
 }
+type SetEnabledPrepared = { request?: { family?: string; pluginId?: string; enabled?: boolean }; refusal?: { reason?: string } };
+
+/** A "Soon" Agent Plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10). Jini's
+ *  `plugins_set_enabled` has no not-ready pre-flight, so this wraps its prepare step: after Jini's own
+ *  parse, authorize and pre-flight, an Agent Plugin enable that is unrefused (or refused only as a
+ *  linked face) becomes a not-ready refusal, so the dialog is skipped and nothing is written. A
+ *  write-time Soon error is not classified: this pre-flight leaves it to a race only.
+ *  @complexity As `describeNotReady`: one listing plus one manifest read per installed revision. */
+function refuseNotReadyBeforeConfirm(port: PluginApprovalPort<HumanConfirmSpec>, { providerFaces }: Pick<PluginsToolDeps, 'providerFaces'>): PluginApprovalPort<HumanConfirmSpec> {
+  return { ...port, handler: (steps, options) => port.handler({ ...steps, prepare: async (required, prepareOptions) => {
+    const prepared = await steps.prepare(required, prepareOptions);
+    const { request, refusal } = (prepared as unknown as SetEnabledPrepared | undefined) ?? {};
+    if (request?.family !== 'agent-plugin' || request.enabled !== true || request.pluginId === undefined) return prepared;
+    if (refusal !== undefined && refusal.reason !== 'linked') return prepared;
+    const notReady = await providerFaces.describeNotReady?.({ pluginId: request.pluginId });
+    if (notReady === undefined) return prepared;
+    return { ...prepared, refusal: { changed: false, cancelled: false, family: request.family, pluginId: request.pluginId, restartRequired: false,
+      reason: 'not-ready', code: notReady.code,
+      note: `Nothing changed. ${notReady.message} Don't offer another way to turn it on or use it; you may say it's coming soon.` } };
+  } }, options) };
+}
+
 export function bindPluginManagementTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces: AssistantSurfaceDeps }): PluginManagementToolsRequired<HumanConfirmSpec> {
   return {
     ...bindPluginApprovalIdentity({ deps }),
@@ -31,7 +53,7 @@ export function bindPluginManagementTools({ deps, surfaces }: { deps: PluginsToo
     lowerToolAccess: input => lowerPluginToolAccess({ ...input, providerFaces: deps.providerFaces, notifyRosterChanged: deps.notifyRosterChanged }, {}),
     extraModelFacingErrors: [{ error: ToolAccessLoweringError, code: 'TOOL_ACCESS_STOP_FAILED', guidance: 'The OFF decision was saved. Report that stopping affected answers failed; do not claim cleanup succeeded.' }],
     executeCommand: input => executeCommand({ ...input, deps: { clock: deps.clock, idGen: deps.idGen, changeSets: deps.changeSets, outbox: deps.outbox, authorize: deps.authorize } }),
-    approvals: approvals(surfaces), descriptions: { enable: describeEnableApproval, uninstall: describeUninstallApproval }, messages: pluginToolMessages,
+    approvals: refuseNotReadyBeforeConfirm(approvals(surfaces), deps), descriptions: { enable: describeEnableApproval, uninstall: describeUninstallApproval }, messages: pluginToolMessages,
     telemetry: { toggled: ({ principalId, pluginId, enabled }) => deps.tracker?.capture({ name: 'plugin_toggled', userId: principalId }, { properties: { pluginId, pluginKind: 'cms', enabled, source: 'assistant' } }) },
   };
 }

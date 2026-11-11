@@ -14,6 +14,8 @@ import { probeCredentialConnection } from '#src/features/custom-credentials/cred
 import { resolveOperatorLocale } from '#src/features/settings/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
+import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';
+import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';
 import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
 import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/service-ports';
@@ -69,6 +71,10 @@ export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: (
     affectedPluginIds: async ({ pluginId }, _options = {}) => [pluginId, ...[...await ports.links({})].filter(([, provider]) => provider === pluginId).map(([face]) => face)],
     describeLinkedFace: (input, _options = {}) => new AgentPluginLinkedError(input),
     describeLinkedError: ({ error }, _options = {}) => error instanceof AgentPluginLinkedError ? error : undefined,
+    describeNotReady: async ({ pluginId }, _options = {}) => {
+      const soon = await findSoonAgentPlugin({ catalog: explicitRootSoonCatalog, workspaceRoot: workspaceRoot(), pluginId });
+      return soon ? new AgentPluginNotReadyError({ pluginId, name: soon.name }) : undefined;
+    },
   };
 }
 

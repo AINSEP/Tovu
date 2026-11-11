@@ -407,7 +407,7 @@ test("seedBundledAgentPlugins never seeds a retired id from a stale source direc
       result.retirements,
       [...RETIRED_BUNDLED_AGENT_PLUGINS].map(([pluginId, successor]) => typeof successor === "string"
         ? { pluginId, successorId: successor, status: "absent" }
-        : { pluginId, successorId: successor[0], successorIds: successor, status: "absent" }),
+        : { pluginId, successorId: successor[0] ?? "", successorIds: successor, status: "absent" }),
     );
     assert.deepEqual(await installedIds(workspaceLayout.root), []);
   } finally {

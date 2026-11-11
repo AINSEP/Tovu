@@ -15,6 +15,7 @@ import {
   type RetireBundledAgentPluginsRequired as JiniRetireRequired,
   type TrustedPluginPackagesQuery as JiniTrustedQuery,
   type TrustedPluginPackage,
+  type InstalledAgentPlugin as JiniInstalledAgentPlugin,
   type AgentPluginDeliveryMode,
   type PluginContributionDefinition,
   type LoadPluginContributionsOptional,
@@ -24,7 +25,8 @@ import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/n
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
-import { readPluginMaturity, UNTESTED_PLUGIN_GUIDANCE } from "./identity.js";
+import { UNTESTED_PLUGIN_GUIDANCE } from "./identity.js";
+import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "./host-plugin-guidance.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
@@ -159,13 +161,33 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
       const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
       // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
-      return readPluginMaturity({ manifest }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
+      return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
     }));
     const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
     return { ...result, promptPrefix: removeChatRefusedToolPermissions(promptPrefix) };
   }
+  // Soon plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Product policy, so it wraps the
+  // owner's enable writers here: the admin switch, plugins_set_enabled and connect defaults
+  // (`setAgentPluginEnabled`) and the provider-face mirror (`reconcileAgentPluginActivation`). The raw
+  // `setAgentPluginActivation` stays unwrapped: tests use it as a fixture and a backup import writes a
+  // Soon plugin off itself (`site-backup/import-plugin-state.ts`); boot's lock catches anything else.
+  // Turning OFF is never refused.
+  const soonCatalog: SoonCatalogPort<JiniInstalledAgentPlugin> = {
+    list: ({ workspaceRoot }) => owner.listInstalledPlugins({ workspaceRoot }),
+    readManifest: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
+  };
   return {
     ...owner,
+    soonCatalog,
+    setAgentPluginEnabled: async (...[input, options]: Parameters<typeof owner.setAgentPluginEnabled>) => {
+      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace(input.workspaceId).root, pluginId: input.pluginId });
+      return owner.setAgentPluginEnabled(input, options);
+    },
+    // A Soon face never follows its provider plugin on; one that is on is switched off.
+    reconcileAgentPluginActivation: async (...[input, options]: Parameters<typeof owner.reconcileAgentPluginActivation>) => {
+      const soon = await findSoonAgentPlugin({ catalog: soonCatalog, workspaceRoot: input.workspaceRoot, pluginId: input.pluginId });
+      return owner.reconcileAgentPluginActivation(soon ? { ...input, resolveEnabled: async () => false } : input, options);
+    },
     // Select the trusted replacement at the contribution owner BEFORE duplicate-id validation.
     // A failed retirement may leave both packages on disk; a disabled successor must stay disabled.
     // What a replacement supersedes is declared by that plugin (`supersession.ts`), never named here.
@@ -232,6 +254,9 @@ export const {
 /** This boot's lifecycle owner; installed contributions always use its fixed site layout. */
 export type TovuAgentPluginLifecycle = ReturnType<typeof createTovuAgentPluginLifecycle>;
 export type LoadPluginContributions = TovuAgentPluginLifecycle["loadPluginContributions"];
+
+/** Installed packages and manifests by explicit workspace root, for the Soon lock (`soon-lock.ts`). */
+export const explicitRootSoonCatalog = explicitRootLifecycle.soonCatalog;
 
 /** Compatibility activation effects take explicit workspace roots and cannot discover a site. */
 export const explicitRootAgentPluginActivations = {
