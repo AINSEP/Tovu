@@ -82,6 +82,9 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:home:set",
   "runner:sites:settings:save",
   "runner:sites:add-site",
+  // Real archive-import handlers in project-ipc.ts (`registerProjectIpc`).
+  "runner:sites:import-archive",
+  "runner:sites:cancel-import",
   "runner:sites:rename",
   "runner:sites:preview",
   "runner:sites:locate",

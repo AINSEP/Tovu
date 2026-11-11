@@ -51,6 +51,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   const shutdownOrder: string[] = [];
   let disposals = 0;
   let mcpCloses = 0;
+  let importStops = 0;
   let agentShutdowns = 0;
   let lifecycleStops = 0;
   let quitNotifications = 0;
@@ -70,6 +71,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
       product: { dispose: () => { shutdownOrder.push("product"); return productDisposal; } } },
     desktopAgentRuntime: { dispose: () => { shutdownOrder.push("runtime"); disposals++; return disposal; } },
     desktopMcpHttp: { close: () => { shutdownOrder.push("mcp"); mcpCloses++; return mcpClose; } },
+    stopRunningImports: async () => { shutdownOrder.push("imports"); importStops++; },
     desktopAgentService: { shutdown: () => { shutdownOrder.push("agent-service"); agentShutdowns++; return agentShutdown; } },
     siteThemePreviews: { dispose: () => { shutdownOrder.push("previews"); } },
     finalQuitHeldForUpdate: () => false,
@@ -91,7 +93,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   assert.equal(quitNotifications, 2, 'each quit attempt revokes pending last-window confirmation');
   assert.equal(disposals, 1);
   assert.equal(lifecycleStops, 2, 'each quit attempt revokes automatic site work before draining');
-  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews"]);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "imports", "previews"]);
   assert.equal(vm.runInContext("quitPhase", context), "draining");
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(finalQuits, 0);
@@ -108,9 +110,10 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   assert.equal(finalQuits, 1);
   assert.equal(disposals, 1);
   assert.equal(mcpCloses, 1);
+  assert.equal(importStops, 1);
   assert.equal(agentShutdowns, 1);
   assert.equal(prevented, 2);
   assert.equal(lifecycleStops, 3, 'the final reentrant quit also revokes lifecycle work');
   assert.equal(vm.runInContext("quitPhase", context), "drained");
-  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service", "quit"]);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "imports", "previews", "agent-service", "quit"]);
 });

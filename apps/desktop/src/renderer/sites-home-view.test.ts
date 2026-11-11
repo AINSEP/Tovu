@@ -26,7 +26,7 @@ const BASE = {
 test("an open tab on Projects shows that site's workspace, in tab order", () => {
   assert.deepEqual(deriveSitesHomeView(BASE), {
     openSites: [B, A], inSites: true, activeSite: B, showSiteTab: true, showSitesHome: false,
-    visibleWorkspaceId: '/b', showCreateForm: false,
+    visibleWorkspaceId: '/b', showCreateForm: false, showImportPage: false,
   });
 });
 
