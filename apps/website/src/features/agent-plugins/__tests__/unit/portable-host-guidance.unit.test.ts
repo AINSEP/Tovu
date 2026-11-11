@@ -12,9 +12,10 @@ import { registerInstalledAgentPluginTools } from '../../tool-registrations.js';
 import { selectedPluginSourceRoot } from '../fixtures/bundled-source-root.js';
 import { forceRemove } from '../fixtures/force-remove.js';
 
+// No `formspree`: parked 2026-11-10 (owner), so Tovu no longer ships it (`RETIRED_BUNDLED_AGENT_PLUGINS`).
 const pluginIds = ['higgsfield-media', 'resend', 'supabase', 'composio', 'github-pages', 'meilisearch', 'google-workspace',
   'github', 'site-compliance', 'wordpress', 'opentelemetry', 'posthog', 'sentry', 'commerce',
-  'formspree', 'google-forms', 'cloudflare', 'netlify', 'vercel', 's3-compatible', 'fly', 'railway', 'render'];
+  'google-forms', 'cloudflare', 'netlify', 'vercel', 's3-compatible', 'fly', 'railway', 'render'];
 const overlayRoot = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugin-overlays');
 const requiredTools: Record<string, readonly string[]> = {
   'higgsfield-media': ['agent_plugin_connect', 'media_import_from_url'],
@@ -28,7 +29,7 @@ const requiredTools: Record<string, readonly string[]> = {
   posthog: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
   sentry: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
   commerce: ['provider_status', 'commerce_get_status', 'commerce_create_product', 'commerce_create_price', 'settings_list_definitions', 'settings_set_value'],
-  formspree: ['forms_update_definition'], 'google-forms': ['forms_update_definition'],
+  'google-forms': ['forms_update_definition'],
   cloudflare: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
   netlify: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
   vercel: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],

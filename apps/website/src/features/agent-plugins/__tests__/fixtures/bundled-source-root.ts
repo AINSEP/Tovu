@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
-import { SELECTED_AGENT_PLUGIN_PACKAGES } from "../../bundled-catalog.js";
+import { RETIRED_BUNDLED_AGENT_PLUGINS, SELECTED_AGENT_PLUGIN_PACKAGES } from "../../bundled-catalog.js";
 import { forceRemove } from "./force-remove.js";
 
 /**
@@ -23,8 +23,10 @@ export interface DisposableSourceRoot {
   readonly dispose: () => Promise<void>;
 }
 
+/** Skips a retired id, as production does: Tovu no longer ships it, so it has no source folder here. */
 async function copyPlugins(root: string, pluginIds: Iterable<string>): Promise<void> {
   for (const pluginId of pluginIds) {
+    if (RETIRED_BUNDLED_AGENT_PLUGINS.has(pluginId)) continue;
     await cp(agentPluginSourceDir({ pluginId }), path.join(root, pluginId), { recursive: true });
   }
 }

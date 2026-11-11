@@ -375,7 +375,8 @@ test('App: Import never opens or starts a site, whether sites exist or not', asy
     startSite: async (id: string) => { starts.push(id); return site(id, { status: 'running', port: 4101 }); },
   });
   await app.click(app.byText('Import'));
-  assert.equal(app.all('[role="tab"]').length, 1, 'only the Websites tab; no site tab was opened');
+  // Import is a temporary tab beside All (owner, 2026-11-10); no SITE tab opens until an import succeeds.
+  assert.deepEqual(tabLabels(app), ['All', 'Import'], 'only All and the Import tab; no site tab was opened');
   assert.equal(app.container.querySelector('webview'), null, 'no site guest was loaded');
   assert.deepEqual(starts, [], 'no site was started');
 });

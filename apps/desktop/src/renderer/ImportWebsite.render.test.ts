@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
 import { createElement } from 'react';
-import { act, mount, type TestContext } from './app/component-harness.js';
+import { act, dom, mount, type TestContext } from './app/component-harness.js';
 import { closeHost } from './app-render-harness.js';
 import { ImportWebsite, type ImportWebsiteProps } from './ImportWebsite.js';
 
@@ -37,6 +37,11 @@ function render(t: TestContext, props: Partial<ImportWebsiteProps> = {}) {
   return { ...view, calls };
 }
 
+/** The address field, found by its label: the drop zone's own file input now comes first on the page. */
+function addressInput(view: ReturnType<typeof render>): HTMLInputElement | null {
+  return view.all('label').find((label) => label.textContent?.includes('Website address'))?.querySelector('input') ?? null;
+}
+
 test('ImportWebsite: files first, then the web address, explained by tooltips; no back link, label or second title', (t) => {
   const view = render(t);
   assert.deepEqual(view.all('h3').map((h) => h.textContent), ['From your computer', 'From the web']);
@@ -57,7 +62,8 @@ test('ImportWebsite: the shared drop zone holds both Choose buttons, and its own
   const input = zone.querySelector<HTMLInputElement>('input[type="file"]')!;
   const picked = new File(['x'], 'a.png');
   Object.defineProperty(input, 'files', { value: [picked], configurable: true });
-  await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })); });
+  // jsdom's own Event: Node's global one is from another realm, and jsdom's dispatchEvent refuses it.
+  await act(async () => { input.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
   assert.match(view.calls.at(-1)!, /^refuse:.*website folder or a \.tovu\.zip/);
 });
 
@@ -67,7 +73,7 @@ test('ImportWebsite: each button reaches its own source, and Cancel goes back', 
   await view.click(view.byText('Import as a new site'));
   await view.click(view.byText('Cancel'));
   assert.deepEqual(view.calls, ['page-open', 'folder', 'import', 'back']);
-  await view.type(view.container.querySelector('input')!, 'x.org');
+  await view.type(addressInput(view)!, 'x.org');
   assert.equal(view.calls.at(-1), 'address:x.org');
 });
 
@@ -75,7 +81,7 @@ test('ImportWebsite: working disables both sources and says so on the button tha
   const importing = render(t, { address: 'example.com', importing: true });
   assert.equal(importing.byText('Importing…')?.hasAttribute('disabled'), true);
   assert.equal(importing.byText('Choose folder…')?.hasAttribute('disabled'), true);
-  assert.equal(importing.container.querySelector('input')?.hasAttribute('disabled'), true);
+  assert.equal(addressInput(importing)?.hasAttribute('disabled'), true);
   const adding = render(t, { adding: true });
   assert.equal(adding.byText('Adding…')?.hasAttribute('disabled'), true);
 });
@@ -84,7 +90,7 @@ test('ImportWebsite: a failure shows its words and a Copy details button; the ad
   const view = render(t, { address: 'example.com', failure: { message: "Couldn't create a website for that address.", details: 'EACCES' } });
   assert.equal(view.container.querySelector('[role="alert"]')?.textContent, "Couldn't create a website for that address.");
   assert.ok(view.byText('Copy details'));
-  assert.equal(view.container.querySelector('input')?.value, 'example.com');
+  assert.equal(addressInput(view)?.value, 'example.com');
   const folder = render(t, { addError: 'That folder is not a Tovu site.', addDetails: '' });
   assert.ok(folder.container.querySelector('[role="alert"]'));
   assert.ok(!folder.byText('Copy details'), 'no details, no button');

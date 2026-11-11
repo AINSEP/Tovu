@@ -625,7 +625,9 @@ describe("transfer tab browser contracts", () => {
 
   it("forwards field edits to their controllers and exposes loading import history", async () => {
     const controller = importController({ imports: undefined, link: "https://share.example", liveAddress: "https://live.example", current: siteImport(), password: "password", confirm: "password" });
-    render(<SiteImportTab t={t} useImport={() => controller} />);
+    // A host that can make sites: since 2026-11-10 the live-website field shows only there (or in the
+    // desktop app's hand-off); `canMakeSites` defaults off, as on a hosted install.
+    render(<SiteImportTab t={t} useImport={() => controller} canMakeSites />);
     expect(screen.getByText("Loading imports…").className).toBe("notice");
     await userEvent.clear(screen.getByLabelText("Share link"));
     expect(controller.setLink).toHaveBeenCalledWith("");
