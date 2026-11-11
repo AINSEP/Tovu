@@ -68,3 +68,21 @@ test('useSectionNav: a section click resets create, Appearance and the open tab;
   assert.equal(hook.current().nav.isCreating, false);
   assert.deepEqual(hook.current().tabs.openTabs, ['a'], 'moving section never closes tabs');
 });
+
+test('useSectionNav: Import is a tab: it comes forward from a site, hides behind All, and only Cancel, close or a section move closes it', (t) => {
+  const hook = renderHook(t, () => useNavigationShell(() => undefined));
+  const state = () => ({ front: hook.current().nav.isImporting, open: hook.current().nav.importTabOpen, tab: hook.current().tabs.activeTab });
+  act(() => hook.current().tabs.openProjectTab('a'));
+  act(() => hook.current().nav.startImporting());
+  assert.deepEqual(state(), { front: true, open: true, tab: null }, 'opening it leaves the site tab for the page');
+  act(() => hook.current().nav.hideImporting());
+  assert.deepEqual(state(), { front: false, open: true, tab: null }, 'All shows the grid; the tab stays');
+  act(() => hook.current().nav.startCreating());
+  act(() => hook.current().nav.startImporting());
+  assert.equal(hook.current().nav.isCreating, false, 'one page at a time');
+  act(() => hook.current().nav.stopImporting());
+  assert.deepEqual(state(), { front: false, open: false, tab: null });
+  act(() => hook.current().nav.startImporting());
+  act(() => hook.current().nav.selectSection('agents' as RunnerSectionId));
+  assert.deepEqual(state(), { front: false, open: false, tab: null });
+});
