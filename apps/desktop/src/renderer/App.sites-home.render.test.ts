@@ -58,7 +58,7 @@ test('App: a refused folder stays on the Import page with its words, and reopeni
   await app.click(app.byText('Choose folder…'));
   assert.match(app.container.querySelector('[role="alert"]')?.textContent ?? '', /not a Tovu site/);
   assert.equal(app.container.querySelector('.projects-feedback'), null, 'not on the grid');
-  await app.click(app.container.querySelector('[aria-labelledby="import-website-title"] .back-link'));
+  await app.click(app.byLabel('Close Import'));
   await app.click(app.byText('Import'));
   assert.equal(app.container.querySelector('[role="alert"]'), null, 'a reopened page has no stale refusal');
 });

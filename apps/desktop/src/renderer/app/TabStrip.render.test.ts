@@ -12,10 +12,12 @@ import type { SiteRecord } from '../../contracts/project.js';
 
 after(closeHost);
 
-function renderStrip(t: TestContext, { projects, activeTab }: { projects: readonly SiteRecord[]; activeTab: string | null }) {
+function renderStrip(t: TestContext, { projects, activeTab, importSelected }: { projects: readonly SiteRecord[]; activeTab: string | null; importSelected?: boolean }) {
   const calls: string[] = [];
   const view = mount({ t, element: createElement(TabStrip, {
     projects, activeTab,
+    importTab: importSelected === undefined ? undefined
+      : { selected: importSelected, onSelect: () => { calls.push('import'); }, onClose: () => { calls.push('close-import'); } },
     onSelectSitesHome: () => { calls.push('home'); },
     onSelectTab: (id) => { calls.push(`select:${id}`); },
     onCloseTab: (id) => { calls.push(`close:${id}`); },
@@ -92,4 +94,20 @@ test('TabStrip: arrow keys on a tab move focus and selection to the next tab, wr
   await press(all, 'ArrowLeft');
   assert.equal(dom.window.document.activeElement, b, 'left from the first tab wraps to the last');
   assert.deepEqual(view.calls, ['select:a', 'select:b']);
+});
+
+test('TabStrip: an open import is its own closable tab right after All, selected instead of All while in front', async (t) => {
+  const view = renderStrip(t, { projects: [site('a')], activeTab: null, importSelected: true });
+  const [all, importing, a] = view.tabs();
+  assert.equal(importing?.textContent, 'Import');
+  assert.deepEqual([all, importing, a].map((tab) => tab?.getAttribute('aria-selected')), ['false', 'true', 'false']);
+  assert.deepEqual([all, importing, a].map((tab) => tab?.getAttribute('tabindex')), ['-1', '0', '-1']);
+  assert.ok(importing?.parentElement?.classList.contains('is-active'));
+  await view.click(all);
+  await view.click(importing);
+  await view.click(view.byLabel('Close Import'));
+  assert.deepEqual(view.calls, ['home', 'import', 'close-import']);
+  const behind = renderStrip(t, { projects: [], activeTab: null, importSelected: false });
+  assert.deepEqual(behind.tabs().map((tab) => tab.getAttribute('aria-selected')), ['true', 'false'], 'behind All, All is the selected one');
+  assert.equal(renderStrip(t, { projects: [], activeTab: null }).byLabel('Close Import'), null, 'no import, no tab');
 });

@@ -44,14 +44,20 @@ export interface SectionNavState {
   setActiveId: Dispatch<SetStateAction<RunnerSectionId>>;
   appearanceOpen: boolean;
   isCreating: boolean;
-  /** The Import page (a sibling of the create form, never both). */
+  /** The Import page is in front (a sibling of the create form, never both). */
   isImporting: boolean;
+  /** The temporary Import tab is open, in front or not (owner, 2026-11-10). */
+  importTabOpen: boolean;
   selectSection: (id: RunnerSectionId) => void;
   openAppearance: () => void;
   closeAppearance: () => void;
   startCreating: () => void;
   stopCreating: () => void;
+  /** Opens the Import tab, or brings it to the front. */
   startImporting: () => void;
+  /** Leaves the Import tab open behind All. */
+  hideImporting: () => void;
+  /** Closes the Import tab: Cancel, its close button, or an import that made its site. */
   stopImporting: () => void;
 }
 
@@ -82,6 +88,7 @@ export function useSectionNav(
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importTabOpen, setImportTabOpen] = useState(false);
 
   // Moving section is a full reset of everything layered over the section's own screen: an
   // in-progress create form, the Appearance page, and any project tab all belong to where you
@@ -90,6 +97,7 @@ export function useSectionNav(
     setActiveId(id);
     setIsCreating(false);
     setIsImporting(false);
+    setImportTabOpen(false);
     setActiveTab(null);
     setAppearanceOpen(false);
   };
@@ -105,8 +113,10 @@ export function useSectionNav(
   // Create and Import are two pages for the same space; opening one closes the other.
   const startCreating = () => { setIsImporting(false); setIsCreating(true); };
   const stopCreating = () => setIsCreating(false);
-  const startImporting = () => { setIsCreating(false); setIsImporting(true); };
-  const stopImporting = () => setIsImporting(false);
+  // The Import tab's page shows only on the sites home, so bringing it forward also leaves a site's tab.
+  const startImporting = () => { setIsCreating(false); setIsImporting(true); setImportTabOpen(true); setActiveTab(null); };
+  const hideImporting = () => setIsImporting(false);
+  const stopImporting = () => { setIsImporting(false); setImportTabOpen(false); };
 
   return {
     activeId,
@@ -114,12 +124,14 @@ export function useSectionNav(
     appearanceOpen,
     isCreating,
     isImporting,
+    importTabOpen,
     selectSection,
     openAppearance,
     closeAppearance,
     startCreating,
     stopCreating,
     startImporting,
+    hideImporting,
     stopImporting,
   };
 }

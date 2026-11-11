@@ -110,12 +110,14 @@ export function App({
     appearanceOpen,
     isCreating,
     isImporting,
+    importTabOpen,
     selectSection,
     openAppearance,
     closeAppearance,
     startCreating,
     stopCreating,
     startImporting,
+    hideImporting,
     stopImporting,
   } = useNav(setActiveTab);
   const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm, showImportPage } =
@@ -130,7 +132,7 @@ export function App({
     });
 
   const siteToast = useSiteToast({ lastCreated });
-  // The Import page's sources. All end the same way: the new site's tab opens and the page closes.
+  // The Import page's sources. All end the same way: the new site's tab opens and the Import tab closes.
   const openImported = (id: string, adminPage?: SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
   const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
   const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
@@ -182,9 +184,10 @@ export function App({
         <TabStrip
           projects={openSites}
           activeTab={selectedTab}
-          onSelectSitesHome={() => setActiveTab(null)}
-          onSelectTab={setActiveTab}
+          onSelectSitesHome={() => { setActiveTab(null); hideImporting(); }}
+          onSelectTab={(id) => { setActiveTab(id); hideImporting(); }}
           onCloseTab={tabClose.requestClose}
+          importTab={importTabOpen ? { selected: showImportPage, onSelect: startImporting, onClose: stopImporting } : undefined}
         />
       )}
 

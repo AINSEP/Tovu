@@ -394,7 +394,7 @@ test('App: an old address error does not hide the error of the folder just tried
   const app = await renderApp(t, { addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')) });
   await app.click(app.byText('Import'));
   await typeAddress(app, 'not an address');
-  await app.click(app.byText('Import website'));
+  await app.click(app.byText('Import as a new site'));
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /full website address/);
   await app.click(app.byText('Choose folder…'));
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That folder is not a Tovu site\./);
@@ -423,13 +423,17 @@ test('App: a refused archive says why in plain words, makes no tab and stays on 
   await app.click(app.byText('Import'));
   await app.click(app.byText('Choose file…'));
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That file is not a usable \.tovu\.zip/);
-  assert.equal(app.all('[role="tab"]').length, 1);
+  assert.deepEqual(tabLabels(app), ['All', 'Import'], 'no site tab; the Import tab stays');
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
 });
 
+/** The tab strip's tab names, in order. */
+const tabLabels = (app: Awaited<ReturnType<typeof renderApp>>) => app.all('[role="tab"]').map((tab) => tab.textContent?.trim());
+const tabNamed = (app: Awaited<ReturnType<typeof renderApp>>, name: string) => app.all('[role="tab"]').find((tab) => tab.textContent?.trim() === name);
+
 /** The Create page stays mounted behind the Import page and has its own Cancel and back link, so look only inside the Import page. */
 const inImportPage = (app: Awaited<ReturnType<typeof renderApp>>, label: string) =>
-  [...app.container.querySelectorAll('section[aria-labelledby="import-website-title"] button')].find((el) => el.textContent?.trim() === label);
+  [...app.container.querySelectorAll('section[aria-label="Import a website"] button')].find((el) => el.textContent?.trim() === label);
 
 test('App: Cancel during an archive import stops it, opens nothing and stays on the page', async (t) => {
   let finish!: (value: unknown) => void;
@@ -442,7 +446,7 @@ test('App: Cancel during an archive import stops it, opens nothing and stays on 
   await app.click(app.byText('Choose file…'));
   await app.click(inImportPage(app, 'Cancel'));
   assert.equal(cancels, 1);
-  assert.equal(app.all('[role="tab"]').length, 1);
+  assert.deepEqual(tabLabels(app), ['All', 'Import'], 'no site tab; the Import tab stays');
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
   assert.equal(app.byText('Choose file…')?.hasAttribute('disabled'), false, 'ready to try again');
 });
@@ -452,13 +456,50 @@ test('App: an import that fails after the person left the page reaches them as a
   const app = await renderApp(t, { importSiteArchive: () => new Promise((_resolve, reject) => { fail = reject; }) } as never);
   await app.click(app.byText('Import'));
   await app.click(app.byText('Choose file…'));
-  await app.click(inImportPage(app, '← All websites'));
+  await app.click(tabNamed(app, 'All'));
   assert.notEqual(app.container.querySelector('.main__title')?.textContent, 'Import a website');
   fail(new Error('The import took too long and was stopped. No website was created.'));
   await settle();
   assert.match(app.text(), /took too long and was stopped/);
   await app.click(app.byText('Import'));
   assert.equal(app.container.querySelector('.onboarding__error'), null, 'already told; the page opens clean');
+});
+
+test('App: Import is a temporary tab right after All; Cancel or its close button shuts it, and success turns it into the new site\'s tab', async (t) => {
+  const app = await renderApp(t, {
+    listSites: async () => [site('a')],
+    importSiteArchive: async () => ({ ...site('new', { displayName: 'Portable' }), warnings: [] }),
+  } as never);
+  const title = () => app.container.querySelector('.main__title')?.textContent;
+  await app.click(app.byText('Import'));
+  assert.deepEqual(tabLabels(app), ['All', 'Import']);
+  assert.equal(title(), 'Import a website');
+  assert.equal(app.container.querySelector('.back-link'), null, 'the tab is the way back; no back link');
+  await app.click(inImportPage(app, 'Cancel'));
+  assert.deepEqual(tabLabels(app), ['All'], 'Cancel closes the tab');
+  await app.click(app.byText('Import'));
+  await app.click(app.byLabel('Close Import'));
+  assert.deepEqual(tabLabels(app), ['All'], 'its close button closes it');
+  assert.notEqual(title(), 'Import a website');
+
+  await openFirstSite(app);
+  await app.click(tabNamed(app, 'All'));
+  await app.click(app.byText('Import'));
+  assert.deepEqual(tabLabels(app).slice(0, 2), ['All', 'Import'], 'right after All, before the open site');
+  await app.click(tabNamed(app, 'All'));
+  assert.notEqual(title(), 'Import a website', 'All shows the grid');
+  assert.deepEqual(tabLabels(app).slice(0, 2), ['All', 'Import'], 'and the Import tab waits beside it');
+  await app.click(tabNamed(app, 'Import'));
+  await app.click(app.all('[role="tab"]').find((tab) => /Site a/.test(tab.textContent ?? '')));
+  await app.click(app.byLabel('Close Site a'));
+  assert.notEqual(title(), 'Import a website', 'a site tab put Import behind; closing that site lands on All');
+  await app.click(tabNamed(app, 'Import'));
+  assert.equal(title(), 'Import a website');
+
+  await app.click(app.byText('Choose file…'));
+  const labels = tabLabels(app);
+  assert.equal(labels.includes('Import'), false, 'the Import tab gives way to the new site\'s tab');
+  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')));
 });
 
 test('App: a live import starts its new site, shows Starting, then opens the admin Import page', async t => {
@@ -470,7 +511,7 @@ test('App: a live import starts its new site, shows Starting, then opens the adm
   });
   await app.click(app.byText('Import'));
   await typeAddress(app, 'https://example.com/about');
-  await app.click(app.byText('Import website'));
+  await app.click(app.byText('Import as a new site'));
   assert.deepEqual(started, ['live']);
   assert.ok(app.all('[role="tab"]').some(tab => tab.getAttribute('aria-selected') === 'true' && tab.textContent?.includes('Site live')));
   assert.match(app.text(), /Starting/);
@@ -489,7 +530,7 @@ test('App: a live import whose new site is already running opens Import without 
   });
   await app.click(app.byText('Import'));
   await typeAddress(app, 'https://example.com/');
-  await app.click(app.byText('Import website'));
+  await app.click(app.byText('Import as a new site'));
   assert.deepEqual(started, []);
   assert.equal(app.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2F');
 });
@@ -503,7 +544,7 @@ test('App: a share link goes to the archive importer, a live address to Create',
   } as never);
   await app.click(app.byText('Import'));
   await typeAddress(app, 'https://files.example.com/shop.tovu.zip');
-  await app.click(app.byText('Import website'));
+  await app.click(app.byText('Import as a new site'));
   assert.deepEqual(asked, [{ url: 'https://files.example.com/shop.tovu.zip' }]);
   assert.deepEqual(created, [], 'a share link makes no site through Create');
 });
