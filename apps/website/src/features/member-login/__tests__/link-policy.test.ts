@@ -36,3 +36,6 @@ test("custom-domain first link needs inbox proof, subsequent subject sign-in doe
   assert.equal(decideMemberLogin({ ...custom, emailProofVerified: true }), "link");
   assert.equal(decideMemberLogin({ ...custom, subjectLinked: true }), "sign_in");
 });
+test("a signed-in connect whose member row is missing is a conflict, not a crash", () => {
+  assert.equal(decideMemberLogin({ ...input, member: null, connectMemberId: "member" }), "conflict");
+});

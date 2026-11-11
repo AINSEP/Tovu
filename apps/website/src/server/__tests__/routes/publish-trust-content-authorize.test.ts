@@ -136,3 +136,34 @@ test("a publishing grant answers by the publish-type stamp, and refuses what no 
     reason: "'forms' is not a registered publish type",
   });
 });
+
+// F6 fix wave (L12 Stryker top-1, publish-trust-auth.ts:423): a raw backstop type is applied only when
+// the grant opts in with publish_content.backstop. Each case breaks exactly one clause of the allow.
+function grantResponse(capabilities: readonly string[], entityTypes: readonly string[]) {
+  return { locals: { publishTrust: { sourceInstallationId: "source-install", capabilities, entityTypes, generation: 1 } } };
+}
+const RAW_TYPES = new Map([["raw-row", ["content.write"]], ["raw-file", ["media.write"]], ["post", ["content.write"]]]);
+const humanAuthorize: Authorize = async () => assert.fail("a publishing request must never reach the human authorize");
+
+for (const [entityType, permission] of [["raw-row", "content.write"], ["raw-file", "media.write"]] as const) {
+  test(`${entityType}: allowed only with apply + backstop + the type named in the grant`, async () => {
+    const decide = (capabilities: readonly string[], entityTypes: readonly string[]) =>
+      withPublishTrustContentAuthorize(grantResponse(capabilities, entityTypes) as never, { authorize: humanAuthorize }, RAW_TYPES)
+        .authorize({ permission, publishType: entityType });
+    assert.deepEqual(await decide(["publish_content.apply", "publish_content.backstop"], [entityType]),
+      { allowed: true, reason: `granted by the publishing grant for '${entityType}'` });
+    const denied = { allowed: false, reason: `this publishing grant does not cover '${entityType}'` };
+    assert.deepEqual(await decide(["publish_content.apply"], [entityType]), denied, "no backstop opt-in");
+    assert.deepEqual(await decide(["publish_content.backstop"], [entityType]), denied, "backstop without apply");
+    assert.deepEqual(await decide(["publish_content.apply", "publish_content.backstop"], ["post"]), denied, "type not named");
+  });
+}
+
+test("an ordinary type needs no backstop opt-in, and a backstop opt-in never widens it to unnamed types", async () => {
+  const decide = (capabilities: readonly string[], entityTypes: readonly string[]) =>
+    withPublishTrustContentAuthorize(grantResponse(capabilities, entityTypes) as never, { authorize: humanAuthorize }, RAW_TYPES)
+      .authorize({ permission: "content.write", publishType: "post" });
+  assert.deepEqual(await decide(["publish_content.apply"], ["post"]), { allowed: true, reason: "granted by the publishing grant for 'post'" });
+  assert.equal((await decide(["publish_content.apply", "publish_content.backstop"], ["raw-row"])).allowed, false);
+  assert.equal((await decide(["publish_content.read"], ["post"])).allowed, false);
+});

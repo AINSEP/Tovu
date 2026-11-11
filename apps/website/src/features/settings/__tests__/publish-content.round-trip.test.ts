@@ -389,6 +389,19 @@ test("share-image local detection rejects malformed absolute URLs and every supp
   assert.equal(pointsAtThisComputer("http://172.32.0.2/x"), false);
 });
 
+// F6 fix wave (L7 Stryker: LOCAL_HOST anchor survivors). Public hosts that merely CONTAIN a local
+// name or private prefix must not be treated as this computer, and the scheme check is anchored.
+test("share-image local detection is anchored: look-alike public hosts are not local", () => {
+  for (const value of ["http://evil-localhost.com/x", "http://localhostx.com/x", "http://127.0.0.1.evil.com/x", "http://box.local.evil.com/x",
+    "http://110.1.2.3/x", "http://10.1.2.3.nip.io/x", "http://1192.168.0.2.example/x", "http://192.168.0.2.example/x", "http://172.15.0.2/x",
+    "http://0.0.0.1/x", "http://[::2]/x", "http://12.0.0.1/x", "see http://localhost/x", "localhost/x"]) {
+    assert.equal(pointsAtThisComputer(value), false, value);
+  }
+  for (const value of ["HTTP://LOCALHOST/x", "https://a.b.localhost/x", "ftp://printer.local/x", "http://[::]/x", "http://10.0.0.1/x"]) {
+    assert.equal(pointsAtThisComputer(value), true, value);
+  }
+});
+
 test("share-image references carry only UUID media identities, and other settings never add references", async (t) => {
   const { source, destination, sourceDeps } = await sites();
   t.after(() => { source.db.$client.close(); destination.db.$client.close(); });
