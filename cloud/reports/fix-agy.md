@@ -33,7 +33,7 @@ In `applyJsonInstall`, for the entry already under the plan's server key:
 | Jini | `26a8b1b8` | red tests (install.test.ts, owned-json-install.test.ts) |
 | Jini | `4ffe93fc` | fix in `install.ts`; one existing test's expected message updated |
 | Tovu | `d056fb13` | `ensure-json-agent-install.unit.test.ts`: older-install replacement test; foreign-refusal regex updated to the new wording |
-| Tovu | (this commit) | report + raw evidence |
+| Tovu | `6c2f1a6e` + final | report + raw evidence |
 
 ## Red / green
 
@@ -52,7 +52,9 @@ In `applyJsonInstall`, for the entry already under the plan's server key:
 - **Jini build:**
   - The recursive `pnpm --no-bail -r build` on the integ tree exited 0 (`jini-build-full.txt`). It started before the fix was written.
   - `packages/mcp` was rebuilt after the fix: exit 0 (`jini-mcp-build.txt`). No other package was touched.
-- **`pnpm check:cross-package`:** XP3_RESULT_PLACEHOLDER
+- **`pnpm check:cross-package`:** **"XP1–XP5 clean", exit 0** (`jini-cross-package.txt`).
+  - Baseline: built fresh as in fix-1110. I made a clean worktree at `35c4961af718…`, ran a frozen install (exit 0), the core build (0), the recursive build (0) and `--write-baseline`, which gave **3308 source mappings**, the same count as INTEG and FIX-1110 (`xp3-snapshot.txt`). The gate ran with `JINI_DECLARATION_BASELINE_DIR=/home/user/xp3-baseline`.
+  - One earlier attempt without that variable stopped at once with "absolute JINI_DECLARATION_BASELINE_DIR required". That run tested nothing and is not counted.
 - **Tovu, with Jini linked** (`JINI_PACKAGES_DIR=/home/user/Jini/packages npm run link:jini`; `@tovu/sdk` built first):
   - `ensure-json-agent-install.unit.test.ts`: **16/16** (`tovu-ensure-json-agent-install.txt`).
   - `apps/desktop/src/desktop-agent.test.ts`: **20/20** (`tovu-desktop-agent-test.txt`). It is the other importer of `installOwnedJsonAgent`.

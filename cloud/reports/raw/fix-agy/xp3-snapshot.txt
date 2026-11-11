@@ -1,2 +1,6 @@
 INSTALL=0
 CORE=0
+RBUILD=0
+declaration baseline: 35c4961af718f0f30591c46d2ea2756c4484a731; 3308 source mappings; /home/user/xp3-baseline
+WRITE=0
+SHA=35c4961af718f0f30591c46d2ea2756c4484a731
