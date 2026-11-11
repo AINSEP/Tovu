@@ -41,8 +41,17 @@ export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new M
   "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design", "software-engineering",
   "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
   "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media", "commerce", "stripe",
-  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "formspree", "google-forms", "calendly",
+  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "google-forms", "calendly",
 ].map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]));
+
+/**
+ * Bundled plugins Tovu marks "soon" although their Jini manifest carries no `extensions.tovu.maturity`
+ * (owner, 2026-11-10). They are the assistant faces of provider plugins Tovu does not ship, and the
+ * owner has not tested them. `identity.ts`'s `readPluginMaturity` applies this list wherever maturity is
+ * read, so they are locked off exactly like a manifest-flagged Soon plugin (`soon-lock.ts`). Drop an id
+ * here once it is tested; a manifest flag still wins over its absence from this list.
+ */
+export const HOST_SOON_AGENT_PLUGINS: ReadonlySet<string> = new Set(["posthog", "opentelemetry", "stripe", "sentry", "google-forms"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
@@ -61,6 +70,11 @@ export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new M
  * `create-tovu-theme` and `tovuize-site` -> `tovu-theme` (2026-10-06): one theme plugin for both
  * jobs, a new theme or a converted static site. They shared the theme-format rules and had started
  * contradicting each other about them; `tovu-theme`'s skill now carries both procedures.
+ *
+ * `formspree` -> nothing (2026-11-10, owner): parked, not deleted. The plugin stays in
+ * `@jini-ai/agent-plugins` and `@jini-ai/provider-plugins`; Tovu just stops shipping it, and boot
+ * removes the installed copy from existing sites. To bring it back, drop this row and re-add
+ * `"formspree"` to `SELECTED_AGENT_PLUGIN_PACKAGES`.
  */
 export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonly string[]> = new Map<string, string | readonly string[]>([
   ["tovu-deploy-fly", "fly"],
@@ -68,6 +82,7 @@ export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonl
   ["cloudflare-pages", "cloudflare"],
   ["create-tovu-theme", "tovu-theme"],
   ["tovuize-site", "tovu-theme"],
+  ["formspree", []],
 ]);
 
 /**

@@ -811,6 +811,7 @@ const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
   "Results are byte-bounded: id, pluginId, enabled, maturity when declared, and a short description. " +
   "plugins_set_enabled with family 'agent-plugin' changes enabled status. " +
   "An installed, off result is only a catalog entry. Offer its enable card, then read its guidance before connecting or requesting credentials; never guess its sign-in method. " +
+  "A result with maturity 'soon' isn't ready and can't be turned on: never offer to enable, connect or use it; you may say it's coming soon. " +
   "Local packages only — never a marketplace or the web. Once you have the right id, call " +
   "load_agent_plugin({ pluginId }) for that plugin's full guidance. Page with the returned nextOffset as offset, keeping query and limit unchanged.";
 

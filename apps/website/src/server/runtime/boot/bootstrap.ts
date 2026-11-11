@@ -1,7 +1,8 @@
 import path from "node:path";
 
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
-import { explicitRootAgentPluginActivations, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
@@ -47,6 +48,21 @@ async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void>
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn(`[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/** "Soon" plugins are locked off (`soon-lock.ts`, owner 2026-11-10): one an older build, a retirement
+ *  successor or a missing record left on is switched off as `system:soon-lock`, after seeding and the
+ *  face sync so neither can turn it back on. Nothing is uninstalled. A failure is logged; the next start retries. */
+async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<void> {
+  try {
+    const switched = await lockSoonAgentPlugins({ catalog: explicitRootSoonCatalog, activations: explicitRootAgentPluginActivations,
+      workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root });
+    if (switched.length === 0) return;
+    bootLog.info(`[bundled-agent-plugins] switched off plugins that aren't ready yet: ${switched.join(", ")}`);
+    await notifyExternalMcpRosterChanged({ lowered: { pluginIds: switched } });
+  } catch (error) {
+    bootLog.warn(`[bundled-agent-plugins] plugins that aren't ready yet could not be switched off; the next start retries: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -329,6 +345,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
         logBundledPluginRetirements({ retirements: result.retirements });
         await warnAboutMissingBundledPlugins(deps, { result });
         await syncProviderFacesAtBoot(deps);
+        await lockSoonAgentPluginsAtBoot(deps);
         await importAgentPluginTokensAtBoot(deps, options);
         // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
         // that plugin provisioned, so a saved selection never names a tool the server stopped offering.

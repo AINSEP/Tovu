@@ -14,14 +14,14 @@ test("host maturity accepts both flags and leaves absent metadata normal", async
     assert.equal(identity.maturity, maturity);
   }
   for (const manifest of [null, [], {}, { extensions: null }, { extensions: [] }, { extensions: { tovu: null } }, { extensions: { tovu: [] } }, { extensions: { tovu: {} } }]) {
-    assert.equal(readPluginMaturity({ manifest }, { warn: () => assert.fail('absent maturity must not warn') }), undefined);
+    assert.equal(readPluginMaturity({ manifest, pluginId: 'github' }, { warn: () => assert.fail('absent maturity must not warn') }), undefined);
   }
 });
 
 test("unknown host maturity is ignored with a warning, without reflecting arbitrary manifest values", () => {
   for (const maturity of ['beta', '', null, 42, {}, ['untested']]) {
     const warnings: string[] = [];
-    assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } } }, { warn: message => warnings.push(message) }), undefined);
+    assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } }, pluginId: 'github' }, { warn: message => warnings.push(message) }), undefined);
     assert.deepEqual(warnings, ['[agent-plugins] Unknown extensions.tovu.maturity ignored; expected "untested" or "soon".']);
   }
 });

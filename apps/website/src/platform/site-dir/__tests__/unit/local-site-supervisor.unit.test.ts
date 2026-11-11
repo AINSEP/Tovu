@@ -343,3 +343,24 @@ test("startLocalSiteWhenRunning returns a crash without a link and uses the real
   assert.equal(state.adminUrl, null);
   assert.equal(state.status, "crashed");
 });
+
+test("latestRunning names the site started last that is ready, and never a starting or stopped one", async () => {
+  const ready = new Map<string, boolean>();
+  let next = 100;
+  const probes: Array<() => void> = [];
+  const supervisor = createLocalSiteSupervisor({ servingName: "owner", scheme: "http", processPort: {
+    isPortFree: async () => true,
+    schedule: ({ run }) => { probes.push(run); return () => {}; },
+    launch: async ({ name }) => ({ pid: next++, onExit() {}, ready: async () => ready.get(name) === true, terminate: async () => {}, killNow() {} }),
+  } });
+  const settle = async () => { for (const run of probes.splice(0)) run(); await new Promise(resolve => setImmediate(resolve)); };
+  assert.equal(supervisor.latestRunning(), undefined);
+  await supervisor.start({ name: "alpha" }); ready.set("alpha", true); await settle();
+  await supervisor.start({ name: "beta" });
+  // beta was started last but is not ready yet, so it cannot take the address over.
+  assert.equal(supervisor.latestRunning()?.name, "alpha");
+  ready.set("beta", true); await settle();
+  assert.equal(supervisor.latestRunning()?.name, "beta");
+  await supervisor.stop({ name: "beta" });
+  assert.equal(supervisor.latestRunning()?.name, "alpha");
+});

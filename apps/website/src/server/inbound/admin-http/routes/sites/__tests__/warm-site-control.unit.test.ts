@@ -15,6 +15,13 @@ test('Sites in a warm tab shows that tab’s serving site while keeping the orig
   assert.equal((result as Record<string, unknown>).localSites, localSites);
 });
 
+test('a warm tab cannot hand over an address it does not own', () => {
+  const binding = { name: 'child', dir: '/sites/child', dirOverridden: false, switcherCompatible: true };
+  const result = warmSiteListing({ binding, snapshot: { currentSite: { name: 'host' }, sites: [],
+    stopServing: { available: true, target: 'child', chatRunning: false } } });
+  assert.deepEqual((result as Record<string, unknown>).stopServing, { available: false, target: null, chatRunning: false });
+});
+
 test('a warm tab delegates site management with the original cookies and preserves preview bytes', async t => {
   const seen: Array<{ url: string | undefined; cookie: string | undefined }> = [];
   const preview = Buffer.from([0, 255, 1, 0]);

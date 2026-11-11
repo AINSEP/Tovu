@@ -37,7 +37,9 @@ import type { NotifyToolAccessChanged } from '../../contracts/core/tool-access-c
  * the same tenant-isolation guarantee every other path in this feature goes through.
  */
 
-import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
+import { createTovuAgentPluginLifecycle, explicitRootSoonCatalog } from "./lifecycle.js";
+import { assertAgentPluginReady } from "./soon-lock.js";
+export { AgentPluginNotReadyError } from "./soon-lock.js";
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "./provider-plugin-link.js";
 export { AgentPluginLinkedError } from "./provider-plugin-link.js";
 import type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
@@ -49,6 +51,7 @@ export type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.
  *
+ * @throws {AgentPluginNotReadyError} Turning on a Soon plugin (`soon-lock.ts`); nothing is written.
  * @throws {AgentPluginLinkedError} The id is a provider plugin's face; that plugin's switch decides.
  * @throws {AgentPluginNotInstalledError} The id is not installed in this workspace. Nothing is
  * written, so no activation record can exist for a package that does not.
@@ -72,7 +75,11 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
   const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace(input.workspaceId).root });
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
-  if (providerPluginId !== undefined) throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
+  if (providerPluginId !== undefined) {
+    // A Soon face says it isn't ready rather than pointing at a provider switch that can't help.
+    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root, pluginId: input.pluginId });
+    throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
+  }
   const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};
   let lifecycle = options.lifecycle ?? lifecycles.get(input.agentPluginLayout);
   if (!lifecycle) {

@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Trial 2026-10-19: StrykerJS replaces the hand-rolled 2-operator development/scripts/mutation-sweep.mjs. Sandbox lives at the repo root (outside apps/admin so the admin Vite watcher ignores it; NOT under node_modules, because vitest excludes **/node_modules/** test files). Incremental (owner 10-19): results are stored per mutant; a later run re-tests only mutants whose code or covering tests changed, so editing one function re-tests just that function's mutants. vitest.related=false: with related=true the 10-19 sample ran only 5 test files and MISSED src/lib/__tests__/execution-settings.test.ts, so 90 mutants showed as NoCoverage falsely.",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.stryker.config.ts",
+    "related": false
+  },
+  "checkers": [
+    "typescript"
+  ],
+  "tsconfigFile": "tsconfig.json",
+  "typescriptChecker": {
+    "prioritizePerformanceOverAccuracy": true
+  },
+  "mutate": [
+    "src/lib/execution-settings.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "concurrency": 3,
+  "timeoutMS": 60000,
+  "tempDirName": "../../.stryker-tmp-admin",
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html",
+    "json"
+  ],
+  "htmlReporter": {
+    "fileName": "../../ADS-memory/reports/2026-10-19-stryker/admin/mutation.html"
+  },
+  "jsonReporter": {
+    "fileName": "../../ADS-memory/reports/2026-10-19-stryker/admin/mutation.json"
+  },
+  "incremental": true,
+  "incrementalFile": "../../ADS-memory/reports/stryker-incremental/admin.json",
+  "dryRunTimeoutMinutes": 60
+}

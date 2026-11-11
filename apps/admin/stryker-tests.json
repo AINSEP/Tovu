@@ -1,0 +1,9 @@
+[
+ "src/features/sites/__tests__/create-site-plugin-tokens.unit.test.tsx",
+ "src/features/sites/__tests__/rules.unit.test.ts",
+ "src/features/sites/__tests__/site-publish.unit.test.tsx",
+ "src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx",
+ "src/features/sites/__tests__/sites-idle-requests.unit.test.tsx",
+ "src/features/sites/__tests__/use-local-sites.unit.test.tsx",
+ "src/features/sites/__tests__/use-sites.hooks.unit.test.tsx"
+]

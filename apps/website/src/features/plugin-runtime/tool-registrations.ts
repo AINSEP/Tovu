@@ -490,6 +490,10 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError({ message: error.message });
+    // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`), classified by the same port as a
+    // linked face. Nothing changed, so it is a result the model relays.
+    const notReadyError = routeDeps.providerFaces.describeNotReadyError?.({ error });
+    if (notReadyError !== undefined) return notReadyResult({ request, error: notReadyError });
     const linkedError = routeDeps.providerFaces.describeLinkedError({ error });
     if (linkedError !== undefined) return linkedFaceResult({ request, error: linkedError });
     // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
@@ -563,9 +567,22 @@ async function linkedFaceEnableResult(routeDeps: PluginsToolDeps, request: SetEn
   });
 }
 
-/** Every Agent Plugin enable pre-flight, in order; the first not-changed result wins. @complexity As its three checks. */
+/** A "Soon" Agent Plugin can't be switched on (owner, 2026-11-10): nothing changed, and the note says
+ *  so in plain words. The model may say it is coming soon, never offer another way on. @complexity O(1). */
+function notReadyResult({ request, error }: { request: SetEnabledRequest; error: { code: string; message: string } }, _optional = {}): unknown {
+  return { changed: false, cancelled: false, family: request.family, pluginId: request.pluginId, restartRequired: false,
+    reason: "not-ready", code: error.code, note: `Nothing changed. ${error.message} Don't offer another way to turn it on or use it; you may say it's coming soon.` };
+}
+
+/** Pre-flight: a Soon plugin is refused before the confirmation dialog, not after it. @complexity One manifest read per installed revision. */
+async function notReadyEnableResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
+  const error = await routeDeps.providerFaces.describeNotReady?.({ pluginId: request.pluginId });
+  return error === undefined ? undefined : notReadyResult({ request, error });
+}
+
+/** Every Agent Plugin enable pre-flight, in order; the first not-changed result wins. @complexity As its four checks. */
 async function agentPluginEnablePreflight(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
-  return (await unwritableAgentPluginActivationsResult(routeDeps, request)) ?? (await linkedFaceEnableResult(routeDeps, request)) ?? hostIncompatibleEnableResult(routeDeps, request);
+  return (await notReadyEnableResult(routeDeps, request)) ?? (await unwritableAgentPluginActivationsResult(routeDeps, request)) ?? (await linkedFaceEnableResult(routeDeps, request)) ?? hostIncompatibleEnableResult(routeDeps, request);
 }
 
 /** An interrupted update of this plugin waits for boot recovery (`PLUGIN_UPDATE_PENDING`, or an

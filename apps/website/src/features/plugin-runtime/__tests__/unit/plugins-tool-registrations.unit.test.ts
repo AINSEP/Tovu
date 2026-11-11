@@ -251,6 +251,18 @@ test("the injected provider link refuses a face before identity, confirmation or
   assert.deepEqual(h.events, ["assertWritable"]);
 });
 
+test("a Soon plugin is refused in plain words before confirmation or write, and at write time", async () => {
+  const failure = { code: "AGENT_PLUGIN_NOT_READY", message: "Supabase isn't ready yet, so it can't be turned on. You can still view its files." };
+  const expected = { changed: false, cancelled: false, family: "agent-plugin", pluginId: "higgsfield", restartRequired: false, reason: "not-ready", code: failure.code,
+    note: `Nothing changed. ${failure.message} Don't offer another way to turn it on or use it; you may say it's coming soon.` };
+  const before = harness({ confirmEnable: () => true, providerFaces: { describeNotReady: async () => failure } });
+  assert.deepEqual(await before.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), { emitSurface: noDialog }), expected);
+  assert.deepEqual(before.events, []);
+  const thrown = new Error(failure.message);
+  const during = harness({ agentHost: { setEnabled: async () => { throw thrown; } }, providerFaces: { describeNotReadyError: ({ error }) => error === thrown ? failure : undefined } });
+  assert.deepEqual(await during.tool("plugins_set_enabled").handler(context({ ...AGENT_ENABLE, enabled: false }), { emitSurface: noDialog }), expected);
+});
+
 test("the injected classifier keeps the owner's linked-switch refusal at write time", async () => {
   const failure = new AgentPluginLinkedError({ pluginId: "higgsfield", providerPluginId: "provider" });
   const h = harness({ agentHost: { setEnabled: async () => { throw failure; } } });

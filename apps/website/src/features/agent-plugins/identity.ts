@@ -3,18 +3,28 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readPluginIdentity, type PluginIdentity } from '@jini-ai/core/plugin-directory';
-import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
+import { readAgentPluginPortableExtension, type InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
+import { HOST_SOON_AGENT_PLUGINS } from './bundled-catalog.js';
 
-/** Tovu host metadata; absence keeps the plugin's normal presentation and behavior. */
+/** Tovu's metadata in a plugin manifest: `extensions.jini` (Jini's portable key, which wins), else the
+ *  legacy `extensions.tovu`. Jini moved its bundled manifests to `extensions.jini` (2026-11-06); reading
+ *  only `tovu` silently lost every maturity flag and provider link. @complexity O(1). */
+function readTovuExtension({ manifest }: { manifest: unknown }): { maturity?: unknown; providerPlugin?: unknown } | undefined {
+  return readAgentPluginPortableExtension({ value: manifest }, { identityNamespace: 'tovu' });
+}
+
+/** Tovu host metadata; absence keeps the plugin's normal presentation and behavior.
+ *  "untested" is a warning only; "soon" is locked off (`soon-lock.ts`, owner 2026-11-10). */
 export type PluginMaturity = 'untested' | 'soon';
 
-/** Read only Tovu's extension; unknown values warn without rejecting a usable plugin.
+/** Read only Tovu's extension; unknown values warn without rejecting a usable plugin. Tovu's own
+ * `HOST_SOON_AGENT_PLUGINS` list marks an unflagged plugin "soon"; a manifest flag still wins.
  * @returns A supported maturity or undefined. @complexity O(1).
  */
-export function readPluginMaturity({ manifest }: { manifest: unknown }, options: { warn?: (message: string) => void } = {}): PluginMaturity | undefined {
-  // Optional chaining reads nothing from null and yields undefined for primitives and arrays.
-  const maturity = (manifest as { extensions?: { tovu?: { maturity?: unknown } } } | null | undefined)?.extensions?.tovu?.maturity;
-  if (maturity === undefined) return undefined;
+export function readPluginMaturity({ manifest, pluginId }: { manifest: unknown; pluginId: string }, options: { warn?: (message: string) => void } = {}): PluginMaturity | undefined {
+  // The portable reader yields undefined for null, primitives and arrays, as optional chaining did.
+  const maturity = readTovuExtension({ manifest })?.maturity;
+  if (maturity === undefined) return HOST_SOON_AGENT_PLUGINS.has(pluginId) ? 'soon' : undefined;
   if (maturity === 'untested' || maturity === 'soon') return maturity;
   (options.warn ?? console.warn)('[agent-plugins] Unknown extensions.tovu.maturity ignored; expected "untested" or "soon".');
   return undefined;
@@ -29,7 +39,7 @@ const PROVIDER_PLUGIN_ID = /^[a-z0-9][a-z0-9._-]{0,99}$/;
  *  Unknown shapes warn and read as no link, so a typo never links to a wrong plugin.
  * @complexity O(1). */
 export function readProviderPluginLink({ manifest }: { manifest: unknown }, options: { warn?: (message: string) => void } = {}): string | undefined {
-  const link = (manifest as { extensions?: { tovu?: { providerPlugin?: unknown } } } | null | undefined)?.extensions?.tovu?.providerPlugin;
+  const link = readTovuExtension({ manifest })?.providerPlugin;
   if (link === undefined) return undefined;
   if (typeof link === 'string' && PROVIDER_PLUGIN_ID.test(link)) return link;
   (options.warn ?? console.warn)('[agent-plugins] Invalid extensions.tovu.providerPlugin ignored; expected a plugin id.');
@@ -53,7 +63,7 @@ export async function readInstalledAgentPluginIdentity(
   try { manifest = JSON.parse(await readText(path.join(plugin.packageRoot, 'plugin.json'))); }
   catch { throw new Error('The installed plugin identity manifest could not be read.'); }
   const identity = readPluginIdentity({ manifest, name: plugin.pluginId, namespace: 'tovu' });
-  const maturity = readPluginMaturity({ manifest });
+  const maturity = readPluginMaturity({ manifest, pluginId: plugin.pluginId });
   const providerPlugin = readProviderPluginLink({ manifest });
   return { ...identity, ...(maturity ? { maturity } : {}), ...(providerPlugin ? { providerPlugin } : {}) };
 }
