@@ -124,7 +124,11 @@ function rgFiles(cwd, roots, glob = CODE_GLOB) {
 const TEST_RE = /(\.test\.|\.spec\.|__tests__\/|__mocks__\/|\/tests?\/|\/e2e\/|\/fixtures?\/|\/test-support\/|test-helpers?\.|__measurements__\/)/;
 const isDts = (p) => /\.d\.[mc]?ts$/.test(p);
 
-const tovuMain = rgFiles(TOVU, ["apps", "packages"]).filter((p) => !isDts(p));
+// Not product code: apps/website/src/sites/<site>/ is a local, git-excluded site folder that comes
+// and goes while agents run (themes, vendored kUInetic up to 16k lines), and */vendor/* is third-party
+// code we never extract. Counting them made the file total flap (3,355 vs 3,413) and added 16k-line batches.
+const NOT_PRODUCT_RE = /(^apps\/website\/src\/sites\/|\/vendor\/)/;
+const tovuMain = rgFiles(TOVU, ["apps", "packages"]).filter((p) => !isDts(p) && !NOT_PRODUCT_RE.test(p));
 const tovuAux = rgFiles(TOVU, ["development", "content"]).filter((p) => !isDts(p) && !p.startsWith("development/coverage"));
 const jiniAll = rgFiles(JINI, ["packages"]).filter((p) => /^packages\/[^/]+\/src\//.test(p) && !isDts(p));
 const jiniFiles = jiniAll.filter((p) => !TEST_RE.test(p));
