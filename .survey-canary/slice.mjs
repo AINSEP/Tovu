@@ -3,7 +3,7 @@
 // plus every cross-file record that mentions one of those paths.
 import fs from "node:fs";
 const D = process.env.DOSSIER ?? "/tmp/dossier", OUT = process.env.OUT ?? "/tmp/canary-inputs";
-const plan = JSON.parse(fs.readFileSync(new URL("./batches.json", import.meta.url), "utf8"));
+const plan = JSON.parse(fs.readFileSync(process.env.PLAN ?? new URL("./batches.json", import.meta.url), "utf8"));
 const rows = new Map();
 for (const f of fs.readdirSync(`${D}/batches`)) for (const l of fs.readFileSync(`${D}/batches/${f}`, "utf8").split("\n")) if (l.trim()) { const r = JSON.parse(l); rows.set(r.path, r); }
 const cross = ["twins","port-edges","format-couplings","legacy-twins","jini-rules","composition-drift","module-twins","wire-drift","tool-calls"];

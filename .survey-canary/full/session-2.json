@@ -1,0 +1,2038 @@
+[
+{
+"batch": "u001",
+"tier": 2,
+"loc": 2391,
+"files": [
+{
+"path": "apps/admin/dev-proxy-upstream-close.ts",
+"tier": 2,
+"loc": 57
+},
+{
+"path": "apps/admin/src/App.hooks.ts",
+"tier": 2,
+"loc": 1234
+},
+{
+"path": "apps/admin/src/admin-themes/use-admin-theme.hooks.ts",
+"tier": 2,
+"loc": 229
+},
+{
+"path": "apps/admin/src/components/AssistantDock/AssistantDock.tsx",
+"tier": 2,
+"loc": 664
+},
+{
+"path": "apps/admin/src/components/AssistantDock/agent-failure.ts",
+"tier": 2,
+"loc": 207
+}
+]
+},
+{
+"batch": "u006",
+"tier": 2,
+"loc": 2951,
+"files": [
+{
+"path": "apps/admin/src/features/observability/hooks/use-recent-server-errors.hooks.ts",
+"tier": 2,
+"loc": 127
+},
+{
+"path": "apps/admin/src/features/pages/ThemePageDetailsModal.hooks.tsx",
+"tier": 2,
+"loc": 75
+},
+{
+"path": "apps/admin/src/features/pages/hooks/pages-dependencies.hooks.ts",
+"tier": 2,
+"loc": 110
+},
+{
+"path": "apps/admin/src/features/pages/hooks/theme-pages-port.hooks.ts",
+"tier": 2,
+"loc": 79
+},
+{
+"path": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+"tier": 2,
+"loc": 1391
+},
+{
+"path": "apps/admin/src/features/pages/hooks/use-pages.hooks.ts",
+"tier": 2,
+"loc": 267
+},
+{
+"path": "apps/admin/src/features/pages/lib/embed-placeholder.ts",
+"tier": 2,
+"loc": 166
+},
+{
+"path": "apps/admin/src/features/pages/rules.ts",
+"tier": 2,
+"loc": 736
+}
+]
+},
+{
+"batch": "u019",
+"tier": 2,
+"loc": 2623,
+"files": [
+{
+"path": "apps/website/src/assistant/public-assistant-settings.ts",
+"tier": 2,
+"loc": 256
+},
+{
+"path": "apps/website/src/assistant/run-page-context.ts",
+"tier": 2,
+"loc": 188
+},
+{
+"path": "apps/website/src/assistant/run-start-context.ts",
+"tier": 2,
+"loc": 149
+},
+{
+"path": "apps/website/src/assistant/runtime-preferences.ts",
+"tier": 2,
+"loc": 64
+},
+{
+"path": "apps/website/src/assistant/site/history.ts",
+"tier": 2,
+"loc": 102
+},
+{
+"path": "apps/website/src/assistant/site/visitor-frontend-control.ts",
+"tier": 2,
+"loc": 67
+},
+{
+"path": "apps/website/src/assistant/subagent-settings.ts",
+"tier": 2,
+"loc": 95
+},
+{
+"path": "apps/website/src/assistant/tool-approval-policy.ts",
+"tier": 2,
+"loc": 123
+},
+{
+"path": "apps/website/src/assistant/tool-catalog-live-query.ts",
+"tier": 2,
+"loc": 55
+},
+{
+"path": "apps/website/src/assistant/tool-catalog-query.ts",
+"tier": 2,
+"loc": 187
+},
+{
+"path": "apps/website/src/assistant/tool-recovery-preset.ts",
+"tier": 2,
+"loc": 110
+},
+{
+"path": "apps/website/src/assistant/tool-registrations.ts",
+"tier": 2,
+"loc": 545
+},
+{
+"path": "apps/website/src/contracts/core/custom-credential-categories.ts",
+"tier": 2,
+"loc": 9
+},
+{
+"path": "apps/website/src/contracts/core/entry-refs/ports.ts",
+"tier": 2,
+"loc": 40
+},
+{
+"path": "apps/website/src/contracts/core/entry-refs/types.ts",
+"tier": 2,
+"loc": 58
+},
+{
+"path": "apps/website/src/contracts/core/events/memory-bus.ts",
+"tier": 2,
+"loc": 156
+},
+{
+"path": "apps/website/src/contracts/core/gated-mutations/ports.ts",
+"tier": 2,
+"loc": 54
+},
+{
+"path": "apps/website/src/contracts/core/host-signals.ts",
+"tier": 2,
+"loc": 93
+},
+{
+"path": "apps/website/src/contracts/headless/contracts.ts",
+"tier": 2,
+"loc": 176
+},
+{
+"path": "apps/website/src/contracts/headless/plugin-host.ts",
+"tier": 2,
+"loc": 96
+}
+]
+},
+{
+"batch": "u026",
+"tier": 2,
+"loc": 3001,
+"files": [
+{
+"path": "apps/website/src/features/publish-content/type-registry.ts",
+"tier": 2,
+"loc": 683
+},
+{
+"path": "apps/website/src/features/publish-content/ui/contract.ts",
+"tier": 2,
+"loc": 135
+},
+{
+"path": "apps/website/src/features/publish-content/ui/report-rows.ts",
+"tier": 2,
+"loc": 636
+},
+{
+"path": "apps/website/src/features/publish-trust/grant.ts",
+"tier": 2,
+"loc": 318
+},
+{
+"path": "apps/website/src/features/publish-trust/handshake-client.ts",
+"tier": 2,
+"loc": 344
+},
+{
+"path": "apps/website/src/features/publish-trust/revocations.ts",
+"tier": 2,
+"loc": 291
+},
+{
+"path": "apps/website/src/features/recovery/agent-tools.ts",
+"tier": 2,
+"loc": 180
+},
+{
+"path": "apps/website/src/features/recovery/tool-registrations.ts",
+"tier": 2,
+"loc": 414
+}
+]
+},
+{
+"batch": "u027",
+"tier": 2,
+"loc": 2898,
+"files": [
+{
+"path": "apps/website/src/features/seo/settings.ts",
+"tier": 2,
+"loc": 409
+},
+{
+"path": "apps/website/src/features/settings/visitor-tools-write.ts",
+"tier": 2,
+"loc": 104
+},
+{
+"path": "apps/website/src/features/site-backup/share-database/repo.sqlite.ts",
+"tier": 2,
+"loc": 443
+},
+{
+"path": "apps/website/src/features/site-backup/share-hosting.ts",
+"tier": 2,
+"loc": 137
+},
+{
+"path": "apps/website/src/features/site-backup/share-service.ts",
+"tier": 2,
+"loc": 147
+},
+{
+"path": "apps/website/src/features/site-backup/sources.ts",
+"tier": 2,
+"loc": 712
+},
+{
+"path": "apps/website/src/features/site-backup/static-copy.ts",
+"tier": 2,
+"loc": 169
+},
+{
+"path": "apps/website/src/features/site-evidence/agent-tools.ts",
+"tier": 2,
+"loc": 99
+},
+{
+"path": "apps/website/src/features/site-export/export-html-policy.ts",
+"tier": 2,
+"loc": 244
+},
+{
+"path": "apps/website/src/features/site-export/ports.ts",
+"tier": 2,
+"loc": 95
+},
+{
+"path": "apps/website/src/features/site-export/route-manifest.ts",
+"tier": 2,
+"loc": 339
+}
+]
+},
+{
+"batch": "u029",
+"tier": 2,
+"loc": 3291,
+"files": [
+{
+"path": "apps/website/src/features/source-control/credential-form.ts",
+"tier": 2,
+"loc": 108
+},
+{
+"path": "apps/website/src/features/source-control/credential-setup.ts",
+"tier": 2,
+"loc": 213
+},
+{
+"path": "apps/website/src/features/source-control/provider-kit.ts",
+"tier": 2,
+"loc": 49
+},
+{
+"path": "apps/website/src/features/source-control/provider-module.ts",
+"tier": 2,
+"loc": 223
+},
+{
+"path": "apps/website/src/features/source-control/provider-registry.ts",
+"tier": 2,
+"loc": 314
+},
+{
+"path": "apps/website/src/features/source-control/store.ts",
+"tier": 2,
+"loc": 551
+},
+{
+"path": "apps/website/src/features/source-control/tool-registrations.ts",
+"tier": 2,
+"loc": 519
+},
+{
+"path": "apps/website/src/features/theme/preview-switcher-html.ts",
+"tier": 2,
+"loc": 127
+},
+{
+"path": "apps/website/src/features/theme/publish-content.ts",
+"tier": 2,
+"loc": 826
+},
+{
+"path": "apps/website/src/features/theme/render-contract.ts",
+"tier": 2,
+"loc": 361
+}
+]
+},
+{
+"batch": "u030",
+"tier": 2,
+"loc": 2707,
+"files": [
+{
+"path": "apps/website/src/features/theme/theme-file-import.ts",
+"tier": 2,
+"loc": 180
+},
+{
+"path": "apps/website/src/features/theme/theme-files.ts",
+"tier": 2,
+"loc": 1347
+},
+{
+"path": "apps/website/src/features/theme/theme.ts",
+"tier": 2,
+"loc": 1180
+}
+]
+},
+{
+"batch": "u031",
+"tier": 2,
+"loc": 3255,
+"files": [
+{
+"path": "apps/website/src/features/theme/tool-registrations.ts",
+"tier": 2,
+"loc": 1011
+},
+{
+"path": "apps/website/src/features/tool-audit/repo.ts",
+"tier": 2,
+"loc": 158
+},
+{
+"path": "apps/website/src/features/trash/adapters/directory.ts",
+"tier": 2,
+"loc": 253
+},
+{
+"path": "apps/website/src/features/trash/adapters/user.ts",
+"tier": 2,
+"loc": 228
+},
+{
+"path": "apps/website/src/features/trash/agent-tools.ts",
+"tier": 2,
+"loc": 159
+},
+{
+"path": "apps/website/src/features/trash/move-to-trash.ts",
+"tier": 2,
+"loc": 167
+},
+{
+"path": "apps/website/src/features/trash/repo.ts",
+"tier": 2,
+"loc": 232
+},
+{
+"path": "apps/website/src/features/webmcp/generated/annotated-actions-script.ts",
+"tier": 2,
+"loc": 155
+},
+{
+"path": "apps/website/src/features/widgets/agent-tools.ts",
+"tier": 2,
+"loc": 341
+},
+{
+"path": "apps/website/src/features/widgets/deps.ts",
+"tier": 2,
+"loc": 140
+},
+{
+"path": "apps/website/src/features/widgets/media-html.ts",
+"tier": 2,
+"loc": 172
+},
+{
+"path": "apps/website/src/features/widgets/publish-content.ts",
+"tier": 2,
+"loc": 239
+}
+]
+},
+{
+"batch": "u032",
+"tier": 2,
+"loc": 3265,
+"files": [
+{
+"path": "apps/website/src/features/widgets/tool-registrations.ts",
+"tier": 2,
+"loc": 508
+},
+{
+"path": "apps/website/src/features/workspace/repo.ts",
+"tier": 2,
+"loc": 88
+},
+{
+"path": "apps/website/src/platform/db/content-database.generated.ts",
+"tier": 2,
+"loc": 1106
+},
+{
+"path": "apps/website/src/platform/db/keyset-cursor.ts",
+"tier": 2,
+"loc": 34
+},
+{
+"path": "apps/website/src/platform/db/migrations/legacy-sqlite.ts",
+"tier": 2,
+"loc": 200
+},
+{
+"path": "apps/website/src/platform/db/sqlite/chat-db.ts",
+"tier": 2,
+"loc": 75
+},
+{
+"path": "apps/website/src/platform/db/sqlite/content-db.ts",
+"tier": 2,
+"loc": 190
+},
+{
+"path": "apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts",
+"tier": 2,
+"loc": 288
+},
+{
+"path": "apps/website/src/platform/db/sqlite/database-journal-repo.ts",
+"tier": 2,
+"loc": 399
+},
+{
+"path": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",
+"tier": 2,
+"loc": 257
+},
+{
+"path": "apps/website/src/platform/mail/adapters/smtp.nodemailer.ts",
+"tier": 2,
+"loc": 69
+},
+{
+"path": "apps/website/src/platform/mail/ports.ts",
+"tier": 2,
+"loc": 20
+},
+{
+"path": "apps/website/src/platform/mail/purpose-scoped-mailer.ts",
+"tier": 2,
+"loc": 31
+}
+]
+},
+{
+"batch": "u035",
+"tier": 2,
+"loc": 1298,
+"files": [
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts",
+"tier": 2,
+"loc": 88
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts",
+"tier": 2,
+"loc": 77
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/forms/get-by-id.ts",
+"tier": 2,
+"loc": 53
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts",
+"tier": 2,
+"loc": 78
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts",
+"tier": 2,
+"loc": 97
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/forms/list.ts",
+"tier": 2,
+"loc": 37
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/media/get-providers.ts",
+"tier": 2,
+"loc": 51
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/media/update.ts",
+"tier": 2,
+"loc": 139
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/members/list.ts",
+"tier": 2,
+"loc": 73
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/menus/assign-location.ts",
+"tier": 2,
+"loc": 106
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/menus/get-by-id.ts",
+"tier": 2,
+"loc": 53
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/menus/list.ts",
+"tier": 2,
+"loc": 49
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts",
+"tier": 2,
+"loc": 147
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/archive-list.ts",
+"tier": 2,
+"loc": 36
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/cancel-campaign.ts",
+"tier": 2,
+"loc": 41
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/get-campaign.ts",
+"tier": 2,
+"loc": 34
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-lists.ts",
+"tier": 2,
+"loc": 32
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-subscriptions.ts",
+"tier": 2,
+"loc": 35
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/pause-campaign.ts",
+"tier": 2,
+"loc": 36
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/newsletter/resume-campaign.ts",
+"tier": 2,
+"loc": 36
+}
+]
+},
+{
+"batch": "u039",
+"tier": 2,
+"loc": 1962,
+"files": [
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+"tier": 2,
+"loc": 461
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts",
+"tier": 2,
+"loc": 210
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-taxonomy.ts",
+"tier": 2,
+"loc": 53
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-term.ts",
+"tier": 2,
+"loc": 55
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/taxonomy/list.ts",
+"tier": 2,
+"loc": 39
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
+"tier": 2,
+"loc": 165
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts",
+"tier": 2,
+"loc": 87
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/users/update-policy.ts",
+"tier": 2,
+"loc": 59
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/users/update-role.ts",
+"tier": 2,
+"loc": 57
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/users/update.ts",
+"tier": 2,
+"loc": 117
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts",
+"tier": 2,
+"loc": 99
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts",
+"tier": 2,
+"loc": 318
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/widgets/preview-render.ts",
+"tier": 2,
+"loc": 42
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts",
+"tier": 2,
+"loc": 40
+},
+{
+"path": "apps/website/src/server/inbound/admin-http/routes/workspace/update.ts",
+"tier": 2,
+"loc": 73
+},
+{
+"path": "apps/website/src/server/inbound/assistant/agent-daemon-idle-park.ts",
+"tier": 2,
+"loc": 87
+}
+]
+},
+{
+"batch": "u043",
+"tier": 2,
+"loc": 3079,
+"files": [
+{
+"path": "apps/website/src/server/runtime/composition/commerce.ts",
+"tier": 2,
+"loc": 337
+},
+{
+"path": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
+"tier": 2,
+"loc": 173
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/external-mcp.ts",
+"tier": 2,
+"loc": 76
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/forms-admin.ts",
+"tier": 2,
+"loc": 42
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/media.ts",
+"tier": 2,
+"loc": 79
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/members.ts",
+"tier": 2,
+"loc": 124
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/newsletter.ts",
+"tier": 2,
+"loc": 73
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/plugins.ts",
+"tier": 2,
+"loc": 47
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/publish-content.ts",
+"tier": 2,
+"loc": 98
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/seo.ts",
+"tier": 2,
+"loc": 53
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/settings.ts",
+"tier": 2,
+"loc": 51
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
+"tier": 2,
+"loc": 847
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/taxonomy.ts",
+"tier": 2,
+"loc": 45
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/users.ts",
+"tier": 2,
+"loc": 72
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/widgets.ts",
+"tier": 2,
+"loc": 54
+},
+{
+"path": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
+"tier": 2,
+"loc": 461
+},
+{
+"path": "apps/website/src/server/runtime/composition/permanent-delete-deps.ts",
+"tier": 2,
+"loc": 258
+},
+{
+"path": "apps/website/src/server/runtime/composition/plugin-credential-cards.ts",
+"tier": 2,
+"loc": 84
+},
+{
+"path": "apps/website/src/server/runtime/composition/plugin-host.ts",
+"tier": 2,
+"loc": 105
+}
+]
+},
+{
+"batch": "u046",
+"tier": 1,
+"loc": 3307,
+"files": [
+{
+"path": "apps/admin/src/components/CodeView/use-code-wrap.hooks.ts",
+"tier": 1,
+"loc": 23
+},
+{
+"path": "apps/admin/src/components/CredentialHint.tsx",
+"tier": 1,
+"loc": 7
+},
+{
+"path": "apps/admin/src/components/DevicePreview/DevicePreview.hooks.ts",
+"tier": 1,
+"loc": 170
+},
+{
+"path": "apps/admin/src/components/DevicePreview/DevicePreviewFrame.tsx",
+"tier": 1,
+"loc": 39
+},
+{
+"path": "apps/admin/src/components/DevicePreview/DevicePreviewToggle.tsx",
+"tier": 1,
+"loc": 51
+},
+{
+"path": "apps/admin/src/components/InstallTabCard/InstallTabCard.tsx",
+"tier": 1,
+"loc": 175
+},
+{
+"path": "apps/admin/src/components/InstallTabCard/install-archive-size.ts",
+"tier": 1,
+"loc": 6
+},
+{
+"path": "apps/admin/src/components/InstallTabCard/use-folder-upload.hooks.ts",
+"tier": 1,
+"loc": 68
+},
+{
+"path": "apps/admin/src/components/InstallTabCard/use-zip-drop.hooks.ts",
+"tier": 1,
+"loc": 32
+},
+{
+"path": "apps/admin/src/components/MailStatusBanner/MailStatusBanner.tsx",
+"tier": 1,
+"loc": 41
+},
+{
+"path": "apps/admin/src/components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts",
+"tier": 1,
+"loc": 78
+},
+{
+"path": "apps/admin/src/components/MediaEditDialog/MediaEditDialog.hooks.tsx",
+"tier": 1,
+"loc": 129
+},
+{
+"path": "apps/admin/src/components/MediaEditDialog/MediaEditDialog.tsx",
+"tier": 1,
+"loc": 147
+},
+{
+"path": "apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts",
+"tier": 1,
+"loc": 32
+},
+{
+"path": "apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.tsx",
+"tier": 1,
+"loc": 150
+},
+{
+"path": "apps/admin/src/components/MediaPickerDialog/media-picker-dependencies.hooks.ts",
+"tier": 1,
+"loc": 39
+},
+{
+"path": "apps/admin/src/components/MediaPickerDialog/media-picker-port.hooks.ts",
+"tier": 1,
+"loc": 33
+},
+{
+"path": "apps/admin/src/components/PlainTextBlocks.tsx",
+"tier": 1,
+"loc": 33
+},
+{
+"path": "apps/admin/src/components/SecretInput/SecretInput.tsx",
+"tier": 1,
+"loc": 48
+},
+{
+"path": "apps/admin/src/components/Select/Select.tsx",
+"tier": 1,
+"loc": 24
+},
+{
+"path": "apps/admin/src/components/ServerRestartingBanner/ServerRestartingBanner.tsx",
+"tier": 1,
+"loc": 15
+},
+{
+"path": "apps/admin/src/components/ServerRestartingBanner/hooks/use-server-connection-status.hooks.ts",
+"tier": 1,
+"loc": 20
+},
+{
+"path": "apps/admin/src/components/SitesSidebarNav.tsx",
+"tier": 1,
+"loc": 20
+},
+{
+"path": "apps/admin/src/components/TemplateSource/TemplateSourceModal.tsx",
+"tier": 1,
+"loc": 172
+},
+{
+"path": "apps/admin/src/components/TemplateSource/ViewTemplateButton.tsx",
+"tier": 1,
+"loc": 52
+},
+{
+"path": "apps/admin/src/components/TemplateSource/template-source-dependencies.hooks.ts",
+"tier": 1,
+"loc": 41
+},
+{
+"path": "apps/admin/src/components/TemplateSource/template-source-port.hooks.ts",
+"tier": 1,
+"loc": 23
+},
+{
+"path": "apps/admin/src/components/TemplateSource/use-template-source.hooks.ts",
+"tier": 1,
+"loc": 135
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/HtmlAttributeRows.hooks.ts",
+"tier": 1,
+"loc": 49
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/HtmlAttributeRows.tsx",
+"tier": 1,
+"loc": 55
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts",
+"tier": 1,
+"loc": 264
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx",
+"tier": 1,
+"loc": 376
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/PlacementContentFields.tsx",
+"tier": 1,
+"loc": 40
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/WidgetPreview.hooks.ts",
+"tier": 1,
+"loc": 15
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/media-content-rules.ts",
+"tier": 1,
+"loc": 393
+},
+{
+"path": "apps/admin/src/components/WidgetConfigFields/widget-config-fields-port.hooks.ts",
+"tier": 1,
+"loc": 19
+},
+{
+"path": "apps/admin/src/components/WidgetPickerDialog/widget-picker-port.hooks.ts",
+"tier": 1,
+"loc": 23
+},
+{
+"path": "apps/admin/src/components/device-preview-icons.tsx",
+"tier": 1,
+"loc": 79
+},
+{
+"path": "apps/admin/src/components/status-labels.ts",
+"tier": 1,
+"loc": 48
+},
+{
+"path": "apps/admin/src/features/admin-themes/AdminThemes.tsx",
+"tier": 1,
+"loc": 143
+}
+]
+},
+{
+"batch": "u054",
+"tier": 1,
+"loc": 5975,
+"files": [
+{
+"path": "apps/admin/src/features/settings/hooks/use-ai-agent-presentation.hooks.ts",
+"tier": 1,
+"loc": 28
+},
+{
+"path": "apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts",
+"tier": 1,
+"loc": 319
+},
+{
+"path": "apps/admin/src/features/settings/hooks/use-external-mcp-oauth-connect.hooks.ts",
+"tier": 1,
+"loc": 149
+},
+{
+"path": "apps/admin/src/features/settings/hooks/use-external-mcp-tool-picker.hooks.ts",
+"tier": 1,
+"loc": 202
+},
+{
+"path": "apps/admin/src/features/settings/hooks/use-settings-active-tab-scroll.hooks.ts",
+"tier": 1,
+"loc": 38
+},
+{
+"path": "apps/admin/src/features/settings/hooks/use-settings-locale-sync.hooks.ts",
+"tier": 1,
+"loc": 53
+},
+{
+"path": "apps/admin/src/features/settings/hooks/use-user-interface-tab.hooks.ts",
+"tier": 1,
+"loc": 33
+},
+{
+"path": "apps/admin/src/features/settings/rules.ts",
+"tier": 1,
+"loc": 486
+},
+{
+"path": "apps/admin/src/features/settings/settings-execution-i18n.ts",
+"tier": 1,
+"loc": 334
+},
+{
+"path": "apps/admin/src/features/settings/settings-memory-i18n.ts",
+"tier": 1,
+"loc": 869
+},
+{
+"path": "apps/admin/src/features/sites/SiteExportTab.tsx",
+"tier": 1,
+"loc": 239
+},
+{
+"path": "apps/admin/src/features/sites/SiteImportTab.tsx",
+"tier": 1,
+"loc": 389
+},
+{
+"path": "apps/admin/src/features/sites/SiteTrashTab.tsx",
+"tier": 1,
+"loc": 42
+},
+{
+"path": "apps/admin/src/features/sites/Sites.hooks.tsx",
+"tier": 1,
+"loc": 569
+},
+{
+"path": "apps/admin/src/features/sites/Sites.tsx",
+"tier": 1,
+"loc": 400
+},
+{
+"path": "apps/admin/src/features/sites/SitesHomeSetting.tsx",
+"tier": 1,
+"loc": 160
+},
+{
+"path": "apps/admin/src/features/sites/StaticExportPicker.tsx",
+"tier": 1,
+"loc": 66
+},
+{
+"path": "apps/admin/src/features/sites/site-export-error.ts",
+"tier": 1,
+"loc": 31
+},
+{
+"path": "apps/admin/src/features/sites/site-transfer-rules.ts",
+"tier": 1,
+"loc": 79
+},
+{
+"path": "apps/admin/src/features/sites/sites-visuals.tsx",
+"tier": 1,
+"loc": 86
+},
+{
+"path": "apps/admin/src/features/skills/SkillInstallConfirmation.tsx",
+"tier": 1,
+"loc": 36
+},
+{
+"path": "apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/admin/src/features/skills/SkillRow.tsx",
+"tier": 1,
+"loc": 44
+},
+{
+"path": "apps/admin/src/features/skills/Skills.tsx",
+"tier": 1,
+"loc": 102
+},
+{
+"path": "apps/admin/src/features/skills/api.ts",
+"tier": 1,
+"loc": 23
+},
+{
+"path": "apps/admin/src/features/skills/skill-drop.ts",
+"tier": 1,
+"loc": 72
+},
+{
+"path": "apps/admin/src/features/skills/skill-failure.ts",
+"tier": 1,
+"loc": 20
+},
+{
+"path": "apps/admin/src/features/skills/skill-upload.ts",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/admin/src/features/skills/skills-page-dictionary.ts",
+"tier": 1,
+"loc": 254
+},
+{
+"path": "apps/admin/src/features/skills/skills-visuals.tsx",
+"tier": 1,
+"loc": 12
+},
+{
+"path": "apps/admin/src/features/skills/use-skill-confirmation.hooks.ts",
+"tier": 1,
+"loc": 34
+},
+{
+"path": "apps/admin/src/features/skills/use-skill-install.hooks.ts",
+"tier": 1,
+"loc": 37
+},
+{
+"path": "apps/admin/src/features/skills/use-skills-tabs.hooks.ts",
+"tier": 1,
+"loc": 19
+},
+{
+"path": "apps/admin/src/features/skills/use-skills.hooks.ts",
+"tier": 1,
+"loc": 161
+},
+{
+"path": "apps/admin/src/features/source-control/ProvidersTab.tsx",
+"tier": 1,
+"loc": 460
+},
+{
+"path": "apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts",
+"tier": 1,
+"loc": 57
+},
+{
+"path": "apps/admin/src/features/source-control/hooks/source-control-credentials-port.hooks.ts",
+"tier": 1,
+"loc": 36
+}
+]
+},
+{
+"batch": "u061",
+"tier": 1,
+"loc": 3955,
+"files": [
+{
+"path": "apps/desktop/src/renderer/main.tsx",
+"tier": 1,
+"loc": 28
+},
+{
+"path": "apps/desktop/src/renderer/mount-renderer.ts",
+"tier": 1,
+"loc": 41
+},
+{
+"path": "apps/desktop/src/renderer/nav-availability.ts",
+"tier": 1,
+"loc": 7
+},
+{
+"path": "apps/desktop/src/renderer/persistable-messages.ts",
+"tier": 1,
+"loc": 19
+},
+{
+"path": "apps/desktop/src/renderer/product-telemetry.ts",
+"tier": 1,
+"loc": 30
+},
+{
+"path": "apps/desktop/src/renderer/runner-api.ts",
+"tier": 1,
+"loc": 194
+},
+{
+"path": "apps/desktop/src/renderer/runner-conversation-controller.ts",
+"tier": 1,
+"loc": 392
+},
+{
+"path": "apps/desktop/src/renderer/site-port.rules.ts",
+"tier": 1,
+"loc": 60
+},
+{
+"path": "apps/desktop/src/renderer/site-status.ts",
+"tier": 1,
+"loc": 17
+},
+{
+"path": "apps/desktop/src/renderer/site-theme-preview.hooks.ts",
+"tier": 1,
+"loc": 55
+},
+{
+"path": "apps/desktop/src/renderer/sites-home-view.ts",
+"tier": 1,
+"loc": 99
+},
+{
+"path": "apps/desktop/src/renderer/source-test-harness.ts",
+"tier": 1,
+"loc": 76
+},
+{
+"path": "apps/desktop/src/renderer/tool-icons.tsx",
+"tier": 1,
+"loc": 88
+},
+{
+"path": "apps/desktop/src/renderer/use-add-site.hooks.ts",
+"tier": 1,
+"loc": 155
+},
+{
+"path": "apps/desktop/src/renderer/use-site-folders.hooks.ts",
+"tier": 1,
+"loc": 95
+},
+{
+"path": "apps/desktop/src/renderer/use-site-list-prefs.hooks.ts",
+"tier": 1,
+"loc": 66
+},
+{
+"path": "apps/desktop/src/renderer/use-site-locate.hooks.ts",
+"tier": 1,
+"loc": 71
+},
+{
+"path": "apps/desktop/src/renderer/use-site-preview.hooks.ts",
+"tier": 1,
+"loc": 114
+},
+{
+"path": "apps/desktop/src/renderer/use-site-rename.hooks.ts",
+"tier": 1,
+"loc": 221
+},
+{
+"path": "apps/desktop/src/renderer/use-site-start.hooks.ts",
+"tier": 1,
+"loc": 142
+},
+{
+"path": "apps/desktop/src/renderer/use-site-storage-settings.hooks.ts",
+"tier": 1,
+"loc": 24
+},
+{
+"path": "apps/desktop/src/renderer/use-site-toast.hooks.ts",
+"tier": 1,
+"loc": 51
+},
+{
+"path": "apps/desktop/src/renderer/use-site-view-preference.hooks.ts",
+"tier": 1,
+"loc": 34
+},
+{
+"path": "apps/desktop/src/renderer/use-site-workspace.hooks.ts",
+"tier": 1,
+"loc": 402
+},
+{
+"path": "apps/desktop/src/renderer/use-sites-folders-dialog.hooks.ts",
+"tier": 1,
+"loc": 68
+},
+{
+"path": "apps/desktop/src/renderer/use-sites-inventory.hooks.ts",
+"tier": 1,
+"loc": 163
+},
+{
+"path": "apps/desktop/src/renderer/use-start-imported.hooks.ts",
+"tier": 1,
+"loc": 52
+},
+{
+"path": "apps/desktop/src/renderer/use-tab-close-ask.hooks.ts",
+"tier": 1,
+"loc": 112
+},
+{
+"path": "apps/desktop/src/renderer/use-tab-strip.hooks.ts",
+"tier": 1,
+"loc": 82
+},
+{
+"path": "apps/desktop/src/renderer/use-update-check.hooks.ts",
+"tier": 1,
+"loc": 41
+},
+{
+"path": "apps/desktop/src/renderer/use-workspace-chat-pane.hooks.ts",
+"tier": 1,
+"loc": 187
+},
+{
+"path": "apps/desktop/src/renderer/use-workspace-chat-transport.hooks.ts",
+"tier": 1,
+"loc": 80
+},
+{
+"path": "apps/desktop/src/renderer/use-zoom.hooks.ts",
+"tier": 1,
+"loc": 258
+},
+{
+"path": "apps/desktop/src/site-directory-identity.ts",
+"tier": 1,
+"loc": 112
+},
+{
+"path": "apps/desktop/src/site-discovery-scan.ts",
+"tier": 1,
+"loc": 38
+},
+{
+"path": "apps/desktop/src/site-discovery-worker.ts",
+"tier": 1,
+"loc": 6
+},
+{
+"path": "apps/desktop/src/site-discovery.ts",
+"tier": 1,
+"loc": 59
+},
+{
+"path": "apps/desktop/src/site-folders.ts",
+"tier": 1,
+"loc": 161
+},
+{
+"path": "apps/desktop/src/site-name-policy.ts",
+"tier": 1,
+"loc": 32
+},
+{
+"path": "apps/desktop/src/site-name.ts",
+"tier": 1,
+"loc": 23
+}
+]
+},
+{
+"batch": "u070",
+"tier": 1,
+"loc": 4066,
+"files": [
+{
+"path": "apps/website/src/features/database-transfer/postgres-target.ts",
+"tier": 1,
+"loc": 7
+},
+{
+"path": "apps/website/src/features/database-transfer/tool-registrations.ts",
+"tier": 1,
+"loc": 125
+},
+{
+"path": "apps/website/src/features/database/adapter.sqlite.ts",
+"tier": 1,
+"loc": 77
+},
+{
+"path": "apps/website/src/features/database/agent-tools.ts",
+"tier": 1,
+"loc": 9
+},
+{
+"path": "apps/website/src/features/database/gated-hooks.ts",
+"tier": 1,
+"loc": 10
+},
+{
+"path": "apps/website/src/features/deployments/publish-credentials/execution-mode.ts",
+"tier": 1,
+"loc": 42
+},
+{
+"path": "apps/website/src/features/deployments/publish-credentials/types.ts",
+"tier": 1,
+"loc": 90
+},
+{
+"path": "apps/website/src/features/deployments/publish-tool-deps.ts",
+"tier": 1,
+"loc": 87
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/credentials.ts",
+"tier": 1,
+"loc": 343
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/domain-publish-rows.ts",
+"tier": 1,
+"loc": 47
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/domain-publish-tool.ts",
+"tier": 1,
+"loc": 123
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/inspection.ts",
+"tier": 1,
+"loc": 76
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/publish-consent.ts",
+"tier": 1,
+"loc": 11
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/publish-history.ts",
+"tier": 1,
+"loc": 301
+},
+{
+"path": "apps/website/src/features/deployments/static-publish/types.ts",
+"tier": 1,
+"loc": 154
+},
+{
+"path": "apps/website/src/features/deployments/tool-registrations.ts",
+"tier": 1,
+"loc": 194
+},
+{
+"path": "apps/website/src/features/deployments/types.ts",
+"tier": 1,
+"loc": 51
+},
+{
+"path": "apps/website/src/features/domain-dns/binding.repo.ts",
+"tier": 1,
+"loc": 89
+},
+{
+"path": "apps/website/src/features/domain-dns/dns-changes.ts",
+"tier": 1,
+"loc": 378
+},
+{
+"path": "apps/website/src/features/domain-dns/tool-deps.ts",
+"tier": 1,
+"loc": 22
+},
+{
+"path": "apps/website/src/features/email-templates/agent-tools.ts",
+"tier": 1,
+"loc": 72
+},
+{
+"path": "apps/website/src/features/form-destinations/connection-port.ts",
+"tier": 1,
+"loc": 36
+},
+{
+"path": "apps/website/src/features/form-destinations/deliver.ts",
+"tier": 1,
+"loc": 69
+},
+{
+"path": "apps/website/src/features/form-destinations/index.ts",
+"tier": 1,
+"loc": 30
+},
+{
+"path": "apps/website/src/features/form-destinations/key-store.ts",
+"tier": 1,
+"loc": 69
+},
+{
+"path": "apps/website/src/features/form-destinations/port.ts",
+"tier": 1,
+"loc": 122
+},
+{
+"path": "apps/website/src/features/form-destinations/pull.ts",
+"tier": 1,
+"loc": 126
+},
+{
+"path": "apps/website/src/features/form-destinations/registry.ts",
+"tier": 1,
+"loc": 108
+},
+{
+"path": "apps/website/src/features/form-destinations/rewrite-actions.ts",
+"tier": 1,
+"loc": 46
+},
+{
+"path": "apps/website/src/features/form-destinations/select.ts",
+"tier": 1,
+"loc": 52
+},
+{
+"path": "apps/website/src/features/forms/agent-tools.ts",
+"tier": 1,
+"loc": 356
+},
+{
+"path": "apps/website/src/features/forms/analytics-provenance.ts",
+"tier": 1,
+"loc": 2
+},
+{
+"path": "apps/website/src/features/forms/capability-card.ts",
+"tier": 1,
+"loc": 29
+},
+{
+"path": "apps/website/src/features/forms/field-length-caps.ts",
+"tier": 1,
+"loc": 39
+},
+{
+"path": "apps/website/src/features/forms/form-destination-manifest.ts",
+"tier": 1,
+"loc": 99
+},
+{
+"path": "apps/website/src/features/forms/form-file-purge.ts",
+"tier": 1,
+"loc": 92
+},
+{
+"path": "apps/website/src/features/forms/form-file-storage.ts",
+"tier": 1,
+"loc": 43
+},
+{
+"path": "apps/website/src/features/forms/import-remote-submissions.ts",
+"tier": 1,
+"loc": 237
+},
+{
+"path": "apps/website/src/features/forms/index.ts",
+"tier": 1,
+"loc": 201
+},
+{
+"path": "apps/website/src/features/forms/mail-outbox-readiness.ts",
+"tier": 1,
+"loc": 2
+}
+]
+},
+{
+"batch": "u079",
+"tier": 1,
+"loc": 3394,
+"files": [
+{
+"path": "apps/website/src/platform/db/migrations/0028_search_index_retired.ts",
+"tier": 1,
+"loc": 28
+},
+{
+"path": "apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts",
+"tier": 1,
+"loc": 63
+},
+{
+"path": "apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts",
+"tier": 1,
+"loc": 56
+},
+{
+"path": "apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts",
+"tier": 1,
+"loc": 46
+},
+{
+"path": "apps/website/src/platform/db/migrations/0032_member_signup_email.ts",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/website/src/platform/db/migrations/0033_mail_activity_message.ts",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/website/src/platform/db/migrations/0034_member_auth.ts",
+"tier": 1,
+"loc": 24
+},
+{
+"path": "apps/website/src/platform/db/migrations/0035_member_external_identities.ts",
+"tier": 1,
+"loc": 25
+},
+{
+"path": "apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts",
+"tier": 1,
+"loc": 17
+},
+{
+"path": "apps/website/src/platform/db/migrations/0037_media_source_metadata.ts",
+"tier": 1,
+"loc": 12
+},
+{
+"path": "apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts",
+"tier": 1,
+"loc": 24
+},
+{
+"path": "apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts",
+"tier": 1,
+"loc": 26
+},
+{
+"path": "apps/website/src/platform/db/migrations/0040_owner_mfa.ts",
+"tier": 1,
+"loc": 45
+},
+{
+"path": "apps/website/src/platform/db/migrations/0041_owner_passkeys.ts",
+"tier": 1,
+"loc": 26
+},
+{
+"path": "apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts",
+"tier": 1,
+"loc": 81
+},
+{
+"path": "apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts",
+"tier": 1,
+"loc": 78
+},
+{
+"path": "apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts",
+"tier": 1,
+"loc": 33
+},
+{
+"path": "apps/website/src/platform/db/migrations/chat/0003_active_run_index.ts",
+"tier": 1,
+"loc": 17
+},
+{
+"path": "apps/website/src/platform/db/migrations/checksums.ts",
+"tier": 1,
+"loc": 67
+},
+{
+"path": "apps/website/src/platform/db/migrations/commerce/0000_catalog.ts",
+"tier": 1,
+"loc": 54
+},
+{
+"path": "apps/website/src/platform/db/migrations/index.ts",
+"tier": 1,
+"loc": 177
+},
+{
+"path": "apps/website/src/platform/db/migrations/project/0000_project_vault.ts",
+"tier": 1,
+"loc": 54
+},
+{
+"path": "apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts",
+"tier": 1,
+"loc": 67
+},
+{
+"path": "apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts",
+"tier": 1,
+"loc": 20
+},
+{
+"path": "apps/website/src/platform/db/migrations/runner.ts",
+"tier": 1,
+"loc": 37
+},
+{
+"path": "apps/website/src/platform/db/migrations/step.ts",
+"tier": 1,
+"loc": 21
+},
+{
+"path": "apps/website/src/platform/db/postgres/db-ops-adapter.ts",
+"tier": 1,
+"loc": 42
+},
+{
+"path": "apps/website/src/platform/db/postgres/db-ops.ts",
+"tier": 1,
+"loc": 51
+},
+{
+"path": "apps/website/src/platform/db/prepare-content-store.ts",
+"tier": 1,
+"loc": 83
+},
+{
+"path": "apps/website/src/platform/db/schema.postgres.ts",
+"tier": 1,
+"loc": 1240
+},
+{
+"path": "apps/website/src/platform/db/sqlite/chat-orphan-check.ts",
+"tier": 1,
+"loc": 190
+},
+{
+"path": "apps/website/src/platform/db/sqlite/database-journal-db.ts",
+"tier": 1,
+"loc": 46
+},
+{
+"path": "apps/website/src/platform/db/sqlite/database-journal-schema.ts",
+"tier": 1,
+"loc": 116
+},
+{
+"path": "apps/website/src/platform/db/sqlite/db-ops.ts",
+"tier": 1,
+"loc": 93
+},
+{
+"path": "apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts",
+"tier": 1,
+"loc": 116
+},
+{
+"path": "apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts",
+"tier": 1,
+"loc": 27
+},
+{
+"path": "apps/website/src/platform/db/sqlite/publish-backstop-audit.sqlite.ts",
+"tier": 1,
+"loc": 34
+},
+{
+"path": "apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts",
+"tier": 1,
+"loc": 90
+},
+{
+"path": "apps/website/src/platform/dev-supervisor/dev-restart.ts",
+"tier": 1,
+"loc": 114
+},
+{
+"path": "apps/website/src/platform/headless-browser/desktop-render.ts",
+"tier": 1,
+"loc": 18
+}
+]
+},
+{
+"batch": "u088",
+"tier": 1,
+"loc": 2895,
+"files": [
+{
+"path": "apps/website/src/server/runtime/boot/mail-provider-configuration.ts",
+"tier": 1,
+"loc": 6
+},
+{
+"path": "apps/website/src/server/runtime/boot/parent-watchdog.ts",
+"tier": 1,
+"loc": 193
+},
+{
+"path": "apps/website/src/server/runtime/boot/process-error-guards.ts",
+"tier": 1,
+"loc": 161
+},
+{
+"path": "apps/website/src/server/runtime/boot/production-readiness-gate.ts",
+"tier": 1,
+"loc": 201
+},
+{
+"path": "apps/website/src/server/runtime/boot/resolve-mailer.ts",
+"tier": 1,
+"loc": 206
+},
+{
+"path": "apps/website/src/server/runtime/boot/site-boot-readiness.ts",
+"tier": 1,
+"loc": 47
+},
+{
+"path": "apps/website/src/server/runtime/boot/site-key-boot-notice.ts",
+"tier": 1,
+"loc": 150
+},
+{
+"path": "apps/website/src/server/runtime/boot/site-listener-origin.ts",
+"tier": 1,
+"loc": 26
+},
+{
+"path": "apps/website/src/server/runtime/boot/startup-secrets.ts",
+"tier": 1,
+"loc": 43
+},
+{
+"path": "apps/website/src/server/runtime/composition/admin-assistant-enabled.ts",
+"tier": 1,
+"loc": 48
+},
+{
+"path": "apps/website/src/server/runtime/composition/agent-plugin-connections.ts",
+"tier": 1,
+"loc": 196
+},
+{
+"path": "apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts",
+"tier": 1,
+"loc": 100
+},
+{
+"path": "apps/website/src/server/runtime/composition/app-permission-grants.ts",
+"tier": 1,
+"loc": 37
+},
+{
+"path": "apps/website/src/server/runtime/composition/assistant-history-tools.ts",
+"tier": 1,
+"loc": 31
+},
+{
+"path": "apps/website/src/server/runtime/composition/authoritative-dns.ts",
+"tier": 1,
+"loc": 35
+},
+{
+"path": "apps/website/src/server/runtime/composition/boot-data-repairs.ts",
+"tier": 1,
+"loc": 45
+},
+{
+"path": "apps/website/src/server/runtime/composition/browser-analytics.ts",
+"tier": 1,
+"loc": 35
+},
+{
+"path": "apps/website/src/server/runtime/composition/build-release.ts",
+"tier": 1,
+"loc": 44
+},
+{
+"path": "apps/website/src/server/runtime/composition/chart-providers.ts",
+"tier": 1,
+"loc": 60
+},
+{
+"path": "apps/website/src/server/runtime/composition/commerce-drain.ts",
+"tier": 1,
+"loc": 8
+},
+{
+"path": "apps/website/src/server/runtime/composition/commerce-origin.ts",
+"tier": 1,
+"loc": 11
+},
+{
+"path": "apps/website/src/server/runtime/composition/commerce-worker.ts",
+"tier": 1,
+"loc": 16
+},
+{
+"path": "apps/website/src/server/runtime/composition/content-events.ts",
+"tier": 1,
+"loc": 35
+},
+{
+"path": "apps/website/src/server/runtime/composition/content-publish-ports.ts",
+"tier": 1,
+"loc": 82
+},
+{
+"path": "apps/website/src/server/runtime/composition/content-target-inputs.ts",
+"tier": 1,
+"loc": 44
+},
+{
+"path": "apps/website/src/server/runtime/composition/core-extension-claims.ts",
+"tier": 1,
+"loc": 49
+},
+{
+"path": "apps/website/src/server/runtime/composition/data-modules.ts",
+"tier": 1,
+"loc": 9
+},
+{
+"path": "apps/website/src/server/runtime/composition/database-transfer-adapters.ts",
+"tier": 1,
+"loc": 49
+},
+{
+"path": "apps/website/src/server/runtime/composition/declared-content-types.ts",
+"tier": 1,
+"loc": 57
+},
+{
+"path": "apps/website/src/server/runtime/composition/form-delivery-deliverer.ts",
+"tier": 1,
+"loc": 47
+},
+{
+"path": "apps/website/src/server/runtime/composition/form-delivery.ts",
+"tier": 1,
+"loc": 101
+},
+{
+"path": "apps/website/src/server/runtime/composition/form-pull-triggers.ts",
+"tier": 1,
+"loc": 63
+},
+{
+"path": "apps/website/src/server/runtime/composition/form-submissions.ts",
+"tier": 1,
+"loc": 264
+},
+{
+"path": "apps/website/src/server/runtime/composition/host-signals.ts",
+"tier": 1,
+"loc": 7
+},
+{
+"path": "apps/website/src/server/runtime/composition/installed-extension-tools.ts",
+"tier": 1,
+"loc": 119
+},
+{
+"path": "apps/website/src/server/runtime/composition/media-video-ports.ts",
+"tier": 1,
+"loc": 21
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/desktop-mcp-handoff.ts",
+"tier": 1,
+"loc": 28
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/forms.ts",
+"tier": 1,
+"loc": 88
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/integrations-admin.ts",
+"tier": 1,
+"loc": 35
+},
+{
+"path": "apps/website/src/server/runtime/composition/modules/integrations.ts",
+"tier": 1,
+"loc": 98
+}
+]
+}
+]
