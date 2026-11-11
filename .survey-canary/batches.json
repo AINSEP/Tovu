@@ -1,0 +1,527 @@
+[
+{
+"batch": "b166",
+"files": [
+{
+"path": "apps/admin/src/features/plugins/plugins-i18n.ts",
+"tier": 2,
+"loc": 4706
+}
+]
+},
+{
+"batch": "b110",
+"files": [
+{
+"path": "apps/website/src/server/inbound/public-http/http/site/render.ts",
+"tier": 2,
+"loc": 3701
+}
+]
+},
+{
+"batch": "b062",
+"files": [
+{
+"path": "apps/website/src/features/post/post.ts",
+"tier": 2,
+"loc": 2609
+},
+{
+"path": "apps/website/src/features/post/preview-tool.ts",
+"tier": 2,
+"loc": 85
+},
+{
+"path": "apps/website/src/features/post/publish-content.ts",
+"tier": 2,
+"loc": 577
+},
+{
+"path": "apps/website/src/features/post/read-model.ts",
+"tier": 0,
+"loc": 2
+},
+{
+"path": "apps/website/src/features/post/rendering.ts",
+"tier": 0,
+"loc": 4
+}
+]
+},
+{
+"batch": "b114",
+"files": [
+{
+"path": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
+"tier": 2,
+"loc": 3114
+},
+{
+"path": "apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts",
+"tier": 1,
+"loc": 53
+},
+{
+"path": "apps/website/src/server/inbound/public-http/routes/site/products.ts",
+"tier": 2,
+"loc": 126
+},
+{
+"path": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
+"tier": 1,
+"loc": 36
+}
+]
+},
+{
+"batch": "b157",
+"files": [
+{
+"path": "apps/admin/src/features/themes/hooks/theme-explore-dependencies.hooks.ts",
+"tier": 2,
+"loc": 118
+},
+{
+"path": "apps/admin/src/features/themes/hooks/theme-explore-open-file.hooks.ts",
+"tier": 1,
+"loc": 41
+},
+{
+"path": "apps/admin/src/features/themes/hooks/theme-explore-port.hooks.ts",
+"tier": 2,
+"loc": 96
+},
+{
+"path": "apps/admin/src/features/themes/hooks/theme-explore-url.hooks.ts",
+"tier": 1,
+"loc": 154
+},
+{
+"path": "apps/admin/src/features/themes/hooks/themes-dependencies.hooks.ts",
+"tier": 2,
+"loc": 77
+},
+{
+"path": "apps/admin/src/features/themes/hooks/themes-port.hooks.ts",
+"tier": 1,
+"loc": 30
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-card-preview.hooks.ts",
+"tier": 1,
+"loc": 21
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-delete-request.hooks.ts",
+"tier": 1,
+"loc": 57
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-explore-file-groups.hooks.ts",
+"tier": 2,
+"loc": 154
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-explore-preview.hooks.ts",
+"tier": 2,
+"loc": 113
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-explore-theme.hooks.ts",
+"tier": 1,
+"loc": 45
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts",
+"tier": 2,
+"loc": 1721
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-theme-preview-refresh.hooks.ts",
+"tier": 1,
+"loc": 79
+},
+{
+"path": "apps/admin/src/features/themes/hooks/use-themes.hooks.ts",
+"tier": 2,
+"loc": 339
+},
+{
+"path": "apps/admin/src/features/themes/index.ts",
+"tier": 0,
+"loc": 10
+},
+{
+"path": "apps/admin/src/features/themes/rules.ts",
+"tier": 2,
+"loc": 262
+},
+{
+"path": "apps/admin/src/features/themes/theme-card-menu.ts",
+"tier": 1,
+"loc": 83
+},
+{
+"path": "apps/admin/src/features/themes/theme-preview-refresh.ts",
+"tier": 2,
+"loc": 62
+}
+]
+},
+{
+"batch": "b191",
+"files": [
+{
+"path": "apps/admin/src/features/collections/CollectionEntries.tsx",
+"tier": 1,
+"loc": 126
+},
+{
+"path": "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
+"tier": 1,
+"loc": 508
+},
+{
+"path": "apps/admin/src/features/collections/collections-i18n.ts",
+"tier": 1,
+"loc": 1306
+},
+{
+"path": "apps/admin/src/features/collections/Collections.tsx",
+"tier": 1,
+"loc": 663
+},
+{
+"path": "apps/admin/src/features/collections/hooks/collection-entries-dependencies.hooks.ts",
+"tier": 1,
+"loc": 47
+},
+{
+"path": "apps/admin/src/features/collections/hooks/collection-entries-port.hooks.ts",
+"tier": 1,
+"loc": 11
+},
+{
+"path": "apps/admin/src/features/collections/hooks/collection-entry-editor-dependencies.hooks.ts",
+"tier": 1,
+"loc": 107
+},
+{
+"path": "apps/admin/src/features/collections/hooks/collection-entry-editor-port.hooks.ts",
+"tier": 1,
+"loc": 24
+},
+{
+"path": "apps/admin/src/features/collections/hooks/collections-dependencies.hooks.ts",
+"tier": 1,
+"loc": 54
+},
+{
+"path": "apps/admin/src/features/collections/hooks/collections-port.hooks.ts",
+"tier": 1,
+"loc": 15
+},
+{
+"path": "apps/admin/src/features/collections/hooks/edit-fields-dialog-dependencies.hooks.ts",
+"tier": 2,
+"loc": 53
+},
+{
+"path": "apps/admin/src/features/collections/hooks/edit-fields-dialog-port.hooks.ts",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/admin/src/features/collections/hooks/new-content-type-dialog-dependencies.hooks.ts",
+"tier": 2,
+"loc": 53
+},
+{
+"path": "apps/admin/src/features/collections/hooks/new-content-type-dialog-port.hooks.ts",
+"tier": 1,
+"loc": 14
+},
+{
+"path": "apps/admin/src/features/collections/hooks/use-collection-entries.hooks.ts",
+"tier": 2,
+"loc": 91
+},
+{
+"path": "apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts",
+"tier": 1,
+"loc": 398
+}
+]
+},
+{
+"batch": "b172",
+"files": [
+{
+"path": "apps/admin/src/features/deployment/deployment-i18n.tsx",
+"tier": 1,
+"loc": 2562
+},
+{
+"path": "apps/admin/src/features/deployment/deployment-visuals.tsx",
+"tier": 2,
+"loc": 171
+},
+{
+"path": "apps/admin/src/features/deployment/Deployment.tsx",
+"tier": 2,
+"loc": 137
+},
+{
+"path": "apps/admin/src/features/deployment/DockerfileTab.tsx",
+"tier": 1,
+"loc": 439
+},
+{
+"path": "apps/admin/src/features/deployment/HistoryTab.tsx",
+"tier": 1,
+"loc": 62
+},
+{
+"path": "apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts",
+"tier": 1,
+"loc": 21
+},
+{
+"path": "apps/admin/src/features/deployment/hooks/deployment-overview-port.hooks.ts",
+"tier": 1,
+"loc": 10
+},
+{
+"path": "apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts",
+"tier": 1,
+"loc": 39
+},
+{
+"path": "apps/admin/src/features/deployment/hooks/dockerfile-source-port.hooks.ts",
+"tier": 1,
+"loc": 24
+}
+]
+},
+{
+"batch": "b189",
+"files": [
+{
+"path": "apps/admin/src/features/taxonomy/hooks/merge-term-section-dependencies.hooks.ts",
+"tier": 1,
+"loc": 66
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/merge-term-section-port.hooks.ts",
+"tier": 1,
+"loc": 22
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/new-taxonomy-form-dependencies.hooks.ts",
+"tier": 1,
+"loc": 56
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/new-taxonomy-form-port.hooks.ts",
+"tier": 1,
+"loc": 15
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/new-term-form-dependencies.hooks.ts",
+"tier": 1,
+"loc": 59
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/new-term-form-port.hooks.ts",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/taxonomy-dependencies.hooks.ts",
+"tier": 1,
+"loc": 91
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/taxonomy-port.hooks.ts",
+"tier": 1,
+"loc": 31
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/term-picker-dependencies.hooks.ts",
+"tier": 1,
+"loc": 81
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/term-picker-port.hooks.ts",
+"tier": 1,
+"loc": 19
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-merge-term-section.hooks.ts",
+"tier": 1,
+"loc": 181
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-new-taxonomy-form.hooks.ts",
+"tier": 1,
+"loc": 90
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-new-term-form.hooks.ts",
+"tier": 1,
+"loc": 103
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-taxonomy-html-embed.hooks.ts",
+"tier": 1,
+"loc": 20
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts",
+"tier": 1,
+"loc": 309
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-term-detail-panel.hooks.ts",
+"tier": 1,
+"loc": 119
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-term-list-reveal.hooks.ts",
+"tier": 1,
+"loc": 44
+},
+{
+"path": "apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts",
+"tier": 1,
+"loc": 332
+},
+{
+"path": "apps/admin/src/features/taxonomy/html-rules.ts",
+"tier": 1,
+"loc": 10
+},
+{
+"path": "apps/admin/src/features/taxonomy/index.ts",
+"tier": 0,
+"loc": 9
+},
+{
+"path": "apps/admin/src/features/taxonomy/rules.ts",
+"tier": 2,
+"loc": 290
+},
+{
+"path": "apps/admin/src/features/taxonomy/taxonomy-i18n.ts",
+"tier": 1,
+"loc": 1282
+}
+]
+},
+{
+"batch": "b041",
+"files": [
+{
+"path": "apps/website/src/platform/db/schema.sqlite.ts",
+"tier": 1,
+"loc": 2397
+},
+{
+"path": "apps/website/src/platform/db/site-store-copy.ts",
+"tier": 0,
+"loc": 17
+},
+{
+"path": "apps/website/src/platform/db/vault-credential-inventory.ts",
+"tier": 1,
+"loc": 288
+},
+{
+"path": "apps/website/src/platform/db/vault-credential-recovery.ts",
+"tier": 2,
+"loc": 140
+},
+{
+"path": "apps/website/src/platform/db/watermark-kernel.ts",
+"tier": 1,
+"loc": 59
+}
+]
+},
+{
+"batch": "b171",
+"files": [
+{
+"path": "apps/admin/src/features/database/database-i18n.tsx",
+"tier": 1,
+"loc": 1232
+},
+{
+"path": "apps/admin/src/features/database/database-visuals.tsx",
+"tier": 1,
+"loc": 48
+},
+{
+"path": "apps/admin/src/features/database/Database.tsx",
+"tier": 1,
+"loc": 533
+},
+{
+"path": "apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts",
+"tier": 1,
+"loc": 58
+},
+{
+"path": "apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts",
+"tier": 1,
+"loc": 12
+},
+{
+"path": "apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts",
+"tier": 1,
+"loc": 34
+},
+{
+"path": "apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts",
+"tier": 1,
+"loc": 18
+},
+{
+"path": "apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts",
+"tier": 1,
+"loc": 45
+},
+{
+"path": "apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts",
+"tier": 1,
+"loc": 17
+},
+{
+"path": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
+"tier": 1,
+"loc": 190
+},
+{
+"path": "apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts",
+"tier": 1,
+"loc": 78
+},
+{
+"path": "apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts",
+"tier": 1,
+"loc": 230
+},
+{
+"path": "apps/admin/src/features/database/index.ts",
+"tier": 0,
+"loc": 9
+},
+{
+"path": "apps/admin/src/features/database/rules.ts",
+"tier": 1,
+"loc": 170
+}
+]
+}
+]
