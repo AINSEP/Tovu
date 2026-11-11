@@ -56,6 +56,14 @@ The hero runs once on load. Keep the default single play; no replay/reset handle
 parallax, scroll scrubbing, long delays or intro screens. Content and controls remain usable
 immediately; motion must never gate navigation or reading.
 
+## Phones keep the motion
+
+Never switch an effect off because the screen is narrow or the device is touch; only reduced
+motion turns motion off. Give phones their own version instead of a static list or grid: a wide 3D
+carousel becomes a vertical or single-row one, a hover effect plays on scroll-into-view or tap, and
+a pointer trail plays along a scripted path when its section enters view. A width gate may swap
+variants; it never removes the effect. Check every moving section at ~375px before reporting done.
+
 ## Visible first, reduced motion always
 
 For new themes, leave authored HTML/CSS fully visible. Do not add a pre-JS cloak, `opacity:0`, hidden visibility
