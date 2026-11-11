@@ -43,8 +43,17 @@ test("an already valid entry requires consent and is not rewritten", async t => 
 });
 test("foreign stale or disabled jini entry is retained rather than overwritten", async t => {
   const f = await fixture(t); const original = JSON.stringify({ mcpServers: { jini: { command: "foreign", disabled: true } } }); await f.existing(original);
-  await assert.rejects(ensureJsonAgentInstall(f.required), /different jini entry/);
+  await assert.rejects(ensureJsonAgentInstall(f.required), /already has an MCP server named "jini" that this app did not add/);
   assert.equal(await readFile(f.file, "utf8"), original);
+});
+test("a jini entry an older install wrote (old node_modules path) is replaced after a backup", async t => {
+  const f = await fixture(t);
+  const original = JSON.stringify({ mcpServers: { other: { command: "keep" }, jini: { command: "/Applications/Old.app/Contents/MacOS/Old",
+    args: ["/Users/u/old/app/node_modules/@jini-ai/mcp/dist/bin/serve.js"], env: { ELECTRON_RUN_AS_NODE: "1" } } } });
+  await f.existing(original);
+  await ensureJsonAgentInstall(f.required);
+  assert.deepEqual(JSON.parse(await readFile(f.file, "utf8")).mcpServers, { other: { command: "keep" }, jini: { command: "node", args: ["/bridge/serve.js"] } });
+  assert.equal(await readFile(`${f.file}.jini-backup`, "utf8"), original);
 });
 test("the static Electron switch is safe to persist after Allow", async t => {
   const f = await fixture(t); f.required.spec.env = { ELECTRON_RUN_AS_NODE: "1" };
