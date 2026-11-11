@@ -1,0 +1,14 @@
+[agent-plugins:migration-complete] /tmp/tovu-github-plugin-zVUSEY/ws/workspace-local
+✔ existing site: the seeder's own earlier DISABLED github record is switched on at boot, so commit and backup still work (110.709787ms)
+[agent-plugins:migration-complete] /tmp/tovu-github-plugin-Bg3GNs/ws/workspace-local
+✔ fresh site: github seeds ENABLED with no user action (57.501398ms)
+[agent-plugins:migration-complete] /tmp/tovu-github-plugin-rV2fTv/ws/workspace-local
+✔ an operator who switched github off stays off across boots, and a commit is refused with how to switch it back on (137.443198ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1930.161082

@@ -1,0 +1,30 @@
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ lists a target from an enabled, Tovu-bundled plugin and builds a working DeployTarget from its module (80.313603ms)
+✔ refuses a plugin whose installed digest is not the one Tovu shipped (25.803199ms)
+✔ refuses a module path that escapes the plugin root (29.218151ms)
+✔ refuses a module that is not an .mjs file, so no host package.json can turn it into CommonJS (29.406494ms)
+✔ a disabled bundled plugin contributes nothing and is not an error (36.070892ms)
+✔ an unreadable activation record fails CLOSED with its reason (37.406119ms)
+Plugin 'plain-skill' has no publisher-qualified id; using 'unknown/plain-skill'.
+✔ plugins without a deploy-targets file are ignored entirely (30.664372ms)
+✔ a malformed descriptor drops that plugin with the parse reason (25.804753ms)
+✔ a module without create() is refused and its siblings still load (35.338998ms)
+✔ a module that throws on import is refused with the error message (30.285308ms)
+Plugin 'other-deploy' has no publisher-qualified id; using 'unknown/other-deploy'.
+✔ two bundled plugins declaring the same target id: neither is used (61.807146ms)
+✔ an altered installation is refused even when the original bundled digest is recorded (44.203868ms)
+Plugin 'zeta-deploy' has no publisher-qualified id; using 'unknown/zeta-deploy'.
+Plugin 'alpha-deploy' has no publisher-qualified id; using 'unknown/alpha-deploy'.
+✔ installed targets list in plugin-id order, not install order (57.202327ms)
+✔ the bundled source registry is the union of every plugin dir that ships targets, in plugin-id order (15.158192ms)
+✔ the bundled source registry skips retired ids and dirs without a plugin.json (11.160908ms)
+✔ the bundled source registry drops a target id two plugin dirs both declare (10.542429ms)
+✔ the product's own bundled plugins load every host with no refusal (no target left in two plugins) (566.036533ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2673.739722

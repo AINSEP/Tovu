@@ -1,0 +1,11 @@
+[agent-plugins:migration-complete] /tmp/tovu-engineering-seed-5isfmg/agent-plugins/ws/workspace-local
+✔ software-engineering seeds OFF, explicit enablement delivers its skill/overlay, and revocation survives reboots (248.859582ms)
+✔ staged upstream skill tree is byte-identical and the host overlay stays within its budget (3.743011ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1177.474447

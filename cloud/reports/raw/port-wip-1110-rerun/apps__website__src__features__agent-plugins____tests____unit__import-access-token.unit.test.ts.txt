@@ -1,0 +1,37 @@
+✔ a token is sealed onto a row with no credential, and the plugin is switched on (15.49971ms)
+✔ a row that already holds a saved token is never overwritten (3.36596ms)
+✔ a plugin an operator turned off gets the token but stays off (6.23233ms)
+✔ a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it) (2.755691ms)
+✔ hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not (0.325057ms)
+✔ env import copies the declared env token once, logs once, and is silent on the next boot (2.314273ms)
+✔ env import uses the declared URL when its connection lookup returns no row (3.144558ms)
+✔ env import saves a token without retiredEnv and continues to the next plugin (5.162091ms)
+✔ env import with no token set writes nothing (0.831392ms)
+✔ set retired env vars are named as no longer used; unset ones are not (0.83597ms)
+✔ env import never throws: a failed save is a warning (1.544854ms)
+✔ env import never logs importer text that echoes an opaque access token (0.944519ms)
+✔ env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret (1.095441ms)
+[agent-plugins:migration-complete] /tmp/tovu-test-site-layout-knsn0v/agent-plugins/ws/ws-token-import
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded (1848.813452ms)
+Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+✔ listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests (16.860609ms)
+✔ env import never sends the token to a row pointed at a URL the bundled plugin does not declare (1.802223ms)
+✔ manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server (0.448043ms)
+✔ env import skips a plugin that still has a token pending from create-site onboarding (1.029868ms)
+✔ a save whose switch-on failed is switched on by the next import, without touching the saved token (4.391789ms)
+✔ an already-connected row is not switched on when an operator turned the plugin off (2.808551ms)
+✔ a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on (4.743226ms)
+✔ env import warns on listing failure and logs plural retirement notices even without an import declaration (1.686131ms)
+✔ env import logs an operator-off save once and remains silent on its credential-preserving retry (2.453061ms)
+✔ without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing (4.503811ms)
+✔ an Error thrown while listing plugins is reported by its message (1.146553ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4086.069361

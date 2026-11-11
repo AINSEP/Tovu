@@ -1,0 +1,14 @@
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings, provides site-search and says vendors get public content only (5.487266ms)
+✔ mcp.json declares ZERO servers — the provider runs in-process through the search-provider registry (1.89199ms)
+✔ the package packs through the real packer with its manifest, provider module and skill (3.347773ms)
+✔ from source, the manifest yields exactly the meilisearch provider, which the site-search registry accepts as a plugin provider (6.043306ms)
+[agent-plugins:migration-complete] /tmp/tovu-meilisearch-plugin-vFDrrA/ws/workspace-local
+✔ seeded by the real seeder, meilisearch is SWITCHED OFF and contributes nothing; switched on, the installed digest contributes its provider (89.442494ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1744.671812

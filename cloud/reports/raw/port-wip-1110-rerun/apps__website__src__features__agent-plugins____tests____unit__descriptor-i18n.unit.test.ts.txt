@@ -1,0 +1,22 @@
+✔ absent i18n parses to undefined; a well-formed block round-trips (1.938758ms)
+✔ each malformed shape is refused with its exact reason (0.256125ms)
+✔ translation length accepts 2000 characters and refuses 2001 (0.22317ms)
+✔ the caps on locales and strings per locale hold (0.54222ms)
+✔ a deploy target carries its i18n block; a bad one refuses the file with the target's path (0.811456ms)
+✔ a git host carries its i18n block; a bad one refuses the file with the provider's path (1.100514ms)
+✔ cloudflare/tovu-deploy-targets.json: every i18n key is a string that entry declares (no stale translation) (0.990064ms)
+✔ github-pages/tovu-deploy-targets.json: every i18n key is a string that entry declares (no stale translation) (0.690214ms)
+✔ netlify/tovu-deploy-targets.json: every i18n key is a string that entry declares (no stale translation) (0.376318ms)
+✔ s3-compatible/tovu-deploy-targets.json: every i18n key is a string that entry declares (no stale translation) (1.255059ms)
+✔ vercel/tovu-deploy-targets.json: every i18n key is a string that entry declares (no stale translation) (0.341151ms)
+✔ github/tovu-source-control.json: every i18n key is a string that entry declares (no stale translation) (0.333828ms)
+✔ every bundled descriptor file still parses with its i18n blocks (4.273185ms)
+✔ descriptor i18n validates locales and entries in insertion order without trimming saved text (0.587551ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 571.766954

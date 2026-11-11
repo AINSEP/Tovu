@@ -1,0 +1,49 @@
+✔ the preload config includes speech source and the deployed bundle is fresh (1.333162ms)
+✔ the compiled preload requires nothing but "electron" — a sandboxed preload's require resolves no relative specifier (1.009103ms)
+✔ window.tovuFiles and window.tovuImport are exposed on the admin surface — /admin and every path under /admin/ (3.594851ms)
+✔ window.tovuFiles and window.tovuImport are NOT exposed to same-origin public pages, previews, or look-alike paths (4.685891ms)
+✔ compiled voice bridge forwards the channels, sample object and sample rate and returns IPC results (1.098073ms)
+✔ compiled admin file bridge delegates to webUtils and returns the resolved path (2.47021ms)
+✖ compiled admin import bridge asks main to open the Import tab, forwarding only a string address (2.317554ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 450.504148
+
+✖ failing tests:
+
+test at src/speech/preload-speech.test.ts:148:1
+✖ compiled admin import bridge asks main to open the Import tab, forwarding only a string address (2.317554ms)
+  AssertionError [ERR_ASSERTION]: Values have same structure but are not reference-equal:
+  
+  [
+    [
+      'tovu:import:open',
+      {
+        address: 'https://example.com'
+      }
+    ],
+    [
+      'tovu:import:open',
+      {}
+    ],
+    [
+      'tovu:import:open',
+      {}
+    ]
+  ]
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/speech/preload-speech.test.ts:154:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'tovu:import:open', [Object] ], [ 'tovu:import:open', {} ], [ 'tovu:import:open', {} ] ],
+    expected: [ [ 'tovu:import:open', [Object] ], [ 'tovu:import:open', {} ], [ 'tovu:import:open', {} ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

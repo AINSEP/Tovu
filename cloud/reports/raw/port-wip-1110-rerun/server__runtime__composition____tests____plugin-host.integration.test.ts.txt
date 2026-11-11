@@ -1,0 +1,40 @@
+✔ owner 2026-10-09: both families share one live metadata lookup with workspace isolation (21.140756ms)
+✔ the executable site SDK receives only live metadata methods through the existing loader (12.710772ms)
+✔ the manifest adapter never includes malformed package bytes in its error (5.216754ms)
+✔ legacy metadata warns, preserves the install and never infers provides from permissions (2.269524ms)
+✔ cross-family identity admission refuses duplicates before publication and releases its lock (6.041472ms)
+✔ the composed installer reserves built-in publisher ids even without a cross-family host (8.393599ms)
+✔ plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization (5.277063ms)
+✔ search_tools indexes a site plugin keyword and provides capability (12.723759ms)
+✔ every bundled agent and site package declares a distinct publisher identity and discovery terms (427.223335ms)
+✔ parallel host adapters serialize duplicate identity admission across plugin kinds (15.007763ms)
+✔ unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs (7.162799ms)
+✔ conflicting revisions retain every publisher reservation even when a bundled ledger selects one (11.690007ms)
+✔ a broken revision cannot hide the only valid operator revision (2.112304ms)
+✔ one malformed identity never hides healthy providers or blocks admission (2.971008ms)
+✔ rejected duplicate site records do not reappear in the host directory (1.676925ms)
+✔ same-name legacy plugins in different families are independently addressable (2.084468ms)
+✔ MCP provisioning logs each server and reason while preserving activation success (8.247313ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source false (68.869975ms)
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source true (41.721228ms)
+✔ L058b site discovery omits invalid identities and propagates activation read failures (3.931821ms)
+✔ L058b default agent activation is resolved through the lifecycle owner (10.483709ms)
+✔ L058b agent revision lookup and admission retain distinct selection contracts (7.618159ms)
+✔ the composed MCP port preserves store errors by identity and persists through the bound store (1.944436ms)
+✔ an approved enable reports the failed server and redacted reason to the owner (3.145642ms)
+✔ an approved enable missing its snapshot cannot provision connections (1.367762ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2395.475211

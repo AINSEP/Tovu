@@ -1,0 +1,15 @@
+✔ a trusted admin page opens the sites home's Import tab with its address, and brings the window forward (2.828822ms)
+✔ without an address the Import tab still opens, empty (0.62686ms)
+✔ with no sites home window open, nothing is sent and the admin hears it was not opened (0.205746ms)
+✔ an untrusted page is refused in plain words and no window is touched (2.141083ms)
+✔ a request with no sender frame is refused (0.32228ms)
+✔ the request keeps only a bounded, nonblank string address (0.215986ms)
+✔ main/index.ts registers the hand-off with the speech channels' shell-page sender check and the sites home windows (1.265601ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 195.761983

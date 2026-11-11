@@ -1,0 +1,12 @@
+✔ premise: plugins_set_enabled accepts the 'agent-plugin' family (33.913279ms)
+✔ the custom fs root's description names plugins_set_enabled for enabling tovu-theme, and never claims no tool can (0.45993ms)
+✔ no bundled Agent Plugin markdown tells the model it cannot enable a plugin (10.483883ms)
+✔ bundled cold-start guidance names confirmed enablement and Agent Plugin family (0.435252ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1526.72978

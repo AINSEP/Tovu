@@ -1,0 +1,40 @@
+✔ a bundled ops manifest loads every contained module and refuses unknown ids (19.217824ms)
+✔ malformed manifests and missing modules are reported refusals, never thrown (5.007997ms)
+✔ parser refuses duplicate platforms, empty hosts and escaping paths (1.65382ms)
+▶ invalid descriptor fields return exact refusals and load no platforms
+  ✔ more than 32 platforms (3.897153ms)
+  ✔ non-object entry (3.088191ms)
+  ✔ invalid id (2.540645ms)
+  ✔ blank label (2.734057ms)
+✔ invalid descriptor fields return exact refusals and load no platforms (13.575861ms)
+▶ invalid module and secrets-adapter shapes return exact refusals and are not registered
+  ✔ partial secrets adapter (3.282914ms)
+  ✔ missing secret capabilities (3.217102ms)
+  ✔ non-function status (2.504685ms)
+✔ invalid module and secrets-adapter shapes return exact refusals and are not registered (9.795264ms)
+✔ installed fly package must be active and match the bundled digest (70.12046ms)
+✔ installed github package must be active and match the bundled digest (47.083627ms)
+✔ installed railway package must be active and match the bundled digest (45.569006ms)
+✔ installed render package must be active and match the bundled digest (39.927614ms)
+✔ bundled ops discovery unions categories, skips missing/non-package/retired sources and refuses duplicates in registry and enum (16.025393ms)
+Plugin 'example-pages' has no publisher-qualified id; using 'unknown/example-pages'.
+✔ a digest-trusted package outside the ops owners cannot become a parallel ops owner (39.092642ms)
+▶ secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason
+  ✔ capabilities without verbs (3.645807ms)
+  ✔ readSecret without verbs (3.346433ms)
+  ✔ unknown appliesOn (3.358729ms)
+  ✔ non-boolean supportsStaging (3.064314ms)
+  ✔ non-function optional verb (3.104793ms)
+  ✔ a complete secrets adapter loads (2.970633ms)
+✔ secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason (20.991415ms)
+✔ an unreadable manifest is a refusal for the registry and is skipped by enum discovery (6.568903ms)
+✔ a loader fault becomes one refusal, and requirePlatform names no platforms plus every refusal (1.212164ms)
+✔ an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal (2.460643ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2433.006766

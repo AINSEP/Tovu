@@ -1,0 +1,19 @@
+✔ renders the generator's config to stdout and its operator notes to stderr (25.924421ms)
+✔ keeps the product's Chromium note when cwd has deployment inputs but no overlays (10.991839ms)
+✔ the deployed server is named by the local site's .site-meta.json siteId (TOVU_SITE_ID in the generated env) (3.868657ms)
+✔ a site that cannot be resolved still renders, without TOVU_SITE_ID, and says why on stderr (4.370399ms)
+✔ --out writes the rendered file and reports where (4.229501ms)
+✔ without --region the generator receives an empty region and refuses to assume one (3.815574ms)
+✔ a missing or unknown --target is refused with the loaded ids (15.08611ms)
+✔ a refused generator is explained on stderr before the target is rejected (3.565301ms)
+✔ by default the rendered config goes to stdout (3.627921ms)
+✔ --site <name> picks which local site's id is stamped, and stderr says which site it was (6.33604ms)
+✔ a site id that is not a short token (a newline, quotes, a long string) is never stamped into the config (2.627653ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1717.822315

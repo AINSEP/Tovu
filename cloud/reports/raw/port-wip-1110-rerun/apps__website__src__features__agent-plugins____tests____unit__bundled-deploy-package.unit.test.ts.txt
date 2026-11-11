@@ -1,0 +1,27 @@
+✔ each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them) (293.507811ms)
+✔ github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.5237ms)
+✔ vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed (3.665857ms)
+✔ netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed (2.606106ms)
+✔ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.502447ms)
+✔ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.527835ms)
+✔ s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed (5.76948ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-ahFifi/ws/workspace-local
+✔ existing site: an earlier explicitly ENABLED deploy record is retired at the next boot, and every host is on (1741.319538ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-uNQr0a/ws/workspace-local
+✔ an untouched disabled deploy seed retires without enabling opt-in hosts (1527.803131ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-LWJtGU/ws/workspace-local
+✔ an existing site whose operator switched deploy off keeps the split-out hosting plugins off (1336.745714ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-vMxE9m/ws/workspace-local
+✔ an operator who switched fly (deploy's server successor) off stays switched off across boots (3438.191533ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-PNV9d4/ws/workspace-local
+✔ seeded by the real seeder, hosts start disabled, explicit enable loads targets, deploy is never seeded, and the registry loads Netlify from the installed digest (1718.162494ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-5qHB03/ws/workspace-local
+✔ upgrade: a site holding an OLDER bundled host digest serves the new one after the next boot, with no user action (88.429331ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11754.219983

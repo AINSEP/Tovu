@@ -1,0 +1,28 @@
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-PZCTIW/ws/33333333-3333-4333-8333-333333333333
+✔ seeding installs the real bundled package and records it INACTIVE (2384.812063ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-CPNvJ9/ws/33333333-3333-4333-8333-333333333333
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection (2461.632728ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-hOEAuC/ws/33333333-3333-4333-8333-333333333333
+✔ GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugin_* tool (1973.91002ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-7GZYdo/ws/33333333-3333-4333-8333-333333333333
+✔ GATE 2 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed' (1997.83149ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-T5vpII/ws/33333333-3333-4333-8333-333333333333
+✔ enabling the plugin opens both gates together (1968.267836ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-3GkmOh/ws/33333333-3333-4333-8333-333333333333
+✔ disabling it again closes them (1989.670532ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-7sgNyK/ws/33333333-3333-4333-8333-333333333333
+✔ re-seeding is idempotent — same digest, no duplicate install, decision preserved (4217.404251ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-BfMyf3/ws/33333333-3333-4333-8333-333333333333
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ every core, public and bundled guide tool pointer resolves to a currently registered tool (1996.715689ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23414.11776

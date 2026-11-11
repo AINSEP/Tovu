@@ -1,0 +1,17 @@
+✔ bundled ui-ux-design has a valid manifest and is on the seeded-enabled list (52.255633ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-seed-mGcA9g/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeds correctly for new site (161.15391ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-seed-1LWQz9/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeds correctly for untouched disabled seed (127.087536ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-seed-Yb6eBC/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeds correctly for operator disabled (126.948531ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-manual-Td7Swn/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeding selects its bundled revision over a manual install, keeps the manual digest, and stays singular across boots (430.848861ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1625.097317

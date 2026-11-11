@@ -1,0 +1,34 @@
+✔ Phase 3 actual shell screens and Create website button send only catalog IDs (116.87434ms)
+✔ App: the header chip and running card display the same resource snapshot (60.196286ms)
+✔ App: a stopped site's tab offers Start and shows the boot wait with the button disabled (64.976139ms)
+✔ App: an empty Projects screen explains the header actions, and the header buttons reach the bridge (61.487614ms)
+✔ App: loading, a failed list, a failed rescan and a refused add each read as their own message (82.779596ms)
+✔ App: the nav badges running sites, inert links do nothing, and an agent navigate shows the unbuilt section (48.788627ms)
+✔ App: closing a running site's tab asks; Keep running leaves it running, Stop stops it, and a stopped site just closes (83.924944ms)
+✔ T3: navigating away from Websites and back preserves the open admin webview (41.266983ms)
+✔ App: the Settings menu opens, moves with the arrows, picks a theme, opens Sites settings and Appearance (45.146844ms)
+✔ App: Check for updates… reads Checking… until main answers, then closes (42.965595ms)
+✔ App: without checkForUpdates on the bridge the Settings menu has no update row (14.598424ms)
+✔ App: a created site's notice says it is ready with its token outcome, and Cancel returns to the grid (73.059504ms)
+✔ App: a site tab's bar toggles views, opens the browser, expands the window, and Escape collapses it (55.739867ms)
+✔ App: a guest that fails to load is replaced by a retry panel, and a slow one gets an overlay after 8 s (39.113518ms)
+✔ App: a site attached to another app's server says it is connecting, then shows why the attach failed (21.513319ms)
+✔ App: Find opens its bar, Enter and Shift+Enter step through matches, and Escape closes it (35.079146ms)
+✔ App: re-adding a tracked site opens its tab with the notice, and an overflowing strip shows scroll arrows (29.169871ms)
+✔ App: Import never opens or starts a site, whether sites exist or not (17.410725ms)
+✔ App: an old address error does not hide the error of the folder just tried (28.805776ms)
+✔ App: a chosen .tovu.zip opens the new site, starts it by itself, and shows the toast with the importer's notices (40.764245ms)
+✔ App: a refused archive says why in plain words, makes no tab and stays on the page (39.011628ms)
+✔ App: Cancel during an archive import stops it, opens nothing and stays on the page (30.377396ms)
+✔ App: an import that fails after the person left the page reaches them as a toast (37.862813ms)
+✔ App: a live import starts its new site, shows Starting, then opens the admin Import page (44.442981ms)
+✔ App: a live import whose new site is already running opens Import without starting it again (36.821721ms)
+✔ App: a share link goes to the archive importer, a live address to Create (36.291858ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4108.962835

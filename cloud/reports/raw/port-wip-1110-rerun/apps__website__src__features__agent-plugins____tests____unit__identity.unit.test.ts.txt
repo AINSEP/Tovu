@@ -1,0 +1,16 @@
+✔ host maturity accepts both flags and leaves absent metadata normal (1.715055ms)
+✔ unknown host maturity is ignored with a warning, without reflecting arbitrary manifest values (0.859158ms)
+✔ the provider plugin link is read from Tovu's extension; a malformed one warns and links nothing (0.420517ms)
+✔ reads plugin.json from the package root and projects its publisher identity (0.43336ms)
+✔ a legacy manifest without a publisher id falls back to the lifecycle plugin id with a warning (0.254331ms)
+✔ an unreadable manifest is reported as one stable error, not the raw fs failure (0.603982ms)
+✔ malformed JSON is reported the same way as a missing file (0.181269ms)
+✔ the default reader reads the real file from disk (19.617635ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 360.616192

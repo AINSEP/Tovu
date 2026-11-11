@@ -1,0 +1,25 @@
+✔ config fields and env fallback parse; absent ones default to none (3.140047ms)
+✔ a config field may carry a separate person-facing userHelp; a non-string one is refused (0.428524ms)
+✔ the shipped github-pages owner field has person-facing help that does not address the agent (8.18494ms)
+✔ a credential may carry a separate person-facing userHelp; a non-string one is refused (0.675499ms)
+✔ the shipped S3 credential and Public URL speak to the person, not in the agent's voice (6.456776ms)
+✔ the shipped Cloudflare credential help and Account ID help do not point to different places (9.114429ms)
+✔ a config field may not shadow a publish request's own keys (0.363675ms)
+✔ a config field is never secret: the agent passes config in the clear, so a secret belongs on the credential (0.294583ms)
+✔ malformed config fields and env blocks are refused with the exact reason (1.483552ms)
+✔ the shipped hosting plugins declare the publish fields and env vars core used to hard-code (9.138975ms)
+✔ a credential block parses: vendor, declared fields, and which field is the token (default 'token') (0.445431ms)
+✔ malformed credential blocks are refused with the exact reason (0.432962ms)
+✔ credential token links must be HTTPS and project-name copy rejects malformed labels and help (0.447681ms)
+✔ the shipped hosting plugins name each credential check's vendor and which hosts return an account label (55.047471ms)
+✔ the shipped hosting plugins declare the credential fields and vendors core used to hard-code (8.60583ms)
+✔ the targets file refuses invalid JSON, a missing targets array and duplicate ids; projectName copy may omit help (0.40309ms)
+✔ a source directory's targets load through loadDeployTargetRegistryFromSource, with a non-object module refused (9.971807ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 558.871754

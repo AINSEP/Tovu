@@ -1,0 +1,19 @@
+✔ site-import is on the seeded-enabled list (31.197798ms)
+[agent-plugins:migration-complete] /tmp/tovu-site-import-plugin-Ap7rSV/ws/workspace-local
+✔ a fresh site seeds site-import ENABLED with no owner action (64.89866ms)
+[agent-plugins:migration-complete] /tmp/tovu-site-import-plugin-ywJxoa/ws/workspace-local
+✔ an existing site whose record is the seeder's untouched OFF is switched on at the next boot (52.03117ms)
+[agent-plugins:migration-complete] /tmp/tovu-site-import-plugin-4Flr0Z/ws/workspace-local
+✔ an owner who switched site-import off stays off across boots (81.509077ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings (1.650263ms)
+✔ plugin.json's keywords carry the words an owner uses when asking to move a site (0.880996ms)
+✔ mcp.json declares ZERO servers — the plugin runs entirely on native tools (1.147922ms)
+✔ the eponymous skill exists and its frontmatter names it (1.09267ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1728.34571

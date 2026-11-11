@@ -1,0 +1,23 @@
+✔ parseObjectStoresFile: accepts entries with and without a label, keeping label only when given (1.943627ms)
+✔ parseObjectStoresFile: a label of exactly 100 characters is accepted, 101 is refused (0.283187ms)
+✔ parseObjectStoresFile: refuses text that is not JSON (0.225567ms)
+✔ parseObjectStoresFile: refuses a non-object root or any schemaVersion other than 1 (0.211392ms)
+✔ parseObjectStoresFile: refuses providers that is not an array (0.155104ms)
+✔ parseObjectStoresFile: refuses an entry that is not a plain object, naming its index (0.222883ms)
+✔ parseObjectStoresFile: refuses a non-string id (0.157159ms)
+✔ parseObjectStoresFile: refuses a module that is not a string, not .mjs, or absolute (0.229278ms)
+✔ parseObjectStoresFile: refuses a label that is non-string or blank (0.226024ms)
+✔ parseObjectStoresFile: refuses an id declared twice in one file (0.29664ms)
+✔ loadObjectStoreRegistry: local is seeded and default; plugin items are contributed; loader and registry refusals merge in order (10.213835ms)
+✔ loadObjectStoreRegistry: the seeded local provider writes under uploadsDir (9.938809ms)
+✔ loadBundledObjectStoreRegistry: the real bundled source contributes s3_compatible from the s3-compatible plugin, with no refusals (592.372191ms)
+✔ loadBundledObjectStoreRegistry: a bad manifest and a non-provider module become refusal lines; good plugins still load (18.465465ms)
+✔ loadBundledObjectStoreRegistry: an empty source root yields only local (2.36335ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1052.732337

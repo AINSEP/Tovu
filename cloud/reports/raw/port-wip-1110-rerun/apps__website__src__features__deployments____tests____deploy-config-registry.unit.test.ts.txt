@@ -1,0 +1,19 @@
+✔ the bundled plugin union declares fly, railway, render in plugin-id order, each with a render() (499.153496ms)
+✔ a module without render() is refused and its siblings still load (9.210509ms)
+✔ a module path that escapes the plugin root is refused (3.152406ms)
+✔ a malformed manifest drops the plugin with the parse reason (2.660768ms)
+✔ a directory without the manifest contributes nothing and is not an error (1.680936ms)
+✔ parseDeployConfigsFile: rejects each malformed shape with its exact reason (0.564394ms)
+✔ readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules (0.894261ms)
+✔ readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids (3.453629ms)
+✔ bundled config discovery skips missing categories, non-packages and retired ids; refuses cross-package duplicates (25.036489ms)
+✔ L210 descriptor validation preserves boundaries, error precedence and original strings (0.59511ms)
+✔ workflow declarations use the installed active contribution gate and preserve all choices (0.58418ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1150.873429

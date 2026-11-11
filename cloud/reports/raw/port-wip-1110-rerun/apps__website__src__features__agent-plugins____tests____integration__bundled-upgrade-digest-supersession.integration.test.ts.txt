@@ -1,0 +1,26 @@
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-YXrC1V/ws/44444444-4444-4444-8444-444444444444
+✔ a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest (155.238555ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-FRFiRt/ws/44444444-4444-4444-8444-444444444444
+✔ a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content (116.792331ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-4G2582/ws/44444444-4444-4444-8444-444444444444
+✔ an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump (185.025868ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-4ILF5z/ws/44444444-4444-4444-8444-444444444444
+✔ an upgrade keeps the superseded bytes and the newly published digest; the ledger names the new one (121.672957ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-ydXIFf/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-a6hvff/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-xPWyhs/ws/44444444-4444-4444-8444-444444444444
+✔ the admin listing reports the version the RUNNING build ships, in EITHER seeding order (244.121126ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-xO8ua6/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-hKJVbC/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-R1oreW/ws/44444444-4444-4444-8444-444444444444
+✔ MCP federation reads the RUNNING build's package, in EITHER seeding order (241.078355ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-zAtPur/ws/44444444-4444-4444-8444-444444444444
+✔ a bundled upgrade preserves an operator's disabled decision and keeps both gates closed (94.316991ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2956.595946

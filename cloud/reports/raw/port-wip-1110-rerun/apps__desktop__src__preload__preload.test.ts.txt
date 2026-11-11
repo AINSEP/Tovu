@@ -1,0 +1,14 @@
+(node:6198) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6198) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ preload.mts uses the shared speech bridge with the Tovu channel namespace (0.862954ms)
+✔ preload.mts exposes both bridges — dropping either is what the port had to avoid (0.240424ms)
+✔ the ESM preload exposes shared keys, runner and voice and maps methods to fixed contract channels (38.991568ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 463.48462

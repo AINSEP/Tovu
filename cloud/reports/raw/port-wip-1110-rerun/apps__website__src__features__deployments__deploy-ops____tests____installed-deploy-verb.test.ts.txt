@@ -1,0 +1,16 @@
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-8SaV3I/ws/workspace-local
+✔ split upgrade: deploy=false, github=false — Actions follows github, Fly follows deploy (2358.725116ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-ngyP4g/ws/workspace-local
+✔ split upgrade: deploy=false, github=true — Actions follows github, Fly follows deploy (1803.998381ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-8X9Y3K/ws/workspace-local
+✔ split upgrade: deploy=true, github=false — Actions follows github, Fly follows deploy (1719.767394ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-gMoIOW/ws/workspace-local
+✔ split upgrade: deploy=true, github=true — Actions follows github, Fly follows deploy (1779.260926ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9385.222445

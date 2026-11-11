@@ -1,0 +1,18 @@
+✔ ImportWebsite: files first, then the web address, explained by tooltips; no back link, label or second title (78.578782ms)
+✔ ImportWebsite: the shared drop zone holds both Choose buttons, and its own picker routes a .zip by its real path (34.794462ms)
+✔ ImportWebsite: each button reaches its own source, and Cancel goes back (19.796487ms)
+✔ ImportWebsite: working disables both sources and says so on the button that was pressed (21.388852ms)
+✔ ImportWebsite: a failure shows its words and a Copy details button; the address stays in the field (21.485451ms)
+✔ ImportWebsite: not shown renders nothing (1.709796ms)
+✔ ImportWebsite: while an archive imports, Cancel stops the import instead of hiding the page (7.888391ms)
+✔ ImportWebsite: once asked to stop, Cancel says so and cannot be pressed twice (6.750933ms)
+✔ ImportWebsite: Cancel is disabled while a live address makes its site, which cannot be stopped (5.328837ms)
+✔ ImportWebsite: tells its owner when the page opens, and not while it is hidden (5.18162ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2577.363557
