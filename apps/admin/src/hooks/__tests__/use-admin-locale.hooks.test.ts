@@ -175,3 +175,40 @@ describe("language query ownership", () => {
     await waitFor(() => expect(result.current).toEqual({ first: "de", second: "de" }));
   });
 });
+
+// L13 Stryker: the per-principal query key and the `enabled: !checking` boot gate survived.
+import { AdminBootScopeContext } from "../../lib/admin-boot-scope";
+import type { ReactNode } from "react";
+import { createElement } from "react";
+
+describe("useAdminLocale — boot scope", () => {
+  it("does not read while the session is still being checked, then reads once it settles", async () => {
+    const fake = createFakeAdminLocalePort({ initialLocale: "fr" });
+    const read = vi.fn(() => fake.loadLanguage());
+    const scope = { principalId: "a" as string | null, checking: true };
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(AdminBootScopeContext.Provider, { value: { ...scope } }, children);
+    const { result, rerender } = renderHook(() => useAdminLocale({ ...fake, loadLanguage: read }), { wrapper });
+    await act(async () => { await Promise.resolve(); });
+    expect(read).not.toHaveBeenCalled();
+    expect(result.current).toBe(DEFAULT_LOCALE);
+    scope.checking = false;
+    rerender();
+    await waitFor(() => expect(result.current).toBe("fr"));
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("a different principal gets its own read instead of the previous principal's cached locale", async () => {
+    let locale = "fr";
+    const fake = createFakeAdminLocalePort({ initialLocale: "fr" });
+    const read = vi.fn(async () => locale);
+    const scope = { principalId: "a" as string | null, checking: false };
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(AdminBootScopeContext.Provider, { value: { ...scope } }, children);
+    const { result, rerender } = renderHook(() => useAdminLocale({ ...fake, loadLanguage: read }), { wrapper });
+    await waitFor(() => expect(result.current).toBe("fr"));
+    locale = "de";
+    scope.principalId = "b";
+    rerender();
+    await waitFor(() => expect(result.current).toBe("de"));
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+});

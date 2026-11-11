@@ -60,3 +60,64 @@ it.each([
   expect(result.current).toMatchObject({ prefix, suffix });
   expect(result.current.groups[0]!.items[0]!.label).toBe(label);
 });
+
+// L13 Stryker: the truncation measure (`scrollWidth > clientWidth`, its boundary), the resize
+// re-measure, and the `data-cms-sites-split` marker/cleanup had no coverage (jsdom has no layout, so
+// the measure port is injected).
+import { act, render } from "@/__tests__/fetch-query-render";
+
+function Probe({ measure, onView }: { measure?: (element: HTMLElement) => { scrollWidth: number; clientWidth: number }; onView: (view: ReturnType<typeof useSitesSidebarNav>) => void }) {
+  const port: Pick<SitesPort, "listSites"> = { listSites: async () => ({
+    switchingEnabled: true, sites: [], persistedSiteName: "p",
+    currentSite: { name: "a-very-long-site-name", dir: "/sites/current", listed: false, dirOverridden: false },
+  }) };
+  const view = useSitesSidebarNav({ groups, locale: "en" }, measure ? { port, measure } : { port });
+  onView(view);
+  return createElement("span", { ref: view.nameRef }, view.siteName);
+}
+
+it("titles a truncated name only while it overflows, re-measuring on resize, and marks then unmarks the shared row", async () => {
+  const nav = document.createElement("nav");
+  nav.id = "admin-sidebar";
+  nav.innerHTML = `<a class="cms-item" href="/admin/sites"><span>Sites</span></a>`;
+  document.body.append(nav);
+  const size = { scrollWidth: 120, clientWidth: 120 };
+  let view!: ReturnType<typeof useSitesSidebarNav>;
+  const rendered = render(createElement(Probe, { measure: () => ({ ...size }), onView: v => { view = v; } }), { wrapper: SidebarScope });
+  const row = nav.querySelector("a")!;
+  await waitFor(() => expect(view.target).toBe(row));
+  expect(row.hasAttribute("data-cms-sites-split")).toBe(true);
+  expect(view.title).toBeUndefined();
+  size.scrollWidth = 121;
+  act(() => { window.dispatchEvent(new Event("resize")); });
+  expect(view.title).toBe("a-very-long-site-name");
+  size.scrollWidth = 120;
+  act(() => { window.dispatchEvent(new Event("resize")); });
+  expect(view.title).toBeUndefined();
+  rendered.unmount();
+  expect(row.hasAttribute("data-cms-sites-split")).toBe(false);
+  nav.remove();
+});
+
+it("the default measure reads the element's own widths, and a ResizeObserver re-measures when present", async () => {
+  const observed: Element[] = [];
+  let fire!: () => void;
+  const disconnect = vi.fn();
+  vi.stubGlobal("ResizeObserver", class { constructor(cb: () => void) { fire = cb; } observe(el: Element) { observed.push(el); } disconnect() { disconnect(); } });
+  const nav = document.createElement("nav");
+  nav.id = "admin-sidebar";
+  document.body.append(nav);
+  let view!: ReturnType<typeof useSitesSidebarNav>;
+  const rendered = render(createElement(Probe, { onView: v => { view = v; } }), { wrapper: SidebarScope });
+  await waitFor(() => expect(view.siteName).toBe("a-very-long-site-name"));
+  const span = observed.at(-1) as HTMLElement;
+  expect(span.textContent).toBe("a-very-long-site-name");
+  Object.defineProperty(span, "scrollWidth", { configurable: true, value: 300 });
+  Object.defineProperty(span, "clientWidth", { configurable: true, value: 100 });
+  act(() => fire());
+  expect(view.title).toBe("a-very-long-site-name");
+  rendered.unmount();
+  expect(disconnect).toHaveBeenCalled();
+  nav.remove();
+  vi.unstubAllGlobals();
+});

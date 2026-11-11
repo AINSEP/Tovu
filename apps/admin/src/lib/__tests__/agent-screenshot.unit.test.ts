@@ -204,3 +204,32 @@ describe("ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID", () => {
     expect(ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID).toBe("admin.capture_screenshot");
   });
 });
+
+// L13 Stryker: dropping the `^`/`$` anchors from the data-URL regex survived. A malformed first
+// attempt must be skipped (falling through to the next quality), never parsed into an image block.
+describe("data-URL parsing — anchors and parts (L13)", () => {
+  for (const malformed of [
+    "xdata:image/jpeg;base64,QUJD", " data:image/jpeg;base64,QUJD", "data:image/jpeg;base64,", "data:;base64,QUJD",
+    "data:image/jpeg,QUJD", "data:image/jpeg;base64QUJD", "prefix data:image/png;base64,QUJD",
+  ]) {
+    it(`skips ${JSON.stringify(malformed)} and uses the next attempt`, async () => {
+      const element = document.createElement("main");
+      document.body.appendChild(element);
+      const urls = [malformed, "data:image/jpeg;base64,WFla"];
+      const canvas = { toDataURL: vi.fn(() => urls.shift()!) };
+      const result = await captureAdminScreenshotToolResult({ element, renderElementToCanvas: vi.fn().mockResolvedValue(canvas) });
+      expect(canvas.toDataURL).toHaveBeenCalledTimes(2);
+      expect(result.content[1]).toEqual(expect.objectContaining({ type: "image", mimeType: "image/jpeg", data: "WFla" }));
+      document.body.removeChild(element);
+    });
+  }
+
+  it("keeps a multi-line payload whole and reads the mime type up to the first ';'", async () => {
+    const element = document.createElement("main");
+    document.body.appendChild(element);
+    const canvas = { toDataURL: vi.fn(() => "data:image/png;base64,QU\nJD") };
+    const result = await captureAdminScreenshotToolResult({ element, renderElementToCanvas: vi.fn().mockResolvedValue(canvas) });
+    expect(result.content[1]).toEqual(expect.objectContaining({ mimeType: "image/png", data: "QU\nJD" }));
+    document.body.removeChild(element);
+  });
+});
