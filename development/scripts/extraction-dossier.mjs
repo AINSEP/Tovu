@@ -38,6 +38,10 @@ if (arg("--drift")) {
   const t = since(stamp.tovu, paths); const j = since(stamp.jini, ["packages"]);
   console.log(`commits since build touching slice files: ${t.length}${batch ? ` (batch ${batch})` : ""}`); t.slice(0, 20).forEach((l) => console.log(`  ${l}`));
   console.log(`Jini commits since build touching packages/: ${j.length}`); j.slice(0, 10).forEach((l) => console.log(`  ${l}`));
+  // v4 (judge 2 #11): refuse to judge across a mismatch: non-zero exit when the slice or Jini moved.
+  const headNow = execFileSync("git", ["-C", stamp.tovu.dir, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  if (headNow !== stamp.tovu.head) console.log(`Tovu HEAD ${headNow.slice(0, 9)} != dossier ${stamp.tovu.head.slice(0, 9)}${t.length ? "" : " (no slice file changed)"}`);
+  if (t.length || j.length) { console.log("DRIFT: rebuild the dossier or re-check these files before judging."); process.exit(1); }
   process.exit(0);
 }
 const ts = createRequire(import.meta.url)(path.join(TOVU, "node_modules/typescript"));
@@ -72,6 +76,8 @@ const LEGACY_MIN_SHARED = 20;      // modules say too little). Calibrated on adm
 // false LEGACY-TWINs. A Jaccard floor of 0.05 drops the 0.02-0.04 noise but keeps admin media (0.06,
 // pilot-proven). An admin->@jini-ai/admin name match keeps the old bar: same app, same module name.
 const LEGACY_FLOOR = 0.05;
+// v4 (judge 3 #9): a LEGACY-TWIN lifts a file only when the file itself shares this many distinctive tokens.
+const LEGACY_OWN_MIN_SHARED = 8;
 // Same-name twins (round-2 judge 1 #2, judge 3 #2): names this long, defined in <= this many files.
 const NAME_TWIN_MIN_LEN = 8, NAME_TWIN_MAX_SITES = 6;
 // Small structural twins: one-statement bodies with >= this many AST nodes hash by node kinds only
@@ -92,6 +98,8 @@ const NORM_MIN_CHARS = 60, NORM_BUCKET_CAP = 6;
 // shared with one Jini unit. Calibrated so decodeSseFrames / createBrowserSessionStore-style
 // restructured copies surface (judge 1 #2) without matching every CRUD helper.
 const UNIT_BEH_MIN_SHARED = 8, UNIT_BEH_MIN_JACCARD = 0.5, UNIT_BEH_MAX_DF = 40;
+const UNIT_BEH_TT_MIN_SHARED = 12, UNIT_BEH_TT_MIN_JACCARD = 0.6; // Tovu<->Tovu beh twins (report-only)
+const UNIT_BEH_CONTAIN = 0.75, UNIT_BEH_CONTAIN_MIN = 0.4; // containment path of the beh pass (see there)
 // A module-level Jini twin: summed best-unit similarity >= this with >= 2 matched units, or one unit
 // >= 0.8 that is >= 5 statements (judge 1 #2: rank by summed similarity, not a same-name hit).
 const MODULE_TWIN_MIN_SUM = 1.2;
@@ -212,7 +220,9 @@ for (const dir of fs.readdirSync(path.join(JINI, "packages"))) {
   const pj = path.join(JINI, "packages", dir, "package.json");
   if (!fs.existsSync(pj)) continue;
   const json = JSON.parse(fs.readFileSync(pj, "utf8"));
-  if (json.name?.startsWith("@jini-ai/")) { jiniPkgs.set(json.name, { dir: path.join(JINI, "packages", dir), exports: json.exports ?? {} }); jiniPkgByDir.set(dir, json.name); }
+  if (json.name?.startsWith("@jini-ai/")) { jiniPkgs.set(json.name, { dir: path.join(JINI, "packages", dir), exports: json.exports ?? {},
+    // v4 (judge 1 #6, judge 3 #11): declared @jini-ai deps, for CORE-CONTRACT-NEEDED from the package graph.
+    deps: Object.keys({ ...json.dependencies, ...json.peerDependencies }).filter((d) => d.startsWith("@jini-ai/")) }); jiniPkgByDir.set(dir, json.name); }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -434,7 +444,8 @@ function parseFile(abs, info) {
     if (statements < MIN_UNIT_STATEMENTS && kinds.length >= SMALL_KINDS_MIN && kindTag !== "class") { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsKey = `${kinds.length}:${h >>> 0}`; }
     // v4: full kind-sequence hash (same-file twin pass: readSiteAssistant <-> readAdminByok, judge 3 #3),
     // normalised text hash and behaviour tokens (name-independent Jini twins, judge 1 #2, judge 2 #3).
-    let kindsAll = null; if (kindTag !== "class" && kinds.length >= 30) { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsAll = `${kinds.length}:${h >>> 0}`; }
+    // >= 20 kinds (part 2: readSiteAssistant/readAdminByok, two 2-statement bodies, fell under 30).
+    let kindsAll = null; if (kindTag !== "class" && kinds.length >= 20) { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsAll = `${kinds.length}:${h >>> 0}`; }
     const norm = kindTag !== "class" ? normHash(body, node.parameters ?? node.initializer?.parameters ?? extra.params ?? []) : null;
     const ubeh = kindTag !== "class" && statements >= 2 ? unitBeh(body) : null;
     delete extra.params;
@@ -1833,14 +1844,19 @@ for (const rec of legacyTwins) {
   const jRoutes = new Set(); const jPerms = new Set();
   for (const ja of rec.jfiles) { const f = facts.get(ja); for (const r of f.routeLits) if (segs(r).length >= 2) jRoutes.add(r); for (const p0 of f.permLits) jPerms.add(p0.value); }
   for (const r of jRoutes) {
-    if (tovuRouteList.some((t) => suffixMatch(t, r))) continue;
+    // Tovu-side :param must not swallow a Jini literal segment (`/system/:p` "matched" /system/site-token).
+    if (tovuRouteList.some((t) => suffixMatch(t, r) && segs(t).slice(-segs(r).length).every((y, i) => y !== ":p" || segs(r)[i] === ":p"))) continue;
     const parent = `/${segs(r).slice(0, -1).join("/")}`; const last = segs(r).pop();
     const near = tovuRouteList.filter((t) => segs(t).length >= 2 && suffixMatch(`/${segs(t).slice(0, -1).join("/")}`, parent) && commonPrefix(segs(t).pop(), last) >= 4).slice(0, 3);
     if (near.length) wireDrift.push({ kind: "route", tovu: rec.tovu, jini: rec.jini, state: rec.state, jiniPath: r, tovuNear: near });
   }
   for (const p0 of jPerms) {
     if (tovuPerms.has(p0)) continue;
-    const parts = p0.split("."); const near = [...tovuPerms].filter((t) => { const q = t.split("."); return q[0] === parts[0] && q[q.length - 1] === parts[parts.length - 1] && q.length >= 2; }).slice(0, 3);
+    // Nearest Tovu names: most shared leading segments first (admin.security.site-key.manage for
+    // admin.security.tokens.manage), then same first + last segment.
+    const parts = p0.split("."); const lead = (q) => { let i = 0; while (i < q.length && q[i] === parts[i]) i++; return i; };
+    const near = [...tovuPerms].map((t) => ({ t, q: t.split(".") })).filter(({ q }) => q.length >= 2 && (lead(q) >= 2 || (q[0] === parts[0] && q[q.length - 1] === parts[parts.length - 1])))
+      .sort((a, b) => lead(b.q) - lead(a.q) || (b.q[b.q.length - 1] === parts[parts.length - 1]) - (a.q[a.q.length - 1] === parts[parts.length - 1])).slice(0, 3).map((x) => x.t);
     wireDrift.push({ kind: "permission", tovu: rec.tovu, jini: rec.jini, state: rec.state, jiniPermission: p0, tovuNear: near });
   }
 }
@@ -1876,6 +1892,30 @@ function refExists(ref) {
   const variants = [r, r.replace(/\.(m|c)?js$/, ".ts"), r.replace(/\.(m|c)?js$/, ".tsx"), r.replace(/\.ts$/, ".js"), r.replace(/^packages\/([^/]+)\/src\//, "packages/$1/")];
   return variants.some((v) => (byBase.get(path.basename(v)) ?? []).some((p) => p.endsWith(`/${v}`)));
 }
+// v4 (judge 1 #9, judge 2 #11): `file.ts:44-50` cites must point inside an existing file (bare names match
+// any file with that basename), and `@jini-ai/pkg/sub` mentions must name a package and a subpath its
+// package.json `exports` map really has (`@jini-ai/cms/identity`).
+const absByBase = new Map();
+for (const [root, list] of [[TOVU, rgFiles(TOVU, ["."], "*.{ts,tsx,mts,mjs,js,cjs}")], [JINI, rgFiles(JINI, ["."], "*.{ts,tsx,mts,mjs,js,cjs}")]])
+  for (const p of list) { const b = path.basename(p); if (!absByBase.has(b)) absByBase.set(b, []); absByBase.get(b).push(path.join(root, p)); }
+const lineCountCache = new Map();
+const lineCount = (a) => { if (!lineCountCache.has(a)) { try { lineCountCache.set(a, fs.readFileSync(a, "utf8").split("\n").length); } catch { lineCountCache.set(a, 0); } } return lineCountCache.get(a); };
+function staleOk(c) {
+  if (c.kind === "line") {
+    const r = c.ref.replace(/^(\.{1,2}\/)+/, "").replace(/^@jini-ai\/([^/]+)\//, "packages/$1/src/");
+    const vs = [r, r.replace(/\.(m|c)?js$/, ".ts"), r.replace(/\.(m|c)?js$/, ".tsx")];
+    const hits = vs.flatMap((v) => (absByBase.get(path.basename(v)) ?? []).filter((a) => a.endsWith(`/${v}`)));
+    if (!hits.length) return true; // a missing path is already a plain path candidate; a bare name we cannot place proves nothing
+    return hits.some((a) => lineCount(a) >= c.refLine);
+  }
+  if (c.kind === "jini-spec") {
+    const pk = specPkg(c.ref); const pkg = jiniPkgs.get(pk); if (!pkg) return !/^@jini-ai\/[a-z]/.test(c.ref);
+    const sub = c.ref.slice(pk.length); if (!sub || sub === "/") return true;
+    const keys = typeof pkg.exports === "object" ? Object.keys(pkg.exports) : [];
+    return keys.some((k) => k === `.${sub}` || (k.includes("*") && `.${sub}`.startsWith(k.split("*")[0])));
+  }
+  return refExists(c.ref);
+}
 
 // ---------------------------------------------------------------------------------------------
 // v4 behaviour twins per unit and the module-level Jini twin pass (judge 1 #2, judge 2 #3, judge 3 #2):
@@ -1894,13 +1934,35 @@ const moduleTwins = [];
     if (!u.ubeh) continue; const toks = u.ubeh.filter(keep); if (toks.length < UNIT_BEH_MIN_SHARED) continue;
     const shared = new Map(); for (const t of toks) for (const id of inv.get(t) ?? []) shared.set(id, (shared.get(id) ?? 0) + 1);
     let best = null;
-    for (const [id, c] of shared) { if (c < UNIT_BEH_MIN_SHARED) continue; const jac = c / (toks.length + jUnits[id].n - c); if (jac >= UNIT_BEH_MIN_JACCARD && (!best || jac > best.jac)) best = { id, jac, c }; }
+    // Containment as well as Jaccard (part 2 calibration): a Jini helper embedded in a bigger Tovu function
+    // (readStoredBytes ~ private loadDocumentBytes 9 of 11 Jini tokens; assertGrantClamp 9 of 9) has a low
+    // Jaccard. Accept when one side is >= 75% contained and the other >= 40%; score = Dice coefficient.
+    for (const [id, c] of shared) { if (c < UNIT_BEH_MIN_SHARED) continue; const nJ = jUnits[id].n; const jac = c / (toks.length + nJ - c);
+      const cMax = c / Math.min(toks.length, nJ), cMin = c / Math.max(toks.length, nJ);
+      const ok = jac >= UNIT_BEH_MIN_JACCARD || (cMax >= UNIT_BEH_CONTAIN && cMin >= UNIT_BEH_CONTAIN_MIN);
+      const score = jac >= UNIT_BEH_MIN_JACCARD ? jac : (2 * c) / (toks.length + nJ);
+      if (ok && (!best || score > best.jac)) best = { id, jac: score, c, how: jac >= UNIT_BEH_MIN_JACCARD ? "jaccard" : "contain" }; }
     if (!best) continue; const J0 = jUnits[best.id];
-    if (pairedUnits.has(unitKey(display(abs), u.name, display(J0.abs), J0.u.name))) continue;
+    // An already-paired unit is re-reported only when behaviour says more than its other twin can (the
+    // same-name assertGrantClamp pair scored 0.4 on node-kind shingles).
+    if (pairedUnits.has(unitKey(display(abs), u.name, display(J0.abs), J0.u.name)) && best.jac < 0.6) continue;
     twinPairs.push({ kind: "beh", a: display(abs), aUnit: u.name, aLine: u.line, b: display(J0.abs), bUnit: J0.u.name, bLine: J0.u.line, sim: +best.jac.toFixed(2),
-      sameName: u.name === J0.u.name, scope: scopeOf(J0.abs), stmts: Math.min(u.statements, J0.u.statements), shared: best.c, jiniPublic: jiniPublic.has(J0.abs) && !!J0.u.exported });
+      sameName: u.name === J0.u.name, scope: scopeOf(J0.abs), stmts: Math.min(u.statements, J0.u.statements), shared: best.c, how: best.how, jiniPublic: jiniPublic.has(J0.abs) && !!J0.u.exported });
   }
   markPaired();
+  // Tovu<->Tovu behaviour twins (judge 2 #10: init-site <-> duplicate-site scaffolding, judge 1 #7): the same
+  // index over Tovu units in OTHER files, stricter (Jaccard >= 0.6, >= 12 shared distinctive tokens), report-only.
+  {
+    const tUnits = []; const tinv = new Map();
+    for (const abs of mainFiles) for (const u of facts.get(abs).units) { if (!u.ubeh) continue; const toks = u.ubeh.filter(keep); if (toks.length < UNIT_BEH_TT_MIN_SHARED) continue;
+      const id = tUnits.length; tUnits.push({ abs, u, toks }); for (const t of toks) { if (!tinv.has(t)) tinv.set(t, []); tinv.get(t).push(id); } }
+    for (let i = 0; i < tUnits.length; i++) { const A = tUnits[i]; const shared = new Map();
+      for (const t of A.toks) for (const id of tinv.get(t)) if (id > i && tUnits[id].abs !== A.abs) shared.set(id, (shared.get(id) ?? 0) + 1);
+      for (const [id, c] of shared) { if (c < UNIT_BEH_TT_MIN_SHARED) continue; const B = tUnits[id]; const jac = c / (A.toks.length + B.toks.length - c); if (jac < UNIT_BEH_TT_MIN_JACCARD) continue;
+        if (pairedUnits.has(unitKey(display(A.abs), A.u.name, display(B.abs), B.u.name))) continue;
+        twinPairs.push({ kind: "beh", a: display(A.abs), aUnit: A.u.name, aLine: A.u.line, b: display(B.abs), bUnit: B.u.name, bLine: B.u.line, sim: +jac.toFixed(2), sameName: A.u.name === B.u.name, scope: "tovu-tovu", stmts: Math.min(A.u.statements, B.u.statements), shared: c, how: "jaccard" }); } }
+    markPaired();
+  }
   // Module level: Tovu file x Jini file -> best sim per Tovu unit, summed.
   const CODE_KINDS = new Set(["body", "exact-small", "small-shape", "same-name", "norm-body", "beh", "class-api", "class-fingerprint"]);
   const acc = new Map(); // "tovuRel|jiniDisplay" -> Map(unit -> { sim, stmts })
@@ -2040,12 +2102,99 @@ for (const root of ["apps", "packages"]) for (const dir of fs.existsSync(path.jo
 const ENTRY_RE = /(^|\/)(main|index|preload|server|cli|program|worker|entry|bootstrap|app|App)\.[mc]?[jt]sx?$|\.config\.[mc]?[jt]s$|\/bin\/|\/scripts?\//;
 const prodImporters = (abs) => { const s2 = new Set(); for (const x of importers.get(abs)?.keys() ?? []) if (files.get(x).role === "main") s2.add(x); for (const [x, r] of directImp.get(abs) ?? []) if (files.get(x).role === "main") s2.add(x); return s2; };
 const auxImported = (abs) => [...(importers.get(abs)?.keys() ?? []), ...(directImp.get(abs)?.keys() ?? [])].some((x) => files.get(x).role === "aux");
+// v4 path-loaded roots (judge 1 #1, judge 2 #2): vite `build.lib.entry` / `rollupOptions.input`, spawn/fork
+// paths (daemon-supervisor.ts:305, local-site-process.ts:92), `new URL("./x", import.meta.url)`, the root
+// package.json `scripts` and .github/workflows/*.yml (default-credential-exposure.ts: package.json:99,
+// ci.yml:288). A literal resolves against its file's dir, then its package root, then the repo root, and
+// last by a unique path suffix among Tovu files (spawn paths are built from a runtime dir variable).
+const pathRoots = new Map(); // abs -> "why" (first source)
+{
+  const relSuffix = new Map(); // "a/b.ts" (last two segments) -> [abs]
+  for (const a of mainFiles) { const k = files.get(a).rel.split("/").slice(-2).join("/"); if (!relSuffix.has(k)) relSuffix.set(k, []); relSuffix.get(k).push(a); }
+  const pkgRootOf = (abs) => { let d = path.dirname(abs); while (d.startsWith(TOVU) && d !== TOVU) { if (fs.existsSync(path.join(d, "package.json"))) return d; d = path.dirname(d); } return TOVU; };
+  const resolveLit = (lit, dirs) => {
+    for (const d of dirs) { const a = tryFile(path.resolve(d, lit)); if (a && files.get(a).role === "main") return a; }
+    const clean = lit.replace(/^(\.{1,2}\/)+/, "").replace(/\.(m|c)?js$/, ".ts"); const segs0 = clean.split("/"); if (segs0.length < 2) return null;
+    const cands = (relSuffix.get(segs0.slice(-2).join("/")) ?? []).concat(relSuffix.get(segs0.slice(-2).join("/").replace(/\.ts$/, ".tsx")) ?? [])
+      .filter((a) => files.get(a).rel.endsWith(clean) || files.get(a).rel.endsWith(clean.replace(/\.ts$/, ".tsx")));
+    return cands.length === 1 ? cands[0] : null;
+  };
+  const add = (a, why) => { if (a && !pathRoots.has(a)) pathRoots.set(a, why); };
+  for (const abs of mainFiles) for (const lit of facts.get(abs).pathLits) add(resolveLit(lit, [path.dirname(abs), pkgRootOf(abs), TOVU]), `path literal in ${display(abs)}`);
+  const PATH_TOKEN_RE = /([\w./@-]+\.(?:[mc]?[jt]sx?))\b/g;
+  const scan = (text, why) => { for (const m of text.matchAll(PATH_TOKEN_RE)) add(resolveLit(m[1], [TOVU]), why); };
+  try { const pj = JSON.parse(fs.readFileSync(path.join(TOVU, "package.json"), "utf8")); for (const [k, sc] of Object.entries(pj.scripts ?? {})) scan(String(sc), `package.json script ${k}`); } catch { /* no root package.json */ }
+  const wf = path.join(TOVU, ".github/workflows");
+  for (const n of fs.existsSync(wf) ? fs.readdirSync(wf).filter((x) => /\.ya?ml$/.test(x)) : []) scan(fs.readFileSync(path.join(wf, n), "utf8"), `.github/workflows/${n}`);
+}
+// `import()` targets (judge 3 #10): a lazily loaded feature boundary, not a deletable barrel. Prod only.
+const dynTargets = new Set();
+for (const abs of mainFiles) for (const e of fileEdges.get(abs) ?? []) if (e.kind === "dynamic" && e.to && files.get(e.to).role === "main") dynTargets.add(e.to);
 const deadSet = new Set(); const deadRoot = new Set();
 {
-  const live = (abs) => ENTRY_RE.test(files.get(abs).rel) || pkgEntries.has(abs) || auxImported(abs);
+  const live = (abs) => ENTRY_RE.test(files.get(abs).rel) || pkgEntries.has(abs) || pathRoots.has(abs) || auxImported(abs);
   for (const abs of mainFiles) if (!live(abs) && prodImporters(abs).size === 0) { deadSet.add(abs); deadRoot.add(abs); }
   for (let changed = true; changed;) { changed = false;
     for (const abs of mainFiles) { if (deadSet.has(abs) || live(abs)) continue; const pi = prodImporters(abs); if (pi.size && [...pi].every((x) => deadSet.has(x) || x === abs)) { deadSet.add(abs); changed = true; } } }
+}
+// Hermetic-only (judge 2 #11): composition/app.ts wires in-memory adapters ("what tests exercise"). A file
+// reached only through it (or through other hermetic-only files) has no prod reach, but tests use it, so it
+// is not dead. Entry-like files stay live. Only in-memory/console/seed/noop ADAPTERS count: app.ts also
+// mounts every route, so propagating through all its edges marked half the server (566 files on the first run).
+const HERMETIC_ADAPTER_RE = /(^|[/.-])(memory|in-memory|inmemory|console|seed|noop|fake|stub)([/.-]|$)/i;
+const hermeticOnly = new Set();
+{
+  const herm = new Set(mainFiles.filter((a) => facts.get(a).hermetic));
+  for (let changed = true; changed;) { changed = false;
+    for (const abs of mainFiles) { if (deadSet.has(abs) || hermeticOnly.has(abs) || herm.has(abs) || !HERMETIC_ADAPTER_RE.test(files.get(abs).rel) || ENTRY_RE.test(files.get(abs).rel) || pkgEntries.has(abs) || pathRoots.has(abs)) continue;
+      const pi = [...prodImporters(abs)].filter((x) => !deadSet.has(x) && x !== abs);
+      if (pi.length && pi.every((x) => herm.has(x) || hermeticOnly.has(x))) { hermeticOnly.add(abs); changed = true; } } }
+}
+// Per-symbol prod users (judge 2 #6, judge 1 #7): files naming `name` of `abs`, resolved through barrels
+// (importers) or by direct specifier. Used for dead re-exports in barrels and member-level dead code.
+const namedUsers = (abs, name) => { const s2 = new Set();
+  for (const [x, names] of importers.get(abs) ?? []) if (names.has(name) || names.has("*")) s2.add(x);
+  for (const [x, r] of directImp.get(abs) ?? []) if (r.imports && (r.names.has(name) || r.names.has("*"))) s2.add(x);
+  return [...s2].filter((x) => files.get(x).role === "main"); };
+// Member-level dead code (judge 3 #4): members of a returned controller object / exported object literal
+// (`replace`, `setDraftToken`, `api.setSitesHome`) that no importer of the symbol reads as a property or
+// destructures; or that only dead files read (dead roots propagate to api.* methods). Limit: a member
+// named like a common property (`replace` on strings) reads as used when the importer uses that name.
+const deadMembers = new Map(); // abs -> [ "sym.member (unused|dead callers only)" ]
+for (const abs of mainFiles) {
+  const f = facts.get(abs); if (deadSet.has(abs)) continue;
+  for (const o of f.objMembers) {
+    if (!f.localExports.has(o.sym) || o.members.length < 2) continue;
+    // Controllers only: a hook's returned object (useX) or a client object (api, fooApi, fooClient). Data
+    // maps, schemas, configs and port objects handed whole to a function read as 1,142 "unused" members.
+    if (!(o.kind === "returns" ? /^use[A-Z]/.test(o.sym) : /^(api|\w+Api|\w+Client)$/.test(o.sym))) continue;
+    const users = namedUsers(abs, o.sym).filter((x) => x !== abs); if (!users.length) continue;
+    const out = [];
+    for (const m of o.members) {
+      if (f.propNames.has(m) && o.kind === "object") continue; // used inside its own file (api.x from a sibling)
+      const readers = users.filter((x) => facts.get(x).propNames.has(m));
+      if (!readers.length) out.push(`${o.sym}.${m} (unused)`);
+      else if (readers.every((x) => deadSet.has(x))) out.push(`${o.sym}.${m} (dead callers only: ${readers.slice(0, 2).map(display).join(", ")})`);
+    }
+    if (out.length && out.length < o.members.length) { if (!deadMembers.has(abs)) deadMembers.set(abs, []); deadMembers.get(abs).push(...out); }
+  }
+}
+// Admin client paths with no server route (judge 3 #4: a client action the server never registered).
+// Client = apps/admin|desktop route literals; server = every router.get/post/... path and route literal in
+// apps/website. Matching is by path suffix with :param wildcards, so a mounted prefix does not hide a route.
+// Limit: paths built from an action union (stop-serving) are not literals and are not checked.
+const serverRoutes = []; for (const a of mainFiles) if (/^apps\/website\//.test(files.get(a).rel)) for (const r of facts.get(a).routeDefs) serverRoutes.push(r.path);
+const serverRouteLits = []; for (const a of mainFiles) if (/^apps\/website\/src\/server\//.test(files.get(a).rel)) for (const r of facts.get(a).routeLits) serverRouteLits.push(r);
+const clientNoRoute = new Map(); // abs -> [path]
+{
+  const segsR = (p0) => p0.split("/").filter(Boolean);
+  const sfx = (long, s) => { const a = segsR(long), b = segsR(s); if (!b.length || b.length > a.length) return false; return b.every((x, i) => { const y = a[a.length - b.length + i]; return x === y || x === ":p" || y === ":p"; }); };
+  const known = [...serverRoutes, ...serverRouteLits];
+  for (const a of mainFiles) {
+    const rel = files.get(a).rel; if (!/^apps\/admin\/src\/.*\bapi[\w.-]*\.tsx?$/.test(rel)) continue;
+    const miss = [...facts.get(a).routeLits].filter((p0) => segsR(p0).length >= 2 && !known.some((k) => sfx(k, p0) || (sfx(p0, k) && segsR(k).length >= 2)));
+    if (miss.length) clientNoRoute.set(a, miss);
+  }
 }
 // Composition drift (round-2 judge 2 #11): composition roots in one app that call different ensure*
 // sets (app.ts vs deps.ts). Roots = files calling >= 4 distinct ensure* functions.
@@ -2064,6 +2213,33 @@ const compositionDrift = [];
 // ---------------------------------------------------------------------------------------------
 // Per-file rows + tier suggestion.
 // ---------------------------------------------------------------------------------------------
+// v4 error-message couplings (judge 2 #8): `err.message === "..."` / `.includes("...")` against a message
+// thrown in ANOTHER file (write-service matching the repo's error strings) is a private format coupling.
+const thrownBy = new Map(); // message head -> Set(abs)
+for (const [abs, f] of facts) { const i = files.get(abs); if (i.role !== "main" && !(i.role === "jini" && !i.fixture)) continue; for (const t of f.thrown) { if (!thrownBy.has(t)) thrownBy.set(t, new Set()); thrownBy.get(t).add(abs); } }
+const thrownList = [...thrownBy.keys()];
+const errCouplingsOf = (abs) => facts.get(abs).errCompares.flatMap((c) => {
+  // The thrown head is the literal part before the first ${}: equal, or the compare text starts with it.
+  const hits = thrownList.filter((t) => t === c.text || (c.op !== "===" && (t.includes(c.text) || c.text.startsWith(t))) || (c.op === "===" && c.text.startsWith(t) && t.length >= 20));
+  const other = [...new Set(hits.flatMap((t) => [...thrownBy.get(t)]))].filter((x) => x !== abs);
+  return other.length ? [{ ...c, with: other.slice(0, 3).map(display), total: other.length }] : [];
+});
+// Jini package dependency closure (judge 1 #6, judge 3 #11): CORE-CONTRACT-NEEDED counts only packages the
+// importing side cannot already reach: one named package depending on the other (chat -> agentic, daemon ->
+// agent-runtime), or the Jini package of the Tovu app (apps/admin -> @jini-ai/admin) already depending on it.
+const depClosure = new Map();
+const depsOf = (pk) => { if (depClosure.has(pk)) return depClosure.get(pk); const out = new Set(); depClosure.set(pk, out);
+  for (const d of jiniPkgs.get(pk)?.deps ?? []) { out.add(d); for (const x of depsOf(d)) out.add(x); } return out; };
+// TOOL-CALL check (theme 12): tests of tool files, read once. Assertions = expect( / assert.* / t.assert;
+// "denied" = the test names a refusal (permission/forbidden/denied/403); "bad input" = invalid/missing/schema.
+const testInfo = new Map(); // subject abs -> { files, asserts, denied, badInput }
+const testsOf = new Map(); for (const [abs, info] of files) { if (info.role !== "test") continue; for (const e of fileEdges.get(abs) ?? []) if (e.to && files.get(e.to)?.role === "main") { if (!testsOf.has(e.to)) testsOf.set(e.to, new Set()); testsOf.get(e.to).add(abs); } }
+const testText = new Map(); const readTest = (a) => { if (!testText.has(a)) testText.set(a, fs.readFileSync(a, "utf8")); return testText.get(a); };
+for (const abs of mainFiles) { if (!facts.get(abs).toolFile) continue;
+  const ts0 = [...(testsOf.get(abs) ?? [])]; if (!ts0.length) continue; let asserts = 0, denied = false, badInput = false;
+  for (const t of ts0) { const x = readTest(t); asserts += (x.match(/\bexpect\(|\bassert(\.\w+)?\(|\bt\.assert/g) ?? []).length;
+    denied ||= /\b(denied|forbidden|not allowed|unauthori[sz]ed|permission)\b|\b403\b/i.test(x); badInput ||= /\b(invalid|missing|malformed|bad input|schema|must be)\b/i.test(x); }
+  testInfo.set(abs, { files: ts0.length, asserts, denied, badInput }); }
 const formatCouplings = [];
 const rowsOut = new Map();
 const testCount = new Map(); // subject abs -> number of test files importing it
@@ -2085,7 +2261,8 @@ for (const abs of mainFiles) {
       if (e.jiniPkg) namedPkgs.add(e.jiniPkg);
       // CORE-CONTRACT-NEEDED counts VALUE imports named directly (round-2 judge 1 #6, judge 3 #7: it fired on
       // type-only imports and on imports through Tovu shims).
-      if (e.jiniPkg && !e.typeOnly && e.kind !== "importType" && e.spec.startsWith("@jini-ai/")) valuePkgs.add(e.jiniPkg);
+      // v4 (judge 1 #6): the ORIGIN package of the symbol (a core re-export of a cms symbol counts as cms).
+      if (e.jiniPkg && !e.typeOnly && e.kind !== "importType" && e.spec.startsWith("@jini-ai/")) valuePkgs.add(e.to ? jiniPkgOfRel(files.get(e.to).rel) : e.jiniPkg);
       J.push(`${tag}${e.jiniSpec ?? e.spec}${e.to ? `#${files.get(e.to).rel.split("/src/")[1] ?? ""}` : ""}${e.jiniPkg ? ` pkg=${e.jiniPkg}` : ""}${e.spec.startsWith("@jini-ai/") ? "" : ` (R7 via ${e.via ?? e.spec})`}`);
     }
     else if (e.target === "node") N.add(e.spec.replace(/^node:/, ""));
@@ -2172,7 +2349,7 @@ for (const abs of mainFiles) {
     }
     if (lit.residue) residue.push({ lit: lit.text, line: lit.line, ctx: lit.ctx, symbol: lit.symbol, hit: lit.residue });
   }
-  const stale = /\/vendor\//.test(rel) ? [] : f.staleCandidates.filter((c) => !refExists(c.ref));
+  const stale = /\/vendor\//.test(rel) ? [] : f.staleCandidates.filter((c) => !staleOk(c));
   const twins = (twinsByFile.get(rel) ?? []).sort((a, b) => b.sim - a.sim);
   const implPorts = portsByImpl.get(abs) ?? [];
   // Tier 2 only when ANOTHER file wires this file's exported function/class into a Jini port: the
@@ -2185,7 +2362,10 @@ for (const abs of mainFiles) {
   const registerOnly = fnUnits.length > 0 && fnUnits.every((u) => u.registerOnly || u.kind === "alias");
   const cycleTargets = registerOnly ? [] : [...(crossEdges.get(abs) ?? [])].filter((ft) => mutual(info.feature, ft));
   const legacy = legacyByFile.get(abs);
-  const nonCore = [...valuePkgs].filter((pk) => !CORE_PKGS.has(pk)).sort();
+  // v4: drop packages another named package (or this app's own Jini package) already depends on.
+  const appPkg = `@jini-ai/${appOf(abs)}`; const appDeps = jiniPkgs.has(appPkg) ? depsOf(appPkg) : new Set();
+  const nonCore0 = [...valuePkgs].filter((pk) => !CORE_PKGS.has(pk) && pk !== appPkg && !appDeps.has(pk));
+  const nonCore = nonCore0.filter((pk) => !nonCore0.some((o) => o !== pk && depsOf(o).has(pk))).sort();
   const wire = wireCouplings(abs); const tt = ttCouplings.get(abs) ?? [];
   for (const w of wire) formatCouplings.push({ file: rel, kind: w.kind, lit: w.lit, line: w.line, symbol: w.symbol, with: w.with, cross: w.cross });
   for (const c of tt) formatCouplings.push({ file: rel, ...c });
@@ -2201,11 +2381,21 @@ for (const abs of mainFiles) {
   const why = [];
   let tier = 1; let auto = null;
   const classes = f.units.filter((u) => u.kind === "class");
+  // v4 (judge 1 #5, judge 3 #10): a boundary label needs >= 1 prod importer (agent-daemon-port.ts had 0);
+  // an `import()` target is a lazily loaded boundary too (direct counts: the barrel had direct.prod 4).
+  const lazy = dynTargets.has(abs); const hasProd = prod.length > 0 || dProd.length > 0;
+  const boundaryOk = (boundary || lazy) && hasProd;
+  // v4 (judge 2 #1): TINY-EXTENDS-ADAPTER = every class is `constructor(x) { super(f(x)) }` and nothing else
+  // (identity/members repo.sqlite.ts, many classes per file); a class overriding ANY method
+  // (media-provider-credential-repo.ts replaceWorkspace) never is. Small helpers next to them are fine.
+  const fnOnly = fnUnits.filter((u) => u.kind === "fn");
+  const ctorAdapters = classes.length > 0 && ext.length === classes.length && ext.every((x) => x.ctorOnly && !x.overrides?.length)
+    && fnOnly.length <= 2 && fnOnly.every((u) => (u.endLine ?? u.line) - u.line + 1 <= SMALL_HELPER_LINES);
   if (f.jiniShim && !boundary) auto = "JINI-SHIM (DELETE + repoint importers)";
-  else if (barrelish && boundary) auto = "BOUNDARY-ENTRY (promoted surface, STAY)";
+  else if (barrelish && boundaryOk) auto = lazy && !boundary ? "BOUNDARY-ENTRY (import() target, STAY)" : "BOUNDARY-ENTRY (promoted surface, STAY)";
   else if (barrelish) auto = "BARREL (R4)";
   else if (ext.some((x) => !x.iface && x.members === 0) && f.units.every((u) => u.kind === "class")) auto = "EMPTY-SUBCLASS (R4)";
-  else if (f.loc <= 30 && classes.length === 1 && ext.some((x) => !x.iface && x.where === "tovu" && x.members <= 3) && fnUnits.length === 0) auto = "TINY-EXTENDS-ADAPTER (R4)";
+  else if (ctorAdapters) auto = "TINY-EXTENDS-ADAPTER (R4)";
   // i18n/copy dictionaries first: their few `t()` wrappers would otherwise read as R3 pass-throughs.
   else if (f.dataIsh && classes.length === 0 && jiniCallUnits.length === fnUnits.length) auto = "DATA-ONLY";
   else if (fnUnits.length > 0 && jiniCallUnits.length === fnUnits.length && classes.length === 0 && f.loc <= 80) auto = fedHost ? "STAY-WIRING?" : "ALL-PASS-THROUGH (R3)";
@@ -2219,7 +2409,23 @@ for (const abs of mainFiles) {
   if (portTriggers.length) why.push(`port-impl x${portTriggers.length}`);
   if (formats.length) why.push(`private-format x${formats.length}`);
   if (couplings.length) why.push(`string-coupling x${couplings.length}`);
-  if (legacy) why.push(`LEGACY-TWIN ${legacy.jini} j${legacy.sim}/o${legacy.overlap}`);
+  // v4 (judge 3 #9): tier from the file's OWN signals. A LEGACY-TWIN lifts only a file that itself shares
+  // >= LEGACY_OWN_MIN_SHARED distinctive tokens with the Jini module (not every file of the folder).
+  const legacyOwn = legacy ? [...behOf([abs])].filter((t) => legacy.jbeh.has(t)).length : 0;
+  const legacyLift = !!legacy && legacyOwn >= LEGACY_OWN_MIN_SHARED;
+  if (legacy) why.push(`LEGACY-TWIN ${legacy.jini} j${legacy.sim}/o${legacy.overlap}${legacy.state === "UNMOUNTED-REWRITE" ? " UNMOUNTED-REWRITE" : ""}${legacyLift ? "" : ` (module only, own ${legacyOwn} tokens: no lift)`}`);
+  // v4 (judge 1 #10): implements an imported Jini port type, or has a code twin in Jini at sim >= 0.6, or
+  // is one side of a module-level Jini twin: Tier 2 (it is a copy or an adapter of a Jini contract).
+  const jiniPort = f.implementsNames.filter((x) => isJiniOrigin(resolveBinding(abs, x.iface))).map((x) => `${x.cls} implements ${x.iface}`);
+  const JINI_CODE_KINDS = /^(body|exact-small|same-name|norm-body|beh|class-api|class-fingerprint)$/;
+  const jiniTwin = twins.filter((p) => p.scope === "tovu-jini" && JINI_CODE_KINDS.test(p.kind) && p.sim >= 0.6 && !(p.kind === "exact-small" && (p.chars ?? 0) < 60));
+  const modTwins = moduleTwinsByFile.get(rel) ?? [];
+  const errC = errCouplingsOf(abs);
+  for (const c of errC) formatCouplings.push({ file: rel, kind: "err-message", lit: short(c.text, 80), line: c.line, symbol: c.symbol, with: c.with.join(", "), op: c.op });
+  if (jiniPort.length) why.push(`implements-jini-port x${jiniPort.length}`);
+  if (jiniTwin.length) why.push(`jini-twin>=0.6 x${jiniTwin.length}`);
+  if (modTwins.length) why.push(`module-twin ${modTwins[0].jini} (${modTwins[0].sum})`);
+  if (errC.length) why.push(`err-message x${errC.length}`);
   const wireCross = wire.filter((w) => w.cross); const ttCross = tt.filter((c) => c.cross);
   if (wireCross.length) why.push(`wire-key x${wireCross.length}`);
   if (ttCross.length) why.push(`parsed-line x${ttCross.length}`);
@@ -2234,9 +2440,30 @@ for (const abs of mainFiles) {
   const bodyTwin = twins.some((p) => p.kind === "body" && p.scope !== "tovu-jini-fixture");
   // v3: a cycle edge alone no longer lifts a file under 40 lines (round-2 judge 3 #5: 11-line
   // conversation-refresh). A key/line another app or feature reads by name (wire-key, parsed-line) is Tier 2.
-  if (strong.length || (portTriggers.length && bodyTwin) || formats.length || couplings.length || legacy || diverged.length || wireCross.length || ttCross.length || (cycleTargets.length && tier !== 0 && f.loc >= 40)) tier = 2;
+  // v4 (judge 3 #9): no cycle lift for barrels or pure binding files (no function or class of their own).
+  const ownLogic = !barrelish && (fnOnly.length > 0 || classes.length > 0);
+  if (strong.length || (portTriggers.length && bodyTwin) || formats.length || couplings.length || legacyLift || diverged.length || wireCross.length || ttCross.length || (cycleTargets.length && tier !== 0 && f.loc >= 40 && ownLogic)
+    || jiniPort.length || jiniTwin.length || modTwins.length || errC.length) tier = 2;
   if (tier === 1 && ext.some((x) => x.jiniSameName)) why.push("extends Jini same-name (Tier 1)");
 
+  // v4 (judge 2 #6): dead re-exports, counted per symbol THROUGH the barrel: no prod file names it via this
+  // file, and its origin has no prod user either (media index.ts, the consent cluster).
+  const deadRe = [];
+  if (reCount >= 3) for (const n of exportNames(abs)) {
+    if (n === "default" || n === "*" || f.localExports.has(n)) continue;
+    if (namedUsers(abs, n).some((x) => x !== abs)) continue;
+    const o = resolveExport(abs, n);
+    if (o?.abs && files.get(o.abs).repo === "tovu" && (namedUsers(o.abs, o.name).some((x) => x !== abs) || facts.get(o.abs).selfUses.get(o.name))) continue;
+    if (o && !o.abs) continue; // Jini/npm origin: its users are outside this graph
+    deadRe.push(n);
+  }
+  const reach = deadSet.has(abs) ? (deadRoot.has(abs) ? "dead-root (0 prod importers, not an entry)" : "dead-cluster (every prod importer is dead)")
+    : hermeticOnly.has(abs) ? "hermetic-only (reached only through the in-memory composition)" : null;
+  // v4 (judge 2 #6): a row whose label says keep (STAY/BOUNDARY/TOOL-REGISTRATION) but is dead contradicts itself.
+  const labelConflict = deadSet.has(abs) && /STAY|BOUNDARY|TOOL-REGISTRATION/.test(auto ?? "") ? `${auto} but ${reach}` : null;
+  if (labelConflict) why.push("LABEL-CONFLICT");
+  // A mechanical barrel hiding >= 10 dead re-exports needs a read (judge 2 #6: media index.ts, ~49).
+  if (tier === 0 && deadRe.length >= 10) { tier = 1; why.push(`dead-reexports x${deadRe.length} (Tier >= 1)`); }
   const row = { path: rel, feature: info.feature, loc: f.loc, tier, why, ...(auto ? { auto } : {}),
     imports: { ...(T.length ? { T } : {}), ...(J.length ? { J } : {}), ...(N.size ? { N: [...N] } : {}), ...(NPM.size ? { npm: [...NPM] } : {}), ...(missing.length ? { unresolved: missing } : {}) },
     importers: { prod: prod.length, tests: testCount.get(abs) ?? 0, aux, ...(prod.length ? { list: prod.slice(0, LIST_CAP) } : {}),
@@ -2247,9 +2474,17 @@ for (const abs of mainFiles) {
     ...(testOnly.length ? { testOnlyExports: testOnly.slice(0, LIST_CAP) } : {}),
     ...(unused.length && allExported.length ? { noStaticImporter: unused.slice(0, LIST_CAP) } : {}),
     ...(legacy ? { legacyTwin: { tovuModule: legacy.tovu, jini: legacy.jini, sim: legacy.sim, overlap: legacy.overlap, shared: legacy.shared, mounts: legacy.mounts, mountsTotal: legacy.mountsTotal, mountsInside: legacy.mountsInside } } : {}),
-    ...(nonCore.length >= 2 ? { coreContractNeeded: nonCore } : {}),
+    // v4 (judge 3 #11): not on files labelled STAY (wiring / boundary): they stay in Tovu by definition.
+    ...(nonCore.length >= 2 && !/STAY/.test(auto ?? "") ? { coreContractNeeded: nonCore } : {}),
     ...(boundary ? { boundaryEntry: true } : {}),
-    ...(deadSet.has(abs) ? { prodReach: deadRoot.has(abs) ? "dead-root (0 prod importers, not an entry)" : "dead-cluster (every prod importer is dead)" } : {}),
+    ...(reach ? { prodReach: reach } : {}), ...(labelConflict ? { labelConflict } : {}),
+    ...(pathRoots.has(abs) ? { pathLoaded: pathRoots.get(abs) } : {}), ...(lazy ? { lazyImported: true } : {}),
+    ...(deadRe.length ? { deadReexports: deadRe.slice(0, LIST_CAP), deadReexportsTotal: deadRe.length } : {}),
+    ...(deadMembers.has(abs) ? { deadMembers: deadMembers.get(abs).slice(0, LIST_CAP) } : {}),
+    ...(clientNoRoute.has(abs) ? { clientRoutesNoServer: clientNoRoute.get(abs).slice(0, LIST_CAP) } : {}),
+    ...(jiniPort.length ? { implementsJiniPort: jiniPort.slice(0, LIST_CAP) } : {}),
+    ...(modTwins.length ? { moduleTwins: modTwins.slice(0, 3).map((m) => `${m.jini} sum ${m.sum} (${m.units}/${m.tovuUnits} units; ${m.matched.join(", ")})${m.jiniPublic ? "" : " [private]"}`) } : {}),
+    ...(errC.length ? { errMessageCouplings: errC.slice(0, LIST_CAP).map((c) => `${c.op} "${short(c.text, 60)}" @${c.line} ~ ${c.with.join(", ")}`) } : {}),
     ...(smallHelpers.length ? { smallHelpers: smallHelpers.slice(0, LIST_CAP) } : {}),
     ...(wire.length ? { wireKeys: wire.slice(0, LIST_CAP).map((w) => `${w.kind} "${w.lit}" @${w.line} ~ ${w.with.join(", ")}${w.total > w.with.length ? ` (+${w.total - w.with.length})` : ""}${w.cross ? "" : " (same feature)"}`) } : {}),
     ...(tt.length ? { parsedLines: tt.slice(0, LIST_CAP).map((c) => `${c.kind} "${c.lit}"${c.line ? ` @${c.line}` : ""} ~ ${c.with}${c.cross ? "" : " (same feature)"}`) } : {}),
@@ -2263,7 +2498,7 @@ for (const abs of mainFiles) {
     ...(sitePorts.length ? { wiresPorts: sitePorts.length } : {}),
     ...(formats.length ? { privateFormats: formats.map((c) => `"${c.lit}" @${c.line} [${c.ctx}, in ${c.symbol}] ${c.match} ${c.jini} (${c.jiniSymbol ?? "?"}${c.jiniExported === false ? ", module-private" : c.jiniExported ? ", exported" : ""})`) } : {}),
     ...(residue.length ? { productLiterals: residue.slice(0, LIST_CAP).map((r) => `"${r.lit}" @${r.line} [${r.ctx}, in ${r.symbol ?? "?"}]`), productLiteralsTotal: residue.length } : {}),
-    ...(stale.length ? { staleRefs: stale.slice(0, LIST_CAP).map((s) => `${s.ref} @${s.line}`) } : {}),
+    ...(stale.length ? { staleRefs: stale.slice(0, LIST_CAP).map((s) => `${s.ref}${s.kind === "line" ? ` (line ${s.refLine} past end)` : s.kind === "jini-spec" ? " (not in exports map)" : ""} @${s.line}`) } : {}),
     ...(sccSize > 1 ? { scc: { id: scc, features: sccSize, ...(cycleTargets.length ? { edgesInto: cycleTargets } : {}) } } : {}),
   };
   if (f.fnCount > 0) {
@@ -2303,7 +2538,8 @@ let twinLifted = 0;
   const relAbs = new Map(mainFiles.map((a) => [files.get(a).rel, a]));
   for (let changed = true; changed;) { changed = false;
     for (const p of twinPairs) {
-      if (p.scope !== "tovu-tovu" || !(isStrongTwin(p) || (p.sim >= 0.9 && !/^(shape-names|wiring)$/.test(p.kind)))) continue;
+      // v4 (judge 2 #4): const twins never lift a tier, here either (MAX_FIELD_LENGTH = 512 in three files).
+      if (p.scope !== "tovu-tovu" || !(isStrongTwin(p) || (p.sim >= 0.9 && !/^(shape-names|wiring|const-value|const-set|beh)$/.test(p.kind)))) continue;
       const A = rowsOut.get(relAbs.get(p.a)), B = rowsOut.get(relAbs.get(p.b)); if (!A || !B || A === B) continue;
       if (A.tier === B.tier || Math.min(A.tier, B.tier) === 0) continue;
       const [lo, hi] = A.tier < B.tier ? [A, B] : [B, A];
@@ -2389,6 +2625,29 @@ jsonl("format-couplings.jsonl", formatCouplings);
 jsonl("legacy-twins.jsonl", legacyTwins.sort((a, b) => b.sim - a.sim));
 jsonl("jini-rules.jsonl", jiniRules);
 jsonl("composition-drift.jsonl", compositionDrift);
+jsonl("module-twins.jsonl", moduleTwins);
+jsonl("wire-drift.jsonl", wireDrift);
+// TOOL-CALL check (theme 12; design view: permission declared on the tool, enforced centrally by the runner).
+// One row per tool definition (object literal with name + authorization, or name + inputSchema + description).
+// Hand-written checks, ctx.signal, hand parsing and generic errors are per FILE (handlers share a file).
+const toolRows = []; const toolFileList = mainFiles.filter((a) => facts.get(a).toolFile);
+for (const abs of mainFiles) { const f = facts.get(abs); if (!f.tools.length) continue; const tf = f.toolFile ?? { checks: [], ctxSignal: false, handParse: 0, generic: [] }; const ti = testInfo.get(abs);
+  for (const t of f.tools) toolRows.push({ tool: t.name, file: display(abs), line: t.line, declaredPermission: t.permission, hasAuthorization: t.hasAuthorization, hasSchema: t.hasSchema,
+    fileHandChecks: tf.checks.length, handCheckNames: [...new Set(tf.checks.map((c) => `${c.fn}${c.perm ? `(${c.perm})` : ""}`))].slice(0, 8),
+    readsCtxSignal: tf.ctxSignal, handParsedInput: tf.handParse, genericErrors: tf.generic.slice(0, 4),
+    // namesTool: an importing test names the tool (a registration file's test often covers only a few tools).
+    test: ti ? { files: ti.files, asserts: ti.asserts, coversDenied: ti.denied, coversBadInput: ti.badInput, namesTool: !!t.name && [...testsOf.get(abs)].some((x) => readTest(x).includes(t.name)) } : null }); }
+// Permission names DEFINED (const X_PERMISSION = "x") in more than one Tovu file, plus Jini.
+const permDefs = new Map(); for (const [abs, f] of facts) { const i = files.get(abs); if (i.role !== "main" && !(i.role === "jini" && !i.fixture)) continue; for (const p0 of f.permLits) if (p0.def) { if (!permDefs.has(p0.value)) permDefs.set(p0.value, new Set()); permDefs.get(p0.value).add(display(abs)); } }
+const permDup = [...permDefs].filter(([, s2]) => s2.size > 1);
+const permDupTovu = permDup.filter(([, s2]) => [...s2].filter((x) => !x.startsWith("jini:")).length > 1);
+const toolTotals = { tools: toolRows.length, toolDefFiles: new Set(toolRows.map((r) => r.file)).size, toolFiles: toolFileList.length,
+  handChecks: toolFileList.reduce((n, a) => n + facts.get(a).toolFile.checks.length, 0), handCheckFiles: toolFileList.filter((a) => facts.get(a).toolFile.checks.length).length,
+  permDefinedTwice: permDup.length, permDefinedTwiceTovu: permDupTovu.length, ctxSignalFiles: toolFileList.filter((a) => facts.get(a).toolFile.ctxSignal).length,
+  handParseFiles: toolFileList.filter((a) => facts.get(a).toolFile.handParse).length, genericErrorFiles: toolFileList.filter((a) => facts.get(a).toolFile.generic.length).length,
+  noDeclaredPermission: toolRows.filter((r) => !r.declaredPermission).length, noTest: toolRows.filter((r) => !r.test).length, noNamedTest: toolRows.filter((r) => !r.test?.namesTool).length, testNoDenied: toolRows.filter((r) => r.test && !r.test.coversDenied).length };
+jsonl("tool-calls.jsonl", toolRows);
+fs.writeFileSync(path.join(OUT, "permission-defs.json"), JSON.stringify(Object.fromEntries(permDup.map(([k, v]) => [k, [...v]])), null, 1));
 fs.writeFileSync(path.join(OUT, "stamp.json"), JSON.stringify({ built: new Date().toISOString(), tovu: { dir: TOVU, head: head(TOVU) }, jini: { dir: JINI, head: head(JINI) } }, null, 1));
 fs.writeFileSync(path.join(OUT, "sccs.json"), JSON.stringify(sccs.map((c, i) => ({ id: i, features: c, files: c.reduce((s, ft) => s + (filesByFeature.get(ft)?.length ?? 0), 0) })).filter((x) => x.features.length > 1), null, 1));
 
@@ -2396,8 +2655,9 @@ const all = [...rowsOut.values()];
 const tierCount = [0, 1, 2].map((t) => all.filter((r) => r.tier === t).length);
 const tierLoc = [0, 1, 2].map((t) => all.filter((r) => r.tier === t).reduce((s, r) => s + r.loc, 0));
 const autoCount = {}; for (const r of all) if (r.auto && r.tier === 0) autoCount[r.auto] = (autoCount[r.auto] ?? 0) + 1;
-const trig = { "strong-twin": 0, "port-impl": 0, "private-format": 0, "string-coupling": 0, "wire-key": 0, "parsed-line": 0, "LEGACY-TWIN": 0, "cycle-edge": 0, "diverged-pair": 0, "twin-group lift": 0 };
-for (const r of all) for (const w of r.why) for (const k of Object.keys(trig)) if (w.startsWith(k)) trig[k]++;
+const trig = { "strong-twin": 0, "port-impl": 0, "private-format": 0, "string-coupling": 0, "wire-key": 0, "parsed-line": 0, "LEGACY-TWIN": 0, "cycle-edge": 0, "diverged-pair": 0, "twin-group lift": 0,
+  "implements-jini-port": 0, "jini-twin>=0.6": 0, "module-twin": 0, "err-message": 0 };
+for (const r of all) for (const w of r.why) for (const k of Object.keys(trig)) if (w.startsWith(k) && !(k === "LEGACY-TWIN" && w.includes("no lift"))) trig[k]++;
 const multi = sccs.filter((c) => c.length > 1);
 const ruleCount = (r) => jiniRules.filter((x) => x.rule === r).length;
 const pkgPairs = new Map(); for (const r of jiniRules) if (r.rule === "imports-non-core") { const k = `${r.pkg} -> ${r.imports}`; pkgPairs.set(k, (pkgPairs.get(k) ?? 0) + 1); }
@@ -2424,18 +2684,42 @@ Tier 2 triggers (files; a file can have several): ${Object.entries(trig).map(([k
 
 ## Cross-file facts
 
-- Twin pairs: ${twinPairs.length} (${["body", "exact-small", "small-shape", "same-name", "const-set", "const-value", "shape", "shape-names", "wiring", "class-api", "class-fingerprint"].map((k) => `${k} ${twinPairs.filter((p) => p.kind === k).length} [Tovu-Jini ${twinPairs.filter((p) => p.kind === k && p.scope === "tovu-jini").length}]`).join("; ")}). Strong (Tier 2 trigger): ${twinPairs.filter(isStrongTwin).length}. Jini-fixture pairs: ${twinPairs.filter((p) => p.scope === "tovu-jini-fixture").length}. Same-port body pairs dropped: ${suppressedSamePort}. LSH buckets skipped as generic idioms: ${skippedBuckets}.
-- LEGACY-TWIN modules: ${legacyTwins.length} (${legacyByFile.size} Tovu files; legacy-twins.jsonl, each record lists its tovuFiles; row/record mismatches: ${legacyMismatch}). STAY-WIRING? files: ${all.filter((r) => r.auto === "STAY-WIRING?").length}. CORE-CONTRACT-NEEDED files (value imports): ${all.filter((r) => r.coreContractNeeded).length}.
+- Twin pairs: ${twinPairs.length} (${["body", "norm-body", "same-file", "beh", "exact-small", "small-shape", "same-name", "const-set", "const-value", "shape", "shape-names", "wiring", "class-api", "class-fingerprint"].map((k) => `${k} ${twinPairs.filter((p) => p.kind === k).length} [Tovu-Jini ${twinPairs.filter((p) => p.kind === k && p.scope === "tovu-jini").length}]`).join("; ")}). Strong (Tier 2 trigger): ${twinPairs.filter(isStrongTwin).length}. Jini-fixture pairs: ${twinPairs.filter((p) => p.scope === "tovu-jini-fixture").length}. Same-port body pairs dropped: ${suppressedSamePort}; same-interface class pairs dropped: ${suppressedSameIface}; const pairs with different values dropped: ${droppedConstDiff}. Module-level Jini twins: ${moduleTwins.length} files->Jini files (${moduleTwins.filter((m) => m.jiniPublic).length} public; module-twins.jsonl). LSH buckets skipped as generic idioms: ${skippedBuckets}.
+- LEGACY-TWIN modules: ${legacyTwins.length} (${legacyTwins.filter((l) => l.state === "UNMOUNTED-REWRITE").length} UNMOUNTED-REWRITE; WIRE-DRIFT rows ${wireDrift.length}: route ${wireDrift.filter((w) => w.kind === "route").length}, permission ${wireDrift.filter((w) => w.kind === "permission").length}, wire-drift.jsonl) (${legacyByFile.size} Tovu files, ${all.filter((r) => r.legacyTwin && r.why.some((w) => w.includes("no lift"))).length} module-only without lift; legacy-twins.jsonl, each record lists its tovuFiles; row/record mismatches: ${legacyMismatch}). STAY-WIRING? files: ${all.filter((r) => r.auto === "STAY-WIRING?").length}. CORE-CONTRACT-NEEDED files (value imports): ${all.filter((r) => r.coreContractNeeded).length}.
 - Wire keys (res.locals / header / cookie) shared with another file or Jini: ${all.filter((r) => r.wireKeys).length} files (${all.filter((r) => r.why.some((w) => w.startsWith("wire-key"))).length} cross-feature/Jini, Tier 2). Tovu<->Tovu parsed lines (regex/phrase in one file, emitted by another): ${all.filter((r) => r.parsedLines).length} files. Secret-looking values printed to console/stdout: ${all.filter((r) => r.bug?.secretToLog).length} files.
-- Dead code (limits: path-loaded workers/scripts look dead): ${deadRoot.size} dead-root files (0 prod importers, not entry-like), ${deadSet.size - deadRoot.size} more in dead clusters. Boundary entries tagged: ${all.filter((r) => r.boundaryEntry).length}. Composition drift pairs: ${compositionDrift.length} (composition-drift.jsonl). Twin-group lifts: ${twinLifted}.
+- Dead code: ${deadRoot.size} dead-root files (0 prod importers, not entry-like), ${deadSet.size - deadRoot.size} more in dead clusters; ${pathRoots.size} files kept live as path-loaded roots (vite entries, spawn/URL paths, root scripts, workflows); ${hermeticOnly.size} hermetic-only (reached only via the in-memory composition); ${dynTargets.size} import() targets. Dead re-exports: ${all.reduce((n, r) => n + (r.deadReexportsTotal ?? 0), 0)} in ${all.filter((r) => r.deadReexports).length} files. Dead members: ${all.reduce((n, r) => n + (r.deadMembers?.length ?? 0), 0)} in ${all.filter((r) => r.deadMembers).length} files. Admin client paths with no server route: ${all.reduce((n, r) => n + (r.clientRoutesNoServer?.length ?? 0), 0)} in ${all.filter((r) => r.clientRoutesNoServer).length} files. LABEL-CONFLICT rows (keep-label on a dead file): ${all.filter((r) => r.labelConflict).length}. Boundary entries tagged: ${all.filter((r) => r.boundaryEntry).length}. Composition drift pairs: ${compositionDrift.length} (composition-drift.jsonl). Twin-group lifts: ${twinLifted}.
 - New bug hints: cachedPromiseNoReset ${all.filter((r) => r.bug?.cachedPromiseNoReset).length}, ctxSignalUnread ${all.filter((r) => r.bug?.ctxSignalUnread).length}, filterAfterPaging ${all.filter((r) => r.bug?.filterAfterPaging).length}, batchPin ${all.filter((r) => r.bug?.batchPin).length}; files with writes ${all.filter((r) => r.bug?.writes).length}.
 - String couplings (event/path/template/phrase/regex): ${formatCouplings.filter((c) => c.kind).length} in ${new Set(formatCouplings.filter((c) => c.kind).map((c) => c.file)).size} files.
 - Rule checks: Tovu prod await-import ${all.reduce((s, r) => s + (r.rules?.length ?? 0), 0)} in ${all.filter((r) => r.rules).length} files; Jini await-import ${ruleCount("await-import")}, imports-non-core ${ruleCount("imports-non-core")} (${pkgPairs.size} package pairs; top: ${[...pkgPairs].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${v}`).join(", ")}), express-type ${ruleCount("express-type")} (jini-rules.jsonl).
 - Port-implementation edges: ${portEdges.length} (${portsByImpl.size} implementer files).
 - Private-format couplings: ${formatCouplings.filter((c) => !c.kind).length} literals in ${new Set(formatCouplings.filter((c) => !c.kind).map((c) => c.file)).size} files.
-- Stale comment path refs: ${all.reduce((s, r) => s + (r.staleRefs?.length ?? 0), 0)} in ${all.filter((r) => r.staleRefs).length} files.
+- Stale comment refs (paths, file:line past end, @jini-ai subpaths missing from exports): ${all.reduce((s, r) => s + (r.staleRefs?.length ?? 0), 0)} in ${all.filter((r) => r.staleRefs).length} files. Error-message couplings (err.message compare vs a message thrown elsewhere): ${all.filter((r) => r.errMessageCouplings).length} files.
+
+## TOOL-CALL check (tool-calls.jsonl, permission-defs.json)
+
+- Tools: ${toolTotals.tools} definitions in ${toolTotals.toolDefFiles} files (${toolTotals.noDeclaredPermission} with no declared permission). Hand-anchor: ~296.
+- Hand-written permission checks: ${toolTotals.handChecks} in ${toolTotals.handCheckFiles} files (of ${toolTotals.toolFiles} tool/registration files). Hand-anchor: ~198 in ~79.
+- Permission names defined (\`const X_PERMISSION = "..."\`) in more than one file: ${toolTotals.permDefinedTwice} (${toolTotals.permDefinedTwiceTovu} with >= 2 Tovu files). Hand-anchor: ~14.
+- ctx.signal read in ${toolTotals.ctxSignalFiles} of ${toolTotals.toolFiles} tool/registration files (${toolRows.length ? new Set(toolRows.filter((r) => r.readsCtxSignal).map((r) => r.file)).size : 0} of ${toolTotals.toolDefFiles} tool-definition files). Hand-anchor: ~22 of ~120.
+- Hand-parsed input (JSON.parse / typeof input.x): ${toolTotals.handParseFiles} files; generic error strings: ${toolTotals.genericErrorFiles} files.
+- Tools with no test file importing their file: ${toolTotals.noTest}; with no importing test that names the tool: ${toolTotals.noNamedTest} (tests that never name a refusal: ${toolTotals.testNoDenied}). Hand-anchor: ~20.
+- Limits: a tool = an object literal with \`name\` plus \`authorization\`, or \`name\` + \`inputSchema\` + \`description\`; tools built by factories from arrays are missed. Checks/ctx.signal/parse are per file, not per handler. "Has a test" = some test file imports the defining file.
 - Features: ${features.length}. SCCs: ${sccs.length} (${multi.length} with >1 feature; largest ${Math.max(...sccs.map((c) => c.length))} features).
 - Batches: ${batches.length} (files ${Math.min(...batchIndex.map((b) => b.files))}-${Math.max(...batchIndex.map((b) => b.files))}, lines up to ${Math.max(...batchIndex.map((b) => b.loc))}; caps ${BATCH_MAX_FILES} files / ${BATCH_MAX_LOC} lines, a bigger single file alone), leaf-first in batches.json.
+
+## v3 -> v4 changes (round-3 judges)
+
+- Dead code: roots from vite lib entries / rollup inputs, spawn/fork/new URL path literals, root package.json scripts and .github/workflows; import() targets are BOUNDARY (lazyImported); BOUNDARY-ENTRY needs >= 1 prod importer; LABEL-CONFLICT when a keep-label lands on a dead file; hermetic-only prod reach for files reached only via the in-memory composition (app.ts).
+- Barrels and members: dead re-exports counted per symbol through barrels (deadReexports); dead controller/api members, incl. ones read only by dead files (deadMembers); admin client paths with no server route (clientRoutesNoServer).
+- TINY-EXTENDS-ADAPTER = every class is a constructor-only \`super(f(x))\` subclass; a class overriding any method never is.
+- Twins: norm-body (identifier-normalised text, Tovu<->Tovu across admin/desktop/website incl. routes, and Tovu<->Jini), same-file pairs, name-independent beh twins against all Jini units (private ones too), module-level Jini twins (module-twins.jsonl, ranked by summed similarity); Jini public surface from package.json exports; exact-small needs >= 3 statements or 160 chars; const twins need an equal (quote-normalised) value, exported counterpart, and never lift a tier (twin-group lift included); class-name twins need a shared caller; same-interface class-api pairs dropped.
+- LEGACY-TWIN: UNMOUNTED-REWRITE state; WIRE-DRIFT rows (route-path and permission literals the Jini twin uses and Tovu does not, with near Tovu names; wire-drift.jsonl); a legacy twin lifts only files sharing >= ${LEGACY_OWN_MIN_SHARED} own tokens with the Jini module.
+- Tiers: Tier 2 when the file implements an imported Jini port type, has a Jini code twin >= 0.6, a module-level Jini twin, or an err-message coupling; no cycle lift for barrels or pure binding files.
+- CORE-CONTRACT-NEEDED: origin package of each value import; packages another named package (or the app's own Jini package) already depends on are dropped.
+- Hints: fail-closed predicate catches and catches setting a visible error are not swallows; \`catch { continue }\`/return after reads, binding-less catch + log, Map-cached promises without delete-on-reject are; fetch by method (HEAD is a read); port/callback write verbs count as writes; regex couplings tested against the emitted literal; whole-map replace that tombstones omitted ids; err.message compares against messages thrown elsewhere.
+- Stale refs: \`file.ts:N\` cites past the file's end and \`@jini-ai/pkg/sub\` mentions missing from the exports map; \`--drift\` exits 1 when slice files or Jini packages changed since the build.
+- TOOL-CALL check: tool-calls.jsonl + totals above.
+- Not done (expensive): JSX render-gate analysis (loadError early returns, state read in one branch), action-union client paths (stop-serving), field-level legacy checks ("no field X" vs the Jini record), per-handler (not per-file) tool checks.
 
 ## v2 -> v3 changes (round-2 judges)
 
@@ -2455,6 +2739,7 @@ Tier 2 triggers (files; a file can have several): ${Object.entries(trig).map(([k
 
 - \`batches.json\` ordered batch list; \`batches/bNNN.jsonl\` one JSON row per file.
 - \`files.tsv\` all labelled files; \`tests.tsv\` test files and their subjects.
+- \`tool-calls.jsonl\` (one row per tool), \`permission-defs.json\` (permission names defined in > 1 file), \`module-twins.jsonl\`, \`wire-drift.jsonl\`.
 - \`twins.jsonl\`, \`port-edges.jsonl\`, \`format-couplings.jsonl\` (string, wire-key and parsed-line couplings carry \`kind\`), \`legacy-twins.jsonl\`, \`jini-rules.jsonl\`, \`composition-drift.jsonl\`, \`sccs.json\` (multi-feature SCCs), \`stamp.json\`.
 
 ## Row fields
