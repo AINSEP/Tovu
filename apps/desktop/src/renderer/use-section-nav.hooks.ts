@@ -113,8 +113,13 @@ export function useSectionNav(
   // Create and Import are two pages for the same space; opening one closes the other.
   const startCreating = () => { setIsImporting(false); setIsCreating(true); };
   const stopCreating = () => setIsCreating(false);
-  // The Import tab's page shows only on the sites home, so bringing it forward also leaves a site's tab.
-  const startImporting = () => { setIsCreating(false); setIsImporting(true); setImportTabOpen(true); setActiveTab(null); };
+  // The Import tab's page shows only on the sites home, so bringing it forward also leaves a site's tab,
+  // Appearance and any other section — the web admin's hand-off can arrive while any of them is in front,
+  // and `deriveSitesHomeView` would otherwise keep the page hidden behind it.
+  const startImporting = () => {
+    setActiveId('projects'); setAppearanceOpen(false);
+    setIsCreating(false); setIsImporting(true); setImportTabOpen(true); setActiveTab(null);
+  };
   const hideImporting = () => setIsImporting(false);
   const stopImporting = () => { setIsImporting(false); setImportTabOpen(false); };
 

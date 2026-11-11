@@ -11,6 +11,7 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 import { renderHookWithView as renderHook } from './app-hooks.test-support.js';
 import { useProjectTabs } from './use-project-tabs.hooks.js';
 import { useRunnerNavigation, useSectionNav } from './use-section-nav.hooks.js';
+import { deriveSitesHomeView } from './sites-home-view.js';
 
 function useNavigationShell(getBridge: () => Pick<RunnerInventoryBridge, 'onNavigate'> | undefined) {
   const tabs = useProjectTabs();
@@ -85,4 +86,20 @@ test('useSectionNav: Import is a tab: it comes forward from a site, hides behind
   act(() => hook.current().nav.startImporting());
   act(() => hook.current().nav.selectSection('agents' as RunnerSectionId));
   assert.deepEqual(state(), { front: false, open: false, tab: null });
+});
+
+test('useSectionNav: Import comes to the front from Appearance or another section (the web admin hand-off lands there)', (t) => {
+  const hook = renderHook(t, () => useNavigationShell(() => undefined));
+  const importShown = () => {
+    const { nav, tabs } = hook.current();
+    return deriveSitesHomeView({ activeId: nav.activeId, appearanceOpen: nav.appearanceOpen, activeTab: tabs.activeTab,
+      openTabs: tabs.openTabs, projects: [], isCreating: nav.isCreating, isImporting: nav.isImporting }).showImportPage;
+  };
+  act(() => hook.current().nav.openAppearance());
+  act(() => hook.current().nav.startImporting());
+  assert.equal(importShown(), true, 'over Appearance');
+  act(() => hook.current().nav.selectSection('agents' as RunnerSectionId));
+  act(() => hook.current().nav.startImporting());
+  assert.equal(importShown(), true, 'from a non-Projects section');
+  assert.equal(hook.current().nav.activeId, 'projects');
 });
