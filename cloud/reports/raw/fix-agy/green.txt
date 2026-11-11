@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+ ✓ src/agent-install/__tests__/install.test.ts (65 tests) 72ms
+ ✓ src/agent-install/__tests__/owned-json-install.test.ts (12 tests) 107ms
+
+ Test Files  2 passed (2)
+      Tests  77 passed (77)
+   Start at  00:44:18
+   Duration  806ms (transform 387ms, setup 0ms, collect 578ms, tests 179ms, environment 2ms, prepare 168ms)
+

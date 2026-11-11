@@ -1,0 +1,117 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+ ❯ src/agent-install/__tests__/install.test.ts (65 tests | 3 failed) 114ms
+   × applyJsonInstall > refuses a foreign named entry without changing it 13ms
+     → expected [Function] to throw error matching /already has an MCP server named "jini…/ but got 'A different jini entry exists; choose…'
+   × applyJsonInstall > replaces a jini bridge entry an earlier install wrote, including the folded opencode command shape 6ms
+     → A different jini entry exists; choose another agent to keep these settings.
+   × applyJsonInstall > does not treat a bridge path under another server key as ours 2ms
+     → expected [Function] to throw error matching /did not add/ but got 'A different jini entry exists; choose…'
+ ❯ src/agent-install/__tests__/owned-json-install.test.ts (12 tests | 4 failed) 133ms
+   × foreign jini entry is refused without write or backup, naming the file, the key and what to do 18ms
+     → expected [Function] to throw error including '/tmp/mcp-owned-i5tEqF/.gemini/config/…' but got 'A different jini entry exists; choose…'
+   × a jini bridge entry left by an older install in node_modules is replaced, backed up once, and every other entry kept 23ms
+     → A different jini entry exists; choose another agent to keep these settings.
+   × a jini bridge entry left by a linked checkout is replaced, backed up once, and every other entry kept 6ms
+     → A different jini entry exists; choose another agent to keep these settings.
+   × a jini bridge entry left by a Windows install is replaced, backed up once, and every other entry kept 3ms
+     → A different jini entry exists; choose another agent to keep these settings.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent-install/__tests__/install.test.ts > applyJsonInstall > refuses a foreign named entry without changing it
+AssertionError: expected [Function] to throw error matching /already has an MCP server named "jini…/ but got 'A different jini entry exists; choose…'
+
+- Expected: 
+/already has an MCP server named "jini" that this app did not add/
+
++ Received: 
+"A different jini entry exists; choose another agent to keep these settings."
+
+ ❯ src/agent-install/__tests__/install.test.ts:237:70
+    235|   it('refuses a foreign named entry without changing it', () => {
+    236|     const existing = JSON.stringify({ mcp: { servers: { jini: { comman…
+    237|     expect(() => applyJsonInstall({ existingText: existing, plan })).t…
+       |                                                                      ^
+    238|   });
+    239| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  src/agent-install/__tests__/install.test.ts > applyJsonInstall > replaces a jini bridge entry an earlier install wrote, including the folded opencode command shape
+Error: A different jini entry exists; choose another agent to keep these settings.
+ ❯ Module.applyJsonInstall src/agent-install/install.ts:367:11
+    365|   }
+    366|   if (Object.hasOwn(cursor, plan.serverKey) && !isDeepStrictEqual(curs…
+    367|     throw new Error(`A different ${plan.serverKey} entry exists; choos…
+       |           ^
+    368|   }
+    369|   cursor[plan.serverKey] = plan.entry;
+ ❯ src/agent-install/__tests__/install.test.ts:243:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  src/agent-install/__tests__/install.test.ts > applyJsonInstall > does not treat a bridge path under another server key as ours
+AssertionError: expected [Function] to throw error matching /did not add/ but got 'A different jini entry exists; choose…'
+
+- Expected: 
+/did not add/
+
++ Received: 
+"A different jini entry exists; choose another agent to keep these settings."
+
+ ❯ src/agent-install/__tests__/install.test.ts:248:70
+    246|   it('does not treat a bridge path under another server key as ours', …
+    247|     const existing = JSON.stringify({ mcp: { servers: { jini: { comman…
+    248|     expect(() => applyJsonInstall({ existingText: existing, plan })).t…
+       |                                                                      ^
+    249|   });
+    250| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  src/agent-install/__tests__/owned-json-install.test.ts > foreign jini entry is refused without write or backup, naming the file, the key and what to do
+AssertionError: expected [Function] to throw error including '/tmp/mcp-owned-i5tEqF/.gemini/config/…' but got 'A different jini entry exists; choose…'
+
+Expected: "/tmp/mcp-owned-i5tEqF/.gemini/config/mcp_config.json"
+Received: "A different jini entry exists; choose another agent to keep these settings."
+
+ ❯ src/agent-install/__tests__/owned-json-install.test.ts:44:3
+     42|   const original = JSON.stringify({ mcpServers: { jini: { command: 'fo…
+     43|   const refusal = installOwnedJsonAgent(required);
+     44|   await expect(refusal).rejects.toThrow(file);
+       |   ^
+     45|   await expect(refusal).rejects.toThrow(/already has an MCP server nam…
+     46|   expect(await readFile(file, 'utf8')).toBe(original);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  src/agent-install/__tests__/owned-json-install.test.ts > a jini bridge entry left by an older install in node_modules is replaced, backed up once, and every other entry kept
+ FAIL  src/agent-install/__tests__/owned-json-install.test.ts > a jini bridge entry left by a linked checkout is replaced, backed up once, and every other entry kept
+ FAIL  src/agent-install/__tests__/owned-json-install.test.ts > a jini bridge entry left by a Windows install is replaced, backed up once, and every other entry kept
+Error: A different jini entry exists; choose another agent to keep these settings.
+ ❯ Module.applyJsonInstall src/agent-install/install.ts:367:11
+    365|   }
+    366|   if (Object.hasOwn(cursor, plan.serverKey) && !isDeepStrictEqual(curs…
+    367|     throw new Error(`A different ${plan.serverKey} entry exists; choos…
+       |           ^
+    368|   }
+    369|   cursor[plan.serverKey] = plan.entry;
+ ❯ run src/agent-install/owned-json-install.ts:40:21
+ ❯ runHeldAsync ../platform/src/fs/file-lock.ts:327:19
+ ❯ Module.installOwnedJsonAgent src/agent-install/owned-json-install.ts:38:3
+ ❯ src/agent-install/__tests__/owned-json-install.test.ts:57:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ Test Files  2 failed (2)
+      Tests  7 failed | 70 passed (77)
+   Start at  00:43:34
+   Duration  861ms (transform 366ms, setup 0ms, collect 531ms, tests 247ms, environment 0ms, prepare 138ms)
+
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

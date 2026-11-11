@@ -1,0 +1,2 @@
+INSTALL=0
+CORE=0

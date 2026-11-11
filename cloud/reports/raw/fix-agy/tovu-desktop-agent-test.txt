@@ -1,0 +1,29 @@
+✔ bearerToken reads the token from an Authorization header, case-insensitively and trimmed (1.159968ms)
+✔ the bridge gate denies by default and binds a delegated call to the credential's own run (0.966202ms)
+✔ the catalog ranks by matched terms, honours the limit, and lists everything for an empty query (0.604607ms)
+✔ the catalog describes a known tool with its schema when it has one, and null for an unknown id (0.282408ms)
+✔ the turn prompt names the on-screen site, or says only desktop tools apply (0.150452ms)
+✔ the runtime registers the built tools plus the owner gap list, and wires the bridge into the executor (13.14605ms)
+✔ every listener request needs a credential for a live run; a turn's credential reaches its own catalog and tools (86.053927ms)
+✔ a turn with full CLI access gets the full overlay, and attachments, model and reasoning reach the executor (6.35073ms)
+✔ native tool use during a turn is recorded in the owner's gap store, redacted, and listed back (5.025672ms)
+✔ a gap-store write failure is logged, not thrown into the turn (4.460232ms)
+✔ an executor that rejects before terminalizing the run fails the run with a readable error, never leaving it live (3.625813ms)
+✔ an executor that rejects after the run already finished leaves the finished run alone (6.296705ms)
+✔ a hosted runtime runs every turn restricted, with no native tool access (4.697177ms)
+✔ a bridge credential can only be minted for a run that is live (3.460012ms)
+✔ without an injected executor the turn runs on Jini's own executor, which fails an unknown agent cleanly (9.671952ms)
+✔ with no injected reader, an enabled login environment is read from the real login shell (32.909633ms)
+✔ a run another path terminalizes while the failed start is being handled keeps that outcome, with no second terminal (7.915993ms)
+✔ the tool-gap audit is readable by the desktop operator only (0.433954ms)
+✔ a failed start whose own fallback finish also fails is swallowed, after reporting the error to the run (5.589537ms)
+✔ Antigravity installs its static connector before a desktop turn and refuses an unapproved install (7.414236ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1066.510274
+EXIT=0

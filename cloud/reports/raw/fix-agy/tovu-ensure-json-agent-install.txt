@@ -1,0 +1,25 @@
+✔ antigravity: missing config is installed only after explicit consent (114.397241ms)
+✔ cursor: missing config is installed only after explicit consent (17.339665ms)
+✔ approved repair preserves other servers, unrelated settings, file mode and backup (17.123128ms)
+✔ an already valid entry requires consent and is not rewritten (9.415318ms)
+✔ foreign stale or disabled jini entry is retained rather than overwritten (7.407555ms)
+✔ a jini entry an older install wrote (old node_modules path) is replaced after a backup (27.15489ms)
+✔ the static Electron switch is safe to persist after Allow (23.874458ms)
+✔ planned JINI_RUN_ID values are refused before any config write (2.153728ms)
+✔ planned JINI_DAEMON_URL values are refused before any config write (1.815086ms)
+✔ planned JINI_DAEMON_TOKEN values are refused before any config write (1.969794ms)
+✔ planned JINI_MESSAGE_RELAY_NONCE values are refused before any config write (1.853267ms)
+✔ planned SECRET values are refused before any config write (3.712098ms)
+✔ invalid JSON is left untouched (11.952319ms)
+✔ symlink config is refused and target remains unchanged (15.921376ms)
+✔ adapter propagates installer failures without fabricating successful repair (2.130502ms)
+✔ adapter forwards consent and static launch spec to the Jini owner (1.039707ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1296.690188
+EXIT=0

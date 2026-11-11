@@ -1,0 +1,9 @@
+
+> tovu@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit && npm run typecheck:e2e
+
+
+> tovu@0.1.0 typecheck:e2e
+> tsc -p development/tsconfig.e2e.json --noEmit
+
+EXIT=0
