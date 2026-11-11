@@ -79,7 +79,7 @@ function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
   // read as publishing the zip. Publishing stays on the dashboard's "Publish All" and Deployment,
   // both present on desktop too.
   if (tab === "export") return <SiteExportTab t={t} />;
-  return <SiteImportTab t={t} showNewSiteLink={sitesAvailable} />;
+  return <SiteImportTab t={t} canMakeSites={sitesAvailable} />;
 }
 
 /** `replace: true` so switching tabs does not grow the back stack, as Sites and Deployment do. */

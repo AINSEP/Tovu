@@ -89,7 +89,12 @@
   .site-transfer .site-transfer-acknowledge input[type="checkbox"] { min-height: 0; }
 }
 
-/* The "or" between the link field and the drop zone: a quiet rule-and-word divider. */
+/* The drop zone, then its Choose file… button under it (the zone is itself a button, so the
+   button cannot sit inside it). Files come first, as on the desktop app's Import page. */
+.site-transfer-drop { display: grid; justify-items: start; gap: var(--space-3); }
+.site-transfer-drop > .jini-file-dropzone { justify-self: stretch; }
+
+/* The "or" between the drop zone and the link field: a quiet rule-and-word divider. */
 .site-transfer-or {
   margin: 0; display: flex; align-items: center; gap: var(--space-3);
   color: var(--muted); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em;

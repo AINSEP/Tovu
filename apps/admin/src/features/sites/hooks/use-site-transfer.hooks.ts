@@ -281,8 +281,9 @@ export function validWebsiteAddress(address: string): boolean {
   }
 }
 
-/** The desktop app's Import page opens a new site's tab with the address already in the URL
- * (`?liveImport=`); the owner then only presses "Import with the assistant". Same-origin page, read once. */
+/** The desktop app's Import page, and the web one's live source (`use-live-import-site.hooks.ts`),
+ * open a NEW site's tab with the address already in the URL (`?liveImport=`); the owner then only
+ * presses "Import with the assistant". Same-origin page, read once. */
 function prefilledLiveAddress(): string {
   if (typeof window === "undefined") return "";
   const address = new URLSearchParams(window.location.search).get("liveImport") ?? "";
@@ -322,7 +323,11 @@ export interface SiteImportController {
   liveAddress: string;
   setLiveAddress: (address: string) => void;
   liveAddressValid: boolean;
+  /** Drafts the import into THIS site; only offered on a site made for it (see `arrivedForImport`). */
   startLiveImport: () => void;
+  /** This page is the new site a live import was made for: its address came in the URL. Elsewhere a
+   *  live website makes a new site first and never imports into this one (owner, 2026-11-10). */
+  arrivedForImport: boolean;
 }
 
 function passwordProblemFor({ password, confirm, t }: { password: string; confirm: string; t: Translate }): string | null {
@@ -376,6 +381,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   const [settingOwner, setSettingOwner] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
   const [liveAddress, setLiveAddress] = useState(prefilledLiveAddress);
+  const [arrivedForImport] = useState(() => prefilledLiveAddress() !== "");
   // A 503 on the list means import is off on this host: say why once, above the form, not as a list error.
   const unavailable = unavailableReason(list.error);
 
@@ -482,6 +488,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
     startLiveImport: () => {
       if (validWebsiteAddress(liveAddress)) requestAssistantPrompt(liveImportPrompt(liveAddress));
     },
+    arrivedForImport,
   };
 }
 

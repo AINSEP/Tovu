@@ -59,6 +59,19 @@ export function importSourceLabel(source: SiteImport["source"], t: Translate): s
 export function importOptionsTip(t: Translate): string {
   return [
     `• ${t("Share link or zip")}: ${t("Makes a new site from another Tovu site's export. This site stays as it is.")}`,
-    `• ${t("Live website")}: ${t("The assistant copies a public website's pages into this site. You read its request first, then press Send.")}`,
+    `• ${t("Live website")}: ${t("Makes a new site, and the assistant copies a public website's pages into it. You read its request first, then press Send.")}`,
   ].join("\n");
+}
+
+/**
+ * What "From a live website" does on this page (owner, 2026-11-10: it makes a NEW site, never
+ * imports into this one): `this-new-site` on the site made for it (its address came in the URL),
+ * `new-site` where this host can make sites, else `unavailable`. @complexity O(1).
+ */
+export function liveImportMode(
+  { arrivedForImport, canMakeSites }: { arrivedForImport: boolean; canMakeSites: boolean },
+  _optional = {},
+): "this-new-site" | "new-site" | "unavailable" {
+  if (arrivedForImport) return "this-new-site";
+  return canMakeSites ? "new-site" : "unavailable";
 }

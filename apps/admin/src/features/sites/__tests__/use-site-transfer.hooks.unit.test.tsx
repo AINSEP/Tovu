@@ -536,6 +536,25 @@ describe("useSiteImport", () => {
     expect(dockRequests).toEqual([true]);
     unsubscribe();
   });
+
+  it("knows whether this page is the new site a live import was made for (its address came in the URL)", () => {
+    const port = createFakeSiteTransferPort();
+    expect(renderHook(() => useSiteImport({ port, t }), { wrapper }).result.current.arrivedForImport).toBe(false);
+    window.history.replaceState(null, "", "/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com");
+    try {
+      const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
+      expect(result.current.arrivedForImport).toBe(true);
+      expect(result.current.liveAddress).toBe("https://example.com");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+    window.history.replaceState(null, "", "/admin/import-export?tab=import&liveImport=javascript%3Aalert(1)");
+    try {
+      expect(renderHook(() => useSiteImport({ port, t }), { wrapper }).result.current.arrivedForImport).toBe(false);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
 });
 
 

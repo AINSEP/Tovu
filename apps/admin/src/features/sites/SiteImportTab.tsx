@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { DataTable } from "@jini-ai/admin/react";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/agentic";
@@ -7,7 +8,8 @@ import { formatTimestamp, interpolate, type Translate } from "@jini-ai/ui/panel-
 import type { SiteImport } from "./hooks/site-transfer-dependencies.hooks";
 import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import { useWiredSiteImport, type SiteImportController } from "./hooks/use-site-transfer.hooks";
-import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView } from "./site-transfer-rules";
+import { useWiredLiveImportSite, type LiveImportSiteController } from "./hooks/use-live-import-site.hooks";
+import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView, liveImportMode } from "./site-transfer-rules";
 
 /**
  * @file The "Import Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
@@ -15,7 +17,10 @@ import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateVi
  * - a Tovu share link or `.tovu.zip` becomes a NEW site, then the new owner's password is chosen
  *   here (the backend's needs-owner step; the password never goes through an agent tool);
  * - a live website goes to the existing `site-import` agent plugin as a drafted assistant request.
- *   v1 (coordinator, 2026-10-18) imports into THIS site, and the copy says so with a New site link.
+ *   v1 (coordinator, 2026-10-18) imported into THIS site, with a New site link. Since 2026-11-10
+ *   (owner) it makes a NEW site first, as the desktop app does, and the request is drafted on that
+ *   site ({@link useWiredLiveImportSite}); it never imports into the site this page belongs to.
+ * Files come before web addresses, as on the desktop app's Import page (owner, 2026-11-10).
  * Then the list of past imports. Markup only; every effect is in {@link useWiredSiteImport}.
  */
 
@@ -23,13 +28,16 @@ export interface SiteImportTabProps {
   t: Translate;
   /** Test seam, same convention as `SitesProps.useSitesHook`. */
   useImport?: typeof useWiredSiteImport;
-  /** Whether to link to Sites → New site. Off where this deployment has no Sites section (the
-   *  desktop app, a hosted install), since that route would bounce to the dashboard. */
-  showNewSiteLink?: boolean;
+  /** Same seam, for the live website's new site. */
+  useLiveSite?: typeof useWiredLiveImportSite;
+  /** Whether this host can make a new site. Off where this deployment has no Sites section (the
+   *  desktop app, a hosted install): a live website is then not offered, except on the site made for it. */
+  canMakeSites?: boolean;
 }
 
-export function SiteImportTab({ t, useImport = useWiredSiteImport, showNewSiteLink = false }: SiteImportTabProps) {
+export function SiteImportTab({ t, useImport = useWiredSiteImport, useLiveSite = useWiredLiveImportSite, canMakeSites = false }: SiteImportTabProps) {
   const controller = useImport({ t });
+  const liveSite = useLiveSite({ t });
   return (
     <section className="site-transfer" aria-label={t("Import Site")}>
       <div className="site-transfer-head">
@@ -41,7 +49,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, showNewSiteLi
       <ImportProgress controller={controller} t={t} />
       <div className="onboarding-card">
         <ArchiveSource controller={controller} t={t} />
-        <LiveWebsiteSource controller={controller} showNewSiteLink={showNewSiteLink} t={t} />
+        <LiveWebsiteSource controller={controller} liveSite={liveSite} mode={liveImportMode({ arrivedForImport: controller.arrivedForImport, canMakeSites })} t={t} />
       </div>
       <h3 className="site-transfer-subtitle">{t("Past imports")}</h3>
       <ImportList controller={controller} t={t} />
@@ -49,8 +57,14 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, showNewSiteLi
   );
 }
 
-/** "From a Tovu share link or zip": a link OR a file, one Import button. */
+/** Opens the drop zone's own file picker, so the button and a click on the zone are one flow. */
+function openZonePicker(zone: HTMLElement | null): void {
+  zone?.querySelector<HTMLInputElement>('input[type="file"]')?.click();
+}
+
+/** "From a .tovu.zip or share link": a file OR a link, one Import button. */
 function ArchiveSource({ controller, t }: { controller: SiteImportController; t: Translate }) {
+  const zone = useRef<HTMLDivElement>(null);
   return (
     <form
       className="onboarding-section"
@@ -61,9 +75,33 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
       {...agentHandle({ handle: "sites-import-archive-form" }, { role: "form", label: "Import a Tovu share link or .tovu.zip as a new site" })}
     >
       <div className="onboarding-section-head">
-        <h3 className="onboarding-section-title">{t("From a Tovu share link or zip")}</h3>
+        <h3 className="onboarding-section-title">{t("From a .tovu.zip or share link")}</h3>
         <p className="onboarding-section-lead">{t("Makes a new site. This site stays as it is.")}</p>
       </div>
+      {controller.file ? (
+        <div className="site-transfer-file">
+          <span className="site-transfer-file-name">{controller.file.name}</span>
+          <span className="site-transfer-num">{formatTransferBytes(controller.file.size)}</span>
+          <button type="button" className="btn-secondary" disabled={controller.importing} onClick={controller.clearFile}
+            {...agentHandle({ handle: "sites-import-file-remove" }, { role: "button", label: "Remove the chosen .tovu.zip" })}>
+            {t("Remove")}
+          </button>
+        </div>
+      ) : (
+        <div className="site-transfer-drop" ref={zone}>
+          <FileDropzone
+            accept=".zip,application/zip"
+            prompt={t("Drop a .tovu.zip here, or click to browse")}
+            helper={t("Up to 300 MB")}
+            onFiles={controller.chooseFiles}
+          />
+          <button type="button" className="btn-secondary" disabled={controller.importing} onClick={() => openZonePicker(zone.current)}
+            {...agentHandle({ handle: "sites-import-file-choose" }, { role: "button", label: "Choose a .tovu.zip file to import" })}>
+            {t("Choose file…")}
+          </button>
+        </div>
+      )}
+      <p className="site-transfer-or">{t("or")}</p>
       <div className="field">
         <label className="field-label" htmlFor="sites-import-link">{t("Share link")}</label>
         <input
@@ -77,24 +115,6 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
           {...agentHandle({ handle: "sites-import-link" }, { role: "field", label: "Tovu share link to import" })}
         />
       </div>
-      <p className="site-transfer-or">{t("or")}</p>
-      {controller.file ? (
-        <div className="site-transfer-file">
-          <span className="site-transfer-file-name">{controller.file.name}</span>
-          <span className="site-transfer-num">{formatTransferBytes(controller.file.size)}</span>
-          <button type="button" className="btn-secondary" disabled={controller.importing} onClick={controller.clearFile}
-            {...agentHandle({ handle: "sites-import-file-remove" }, { role: "button", label: "Remove the chosen .tovu.zip" })}>
-            {t("Remove")}
-          </button>
-        </div>
-      ) : (
-        <FileDropzone
-          accept=".zip,application/zip"
-          prompt={t("Drop a .tovu.zip here, or click to browse")}
-          helper={t("Up to 300 MB")}
-          onFiles={controller.chooseFiles}
-        />
-      )}
       {controller.importError ? <div className="notice error" role="alert">{controller.importError}</div> : null}
       <div className="site-transfer-actions">
         <button type="submit" className="btn-primary" disabled={!controller.canImport || controller.importing} aria-busy={controller.importing}
@@ -107,31 +127,35 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
   );
 }
 
-/** "From a live website": hands a drafted request to the assistant; the owner presses Send. */
-function LiveWebsiteSource({ controller, showNewSiteLink, t }: { controller: SiteImportController; showNewSiteLink: boolean; t: Translate }) {
+/** "From a live website": makes a NEW site and opens it with the request drafted; on that new site
+ *  itself, hands the drafted request to the assistant; the owner presses Send. */
+function LiveWebsiteSource({ controller, liveSite, mode, t }: {
+  controller: SiteImportController; liveSite: LiveImportSiteController; mode: ReturnType<typeof liveImportMode>; t: Translate;
+}) {
+  if (mode === "unavailable") {
+    return (
+      <div className="onboarding-section">
+        <div className="onboarding-section-head">
+          <h3 className="onboarding-section-title">{t("From a live website")}</h3>
+          <p className="onboarding-section-lead">{t("This host can't make new sites, so it can't import a live website here.")}</p>
+        </div>
+      </div>
+    );
+  }
+  const newSite = mode === "new-site";
   return (
     <form
       className="onboarding-section"
       onSubmit={(event) => {
         event.preventDefault();
-        controller.startLiveImport();
+        if (newSite) void liveSite.start(controller.liveAddress);
+        else controller.startLiveImport();
       }}
-      {...agentHandle({ handle: "sites-import-live-form" }, { role: "form", label: "Import a live website with the assistant" })}
+      {...agentHandle({ handle: "sites-import-live-form" }, { role: "form", label: "Import a live website into a new site with the assistant" })}
     >
       <div className="onboarding-section-head">
         <h3 className="onboarding-section-title">{t("From a live website")}</h3>
-        <p className="onboarding-section-lead">
-          {t("Imports into this site. To keep this site as it is, make a new site first.")}
-          {showNewSiteLink ? (
-            <>
-              {" "}
-              <a className="link-button" href="/admin/sites?tab=new"
-                {...agentHandle({ handle: "sites-import-live-new-site" }, { role: "link", label: "Go to the New site tab" })}>
-                {t("New site")}
-              </a>
-            </>
-          ) : null}
-        </p>
+        <p className="onboarding-section-lead">{newSite ? t("Makes a new site. This site stays as it is.") : t("Imports into this new site.")}</p>
       </div>
       <div className="field">
         <label className="field-label" htmlFor="sites-import-live-address">{t("Website address")}</label>
@@ -141,16 +165,21 @@ function LiveWebsiteSource({ controller, showNewSiteLink, t }: { controller: Sit
           inputMode="url"
           placeholder="https://"
           value={controller.liveAddress}
+          disabled={liveSite.creating}
           aria-describedby="sites-import-live-hint"
           onChange={(event) => controller.setLiveAddress(event.target.value)}
           {...agentHandle({ handle: "sites-import-live-address" }, { role: "field", label: "Address of the live website to import" })}
         />
-        <p className="field-hint" id="sites-import-live-hint">{t("The assistant opens with the request written. Press Send to start.")}</p>
+        <p className="field-hint" id="sites-import-live-hint">
+          {newSite ? t("The new site opens with the request written. Press Send there to start.") : t("The assistant opens with the request written. Press Send to start.")}
+        </p>
       </div>
+      {liveSite.error ? <div className="notice error" role="alert">{liveSite.error}</div> : null}
       <div className="site-transfer-actions">
-        <button type="submit" className="btn-secondary" disabled={!controller.liveAddressValid}
-          {...agentHandle({ handle: "sites-import-live-start" }, { role: "button", label: "Open the assistant with the import request" })}>
-          {t("Import with the assistant")}
+        <button type="submit" className="btn-secondary" disabled={!controller.liveAddressValid || liveSite.creating} aria-busy={liveSite.creating}
+          {...agentHandle({ handle: "sites-import-live-start" }, { role: "button", label: newSite ? "Make a new site and open its assistant with the import request" : "Open the assistant with the import request" })}>
+          {liveSite.creating ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
+          {liveSite.creating ? t("Creating…") : t("Import with the assistant")}
         </button>
       </div>
     </form>

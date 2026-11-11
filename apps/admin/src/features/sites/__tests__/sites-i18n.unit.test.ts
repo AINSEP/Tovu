@@ -111,3 +111,21 @@ it.each(Object.keys(SITE_TRANSFER_DICT))("localizes every picker label in %s", l
     expect(t({ locale, key })).not.toBe(key);
   }
 });
+
+// The Import tab's 2026-11-10 copy: a live website makes a new site, and files come first.
+it.each(Object.keys(SITE_TRANSFER_DICT))("localizes the new-site live import copy in %s", locale => {
+  for (const key of ["Choose file…", "From a .tovu.zip or share link", "Imports into this new site.",
+    "The new site opens with the request written. Press Send there to start.",
+    "This host can't make new sites, so it can't import a live website here.",
+    "{name} was made but didn't start. Start it from All sites, then import there.",
+    "Couldn't make the new site.",
+    "Makes a new site, and the assistant copies a public website's pages into it. You read its request first, then press Send."]) {
+    expect(SITE_TRANSFER_DICT[locale]).toHaveProperty(key);
+    expect(t({ locale, key })).not.toBe(key);
+    if (key.includes("{name}")) expect(t({ locale, key })).toContain("{name}");
+  }
+  for (const gone of ["Imports into this site. To keep this site as it is, make a new site first.", "From a Tovu share link or zip",
+    "The assistant copies a public website's pages into this site. You read its request first, then press Send."]) {
+    expect(SITE_TRANSFER_DICT[locale]).not.toHaveProperty(gone);
+  }
+});
