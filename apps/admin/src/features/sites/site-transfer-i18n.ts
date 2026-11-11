@@ -339,4 +339,34 @@ for (const [locale, values] of Object.entries(LIVE_NEW_SITE_COPY)) {
   Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(LIVE_NEW_SITE_LABELS.map((key, index) => [key, values[index]!])));
 }
 
+// Inside the desktop app, a live website hands off to the app's own Import tab (owner, 2026-11-10).
+const DESKTOP_IMPORT_LABELS = ["Open Import in Tovu", "Tovu's Import tab makes a new site from it.", "Couldn't open Tovu's Import tab. Open Tovu's home window, then try again.", "Couldn't open Tovu's Import tab: {reason}"];
+const DESKTOP_IMPORT_COPY: Record<string, string[]> = {
+  ar: ["فتح الاستيراد في Tovu", "علامة تبويب الاستيراد في Tovu تنشئ منه موقعًا جديدًا.", "تعذّر فتح علامة تبويب الاستيراد في Tovu. افتح نافذة Tovu الرئيسية، ثم حاول مجددًا.", "تعذّر فتح علامة تبويب الاستيراد في Tovu: {reason}"],
+  bn: ["Tovu-তে ইমপোর্ট খুলুন", "Tovu-র ইমপোর্ট ট্যাব এটি থেকে একটি নতুন সাইট বানায়।", "Tovu-র ইমপোর্ট ট্যাব খোলা যায়নি। Tovu-র মূল উইন্ডো খুলুন, তারপর আবার চেষ্টা করুন।", "Tovu-র ইমপোর্ট ট্যাব খোলা যায়নি: {reason}"],
+  de: ["Import in Tovu öffnen", "Der Import-Tab von Tovu erstellt daraus eine neue Website.", "Der Import-Tab von Tovu ließ sich nicht öffnen. Öffne das Hauptfenster von Tovu und versuche es erneut.", "Der Import-Tab von Tovu ließ sich nicht öffnen: {reason}"],
+  es: ["Abrir Importar en Tovu", "La pestaña Importar de Tovu crea un sitio nuevo a partir de él.", "No se pudo abrir la pestaña Importar de Tovu. Abre la ventana principal de Tovu y vuelve a intentarlo.", "No se pudo abrir la pestaña Importar de Tovu: {reason}"],
+  fa: ["باز کردن درون‌بری در Tovu", "زبانهٔ درون‌بری Tovu از آن یک سایت تازه می‌سازد.", "زبانهٔ درون‌بری Tovu باز نشد. پنجرهٔ اصلی Tovu را باز کنید و دوباره امتحان کنید.", "زبانهٔ درون‌بری Tovu باز نشد: {reason}"],
+  fr: ["Ouvrir Importer dans Tovu", "L'onglet Importer de Tovu en fait un nouveau site.", "Impossible d'ouvrir l'onglet Importer de Tovu. Ouvrez la fenêtre principale de Tovu, puis réessayez.", "Impossible d'ouvrir l'onglet Importer de Tovu : {reason}"],
+  hi: ["Tovu में आयात खोलें", "Tovu का आयात टैब इससे एक नई साइट बनाता है।", "Tovu का आयात टैब नहीं खुल सका। Tovu की मुख्य विंडो खोलें, फिर दोबारा कोशिश करें।", "Tovu का आयात टैब नहीं खुल सका: {reason}"],
+  hu: ["Importálás megnyitása a Tovuban", "A Tovu Importálás lapja új webhelyet hoz létre belőle.", "Nem sikerült megnyitni a Tovu Importálás lapját. Nyisd meg a Tovu főablakát, majd próbáld újra.", "Nem sikerült megnyitni a Tovu Importálás lapját: {reason}"],
+  id: ["Buka Impor di Tovu", "Tab Impor Tovu membuat situs baru darinya.", "Tidak bisa membuka tab Impor Tovu. Buka jendela utama Tovu, lalu coba lagi.", "Tidak bisa membuka tab Impor Tovu: {reason}"],
+  it: ["Apri Importa in Tovu", "La scheda Importa di Tovu ne crea un nuovo sito.", "Impossibile aprire la scheda Importa di Tovu. Apri la finestra principale di Tovu, poi riprova.", "Impossibile aprire la scheda Importa di Tovu: {reason}"],
+  ja: ["Tovu でインポートを開く", "Tovu のインポートタブがここから新しいサイトを作成します。", "Tovu のインポートタブを開けませんでした。Tovu のメインウィンドウを開いてから、もう一度お試しください。", "Tovu のインポートタブを開けませんでした: {reason}"],
+  ko: ["Tovu에서 가져오기 열기", "Tovu의 가져오기 탭이 이것으로 새 사이트를 만듭니다.", "Tovu의 가져오기 탭을 열 수 없습니다. Tovu 기본 창을 연 다음 다시 시도하세요.", "Tovu의 가져오기 탭을 열 수 없습니다: {reason}"],
+  pl: ["Otwórz Import w Tovu", "Karta Import w Tovu tworzy z niej nową witrynę.", "Nie udało się otworzyć karty Import w Tovu. Otwórz główne okno Tovu i spróbuj ponownie.", "Nie udało się otworzyć karty Import w Tovu: {reason}"],
+  "pt-BR": ["Abrir Importar no Tovu", "A aba Importar do Tovu cria um site novo a partir dele.", "Não foi possível abrir a aba Importar do Tovu. Abra a janela principal do Tovu e tente de novo.", "Não foi possível abrir a aba Importar do Tovu: {reason}"],
+  ru: ["Открыть импорт в Tovu", "Вкладка «Импорт» в Tovu создаст из него новый сайт.", "Не удалось открыть вкладку «Импорт» в Tovu. Откройте главное окно Tovu и попробуйте снова.", "Не удалось открыть вкладку «Импорт» в Tovu: {reason}"],
+  th: ["เปิดการนำเข้าใน Tovu", "แท็บนำเข้าของ Tovu จะสร้างไซต์ใหม่จากเว็บไซต์นี้", "เปิดแท็บนำเข้าของ Tovu ไม่ได้ เปิดหน้าต่างหลักของ Tovu แล้วลองอีกครั้ง", "เปิดแท็บนำเข้าของ Tovu ไม่ได้: {reason}"],
+  tr: ["İçe aktarmayı Tovu'da aç", "Tovu'nun İçe aktar sekmesi bundan yeni bir site oluşturur.", "Tovu'nun İçe aktar sekmesi açılamadı. Tovu'nun ana penceresini açın, sonra tekrar deneyin.", "Tovu'nun İçe aktar sekmesi açılamadı: {reason}"],
+  uk: ["Відкрити імпорт у Tovu", "Вкладка «Імпорт» у Tovu створить із нього новий сайт.", "Не вдалося відкрити вкладку «Імпорт» у Tovu. Відкрийте головне вікно Tovu й спробуйте знову.", "Не вдалося відкрити вкладку «Імпорт» у Tovu: {reason}"],
+  ur: ["Tovu میں درآمد کھولیں", "Tovu کا درآمد ٹیب اس سے ایک نئی سائٹ بناتا ہے۔", "Tovu کا درآمد ٹیب نہیں کھل سکا۔ Tovu کی مرکزی ونڈو کھولیں، پھر دوبارہ کوشش کریں۔", "Tovu کا درآمد ٹیب نہیں کھل سکا: {reason}"],
+  "zh-CN": ["在 Tovu 中打开导入", "Tovu 的“导入”标签页会用它创建一个新网站。", "无法打开 Tovu 的“导入”标签页。请打开 Tovu 主窗口，然后重试。", "无法打开 Tovu 的“导入”标签页：{reason}"],
+  "zh-TW": ["在 Tovu 中開啟匯入", "Tovu 的「匯入」分頁會用它建立一個新網站。", "無法開啟 Tovu 的「匯入」分頁。請開啟 Tovu 主視窗，然後再試一次。", "無法開啟 Tovu 的「匯入」分頁：{reason}"],
+};
+
+for (const [locale, values] of Object.entries(DESKTOP_IMPORT_COPY)) {
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(DESKTOP_IMPORT_LABELS.map((key, index) => [key, values[index]!])));
+}
+
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });

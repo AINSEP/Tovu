@@ -62,6 +62,7 @@ import {
   type SaveConversationMessageInput,
 } from '../contracts/workspace-conversations.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
+import { IMPORT_HANDOFF_CHANNELS, type ImportHandoffRequest } from '../contracts/import-handoff.js';
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from '../contracts/product-telemetry.js';
 
 /**
@@ -155,6 +156,9 @@ contextBridge.exposeInMainWorld(
       subscribe(WORKSPACE_CHAT_CHANNELS.event, listener),
     onNavigate: (listener: (section: RunnerSectionId) => void) =>
       subscribe(WORKSPACE_CHAT_CHANNELS.navigate, listener),
+    /** The web admin's "Open Import in Tovu": open the Import tab, address untrusted. See `contracts/import-handoff.ts`. */
+    onOpenImport: (listener: (request: ImportHandoffRequest) => void) =>
+      subscribe(IMPORT_HANDOFF_CHANNELS.open, listener),
     /** The app menu's History > Back / Forward. Only the visible project tab subscribes. */
     watchSitePreview: createSiteThemePreviewBridge({ invoke: (channel, input) => ipcRenderer.invoke(channel, input), subscribe }),
     onSiteHistory: (listener: (command: SiteHistoryCommand) => void) =>

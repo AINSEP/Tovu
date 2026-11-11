@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "./speech-ipc.ts";
+import { IMPORT_HANDOFF_CHANNELS } from "../contracts/import-handoff.ts";
 
 // Electron's sandbox neither strips TypeScript nor accepts ESM, so the deployed CommonJS text
 // is the security boundary. Its restricted require cannot resolve relative imports; bundled
@@ -86,6 +87,7 @@ function preloadAt(pathname: string) {
     contextBridge: { exposeInMainWorld: (key: string, value: unknown) => { exposed[key] = value; } },
     ipcRenderer: { invoke: async (channel: string, ...args: unknown[]) => {
       invokes.push([channel, ...args]);
+      if (channel === IMPORT_HANDOFF_CHANNELS.request) return { opened: true };
       return channel === IPC_CHANNEL_IS_AVAILABLE ? availability : transcription;
     } },
     webUtils: { getPathForFile: (file: unknown) => { files.push(file); return "/tmp/dropped/file.txt"; } },
@@ -104,13 +106,13 @@ function exposedGlobalsAt(pathname: string): string[] {
   return Object.keys(preloadAt(pathname).exposed);
 }
 
-test("window.tovuFiles is exposed on the admin surface — /admin and every path under /admin/", () => {
+test("window.tovuFiles and window.tovuImport are exposed on the admin surface — /admin and every path under /admin/", () => {
   for (const pathname of ["/admin", "/admin/", "/admin/posts/42"]) {
-    assert.deepEqual(exposedGlobalsAt(pathname), ["tovuVoice", "tovuFiles"], `at ${pathname}`);
+    assert.deepEqual(exposedGlobalsAt(pathname), ["tovuVoice", "tovuFiles", "tovuImport"], `at ${pathname}`);
   }
 });
 
-test("window.tovuFiles is NOT exposed to same-origin public pages, previews, or look-alike paths", () => {
+test("window.tovuFiles and window.tovuImport are NOT exposed to same-origin public pages, previews, or look-alike paths", () => {
   // Every one of these loads with this same preload: `createWindow`'s same-origin `allow` popups and
   // in-window navigation, and a `<webview>` guest confined only to its origin, all reach them.
   for (const pathname of ["/", "/about", "/blog/hello-world", "/theme-assets/site.css", "/administrator", "/admin-old/"]) {
@@ -139,4 +141,19 @@ test("compiled admin file bridge delegates to webUtils and returns the resolved 
     assert.deepEqual(f.files, [file]);
     assert.equal(f.files[0], file);
   }
+});
+
+// The web admin's hand-off to the desktop Import tab (owner, 2026-11-10): the admin-only bridge
+// invokes the contract's request channel with a fresh object holding only the address.
+test("compiled admin import bridge asks main to open the Import tab, forwarding only a string address", async () => {
+  const f = preloadAt("/admin/import-export");
+  assert.deepEqual(Object.keys(f.exposed.tovuImport), ["open"]);
+  assert.deepEqual(await f.exposed.tovuImport.open({ address: "https://example.com", extra: "dropped" }), { opened: true });
+  assert.deepEqual(await f.exposed.tovuImport.open({ address: 42 }), { opened: true });
+  assert.deepEqual(await f.exposed.tovuImport.open(), { opened: true });
+  assert.deepEqual(f.invokes, [
+    [IMPORT_HANDOFF_CHANNELS.request, { address: "https://example.com" }],
+    [IMPORT_HANDOFF_CHANNELS.request, {}],
+    [IMPORT_HANDOFF_CHANNELS.request, {}],
+  ]);
 });

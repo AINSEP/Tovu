@@ -11,6 +11,7 @@ import { SiteImportTab } from "../SiteImportTab";
 import { createFakeSiteTransferPort, defaultSiteTransferPort, type SiteImport, type SiteShare, type SiteTransferPort } from "../hooks/site-transfer-dependencies.hooks";
 import { useSiteExport, useSiteImport } from "../hooks/use-site-transfer.hooks";
 import type { LiveImportSiteController } from "../hooks/use-live-import-site.hooks";
+import type { DesktopImportController } from "../hooks/use-desktop-import.hooks";
 import {
   formatTransferBytes,
   importOptionsTip,
@@ -101,6 +102,10 @@ describe("site transfer display rules", () => {
     expect(liveImportMode({ arrivedForImport: true, canMakeSites: true })).toBe("this-new-site");
     expect(liveImportMode({ arrivedForImport: false, canMakeSites: true })).toBe("new-site");
     expect(liveImportMode({ arrivedForImport: false, canMakeSites: false })).toBe("unavailable");
+    // Inside the desktop app (its Import bridge is there) the live source hands off to the app's Import tab.
+    expect(liveImportMode({ arrivedForImport: false, canMakeSites: false }, { desktopImport: true })).toBe("desktop");
+    expect(liveImportMode({ arrivedForImport: false, canMakeSites: true }, { desktopImport: true })).toBe("new-site");
+    expect(liveImportMode({ arrivedForImport: true, canMakeSites: false }, { desktopImport: true })).toBe("this-new-site");
   });
 
   it("puts both ways in under one tip, a bullet each", () => {
@@ -309,7 +314,52 @@ describe("SiteImportTab", () => {
     expect(busy.getAttribute("aria-busy")).toBe("true");
     expect(screen.getByRole("alert").textContent).toBe("example-com was made but didn't start.");
   });
+
+  it("inside the desktop app, hands a live website to Tovu's own Import tab with the typed address (owner, 2026-11-10)", () => {
+    const desktop = desktopImport();
+    render(<SiteImportTab t={t} useImport={() => importController({ liveAddress: " https://example.com/about ", liveAddressValid: true })}
+      useLiveSite={() => liveSite()} useDesktop={() => desktop} />);
+    expect(screen.getByText("Tovu's Import tab makes a new site from it.")).toBeTruthy();
+    expect(screen.queryByText("This host can't make new sites, so it can't import a live website here.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import with the assistant" })).toBeNull();
+    const open = screen.getByRole("button", { name: "Open Import in Tovu" }) as HTMLButtonElement;
+    handle(open, "sites-import-live-desktop", "button", "Open Tovu's Import tab with this address");
+    fireEvent.click(open);
+    expect(desktop.open).toHaveBeenCalledExactlyOnceWith("https://example.com/about");
+  });
+
+  it("inside the desktop app, opens Import with no address, but not with one it would refuse", () => {
+    const desktop = desktopImport();
+    const { unmount } = render(<SiteImportTab t={t} useImport={() => importController()} useLiveSite={() => liveSite()} useDesktop={() => desktop} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Import in Tovu" }));
+    expect(desktop.open).toHaveBeenCalledExactlyOnceWith("");
+    unmount();
+    render(<SiteImportTab t={t} useImport={() => importController({ liveAddress: "not an address", liveAddressValid: false })}
+      useLiveSite={() => liveSite()} useDesktop={() => desktop} />);
+    expect((screen.getByRole("button", { name: "Open Import in Tovu" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("inside the desktop app, shows the hand-off in flight and its plain-words failure", () => {
+    render(<SiteImportTab t={t} useImport={() => importController()} useLiveSite={() => liveSite()}
+      useDesktop={() => desktopImport({ opening: true, error: "Couldn't open Tovu's Import tab. Open Tovu's home window, then try again." })} />);
+    const busy = screen.getByRole("button", { name: "Open Import in Tovu" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toBe("Couldn't open Tovu's Import tab. Open Tovu's home window, then try again.");
+  });
+
+  it("a hosted install that can't make sites, outside the desktop app, keeps its message and no form", () => {
+    render(<SiteImportTab t={t} useImport={() => importController()} useLiveSite={() => liveSite()} useDesktop={() => desktopImport({ available: false })} />);
+    expect(screen.getByText("This host can't make new sites, so it can't import a live website here.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open Import in Tovu" })).toBeNull();
+    expect(screen.queryByLabelText("Website address")).toBeNull();
+  });
 });
+
+/** The desktop hand-off's seam: records the address it was asked to open Import with. */
+function desktopImport(overrides: Partial<DesktopImportController> = {}): DesktopImportController {
+  return { available: true, opening: false, error: null, open: vi.fn(async () => {}), ...overrides };
+}
 
 // Exercise markup through the components' supported controller seam. Effects and persistence
 // remain covered above through the real hooks; these cases pin every transient display state.

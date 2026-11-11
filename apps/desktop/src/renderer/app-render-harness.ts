@@ -10,6 +10,7 @@ import { createRequire, registerHooks } from 'node:module';
 import React, { act, createElement } from 'react';
 import type { CreatedSiteRecord, SiteFolders, SiteRecord } from '../contracts/project.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
+import type { ImportHandoffRequest } from '../contracts/import-handoff.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import type { SiteFoldersSettings } from './use-site-folders.hooks.js';
 
@@ -59,7 +60,7 @@ export function site(id: string, fields: Partial<SiteRecord> = {}): SiteRecord {
 
 /** The preload bridge: inert defaults plus listeners the test can fire, overridable per test. */
 function installBridge(overrides: Partial<RunnerInventoryBridge> = {}) {
-  const listeners = { navigate: new Set<(section: RunnerSectionId) => void>(), find: new Set<() => void>() };
+  const listeners = { navigate: new Set<(section: RunnerSectionId) => void>(), find: new Set<() => void>(), openImport: new Set<(request: ImportHandoffRequest) => void>() };
   const calls: string[] = [];
   const bridge = {
     getAppVersion: async () => '1.2.3',
@@ -79,6 +80,7 @@ function installBridge(overrides: Partial<RunnerInventoryBridge> = {}) {
     onChatEvent: () => () => {},
     onNavigate: (listener: (section: RunnerSectionId) => void) => { listeners.navigate.add(listener); return () => listeners.navigate.delete(listener); },
     onSiteHistory: () => () => {},
+    onOpenImport: (listener: (request: ImportHandoffRequest) => void) => { listeners.openImport.add(listener); return () => listeners.openImport.delete(listener); },
     onFindToggle: (listener: () => void) => { listeners.find.add(listener); return () => listeners.find.delete(listener); },
     findInPage: async () => { calls.push('find'); }, stopFindInPage: async () => { calls.push('stop-find'); }, onFindResult: () => () => {},
     onZoomCommand: () => () => {}, getZoomLevel: () => 0, setZoomLevel: () => {},

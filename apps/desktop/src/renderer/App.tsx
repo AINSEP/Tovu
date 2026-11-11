@@ -23,6 +23,7 @@ import { useSiteToast } from './use-site-toast.hooks.js';
 import { SiteToast } from './SiteToast.js';
 import { useStartImported } from './use-start-imported.hooks.js';
 import { useImportWebsite } from './use-import-website.hooks.js';
+import { useImportHandoff } from './use-import-handoff.hooks.js';
 import { useFindInPage } from './use-find-in-page.hooks.js';
 import { useZoom } from './use-zoom.hooks.js';
 import { ResourcesMonitor } from './ResourcesPanel.js';
@@ -144,6 +145,10 @@ export function App({
     onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });
+  // The Import button, and the web admin's "Open Import in Tovu" (owner, 2026-11-10), which may
+  // also bring the address it had typed.
+  const openImportPage = () => { clearAddError(); liveImport.clearFailure(); startImporting(); };
+  useImportHandoff({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
 
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
   const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
@@ -216,7 +221,7 @@ export function App({
           onRescan={rescan}
           rescanning={rescanning}
           rescanError={rescanError}
-          onImport={() => { clearAddError(); liveImport.clearFailure(); startImporting(); }}
+          onImport={openImportPage}
           useFolders={sitesSettings.useFolders}
         />
 

@@ -548,3 +548,18 @@ test('App: a share link goes to the archive importer, a live address to Create',
   assert.deepEqual(asked, [{ url: 'https://files.example.com/shop.tovu.zip' }]);
   assert.deepEqual(created, [], 'a share link makes no site through Create');
 });
+
+test('App: the web admin\'s "Open Import in Tovu" leaves a site\'s tab for the Import tab, with the address typed in (owner, 2026-11-10)', async (t) => {
+  const app = await renderApp(t, { listSites: async () => [site('a')] } as never);
+  await openFirstSite(app);
+  assert.equal(app.listeners.openImport.size, 1, 'App listens for the hand-off');
+  await act(async () => { for (const listener of app.listeners.openImport) listener({ address: 'example.com/about' }); });
+  await settle();
+  assert.deepEqual(tabLabels(app).slice(0, 2), ['All', 'Import']);
+  assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
+  const address = app.container.querySelector<HTMLInputElement>('section[aria-label="Import a website"] input[inputmode="url"]');
+  assert.equal(address?.value, 'https://example.com/about');
+  await act(async () => { for (const listener of app.listeners.openImport) listener({}); });
+  await settle();
+  assert.equal(address?.value, 'https://example.com/about', 'a hand-off without an address keeps what is typed');
+});

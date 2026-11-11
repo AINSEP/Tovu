@@ -9,6 +9,7 @@ import type { SiteImport } from "./hooks/site-transfer-dependencies.hooks";
 import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import { useWiredSiteImport, type SiteImportController } from "./hooks/use-site-transfer.hooks";
 import { useWiredLiveImportSite, type LiveImportSiteController } from "./hooks/use-live-import-site.hooks";
+import { useDesktopImport, type DesktopImportController } from "./hooks/use-desktop-import.hooks";
 import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView, liveImportMode } from "./site-transfer-rules";
 
 /**
@@ -20,6 +21,8 @@ import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateVi
  *   v1 (coordinator, 2026-10-18) imported into THIS site, with a New site link. Since 2026-11-10
  *   (owner) it makes a NEW site first, as the desktop app does, and the request is drafted on that
  *   site ({@link useWiredLiveImportSite}); it never imports into the site this page belongs to.
+ *   Inside the desktop app, which can't make a site here, it hands off to the app's own Import tab
+ *   with the typed address instead ({@link useDesktopImport}, owner 2026-11-10).
  * Files come before web addresses, as on the desktop app's Import page (owner, 2026-11-10).
  * Then the list of past imports. Markup only; every effect is in {@link useWiredSiteImport}.
  */
@@ -30,14 +33,19 @@ export interface SiteImportTabProps {
   useImport?: typeof useWiredSiteImport;
   /** Same seam, for the live website's new site. */
   useLiveSite?: typeof useWiredLiveImportSite;
+  /** Same seam, for the desktop app's Import tab hand-off. */
+  useDesktop?: typeof useDesktopImport;
   /** Whether this host can make a new site. Off where this deployment has no Sites section (the
-   *  desktop app, a hosted install): a live website is then not offered, except on the site made for it. */
+   *  desktop app, a hosted install): a live website is then not offered, except on the site made for it,
+   *  or inside the desktop app, where it hands off to the app's own Import tab. */
   canMakeSites?: boolean;
 }
 
-export function SiteImportTab({ t, useImport = useWiredSiteImport, useLiveSite = useWiredLiveImportSite, canMakeSites = false }: SiteImportTabProps) {
+export function SiteImportTab({ t, useImport = useWiredSiteImport, useLiveSite = useWiredLiveImportSite, useDesktop = useDesktopImport, canMakeSites = false }: SiteImportTabProps) {
   const controller = useImport({ t });
   const liveSite = useLiveSite({ t });
+  const desktop = useDesktop({ t });
+  const mode = liveImportMode({ arrivedForImport: controller.arrivedForImport, canMakeSites }, { desktopImport: desktop.available });
   return (
     <section className="site-transfer" aria-label={t("Import Site")}>
       <div className="site-transfer-head">
@@ -49,7 +57,9 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, useLiveSite =
       <ImportProgress controller={controller} t={t} />
       <div className="onboarding-card">
         <ArchiveSource controller={controller} t={t} />
-        <LiveWebsiteSource controller={controller} liveSite={liveSite} mode={liveImportMode({ arrivedForImport: controller.arrivedForImport, canMakeSites })} t={t} />
+        {mode === "desktop"
+          ? <DesktopImportSource controller={controller} desktop={desktop} t={t} />
+          : <LiveWebsiteSource controller={controller} liveSite={liveSite} mode={mode} t={t} />}
       </div>
       <h3 className="site-transfer-subtitle">{t("Past imports")}</h3>
       <ImportList controller={controller} t={t} />
@@ -130,7 +140,7 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
 /** "From a live website": makes a NEW site and opens it with the request drafted; on that new site
  *  itself, hands the drafted request to the assistant; the owner presses Send. */
 function LiveWebsiteSource({ controller, liveSite, mode, t }: {
-  controller: SiteImportController; liveSite: LiveImportSiteController; mode: ReturnType<typeof liveImportMode>; t: Translate;
+  controller: SiteImportController; liveSite: LiveImportSiteController; mode: Exclude<ReturnType<typeof liveImportMode>, "desktop">; t: Translate;
 }) {
   if (mode === "unavailable") {
     return (
@@ -180,6 +190,48 @@ function LiveWebsiteSource({ controller, liveSite, mode, t }: {
           {...agentHandle({ handle: "sites-import-live-start" }, { role: "button", label: newSite ? "Make a new site and open its assistant with the import request" : "Open the assistant with the import request" })}>
           {liveSite.creating ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
           {liveSite.creating ? t("Creating…") : t("Import with the assistant")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** "From a live website" inside the desktop app: the app's own Import tab makes the site, so this
+ *  only opens it, passing the address when one is typed. An address it would refuse keeps the button off. */
+function DesktopImportSource({ controller, desktop, t }: { controller: SiteImportController; desktop: DesktopImportController; t: Translate }) {
+  const address = controller.liveAddress.trim();
+  const refused = address !== "" && !controller.liveAddressValid;
+  return (
+    <form
+      className="onboarding-section"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void desktop.open(address);
+      }}
+      {...agentHandle({ handle: "sites-import-live-form" }, { role: "form", label: "Open Tovu's Import tab for a live website" })}
+    >
+      <div className="onboarding-section-head">
+        <h3 className="onboarding-section-title">{t("From a live website")}</h3>
+        <p className="onboarding-section-lead">{t("Tovu's Import tab makes a new site from it.")}</p>
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="sites-import-live-address">{t("Website address")}</label>
+        <input
+          id="sites-import-live-address"
+          type="url"
+          inputMode="url"
+          placeholder="https://"
+          value={controller.liveAddress}
+          disabled={desktop.opening}
+          onChange={(event) => controller.setLiveAddress(event.target.value)}
+          {...agentHandle({ handle: "sites-import-live-address" }, { role: "field", label: "Address of the live website to import" })}
+        />
+      </div>
+      {desktop.error ? <div className="notice error" role="alert">{desktop.error}</div> : null}
+      <div className="site-transfer-actions">
+        <button type="submit" className="btn-secondary" disabled={refused || desktop.opening} aria-busy={desktop.opening}
+          {...agentHandle({ handle: "sites-import-live-desktop" }, { role: "button", label: "Open Tovu's Import tab with this address" })}>
+          {t("Open Import in Tovu")}
         </button>
       </div>
     </form>

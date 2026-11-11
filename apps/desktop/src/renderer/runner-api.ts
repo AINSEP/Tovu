@@ -32,6 +32,7 @@ import type { ZoomDirection } from '../contracts/zoom.js';
 import type { RunnerAppVersionBridge, RunnerUpdateCheckBridge } from '../contracts/app-version.js';
 import type { ResourcesRequest, ResourcesSnapshot } from '../contracts/resources.js';
 import type { OwnerStoreBridge } from '../contracts/owner-store.js';
+import type { ImportHandoffRequest } from '../contracts/import-handoff.js';
 
 export interface RunnerInventoryBridge {
   /** Optional for stale preloads. Poll only while visible; use reply.pollIntervalMs, never subscribe.
@@ -124,6 +125,8 @@ export interface RunnerInventoryBridge {
   onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) => () => void;
   /** Fires when the `desktop.navigate` tool moves the top nav. */
   onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
+  /** Fires when the web admin's "Open Import in Tovu" asks for the Import tab; the address is untrusted. */
+  onOpenImport: (listener: (request: ImportHandoffRequest) => void) => () => void;
   /** Fires on the app menu's History > Back / Forward (Cmd+[ / Cmd+]); returns its teardown. */
   /** Owns this tab's main-process theme feed claim until cleanup (also for hidden public tabs). */
   watchSitePreview?: (required: { siteDir: string; listener: (frame: SiteThemePreviewRefresh) => void }) => () => void;

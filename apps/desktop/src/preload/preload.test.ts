@@ -24,6 +24,7 @@ import { RUNNER_WORKING_DIRECTORY_CHANNELS as WORKDIR } from "../contracts/worki
 import { FIND_IN_PAGE_CHANNELS as FIND, FIND_RESULT_CHANNEL } from "../contracts/find-in-page.ts";
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS as ATTACHMENT } from "../contracts/chat-attachments.ts";
 import { WORKSPACE_CONVERSATION_CHANNELS as CONVERSATION } from "../contracts/workspace-conversations.ts";
+import { IMPORT_HANDOFF_CHANNELS as IMPORT_HANDOFF } from "../contracts/import-handoff.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -197,7 +198,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     assert.deepEqual(invokes, [expected], method);
   }
 
-  for (const [method, channel] of [["onChatEvent", CHAT.event], ["onNavigate", CHAT.navigate], ["onFindResult", FIND_RESULT_CHANNEL], ["onMaximumLiveSiteViewsChanged", VIEWS.changed]] as const) {
+  for (const [method, channel] of [["onChatEvent", CHAT.event], ["onNavigate", CHAT.navigate], ["onFindResult", FIND_RESULT_CHANNEL], ["onMaximumLiveSiteViewsChanged", VIEWS.changed], ["onOpenImport", IMPORT_HANDOFF.open]] as const) {
     const received: unknown[] = [];
     const off = runner[method]!((value: unknown) => received.push(value)) as () => void;
     for (const handler of listeners.get(channel)!) handler({ sender: "must not cross bridge" }, "payload");
@@ -221,6 +222,6 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
   assert.equal(invokes[1]![0], THEME.unwatch);
 
   const covered = new Set([...cases.map(([method]) => method), "onChatEvent", "onNavigate", "onFindResult", "getZoomLevel", "setZoomLevel",
-    "getPathForFile", "watchSitePreview", "onSiteHistory", "onMaximumLiveSiteViewsChanged", "onFindToggle", "onZoomCommand"]);
+    "getPathForFile", "watchSitePreview", "onSiteHistory", "onMaximumLiveSiteViewsChanged", "onFindToggle", "onZoomCommand", "onOpenImport"]);
   assert.deepEqual(Object.keys(runner).filter((key) => !covered.has(key)), [], "a new bridge method needs a case here");
 }

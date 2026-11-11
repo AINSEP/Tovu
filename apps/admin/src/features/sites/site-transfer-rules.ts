@@ -66,12 +66,14 @@ export function importOptionsTip(t: Translate): string {
 /**
  * What "From a live website" does on this page (owner, 2026-11-10: it makes a NEW site, never
  * imports into this one): `this-new-site` on the site made for it (its address came in the URL),
- * `new-site` where this host can make sites, else `unavailable`. @complexity O(1).
+ * `new-site` where this host can make sites, `desktop` inside the desktop app (its Import tab makes
+ * the site; `desktopImport` = the app's hand-off bridge is there), else `unavailable`. @complexity O(1).
  */
 export function liveImportMode(
   { arrivedForImport, canMakeSites }: { arrivedForImport: boolean; canMakeSites: boolean },
-  _optional = {},
-): "this-new-site" | "new-site" | "unavailable" {
+  { desktopImport = false }: { desktopImport?: boolean } = {},
+): "this-new-site" | "new-site" | "desktop" | "unavailable" {
   if (arrivedForImport) return "this-new-site";
-  return canMakeSites ? "new-site" : "unavailable";
+  if (canMakeSites) return "new-site";
+  return desktopImport ? "desktop" : "unavailable";
 }

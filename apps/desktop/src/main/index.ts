@@ -135,6 +135,7 @@ import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowO
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "../../../website/src/contracts/core/hosted-sign-in-links.ts";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
+import { registerImportHandoffIpc } from "../import-handoff-ipc.ts";
 import { registerRunnerIpcStubs } from "../runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "../app-version-ipc.ts";
 import { createDesktopResources } from "../desktop-resources.ts";
@@ -839,6 +840,10 @@ function registerAppWideIpc(): void {
   // harmless to register even for a boot mode whose window never calls it (no preload exposes
   // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
   registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
+  // The web admin's "Open Import in Tovu" (owner, 2026-11-10): admin pages only reach it through
+  // their preload's `tovuImport`, behind the speech channels' sender check. App-wide for the same
+  // reason as speech; with no sites home window open it answers `opened: false`.
+  registerImportHandoffIpc({ ipcMain, isTrustedSender: isShellPage, sitesHomeWindows: openSitesHomeWindows });
   registerSiteViewPreferenceIpc({ ipcMain,
     allowed: (sender: WebContents) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),
@@ -847,6 +852,12 @@ function registerAppWideIpc(): void {
   registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
     allowed: (sender) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
   });
+}
+
+/** The open sites home windows, matched by page the way the other sites-home-only channels are. */
+function openSitesHomeWindows(): BrowserWindow[] {
+  const shellUrl = pathToFileURL(SITES_RENDERER_PATH).href;
+  return BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed() && window.webContents.getURL() === shellUrl);
 }
 
 /** The sites-home menus plus Settings — see `boot-sequence.ts`'s `appWideMenuTemplate`. */

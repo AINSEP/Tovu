@@ -67,8 +67,18 @@ const ADMIN_PATH_PREFIX = "/admin";
 // so theme scripts do not receive it directly. This is defense in depth, not an origin boundary:
 // public/admin pages share an origin and session. Full navigation reruns the preload and this check.
 const pathname = window.location.pathname;
+/** `IMPORT_HANDOFF_CHANNELS.request` in `contracts/import-handoff.ts`, inlined for the same reason
+ *  the speech namespace is (this sandboxed bundle resolves nothing at runtime); its test pins it. */
+const IMPORT_HANDOFF_REQUEST_CHANNEL = "tovu:import:open";
 if (pathname === ADMIN_PATH_PREFIX || pathname.startsWith(`${ADMIN_PATH_PREFIX}/`)) {
   contextBridge.exposeInMainWorld("tovuFiles", {
     getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  });
+  // The web admin's "Open Import in Tovu" (owner, 2026-11-10): asks main to open the desktop's own
+  // Import tab, since the admin here can't make a site. Admin pages only, like `tovuFiles`; a fresh
+  // object carries only a string address, and main bounds it again. See contracts/import-handoff.ts.
+  contextBridge.exposeInMainWorld("tovuImport", {
+    open: (input?: { address?: unknown }) =>
+      ipcRenderer.invoke(IMPORT_HANDOFF_REQUEST_CHANNEL, typeof input?.address === "string" ? { address: input.address } : {}),
   });
 }
