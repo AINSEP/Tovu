@@ -2072,13 +2072,13 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    "items in the library" from crowding the edge), four once the PANE (a container query, so the
    dock/sidebar width counts) passes 800px, and bounded by the shared content measure so a single
    count never becomes an unbounded box. */
-.dashboard-page { container-type: inline-size; }
+.dashboard-page { container-type: inline-size; --dash-stats-max: 40rem; }
 /* 2026-10-27 (owner): the four counts are ONE card — cells split by 1px dividers (the grid gap shows
    the card's `--border` background through) — with Appearance beside it on wide panes. Cells are 4x1
    above 600px of pane, 2x2 below; Appearance drops under the card below 1040px. */
 /* Owner 10-27: both cards are capped (~10rem per count, Appearance 24rem beside) so they don't stretch across a wide pane. */
-.dash-top { display: grid; grid-template-columns: minmax(0, 40rem); justify-content: start; gap: var(--space-4); align-items: stretch; width: 100%; }
-@container (min-width: 1040px) { .dash-top { grid-template-columns: minmax(0, 40rem) minmax(0, 24rem); } }
+.dash-top { display: grid; grid-template-columns: minmax(0, var(--dash-stats-max)); justify-content: start; gap: var(--space-4); align-items: stretch; width: 100%; }
+@container (min-width: 1040px) { .dash-top { grid-template-columns: minmax(0, var(--dash-stats-max)) minmax(0, 24rem); } }
 /* Owner 10-27: Appearance keeps its 24rem width when it drops under the counts, too. */
 .dash-top > .dash-panel { width: 100%; max-width: 24rem; }
 .dash-stats {
@@ -2151,12 +2151,14 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .dash-stat-meta.is-error { color: var(--danger); }
 
 /* Everything that is not a single number. `minmax(0, …)` on both tracks lets a long title inside
-   the activity list ellipsize instead of forcing the column wider than its share. */
-.dash-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+   the activity list ellipsize instead of forcing the column wider than its share.
+   Owner 2026-11-10: "Recently updated" is capped to the stats bar's width — same
+   `--dash-stats-max` track, so it follows the bar as the pane narrows. */
+.dash-panels { display: grid; grid-template-columns: minmax(0, var(--dash-stats-max)); justify-content: start; gap: var(--space-4); align-items: start; }
 /* Container (2026-10-11): 800px ≈ the old 1100px viewport minus the expanded nav and page padding
    (1100 − 232 − 80) — the width the two panels actually had when that breakpoint was picked. With
    the dock open the viewport query kept them side by side in a ~590px pane. */
-@container admin-content (max-width: 800px) { .dash-panels { grid-template-columns: minmax(0, 1fr); } }
+@container admin-content (max-width: 800px) { .dash-panels { grid-template-columns: minmax(0, var(--dash-stats-max)); } }
 .dash-panel { background: var(--jini-panel-bg); border: var(--jini-border-width, 1px) solid var(--jini-panel-border); border-radius: var(--r-lg); box-shadow: var(--jini-panel-shadow); overflow: hidden;
   background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
