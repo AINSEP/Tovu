@@ -1,0 +1,2 @@
+check-complexity — 260 files linted at 9/9
+check-complexity: OK — 3 grandfathered, 0 new
