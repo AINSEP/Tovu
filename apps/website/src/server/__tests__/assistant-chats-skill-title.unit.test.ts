@@ -42,3 +42,12 @@ test("skill-only first user message uses its name, while user prose still uses t
   await prose.invoke("put /api/assistant/chats/:id/messages/:messageId", { role: "user", content: "Redesign the menu", createdAt: 1 });
   assert.equal(prose.title(), "Redesign the menu");
 });
+
+test("a pasted secret is redacted from the auto title", async () => {
+  const h = harness();
+  // Built at runtime so no credential-shaped literal sits in the source.
+  const pasted = ["sk", "fakefakefakefakefakefake"].join("-");
+  await h.invoke("put /api/assistant/chats/:id/messages/:messageId", { role: "user", content: `Use this key ${pasted} for deploy`, createdAt: 1 });
+  assert.ok(h.title(), "the chat still gets a title");
+  assert.ok(!h.title()!.toLowerCase().includes(pasted), "the auto title must not contain the pasted secret");
+});

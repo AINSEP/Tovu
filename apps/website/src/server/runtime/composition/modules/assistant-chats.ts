@@ -70,13 +70,14 @@ async function maybeNameFromFirstUserMessage(
   store: ChatHistoryStore,
   id: string,
   message: ChatMessage,
-  body: Record<string, unknown>,
 ): Promise<void> {
   if (message.role !== "user") return;
   try {
     const conversation = await store.get({ id });
     if (!conversation || conversation.title) return;
-    const derived = deriveAssistantConversationTitle(typeof body.content === "string" ? body.content : "");
+    // The already-redacted message, never the raw request body: a credential pasted into the first
+    // prompt must not survive into the title, which is stored and listed in plain text.
+    const derived = deriveAssistantConversationTitle(message.content);
     if (derived) await store.rename({ id, title: derived }, { source: "fallback" });
   } catch {
     // Leave it untitled; the next user message gets another chance.
@@ -258,7 +259,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
               return;
             }
             if (saved.role === "user") deps.tracker.capture({ name: "assistant_message_sent", userId: getAuthedPrincipal(res).id }, { properties: { chatSurface: "admin", conversationId: id, inputKind: "text", eventId: `assistant-message:${saved.id}` } });
-            await maybeNameFromFirstUserMessage(store, id, message, body);
+            await maybeNameFromFirstUserMessage(store, id, message);
             // The in-flight stub of a daemon run is the one moment the server learns which row a
             // run belongs to. From here the server saves the finished turn itself, so it no longer
             // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for
