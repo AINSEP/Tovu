@@ -1,0 +1,91 @@
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ search results carry host maturity untested (44.429535ms)
+✔ search results carry host maturity soon (21.565222ms)
+✔ search results carry host maturity (absent) (25.509134ms)
+✔ the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit' (5.923954ms)
+✔ the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins (2.539723ms)
+✔ finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader (26.472479ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched' (17.782648ms)
+✔ an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw (1.527312ms)
+✔ a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation (25.878616ms)
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+✔ MCP server ids stay on the detail path, while discovery omits transport config (19.657927ms)
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+✔ a plugin with no mcp.json remains discoverable and has no servers on the detail path (28.523419ms)
+﹣ SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it (0.157445ms) # root bypasses chmod read permissions
+✔ two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal (41.193752ms)
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+✔ limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50] (2469.243569ms)
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+✔ blank queries list the existing loader's enabled and disabled plugins (43.575414ms)
+✔ SECURITY: no absolute host path leaks into the response, even for a matched plugin (20.642086ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a search in workspace A finds nothing installed only under a different workspace (14.980019ms)
+Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+Plugin 'bad-pinned' has no publisher-qualified id; using 'unknown/bad-pinned'.
+✔ L025b search projection preserves optional metadata and isolates invalid identities (47.346286ms)
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+✔ offset pages the ranked catalog; a negative or fractional offset is an input error (47.396101ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 4644.934649

@@ -1,0 +1,77 @@
+✔ ImportWebsite: files first, then the web address, explained by tooltips; no back link, label or second title (48.702918ms)
+✖ ImportWebsite: the shared drop zone holds both Choose buttons, and its own picker routes a .zip by its real path (21.574525ms)
+✖ ImportWebsite: each button reaches its own source, and Cancel goes back (14.5979ms)
+✖ ImportWebsite: working disables both sources and says so on the button that was pressed (7.449131ms)
+✖ ImportWebsite: a failure shows its words and a Copy details button; the address stays in the field (8.834691ms)
+✔ ImportWebsite: not shown renders nothing (1.074787ms)
+✔ ImportWebsite: while an archive imports, Cancel stops the import instead of hiding the page (7.440858ms)
+✔ ImportWebsite: once asked to stop, Cancel says so and cannot be pressed twice (5.458334ms)
+✔ ImportWebsite: Cancel is disabled while a live address makes its site, which cannot be stopped (5.046137ms)
+✔ ImportWebsite: tells its owner when the page opens, and not while it is hidden (5.016992ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 6
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2261.312033
+
+✖ failing tests:
+
+test at src/renderer/ImportWebsite.render.test.ts:1:2167
+✖ ImportWebsite: the shared drop zone holds both Choose buttons, and its own picker routes a .zip by its real path (21.574525ms)
+  TypeError [Error]: Failed to execute 'dispatchEvent' on 'EventTarget': parameter 1 is not of type 'Event'.
+      at exports.convert (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/generated/idl/Event.js:22:9)
+      at HTMLInputElement.dispatchEvent (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/generated/idl/EventTarget.js:236:24)
+      at <anonymous> (/home/user/Tovu/apps/desktop/src/renderer/ImportWebsite.render.test.ts:60:33)
+      at process.env.NODE_ENV.exports.act (/home/user/Tovu/apps/desktop/node_modules/react/cjs/react.development.js:814:22)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/desktop/src/renderer/ImportWebsite.render.test.ts:60:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/renderer/ImportWebsite.render.test.ts:1:3026
+✖ ImportWebsite: each button reaches its own source, and Cancel goes back (14.5979ms)
+  {}
+
+test at src/renderer/ImportWebsite.render.test.ts:1:3488
+✖ ImportWebsite: working disables both sources and says so on the button that was pressed (7.449131ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/desktop/src/renderer/ImportWebsite.render.test.ts:78:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/ImportWebsite.render.test.ts:1:4020
+✖ ImportWebsite: a failure shows its words and a Copy details button; the address stays in the field (8.834691ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '' !== 'example.com'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/desktop/src/renderer/ImportWebsite.render.test.ts:87:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: 'example.com',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

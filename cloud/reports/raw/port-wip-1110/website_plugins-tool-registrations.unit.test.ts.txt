@@ -1,0 +1,39 @@
+✔ plugins_list attaches each plugin's own conflicts and an empty list to plugins without one (4.880315ms)
+✔ plugins_uninstall: a run cancelled during the post-approval re-check returns abandoned and removes nothing (5.331147ms)
+✔ an Agent Plugin's approval identity covers every installed digest, independent of listing order (1.574891ms)
+✔ an unversioned Agent Plugin digest still changes the identity but is left out of the shown version (0.635762ms)
+✔ approval identity refuses an Agent Plugin that is not installed and a site plugin missing from discovery, by name (1.113336ms)
+✔ the contributor builds through the injected host factory only when the deps carry no host (194.399832ms)
+✔ with no host bound and no factory, an Agent Plugin operation is an explicit refusal (152.853722ms)
+✔ injected Agent Plugin owners are used in place of the host capability, scoped to this workspace's root and layout (102.795864ms)
+✔ an unreadable activation record found by the injected pre-flight is a not-changed result naming the reason (4.654054ms)
+✔ any other pre-flight failure propagates unchanged, before identity or card (0.673414ms)
+✔ an Agent Plugin missing at the write is a ToolInputError carrying the lifecycle's message (3.865947ms)
+✔ any other Agent Plugin write failure propagates unchanged and provisions nothing (1.415094ms)
+✔ plugins_uninstall: a confirmed uninstall of an unchanged site plugin removes it and reports what was trashed (1.154672ms)
+✔ plugins_uninstall: a plugin that changed after the user confirmed is not removed, and says so (1.086792ms)
+✔ plugins_uninstall: a declined confirmation removes nothing (0.795876ms)
+✔ a plugin family outside the two systems is an input error naming both (0.39934ms)
+✔ plugins_list degrades its Agent Plugin half to empty on a read failure, and shows a missing version as null (0.860195ms)
+✔ plugins_uninstall: a removal failure other than a changed plugin propagates unchanged (0.956287ms)
+✔ an unreadable activation record on a disable says the plugin was NOT disabled (1.696106ms)
+✔ the injected provider link refuses a face before identity, confirmation or write (0.608337ms)
+✔ a Soon plugin is refused in plain words before confirmation or write; a linked Soon face says not-ready, not linked (1.047417ms)
+✔ turning a Soon plugin off is never refused, and a ready plugin is not refused as not-ready (1.475967ms)
+✔ the injected classifier keeps the owner's linked-switch refusal at write time (0.543931ms)
+✔ an unreadable provider link is left to the existing write and provisioning path (1.082973ms)
+✔ a lookalike linked error is not classified as the owner's safe refusal (0.478858ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8332.344428

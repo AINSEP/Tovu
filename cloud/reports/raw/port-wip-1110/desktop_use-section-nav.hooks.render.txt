@@ -1,0 +1,13 @@
+✔ useRunnerNavigation: an agent navigate moves the section and returns to the sites home tab, then detaches (841.173035ms)
+✔ useRunnerNavigation: an agent navigate leaves the Appearance page open over the new section (3.392072ms)
+✔ useRunnerNavigation: without a bridge nothing subscribes and the nav stays put (1.785743ms)
+✔ useSectionNav: a section click resets create, Appearance and the open tab; Appearance drops the tab (3.235717ms)
+✔ useSectionNav: Import is a tab: it comes forward from a site, hides behind All, and only Cancel, close or a section move closes it (2.680612ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1202.400349

@@ -1,0 +1,37 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (420.759765ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4935.714436
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:1:10757
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (420.759765ms)
+  AssertionError [ERR_ASSERTION]: catalog
+  + actual - expected
+  
+    {
+  +   bytes: 752240,
+  -   bytes: 752102,
+      names: 328
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:163:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { names: 328, bytes: 752240 },
+    expected: { names: 328, bytes: 752102 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,20 @@
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ the seeder's default 'off' is switched on with the row, and only then reported on (54.11776ms)
+✔ an operator's own 'off' is kept and reported (6.78726ms)
+✔ an operator disable during connection setup is reported even when activations become read-only (29.687894ms)
+✔ no activation record reads as on and writes nothing (34.495101ms)
+[agent-plugins:migration-complete] /tmp/tovu-switch-on-zYM7I7/ws/ws-switch-on
+✔ the production fallback enables an untouched saved-token row with the installed plugin's declared grants (90.74907ms)
+✔ a connection row an operator left disabled is reported as off, and the plugin is never switched on (7.258677ms)
+✔ a missing connection row is reported as off (2.105808ms)
+✔ a plugin an operator already switched on stays on without a write (36.116059ms)
+✔ injected activation ports decide the outcome: an operator-off check short-circuits, a refused switch-on is off (3.162895ms)
+✔ describeSavedTokenSwitch names the screen that turns each kind of 'off' back on (0.602365ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1956.687855

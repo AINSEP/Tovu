@@ -1,0 +1,13 @@
+✔ useImportDrop: a folder and a .zip each reach their own handler with the real path (868.013017ms)
+✔ useImportDrop: a wrong type is refused in words, and dragging over lights the page until the drop (2.954246ms)
+✔ useImportDrop: leaving the page clears the light, and a busy page ignores a drop (3.621551ms)
+✔ useImportDrop: the drop zone's own picker routes a .zip by its real path and refuses anything else (2.699476ms)
+✔ useImportDrop: the page takes the drop before the drop zone inside it can expand a folder (1.277006ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1223.960092

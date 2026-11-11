@@ -1,0 +1,18 @@
+✔ ImportWebsite: two sources under their own headings, explained by tooltips and not loose paragraphs (66.416956ms)
+✔ ImportWebsite: each button reaches its own source, and Cancel goes back (35.078364ms)
+✔ ImportWebsite: working disables both sources and says so on the button that was pressed (15.256879ms)
+✔ ImportWebsite: a failure shows its words and a Copy details button; the address stays in the field (11.078203ms)
+✔ ImportWebsite: not shown renders nothing (1.059459ms)
+✔ ImportWebsite: while an archive imports, Cancel stops the import instead of hiding the page (5.494205ms)
+✔ ImportWebsite: once asked to stop, Cancel says so and cannot be pressed twice (3.820431ms)
+✔ ImportWebsite: Cancel is disabled while a live address makes its site, which cannot be stopped (3.976112ms)
+✔ ImportWebsite: All websites still only leaves the page while an import runs (4.613597ms)
+✔ ImportWebsite: tells its owner when the page opens, and not while it is hidden (3.644618ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2142.083392

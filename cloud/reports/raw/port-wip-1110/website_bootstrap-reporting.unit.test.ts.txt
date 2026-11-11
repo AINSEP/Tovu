@@ -1,0 +1,16 @@
+(node:1901) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1901) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ TW2: bundled preparation reports failures and retirements in order before tokens and renames (4.576072ms)
+✔ D0a: boot warns, never refuses, when the bundled folder seeded nothing although packages are selected (0.656637ms)
+✔ D0a: an enabled plugin with neither a bundled source nor an installed package is named once; present ones are not (0.733353ms)
+✔ D0a: an unreadable activations file costs only the enabled-plugin check; the seeded-nothing warning and boot continue (0.72448ms)
+✔ D0a: no selection and an empty folder is quiet; an id both seeded and enabled is quiet (0.194435ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2698.493118

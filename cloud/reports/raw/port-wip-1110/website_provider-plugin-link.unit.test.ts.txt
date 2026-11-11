@@ -1,0 +1,16 @@
+✔ sync switches only faces that differ from their provider, and only the named provider's (1.89532ms)
+✔ every provider activation write in this workspace moves its face; other workspaces and plugins do not (0.875317ms)
+✔ a face that cannot follow is logged, never fails the provider decision; a failed provider write moves nothing (0.936523ms)
+✔ the linked-face refusal names the provider plugin's real switch (0.324507ms)
+[agent-plugins:migration-complete] /tmp/tovu-provider-link-e9FWIo/agent-plugins/ws/ws
+✔ production ports read the shipped links and switch the real activation record (173.504426ms)
+✔ a delayed older mirror reads current provider state inside the lifecycle owner (19.424336ms)
+✔ link discovery selects the bundled revision, honors removed links, and refuses ambiguous revisions (0.786093ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 870.731358

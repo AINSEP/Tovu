@@ -1,0 +1,149 @@
+✔ every tool description and explicit prompt call names only declared input arguments (254.802179ms)
+✔ CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add (0.832395ms)
+✔ every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description} (194.004177ms)
+✔ every content_read card preserves member inputs through published properties or canonical selector aliases (177.436696ms)
+✔ identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended (150.06149ms)
+✔ requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever (154.139665ms)
+✔ a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn (163.875965ms)
+✔ the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema (145.329575ms)
+✔ no rejection message echoes the offending value — a fields payload can carry operator content (143.073542ms)
+✔ a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion (157.075305ms)
+✔ tombstonedAt appears only when set, so an active type's payload carries no always-null key (366.042045ms)
+✔ content_read.collection_content_type returns every content type as the same model-facing view, regardless of status (157.873856ms)
+✔ content_read.collection_content_type returns an empty list rather than an error when the workspace has none (146.690141ms)
+✔ the returned fields array is a copy — a tool caller cannot mutate domain state through it (160.434169ms)
+✔ the real catalog and this layer's independent classification agree for every wired tool (198.848293ms)
+✔ a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build (1.421277ms)
+✔ an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse' (1.022551ms)
+✔ the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree (1.059864ms)
+✔ a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler (1.252182ms)
+✔ the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat (158.99904ms)
+✔ collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired (163.009563ms)
+✔ an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules (1.237807ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array (395.056843ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it (216.164567ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable (262.312496ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it (194.657862ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them (244.456161ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through (199.688328ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ describe_component executes through the REAL ToolExecutor and returns a known button's manifest (202.377233ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable (196.748941ms)
+✔ assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement (154.737985ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not (346.447656ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog (197.017881ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash (198.344744ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish pull tools are wired with honest risk and the human-confirmed execute contract (461.810882ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ root-added load_agent_plugin is discoverable and publishes the shared domain approval contract (325.958951ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10879.029026

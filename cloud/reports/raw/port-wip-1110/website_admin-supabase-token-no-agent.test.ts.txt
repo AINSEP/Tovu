@@ -1,0 +1,16 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ with no agent running, an admin pastes a Supabase access token in Settings and the connection uses it (382.157789ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (file:///home/user/Tovu/node_modules/@jini-ai/plugins/dist/host/node/runtime-core.js:288:19)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ the Settings token route refuses a request with no admin session (213.48588ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4996.12649

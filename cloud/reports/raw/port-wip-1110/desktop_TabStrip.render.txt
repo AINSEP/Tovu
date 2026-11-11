@@ -1,0 +1,15 @@
+✔ TabStrip: with no site selected the All tab is the selected one and the only tab stop (39.208325ms)
+✔ TabStrip: a selected site tab is marked, carries its status dot and full-name tooltip (8.196285ms)
+✔ TabStrip: All, a site tab and a close button each report their own action (16.840806ms)
+✔ TabStrip: no arrows until the strip overflows, then each is disabled on its exhausted side (12.126366ms)
+✔ TabStrip: a selected tab that is no longer open leaves All as the one tab stop (7.074157ms)
+✔ TabStrip: arrow keys on a tab move focus and selection to the next tab, wrapping at the ends (11.096281ms)
+✔ TabStrip: an open import is its own closable tab right after All, selected instead of All while in front (10.267814ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2475.248476

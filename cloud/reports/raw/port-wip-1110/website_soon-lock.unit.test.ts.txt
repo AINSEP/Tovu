@@ -1,0 +1,20 @@
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ the admin switch, plugins_set_enabled and connect defaults refuse to turn a Soon plugin on, in plain words, and write nothing; off always works (153.016505ms)
+✔ a Soon provider face says it isn't ready, not that its provider's switch decides (27.048454ms)
+✔ the provider-face mirror never turns a Soon plugin on (23.065205ms)
+✔ an untested plugin is only a warning: it still switches on (28.658473ms)
+✔ Tovu's host list marks the faces Jini ships without a flag as Soon; a manifest flag still wins (0.41117ms)
+Plugin 'posthog' has no publisher-qualified id; using 'unknown/posthog'.
+✔ a host-listed plugin with no flag is refused, and the admin listing shows it as Soon (35.570243ms)
+[agent-plugins:migration-complete] /tmp/tovu-soon-import-jxVhs9/agent-plugins/ws/workspace-local
+Plugin 'plain' has no publisher-qualified id; using 'unknown/plain'.
+✔ a backup import writes a Soon plugin off and carries the rest, without aborting (78.873256ms)
+✔ boot switches off every Soon plugin that is on, as system:soon-lock, and leaves the rest (1.439715ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3305.211198

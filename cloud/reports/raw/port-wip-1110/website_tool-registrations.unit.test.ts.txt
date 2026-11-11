@@ -1,0 +1,46 @@
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance (65.253221ms)
+✔ each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills (32.805543ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (31.01319ms)
+✔ the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has (19.76319ms)
+✔ calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names (23.507011ms)
+✔ when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so (22.871438ms)
+✔ an explicit, recognized 'skill' argument returns that skill's own guidance, not the default (25.580126ms)
+✔ an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error (30.670621ms)
+✔ a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful (24.483253ms)
+✔ the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub (24.467913ms)
+✔ SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output (29.752498ms)
+[agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ two installed digests of the same plugin id refuse that plugin loudly, without aborting the load (47.449085ms)
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+[agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source (80.437997ms)
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+✔ a current upgrade exposes only the accepted replacement's guidance (26.453688ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a load for workspace A sees nothing installed only under a different workspace (13.785386ms)
+✔ an empty (never-installed) workspace produces zero sources and an empty registration list, no throw (1.65786ms)
+✔ the executor denies cached guidance after disable (31.340962ms)
+✔ the executor denies cached guidance after uninstall (28.441855ms)
+[agent-plugins] 'coffee-roastery': tool call denied — activation could not be established (activations.json is not valid JSON (Expected property name or '}' in JSON at position 1 (line 1 column 2)))
+✔ the executor denies cached guidance after unreadable-activation (20.892522ms)
+✔ the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay (46.839208ms)
+✔ a refused host file keeps the overlay and skill guidance with a recovery note (24.36817ms)
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ an untested plugin's caution stays ahead of its overlay guidance (24.443538ms)
+✔ a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged (35.956517ms)
+[agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-7SYb8G/ws/55555555-5555-4555-8555-555555555555
+✔ the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access (100.424031ms)
+✔ plugin guidance carries maturity and warns before keys/actions for every maturity flag (0.722376ms)
+✔ L025b guidance pins selection guards, reader recovery and sanitized unknown names (0.68939ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3386.630816

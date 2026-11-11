@@ -1,0 +1,13 @@
+✔ App: a card's Stop applies main's returned record at once, not on the next 4 s poll (135.531259ms)
+✔ App: Start on a card opens the site's tab through the same path a card click uses (53.495479ms)
+✔ App: Locate replaces a missing-folder card with the found site at once (40.693908ms)
+✔ App: a refused folder stays on the Import page with its words, and reopening the page starts clean (71.502493ms)
+✔ App: a running card's ⏻ wears the header's own "Create website" class (23.857138ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3049.846959

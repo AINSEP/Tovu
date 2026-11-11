@@ -1,0 +1,534 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/adapter.react.js.
+Error: An error occurred while trying to read the map file at adapter.react.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/adapter.react.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/core/dist/fetch/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/core/dist/fetch/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/core/dist/fetch/cache.js.
+Error: An error occurred while trying to read the map file at cache.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/core/dist/fetch/cache.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/core/dist/fetch/loader-read.js.
+Error: An error occurred while trying to read the map file at loader-read.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/core/dist/fetch/loader-read.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/environment.browser.js.
+Error: An error occurred while trying to read the map file at environment.browser.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/environment.browser.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/binding.react.js.
+Error: An error occurred while trying to read the map file at binding.react.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/fetch-query/binding.react.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/ErrorNotice.js.
+Error: An error occurred while trying to read the map file at ErrorNotice.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/ErrorNotice.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/utils/copy-to-clipboard.js.
+Error: An error occurred while trying to read the map file at copy-to-clipboard.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/utils/copy-to-clipboard.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-focus-trap.hooks.js.
+Error: An error occurred while trying to read the map file at use-focus-trap.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-focus-trap.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-dirty-guard.hooks.js.
+Error: An error occurred while trying to read the map file at use-dirty-guard.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-dirty-guard.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-async-action.hooks.js.
+Error: An error occurred while trying to read the map file at use-async-action.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-async-action.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/retry-unreachable.js.
+Error: An error occurred while trying to read the map file at retry-unreachable.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/retry-unreachable.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-serial-writes.hooks.js.
+Error: An error occurred while trying to read the map file at use-serial-writes.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-serial-writes.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-settlement-generation.hooks.js.
+Error: An error occurred while trying to read the map file at use-settlement-generation.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-settlement-generation.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/format-timestamp.js.
+Error: An error occurred while trying to read the map file at format-timestamp.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/format-timestamp.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/resolve-active-tab-id.js.
+Error: An error occurred while trying to read the map file at resolve-active-tab-id.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/resolve-active-tab-id.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/permissions.js.
+Error: An error occurred while trying to read the map file at permissions.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/permissions.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/capability.js.
+Error: An error occurred while trying to read the map file at capability.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/capability.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-executor.js.
+Error: An error occurred while trying to read the map file at page-executor.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-executor.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/element-handles.js.
+Error: An error occurred while trying to read the map file at element-handles.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/element-handles.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/guards.js.
+Error: An error occurred while trying to read the map file at guards.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/guards.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-capabilities.js.
+Error: An error occurred while trying to read the map file at page-capabilities.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-capabilities.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/messages.js.
+Error: An error occurred while trying to read the map file at messages.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/messages.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/handle.js.
+Error: An error occurred while trying to read the map file at handle.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/handle.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/omit-keys.js.
+Error: An error occurred while trying to read the map file at omit-keys.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/omit-keys.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/list-handles.js.
+Error: An error occurred while trying to read the map file at list-handles.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/list-handles.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/webmcp.js.
+Error: An error occurred while trying to read the map file at webmcp.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/webmcp.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/ag-ui.js.
+Error: An error occurred while trying to read the map file at ag-ui.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/ag-ui.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/gen-ui/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/gen-ui/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/gen-ui/encoder.js.
+Error: An error occurred while trying to read the map file at encoder.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/gen-ui/encoder.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/mcp-ui-apps.js.
+Error: An error occurred while trying to read the map file at mcp-ui-apps.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/mcp-ui-apps.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/annotated-actions-script.js.
+Error: An error occurred while trying to read the map file at annotated-actions-script.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/annotated-actions-script.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/types.js.
+Error: An error occurred while trying to read the map file at types.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/types.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/topic-schema.js.
+Error: An error occurred while trying to read the map file at topic-schema.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/topic-schema.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/site-guide.js.
+Error: An error occurred while trying to read the map file at site-guide.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/site-guide/site-guide.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-navigation.js.
+Error: An error occurred while trying to read the map file at page-navigation.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-navigation.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-publication.js.
+Error: An error occurred while trying to read the map file at page-publication.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/agentic/dist/core/page-publication.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/locale.js.
+Error: An error occurred while trying to read the map file at locale.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/locale.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/context.js.
+Error: An error occurred while trying to read the map file at context.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/context.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/index.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.en.js.
+Error: An error occurred while trying to read the map file at settings-dialog.en.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.en.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.es.js.
+Error: An error occurred while trying to read the map file at settings-dialog.es.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.es.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.id.js.
+Error: An error occurred while trying to read the map file at settings-dialog.id.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.id.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.de.js.
+Error: An error occurred while trying to read the map file at settings-dialog.de.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.de.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.zh-CN.js.
+Error: An error occurred while trying to read the map file at settings-dialog.zh-CN.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.zh-CN.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.zh-TW.js.
+Error: An error occurred while trying to read the map file at settings-dialog.zh-TW.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.zh-TW.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.pt-BR.js.
+Error: An error occurred while trying to read the map file at settings-dialog.pt-BR.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.pt-BR.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ru.js.
+Error: An error occurred while trying to read the map file at settings-dialog.ru.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ru.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.fa.js.
+Error: An error occurred while trying to read the map file at settings-dialog.fa.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.fa.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ar.js.
+Error: An error occurred while trying to read the map file at settings-dialog.ar.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ar.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ja.js.
+Error: An error occurred while trying to read the map file at settings-dialog.ja.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ja.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ko.js.
+Error: An error occurred while trying to read the map file at settings-dialog.ko.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ko.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.pl.js.
+Error: An error occurred while trying to read the map file at settings-dialog.pl.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.pl.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.hu.js.
+Error: An error occurred while trying to read the map file at settings-dialog.hu.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.hu.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.fr.js.
+Error: An error occurred while trying to read the map file at settings-dialog.fr.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.fr.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.uk.js.
+Error: An error occurred while trying to read the map file at settings-dialog.uk.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.uk.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.tr.js.
+Error: An error occurred while trying to read the map file at settings-dialog.tr.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.tr.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.th.js.
+Error: An error occurred while trying to read the map file at settings-dialog.th.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.th.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.it.js.
+Error: An error occurred while trying to read the map file at settings-dialog.it.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.it.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.hi.js.
+Error: An error occurred while trying to read the map file at settings-dialog.hi.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.hi.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ur.js.
+Error: An error occurred while trying to read the map file at settings-dialog.ur.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.ur.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.bn.js.
+Error: An error occurred while trying to read the map file at settings-dialog.bn.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionaries/settings-dialog.bn.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionary-translator.js.
+Error: An error occurred while trying to read the map file at dictionary-translator.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/dictionary-translator.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/template-i18n.js.
+Error: An error occurred while trying to read the map file at template-i18n.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/i18n/template-i18n.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-settings-slice.hooks.js.
+Error: An error occurred while trying to read the map file at use-settings-slice.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-settings-slice.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.js.
+Error: An error occurred while trying to read the map file at use-standing-draft-autosave.hooks.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.js.
+Error: An error occurred while trying to read the map file at standing-draft-local-backup.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/standing-draft-recovery-message.js.
+Error: An error occurred while trying to read the map file at standing-draft-recovery-message.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/helpers/standing-draft-recovery-message.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+5:12:33 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/failure-channel.js.
+Error: An error occurred while trying to read the map file at failure-channel.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/panel-kit/failure-channel.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+
+ Test Files  1 passed (1)
+      Tests  93 passed (93)
+   Start at  05:12:32
+   Duration  1.73s (transform 699ms, setup 297ms, import 658ms, tests 29ms, environment 597ms)
+
