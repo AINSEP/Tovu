@@ -16,6 +16,22 @@ function CloseIcon() {
   );
 }
 
+/** The Import tab itself; only it is focusable by Tab key while selected, like a site's. */
+function ImportTabItem({ importTab }: { importTab: ImportTab }) {
+  const tabIndex = importTab.selected ? 0 : -1;
+  return (
+    <span className={`tab tab--import ${importTab.selected ? 'is-active' : ''}`}>
+      <button type="button" role="tab" className="tab__select" aria-selected={importTab.selected}
+        tabIndex={tabIndex} onClick={importTab.onSelect}>
+        <span className="tab__label">Import</span>
+      </button>
+      <button type="button" className="tab__close" tabIndex={tabIndex} onClick={importTab.onClose} aria-label="Close Import">
+        <CloseIcon />
+      </button>
+    </span>
+  );
+}
+
 /**
  * One tab per open site, plus a permanent leading tab for Tovu's own screens. That leading tab is
  * labelled "All" because what it shows is the grid of every website; `tab--sites-home`
@@ -57,17 +73,7 @@ export function TabStrip({
           <span className="tab__label">All</span>
         </button>
 
-        {importTab && (
-          <span className={`tab tab--import ${importTab.selected ? 'is-active' : ''}`}>
-            <button type="button" role="tab" className="tab__select" aria-selected={importTab.selected}
-              tabIndex={importTab.selected ? 0 : -1} onClick={importTab.onSelect}>
-              <span className="tab__label">Import</span>
-            </button>
-            <button type="button" className="tab__close" tabIndex={importTab.selected ? 0 : -1} onClick={importTab.onClose} aria-label="Close Import">
-              <CloseIcon />
-            </button>
-          </span>
-        )}
+        {importTab && <ImportTabItem importTab={importTab} />}
 
         {projects.map((project) => (
           <span key={project.id} className={`tab ${project.id === activeTab ? 'is-active' : ''}`}>

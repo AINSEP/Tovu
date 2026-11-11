@@ -32,7 +32,7 @@ import type { useSiteFolders } from './use-site-folders.hooks.js';
 import type { SiteAdminPage } from './import-site-entry.js';
 import { FindBar } from './app/FindBar.js';
 import { TopNav } from './app/TopNav.js';
-import { TabStrip } from './app/TabStrip.js';
+import { TabStrip, type ImportTab } from './app/TabStrip.js';
 import { MainArea } from './app/MainArea.js';
 import { CreateWebsiteHost } from './app/CreateWebsiteHost.js';
 import { ImportWebsite } from './ImportWebsite.js';
@@ -45,6 +45,14 @@ function appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, act
   if (!showSitesHome) return null;
   if (isImporting) return 'import_website';
   return isCreating ? 'create_website' : activeId;
+}
+
+/** The Import tab's strip props, or none while it is closed. Out here so the open check is not one more
+ *  branch in `App`, which sits at the complexity ceiling. */
+function importTabProps({ open, selected, onSelect, onClose }: {
+  open: boolean; selected: boolean; onSelect: () => void; onClose: () => void;
+}, _options = {}): ImportTab | undefined {
+  return open ? { selected, onSelect, onClose } : undefined;
 }
 
 /** The sites-settings hooks `App` threads down; see `App`'s own doc. Each one left out falls back to
@@ -192,7 +200,7 @@ export function App({
           onSelectSitesHome={() => { setActiveTab(null); hideImporting(); }}
           onSelectTab={(id) => { setActiveTab(id); hideImporting(); }}
           onCloseTab={tabClose.requestClose}
-          importTab={importTabOpen ? { selected: showImportPage, onSelect: startImporting, onClose: stopImporting } : undefined}
+          importTab={importTabProps({ open: importTabOpen, selected: showImportPage, onSelect: startImporting, onClose: stopImporting })}
         />
       )}
 
