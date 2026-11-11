@@ -1,0 +1,11 @@
+# packages/cli full vitest (exit 0, 7s)
+## failures
+## summary
+ ✓ src/__tests__/args-convention.test.ts (1 test) 7ms
+ ✓ src/__tests__/tokens.test.ts (1 test) 3ms
+
+ Test Files  32 passed (32)
+      Tests  583 passed (583)
+   Start at  03:51:22
+   Duration  6.89s (transform 1.18s, setup 0ms, collect 3.43s, tests 1.39s, environment 7ms, prepare 2.33s)
+

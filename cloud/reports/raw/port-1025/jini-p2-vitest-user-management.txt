@@ -1,0 +1,11 @@
+# packages/user-management full vitest (exit 0, 58s)
+## failures
+## summary
+ ✓ src/react/users/__tests__/ChangeUsernameDialog.unit.test.tsx (2 tests) 112ms
+ ✓ src/react/members/__tests__/rules.busy.unit.test.ts (2 tests) 3ms
+
+ Test Files  101 passed (101)
+      Tests  1217 passed (1217)
+   Start at  03:34:29
+   Duration  56.96s (transform 6.00s, setup 14.73s, collect 25.85s, tests 29.10s, environment 16.66s, prepare 7.41s)
+

@@ -1,0 +1,11 @@
+# packages/vibecoding full vitest (exit 0, 11s)
+## failures
+## summary
+ ✓ src/react/__tests__/components/PartsViewer.test.tsx (6 tests) 110ms
+ ✓ src/react/__tests__/components/DocumentPreview.test.tsx (4 tests) 75ms
+
+ Test Files  23 passed (23)
+      Tests  363 passed (363)
+   Start at  03:53:42
+   Duration  10.59s (transform 1.24s, setup 871ms, collect 3.30s, tests 7.90s, environment 2.26s, prepare 1.63s)
+

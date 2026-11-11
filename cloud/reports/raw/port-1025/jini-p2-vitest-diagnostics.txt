@@ -1,0 +1,11 @@
+# packages/diagnostics full vitest (exit 0, 11s)
+## failures
+## summary
+ ✓ src/__tests__/sources-error-shape.test.ts (1 test) 2ms
+ ✓ src/__tests__/observability-export-policy.test.ts (8 tests) 4ms
+
+ Test Files  59 passed (59)
+      Tests  1016 passed (1016)
+   Start at  03:53:31
+   Duration  10.17s (transform 1.25s, setup 0ms, collect 5.26s, tests 2.20s, environment 10ms, prepare 3.78s)
+

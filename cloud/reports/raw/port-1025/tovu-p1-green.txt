@@ -1,0 +1,39 @@
+✔ verify refuses N of one WITHOUT running scrypt (2.269567ms)
+✔ verify refuses zero N WITHOUT running scrypt (0.544165ms)
+✔ verify refuses zero r WITHOUT running scrypt (1.491284ms)
+✔ verify refuses zero p WITHOUT running scrypt (0.471931ms)
+✔ verify refuses fractional N WITHOUT running scrypt (0.372693ms)
+✔ verify refuses fractional r WITHOUT running scrypt (2.435858ms)
+✔ verify refuses fractional p WITHOUT running scrypt (0.341746ms)
+✔ verify refuses a memory lever (128*N*r over 64 MiB) WITHOUT running scrypt (0.273027ms)
+✔ verify refuses a huge p WITHOUT running scrypt (0.353454ms)
+✔ verify refuses a CPU lever (p=1000) WITHOUT running scrypt (0.31358ms)
+✔ verify refuses p=5 at the default N and r WITHOUT running scrypt (0.285858ms)
+✔ verify refuses an empty salt WITHOUT running scrypt (0.316073ms)
+✔ verify refuses an empty digest WITHOUT running scrypt (5.584967ms)
+✔ verify refuses a missing field WITHOUT running scrypt (0.36855ms)
+✔ verify refuses an extra field WITHOUT running scrypt (0.289532ms)
+✔ verify refuses another scheme WITHOUT running scrypt (0.352747ms)
+✔ the largest admitted work (128*N*r*p exactly 64 MiB), the minimum (N=2, r=1, p=1) and this file's own parameters reach scrypt (215.908409ms)
+✔ a digest this file writes still verifies after the work bound (no legitimate row is refused) (89.973757ms)
+✔ secrets_vault is denied by name, with no columns and with only benign columns (0.742099ms)
+✔ every private/per-install core table is denied by name, independent of its columns (0.259928ms)
+✔ exact names only: plugin tables and look-alikes keep the generic rules (0.607778ms)
+✔ every table in the real migrated schema is classified: denied, or on the reviewed sendable list (758.329231ms)
+✔ credential/key/database names under a backup suffix are refused by the typed-tree rule, root and nested (3.403765ms)
+✔ the same names are refused by the raw-file rule, root and nested (0.5765ms)
+✔ raw-only private names (per-install config at any depth) are refused under a backup suffix too (0.669971ms)
+✔ look-alike ordinary names stay allowed by both rules (0.514371ms)
+✔ tip: an EMPTY file whose name is a token is reported as a path hit, redacted (99.060935ms)
+✔ tip: path hits come before extension filtering (a skipped media extension) and cover directory names (109.076674ms)
+✔ tip: a content hit under a credential-named path is reported with the path redacted (93.185555ms)
+✔ history: a removed token-named file sharing its (empty) blob with an innocent file is still reported (201.596226ms)
+✔ history: a token-named path with a skipped extension is reported once even if committed twice (191.575442ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4148.00085

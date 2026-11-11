@@ -1,0 +1,261 @@
+✔ cleanCreateTokens: absent input is no tokens; values are trimmed and blank ones dropped (1.54206ms)
+✔ cleanCreateTokens: at most 8 tokens of at most 4096 chars (0.681943ms)
+✔ cleanCreateTokens: the plugin id is anchored lower-case [a-z0-9][a-z0-9-]{0,63} (0.34264ms)
+✔ cleanCreateTokens: wrong shapes are refused, never coerced (0.229716ms)
+✔ tokens may only be added to an empty folder; no tokens are always fine (0.211176ms)
+✔ initTokenOptions passes tokens and captures init output only when there are tokens (0.16946ms)
+✔ the created-tokens line is a whole line: status saved|failed, then lower-case ids (0.447193ms)
+✔ listTokenSignInPlugins keeps only well-formed https plugins from the LAST JSON line, and removes its scratch site (11.290018ms)
+✔ listTokenSignInPlugins: a non-zero exit fails with the trimmed stderr, and still removes its scratch site (5.107276ms)
+✖ every leaf string is non-empty in English and translated (different) in every other locale (1.721751ms)
+✔ locale lookup: case-insensitive exact key, underscore spelling, region fallback, and en for anything unknown (2.243633ms)
+✔ a process that started at the claim is ours; one ms later is a reused pid and is never targeted (1.671501ms)
+✔ the dev-launcher regex: start or after a space/slash, then end or a space (0.365503ms)
+✔ the ancestor walk stops at pid 1, a missing parent, and after 6 ancestors (0.326986ms)
+✔ stop re-checks before signalling: a replaced lease is left alone, a changed command is refused (0.749835ms)
+✔ stop signals SIGTERM once and waits until the lease is gone and the pid no longer predates the claim (0.46309ms)
+✔ the launcher cache keeps 64 tokens and evicts the oldest on the 65th (0.609929ms)
+✔ readProcessStartMs: ps lstart in the C locale for exactly this pid; win32, a failure or garbage is null (0.440876ms)
+✖ every action accepts exactly its own fields; one extra field is refused before any effect (3.519388ms)
+✔ a non-object request is refused for every action (null, array, string, number, boolean) (1.762865ms)
+✔ the request cap is 64 KiB inclusive: 65,536 bytes spawn, 65,537 do not (0.61252ms)
+✖ each action dispatches exactly its CLI call: no renderer path is ever forwarded (1.114344ms)
+✔ required strings: empty, blank, NUL-bearing or non-string ids and passphrases never spawn (1.308642ms)
+✔ sync to an untracked or non-string site id never spawns (0.304273ms)
+✖ startup sync: an inventory failure keeps its code; a throwing CLI is operation-failed; a granted site is synced (0.242566ms)
+✖ a grant whose post-write site listing throws reports the destination as site-unavailable (0.336824ms)
+✖ a put syncs only the sites granted THIS entry; a cancelled backup picker never spawns (0.602618ms)
+✔ the fully valid created row outside the repo may be erased (the allow case every refusal below breaks once) (4.579916ms)
+✔ provenance: only origin "created" — adopted, unknown, missing, or no row at all is refused (2.595483ms)
+✔ repo root: missing, empty or non-string options refuse (2.759929ms)
+✔ identity: the row must record a non-empty string id that equals the on-disk site id (4.560799ms)
+✔ readSiteIdentity returns the id only for a non-empty string (3.530273ms)
+✔ containment: the repo root itself, or anything inside it, is never erased even as a valid created site (3.848103ms)
+✔ the real discovery scan of an explicit, empty, specific root finds nothing and does not fail (9.009541ms)
+✔ the real discovery scan refuses a broad root with the policy message instead of scanning it (2.950107ms)
+✔ removeSiteTree with the real fs defaults removes a read-only tree, and never chmods through a symlink (12.411612ms)
+✔ removeSiteTree of an absent tree is a no-op with the real defaults (3.873572ms)
+✔ stored roots: only absolute strings survive, extra roots are listed separately from creation roots (5.528132ms)
+✔ settings with either list missing or not an array are damaged: read ignores them, a write first preserves them (22.368104ms)
+✔ add refuses a broad root and a non-directory; remove and rememberCreated update their own lists (10.648913ms)
+✔ shared workspace: extra roots exclude the sites home and default roots (3.704575ms)
+✔ shared workspace: the legacy import runs once, in order, and never over overridden roots (7.002358ms)
+✔ shared workspace: rememberCreated adds only an unknown parent; a failing import is survivable (2.812767ms)
+✔ broad roots are refused: filesystem/home roots, a direct home child, user/volume/drive/UNC roots (2.884202ms)
+✔ specific folders are allowed, including look-alikes on either side of every anchor (0.463208ms)
+✔ $HOME/Tovu is allowed only when the sites home is exactly its sites/ folder (0.383541ms)
+✔ keyed serializer: same key runs in order even when a call is queued behind a still-running one (2.651543ms)
+✔ keyed serializer: a rejection reaches its own caller only; the next call on that key still runs; keys are independent (0.34478ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/sites-mcp-registration.ts' imported from /home/user/Tovu/apps/desktop/src/sites-mcp-registration.boundaries.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:19:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/sites-mcp-registration.ts'
+}
+
+Node.js v24.22.2
+✖ src/sites-mcp-registration.boundaries.test.ts (68.963476ms)
+✔ the published tool contract: names, input schemas and annotations exactly (1.539245ms)
+✔ reveal_site_folder: a missing, non-string or blank siteDir is a tool error naming the parameter; nothing is revealed (4.108116ms)
+✔ reveal_site_folder opens only a TRACKED folder, compared after resolving the requested path (2.794612ms)
+✔ list_sites: the empty sentence, and a missing folder is marked per row (5.265205ms)
+✔ an unknown tool lists the available ones; an internal fault names the tool (2.859093ms)
+✖ redactBootToken removes the entire token line (LF or CRLF, empty token too) and keeps the rest (4.404952ms)
+✔ parseBootToken reads only a whole line: no prefix, no trailing text (0.327853ms)
+✔ parseBootLine reads only a whole boot line (0.941106ms)
+✔ parseCliErrorLine reads only a line that starts with "tovu: <code>: " (0.360616ms)
+✖ buildCliEnv drops inherited relocation and render capabilities, and the site-scoped ones only with a site (4.814066ms)
+✔ a well-formed file keeps provenance; a missing file is "missing" and empty (5.243103ms)
+✔ a parsed value of the wrong shape is damaged (never ok), and every recovered row loses origin and siteId (7.117349ms)
+✔ a truncated file is salvaged, but recovered rows come back adopted without a siteId; hostile rows are dropped (1.840408ms)
+✔ a row needs BOTH a string siteDir and a string createdAt; dismissals keep only strings; origin normalises (2.900867ms)
+✔ trackSite stamps siteId only on a CREATED row with a non-empty string id (22.620224ms)
+✔ re-tracking a known dir adds no row, but clears its tombstone (4.394653ms)
+ℹ tests 65
+ℹ suites 0
+ℹ pass 56
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3660.990548
+
+✖ failing tests:
+
+test at src/desktop-i18n.boundaries.test.ts:15:1
+✖ every leaf string is non-empty in English and translated (different) in every other locale (1.721751ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  25 !== 16
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/desktop-i18n.boundaries.test.ts:17:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 25,
+    expected: 16,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/owner-store-ipc.boundaries.test.ts:38:1
+✖ every action accepts exactly its own fields; one extra field is refused before any effect (3.519388ms)
+  AssertionError [ERR_ASSERTION]: delete
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/owner-store-ipc.boundaries.test.ts:41:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/owner-store-ipc.boundaries.test.ts:71:1
+✖ each action dispatches exactly its CLI call: no renderer path is ever forwarded (1.114344ms)
+  AssertionError [ERR_ASSERTION]: delete
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     action: 'delete',
+  -     fields: {
+  -       entryId: 'k',
+  -       expectedRevision: 3
+  -     }
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/owner-store-ipc.boundaries.test.ts:83:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { action: 'delete', fields: [Object] } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/owner-store-ipc.boundaries.test.ts:105:1
+✖ startup sync: an inventory failure keeps its code; a throwing CLI is operation-failed; a granted site is synced (0.242566ms)
+  TypeError [Error]: denied.controller.syncOnStart is not a function
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/owner-store-ipc.boundaries.test.ts:107:44)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/owner-store-ipc.boundaries.test.ts:117:1
+✖ a grant whose post-write site listing throws reports the destination as site-unavailable (0.336824ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/owner-store-ipc.boundaries.test.ts:121:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/owner-store-ipc.boundaries.test.ts:126:1
+✖ a put syncs only the sites granted THIS entry; a cancelled backup picker never spawns (0.602618ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        'put',
+        undefined
+      ],
+  -   [
+  -     'list',
+  -     undefined
+  -   ],
+  -   [
+  -     'sync',
+  -     '/tmp/canonical-a'
+  -   ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/owner-store-ipc.boundaries.test.ts:134:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'put', undefined ] ],
+    expected: [ [ 'put', undefined ], [ 'list', undefined ], [ 'sync', '/tmp/canonical-a' ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/sites-mcp-registration.boundaries.test.ts:1:1
+✖ src/sites-mcp-registration.boundaries.test.ts (68.963476ms)
+  'test failed'
+
+test at src/tovu-server.boundaries.test.ts:8:1
+✖ redactBootToken removes the entire token line (LF or CRLF, empty token too) and keeps the rest (4.404952ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3000 !== 2000
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/tovu-server.boundaries.test.ts:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3000,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tovu-server.boundaries.test.ts:40:1
+✖ buildCliEnv drops inherited relocation and render capabilities, and the site-scoped ones only with a site (4.814066ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /dropped inherited TOVU_PLUGINS_DIR, TOVU_SKILLS_DIR, TOVU_AGENT_PLUGINS_DIR, JINI_DESKTOP_RENDER_URL, JINI_DESKTOP_RENDER_TOKEN, TOVU_SITE_DIR, TOVU_AGENT_CWD;/. Input:
+  
+  'tovu desktop: dropped inherited TOVU_PLUGINS_DIR, TOVU_SKILLS_DIR, TOVU_AGENT_PLUGINS_DIR, JINI_DESKTOP_RENDER_URL, JINI_DESKTOP_RENDER_TOKEN, TOVU_SITE_DIR, TOVU_AGENT_CWD, TOVU_ADMIN_PASSWORD; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.'
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/tovu-server.boundaries.test.ts:50:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'tovu desktop: dropped inherited TOVU_PLUGINS_DIR, TOVU_SKILLS_DIR, TOVU_AGENT_PLUGINS_DIR, JINI_DESKTOP_RENDER_URL, JINI_DESKTOP_RENDER_TOKEN, TOVU_SITE_DIR, TOVU_AGENT_CWD, TOVU_ADMIN_PASSWORD; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.',
+    expected: /dropped inherited TOVU_PLUGINS_DIR, TOVU_SKILLS_DIR, TOVU_AGENT_PLUGINS_DIR, JINI_DESKTOP_RENDER_URL, JINI_DESKTOP_RENDER_TOKEN, TOVU_SITE_DIR, TOVU_AGENT_CWD;/,
+    operator: 'match',
+    diff: 'simple'
+  }

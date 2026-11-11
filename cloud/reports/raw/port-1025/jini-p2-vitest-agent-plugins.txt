@@ -1,0 +1,13 @@
+# packages/agent-plugins full vitest (exit 1, 48s)
+## failures
+   × plugin identity (owner 2026-10-09) > requires the core peer version that exports the runtime identity entry 14ms
+ FAIL  src/lifecycle/__tests__/unit/plugin-identity.unit.test.ts > plugin identity (owner 2026-10-09) > requires the core peer version that exports the runtime identity entry
+## summary
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 140 passed (141)
+      Tests  1 failed | 2150 passed | 2 skipped (2153)
+   Start at  03:50:28
+   Duration  47.37s (transform 3.46s, setup 0ms, collect 22.67s, tests 40.67s, environment 26ms, prepare 8.98s)
+

@@ -1,0 +1,240 @@
+✔ each allow-listed run-scoped route is accepted for its own method (1.33864ms)
+✔ a listed path under another method, a deeper path, and an unlisted route are refused (0.246313ms)
+✔ ensureToolExecToken mints once, keeps it in module memory, and never writes any env (8.532563ms)
+✔ an operator-set TOVU_TOOL_EXEC_TOKEN is adopted and removed from the env it came from (4.795395ms)
+✔ a CLI agent's allow-listed env never carries the tool-exec token (10.020486ms)
+✔ the daemon attachment lookup refuses an unauthenticated caller before any later parser runs (121.679408ms)
+✔ the daemon attachment lookup refuses a run-scoped credential and answers the full daemon token (36.785478ms)
+✔ each allow-listed route refuses a prefixed path, a suffixed path and an extra segment (0.597058ms)
+✔ each allow-listed route is refused under the wrong method (0.5008ms)
+✔ ensureAgentDaemonToken keeps an operator token and mints exactly once into the Tovu env var (0.566911ms)
+✔ requireAgentDaemonToken: unset env refuses with 503, a wrong bearer with 401, the proxy token passes (0.669822ms)
+✔ requireAgentDaemonToken: exempt paths pass only without a credential and only when configured as exempt (0.175291ms)
+✔ requireAgentDaemonToken: a run credential sets the Tovu principal header, is bound to its run and its allow-list (1.496324ms)
+✔ requireAgentDaemonToken: validateDelegatedRunId makes body.runId bind to the credential's run (0.561087ms)
+✔ requireRunOwnership: the owner passes, another principal gets the unknown-run 404, a missing principal 401 (0.754065ms)
+✔ createOwnedRunListHandler lists only the principal's runs and forwards contextRef (0.547991ms)
+✔ content_post_delete allows an answer to its parked policy card (1.216636ms)
+✔ content_post_search is on the allowlist — the real execution path behind the /search composer capability (0.161555ms)
+✔ deployment_execute_static_publish allows an answer to its parked policy card (0.221912ms)
+✔ the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason (0.142107ms)
+✔ credential_save redeems the publish-host card; the retired save id cannot redeem (0.307521ms)
+✔ deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a) (0.167765ms)
+✔ SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate (0.109003ms)
+✔ assistant_demo_choices is on the allowlist unconditionally — it performs no token redemption because it has nothing to redeem (0.205774ms)
+✔ assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out (0.366654ms)
+✔ plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16) (0.317303ms)
+✔ agent_plugins_update can answer its parked policy card but cannot start from a surface callback (0.123353ms)
+✔ custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31) (0.069956ms)
+✔ custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03) (0.31201ms)
+✔ external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02) (0.219468ms)
+✔ external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test) (0.111705ms)
+✔ credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either (0.121879ms)
+✔ custom_credential_write_files runs normally and cannot be executed by a surface callback (0.04696ms)
+✖ SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently (3.839168ms)
+✔ revoking a saved-key grant opens no exchange and cannot execute from a card callback (0.204944ms)
+✔ file-batch callbacks can only answer parked exchanges, never start fresh writes (0.090399ms)
+✔ a verified payment outcome can only answer its parked card, never run from a fresh callback (0.061028ms)
+✔ SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set (0.235863ms)
+✔ security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused (0.087357ms)
+✔ direct theme replacements cannot execute through surface callbacks (0.062877ms)
+✔ security: the plugin-tool id table pins anchors, quantifiers and the character class (0.092427ms)
+✔ the registered commit schema shows the selected target folder through the shared approval renderer (8.555054ms)
+✔ unclassified registration fails closed, regardless of readOnly hint (0.476674ms)
+✔ ordinary edits and draft creation run without an approval channel (0.917322ms)
+✔ publishing on this site through status is an ordinary reversible edit (0.196535ms)
+✔ reversible writes (publish on this site, trash, moderation) run without an approval channel (3.191807ms)
+✔ only read, edit and trash run directly; every other class, including an unknown one, asks (0.502629ms)
+✔ permanent deletes and actions that leave this site refuse without a human confirmation channel (2.694951ms)
+✔ one principal-bound confirmation approves one frozen call; cancel changes nothing (2.773241ms)
+✔ every supported locale translates the exact approval text and choices (29.265616ms)
+✔ unsupported approval locales fall back to English for every label (0.686071ms)
+✔ the target folder label is translated in every supported approval locale (0.46323ms)
+✔ page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask (1.102173ms)
+✔ direct page actions reject unclassified capability ids (0.448887ms)
+✔ page fill runs directly without a reviewed click handle (0.102095ms)
+✔ source-control export commits ask because they can remove stale exported paths; dry runs are direct (0.144756ms)
+✔ disclosed approval facts precede technical Input, computed from the frozen call before asking (1.55874ms)
+✔ generic approval input uses the shared structured renderer and escapes untrusted values (1.503846ms)
+✔ deployment approval shows catalog title and summary with technical input only behind Details (5.529384ms)
+✔ approval without metadata has a readable title and localized fallback choices (1.011454ms)
+✔ approval uses input-schema titles and descriptions through the shared field renderer (1.175316ms)
+✔ a disclose failure refuses the call before any card or effect (0.751423ms)
+✔ a failing locale lookup still asks, in English, and never bypasses the gate (1.001383ms)
+✔ published plugin details and inspect disclosures run directly; state-changing handles still ask (0.196133ms)
+✔ the shared domain confirmer refuses commerce without an interactive channel (0.671347ms)
+✔ execution-setting rule: only an exact namespace AND key pair escalates (0.335493ms)
+✔ http-method rule: only a DELETE (any case) is a delete (0.158847ms)
+✔ plugin-enable rule: only an explicit enabled:false is a plain edit (0.081792ms)
+✔ export-commit rule: only dryRun:true is an edit (0.137196ms)
+✔ an explicit policy option overrides the table, and an unknown id without one throws (0.134799ms)
+✔ plan tools and rule-free direct tools are returned unwrapped; ruled or policy tools are wrapped (0.247562ms)
+✔ federated restore-over-existing description: verb forms and the bounded gaps are pinned (1.79776ms)
+✔ listToolCatalogEntries: each entry's source and description equal describe_tool's for the same id (18.2759ms)
+✔ listToolCatalogEntries: reads the registry on every call, so a tool registered later is included (0.268232ms)
+✔ describe_tool: content_read.content_region only points to a registered content_read.widget_region and never becomes a callable search hit (6.807702ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ describe_tool HTTP path: content_read.content_region describes the sub-read or points to content_read.widget_region (452.496201ms)
+✔ describe_tool: content_read.form only points to a registered content_read.form_definition and never becomes a callable search hit (2.115398ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ describe_tool HTTP path: content_read.form describes the sub-read or points to content_read.form_definition (243.664867ms)
+✔ describe_tool guidance declares its target tools so a read-only caller sees only read-only targets (2.797765ms)
+✔ source is the id's first `_` segment, falling back to tovu for an id with no prefix (0.297783ms)
+✖ describe('content_read') synthesizes the card family only when cards exist, naming each card's first sentence (2.744378ms)
+ℹ tests 81
+ℹ suites 0
+ℹ pass 79
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13801.597424
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts:1:7712
+✖ SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently (3.839168ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'agent_plugin_connect',
+      'agent_plugins_update',
+      'assistant_ask_choice',
+      'assistant_demo_choices',
+  ...
+      'members_delete',
+  -   'members_delete',
+      'newsletter_resume_campaign',
+      'newsletter_schedule_campaign',
+      'newsletter_send_campaign',
+      'page.click',
+      'plugin_source_delete',
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts:252:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'agent_plugin_connect',              'agent_plugins_update',
+      'assistant_ask_choice',              'assistant_demo_choices',
+      'assistant_tool_failure_recovery',   'backup_execute_restore',
+      'change_sets_revert',                'collections_content_type_tombstone',
+      'comments_purge_comment',            'comments_set_provider',
+      'comments_trash_comment',            'commerce_resolve_unknown',
+      'consent_publish_settings',          'consent_update_settings',
+      'content_post_delete',               'content_post_search',
+      'credential_copy_from_project',      'credential_save',
+      'custom_credential_delete',          'custom_credential_make_request',
+      'database_execute_migrate_forward',  'database_transfer_run',
+      'database_transfer_set_destination', 'deployment_delete_provider_credential',
+      'deployment_execute_static_publish', 'deployment_ops_deploy',
+      'deployment_ops_set_secret',         'deployment_ops_unset_secret',
+      'external_mcp_delete',               'external_mcp_reauth_prompt',
+      'external_mcp_save',                 'files_copy',
+      'fs_write_files',                    'identity_policy_delete',
+      'identity_role_delete',              'identity_user_create',
+      'identity_user_delete',              'image_transform',
+      'mail_remove_suppression',           'mail_send_test',
+      'mail_set_provider',                 'media_purge_asset',
+      'media_trash_asset',                 'members_delete',
+      'newsletter_resume_campaign',        'newsletter_schedule_campaign',
+      'newsletter_send_campaign',          'page.click',
+      'plugin_source_delete',              'plugins_set_enabled',
+      'plugins_uninstall',                 'publish_content_execute_pull',
+      'publish_content_publish',           'redirects_tombstone',
+      'search_reindex',                    'search_set_provider',
+      'settings_clear_value',              'settings_set_value',
+      'site_restart',                      'source_control_delete_credential',
+      'source_control_execute_commit',     'taxonomy_execute_merge_term',
+      'theme_duplicate',                   'theme_set_active',
+      'theme_trash',                       'theme_trash_file',
+      'trash_empty',                       'trash_item',
+      'trash_purge_item',                  'visitor_tool_configure',
+      'webhooks_delete_subscription',      'widgets_trash_instance'
+    ],
+    expected: [
+      'agent_plugin_connect',              'agent_plugins_update',
+      'assistant_ask_choice',              'assistant_demo_choices',
+      'assistant_tool_failure_recovery',   'backup_execute_restore',
+      'change_sets_revert',                'collections_content_type_tombstone',
+      'comments_purge_comment',            'comments_set_provider',
+      'comments_trash_comment',            'commerce_resolve_unknown',
+      'consent_publish_settings',          'consent_update_settings',
+      'content_post_delete',               'content_post_search',
+      'credential_copy_from_project',      'credential_save',
+      'custom_credential_delete',          'custom_credential_make_request',
+      'database_execute_migrate_forward',  'database_transfer_run',
+      'database_transfer_set_destination', 'deployment_delete_provider_credential',
+      'deployment_execute_static_publish', 'deployment_ops_deploy',
+      'deployment_ops_set_secret',         'deployment_ops_unset_secret',
+      'external_mcp_delete',               'external_mcp_reauth_prompt',
+      'external_mcp_save',                 'files_copy',
+      'fs_write_files',                    'identity_policy_delete',
+      'identity_role_delete',              'identity_user_create',
+      'identity_user_delete',              'image_transform',
+      'mail_remove_suppression',           'mail_send_test',
+      'mail_set_provider',                 'media_purge_asset',
+      'media_trash_asset',                 'members_delete',
+      'members_delete',                    'newsletter_resume_campaign',
+      'newsletter_schedule_campaign',      'newsletter_send_campaign',
+      'page.click',                        'plugin_source_delete',
+      'plugins_set_enabled',               'plugins_uninstall',
+      'publish_content_execute_pull',      'publish_content_publish',
+      'redirects_tombstone',               'search_reindex',
+      'search_set_provider',               'settings_clear_value',
+      'settings_set_value',                'site_restart',
+      'source_control_delete_credential',  'source_control_execute_commit',
+      'taxonomy_execute_merge_term',       'theme_duplicate',
+      'theme_set_active',                  'theme_trash',
+      'theme_trash_file',                  'trash_empty',
+      'trash_item',                        'trash_purge_item',
+      'visitor_tool_configure',            'webhooks_delete_subscription',
+      'widgets_trash_instance'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/tool-catalog-query.entries.test.ts:1:5875
+✖ describe('content_read') synthesizes the card family only when cards exist, naming each card's first sentence (2.744378ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\n' +
+  -   description: 'Read-card family. Describe a card id below for its inputs, then call that card.\n' +
+        'content_read.post — Reads one post.\n' +
+        'content_read.media_asset — Read media asset.',
+      id: 'content_read',
+      source: 'content',
+  +   targetToolIds: [
+  +     'content_read.post',
+  +     'content_read.media_asset'
+  +   ]
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-catalog-query.entries.test.ts:135:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'content_read', source: 'content', description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\ncontent_read.post — Reads one post.\ncontent_read.media_asset — Read media asset.', targetToolIds: [ 'content_read.post', 'content_read.media_asset' ] },
+    expected: { id: 'content_read', source: 'content', description: 'Read-card family. Describe a card id below for its inputs, then call that card.\ncontent_read.post — Reads one post.\ncontent_read.media_asset — Read media asset.' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

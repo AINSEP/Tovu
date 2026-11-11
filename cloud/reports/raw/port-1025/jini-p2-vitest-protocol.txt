@@ -1,0 +1,11 @@
+# packages/protocol full vitest (exit 0, 2s)
+## failures
+## summary
+ ✓ src/__tests__/event-log-contract.test.ts (1 test) 2ms
+ ✓ src/__tests__/run-context.absent-keys.test.ts (2 tests) 4ms
+
+ Test Files  13 passed (13)
+      Tests  205 passed (205)
+   Start at  03:38:38
+   Duration  1.74s (transform 225ms, setup 0ms, collect 529ms, tests 105ms, environment 3ms, prepare 839ms)
+

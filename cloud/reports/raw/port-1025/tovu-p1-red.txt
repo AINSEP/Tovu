@@ -1,0 +1,437 @@
+✔ verify refuses N of one WITHOUT running scrypt (3.186178ms)
+✔ verify refuses zero N WITHOUT running scrypt (0.500938ms)
+✔ verify refuses zero r WITHOUT running scrypt (2.359703ms)
+✔ verify refuses zero p WITHOUT running scrypt (0.447437ms)
+✔ verify refuses fractional N WITHOUT running scrypt (0.324884ms)
+✔ verify refuses fractional r WITHOUT running scrypt (1.347854ms)
+✔ verify refuses fractional p WITHOUT running scrypt (0.549696ms)
+✔ verify refuses a memory lever (128*N*r over 64 MiB) WITHOUT running scrypt (0.884439ms)
+✖ verify refuses a huge p WITHOUT running scrypt (4.070057ms)
+✖ verify refuses a CPU lever (p=1000) WITHOUT running scrypt (32186.898093ms)
+✖ verify refuses p=5 at the default N and r WITHOUT running scrypt (221.470337ms)
+✔ verify refuses an empty salt WITHOUT running scrypt (0.904874ms)
+✔ verify refuses an empty digest WITHOUT running scrypt (0.515971ms)
+✔ verify refuses a missing field WITHOUT running scrypt (0.334707ms)
+✔ verify refuses an extra field WITHOUT running scrypt (0.302404ms)
+✔ verify refuses another scheme WITHOUT running scrypt (0.344501ms)
+✔ the largest admitted work (128*N*r*p exactly 64 MiB), the minimum (N=2, r=1, p=1) and this file's own parameters reach scrypt (365.095032ms)
+✔ a digest this file writes still verifies after the work bound (no legitimate row is refused) (95.534583ms)
+✖ secrets_vault is denied by name, with no columns and with only benign columns (4.820053ms)
+✖ every private/per-install core table is denied by name, independent of its columns (1.061433ms)
+✔ exact names only: plugin tables and look-alikes keep the generic rules (0.480789ms)
+✖ every table in the real migrated schema is classified: denied, or on the reviewed sendable list (2005.615931ms)
+✖ credential/key/database names under a backup suffix are refused by the typed-tree rule, root and nested (3.456062ms)
+✖ the same names are refused by the raw-file rule, root and nested (0.654941ms)
+✖ raw-only private names (per-install config at any depth) are refused under a backup suffix too (0.904272ms)
+✔ look-alike ordinary names stay allowed by both rules (0.416824ms)
+✖ tip: an EMPTY file whose name is a token is reported as a path hit, redacted (3192.022087ms)
+✖ tip: path hits come before extension filtering (a skipped media extension) and cover directory names (1260.042473ms)
+✖ tip: a content hit under a credential-named path is reported with the path redacted (1418.432272ms)
+✖ history: a removed token-named file sharing its (empty) blob with an innocent file is still reported (1486.587983ms)
+✖ history: a token-named path with a skipped extension is reported once even if committed twice (268.992127ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 17
+ℹ fail 14
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46442.937711
+
+✖ failing tests:
+
+test at apps/website/src/features/identity/__tests__/api-key-secret.no-derivation.test.ts:1:1560
+✖ verify refuses a huge p WITHOUT running scrypt (4.070057ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/identity/__tests__/api-key-secret.no-derivation.test.ts:41:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/identity/__tests__/api-key-secret.no-derivation.test.ts:1:1560
+✖ verify refuses a CPU lever (p=1000) WITHOUT running scrypt (32186.898093ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/identity/__tests__/api-key-secret.no-derivation.test.ts:41:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/identity/__tests__/api-key-secret.no-derivation.test.ts:1:1560
+✖ verify refuses p=5 at the default N and r WITHOUT running scrypt (221.470337ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/identity/__tests__/api-key-secret.no-derivation.test.ts:41:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts:1:1386
+✖ secrets_vault is denied by name, with no columns and with only benign columns (4.820053ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + null
+  - "Table 'secrets_vault' holds private or per-install data and is never sent."
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts:41:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: "Table 'secrets_vault' holds private or per-install data and is never sent.",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts:1:1772
+✖ every private/per-install core table is denied by name, independent of its columns (1.061433ms)
+  AssertionError [ERR_ASSERTION]: secrets_vault
+  + actual - expected
+  
+  + null
+  - "Table 'secrets_vault' holds private or per-install data and is never sent."
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts:48:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: "Table 'secrets_vault' holds private or per-install data and is never sent.",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts:1:2513
+✖ every table in the real migrated schema is classified: denied, or on the reviewed sendable list (2005.615931ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'agent_tool_attempts',
+  +   'change_set_items',
+  +   'database_write_watermark',
+  +   'domain_binding',
+      'entries',
+      'entry_refs',
+      'entry_revisions',
+      'entry_terms',
+  +   'external_mcp_tool_approvals',
+      'form_definitions',
+  +   'form_delivery_jobs',
+  +   'form_delivery_plans',
+  +   'mail_feedback_inbox',
+  +   'mail_suppression',
+  +   'mail_suppression_removals',
+      'media',
+      'media_slug_history',
+      'menus',
+      'newsletter_campaign_revisions',
+      'newsletter_campaigns',
+  +   'plugin_activations',
+  +   'post_search_document',
+  +   'post_search_fts',
+  +   'post_search_fts_config',
+  +   'post_search_fts_data',
+  +   'post_search_fts_docsize',
+  +   'post_search_fts_idx',
+      'posts',
+      'presentation_settings',
+  +   'publish_history',
+      'redirect_revisions',
+      'redirects',
+  +   'search_index_retired',
+  +   'search_index_targets',
+  +   'search_index_watermarks',
+  +   'setting_revisions',
+      'setting_values_global',
+  +   'setting_values_user',
+      'setting_values_workspace',
+  +   'site_consent_heads',
+  +   'site_consent_revisions',
+  +   'site_title_preexisting_workspaces',
+      'taxonomies',
+      'taxonomy_revisions',
+      'terms',
+      'transform_registry',
+  +   'workspaces'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts:71:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'agent_tool_attempts',           'change_set_items',
+      'database_write_watermark',      'domain_binding',
+      'entries',                       'entry_refs',
+      'entry_revisions',               'entry_terms',
+      'external_mcp_tool_approvals',   'form_definitions',
+      'form_delivery_jobs',            'form_delivery_plans',
+      'mail_feedback_inbox',           'mail_suppression',
+      'mail_suppression_removals',     'media',
+      'media_slug_history',            'menus',
+      'newsletter_campaign_revisions', 'newsletter_campaigns',
+      'plugin_activations',            'post_search_document',
+      'post_search_fts',               'post_search_fts_config',
+      'post_search_fts_data',          'post_search_fts_docsize',
+      'post_search_fts_idx',           'posts',
+      'presentation_settings',         'publish_history',
+      'redirect_revisions',            'redirects',
+      'search_index_retired',          'search_index_targets',
+      'search_index_watermarks',       'setting_revisions',
+      'setting_values_global',         'setting_values_user',
+      'setting_values_workspace',      'site_consent_heads',
+      'site_consent_revisions',        'site_title_preexisting_workspaces',
+      'taxonomies',                    'taxonomy_revisions',
+      'terms',                         'transform_registry',
+      'workspaces'
+    ],
+    expected: [ 'entries', 'entry_refs', 'entry_revisions', 'entry_terms', 'form_definitions', 'media', 'media_slug_history', 'menus', 'newsletter_campaign_revisions', 'newsletter_campaigns', 'posts', 'presentation_settings', 'redirect_revisions', 'redirects', 'setting_values_global', 'setting_values_workspace', 'taxonomies', 'taxonomy_revisions', 'terms', 'transform_registry' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts:1:700
+✖ credential/key/database names under a backup suffix are refused by the typed-tree rule, root and nested (3.456062ms)
+  AssertionError [ERR_ASSERTION]: .mcp.local.json.bak
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts:27:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: null,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts:1:1019
+✖ the same names are refused by the raw-file rule, root and nested (0.654941ms)
+  AssertionError [ERR_ASSERTION]: .mcp.local.json.bak
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts:36:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: null,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts:1:1234
+✖ raw-only private names (per-install config at any depth) are refused under a backup suffix too (0.904272ms)
+  AssertionError [ERR_ASSERTION]: assets/deep/config.json.bak
+  + actual - expected
+  
+  + null
+  - "File 'assets/deep/config.json.bak' holds private data or belongs to a protected site folder and is never sent."
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts:45:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: "File 'assets/deep/config.json.bak' holds private data or belongs to a protected site folder and is never sent.",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:1:1208
+✖ tip: an EMPTY file whose name is a token is reported as a path hit, redacted (3192.022087ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     file: '[redacted].txt',
+  -     line: 'path',
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:40:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { file: '[redacted].txt', patternName: 'GitHub personal access token (classic, ghp_)', line: 'path' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:1:1570
+✖ tip: path hits come before extension filtering (a skipped media extension) and cover directory names (1260.042473ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     file: 'dir-[redacted]/x.txt',
+  -     line: 'path',
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   },
+  -   {
+  -     file: 'img/[redacted].png',
+  -     line: 'path',
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:49:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { file: 'dir-[redacted]/x.txt', patternName: 'GitHub personal access token (classic, ghp_)', line: 'path' }, { file: 'img/[redacted].png', patternName: 'GitHub personal access token (classic, ghp_)', line: 'path' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:1:1972
+✖ tip: a content hit under a credential-named path is reported with the path redacted (1418.432272ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     file: 'notes-[redacted].txt',
+  -     line: 'path',
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   },
+  -   {
+  -     file: 'notes-[redacted].txt',
+  -     line: 2,
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:59:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { file: 'notes-[redacted].txt', patternName: 'GitHub personal access token (classic, ghp_)', line: 'path' }, { file: 'notes-[redacted].txt', patternName: 'GitHub personal access token (classic, ghp_)', line: 2 } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:2:208
+✖ history: a removed token-named file sharing its (empty) blob with an innocent file is still reported (1486.587983ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     file: '[redacted].txt',
+  -     line: 'path',
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:73:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { file: '[redacted].txt', patternName: 'GitHub personal access token (classic, ghp_)', line: 'path' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:2:636
+✖ history: a token-named path with a skipped extension is reported once even if committed twice (268.992127ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     file: '[redacted].png',
+  -     line: 'path',
+  -     patternName: 'GitHub personal access token (classic, ghp_)'
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/secret-scan-guard.paths.unit.test.ts:82:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { file: '[redacted].png', patternName: 'GitHub personal access token (classic, ghp_)', line: 'path' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

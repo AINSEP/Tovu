@@ -1,0 +1,33 @@
+✔ stop cancels the running batch before the store closes; a restart delivers what it released (156.580035ms)
+✔ a batch abandoned without a stop (crash) is reclaimed after a restart once its lease expires (126.474088ms)
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (171.936621ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2279.643268
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:1:5484
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (171.936621ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'fetch timed out after 60ms: https://example.com'
+  - 'fetch timed out after 60ms: https://example.com/hooks'
+  
+      at <anonymous> (/home/user/tovu-main/apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:166:10)
+      at async TestContext.<anonymous> (/home/user/tovu-main/apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:76:11)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'fetch timed out after 60ms: https://example.com',
+    expected: 'fetch timed out after 60ms: https://example.com/hooks',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

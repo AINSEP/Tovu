@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-runtime
+
+ ✓ src/__tests__/auth.test.ts (175 tests) 30ms
+
+ Test Files  1 passed (1)
+      Tests  175 passed (175)
+   Start at  03:30:28
+   Duration  475ms (transform 174ms, setup 0ms, collect 205ms, tests 30ms, environment 0ms, prepare 61ms)
+

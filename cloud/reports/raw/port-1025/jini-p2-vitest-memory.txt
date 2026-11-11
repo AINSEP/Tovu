@@ -1,0 +1,11 @@
+# packages/memory full vitest (exit 0, 4s)
+## failures
+## summary
+ ✓ src/__tests__/rule-body.l088.characterization.test.ts (7 tests) 4ms
+ ✓ src/__tests__/index.test.ts (1 test) 2ms
+
+ Test Files  18 passed (18)
+      Tests  409 passed (409)
+   Start at  03:50:20
+   Duration  3.59s (transform 680ms, setup 0ms, collect 1.14s, tests 1.12s, environment 3ms, prepare 1.18s)
+

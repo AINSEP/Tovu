@@ -1,0 +1,11 @@
+# packages/analytics full vitest (exit 0, 3s)
+## failures
+## summary
+ ✓ src/__tests__/product-browser.test.ts (2 tests) 141ms
+ ✓ src/__tests__/exports.test.ts (2 tests) 2ms
+
+ Test Files  15 passed (15)
+      Tests  224 passed (224)
+   Start at  03:51:16
+   Duration  2.58s (transform 551ms, setup 0ms, collect 1.46s, tests 329ms, environment 3ms, prepare 881ms)
+

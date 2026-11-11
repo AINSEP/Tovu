@@ -1,0 +1,11 @@
+# packages/agent-runtime full vitest (exit 0, 49s)
+## failures
+## summary
+ ✓ src/agent-protocol/pi-rpc/__tests__/index.test.ts (1 test) 3ms
+ ✓ src/agent-protocol/core/__tests__/index.test.ts (1 test) 2ms
+
+ Test Files  186 passed (186)
+      Tests  4482 passed | 1 skipped (4483)
+   Start at  03:42:23
+   Duration  48.54s (transform 4.98s, setup 0ms, collect 26.22s, tests 21.80s, environment 31ms, prepare 12.94s)
+

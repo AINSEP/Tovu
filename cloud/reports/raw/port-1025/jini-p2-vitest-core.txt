@@ -1,0 +1,11 @@
+# packages/core full vitest (exit 0, 29s)
+## failures
+## summary
+   ✓ isolates settings and its optional Express adapter from the kernel root 11129ms
+ ✓ src/text/escape.hwa.test.ts (1 test) 2ms
+
+ Test Files  128 passed (128)
+      Tests  2084 passed (2084)
+   Start at  03:35:27
+   Duration  28.22s (transform 2.59s, setup 0ms, collect 8.29s, tests 13.95s, environment 26ms, prepare 9.40s)
+

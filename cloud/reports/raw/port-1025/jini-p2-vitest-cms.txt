@@ -1,0 +1,13 @@
+# packages/cms full vitest (exit 1, 108s)
+## failures
+   × CMS declares the used HTTP toolkit peer with an optional registry range 9ms
+ FAIL  src/content-types/__tests__/universal-entries.boundary.test.ts > CMS declares the used HTTP toolkit peer with an optional registry range
+## summary
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 328 passed (329)
+      Tests  1 failed | 4023 passed (4024)
+   Start at  03:51:30
+   Duration  106.88s (transform 7.99s, setup 0ms, collect 42.00s, tests 75.90s, environment 408ms, prepare 24.20s)
+

@@ -1,0 +1,11 @@
+# packages/agentic full vitest (exit 0, 14s)
+## failures
+## summary
+ ✓ src/skills/install/__tests__/public-surface.w8.test.ts (1 test) 2ms
+ ✓ src/__tests__/root-entry.contract.test.ts (1 test) 4ms
+
+ Test Files  76 passed (76)
+      Tests  1692 passed (1692)
+   Start at  03:39:31
+   Duration  13.90s (transform 1.25s, setup 0ms, collect 3.53s, tests 4.70s, environment 3.78s, prepare 4.62s)
+

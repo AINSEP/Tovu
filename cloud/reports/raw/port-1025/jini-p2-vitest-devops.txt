@@ -1,0 +1,11 @@
+# packages/devops full vitest (exit 0, 23s)
+## failures
+## summary
+ ✓ src/dns/__tests__/index.test.ts (1 test) 3ms
+ ✓ src/dns/node/__tests__/index.test.ts (1 test) 3ms
+
+ Test Files  80 passed (80)
+      Tests  1214 passed (1214)
+   Start at  03:38:06
+   Duration  22.67s (transform 3.28s, setup 0ms, collect 10.63s, tests 18.22s, environment 13ms, prepare 4.76s)
+

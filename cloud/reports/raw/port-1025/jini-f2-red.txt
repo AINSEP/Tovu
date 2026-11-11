@@ -1,0 +1,50 @@
+ ❯ src/__tests__/validating-lookup.hostile.test.ts:10:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/validating-lookup.hostile.test.ts > createValidatingLookup with hostile list entries > refuses a list containing undefined (fail closed, no throw)
+TypeError: Cannot read properties of undefined (reading 'address')
+ ❯ src/asset-cache.ts:144:91
+    142|         const list = Array.isArray(address) ? address : [{ address, fa…
+    143|         for (const entry of list) {
+    144|           const addr = typeof entry === 'string' ? entry : (entry as {…
+       |                                                                                           ^
+    145|           if (isPrivateAddress({ address: addr })) {
+    146|             return cb(new AssetCacheError(400, 'host resolves to a pri…
+ ❯ src/__tests__/validating-lookup.hostile.test.ts:8:91
+ ❯ validatingLookup src/asset-cache.ts:137:6
+ ❯ result src/__tests__/validating-lookup.hostile.test.ts:11:84
+ ❯ src/__tests__/validating-lookup.hostile.test.ts:10:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  03:22:36
+   Duration  522ms (transform 115ms, setup 0ms, collect 143ms, tests 12ms, environment 0ms, prepare 79ms)
+
+
+ FAIL  src/deploy/__tests__/reachability-lookup.mixed.test.ts > reachability lookup refuses any single malformed entry > null at position 0
+ FAIL  src/deploy/__tests__/reachability-lookup.mixed.test.ts > reachability lookup refuses any single malformed entry > null at position 1
+ FAIL  src/deploy/__tests__/reachability-lookup.mixed.test.ts > reachability lookup refuses any single malformed entry > null at position 2
+TypeError: Cannot read properties of null (reading 'address')
+ ❯ ../platform/src/asset-cache.ts:144:91
+ ❯ src/deploy/__tests__/reachability-lookup.mixed.test.ts:9:74
+      7| type ResolverCallback = (error: NodeJS.ErrnoException | null, address?…
+      8| const resolver = (address: unknown, family?: number): typeof lookup =>
+      9|   ((_hostname: string, _options: unknown, callback: ResolverCallback) …
+       |                                                                          ^
+     10| const run = (address: unknown) => {
+     11|   const callback = vi.fn();
+ ❯ validatingLookup ../platform/src/asset-cache.ts:137:6
+ ❯ src/deploy/node.ts:23:5
+ ❯ run src/deploy/__tests__/reachability-lookup.mixed.test.ts:12:65
+ ❯ src/deploy/__tests__/reachability-lookup.mixed.test.ts:32:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 29 passed (32)
+   Start at  03:22:37
+   Duration  1.61s (transform 723ms, setup 0ms, collect 1.18s, tests 45ms, environment 0ms, prepare 93ms)
+

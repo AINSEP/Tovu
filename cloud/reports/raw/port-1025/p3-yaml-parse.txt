@@ -1,0 +1,7 @@
+yaml ok assistant-gate,gates,build,store-identity,win-x64-store,release
+build Force Apple connections over TCP on Intel bash -n 0 
+build Prepare shared macOS assessment checks bash -n 0 
+build App is signed, notarized, stapled, right arch bash -n 0 
+build Notarize + staple the dmg itself bash -n 0 
+build verify-package on the SHIPPED dmg bash -n 0 
+build The update zip holds the same signed, notarized, right-arch app bash -n 0 

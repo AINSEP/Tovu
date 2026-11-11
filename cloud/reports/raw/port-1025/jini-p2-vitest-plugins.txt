@@ -1,0 +1,11 @@
+# packages/plugins full vitest (exit 0, 22s)
+## failures
+## summary
+   ✓ ./host is universal and never evaluates executable source 8375ms
+ ✓ src/host/__tests__/unit/open-flags.unit.test.ts (2 tests) 3ms
+
+ Test Files  74 passed (74)
+      Tests  1006 passed (1006)
+   Start at  03:39:46
+   Duration  21.03s (transform 1.71s, setup 0ms, collect 7.01s, tests 15.18s, environment 13ms, prepare 4.29s)
+

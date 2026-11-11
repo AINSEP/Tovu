@@ -1,0 +1,56 @@
+== packages/daemon (npm run typecheck)
+exit 0
+== packages/oauth (npm run typecheck)
+exit 0
+== packages/platform (npm run typecheck)
+exit 0
+== packages/user-management (npm run typecheck)
+exit 0
+== packages/agentic (npm run typecheck)
+exit 0
+== packages/core (npm run typecheck)
+exit 0
+== packages/db (npm run typecheck)
+exit 0
+== packages/devops (npm run typecheck)
+exit 0
+== packages/http-kit (npm run typecheck)
+exit 0
+== packages/plugins (npm run typecheck)
+exit 0
+== packages/protocol (npm run typecheck)
+exit 0
+== packages/registry (npm run typecheck)
+exit 0
+== packages/sandbox (npm run typecheck)
+exit 0
+== packages/server (npm run typecheck)
+exit 0
+== packages/sidecar (npm run typecheck)
+exit 0
+== packages/agent-runtime (npm run typecheck)
+exit 0
+== packages/chat (npm run typecheck)
+exit 0
+== packages/mcp (npm run typecheck)
+exit 0
+== packages/memory (npm run typecheck)
+exit 0
+== packages/search (npm run typecheck)
+exit 0
+== packages/agent-plugins (npm run typecheck)
+exit 0
+== packages/analytics (npm run typecheck)
+exit 0
+== packages/artifacts (npm run typecheck)
+exit 0
+== packages/cli (npm run typecheck)
+exit 0
+== packages/cms (npm run typecheck)
+exit 0
+== packages/desktop-host (npm run typecheck)
+exit 0
+== packages/diagnostics (npm run typecheck)
+exit 0
+== packages/vibecoding (npm run typecheck)
+exit 0
