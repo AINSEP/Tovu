@@ -25,7 +25,7 @@ function fakeBridge(overrides: Partial<RunnerInventoryBridge> = {}): RunnerInven
     listConversations: async () => [], createConversation: inert, renameConversation: inert, deleteConversation: inert,
     loadConversationMessages: async () => [], saveConversationMessage: async () => {},
     onChatEvent: (listener) => { chatListeners.add(listener); return () => chatListeners.delete(listener); },
-    onNavigate: () => () => {}, onSiteHistory: () => () => {}, onFindToggle: () => () => {},
+    onNavigate: () => () => {}, onOpenImport: () => () => {}, onSiteHistory: () => () => {}, onFindToggle: () => () => {},
     findInPage: async () => {}, stopFindInPage: async () => {}, onFindResult: () => () => {}, onZoomCommand: () => () => {},
     getZoomLevel: () => 0, setZoomLevel: () => {}, getPathForFile: () => '/picked/file.txt',
     pickWorkingDirectory: async () => null, recentWorkingDirectories: async () => [], workingDirectoryExists: async () => true,
