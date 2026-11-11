@@ -1,0 +1,13 @@
+# packages/db full vitest (exit 1, 131s)
+## failures
+   × @jini-ai/db in an install with no database driver present > documents the vault's optional platform peer and refuses a vault import without it 20ms
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > documents the vault's optional platform peer and refuses a vault import without it
+## summary
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 100 passed (101)
+      Tests  1 failed | 854 passed (855)
+   Start at  03:35:56
+   Duration  129.56s (transform 2.81s, setup 0ms, collect 14.02s, tests 208.06s, environment 18ms, prepare 6.86s)
+

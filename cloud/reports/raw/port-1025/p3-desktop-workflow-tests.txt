@@ -1,0 +1,21 @@
+✔ package and every release staging path check shell and payload inputs before packaging (1.637204ms)
+✔ release inputs accept registry plugin in dependencies (43.21702ms)
+✔ release inputs refuse linked plugin in dependencies (51.507097ms)
+✔ release inputs refuse file plugin in dependencies (45.914401ms)
+✔ release inputs accept registry plugin in optionalDependencies (49.238572ms)
+✔ release inputs refuse linked plugin in optionalDependencies (45.003252ms)
+✔ release inputs refuse file plugin in optionalDependencies (49.98595ms)
+✔ release inputs accept registry plugin in peerDependencies (71.977661ms)
+✔ release inputs refuse linked plugin in peerDependencies (97.204544ms)
+✔ release inputs refuse file plugin in peerDependencies (54.777299ms)
+✔ shell production collection ships no optional providers (520.656242ms)
+✔ shell production collection ships one selected provider (437.184683ms)
+✔ desktop checks the real archive after packaging without staging a second closure (1.520581ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1834.48676

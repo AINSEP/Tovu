@@ -1,0 +1,11 @@
+# packages/sandbox full vitest (exit 0, 5s)
+## failures
+## summary
+ ✓ src/core/__tests__/loads-without-driver.test.ts (4 tests) 2388ms
+ ✓ src/e2b/__tests__/args-convention.test.ts (1 test) 4ms
+
+ Test Files  18 passed (18)
+      Tests  179 passed (179)
+   Start at  03:38:46
+   Duration  4.20s (transform 341ms, setup 0ms, collect 965ms, tests 2.90s, environment 3ms, prepare 1.18s)
+

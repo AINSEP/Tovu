@@ -1,0 +1,17 @@
+# packages/chat full vitest (exit 1, 398s)
+## failures
+   × makes every SQL, React and surface-card UI peer optional, with one pinned dev Kysely and PGlite 8ms
+   × publishes every isolated extraction entry with its browser or universal classification 14ms
+   × useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass 20ms
+ FAIL  src/__tests__/dbpkg-chat-manifest.test.ts > publishes every isolated extraction entry with its browser or universal classification
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx > useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass
+ FAIL  src/store/__tests__/manifest.test.ts > makes every SQL, React and surface-card UI peer optional, with one pinned dev Kysely and PGlite
+## summary
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  3 failed | 292 passed | 1 skipped (296)
+      Tests  3 failed | 4369 passed | 1 skipped (4373)
+   Start at  03:43:13
+   Duration  397.50s (transform 12.26s, setup 34.16s, collect 101.52s, tests 308.41s, environment 62.81s, prepare 20.11s)
+

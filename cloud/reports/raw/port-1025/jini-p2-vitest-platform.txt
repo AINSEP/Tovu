@@ -1,0 +1,13 @@
+# packages/platform full vitest (exit 1, 39s)
+## failures
+   × retains published subpaths and declares adapter dependencies as optional peers 12ms
+ FAIL  src/secrets/__tests__/exports.test.ts > retains published subpaths and declares adapter dependencies as optional peers
+## summary
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 162 passed (163)
+      Tests  1 failed | 3260 passed | 6 skipped (3267)
+   Start at  03:40:08
+   Duration  38.09s (transform 2.86s, setup 0ms, collect 9.49s, tests 30.99s, environment 29ms, prepare 10.29s)
+

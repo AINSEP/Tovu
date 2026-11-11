@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx (31 tests | 1 failed) 180ms
+   × useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass 23ms
+     → expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx > useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass
+AssertionError: expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+- Expected: 
+/streaming/
+
++ Received: 
+"cannot send: A reply is still running. Stop it first."
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx:183:5
+    181|     await waitFor(() => expect(pane().conversation.isStreaming).toBe(t…
+    182| 
+    183|     await expect(
+       |     ^
+    184|       context.tools.get('chat.send_message')?.execute({ prompt: 'secon…
+    185|     ).rejects.toThrow(/streaming/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 30 passed (31)
+   Start at  04:10:33
+   Duration  2.43s (transform 980ms, setup 163ms, collect 1.36s, tests 180ms, environment 439ms, prepare 75ms)
+

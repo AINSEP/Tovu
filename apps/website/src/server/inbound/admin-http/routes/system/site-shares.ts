@@ -10,7 +10,7 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 
-function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
+export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
   const raw = body ?? {};
   if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) {
     throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Start an export with {}, or poll with jobId only." });

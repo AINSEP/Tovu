@@ -1,4 +1,4 @@
-import { checkTreePath } from "./file-tree-policy.js";
+import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
 import { scanTextForSecrets } from "#src/features/webhooks/index";
 
 /** An expected manual-publishing refusal with a caller-safe message.
@@ -18,6 +18,21 @@ export const BACKSTOP_DENIED_TABLE_PATTERNS: readonly RegExp[] = [
   /^(?:sqlite_|__?drizzle|drizzle_|migration)/i,
   /^(?:tovu_(?:chat_)?migrations|schema_migrations)(?:_|$)/i,
 ];
+/** Sealed credentials and private/per-install CORE tables, denied by exact name independent of
+ * their column names, so a renamed column can never make them sendable. Classified from the migrated
+ * schema; backstop-policy.private-tables.unit.test.ts fails when a new core table is left
+ * unclassified. Plugin tables keep the generic rules. */
+export const BACKSTOP_DENIED_CORE_TABLES: ReadonlySet<string> = new Set([
+  "secrets_vault",
+  "mail_suppression", "mail_suppression_removals", "mail_feedback_inbox",
+  "site_consent_heads", "site_consent_revisions",
+  "setting_values_user", "setting_revisions",
+  "external_mcp_tool_approvals", "agent_tool_attempts", "form_delivery_jobs", "form_delivery_plans",
+  "domain_binding", "publish_history", "deployments", "plugin_activations", "workspaces",
+  "database_write_watermark", "site_title_preexisting_workspaces", "change_set_items",
+  "search_index_retired", "search_index_targets", "search_index_watermarks",
+  "post_search_document", "post_search_fts", "post_search_fts_config", "post_search_fts_data", "post_search_fts_docsize", "post_search_fts_idx",
+]);
 export const BACKSTOP_DENIED_COLUMN_PATTERN = /secret|token|password|_hash$|key/i;
 export const BACKSTOP_DENIED_FILE_ROOTS = [
   "agent-plugins", "plugins", "skills", "uploads", "ops", "out", ".git", "node_modules", ".publish-staging", ".publish-previous",
@@ -29,7 +44,7 @@ export function checkRawTable(
   _optional: Record<string, never> = {},
 ): string | null {
   if (!/^[A-Za-z_]\w*$/.test(table)) return "The table name is not a valid database identifier.";
-  if (BACKSTOP_DENIED_TABLE_PATTERNS.some((pattern) => pattern.test(table))) {
+  if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase()) || BACKSTOP_DENIED_TABLE_PATTERNS.some((pattern) => pattern.test(table))) {
     return `Table '${table}' holds private or per-install data and is never sent.`;
   }
   for (const column of columns) {
@@ -83,8 +98,13 @@ export function gapLabelFor(
 /** Private names are denied at every depth, including backup and key suffix variants. */
 function isProtectedRawComponent({ part }: { part: string }, _optional: Record<string, never> = {}): boolean {
   const lower = part.toLowerCase();
-  if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
-      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower)) return true;
+  if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-")) return true;
+  return isPrivateRawName({ lower }) || isPrivateRawName({ lower: credentialBaseName({ name: part }) });
+}
+
+/** Checked on the name and on its backup-stripped base (`.npmrc.bak`, `tls.key~`). */
+function isPrivateRawName({ lower }: { lower: string }, _optional: Record<string, never> = {}): boolean {
+  if (lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower)) return true;
   if ([".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower)) return true;
   return /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
 }

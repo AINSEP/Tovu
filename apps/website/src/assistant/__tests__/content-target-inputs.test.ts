@@ -162,3 +162,187 @@ test("combined media deletion plans resolve all slugs after admission and preser
   assert.equal(plans, 1, "target preparation must not execute separate per-item plans");
   assert.deepEqual(input, { items: [{ mediaId: "dashboard" }, { slug: "logo" }] });
 });
+
+// L11 Stryker: the id-prefix → entity-type routing (`seo_`, `pages_`, `content_post_`, `media_`,
+// `library_read`, the content_read.* cards) and the slug-alias rules survived. Drive the adapter
+// directly with recording DI fakes so each row proves WHICH resolver ran and WHICH entity type
+// was authorized.
+import { applyContentTargetInputs, type ContentTargetDeps } from "../content-target-inputs.js";
+import type { ToolRegistration } from "@jini-ai/core";
+
+function recordingDeps(overrides: Partial<ContentTargetDeps> = {}) {
+  const log: string[] = [];
+  const deps: ContentTargetDeps = {
+    workspaceId: "w",
+    authorize: (async (input: { permission: string; entityType: string }) => { log.push(`auth:${input.permission}:${input.entityType}`); return { allowed: true, reason: "test" }; }) as never,
+    mediaRepo: {
+      findById: async ({ id }: { id: string }) => { log.push(`media-id:${id}`); return id === "asset-1" ? mediaRecord({ id: "asset-1", slug: "logo" }) : null; },
+      findBySlug: async ({ slug }: { slug: string }) => { log.push(`media-slug:${slug}`); return slug === "logo" ? mediaRecord({ id: "asset-1", slug: "logo" }) : null; },
+    } as never,
+    resolvePost: async ({ selector }) => { log.push(`post:${selector}`); return `post-id-for-${selector}`; },
+    permissionFor: ({ toolId }) => `perm.${toolId}`,
+    ...overrides,
+  };
+  return { deps, log };
+}
+function synthetic(id: string, properties: Record<string, unknown>, sink: { input?: unknown }): ToolRegistration {
+  return { descriptor: { id, inputSchema: { type: "object", properties }, sideEffects: "none" },
+    policy: { authorize: () => "allow" }, handler: async ctx => { sink.input = ctx.input; return {}; } };
+}
+
+for (const [toolId, kind, authEntity] of [
+  ["seo_analyze_entry", "post", "seo-entry"], ["content_read.seo_entry_meta", "post", "seo-entry"],
+  ["pages_update", "post", "post"], ["content_post_read", "post", "post"], ["content_read.content_post", "post", "post"],
+  ["media_update_metadata", "media", "media"], ["content_read.media_asset", "media", "media"], ["library_read", "media", "media"],
+] as const) {
+  test(`${toolId} resolves its id through the ${kind} resolver and authorizes ${authEntity}`, async () => {
+    const { deps, log } = recordingDeps();
+    const sink: { input?: unknown } = {};
+    const [registration] = applyContentTargetInputs({ registrations: [synthetic(toolId, { id: {} }, sink)], deps });
+    const selector = kind === "post" ? "hello" : "logo";
+    assert.equal((await executeRegisteredTool({ registration: registration!, input: { id: selector } })).status, "completed");
+    const expectedId = kind === "post" ? "post-id-for-hello" : "asset-1";
+    assert.deepEqual(sink.input, { id: expectedId });
+    assert.equal(log[0], `auth:perm.${toolId}:${authEntity}`);
+    assert.equal(log.some(entry => entry.startsWith(kind === "post" ? "media" : "post:")), false, "the other resolver never runs");
+  });
+}
+
+test("tools outside the CMS target families, or without a target key, are returned untouched", () => {
+  const { deps } = recordingDeps();
+  const sink = {};
+  for (const registration of [
+    synthetic("content_read.other", { id: {} }, sink), synthetic("seo", { id: {} }, sink), synthetic("xmedia_read", { id: {} }, sink),
+    synthetic("library_read_all", { id: {} }, sink), synthetic("webhooks_get", { id: {} }, sink), synthetic("media_update_metadata", { name: {} }, sink),
+  ]) {
+    assert.equal(applyContentTargetInputs({ registrations: [registration], deps })[0], registration, registration.descriptor.id);
+  }
+});
+
+test("each target key is recognised, in its priority order", async () => {
+  for (const key of ["id", "mediaId", "postId", "documentId", "entryId"]) {
+    const { deps } = recordingDeps();
+    const sink: { input?: unknown } = {};
+    const [registration] = applyContentTargetInputs({ registrations: [synthetic("content_post_read", { [key]: {} }, sink)], deps });
+    assert.notEqual(registration, undefined);
+    await executeRegisteredTool({ registration: registration!, input: { [key]: "hello" } });
+    assert.deepEqual(sink.input, { [key]: "post-id-for-hello" }, key);
+  }
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [both] = applyContentTargetInputs({ registrations: [synthetic("content_post_read", { postId: {}, id: {} }, sink)], deps });
+  await executeRegisteredTool({ registration: both!, input: { id: "hello", postId: "untouched" } });
+  assert.deepEqual(sink.input, { id: "post-id-for-hello", postId: "untouched" }, "id wins over postId");
+});
+
+test("slug is a target alias unless the schema writes a slug — except pages_ and media_view_ tools", async () => {
+  for (const [toolId, properties, input, expected] of [
+    ["content_post_read", { id: {} }, { slug: "hello" }, { id: "post-id-for-hello" }],
+    ["content_post_update", { id: {}, slug: {} }, { id: "hello", slug: "new" }, { id: "post-id-for-hello", slug: "new" }],
+    ["pages_update", { id: {}, slug: {} }, { slug: "hello" }, { id: "post-id-for-hello" }],
+    ["media_view_image", { mediaId: {}, slug: {} }, { slug: "logo" }, { mediaId: "asset-1" }],
+  ] as const) {
+    const { deps } = recordingDeps();
+    const sink: { input?: unknown } = {};
+    const [registration] = applyContentTargetInputs({ registrations: [synthetic(toolId, properties, sink)], deps });
+    const result = await executeRegisteredTool({ registration: registration!, input });
+    assert.equal(result.status, "completed", `${toolId}: ${result.error}`);
+    assert.deepEqual(sink.input, expected, toolId);
+  }
+});
+
+test("a second selector beside the alias is refused naming both keys; a missing target passes through", async () => {
+  const { deps, log } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("content_post_read", { id: {} }, sink)], deps });
+  const conflict = await executeRegisteredTool({ registration: registration!, input: { id: "a", slug: "b" } });
+  assert.equal(conflict.status, "failed");
+  assert.match(conflict.error!, /content_post_read: send exactly one of id or slug\./);
+  assert.deepEqual(await executeRegisteredTool({ registration: registration!, input: { other: 1 } }).then(r => r.status), "completed");
+  assert.deepEqual(sink.input, { other: 1 });
+  assert.deepEqual(log, [], "no selector means no authorization lookup and no resolver read");
+});
+
+test("a media slug resolving to another workspace's asset is passed through as the slug; the same workspace resolves it", async () => {
+  // Selector ("logo") and foreign id ("x") differ, so dropping the workspace guard would surface "x".
+  const repoFor = (workspaceId: string) => ({ findById: async () => null, findBySlug: async () => mediaRecord({ id: "x", slug: "logo", workspaceId }) }) as never;
+  const sink: { input?: unknown } = {};
+  const foreign = recordingDeps({ mediaRepo: repoFor("other") });
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps: foreign.deps });
+  assert.equal((await executeRegisteredTool({ registration: registration!, input: { mediaId: "logo" } })).status, "completed");
+  assert.deepEqual(sink.input, { mediaId: "logo" });
+  const own = recordingDeps({ mediaRepo: repoFor("w") });
+  const [ownRegistration] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps: own.deps });
+  await executeRegisteredTool({ registration: ownRegistration!, input: { mediaId: "logo" } });
+  assert.deepEqual(sink.input, { mediaId: "x" });
+});
+
+test("batched items are prepared one by one; more than the batch cap is refused before any lookup", async () => {
+  const { deps, log } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("content_post_read", { id: {}, items: {} }, sink)], deps });
+  await executeRegisteredTool({ registration: registration!, input: { items: [{ id: "a" }, { id: "b" }, { id: "c" }] } });
+  assert.deepEqual(sink.input, { items: [{ id: "post-id-for-a" }, { id: "post-id-for-b" }, { id: "post-id-for-c" }] });
+  log.length = 0;
+  const tooMany = await executeRegisteredTool({ registration: registration!, input: { items: Array.from({ length: 26 }, (_, i) => ({ id: `p${i}` })) } });
+  assert.equal(tooMany.status, "failed");
+  assert.match(tooMany.error!, /At most 25 targets can be prepared in one call\./);
+  assert.deepEqual(log, []);
+});
+
+test("permanent-delete tools run beforeLookup with the tool and principal before the permission check", async () => {
+  const order: string[] = [];
+  const { deps, log } = recordingDeps();
+  // One shared log, so the assertion pins beforeLookup → authorize → lookup as a sequence.
+  Object.assign(deps, { beforeLookup: async ({ toolId, principalId }: { toolId: string; principalId: string }) => { log.push(`before:${toolId}:${principalId}`); order.push(`before:${toolId}:${principalId}`); } });
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_purge_asset", { mediaId: {} }, sink)], deps });
+  await executeRegisteredTool({ registration: registration!, input: { mediaId: "asset-1" } });
+  assert.deepEqual(log, ["before:media_purge_asset:caller", "auth:perm.media_purge_asset:media", "media-id:asset-1"]);
+  const plain = recordingDeps({ beforeLookup: async () => { order.push("unexpected"); } });
+  const [update] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps: plain.deps });
+  await executeRegisteredTool({ registration: update!, input: { mediaId: "asset-1" } });
+  assert.deepEqual(order, ["before:media_purge_asset:caller"], "an ordinary tool never runs beforeLookup");
+});
+
+test("content_post_preview keeps legacy postId precedence and refuses a blank or non-string target", async () => {
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("content_post_preview", { id: {}, postId: {} }, sink)], deps });
+  await executeRegisteredTool({ registration: registration!, input: { postId: "legacy" } });
+  assert.deepEqual(sink.input, { postId: "legacy", id: "post-id-for-legacy" });
+  await executeRegisteredTool({ registration: registration!, input: { id: "new", postId: "legacy" } });
+  assert.deepEqual(sink.input, { id: "post-id-for-new", postId: "legacy" }, "id wins over postId");
+  for (const bad of [{ id: "  " }, { id: "" }, { postId: 7 }, { id: null }]) {
+    const result = await executeRegisteredTool({ registration: registration!, input: bad });
+    assert.equal(result.status, "failed", JSON.stringify(bad));
+    assert.match(result.error!, /content_post_preview: id must be a non-empty id or slug \(postId is a legacy alias\)\./);
+  }
+});
+
+test("pages_read_html needs one of id or slug", async () => {
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("pages_read_html", { id: {}, slug: {} }, sink)], deps });
+  const result = await executeRegisteredTool({ registration: registration!, input: {} });
+  assert.match(result.error!, /pages_read_html: send exactly one of id or slug\./);
+  await executeRegisteredTool({ registration: registration!, input: { slug: "hello" } });
+  assert.deepEqual(sink.input, { id: "post-id-for-hello" });
+});
+
+test("media_view_video: slug is refused as a path, beside attachmentRef, or when it disagrees with mediaId", async () => {
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_view_video", { mediaId: {}, slug: {}, attachmentRef: {} }, sink)], deps });
+  for (const slug of ["", "a/b", "a\\b", "a\0b", 7]) {
+    const result = await executeRegisteredTool({ registration: registration!, input: { slug } });
+    assert.match(result.error!, /media_view_video: slug must be a nonempty media-library slug; filesystem paths are refused\./, JSON.stringify(slug));
+  }
+  const both = await executeRegisteredTool({ registration: registration!, input: { slug: "logo", attachmentRef: "att-1" } });
+  assert.match(both.error!, /media_view_video: pass a mediaId or slug, OR attachmentRef\./);
+  const disagree = await executeRegisteredTool({ registration: registration!, input: { mediaId: "asset-1", slug: "missing" } });
+  assert.match(disagree.error!, /media_view_video: slug and mediaId disagree; send selectors for the same media asset\./);
+  const agree = await executeRegisteredTool({ registration: registration!, input: { mediaId: "asset-1", slug: "logo" } });
+  assert.equal(agree.status, "completed");
+  assert.deepEqual(sink.input, { mediaId: "asset-1" });
+});

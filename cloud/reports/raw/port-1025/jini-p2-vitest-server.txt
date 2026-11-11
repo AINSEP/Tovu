@@ -1,0 +1,11 @@
+# packages/server full vitest (exit 0, 35s)
+## failures
+## summary
+   ✓ memory composition runs from the packed server with no SQLite, pg, PGlite or React installed 16619ms
+ ✓ src/__tests__/delegated-principal.security.test.ts (2 tests) 4ms
+
+ Test Files  26 passed (26)
+      Tests  472 passed | 1 skipped (473)
+   Start at  03:38:51
+   Duration  34.23s (transform 3.04s, setup 0ms, collect 14.69s, tests 33.84s, environment 5ms, prepare 1.58s)
+

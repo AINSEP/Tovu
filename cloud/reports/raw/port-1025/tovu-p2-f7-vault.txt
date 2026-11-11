@@ -1,0 +1,18 @@
+✔ a sealed payload opens back to the same payload for its own identity and kind (6.593966ms)
+✔ the envelope refuses to open for another server, workspace or kind (2.586511ms)
+✔ a foreign vault kind is refused before any sealing (0.257788ms)
+✔ externalMcpVaultEnvelope is null for a record with nothing sealed (0.141429ms)
+✔ a staged envelope persists once, re-persists idempotently, and refuses different bytes under the same id (1.06034ms)
+✔ an envelope that was read back (not staged) is never written as a new record (6.884974ms)
+✔ delete removes a stored envelope and is a no-op for a null or missing id (4.64718ms)
+✔ a context that differs in exactly one field is refused with VaultError{code:'context'} (1.188581ms)
+✔ both supported kinds seal and open; every other kind is refused before crypto (1.888497ms)
+✔ an existing record under the same id with another kind or owner is a conflict, not a silent reuse (4.523462ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 710.788334

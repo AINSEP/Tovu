@@ -1,0 +1,24 @@
+✔ whitespace-only host or apiKey is not_configured, without a request (1.203957ms)
+✔ the host must START with http(s)://: plain http is accepted, a scheme anywhere else is refused (1.227686ms)
+✔ surrounding whitespace on the host is trimmed before the URL is built (0.196525ms)
+✔ timeout wording: 'timeout', 'time out' and 'timed out' are all timeouts; other faults are network (0.694627ms)
+✔ HTTP 199 and 300 are outside 2xx: unexpected_response, not a success (0.367035ms)
+✔ a 2xx body that is not JSON is unexpected_response naming that, on every read path (0.592107ms)
+✔ Retry-After: header found case-insensitively among others; delta-seconds anchored at both ends (0.589138ms)
+✔ a JSON null body on each endpoint is unexpected_response, never a TypeError (1.460568ms)
+✔ a task whose error is null still settles by status; a stored revision without a string id is refused (0.428207ms)
+✔ dropIndex: a failed deletion task whose code is NOT tolerated is rejected with that code (0.500237ms)
+✔ ensureIndex polls a pending task after 25 ms, then 50 ms (doubling), never sooner (1.019162ms)
+✔ revision 0 is writable; -1 is refused per key (0.593059ms)
+✔ a key whose document id is exactly 511 chars is writable; 512 is refused (0.261587ms)
+✔ a write of exactly maxBatch (500) items is sent; 501 is refused before any request (3.711465ms)
+✔ query limit 1 and 100 are accepted; a cursor with trailing junk is refused (0.409139ms)
+✔ exactly `limit` hits means no next page; limit + 1 hits means nextCursor (0.65954ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 663.726627

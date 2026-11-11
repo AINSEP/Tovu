@@ -1,0 +1,11 @@
+# packages/daemon full vitest (exit 0, 97s)
+## failures
+## summary
+   ✓ concurrent upserts preserve one primary-key row 1842ms
+ ✓ src/store/agent-sessions/__tests__/memory.test.ts (3 tests) 3ms
+
+ Test Files  218 passed | 1 skipped (219)
+      Tests  4353 passed | 1 skipped (4354)
+   Start at  03:40:46
+   Duration  96.03s (transform 8.97s, setup 0ms, collect 65.51s, tests 66.88s, environment 38ms, prepare 15.54s)
+

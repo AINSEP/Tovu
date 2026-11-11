@@ -1,0 +1,11 @@
+# packages/sidecar full vitest (exit 0, 5s)
+## failures
+## summary
+ ✓ src/__tests__/integration-surface.test.ts (2 tests) 3ms
+ ✓ src/__tests__/args-convention.test.ts (1 test) 20ms
+
+ Test Files  21 passed (21)
+      Tests  339 passed | 2 skipped (341)
+   Start at  03:39:26
+   Duration  4.51s (transform 892ms, setup 0ms, collect 2.69s, tests 1.65s, environment 4ms, prepare 1.27s)
+

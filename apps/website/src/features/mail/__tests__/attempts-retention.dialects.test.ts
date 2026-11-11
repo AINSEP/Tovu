@@ -93,4 +93,26 @@ describeEachDialect("mail observations and retention", { tables: ["mail_activity
     assert.deepEqual(await db.query(sql`SELECT * FROM mail_send_ledger WHERE idempotency_key IN ('old', 'sent', 'failed')`), [], "all expired final metadata, including addresses and keys, is deleted");
     assert.equal(await suppression.isSuppressed({ workspaceId: "w", normalizedAddress: "real@example.com", lane: "transactional" }), true);
   });
+  // F6 fix wave (L7 Stryker: attempts.repo.ts L21-23 survived). Addresses are stored trimmed and
+  // lower-cased (so suppression/feedback joins match), and the outcome is derived per provider result.
+  test("attempt rows normalize both addresses and classify captured, sent, unknown and failed results", async () => {
+    const db = make(); await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES ('w','W','w',${iso(NOW)})`);
+    let n = 0; const observe = createMailAttemptObserver({ db }, { nowIso: () => iso(NOW), newId: () => `attempt-${++n}` });
+    const mixed = { ...message, to: { email: "  Real@Example.COM " } };
+    const ok = (providerMessageId: string) => ({ ok: true as const, providerMessageId, acceptedAt: iso(NOW) });
+    const cases = [
+      ["k-redirect", "smtp", { mode: "redirect", to: " QA@Example.com " }, ok("m-1"), "sent"],
+      ["k-captured-id", "smtp", { mode: "off" }, ok("captured:abc"), "captured"],
+      ["k-console", "console", { mode: "off" }, ok("m-2"), "captured"],
+      ["k-not-captured", "smtp", { mode: "off" }, ok("xcaptured:abc"), "sent"],
+      ["k-unknown", "smtp", { mode: "off" }, { ok: false as const, retryable: true, unknown: true, errorCode: "timeout", message: "timed out" }, "unknown"],
+      ["k-failed", "smtp", { mode: "off" }, { ok: false as const, retryable: false, errorCode: "rejected", message: "no" }, "failed"],
+    ] as const;
+    for (const [idempotencyKey, providerId, mode, result] of cases) {
+      await observe({ message: mixed, options: { ...options, idempotencyKey }, providerId, mode: mode as MailTestModeSetting, result: result as never });
+    }
+    const rows = await db.query<{ idempotency_key: string; recipient: string; effective_recipient: string; outcome: string }>(sql`SELECT idempotency_key, recipient, effective_recipient, outcome FROM mail_activity_attempts ORDER BY idempotency_key`);
+    assert.deepEqual(rows.map(row => [row.idempotency_key, row.recipient, row.effective_recipient, row.outcome]),
+      cases.map(([key, , mode, , outcome]) => [key, "real@example.com", mode.mode === "redirect" ? "qa@example.com" : "real@example.com", outcome]).sort((a, b) => (a[0]! < b[0]! ? -1 : 1)));
+  });
 });

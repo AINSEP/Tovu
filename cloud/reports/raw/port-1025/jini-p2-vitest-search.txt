@@ -1,0 +1,11 @@
+# packages/search full vitest (exit 0, 4s)
+## failures
+## summary
+ ✓ src/__tests__/digest.test.ts (2 tests) 11ms
+ ✓ src/__tests__/exports.test.ts (3 tests) 3ms
+
+ Test Files  12 passed (12)
+      Tests  356 passed (356)
+   Start at  03:50:24
+   Duration  3.15s (transform 1.37s, setup 0ms, collect 2.74s, tests 308ms, environment 2ms, prepare 857ms)
+

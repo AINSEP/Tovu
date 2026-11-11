@@ -1,0 +1,11 @@
+# packages/http-kit full vitest (exit 0, 8s)
+## failures
+## summary
+ ✓ src/__tests__/response.test.ts (4 tests) 8ms
+ ✓ src/__tests__/request.test.ts (4 tests) 3ms
+
+ Test Files  30 passed (30)
+      Tests  688 passed (688)
+   Start at  03:38:30
+   Duration  7.35s (transform 1.22s, setup 0ms, collect 4.59s, tests 2.50s, environment 6ms, prepare 2.27s)
+

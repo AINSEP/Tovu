@@ -750,3 +750,60 @@ test('the executor binds protected settings approval to the authenticated caller
   assert.equal(revisions.length, 1);
   assert.equal(revisions[0]!.actor, 'caller');
 });
+
+// F6 fix wave (L7 Stryker): every host-added write denial refuses BOTH write tools with its own reason.
+for (const [namespace, key, reason] of [
+  ["core.consent", "bannerEnabled", "Cookie consent changes require consent_update_settings"],
+  [ASSISTANT_PERMANENT_DELETES_NAMESPACE, "enabled", ASSISTANT_PERMANENT_DELETES_WRITE_REASON],
+  ["core.mail", "provider", "The mail provider changes only through mail_set_provider"],
+  ["core.mail", "testMode", "Mail test mode (redirect/capture) is an operator setting"],
+] as const) {
+  for (const toolId of ["settings_set_value", "settings_clear_value"]) {
+    test(`${toolId} refuses ${namespace}.${key} with its own denial reason`, async () => {
+      const f = fixture(namespace, key, { type: "boolean" });
+      await assert.rejects(f.call(toolId, { namespace, key, ...(toolId === "settings_set_value" ? { value: true } : {}) }),
+        (error: Error) => error.message.includes(reason));
+      assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+      assert.equal(f.surfaceExchanges.size(), 0);
+    });
+  }
+}
+
+test("the host confirmation list names each setting once; the chat agent picker keeps its chat-specific reason", async () => {
+  const { TOVU_CONFIRMATION_SETTINGS } = await import("../tool-registrations.js");
+  const coordinates = TOVU_CONFIRMATION_SETTINGS.map(({ namespace, key }) => `${namespace}.${key}`);
+  assert.deepEqual(coordinates.filter((entry, index) => coordinates.indexOf(entry) !== index), []);
+  assert.deepEqual(TOVU_CONFIRMATION_SETTINGS.filter(({ key }) => key === "localCli.agentId"),
+    [{ namespace: "core.execution", key: "localCli.agentId", reason: "Changes your chat agent, model or thinking effort for the next turn" }]);
+  for (const key of ["localCli.permissionLevel", "mode", "byok.protocol", "byok.providerId", "byok.baseUrl"]) {
+    assert.ok(coordinates.includes(`core.execution.${key}`), `core.execution.${key} must need a human card`);
+  }
+});
+
+// F6 fix wave (Stryker re-score: the card's title and detail rows survived every mutant). The human
+// approves what this card shows, so its rows must name the exact setting, scope, previous override and
+// the value that will be written (or the fall-back for a clear).
+test("the confirmation card shows the change's title, setting, scope, previous override and new value", async () => {
+  const f = fixture("core.interface", "useClaudeInChrome", { type: "boolean" });
+  const cards: string[] = [];
+  const answer = (toolId: string) => ({ emitSurface: async (emission: unknown) => {
+    cards.push(JSON.stringify(emission));
+    f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId });
+  } });
+  const input = { namespace: "core.interface", key: "useClaudeInChrome", scope: "user" as const };
+  await f.call("settings_set_value", { ...input, value: true }, answer("settings_set_value"));
+  await f.call("settings_clear_value", input, answer("settings_clear_value"));
+  const html = (card: string) => (JSON.parse(card) as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  const rows = (card: string) => [...html(card).matchAll(/<dt>([^<]*)<\/dt><dd>([^<]*)<\/dd>/g)].map(([, label, value]) => [label, value]);
+  assert.match(html(cards[0]!), /<title>Change this assistant setting\?<\/title>/);
+  assert.match(html(cards[1]!), /<title>Clear this assistant setting override\?<\/title>/);
+  const set = rows(cards[0]!), clear = rows(cards[1]!);
+  for (const expected of [["Setting", "core.interface.useClaudeInChrome"], ["Scope", "user"]]) {
+    assert.ok(set.some(([label, value]) => label === expected[0] && value === expected[1]), `set card row ${expected[0]}: ${JSON.stringify(set)}`);
+  }
+  // Main 17eb199ec moved the previous override and new value into the card's access before/after row.
+  const change = (card: string) => html(card).match(/<dt>core\.interface\.useClaudeInChrome<\/dt><dd><div class="mcpui-detail-change"><div><span class="mcpui-hint">Before<\/span>([^<]*)<\/div><div><span class="mcpui-hint">After<\/span>([^<]*)<\/div>/)?.slice(1);
+  assert.deepEqual(change(cards[0]!), ["\u2014", "On"], "set card: no previous override, new value on");
+  assert.deepEqual(change(cards[1]!), ["On", "Fall back to the next layer or default"], "clear card: previous override on, falls back");
+  assert.equal(set.some(([label]) => label === "Resulting chat selection"), false, "only chat-execution writes show a resulting selection");
+});

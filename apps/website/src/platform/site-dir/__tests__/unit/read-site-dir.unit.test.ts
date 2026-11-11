@@ -382,3 +382,20 @@ test("Bug D: createSiteCreationTimeZone reads config.json's timezone and never t
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// F7 complexity pass: pins `validateConfig`'s whole contract before and after its CCN-11 split.
+test("readSiteConfig: trims the name, defaults domain/port to null, keeps only a string timezone, refuses null and non-object JSON", (t) => {
+  const dir = mkTempDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const write = (value: unknown) => fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(value));
+  write({ name: "  Acme  " });
+  assert.deepEqual(readSiteConfig({ dir }), { name: "Acme", domain: null, port: null });
+  write({ name: "n".repeat(200), domain: "example.test", port: 8080, timezone: "Europe/Berlin" });
+  assert.deepEqual(readSiteConfig({ dir }), { name: "n".repeat(200), domain: "example.test", port: 8080, timezone: "Europe/Berlin" });
+  write({ name: "Acme", timezone: 5 });
+  assert.equal(Object.hasOwn(readSiteConfig({ dir }), "timezone"), false);
+  for (const value of [null, "Acme", 42, ["Acme"], { name: 7 }]) {
+    write(value);
+    assertSiteDirInvalid(() => readSiteConfig({ dir }), /config\.json\.name must be 1\.\.200 chars after trim/, JSON.stringify(value));
+  }
+});

@@ -1,0 +1,81 @@
+✔ the site-wide Tovu database-destination context is allowed (0.911859ms)
+✔ another vault kind is refused with the vault 'context' code (0.457754ms)
+✔ another owner key is refused with the vault 'context' code (0.093654ms)
+✔ a per-principal context is refused with the vault 'context' code (0.070311ms)
+✔ an empty-string principal (not null) is refused with the vault 'context' code (0.070907ms)
+✔ every core table with a secret-shaped column is excluded from the copy (7.117202ms)
+✖ the member password hash is copied by neither a transfer nor a public site share (2.055434ms)
+✔ the secret-column pattern matches whole underscore-delimited segments only (0.624629ms)
+✔ every excluded name is a current or migrated-away core table, and none of them is copied (13.630164ms)
+✔ partial exclusion counts skip settings tables absent from an older snapshot (19.171152ms)
+✔ the copy excludes every agreed login, saved-key, confirmation and running-lock table (0.235891ms)
+✔ a snapshot with member password hashes leaves the whole credential table behind (9.155774ms)
+✔ a snapshot leaves owner MFA, recovery codes and passkey login records behind (6.76426ms)
+✔ a copy carries form delivery plans and job index rows with their outbox rows, never the receiver pull lease (3.637293ms)
+✔ a copy plan names the receiver pull lease as left out because it is a lock held by the running site (239.066142ms)
+✔ an admitted provider without a client card is not ready; saving one makes it ready on the next call (54.77135ms)
+✔ a client card in another workspace does not make this workspace's provider ready (4.802364ms)
+✔ a client card bound to a foreign token URL is not ready (4.273292ms)
+✔ a configured card cannot ready a provider shipped by a non-bundled plugin (3.558865ms)
+✔ an absent body, an empty body and a UUID-shaped jobId are accepted (1.570284ms)
+✔ the share-job body refuses a leading-junk id as INVALID_INPUT (0.466344ms)
+✔ the share-job body refuses a trailing-junk id as INVALID_INPUT (0.097329ms)
+✔ the share-job body refuses a trailing newline as INVALID_INPUT (0.065503ms)
+✔ the share-job body refuses an upper-case id as INVALID_INPUT (0.170127ms)
+✔ the share-job body refuses a 35-char id as INVALID_INPUT (0.100223ms)
+✔ the share-job body refuses a numeric id as INVALID_INPUT (0.1074ms)
+✔ the share-job body refuses an extra key as INVALID_INPUT (0.070858ms)
+✔ the share-job body refuses an array body as INVALID_INPUT (0.151966ms)
+✔ the share-job body refuses a string body as INVALID_INPUT (0.173632ms)
+/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts:6
+import { proofBody } from "../oidc-verify-email.js";
+         ^
+SyntaxError: The requested module '../oidc-verify-email.js' does not provide an export named 'proofBody'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts (2096.955607ms)
+/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts:5
+import { callbackParams } from "../oidc-callback.js";
+         ^
+SyntaxError: The requested module '../oidc-callback.js' does not provide an export named 'callbackParams'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts (2414.702533ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 28
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11388.54311
+
+✖ failing tests:
+
+test at apps/website/src/features/database-transfer/__tests__/exclusions.unit.test.ts:1:1367
+✖ the member password hash is copied by neither a transfer nor a public site share (2.055434ms)
+  TypeError [Error]: Cannot destructure property 'catalog' of 'undefined' as it is undefined.
+      at collectTransferTables (/home/user/Tovu/apps/website/src/features/database-transfer/table-catalog.ts:107:41)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/exclusions.unit.test.ts:36:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts:1:1
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts (2096.955607ms)
+  'test failed'
+
+test at apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts:1:1
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts (2414.702533ms)
+  'test failed'

@@ -81,6 +81,15 @@ test("state: a missing, empty or oversized state is refused as no_state without 
   assert.equal(harness.provider.tokenCalls, 0);
 });
 
+// F6 fix wave (L12 Stryker: `>` vs `>=` on MAX_STATE_LENGTH survived): a 512-char state is NOT refused
+// as no_state — it reaches the attempt lookup (an unknown state answers state_expired).
+test("state: a state of exactly 512 chars passes the size gate and is looked up", async () => {
+  harness.makeHost();
+  const page = await get(callbackAt(harness.siteOrigin, { code: "c", state: "s".repeat(512) }));
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "state_expired" });
+  assert.equal(harness.provider.tokenCalls, 0);
+});
+
 test("state: a repeated state parameter (not one string) is refused as no_state", async () => {
   const host = harness.makeHost();
   const start = await startHosted(host);

@@ -117,3 +117,32 @@ test("describe_tool guidance declares its target tools so a read-only caller see
   assert.deepEqual(overview.targetToolIds, ["content_read.widget_region", "content_read.post"]);
   assert.ok(!overview?.description.includes("content_read.form_definition"), "the overview must not list a writing card");
 });
+
+// L11 Stryker: the source classifier's fallback and the content_read family synthesis survived.
+test("source is the id's first `_` segment, falling back to tovu for an id with no prefix", () => {
+  const entries = listToolCatalogEntries({ list: () => [
+    { id: "forms_update", description: "x" }, { id: "_hidden", description: "x" }, { id: "single", description: "x" },
+  ] as never });
+  assert.deepEqual(entries.map(entry => [entry.id, entry.source]), [["forms_update", "forms"], ["_hidden", "tovu"], ["single", "single"]]);
+});
+
+test("describe('content_read') synthesizes the card family only when cards exist, naming each card's first sentence", () => {
+  const withCards = buildToolCatalogQuery({ list: () => [
+    { id: "content_read.post", description: "Reads one post. Lists posts too." },
+    { id: "content_read.media_asset", description: "" },
+    { id: "forms_update", description: "Updates a form." },
+  ] as never });
+  // Main 238f6ba46 (content_read is a namespace) and 7ab029266 (guidance names its target tools).
+  assert.deepEqual(withCards.describe({ id: "content_read" }), {
+    id: "content_read", source: "content",
+    description: [
+      "content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.",
+      "content_read.post — Reads one post.",
+      "content_read.media_asset — Read media asset.",
+    ].join("\n"),
+    targetToolIds: ["content_read.post", "content_read.media_asset"],
+  });
+  const withoutCards = buildToolCatalogQuery({ list: () => [{ id: "forms_update", description: "Updates a form." }] as never });
+  assert.equal(withoutCards.describe({ id: "content_read" }), null);
+  assert.equal(withoutCards.describe({ id: "no_such_tool" }), null);
+});

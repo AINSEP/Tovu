@@ -1,0 +1,11 @@
+# packages/oauth full vitest (exit 0, 12s)
+## failures
+## summary
+ ✓ tests/refresh.f1.test.ts (7 tests) 5ms
+ ✓ tests/redact.test.ts (3 tests) 4ms
+
+ Test Files  46 passed (46)
+      Tests  811 passed (811)
+   Start at  03:34:17
+   Duration  11.43s (transform 1.18s, setup 0ms, collect 6.25s, tests 3.38s, environment 13ms, prepare 3.71s)
+

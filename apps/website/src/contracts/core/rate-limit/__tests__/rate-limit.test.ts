@@ -9,6 +9,10 @@ import {
   MAGIC_LINK_PER_IP,
   resolveClientIp,
   SITE_ASSISTANT_PER_IP,
+  OUTBOUND_CALL_PER_IP,
+  EXTERNAL_MCP_OAUTH_PER_IP,
+  EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP,
+  ADMIN_SURFACE_FILES_PER_IP,
   type RateLimitProfile,
 } from "../rate-limit.js";
 
@@ -328,3 +332,32 @@ test("SPEC-046 REQ-8: eviction does not change the outcome for a key whose own w
   advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000);
   assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true, "a fresh window starts exactly as before eviction existed");
 });
+
+// L11 Stryker: the four newer profiles' values survived mutation — every profile is pinned by
+// value so loosening a security limit is a deliberate edit here too.
+test("every rate-limit profile is pinned by value", () => {
+  assert.deepEqual({ LOGIN_STRICT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP, MAGIC_LINK_COMPLETE_ATTEMPT, SITE_ASSISTANT_PER_IP,
+    OUTBOUND_CALL_PER_IP, EXTERNAL_MCP_OAUTH_PER_IP, EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, ADMIN_SURFACE_FILES_PER_IP }, {
+    LOGIN_STRICT: { windowSeconds: 60, max: 10, burst: 0 },
+    MAGIC_LINK_PER_EMAIL: { windowSeconds: 3600, max: 5, burst: 0 },
+    MAGIC_LINK_PER_IP: { windowSeconds: 3600, max: 20, burst: 0 },
+    MAGIC_LINK_COMPLETE_ATTEMPT: { windowSeconds: 60, max: 20, burst: 5 },
+    SITE_ASSISTANT_PER_IP: { windowSeconds: 300, max: 10, burst: 0 },
+    OUTBOUND_CALL_PER_IP: { windowSeconds: 60, max: 10, burst: 2 },
+    EXTERNAL_MCP_OAUTH_PER_IP: { windowSeconds: 60, max: 40, burst: 10 },
+    EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP: { windowSeconds: 60, max: 20, burst: 5 },
+    ADMIN_SURFACE_FILES_PER_IP: { windowSeconds: 60, max: 240, burst: 60 },
+  });
+});
+
+for (const [name, profile] of [["OUTBOUND_CALL_PER_IP", OUTBOUND_CALL_PER_IP], ["EXTERNAL_MCP_OAUTH_PER_IP", EXTERNAL_MCP_OAUTH_PER_IP],
+  ["EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP", EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP], ["ADMIN_SURFACE_FILES_PER_IP", ADMIN_SURFACE_FILES_PER_IP]] as const) {
+  test(`${name}: max+burst requests pass and the next one is refused`, async () => {
+    const { clock } = fakeClock("2026-10-25T00:00:00.000Z");
+    const limiter = createRateLimiter({ profile, clock });
+    for (let i = 0; i < profile.max + profile.burst; i++) assert.equal((await limiter.check({ key: "ip-1" })).allowed, true, `request ${i + 1}`);
+    const refused = await limiter.check({ key: "ip-1" });
+    assert.equal(refused.allowed, false);
+    assert.equal((await limiter.check({ key: "ip-2" })).allowed, true, "another IP has its own budget");
+  });
+}

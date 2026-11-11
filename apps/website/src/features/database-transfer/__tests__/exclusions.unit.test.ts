@@ -10,6 +10,7 @@ import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { collectCoreTables } from "#src/platform/db/migration/manifest";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { collectTransferTables, countPartialExclusions, planSnapshotTables } from "../copy-engine.js";
+import { SHARE_LEGACY_PRIVATE_TABLES, SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { EXCLUDED_CORE_TABLES, SECRET_COLUMN_PATTERN } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
 
@@ -25,6 +26,26 @@ test("every core table with a secret-shaped column is excluded from the copy", (
     return secrets.length > 0 && !(cfg.name in EXCLUDED_CORE_TABLES) ? [`${cfg.name} (${secrets.join(", ")})`] : [];
   });
   assert.deepEqual(leaking, []);
+});
+
+// Main 17eb199ec: member credentials (members.password_hash) are left behind by ordinary copies too.
+test("the member password hash is copied by neither a transfer nor a public site share", () => {
+  const members = collectCoreTables().map(({ table }) => getTableConfig(table)).find((cfg) => cfg.name === "members");
+  assert.ok(members?.columns.some((column) => column.name === "password_hash"));
+  assert.equal(EXCLUDED_CORE_TABLES.members, "login");
+  assert.equal(collectTransferTables({ catalog: createCoreTableCatalog({}) }).some((table) => table.name === "members"), false);
+  assert.equal(SHARE_TABLES.has("members"), false);
+  assert.equal(SHARE_LEGACY_PRIVATE_TABLES.has("members"), true);
+});
+
+test("the secret-column pattern matches whole underscore-delimited segments only", () => {
+  const cases: [string, boolean][] = [
+    ["password_hash", true], ["password", true], ["sealed_value", true], ["value_sealed_json", true],
+    ["token_hash", true], ["refresh_token_hash", true], ["key_hash", true], ["api_key_hash", true],
+    ["passwords", false], ["xpassword", false], ["unsealed", false], ["sealedvalue", false],
+    ["token_hashes", false], ["keyhash", false], ["display_name", false], ["", false], ["PASSWORD", false],
+  ];
+  assert.deepEqual(cases.map(([name]) => [name, SECRET_COLUMN_PATTERN.test(name)]), cases);
 });
 
 test("every excluded name is a current or migrated-away core table, and none of them is copied", () => {

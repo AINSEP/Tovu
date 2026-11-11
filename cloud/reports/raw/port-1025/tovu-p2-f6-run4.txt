@@ -1,0 +1,397 @@
+✔ every registration refuses denied permission before snapshots, forms, plan consumption or destination access (4.592664ms)
+✔ database_transfer_run's confirmation card carries its exchange deadline, like every requireHumanConfirm card (20.510353ms)
+✔ database_transfer_run: an already-aborted execution emits nothing and abandons without a write (1.547139ms)
+✔ database_transfer_run: abort after opening abandons the exchange without a write (1.193455ms)
+✔ database_transfer_run: an unanswered exchange expires without a write (22.726321ms)
+✔ database_transfer_set_destination: an already-aborted execution emits nothing and abandons without a write (0.648827ms)
+✔ database_transfer_set_destination: abort after opening abandons the exchange without a write (2.460945ms)
+✔ database_transfer_set_destination: an unanswered exchange expires without a write (43.793795ms)
+✔ an expired plan is refused before emitting a card (1.265709ms)
+✔ plan refuses SERVER_TOO_OLD without saving a plan or writing (9.08068ms)
+✔ plan refuses NO_CREATE_PERMISSION without saving a plan or writing (2.771639ms)
+✔ plan refuses DATABASE_SNAPSHOT_FAILED without saving a plan or writing (2.824638ms)
+✔ the contributor binds the supplied snapshot adapters and declared risks (220.744181ms)
+✔ planning combines the real content catalog with the injected chat snapshot (215.038007ms)
+✔ a missing chat source is refused before a plan is stored (191.6006ms)
+✔ an in-memory content kernel cannot imply a sibling chat file (149.284212ms)
+✔ the default chat backup uses the sibling file without creating a missing source (179.015167ms)
+✔ the default chat backup uses the override file without creating a missing source (151.632488ms)
+✔ the default chat backup uses the missing file without creating a missing source (129.996061ms)
+✔ the default chat backup uses the corrupt file without creating a missing source (171.617568ms)
+✔ invalid credential controls are translated before reaching the destination adapter (2.953661ms)
+✔ the default target rejects a non-Postgres URI without launching a connection (1.420727ms)
+✔ the default failure logger reports snapshot failures through console without leaking addresses (2.079789ms)
+✔ compositions without explicit plan or destination stores can read their empty default inventory (0.389408ms)
+✔ bundled preset admits the active, unchanged installed contribution (20.467816ms)
+✔ a non-bundled plugin is ignored even if it copies the shipped provider (2.700845ms)
+✔ bundled id cannot replace pinned issuer (1.572377ms)
+✔ bundled id cannot replace pinned jwksUri (1.88365ms)
+✔ bundled id cannot replace pinned authorizationEndpoint (3.233173ms)
+✔ bundled id cannot replace pinned tokenEndpoint (3.701697ms)
+✔ disabled package contributes no provider (0.644262ms)
+✔ duplicate provider ids are refused in full (1.945505ms)
+✔ invalid preset rejected: pkce (11.795165ms)
+✔ invalid preset rejected: signingAlgorithm (0.334744ms)
+✔ invalid preset rejected: clientAuthentication (0.151029ms)
+✔ invalid preset rejected: scopes (0.120038ms)
+✔ invalid preset rejected: jwksUri (0.073251ms)
+✔ bundled login presets retain stable identity through jini metadata (11.615174ms)
+✔ bundled login presets retain stable identity through tovu metadata (7.185851ms)
+✔ portable identity takes precedence over an unrelated legacy login identity (6.477787ms)
+✔ provider preset validation: one-letter id is accepted (0.324381ms)
+✔ provider preset validation: 64-char id is accepted (0.082259ms)
+✔ provider preset validation: 65-char id is refused (0.229063ms)
+✔ provider preset validation: id starting with a digit is refused (0.290372ms)
+✔ provider preset validation: upper-case id is refused (0.079623ms)
+✔ provider preset validation: id with underscore is refused (0.069329ms)
+✔ provider preset validation: id with trailing newline is refused (0.045432ms)
+✔ provider preset validation: id with leading junk is refused (0.033425ms)
+✔ provider preset validation: 2048-char label is accepted (0.061975ms)
+✔ provider preset validation: 2049-char label is refused (0.097691ms)
+✔ provider preset validation: blank label is refused (0.05262ms)
+✔ provider preset validation: empty label is refused (0.047925ms)
+✔ provider preset validation: numeric label is refused (0.034695ms)
+✔ provider preset validation: issuer with user:pass is refused (0.045426ms)
+✔ provider preset validation: issuer with only a user is refused (0.029805ms)
+✔ provider preset validation: issuer with only a password is refused (0.029487ms)
+✔ provider preset validation: issuer with a fragment is refused (0.075367ms)
+✔ provider preset validation: 16 email domains is accepted (0.061628ms)
+✔ provider preset validation: 17 email domains is refused (0.040489ms)
+✔ provider preset validation: no email domains is accepted (0.030079ms)
+✔ provider preset validation: email domains as a string is refused (0.031128ms)
+✔ provider preset validation: upper-case domain is refused (0.0462ms)
+✔ provider preset validation: domain without a TLD is refused (0.075782ms)
+✔ provider preset validation: one-letter TLD is refused (0.125544ms)
+✔ provider preset validation: hyphen-led label is refused (0.057364ms)
+✔ provider preset validation: hyphen-ended label is refused (0.062734ms)
+✔ provider preset validation: domain with trailing junk is refused (0.055931ms)
+✔ provider preset validation: domain with leading junk is refused (0.046379ms)
+✔ provider preset validation: non-string domain is refused (0.032941ms)
+✔ provider preset validation: a valid second domain after an invalid one is refused (0.033063ms)
+✔ provider preset validation: hosted-domain claim hd is accepted (0.077436ms)
+✔ provider preset validation: 64-char claim is accepted (0.042228ms)
+✔ provider preset validation: 65-char claim is refused (0.049258ms)
+✔ provider preset validation: upper-case claim is refused (0.035652ms)
+✔ provider preset validation: digit-led claim is refused (0.033529ms)
+✔ provider preset validation: claim with trailing junk is refused (0.031292ms)
+✔ provider preset validation: empty claim is refused (0.109513ms)
+✔ provider preset validation: reordered scopes is accepted (0.045781ms)
+✔ provider preset validation: two scopes is refused (0.059153ms)
+✔ provider preset validation: four scopes is refused (0.038328ms)
+✔ provider preset validation: duplicate scopes is refused (0.033327ms)
+✔ provider preset validation: scopes as a string is refused (0.032973ms)
+✔ the preset file envelope: schema version, providers array, eight-provider and 32 KiB caps (0.391825ms)
+✔ an accepted preset returns its email authority exactly: optional claim omitted, domains defaulted, multi-label and one-letter labels kept (0.307477ms)
+✔ D2: fresh passwordless member sets 1 code points without altering bytes (4.415718ms)
+✔ D2: fresh passwordless member sets 9 code points without altering bytes (0.709032ms)
+✔ D2: fresh passwordless member sets 512 code points without altering bytes (4.597166ms)
+✔ D2: passwordless session issuance age 900000 controls authorization (0.615964ms)
+✔ D2: passwordless session issuance age 900001 controls authorization (0.811599ms)
+✔ D2: passwordless session issuance age -1 controls authorization (0.38581ms)
+✔ D2: existing password requires exact current proof even on a fresh session; old sessions may change it (1.01425ms)
+✔ D2: invalid length 0 leaves credentials and sessions untouched (0.429952ms)
+✔ D2: invalid length 513 leaves credentials and sessions untouched (0.38484ms)
+✔ D2: absent, unknown, expired, revoked and foreign-workspace sessions cannot set a password (0.693544ms)
+✔ D2: session member status pending follows /me eligibility (0.446712ms)
+✔ D2: session member status disabled follows /me eligibility (0.332506ms)
+✔ D2: session member status trash follows /me eligibility (0.190429ms)
+✔ D2: setting a password invalidates outstanding inbox challenges while preserving the current session (19.094082ms)
+✔ D2: a disable that races the Argon2 hash is not undone by the password write (0.425148ms)
+✔ reset and password login preserve 1 Unicode code points exactly (2.272232ms)
+✔ reset and password login preserve 1 Unicode code points exactly (2.004854ms)
+✔ reset and password login preserve 13 Unicode code points exactly (1.777361ms)
+✔ reset and password login preserve 512 Unicode code points exactly (1.549501ms)
+✔ reset rejects invalid password length 0 without consuming its link (1.506871ms)
+✔ reset rejects invalid password length 513 without consuming its link (1.382934ms)
+✔ password login gives every invalid account class one verify and the same error; dummy hash is cached (0.882505ms)
+✔ password login refuses a hash replaced during verification and leaves no live session (0.456377ms)
+✔ a reset that completes between the login's checks and its session save still kills that session (1.649279ms)
+✔ password login refuses an account disabled during verification (0.350612ms)
+✔ reset consumes first, writes hash and cutoff, revokes all sessions, and invalidates older links/codes (5.717949ms)
+✔ reset denies a member made disabled after issuance (1.18976ms)
+✔ reset denies a member made trash after issuance (0.863941ms)
+✔ forgot password is indistinguishable for unknown, disabled and eligible addresses (1.233707ms)
+✔ reset rejects sign-in purpose; no hash write and no consumption (1.999482ms)
+✔ reset persists only credential hashes and cutoff; reset mail uses the capture-redaction prefix (1.364642ms)
+✔ memory credential lifecycle runs transactions one at a time and survives a failed one (11.437656ms)
+✔ password login folds the address's case and surrounding spaces before the lookup (0.457231ms)
+✔ a reset link issued AT the credential cutoff is refused; one issued after it works (4.784533ms)
+✔ a credential cutoff that moves while the new password hashes refuses the reset at commit (1.642156ms)
+✔ settings_set_value cannot change the assistant's subagent grant, even with full settings permissions (6.177943ms)
+✔ settings_clear_value cannot change the assistant's subagent grant, even with full settings permissions (0.689157ms)
+✔ normal setting runs directly and both writes are durable, not readOnly (1.763703ms)
+✔ settings approval renders previous and new objects as a field diff (8.610022ms)
+✔ chat selection approval passes the resulting selection as structured data (5.541706ms)
+✔ chat selection refuses a missing composed inventory before confirmation or writing (0.810591ms)
+✔ settings_set_value refuses credential status missing before confirmation (1.202045ms)
+✔ settings_set_value refuses credential status missing after confirmation (1.818124ms)
+✔ settings_clear_value refuses credential status missing before confirmation (0.691005ms)
+✔ settings_clear_value refuses credential status missing after confirmation (2.089768ms)
+✔ settings_set_value refuses credential status unknown before confirmation (0.757328ms)
+✔ settings_set_value refuses credential status unknown after confirmation (1.42776ms)
+✔ settings_clear_value refuses credential status unknown before confirmation (0.46798ms)
+✔ settings_clear_value refuses credential status unknown after confirmation (1.517697ms)
+✔ settings_set_value refuses credential status undefined before confirmation (0.377593ms)
+✔ settings_set_value refuses credential status undefined after confirmation (0.998517ms)
+✔ settings_clear_value refuses credential status undefined before confirmation (0.470411ms)
+✔ settings_clear_value refuses credential status undefined after confirmation (1.662093ms)
+✔ settings_set_value runtime entitlement is checked before confirmation (0.603683ms)
+✔ settings_set_value runtime entitlement is checked after confirmation (1.403696ms)
+✔ settings_clear_value runtime entitlement is checked before confirmation (0.445102ms)
+✔ settings_clear_value runtime entitlement is checked after confirmation (1.896473ms)
+✔ chat clear validates the inherited model before opening a card (1.446828ms)
+✔ chat clear binds the inherited result even if both inherited choices are valid (2.925674ms)
+✔ chat Default consent is invalidated when its concrete model changes (1.292461ms)
+✔ chat confirmed empty localCli.model resets independently of stale sibling axes (2.445247ms)
+✔ chat confirmed empty localCli.reasoning resets independently of stale sibling axes (1.878007ms)
+✔ chat agent/model/effort writes wait for cards, persist only for the caller and are readable after reload (4.841029ms)
+✔ chat refuses unknown ids with the dynamic list and never opens a card or writes (0.542331ms)
+✔ chat cancel cannot approve a model change (0.950476ms)
+✔ chat typed cannot approve a model change (0.789459ms)
+✔ chat refuses workspace selection edits and headless user edits (0.690647ms)
+✔ chat rejects a dependent runtime change while its model card is open (1.181449ms)
+✔ chat model clear asks every time and only clears the caller's layer (3.30442ms)
+✔ chat revalidates the live catalog after confirmation (1.186209ms)
+✔ a protected alias cannot bypass chat catalog checks or use a remembered grant (1.838738ms)
+✔ settings_set_value core.execution.localCli.permissionLevel refuses headless writes and model consent (3.01319ms)
+✔ settings_clear_value core.execution.localCli.permissionLevel refuses headless writes and model consent (0.394033ms)
+✔ settings_set_value core.execution.mode refuses headless writes and model consent (0.706027ms)
+✔ settings_clear_value core.execution.mode refuses headless writes and model consent (0.445969ms)
+✔ settings_set_value core.execution.byok.protocol refuses headless writes and model consent (1.312935ms)
+✔ settings_clear_value core.execution.byok.protocol refuses headless writes and model consent (0.776387ms)
+✔ settings_set_value core.execution.byok.providerId refuses headless writes and model consent (0.889787ms)
+✔ settings_clear_value core.execution.byok.providerId refuses headless writes and model consent (1.476611ms)
+✔ settings_set_value core.execution.byok.baseUrl refuses headless writes and model consent (0.671389ms)
+✔ settings_clear_value core.execution.byok.baseUrl refuses headless writes and model consent (13.119547ms)
+✔ settings_set_value core.execution.localCli.agentId refuses headless writes and model consent (0.621685ms)
+✔ settings_clear_value core.execution.localCli.agentId refuses headless writes and model consent (4.668524ms)
+✔ real card confirm reaches the held call; only confirm mutates execution settings (0.969582ms)
+✔ real card cancel reaches the held call; only confirm mutates execution settings (0.537978ms)
+✔ real card typed reaches the held call; only confirm mutates execution settings (0.499439ms)
+✔ clear runtime override waits for a human and falls back to default (1.216528ms)
+✔ host site-title validation is honored by generic writes (0.578215ms)
+✔ core.execution.byok.protocol is writable after a human click (0.681444ms)
+✔ core.execution.localCli.permissionLevel is writable after a human click (0.550624ms)
+✔ visitor-facing assistant requires saved credential readiness before its ordinary site-setting write (0.677136ms)
+✔ aborting a held card closes it without a write (0.647639ms)
+✔ settings_set_value: real callback route delivers confirm to the held card without executing again (1.690264ms)
+✔ settings_set_value: real callback route delivers cancel to the held card without executing again (1.403252ms)
+✔ settings_set_value: real callback route delivers typed to the held card without executing again (0.60801ms)
+✔ settings_clear_value: real callback route delivers confirm to the held card without executing again (0.600575ms)
+✔ settings_clear_value: real callback route delivers cancel to the held card without executing again (0.403225ms)
+✔ settings_clear_value: real callback route delivers typed to the held card without executing again (0.533665ms)
+✔ ordinary execution preference byok.model sets and clears without a confirmation channel (0.382964ms)
+✔ ordinary execution preference byok.maxTokens sets and clears without a confirmation channel (0.45137ms)
+✔ core.privacy.telemetry.metrics requires one fresh card for settings_set_value (0.967235ms)
+✔ core.privacy.telemetry.metrics requires one fresh card for settings_clear_value (0.590741ms)
+✔ core.instructions.custom requires one fresh card for settings_set_value (0.748106ms)
+✔ core.instructions.custom requires one fresh card for settings_clear_value (0.804907ms)
+✔ execution escalation asks freshly for every write and saved grants do not bypass current authorization (2.207955ms)
+✔ a plugin identity changed during the human wait cannot change execution settings (0.74897ms)
+✔ the invoking plugin's saved enable grant never replaces a fresh settings access card (0.982646ms)
+✔ settings_set_value cannot widen permanent-delete access or forge its acknowledgment (0.26774ms)
+✔ settings_set_value cannot widen permanent-delete access or forge its acknowledgment (0.209414ms)
+✔ settings_clear_value cannot widen permanent-delete access or forge its acknowledgment (0.075728ms)
+✔ settings_clear_value cannot widen permanent-delete access or forge its acknowledgment (0.150106ms)
+✔ normalization: registered dotted core.site.title succeeds; two registered splits fail without writing (17.022581ms)
+✔ delegated normalization: dotted settings persist once and an ambiguous registered split refuses without a revision (298.205175ms)
+✔ Agent plugins user writes and clears always ask, even with a saved plugin grant (4.47279ms)
+✔ Agent plugins workspace writes and clears always ask, even with a saved plugin grant (2.697415ms)
+✔ core.interface.useClaudeInChrome asks a human every time, even with a saved plugin grant (3.606705ms)
+✔ core.forms.deliveryBindings asks a human every time and writes nothing on decline (1.903151ms)
+✔ core.forms.receiver asks a human every time and writes nothing on decline (1.291595ms)
+✔ core.forms.receiver cleared by an agent asks a human every time, even with a saved plugin grant (0.694425ms)
+✔ a confirmed agent write of delivery bindings with a secret in config is still refused by the host chokepoint, and nothing is stored (1.763568ms)
+✔ settings_set_value cannot bypass cookie consent confirmation through legacy scalar settings (0.367563ms)
+✔ settings_clear_value cannot bypass cookie consent confirmation through legacy scalar settings (0.179902ms)
+✔ settings_set_value cannot change core.mail.provider; only the approval-gated mail tool can (0.22933ms)
+✔ settings_clear_value cannot change core.mail.provider; only the approval-gated mail tool can (0.125193ms)
+✔ settings_set_value cannot change core.mail.testMode; only the approval-gated mail tool can (0.094066ms)
+✔ settings_clear_value cannot change core.mail.testMode; only the approval-gated mail tool can (0.081085ms)
+✔ a host's extra denied namespace is refused, and with no injected writer the host settings chokepoint stores the value (0.431308ms)
+✔ settings_set_value carries the card revision through the host writer (1.34193ms)
+✔ settings_clear_value carries the card revision through the host writer (0.635759ms)
+✔ the executor binds protected settings approval to the authenticated caller (1.37036ms)
+✔ settings_set_value refuses core.consent.bannerEnabled with its own denial reason (0.268037ms)
+✔ settings_clear_value refuses core.consent.bannerEnabled with its own denial reason (0.097506ms)
+✔ settings_set_value refuses core.assistant-permanent-deletes.enabled with its own denial reason (0.093159ms)
+✔ settings_clear_value refuses core.assistant-permanent-deletes.enabled with its own denial reason (0.186445ms)
+✔ settings_set_value refuses core.mail.provider with its own denial reason (0.129935ms)
+✔ settings_clear_value refuses core.mail.provider with its own denial reason (0.08957ms)
+✔ settings_set_value refuses core.mail.testMode with its own denial reason (0.075731ms)
+✔ settings_clear_value refuses core.mail.testMode with its own denial reason (0.094152ms)
+✔ the host confirmation list names each setting once; the chat agent picker keeps its chat-specific reason (0.583199ms)
+✖ the confirmation card shows the change's title, setting, scope, previous override and new value (9.022645ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[routes/system/site-key] {
+  errorId: '4e2bb847-c351-4ac8-b34d-9da8e873fcdb',
+  diagnostic: "Error: site key 'noop' carried no fingerprint or path\n" +
+    '    at ensuredSiteKeyResult (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:450:77)\n' +
+    '    at generateSiteKey (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:441:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:291:22)'
+}
+[routes/system/site-key] {
+  errorId: 'c8c06cb2-9d51-4962-8504-a89cb4837a02',
+  diagnostic: "Error: site key 'noop' carried no fingerprint or path\n" +
+    '    at ensuredSiteKeyResult (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:450:77)\n' +
+    '    at generateSiteKey (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:441:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:291:22)'
+}
+[routes/system/site-key] {
+  errorId: 'ca0e651c-dddd-4743-818e-75006406d069',
+  diagnostic: "Error: site key 'adopt' carried no fingerprint or path\n" +
+    '    at ensuredSiteKeyResult (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:450:77)\n' +
+    '    at generateSiteKey (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:441:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:291:22)'
+}
+[routes/system/site-key] {
+  errorId: 'edaa50a0-3866-4a20-be00-b141f43d97e3',
+  diagnostic: "Error: site key 'adopt' carried no fingerprint or path\n" +
+    '    at ensuredSiteKeyResult (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:450:77)\n' +
+    '    at generateSiteKey (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:441:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:291:22)'
+}
+[routes/system/site-key] {
+  errorId: '78da430e-5700-4332-914d-f977bbc0337d',
+  diagnostic: "Error: site key 'mint' carried no fingerprint or path\n" +
+    '    at ensuredSiteKeyResult (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:450:77)\n' +
+    '    at generateSiteKey (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:441:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:291:22)'
+}
+[routes/system/site-key] {
+  errorId: '53cf143c-9bd3-4a62-8e3e-480f566977e6',
+  diagnostic: "Error: site key 'mint' carried no fingerprint or path\n" +
+    '    at ensuredSiteKeyResult (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:450:77)\n' +
+    '    at generateSiteKey (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:441:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-key.ts:291:22)'
+}
+✔ generate preserves every shared-writer result and missing-result guard (388.529082ms)
+✔ generate delegates production-noop and production mode to the active environment key (202.758242ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import rejects malformed keys before checking or writing (240.90508ms)
+✔ import preserves none proof before writes (208.471642ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import preserves value proof before writes (143.504276ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import preserves storage proof before writes (159.302957ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import preserves stamp proof before writes (179.322317ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import accepts the same environment key but refuses a different environment key before writes (154.747091ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with absent current key and legacy=undefined (149.940247ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with absent current key and legacy=0 (129.009631ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with absent current key and legacy=1 (172.906085ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with same current key and legacy=undefined (175.994406ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with same current key and legacy=0 (125.315616ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with same current key and legacy=1 (167.647764ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with different current key and legacy=undefined (162.124544ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with different current key and legacy=0 (141.137475ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import restore/reseal ordering with different current key and legacy=1 (144.833837ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ import refuses unavailable restore points and preserves installation refusals (150.630736ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ every site-key route refuses an api-key credential with the credential-kind reason, before any writer call (160.330268ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ every site-key route answers a foreign workspace with 404 and an unauthorized principal with 403 (259.562999ms)
+✔ import and start-fresh without a JSON body are refused as client errors, not 500s (143.153305ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ generate answers a key file that appears mid-request with 409 ALREADY_EXISTS (137.010127ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ www pages redirect 308 to the canonical origin with the original path and query (33.991098ms)
+✔ apex redirects to www when www is canonical, including the configured origin port (4.910772ms)
+✔ canonical, local, unrelated, admin, and API requests reach their original handler (21.349455ms)
+✔ missing configuration, dev seeds, localhost and IP canonical origins never redirect (15.163402ms)
+✔ public loopback origins are rejected before new settings can enter the registry (1.061807ms)
+✔ the redirect always retains the configured authority for a double-slash path (4.04896ms)
+✔ registry errors reach Express while excluded routes skip the lookup (6.172968ms)
+✔ an absolute-form request target is passed through instead of joined onto the canonical origin (2.449046ms)
+✔ page paths that only resemble admin/api/health routes still redirect to the canonical origin (8.334442ms)
+ℹ tests 255
+ℹ suites 0
+ℹ pass 254
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18889.666407
+
+✖ failing tests:
+
+test at apps/website/src/features/settings/__tests__/settings-write-tools.test.ts:1:51371
+✖ the confirmation card shows the change's title, setting, scope, previous override and new value (9.022645ms)
+  AssertionError [ERR_ASSERTION]: set card row Previous override: [["Resource","core.interface.useClaudeInChrome"],["Setting","core.interface.useClaudeInChrome"],["Scope","user"]]
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/settings/__tests__/settings-write-tools.test.ts:802:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

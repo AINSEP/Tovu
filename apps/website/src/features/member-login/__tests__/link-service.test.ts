@@ -157,3 +157,124 @@ test("credential revocation fences an outstanding callback", async () => {
   await f.deps.members.save({ ...member, credentialsRevokedAt: f.input.startedAt });
   await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), MemberLoginError);
 });
+
+// --- F6 fix wave (L7 Stryker): each ownership/eligibility/proof guard refused with its OWN code. ---
+const rejectsWith = (code: string) => (error: unknown) => {
+  assert.ok(error instanceof MemberLoginError);
+  assert.equal(error.code, code);
+  return true;
+};
+const linkRow = (overrides: Record<string, unknown>) => ({ id: "link-x", workspaceId: "ws", memberId: "member-1", providerId: provider.id,
+  issuer: identity.issuer, subject: identity.subject, linkedAt: "2026-01-01T00:00:00.000Z", ...overrides });
+
+test("a subject already linked under ANOTHER provider id is a LOGIN_CONFLICT and mints nothing", async () => {
+  const f = fixture();
+  await f.seed();
+  await f.deps.identities.save(linkRow({ providerId: "other-provider" }));
+  await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), rejectsWith("LOGIN_CONFLICT"));
+  assert.deepEqual(await f.deps.sessions.listByMember({ workspaceId: "ws", memberId: "member-1" }), []);
+});
+
+test("a subject linked to a member row that no longer exists is a LOGIN_CONFLICT", async () => {
+  const f = fixture();
+  await f.deps.identities.save(linkRow({ memberId: "ghost-member" }));
+  await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), rejectsWith("LOGIN_CONFLICT"));
+});
+
+test("a member whose provider slot holds a DIFFERENT live subject is a LOGIN_CONFLICT", async () => {
+  const f = fixture();
+  await f.seed();
+  await f.deps.identities.save(linkRow({ subject: "someone-else" }));
+  await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), rejectsWith("LOGIN_CONFLICT"));
+});
+
+test("an UNLINKED provider slot with a different subject is not a conflict: sign-in stays blocked, not conflicting", async () => {
+  const f = fixture();
+  await f.seed();
+  await f.deps.identities.save(linkRow({ subject: "someone-else", unlinkedAt: "2026-01-02T00:00:00.000Z" }));
+  await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), rejectsWith("LOGIN_BLOCKED"));
+});
+
+for (const startedAt of ["not-a-date", "", "2026-13-45T99:00:00Z"]) {
+  test(`an unparseable sealed startedAt (${JSON.stringify(startedAt)}) is LOGIN_INVALID`, async () => {
+    const f = fixture();
+    await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: { ...f.input, startedAt } }), rejectsWith("LOGIN_INVALID"));
+    assert.equal(await f.deps.members.findByEmail({ workspaceId: "ws", email: identity.email }), null);
+  });
+}
+
+test("revocation AT startedAt blocks, revocation strictly before it does not", async () => {
+  const f = fixture();
+  const member = await f.seed();
+  await f.deps.members.save({ ...member, credentialsRevokedAt: f.input.startedAt });
+  await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), rejectsWith("LOGIN_BLOCKED"));
+  const g = fixture();
+  const other = await g.seed();
+  await g.deps.members.save({ ...other, credentialsRevokedAt: new Date(Date.parse(g.input.startedAt) - 1).toISOString() });
+  assert.equal((await resolveFederatedIdentity({ deps: g.deps, input: g.input })).kind, "signed_in");
+});
+
+test("an inbox proof for a DIFFERENT address cannot link a custom-domain identity", async () => {
+  const f = fixture();
+  const custom = { ...identity, email: "person@custom.example", emailAuthoritative: false };
+  const challenge = await requestLoginEmailProof({ deps: f.deps, input: { workspaceId: "ws", email: "attacker@custom.example" } });
+  const code = /one-time code:\s*(\d{6})/.exec(f.sent.at(-1)!.text!)![1];
+  await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: { ...f.input, identity: custom,
+    emailProof: { challengeId: challenge.challengeId, code } } }), rejectsWith("LOGIN_INVALID"));
+  assert.equal(await f.deps.identities.findBySubject({ workspaceId: "ws", issuer: identity.issuer, subject: identity.subject }), null);
+});
+
+test("any failure while requesting the inbox proof is masked as LOGIN_UNAVAILABLE", async () => {
+  const f = fixture();
+  await assert.rejects(requestLoginEmailProof({ deps: f.deps, input: { workspaceId: "ws", email: "not-an-email" } }), rejectsWith("LOGIN_UNAVAILABLE"));
+  assert.deepEqual(f.sent, []);
+});
+
+test("activating a pending member keeps an earlier email verification time", async () => {
+  const f = fixture();
+  const member = await f.seed("pending");
+  await f.deps.members.save({ ...member, emailVerifiedAt: "2026-01-01T00:00:00.000Z" });
+  assert.equal((await resolveFederatedIdentity({ deps: f.deps, input: f.input })).kind, "signed_in");
+  const updated = await f.deps.members.findById({ workspaceId: "ws", id: member.id });
+  assert.equal(updated?.status, "active");
+  assert.equal(updated?.emailVerifiedAt, "2026-01-01T00:00:00.000Z");
+});
+
+test("a returning linked, active member signs in without re-linking or revoking their other sessions", async () => {
+  const f = fixture();
+  await f.seed();
+  const first = await resolveFederatedIdentity({ deps: f.deps, input: f.input });
+  assert.equal(first.kind, "signed_in");
+  const before = await f.deps.members.findById({ workspaceId: "ws", id: "member-1" });
+  f.clock.advanceMs(1);
+  const second = await resolveFederatedIdentity({ deps: f.deps, input: { ...f.input, startedAt: f.clock.nowIso() } });
+  assert.equal(second.kind, "signed_in");
+  assert.deepEqual(await f.deps.members.findById({ workspaceId: "ws", id: "member-1" }), before, "no re-activation or credential cutoff");
+  const live = (await f.deps.sessions.listByMember({ workspaceId: "ws", memberId: "member-1" })).filter(session => !session.revokedAt);
+  assert.equal(live.length, 2, "the earlier session stays live");
+});
+
+test("a uniqueness race retries the whole link transaction exactly once; any other failure is not retried", async () => {
+  const f = fixture();
+  let calls = 0;
+  const transaction = f.deps.transaction;
+  const raced: MemberLoginLinkDeps = { ...f.deps, transaction: async run => {
+    calls++;
+    if (calls === 1) throw Object.assign(new Error("UNIQUE constraint failed: member_external_identities.subject"), { code: "SQLITE_CONSTRAINT_UNIQUE" });
+    return transaction(run);
+  } };
+  assert.equal((await resolveFederatedIdentity({ deps: raced, input: f.input })).kind, "signed_in");
+  assert.equal(calls, 2);
+
+  const g = fixture();
+  let failures = 0;
+  const broken: MemberLoginLinkDeps = { ...g.deps, transaction: async () => { failures++; throw new Error("disk I/O error"); } };
+  await assert.rejects(resolveFederatedIdentity({ deps: broken, input: g.input }), rejectsWith("LOGIN_INVALID"));
+  assert.equal(failures, 1);
+
+  const h = fixture();
+  let races = 0;
+  const twice: MemberLoginLinkDeps = { ...h.deps, transaction: async () => { races++; throw Object.assign(new Error("dup"), { code: "23505" }); } };
+  await assert.rejects(resolveFederatedIdentity({ deps: twice, input: h.input }), rejectsWith("LOGIN_INVALID"));
+  assert.equal(races, 2, "a second race is not retried again");
+});

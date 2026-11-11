@@ -1,0 +1,1269 @@
+✔ listAssistantAgents projects fallback models and reasoning options for claude (36.094167ms)
+✔ agent discovery exposes native-policy support for every CLI before a chat is sent (0.582143ms)
+✔ listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration (0.453597ms)
+✔ listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result (0.408851ms)
+✔ listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers (0.570441ms)
+✔ listAssistantAgents never returns an agent with an empty id/name (0.360875ms)
+✔ listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe (0.264353ms)
+✔ rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result (35.314692ms)
+✔ assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight (30.302585ms)
+✔ rescanAssistantAgents surfaces the live model list the prober returns for an available def (24.563838ms)
+✔ known runtime capabilities retain their memory and tool semantics (6.976285ms)
+✔ assistant inventory preserves dynamic catalog and resolved default for the chat picker (22.520685ms)
+✔ assistant rescan forces model discovery and preserves an unresolved default without guessing (30.538876ms)
+✔ live discovery reissues on credential rotation inside the same TTL (6.162679ms)
+✔ live discovery contains rejection, keeps the failure TTL, then recovers at expiry (1.629682ms)
+✔ live discovery never calls the provider for absent, wrong-protocol or blank credentials (2.08777ms)
+✔ live discovery instances own their state and delimiter-containing tenant IDs cannot collide (1.451641ms)
+✔ live discovery coalesces concurrent calls while the provider is still responding (5.085268ms)
+✔ live discovery retries a cached failure when the stored baseUrl changes (1.143751ms)
+✔ Settings and chat share one background inventory while both requests return cached data (15.57976ms)
+✔ assistantVaultRepo refuses a repository object with no vault property (1.343698ms)
+✔ assistantVaultRepo refuses an undefined vault (0.237444ms)
+✔ assistantVaultRepo refuses a vault without singleton lookup (0.096808ms)
+✔ assistantVaultRepo returns the exposed vault port itself (0.121929ms)
+✔ assistantVaultContext pins Tovu ownership, no binding and a null principal by default (0.349288ms)
+✔ assistantVaultId encodes kind and principal as the migration's singleton ID (0.214989ms)
+✔ createAssistantVault mints the singleton ID for new personal-execution records (3.327272ms)
+✔ createAssistantVault without a sealer refuses to seal a payload (0.639199ms)
+✔ createAssistantVault without a sealer refuses to open a stored envelope (1.058635ms)
+✔ createAssistantVault maps a non-Error storage failure to invalid-record (0.441429ms)
+✔ createAssistantVault hands crypto failures to onSealFailure (0.527348ms)
+✔ readAssistantVault returns an empty read when no singleton exists (0.199743ms)
+✔ readAssistantVault opens the stored envelope and derives the token hint (1.179662ms)
+✔ readAssistantVault uses a supplied snapshot instead of reading the repository (0.877454ms)
+✔ readAssistantVault refuses a row whose identity is outside the requested scope (1.174138ms)
+✔ readAssistantVault keeps settings but drops the hint when the envelope cannot be opened (1.543593ms)
+✔ readAssistantVault gives no hint when the opened payload has no string apiKey (1.519686ms)
+✔ readAssistantVault does not open a keyless row (1.090848ms)
+✔ readAssistantVault refuses a repository without singleton lookup (0.374848ms)
+✔ an admin nobody has configured reads as not-set, with sensible defaults (2.51268ms)
+✔ setting an apiKey seals it, masks it, and never returns the plaintext (6.971364ms)
+✔ an empty apiKey is rejected — DELETE clears a key, PUT does not accept blank (0.597232ms)
+✔ a non-string protocol/baseUrl/model is rejected before any write (3.053049ms)
+✔ a non-positive maxTokens is rejected before any write (0.51917ms)
+✔ a non-string providerId is rejected before creating a credential (0.404836ms)
+✔ omitting apiKey leaves the previously-stored key untouched — only model changes (3.423158ms)
+✔ a rotation (second apiKey) fully replaces the first — the old key no longer resolves (2.879379ms)
+✔ a missing site key fails CLOSED with a distinct error, and writes nothing (1.220574ms)
+✔ two different admins in the SAME workspace have fully independent credentials (4.288938ms)
+✔ the SAME principal id in two different workspaces has fully independent credentials (2.555894ms)
+✔ delete clears only the key — protocol/providerId/baseUrl/model/maxTokens survive (1.273971ms)
+✔ deleting an already-unset key is a harmless no-op, not an error (0.416494ms)
+✔ resolveExecutionCredential's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null (0.950231ms)
+✔ resolveExecutionCredential returns null when no row exists (0.229583ms)
+✔ resolveExecutionCredential refuses a decrypted payload with a non-string apiKey (0.872443ms)
+✔ resolveExecutionCredential returns null (not a throw) when the sealed row cannot be opened (0.746148ms)
+✔ resolveExecutionCredential returns the key and config together on success (2.198867ms)
+✔ a freshly saved key is sealed with AAD bound to (workspaceId, principalId) and the row is marked vault aadVersion 2 (0.850702ms)
+✔ AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in the SAME workspace fails closed (adversarial cross-row transplant) (1.509887ms)
+✔ AAD binding rejects a ciphertext transplanted across workspaces for the same principal (1.726573ms)
+✔ BYOK hints use the shared server policy on writes and reads, including short keys and open failures (2.230267ms)
+✔ providerId moves and explicit null preserve the personal envelope and identity (2.112133ms)
+✔ gated personal rotation never exposes mixed settings/key and never changes a sibling (2.781597ms)
+✔ a stale prepared personal rotation loses CAS without overwriting a committed settings edit (2.565713ms)
+✔ personal runtime rejects a row from another principal before opening it (0.959394ms)
+✔ TW3 execution settings-only creation, partial update and explicit provider clearing retain their defaults and key (1.801ms)
+✔ a non-Error seal failure still fails closed with the distinct error, carrying the raw reason (0.427241ms)
+✔ assistant repositories without singleton lookup are rejected as invalid records (1.524024ms)
+✔ assistant vault creation refuses non-assistant credential kinds (0.601887ms)
+✔ assistant snapshot reads require singleton lookup even when a record is supplied (4.021806ms)
+✔ assistant settings refuse metadata returned from another workspace (1.22379ms)
+✔ a workspace nobody has configured reads as not-set, with sensible defaults (0.689941ms)
+✔ setting an apiKey seals it, masks it, and never returns the plaintext (2.231462ms)
+✔ an empty apiKey is rejected — DELETE clears a key, PUT does not accept blank (0.31382ms)
+✔ a non-string provider/baseUrl/model is rejected before any write (0.309123ms)
+✔ a non-string baseUrl or model is also rejected before any write — not just provider (0.459749ms)
+✔ setting nothing at all on a never-before-configured workspace seeds an empty row with defaults, touching neither sealer nor keyring (0.570293ms)
+✔ omitting apiKey leaves the previously-stored key untouched — only provider/baseUrl/model change (2.700372ms)
+✔ a rotation (second apiKey) fully replaces the first — the old key no longer resolves (1.254522ms)
+✔ a missing site key fails CLOSED with a distinct error, and writes nothing (0.428096ms)
+✔ a non-Error seal failure still fails CLOSED and names the thrown value (0.786931ms)
+✔ delete clears only the key — provider/baseUrl/model survive (1.308404ms)
+✔ deleting an already-unset key is a harmless no-op, not an error (0.308037ms)
+✔ resolveSiteAssistantApiKey returns null (not a throw) when the repo read itself fails (0.274984ms)
+✔ resolveSiteAssistantApiKey returns null when no row exists (0.160149ms)
+✔ resolveSiteAssistantApiKey refuses a decrypted payload with a non-string apiKey (1.039975ms)
+✔ resolveSiteAssistantApiKey returns null (not a throw) when the sealed row cannot be opened (0.738457ms)
+✔ resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null (0.762033ms)
+✔ resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model together on success (0.942801ms)
+✔ a freshly saved key is sealed with AAD bound to workspaceId and the row is marked vault aadVersion 2 (0.661062ms)
+✔ AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fails closed (adversarial cross-workspace transplant) (1.648468ms)
+✔ BYOK hints use the shared server policy on writes and reads, including short keys and open failures (6.783178ms)
+✔ provider-only edits preserve vault identity, envelope and hints without deriving or resealing (2.081584ms)
+✔ public readiness performs one singleton read and at most one open for each outcome (77.264818ms)
+✔ gated rotation publishes the key and settings together and leaves old reads usable until commit (2.307006ms)
+✔ a read gated at open keeps its old metadata when a concurrent rotation commits (1.970394ms)
+✔ concurrent first saves with different providers contend on one singleton identity (0.938405ms)
+✔ TW3 site settings-only creation and omitted settings retain defaults, identity and key (2.122978ms)
+✔ frozen fixtures: bytes match the C0 hashes and seed exactly the frozen stored rows (148.968558ms)
+✔ exact workspace/owner=tovu/AAD/null principal-binding-provider context opens both kinds without rewriting the stored row (121.358238ms)
+✔ wrong context, wrong kind AAD and foreign ownership fail with the canonical VaultError (same class/code) (235.851505ms)
+✔ summary bytes omit token/sealed/private context; username absent or clear, hints, meta, scope and timestamps exact (313.540073ms)
+✔ vaultRecord/vaultExpectedRevision are non-enumerable yet carry the exact CAS revision (154.731662ms)
+✔ metadata list/describe perform 0 opens; resolve opens only the selected authorized row with SAME-read origins/username (211.900237ms)
+✔ site precedence then granted project fallback; revoked and unattached project rows stay inaccessible (192.020417ms)
+✔ trusted owner create/replace is unchanged: project create, read-only grant, trusted replacement only (172.049591ms)
+✔ CAS writes keep each row's compatibility kind, envelope and safe hints on both kinds (211.655118ms)
+✔ duplicate, stale and failed-transaction writes overwrite nothing and roll back for real (267.805353ms)
+✔ old reader accepts new operations' stored rows (C0: old==new; the post-move gate replays them) (154.356841ms)
+✔ a host declared only by a deploy plugin can save a credential; its declared fields are what is validated and sealed (22.158127ms)
+✔ createPublishCredential seals the connection and returns a summary with NO secret material (66.187043ms)
+✔ create/update translate key acquisition failures and leave stored credentials unchanged (13.769554ms)
+✔ create/update translate sealing failures and leave stored credentials unchanged (4.922313ms)
+✔ describeCredential/listPublishCredentials never touch the sealer — a broken sealer does not fail them (2.486324ms)
+✔ resolveForPublish decrypts the exact connection that was sealed (1.96384ms)
+✔ resolveForPublish returns null for a non-existent id — not an error (0.456107ms)
+✔ resolveForPublish converts a decrypt failure (missing site key) into the typed PublishCredentialSecretStoreUnconfiguredError, never a raw Error the route layer's sendStoreError cannot map (1.838574ms)
+✔ AAD binding: a credential set's ciphertext does not open under a DIFFERENT credential set's derived AAD (adversarial cross-row transplant) (5.770108ms)
+✔ createPublishCredential rejects a second credential with the same (workspace, provider, label) (3.082591ms)
+✔ createPublishCredential maps a Postgres UNIQUE violation (SQLSTATE 23505) to PublishCredentialDuplicateLabelError (1.206614ms)
+✔ the SAME label is allowed for a DIFFERENT provider (uniqueness is per-provider, not workspace-wide) (1.603404ms)
+✔ the SAME (provider, label) is allowed in a DIFFERENT workspace (uniqueness is per-workspace) (1.473291ms)
+✔ createPublishCredential accepts github-pages with a bare token — owner/repo are publish-target fields, not credential fields (2.192056ms)
+✔ createPublishCredential rejects github-pages with a blank token (0.449658ms)
+✔ createPublishCredential rejects cloudflare-pages with no accountId (hard required) (0.359898ms)
+✔ createPublishCredential rejects an unrecognized providerId (0.357557ms)
+✔ createPublishCredential rejects a blank label (0.255684ms)
+✔ updatePublishCredential with connection OMITTED keeps the stored secret untouched, only changes the label (2.716785ms)
+✔ updatePublishCredential with a NEW connection reseals under a fresh ciphertext, not a re-wrap (4.010118ms)
+✔ updatePublishCredential throws PublishCredentialNotFoundError for a non-existent id (0.280492ms)
+✔ updatePublishCredential rejects renaming into a label already used by ANOTHER row for the same provider (1.664013ms)
+✔ updatePublishCredential renaming a row to its OWN current label is not a false duplicate (1.336863ms)
+✔ deletePublishCredential removes the row; a second delete of the same id is a harmless no-op (idempotent) (1.41998ms)
+✔ deletePublishCredential on an id that never existed is a harmless no-op (1.354148ms)
+✔ listPublishCredentials only returns the requesting workspace's own rows (tenant isolation) (1.27845ms)
+✔ resolve/update/delete/heal cannot access another workspace's credential (1.945378ms)
+✔ the FIRST credential created for a provider becomes its default automatically, with no isDefault requested (0.715555ms)
+✔ a SECOND credential for the same provider is NOT default unless isDefault:true is requested (1.019067ms)
+✔ creating with isDefault:true clears the previous default for that provider (1.50258ms)
+✔ a provider's default is independent of a DIFFERENT provider's default (each group has its own) (1.045963ms)
+✔ updatePublishCredential with isDefault:true promotes this row and demotes the previous default (8.696729ms)
+✔ updatePublishCredential with isDefault OMITTED never un-defaults the current default (no replacement) (1.217839ms)
+✔ updatePublishCredential with isDefault:false on the CURRENT default is a no-op for default status (never leaves a provider with zero defaults) (1.373622ms)
+✔ deleting the default promotes the group's most-recently-updated remaining row (2.945688ms)
+✔ deleting the LAST credential for a provider leaves that provider with no default — not an error (0.900396ms)
+✔ updatePublishCredential: moving a credential to a DIFFERENT provider never carries its old isDefault onto the new provider, clobbering that provider's real default (2.501996ms)
+✔ updatePublishCredential: moving a provider's default off to a different provider promotes a replacement in the OLD group, never leaving it with rows but no default (2.566995ms)
+✔ updatePublishCredential: a SOLO credential moved onto a brand-new (currently empty) provider group still becomes that group's default — the fix must not regress the first-row auto-default rule (1.407787ms)
+✔ createPublishCredential rejects a non-boolean isDefault (0.298214ms)
+✔ resolveDefaultForPublish decrypts the provider's default connection, never an id-specific one (1.196977ms)
+✔ resolveDefaultForPublish returns null (never 'ambiguous') when a provider has no default — not an error even with rows for OTHER providers (0.729356ms)
+✔ createPublishCredential accepts a full s3-compatible connection, including optional endpoint, and seals it with NO plaintext leak in the summary (1.47805ms)
+✔ createPublishCredential accepts s3-compatible with NO endpoint (plain AWS S3 — endpoint is the only optional field) (1.097353ms)
+✔ createPublishCredential rejects s3-compatible with a blank 'region' (all five are hard-required) (0.405791ms)
+✔ createPublishCredential rejects s3-compatible with a blank 'bucket' (all five are hard-required) (0.246271ms)
+✔ createPublishCredential rejects s3-compatible with a blank 'accessKeyId' (all five are hard-required) (0.14804ms)
+✔ createPublishCredential rejects s3-compatible with a blank 'secretAccessKey' (all five are hard-required) (0.15241ms)
+✔ createPublishCredential rejects s3-compatible with a blank 'publicUrl' (all five are hard-required) (0.181873ms)
+✔ createPublishCredential treats a blank s3-compatible endpoint as omitted (forms send '' for an optional field left empty) (1.116532ms)
+✔ createPublishCredential trims a leading/trailing-whitespace endpoint before persisting it — a stray paste-space must not survive into storage (1.378727ms)
+✔ createPublishCredential trims a leading/trailing-whitespace 'region' before persisting it (s3-compatible) (1.073377ms)
+✔ createPublishCredential trims a leading/trailing-whitespace 'bucket' before persisting it (s3-compatible) (1.017212ms)
+✔ createPublishCredential trims a leading/trailing-whitespace 'accessKeyId' before persisting it (s3-compatible) (1.221486ms)
+✔ createPublishCredential trims a leading/trailing-whitespace 'secretAccessKey' before persisting it (s3-compatible) (1.549807ms)
+✔ createPublishCredential trims a leading/trailing-whitespace 'publicUrl' before persisting it (s3-compatible) (1.54591ms)
+✔ createPublishCredential trims a leading/trailing-whitespace 'token' before persisting it (github-pages) — the other secret-bearing field requireNonEmptyString validates (1.248002ms)
+✔ createPublishCredential always starts a new row with accountLabel null — it never probes a provider itself (0.661226ms)
+✔ healAccountLabel persists a real value, readable back through listPublishCredentials/describeCredential — never decrypting (1.248144ms)
+✔ healAccountLabel never disturbs the sealed connection, isDefault, or updatedAt — a verify is not a credential change (1.457427ms)
+✔ healAccountLabel on a non-existent id is a harmless no-op (matches this port's other idempotent-write contracts) (0.899662ms)
+✔ updatePublishCredential with connection OMITTED preserves a previously-healed accountLabel (1.362842ms)
+✔ updatePublishCredential with a NEW connection resets accountLabel back to null — a stale label naming the OLD token's account must not survive (1.397767ms)
+✔ a saved connection lands in its host's vendor group, sealed as {vendorId, ...fields} under the vault AAD (0.869007ms)
+✔ a row written by the vendor-credentials store (the custom-provider form) resolves for its host (1.14356ms)
+✔ a vendor row no deploy host declares (a source-control-only vendor) is not a publish credential (1.093801ms)
+✔ hasDefaultForPublish reads the host's vendor group without decrypting (0.813018ms)
+✔ a deleted credential stays deleted when adapters are reconstructed over the persistent vault (0.788495ms)
+✔ vault publish selection reads each credential kind once and opens only the selected row (1.540692ms)
+✔ publish hints use stored lengths without opening or hydrating each row (1.312981ms)
+✔ label/default updates need no key and retain the vault ciphertext and hints (1.174945ms)
+✔ provider-only publish moves preserve the envelope and atomically select defaults (explicit=false) (4.51744ms)
+✔ provider-only publish moves preserve the envelope and atomically select defaults (explicit=true) (4.540683ms)
+✔ publish provider moves reject label collisions and incompatible secret schemas without changing either group (1.90207ms)
+✔ provider moves retarget only the old compatibility and honor explicit compatibility edits (3.155102ms)
+✔ L106 invalid connection shape/provider undefined refuses before writing (0.31173ms)
+✔ L106 invalid connection shape/provider null refuses before writing (0.118309ms)
+✔ L106 invalid connection shape/provider [] refuses before writing (0.122554ms)
+✔ L106 invalid connection shape/provider "invalid" refuses before writing (0.159126ms)
+✔ L106 invalid connection shape/provider {} refuses before writing (0.222724ms)
+✔ L106 invalid connection shape/provider {"providerId":3} refuses before writing (0.162091ms)
+✔ L106 invalid connection shape/provider {"providerId":"unknown"} refuses before writing (0.098866ms)
+✔ L106 required fields validate before optional fields, preserving declaration order and exact errors (0.567461ms)
+✔ L106 optional plain field undefined is trimmed or omitted and undeclared fields are dropped (3.695597ms)
+✔ L106 optional plain field "" is trimmed or omitted and undeclared fields are dropped (0.871028ms)
+✔ L106 optional plain field "   " is trimmed or omitted and undeclared fields are dropped (0.885621ms)
+✔ L106 optional plain field " trimmed " is trimmed or omitted and undeclared fields are dropped (0.84903ms)
+✔ L106 optional secret undefined is omitted, normalized, or refused without plaintext fallback (1.093701ms)
+✔ L106 optional secret " second " is omitted, normalized, or refused without plaintext fallback (0.829552ms)
+✔ L106 optional secret "" is omitted, normalized, or refused without plaintext fallback (0.287445ms)
+✔ L106 optional secret "   " is omitted, normalized, or refused without plaintext fallback (0.223442ms)
+✔ L106 optional secret 3 is omitted, normalized, or refused without plaintext fallback (0.151306ms)
+✔ L106 a descriptor missing its token field still refuses the connection (0.261532ms)
+✔ L106 same-vendor edits with token undefined preserve only blank secrets and update companion fields (2.229475ms)
+✔ L106 same-vendor edits with token "" preserve only blank secrets and update companion fields (2.505646ms)
+✔ L106 same-vendor edits with token "new-value" preserve only blank secrets and update companion fields (2.027276ms)
+✔ L106 same-vendor edits with token "   " preserve only blank secrets and update companion fields (1.012654ms)
+✔ explicit null clears only an optional secret; blank retains it and required-token removal refuses without writing (3.703342ms)
+✔ L106 invalid update null preserves all stored state (0.896312ms)
+✔ L106 invalid update [] preserves all stored state (0.731709ms)
+✔ L106 invalid update "invalid" preserves all stored state (0.595689ms)
+✔ L106 invalid update {"providerId":3} preserves all stored state (0.704727ms)
+✔ L106 invalid update {"providerId":"unknown"} preserves all stored state (0.917789ms)
+✔ L106 invalid update {"providerId":"vercel","token":"   "} preserves all stored state (0.590168ms)
+✔ L106 token-only move {} preserves ciphertext only for provider-only or blank-token inputs (1.512437ms)
+✔ L106 token-only move {"token":""} preserves ciphertext only for provider-only or blank-token inputs (1.434066ms)
+✔ L106 token-only move {"token":"replacement"} preserves ciphertext only for provider-only or blank-token inputs (1.47541ms)
+✔ L106 token-only move {"token":"","ignored":"drop"} preserves ciphertext only for provider-only or blank-token inputs (0.992971ms)
+✔ L106 matching token names with companion fields cannot preserve a provider-only move (0.983413ms)
+✔ L106 a vault row disappearing after DTO lookup remains a typed not-found (0.902169ms)
+✔ a label longer than 200 characters is refused before anything is sealed (0.781293ms)
+✔ the providerId refusal names only hosts that declare a credential; an unknown default provider resolves to null (0.451057ms)
+✔ compatibility invalidation drops only the hosts a create (no before) or delete (no after) actually affects (0.686766ms)
+✔ a host that declares no credential is never offered for a credential, even when its module accepts everything (0.180235ms)
+✔ resolveDefaultForPublish returns null when the selected default's vault row vanishes between inventory and open (0.968128ms)
+✔ a blank-secret update whose stored payload cannot be reopened refuses with the typed storage error and keeps the row (1.854634ms)
+✔ resolveForPublish refuses a selected row that carries no sealed payload with the typed storage error, never a half-built connection (0.907725ms)
+✔ each known mode reads back as itself (1.983788ms)
+✔ a row written before the column existed, or with an unknown mode, reads as static_env (never none) (0.33743ms)
+✔ only a static_env row with a sealed blob holds a static access token (0.325703ms)
+✔ verify refuses N of one WITHOUT running scrypt (3.163496ms)
+✔ verify refuses zero N WITHOUT running scrypt (0.720792ms)
+✔ verify refuses zero r WITHOUT running scrypt (0.737548ms)
+✔ verify refuses zero p WITHOUT running scrypt (0.597191ms)
+✔ verify refuses fractional N WITHOUT running scrypt (0.787293ms)
+✔ verify refuses fractional r WITHOUT running scrypt (0.652676ms)
+✔ verify refuses fractional p WITHOUT running scrypt (0.51061ms)
+✔ verify refuses a memory lever (128*N*r over 64 MiB) WITHOUT running scrypt (0.410993ms)
+✔ verify refuses a huge p WITHOUT running scrypt (1.13536ms)
+✔ verify refuses a CPU lever (p=1000) WITHOUT running scrypt (1.069659ms)
+✔ verify refuses p=5 at the default N and r WITHOUT running scrypt (0.472124ms)
+✔ verify refuses an empty salt WITHOUT running scrypt (0.84568ms)
+✔ verify refuses an empty digest WITHOUT running scrypt (0.349639ms)
+✔ verify refuses a missing field WITHOUT running scrypt (0.809074ms)
+✔ verify refuses an extra field WITHOUT running scrypt (0.712083ms)
+✔ verify refuses another scheme WITHOUT running scrypt (0.490786ms)
+✔ the largest admitted work (128*N*r*p exactly 64 MiB), the minimum (N=2, r=1, p=1) and this file's own parameters reach scrypt (226.583564ms)
+✔ a digest this file writes still verifies after the work bound (no legitimate row is refused) (103.15847ms)
+✔ mintApiKey produces a prefixed key with a 256-bit secret, and never repeats (3.92618ms)
+✔ parseApiKey round-trips a minted key and rejects everything else (1.163178ms)
+✔ the stored digest verifies the right secret, rejects a wrong one, and leaks neither (237.978174ms)
+✔ hashing the same secret twice produces different digests (per-key salt) (154.178358ms)
+✔ verify fails closed on a malformed, foreign, or hostile stored hash instead of throwing (0.837838ms)
+✔ decoyKeyHash hashes one verifiable decoy per hasher and rejects presented key secrets (162.321112ms)
+✔ verify rejects fractional N (0.439857ms)
+✔ verify rejects fractional r (0.282829ms)
+✔ verify rejects fractional p (0.20298ms)
+✔ verify rejects non-numeric r (0.268867ms)
+✔ verify rejects non-numeric p (0.192233ms)
+✔ verify rejects N of one (0.088954ms)
+✔ verify rejects zero r (0.064301ms)
+✔ verify rejects negative r (0.056247ms)
+✔ verify rejects zero p (0.04939ms)
+✔ verify rejects negative p (0.064943ms)
+✔ verify rejects foreign scheme with six fields (0.044932ms)
+✔ verify rejects a nonempty digest of the wrong byte length (47.994707ms)
+✔ verify fails closed when scrypt rejects a non-power-of-two cost (0.776649ms)
+✔ a crypto callback failure rejects hashing and fails verification closed (3.40634ms)
+✔ failed manual sends redact credentials before audit persistence and preserve safe refusals (19.003316ms)
+✔ audit storage stays closed before installation and persists source and destination events by workspace (5.92837ms)
+✔ gaps rank labels by how often successful or undone source events hit them, then alphabetically (8.964908ms)
+▶ publish backstop hard boundaries
+  ✔ never sends members (2.075242ms)
+  ✔ never sends member_access (0.236974ms)
+  ✔ never sends identity (0.075135ms)
+  ✔ never sends principals (0.073023ms)
+  ✔ never sends principal_roles (0.07872ms)
+  ✔ never sends sessions (0.060299ms)
+  ✔ never sends roles (0.054087ms)
+  ✔ never sends policies (0.113746ms)
+  ✔ never sends policy_permissions (0.168885ms)
+  ✔ never sends api_keys (0.19587ms)
+  ✔ never sends provider_credentials (0.148661ms)
+  ✔ never sends credential_store (0.059646ms)
+  ✔ never sends composio_accounts (0.044936ms)
+  ✔ never sends site_assistant_credentials (0.032714ms)
+  ✔ never sends origin_settings (0.144764ms)
+  ✔ never sends deployment_targets (0.073449ms)
+  ✔ never sends publish_content_runs (0.03994ms)
+  ✔ never sends publish_trust_grants (0.082457ms)
+  ✔ never sends publish_backstop_log (0.038442ms)
+  ✔ never sends webhook_endpoints (0.091958ms)
+  ✔ never sends form_submissions (0.038249ms)
+  ✔ never sends analytics_events (0.084181ms)
+  ✔ never sends redirect_hits (0.037955ms)
+  ✔ never sends change_sets (0.200721ms)
+  ✔ never sends outbox (0.049337ms)
+  ✔ never sends trashed_items (0.03468ms)
+  ✔ never sends __drizzle_migrations (0.077757ms)
+  ✔ never sends drizzle_migrations (0.093313ms)
+  ✔ never sends sqlite_sequence (0.033181ms)
+  ✔ never sends tovu_migrations (0.084892ms)
+  ✔ never sends tovu_chat_migrations (0.054ms)
+  ✔ never sends schema_migrations (0.028213ms)
+  ✔ never sends p_sessions (0.030533ms)
+  ✔ fails closed for column client_secret (0.254758ms)
+  ✔ fails closed for column token (0.044457ms)
+  ✔ fails closed for column password (0.037263ms)
+  ✔ fails closed for column content_hash (0.278049ms)
+  ✔ fails closed for column api_key (0.059632ms)
+  ✔ fails closed for column monkey (0.03271ms)
+  ✔ allows plugin rows but cannot widen the policy (0.422154ms)
+  ✔ refuses a column name that is not a plain identifier, including __proto__ (0.294859ms)
+  ✔ blocks private setting core.execution.model (0.276024ms)
+  ✔ blocks private setting core.privacy.mode (0.160228ms)
+  ✔ blocks private setting core.instructions.custom (0.072793ms)
+  ✔ blocks private setting site.assistant.public_enabled (0.038528ms)
+  ✔ blocks secret settings and scans every string without leaking the value (0.88543ms)
+  ✔ blocks file .env (0.517693ms)
+  ✔ blocks file .env.production (0.150819ms)
+  ✔ blocks file .environment (0.318227ms)
+  ✔ blocks file .npmrc (0.119329ms)
+  ✔ blocks file .netrc (0.05315ms)
+  ✔ blocks file .mcp.local.json (0.126729ms)
+  ✔ blocks file .fs-custom-root.json (0.084207ms)
+  ✔ blocks file .site-meta.json (0.044844ms)
+  ✔ blocks file config.json (0.052774ms)
+  ✔ blocks file x/key.pem (0.057703ms)
+  ✔ blocks file id_rsa (0.085992ms)
+  ✔ blocks file x/content.db (0.068573ms)
+  ✔ blocks file x/content.db-wal (0.036611ms)
+  ✔ blocks file x/content.db.bak (0.13497ms)
+  ✔ blocks file x/.git/config (0.041054ms)
+  ✔ blocks file node_modules/x (0.029066ms)
+  ✔ blocks file agent-plugins/x (0.112743ms)
+  ✔ blocks file plugins/x (0.077759ms)
+  ✔ blocks file skills/x (0.039934ms)
+  ✔ blocks file uploads/x (0.032829ms)
+  ✔ blocks file ops/x (0.054995ms)
+  ✔ blocks file out/x (0.041586ms)
+  ✔ blocks file restore-point-x/a (0.044429ms)
+  ✔ blocks file .publish-staging/a (0.026891ms)
+  ✔ blocks file .publish-previous/a (0.022767ms)
+  ✔ blocks file ../x (0.030027ms)
+  ✔ blocks file a/../x (0.022281ms)
+  ✔ blocks file a/./x (0.023106ms)
+  ✔ blocks file /x (0.023259ms)
+  ✔ blocks file a\x (0.02395ms)
+  ✔ blocks file a//x (0.022893ms)
+  ✔ blocks file a x (0.021908ms)
+  ✔ blocks file a/.env/x (0.279123ms)
+  ✔ blocks file C:/x (0.041106ms)
+  ✔ blocks file a/%2e%2e/x (0.032512ms)
+  ✔ checks path caps and rejects links explicitly (0.166315ms)
+  ✔ derives stable gap labels (0.09537ms)
+✔ publish backstop hard boundaries (13.926869ms)
+✔ secrets_vault is denied by name, with no columns and with only benign columns (0.929409ms)
+✔ every private/per-install core table is denied by name, independent of its columns (0.285989ms)
+✔ exact names only: plugin tables and look-alikes keep the generic rules (0.659521ms)
+✔ every table in the real migrated schema is classified: denied, or on the reviewed sendable list (911.651976ms)
+✔ L061 raw paths keep every nested private component and path-shape guard (3.158488ms)
+✔ L061 raw settings preserve flag encodings, install keys, and non-setting behavior (1.44455ms)
+✔ L061 backstop request validates in order and preserves normalized selection (10.98313ms)
+✔ L061 metadata rejects mixed, repeated, malformed and oversized sends and derives sorted gaps (3.762334ms)
+✔ L061 metadata accepts negative and NaN file sizes (reported, not fixed) (0.375516ms)
+✔ disconnecting a connected destination forgets it and names the deploy still needed (6.067033ms)
+✔ disconnecting when not connected and nothing changed suggests the candidate URL and no next step (0.512441ms)
+✔ a changed grant whose target names no next step reports a null nextStep (1.083119ms)
+✔ a settings write failure is refused with recovery guidance, and the connected peer is put back (2.630375ms)
+✔ any other failure propagates unchanged (0.458746ms)
+✔ the contributor installs this module's builder and risk under its own domain (0.169003ms)
+✔ credential/key/database names under a backup suffix are refused by the typed-tree rule, root and nested (1.85977ms)
+✔ the same names are refused by the raw-file rule, root and nested (0.391762ms)
+✔ raw-only private names (per-install config at any depth) are refused under a backup suffix too (0.566355ms)
+✔ look-alike ordinary names stay allowed by both rules (0.266179ms)
+✔ FILE_TREE_KINDS is exactly the 4 kinds from §1's inventory table (1.624016ms)
+✔ no kind's resolved root can ever equal a site-root file name (0.552536ms)
+✔ checkTreePath blocks every deny-listed segment, name and extension (0.888006ms)
+✔ checkTreePath blocks config.json/.site-meta.json only at tree root, not nested (0.382085ms)
+✔ checkTreePath blocks path-shape violations (.., leading /, backslash, depth, length, empty segment) (0.227321ms)
+✔ checkTreePath accepts an ordinary theme source path (0.135339ms)
+✔ isIgnoredTreeFileName recognizes every documented OS junk name (0.156613ms)
+✔ checkTreePath no longer blocks a .DS_Store path — it is ignored upstream, not denied here (0.137979ms)
+✔ checkTreeFiles refuses an OS junk file that reached it, with a plain reason (0.797409ms)
+✔ checkTreeFiles still runs the '..' and size checks on a junk-looking name (0.287207ms)
+✔ checkTreeFiles blocks a tree holding a planted Anthropic key, exact reason (0.471132ms)
+✔ checkTreeFiles blocks a tree holding a planted GitHub PAT (0.427288ms)
+✔ checkTreeFiles blocks a tree holding a planted PEM private key block (0.220033ms)
+✔ checkTreeFiles does not scan a binary-extension file even if its sample matches a pattern (0.144698ms)
+✔ checkTreeFiles blocks a qualifying file when textSample is omitted (0.114792ms)
+✔ every file-backed publish-content contributor imports file-tree-policy (2.005315ms)
+✔ checkTreeFiles blocks case-insensitively duplicate paths (0.191869ms)
+✔ checkTreeFiles blocks a disallowed extension for theme-files, terse and preformatted (0.233933ms)
+✔ checkTreeFiles names a video extension specifically (0.089796ms)
+✔ checkTreeFiles allows every extension for a code-class kind (agent-skill) (0.059387ms)
+✔ checkTreeFiles blocks a tree over the per-file byte cap (0.067086ms)
+✔ checkTreeFiles blocks a tree over the total byte cap (0.057107ms)
+✔ checkTreeFiles blocks a tree over the file-count cap (0.50475ms)
+✔ normalizeMode collapses any exec bit to 0o755 and everything else to 0o644 (0.091738ms)
+✔ resolveTreeRelativePath rejects a wrong segment count and an invalid segment (0.086348ms)
+✔ checkMcpJsonSecretPlaceholders allows empty/placeholder env values and blocks a literal token (0.344222ms)
+✔ MCP headers must be empty or placeholders, never literal credentials (0.189815ms)
+✔ NUL paths and sealed storage-secret filenames are refused (0.179911ms)
+✔ wrapTreePolicyReason prefixes ordinary reasons and preserves final reasons (0.086464ms)
+﹣ THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real static/tovu-theme theme (0.19709ms) # local static/tovu-theme fixture is unavailable
+✔ license documents are text: accepted by identity, scanned for secrets, and never a blanket extensionless allowance (0.348441ms)
+✔ L044 path checks preserve shape, segment, name and extension precedence (1.477862ms)
+✔ L044 tree checks preserve aggregate caps, collision ordering, extension and scan boundaries (1.277699ms)
+✔ L044 MCP scan checks nested literals while preserving malformed JSON handling (0.770986ms)
+✔ L044 SSH basenames require an exact name or a literal dot suffix (0.18827ms)
+✔ L044 absent text samples block qualifying files instead of bypassing the secret scan (0.268959ms)
+✔ security cleanup pins MCP traversal order, primitive leaves and section boundaries (0.288638ms)
+✔ connecting this computer to a second site MOVES the connection — it never leaves two connected rows (8.998724ms)
+✔ re-connecting the SAME site still updates its row in place rather than replacing it (1.445515ms)
+✔ moving the connection leaves a hand-configured destination and its credential alone (1.326059ms)
+✔ selectConnectedDestination never picks arbitrarily between two connected rows (0.206071ms)
+✔ selectConnectedDestination answers only for CONNECTED rows — a hand-configured peer is not a connection (0.185086ms)
+✔ source policy blocks private paths and covered roots, naming each blocked selection (32.865191ms)
+✔ destination rechecks deny paths, links and actual blob secrets without trusting the sender (14.437438ms)
+✔ replace then undo restores bytes, and a later live edit is skipped (14.102622ms)
+✔ creating then undoing removes only the new file, never other live files (5.457521ms)
+✔ L044 validation rejects malformed metadata before reading blobs (4.499651ms)
+✔ L044 pack preserves missing/refusal skips, propagates unexpected errors, resets skips and enforces selection caps (4.312615ms)
+✔ L044 apply preserves gateway, OCC and undo guards (4.508259ms)
+✔ L044 pack availability, aggregate byte cap and byte verification use typed ports (3.29602ms)
+✔ L044 recorded inverses support compensation and reject later drift (7.571429ms)
+✔ L044 undo refuses newly covered roots regardless of case and leaves live bytes alone (5.949509ms)
+✔ a destination without a blob store treats verified bytes as missing, and an unreadable live file inspects as absent (2.324195ms)
+✔ precheck turns only typed row refusals into reasons; an unexpected port failure still propagates (2.34477ms)
+✔ apply refuses to write when the stored bytes change between the check and the write (3.463388ms)
+✔ undo refuses a private path before touching it (2.425654ms)
+✔ a change-set write failing after the file was replaced rolls the live file back to its prior bytes (5.768569ms)
+✔ selected plugin row packs all columns, round-trips its hash, and identical rows are unchanged (25.54453ms)
+✔ raw row packing and precheck expose only typed refusals; other port failures propagate unchanged (4.883195ms)
+✔ covered tables, shape drift and hostile column names are refused on destination (2.801588ms)
+✔ unsafe SQLite integers are skipped instead of silently rounded during transport (1.337224ms)
+✔ create then undo removes only the created row; update then undo restores the prior row (15.185929ms)
+✔ FK violations roll back the entire batch, and a child may arrive before its parent (3.076605ms)
+✔ undo skips a row edited after the push and apply refuses a stale version (3.091186ms)
+✔ TW2 pins raw precheck validation ordering and malformed addresses (3.547311ms)
+✔ verifyPublishSignature: a malformed public key never reaches createPublicKey/verify — the line-177 guard fires before any crypto call, not merely via the outer catch's coincidental throw (7.134465ms)
+✔ a backup and a share export never collect a share catalog, in any scope (28.65919ms)
+✔ Duplicate never copies the folders that hold a share catalog (0.623769ms)
+✔ the publish backstop refuses a share catalog file at any depth (0.87779ms)
+✔ packs one entity for a real theme tree, excluding generated paths, and leaves __original-themes__ untouched (55.048705ms)
+✔ hash is stable for an unchanged tree and changes for edited bytes or a renamed file (14.120029ms)
+✔ a theme.json name labels the row without touching the packed state or its hash (6.581446ms)
+✔ a theme.json with no name (or none at all) sets no displayLabel (5.699715ms)
+✔ a planted .env blocks the whole tree — no entity, reported in skipped (3.25862ms)
+✔ a credential in theme CSS blocks packing and indexing the whole tree (3.829781ms)
+✔ a .DS_Store (and other OS junk) is ignored during pack — never blocks the tree, never uploaded (5.794169ms)
+✔ fills the file blob index as it packs, keyed by each file's real sha256 (3.304129ms)
+✔ a tier folder that does not exist yet contributes no entities and no error (1.721448ms)
+✔ the handler's listSkipped() reports a whole-tree refusal by its exact SkippedThemeTree reason (4.476124ms)
+✔ the handler's listSkipped() names a refused tree by its theme.json name when it has one (3.5969ms)
+✔ the handler's listSkipped() is empty when there is no themesDir configured (0.437375ms)
+✔ the handlebars tier is never packed (deliberate narrowing per the plan) (2.63715ms)
+✔ a tier path that is a file, not a folder, fails the pack with its own error (3.610812ms)
+✔ trees across tiers sort by tier then id; migration staging dirs and loose tier files are not trees (7.856006ms)
+✔ a tree folder whose name is not a valid id is skipped with the address reason (2.671185ms)
+✔ a fifo inside a tree is never packed (11.273961ms)
+✔ a file swapped for a symlink between readdir and lstat is dropped (7.444719ms)
+✔ a sub-folder that vanishes mid-walk is treated as empty; any other readdir error fails the pack (5.102585ms)
+✔ a theme.json over the scan cap is still read for its display label (14.271798ms)
+✔ display labels: trimmed nonempty string names only; missing, malformed, null, non-string and blank names give none (7.863992ms)
+✔ a theme publishes its vendor license notices instead of rejecting the whole tree (6.277969ms)
+✔ tip: an EMPTY file whose name is a token is reported as a path hit, redacted (125.960854ms)
+✔ tip: path hits come before extension filtering (a skipped media extension) and cover directory names (102.825546ms)
+✔ tip: a content hit under a credential-named path is reported with the path redacted (108.431252ms)
+✔ history: a removed token-named file sharing its (empty) blob with an innocent file is still reported (188.716085ms)
+✔ history: a token-named path with a skipped extension is reported once even if committed twice (194.740553ms)
+✔ a Google AIza key of the real 39-char length is flagged (1.37006ms)
+✔ EXACT-LENGTH TRAP: a longer valid-charset run than 39 chars is NOT flagged as a 39-char AIza key (0.773367ms)
+✔ an Anthropic-shaped fixture shorter than the real ~90+ char minimum is not flagged (0.167626ms)
+✔ a real-length Anthropic key (90+ chars after sk-ant-) is flagged (0.15824ms)
+✔ a GitHub classic PAT-shaped fixture shorter than 36 chars after ghp_ is not flagged (0.150521ms)
+✔ a real-length GitHub classic PAT (exactly 36 chars after ghp_) is flagged (0.127036ms)
+✔ a GitHub fine-grained PAT-shaped fixture shorter than 80 chars is not flagged (0.126277ms)
+✔ remaining vendor formats are detected at their minimum length and reject one character less (0.414062ms)
+✔ an npm access token of the real length is flagged (0.133256ms)
+✔ an AWS access key ID is flagged (0.144099ms)
+✔ a Slack token is flagged (0.102894ms)
+✔ a PEM private key block is flagged regardless of surrounding content (0.138481ms)
+✔ ordinary opaque ids (uuids, long hex hashes) are never flagged (0.074398ms)
+✔ REGRESSION: the real tracked repo has zero un-allowlisted credential-shaped strings today (1253.661873ms)
+✔ ALLOWLIST SCOPING: the exact reviewed fixture value in its allowlisted (file, pattern) pair IS allowlisted (0.425986ms)
+✔ ALLOWLIST SCOPING: a DIFFERENT value matching the same allowlisted (file, pattern) pair is NOT allowlisted (0.142876ms)
+✔ HISTORY SCANNING: a secret committed then removed in a later commit is still caught, even though the current tip is clean (219.520322ms)
+✔ the real CLI succeeds on a clean repository and rejects text, binary and history-only leaks (1587.062039ms)
+✔ ops/ (where the copy lives) is not a portable site entry (1.199452ms)
+✔ duplicateSite never carries the source's pre-migrations copy (868.772247ms)
+✔ the site backup collects no pre-migrations copy from any scope (572.670306ms)
+✔ a static export of the site writes no trace of the pre-migrations copy (12328.295904ms)
+✔ agent file tools and publish trees deny the copy and its sidecars by name (3.587071ms)
+✔ git and Docker ignore the copy in any site folder (188.305665ms)
+✔ check refuses a path the backstop policy denies (7.978293ms)
+✔ check refuses a site folder that is a regular file (3.265633ms)
+✔ check refuses a site folder reached through a link (3.035678ms)
+✔ check reports a missing site folder as unavailable (2.90238ms)
+✔ check accepts an existing regular file (3.011461ms)
+✔ check accepts a file that does not exist yet under a missing folder (1.651305ms)
+✔ check refuses a linked file (2.400222ms)
+✔ check refuses a file under a linked folder (1.575068ms)
+✔ check refuses a folder where a file is expected (1.658921ms)
+✔ check refuses a file used as a folder (3.186093ms)
+✔ check refuses a path component the filesystem cannot inspect (1.733054ms)
+✔ read returns null for a missing file (1.796877ms)
+✔ read returns the bytes and normalized mode of a regular file (2.30048ms)
+✔ read refuses a file over the send limit (1.913302ms)
+✔ read refuses an unsafe path with its reason (1.02265ms)
+✔ capture of a missing file records no backup (2.639144ms)
+✔ capture keeps a private copy of an existing file (2.655112ms)
+✔ replace writes verified bytes with the requested mode, creating parent folders (2.096708ms)
+✔ replace overwrites an existing file in place (2.353912ms)
+✔ replace refuses bytes over the send limit before staging (1.215814ms)
+✔ replace refuses a staging folder that is not a directory (4.650822ms)
+✔ replace refuses an unsafe target (1.529478ms)
+✔ restore without a backup removes the file the send created (1.544177ms)
+✔ restore without a backup accepts a file that is already gone (3.581533ms)
+✔ restore puts the captured bytes and mode back (4.763725ms)
+✔ T42: a completed file undo reclaims its backup and keeps another pending undo (8.293875ms)
+✔ restore refuses an unsafe backup name (1.26692ms)
+✔ restore refuses a tampered backup (3.174517ms)
+✔ read surfaces an open failure other than a missing file (1.904271ms)
+✔ replace refuses staged bytes whose checksum changed and removes the stage (2.353331ms)
+✔ replace refuses a parent folder swapped for a non-directory after the check (3.792625ms)
+✔ replace surfaces a stage cleanup failure other than a missing stage (2.54464ms)
+✔ restore without a backup surfaces a removal failure other than a missing file (1.467984ms)
+✔ the secret file is not a portable site entry (1.056597ms)
+✔ duplicateSite of a SQLite site never carries a .storage-secret.json from the source's root (805.236378ms)
+✔ duplicateSite of a postgres site is refused before anything is written (no copy shares the source's database secret) (535.441499ms)
+✔ the site backup collects no .storage-secret.json from any scope (567.414045ms)
+✔ agent file tools and publish trees deny the secret by name, at any depth (5.371309ms)
+✔ git ignores the secret in any site folder (sites/ is tracked and deployed from git) (70.985554ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ all 3 routes require a session — an unauthenticated caller never reaches them (473.972122ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a workspace id that is not this site's is 404, on all 3 routes (289.718495ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ GET for an admin who has never configured a key returns isSet:false with no key material (253.269735ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with an apiKey sets it and the response never contains the plaintext key (250.977251ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with an empty apiKey is a 400 validation error, and GET afterward still shows not-set (235.24864ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with a non-string providerId (present but wrong type) is a 400, not a silent no-op (289.807598ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT omitting apiKey updates model without disturbing the previously-saved key (291.34602ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ DELETE clears the key; a second DELETE on an already-cleared credential is a harmless 200 (261.824974ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when the site key is unavailable (269.267795ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ admin A cannot read admin B's credential — GET is scoped to the caller's own session, not the workspace (325.179481ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ admin B's PUT cannot overwrite admin A's credential — each session writes only its own row (380.386497ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ admin B's DELETE cannot clear admin A's credential (291.122533ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ all 3 routes require a session — an unauthenticated caller never reaches them (258.683721ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a workspace id that is not this site's is 404, on all 3 routes (445.197776ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ GET on a never-configured workspace returns isSet:false with no key material (311.233408ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with an apiKey sets it and the response never contains the plaintext key (215.174537ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ GET, PUT and DELETE deny a signed-in caller with no assistant grant and preserve the usable key (323.515884ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ GET reports stored metadata even when the keyring can no longer open the key (355.213355ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with an empty apiKey is a 400 validation error, and GET afterward still shows not-set (329.357016ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT omitting apiKey updates model without disturbing the previously-saved key (327.47469ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ DELETE clears the key; a second DELETE on an already-cleared credential is a harmless 200 (317.57285ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT is 403 for a caller without the assistant-settings permission (253.317124ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT rejects a present-but-non-string field (a stray {provider: 12345}) as 400, distinct from the empty-apiKey check (225.376196ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT rejects a null apiKey (present, not a string, not caught by the trim().length===0 empty check) as 400 (192.643184ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[routes/assistant/put-site-credential] {
+  errorId: '864b76fa-f7f1-45ad-a226-5c887ea5c8ea',
+  diagnostic: 'Error: db exploded\n' +
+    '    at InMemoryVaultRepo.assistantVaultRepo.findOne (/home/user/Tovu/apps/website/src/server/__tests__/admin-assistant-site-credential-routes.test.ts:225:11)\n' +
+    '    at setSiteAssistantCredential (/home/user/Tovu/apps/website/src/assistant/site-credential-store.ts:125:31)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts:89:26)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+}
+✔ PUT 500s (generic) when the repo explodes on an otherwise-valid request (493.973655ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when the site key is unavailable (257.223955ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ every route requires a session (350.578869ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a workspace id that is not this site's is 404 (264.704393ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a signed-in principal with no integrations grant is refused on every admin MCP route (417.312822ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a server survives a PUT then GET round trip, and the token never appears in a response (196.900193ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a saved server reaches the daemon's read path with its env decrypted (277.047214ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ omitting env preserves the stored token across an enable/disable toggle (198.566489ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ blank env keeps sealed bytes; an explicit empty JSON env object clears the stored token (282.860575ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ invalid operator input is a 400 naming the offending field (217.072206ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ an unconfigured secret store fails closed with 503 rather than storing a plaintext token (208.570607ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ deleting a server removes it, and deleting an unknown id is 404 (341.956979ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a hosted OAuth server can be created over the wire, and its client secret never comes back (198.861585ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a hosted server saved without a URL is a 400 naming the url field, not a 500 (223.419379ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a plaintext non-loopback URL is refused — it would carry the bearer token in the clear (182.276844ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a later PUT that omits the oauth block keeps the stored client id rather than clearing it (204.652966ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a write-authorized tool round-trips over the wire and its attribution names the saving principal (299.760833ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a write entry not in the allowlist is a 400 naming the writeAllowedToolNames field (310.555559ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ omitting writeAllowedToolNames on a later PUT clears it, exactly as allowedToolNames does — it is resent in full, not tri-state (176.173901ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ (task #30 / R-3, pinned not fixed) an array body value for writeAllowedToolNames collapses to '' via asStringField, clearing every write grant — fails CLOSED (320.016382ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ authMode is not silently demoted to static_env by a PUT that omits it (284.342961ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ saving and toggling notify a roster consumer with the updated running configuration (225.575051ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ host-declared built-in MCP connections are labelled and cannot be removed, independently of their name (288.75233ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: list is empty before any subscription exists (492.335281ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: list rejects a workspaceId that doesn't match the seeded workspace (325.680451ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: create validates https:// and never leaks secret material in the response (288.927593ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: create rejects a private-IP target via the real OriginRegistry oracle (ADR-PIPE-015 GAP-06) (242.907921ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: pause rejects a workspaceId that doesn't match the seeded workspace (279.735889ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[routes/integrations/pause] {
+  errorId: '5b6d90c0-1253-4877-9c4b-c164531dc0b7',
+  diagnostic: 'Error: boom\n' +
+    '    at Object.save (/home/user/Tovu/apps/website/src/server/__tests__/admin-integrations-routes.test.ts:242:13)\n' +
+    '    at pauseSubscription (/home/user/Jini/packages/integrations/src/webhooks/subscriptions.ts:170:19)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/integrations/pause.ts:51:34)'
+}
+✔ integrations routes: pause surfaces an unexpected repo failure as 500 (generic catch, not the not-found/validation branches) (347.574991ms)
+✔ integrations routes: pause's workspaceId/subscriptionId params can never actually be undefined through real routing (Express only invokes a matched `:param` handler with populated segments) -- their `?? ""` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need (184.376316ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: pause toggles active <-> paused, and a disabled subscription rejects pause (316.363944ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: pause/delete on an unknown subscription id returns 404 (278.732676ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: delete rejects a workspaceId that doesn't match the seeded workspace (283.198039ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[routes/integrations/delete] {
+  errorId: '4ab3a6e8-6f14-4981-8f09-66e77852671d',
+  diagnostic: 'Error: boom\n' +
+    '    at Object.save (/home/user/Tovu/apps/website/src/server/__tests__/admin-integrations-routes.test.ts:395:13)\n' +
+    '    at deleteSubscription (/home/user/Jini/packages/integrations/src/webhooks/subscriptions.ts:205:19)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/integrations/delete.ts:43:34)'
+}
+✔ integrations routes: delete surfaces an unexpected repo failure as 500 (generic catch, not the not-found branch) (280.758638ms)
+✔ integrations routes: delete's `req.params.workspaceId ?? ""` fallback -- forced via a direct handler call with workspaceId omitted, since Express itself can never leave a required :workspaceId segment unset -- still 404s as a mismatch, not a crash (176.002438ms)
+✔ integrations routes: delete's `req.params.subscriptionId ?? ""` fallback -- forced via a direct handler call with subscriptionId omitted -- falls through to deleteSubscription with id:"", which 404s with the not-found message for an empty id (160.085999ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: list's lastDelivery picks the newest row by createdAt, not insertion order (247.878463ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: deliveries endpoint returns the log newest-first and 404s for an unknown subscription (174.014311ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ integrations routes: SPEC-006 REQ-05 — a principal without admin.integrations.manage is denied 403 on every route, and a grant restores access (254.043168ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ both routes require a session — an unauthenticated caller never reaches them (318.693336ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ bare and wrong-grant sessions cannot read or replace provider credentials (475.338375ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a workspace id that is not this site's is 404 on both routes (231.800306ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ GET on a never-configured workspace returns an empty map, not an error (198.330451ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a key PUT over HTTP round-trips through GET as markers, and never appears in any body (250.896932ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ omitting a provider from a later PUT deletes it, over the wire (253.247551ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ editing baseUrl without resending the key keeps the stored key (194.808784ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a UI-spelled provider id is rejected at the boundary with a 400 (199.668838ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a missing site key is a 503 SECRET_STORE_UNCONFIGURED, not a 500 (220.803495ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ an empty map clears everything over the wire (197.541062ms)
+✔ AC-16: an accepted submission queues a matching webhook subscription's delivery row (18.685087ms)
+✔ EC-07: no matching subscription -> no delivery row queued (not an error) (12.289348ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: an unauthorized principal (no grants) gets 403 on every verb (626.196237ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: POST with no body at all still 400s with VALIDATION (pins real behavior; does NOT kill the (req.body ?? {}) mutant — see note above) (336.908756ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: a successful verify (status 'valid' with an accountLabel) persists that label to the row, not just the response (312.271433ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: a mismatched workspaceId in the URL 404s on every verb (261.482483ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: GET starts with an empty list and the deps' own executionMode (278.905067ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: full CRUD round trip — create, list, update (blank connection keeps the secret), delete (387.213446ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: PUT with a NEW connection re-verifies it (unlike a label-only rename, which does not) (333.389603ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: PUT with isDefault: true promotes this row and demotes the previous default for the same provider (394.085396ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: DELETE on a never-existed id is idempotent (204, not 404) (311.939347ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: PUT on a non-existent id 404s with NOT_FOUND (282.205728ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: POST with an invalid connection shape 400s with VALIDATION, and github-pages needs only a token (no owner/repo) (359.677876ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: a duplicate (provider, label) 409s with DUPLICATE_LABEL and never creates a second row (302.123738ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: POST .../:id/verify 404s for a never-existed id (242.282987ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: POST .../:id/verify re-checks an existing connection on demand and reports an honest result, never the credential (287.239156ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: a network failure during POST .../:id/verify reports 'unreachable', never 'invalid' — a flaky network must not read as a bad credential (293.060922ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: a site key missing at verify time (present at save time) 503s with SECRET_STORE_UNCONFIGURED, and the server survives to answer the next request (592.490144ms)
+✔ publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? ""` fallback, forced via a direct handler call with workspaceId absent (180.333896ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[publish-credentials] background account-label heal failed for 'dcadbcfe-dc8c-4b46-9858-ac80d185af85' PublishCredentialSecretStoreUnconfiguredError: The credential could not be saved or unlocked. Check the site credential store.
+    at openPublishVaultRecord (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/store.ts:654:17)
+    at async resolveFromInventory (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/store.ts:631:20)
+    at async verifyPublishCredentialById (/home/user/Tovu/apps/website/src/features/deployments/static-publish/verify.ts:319:20)
+    at async Object.verifyAfterSave (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts:204:20)
+✔ publish-credentials: POST's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely (283.969548ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely (213.341453ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish-credentials: verifyAfterSave's `result ?? undefined` fallback, forced via a repo that vanishes the row on its second read (201.391372ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ publish: worksFor round trips, omission preserves and metadata-only clear needs no key (323.780381ms)
+✔ the publishing gate leaves a request without an Authorization header untouched (5.035562ms)
+✔ the publishing gate passes ordinary API keys and tampered publishing tokens on untouched (1.390159ms)
+✔ the publishing gate refuses a disconnected source or a removed grant after admitting the same token (2.218033ms)
+✔ the publishing gate refuses a token after its only capability is removed from the current grant (1.379664ms)
+✔ the publishing gate refuses a verified token when either trust store is unreadable or rejects (1.471104ms)
+✔ the identity route states this install's identity and nothing about who may publish to it (419.060181ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a source that was never given a secret publishes end to end, over HTTP (236.381495ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ an UNSIGNED handshake is refused by the live route (165.75412ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a signature from the WRONG KEY is refused by the live route (165.421163ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a REPLAYED nonce is refused by the live route — single use is real, not documented (167.940571ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a valid publish token cannot reach an ordinary content.write route (195.559189ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a valid publish token cannot reach an admin route outside the publishing surface (231.893224ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ the export route REFUSES a publishing credential rather than handing back an empty bundle (209.524946ms)
+✔ a publish-trust route with NO token resolves to no credential (178.807072ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ dropping the grant revokes publishing within one session, not at the end of one (418.298716ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ an install that has never provisioned refuses the handshake without saying so (228.451092ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a granted entity type is accepted at the bundle door (231.06177ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ an entity type the grant does not name is refused, and the whole bundle with it (233.244619ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ an entity that declares no type at all is refused, not skipped (164.193523ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a publishing token may carry overwrite ticks to /import/plan and /import/execute (187.926577ms)
+✔ publishing trust admits only artifact PUT/DELETE in the share namespace (1.102891ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[consent] privacy defaults failed: FOREIGN KEY constraint failed
+[commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a database disconnect refuses the next real publish request even with its already-minted valid token (677.378449ms)
+✔ the SQLite deny store fails loudly at boot when its migration table is unavailable (94.459526ms)
+✔ a disconnect row survives reopening the fresh site content database (95.53586ms)
+✔ the address to confirm comes from the deploy config the repo already carries (1018.091182ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ connecting learns the destination's workspace instead of asking a human for it (1336.132856ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a fresh install connects and then publishes, with no key displayed or copied (858.134046ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ forms and the active theme publish through a publishing grant (741.312909ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ a computer that was never connected is refused in plain language (434.571973ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ disconnecting removes only this computer, and leaves another computer's grant alone (444.527351ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz (342.195801ms)
+✔ createIntegrationsModule().start() enqueues a webhook delivery when a form.submission.received event fires (1.43276ms)
+✔ createFormsModule().start() registers the C-009 notify subscriber without throwing (0.783797ms)
+✔ readiness-state getter/setter round-trips (used by /readyz and the module-status route) (0.632713ms)
+✔ manual row planning sends unexpected read failures through the redacted correlated 500 handler (43.549279ms)
+✔ manual row planning sends unexpected columns failures through the redacted correlated 500 handler (7.613473ms)
+✔ manual row planning keeps expected adapter refusals as public skips without incidents (5.026734ms)
+✔ manual undo keeps typed file-size refusals at 409 without reporting an incident (7.212613ms)
+✔ manual planning preserves the aggregate file-size refusal at 409 (89.681765ms)
+✔ manual plan sends unexpected file I/O errors through the redacted correlated 500 handler (10.726317ms)
+✔ manual undo sends unexpected file I/O errors through the redacted correlated 500 handler (5.210544ms)
+✔ setupFor: core SMTP form, declared plugin form, defaults from credential keys, nothing for keyless or unknown (3.932729ms)
+✔ a saved SMTP row without username is incomplete in the configuration DTO (10.304004ms)
+✔ credential failures disclose fixed text while preserving detail only in server diagnostics (0.589199ms)
+✔ a submission gone before planning records an empty plan, and the email and webhook subscribers each run once (6.907813ms)
+✔ a planner that fails for another reason fails the event for a retry, after the webhook was queued (1.810343ms)
+✔ stop cancels the running batch before the store closes; a restart delivers what it released (151.155448ms)
+✔ a batch abandoned without a stop (crash) is reclaimed after a restart once its lease expires (145.08375ms)
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (161.323997ms)
+✔ starts one interval at the default 15 s and does not tick until it fires (8.290674ms)
+✔ uses an injected interval (0.349541ms)
+✔ refuses an interval that is not a positive finite number (0.436352ms)
+✔ a tick never overlaps a tick that is still running (1.254975ms)
+✔ a failed tick is logged with name, scrubbed message and code only, and the loop continues (0.661496ms)
+✔ the default log writes the failure line to console.error (0.629961ms)
+✔ describeWebhookTickError never stringifies a non-Error, keeps numeric codes, drops other codes and caps the message (0.266088ms)
+✔ stop cancels the interval, is idempotent, and no tick runs afterwards (0.268007ms)
+✔ stop waits for a running tick that finishes within the grace (1.575045ms)
+✔ stop abandons a tick still running when the grace runs out (0.642614ms)
+✔ the node scheduler fires its interval and timeout and cancels them (41.454791ms)
+✔ webhookEnvelopeStoreFor: a co-persisting repo is its own store; any other repo gets one cached in-memory store (0.432481ms)
+✔ end to end: a delivery the integrations module enqueued is signed and POSTed on the next tick (2.53232ms)
+✔ the serving worker builds its own guarded client when none is injected (0.728553ms)
+✔ the credential label is the fixed prefix plus the provider label (1.09304ms)
+✔ with no built-in provider and no plugins, search is not configured and the default 'builtin' shows as unregistered (25.87294ms)
+✔ a registered built-in is seeded as core, filled by the boot rebuild, promoted, and queried with its full context (5.631836ms)
+✔ no storage handle means the context carries none; timeoutMs is overridable (0.70158ms)
+✔ plugin providers join after settingsReady; loader, reserved-id and registry refusals are all logged (1.633459ms)
+✔ a failed settings chain still lets plugin providers load, and ready still resolves (0.529489ms)
+✔ a loader that throws is logged and leaves only the built-in; ready still resolves (0.447921ms)
+✔ a vendor without a saved credential is not configured; a saved one supplies exactly its declared keys (1.112636ms)
+✔ a plugin provider disabled after boot is revoked at its next use, restored when re-enabled; an unreadable activation fails closed (3.027981ms)
+✔ a core (built-in) provider never consults plugin activation (1.153273ms)
+✔ an unreadable credential and an unsupported credential key are logged and leave the vendor unconfigured (0.610144ms)
+✔ a missing install id is logged once and leaves every target unconfigured (0.490505ms)
+✔ the context resolver answers null for a provider the registry does not hold, without touching the vault or install id (0.154408ms)
+✔ events are written only for this site's own workspace (0.658665ms)
+✔ audiences, provider-setting read and write delegate to the ports (0.305057ms)
+✔ the default logger is console.error (0.590111ms)
+✔ subscribeSiteSearchIndexer subscribes once per source event, waits for ready, and propagates handler errors (2.920012ms)
+✔ maintenance: no runtime is a no-op handle (0.186281ms)
+✔ maintenance: boot rebuild once for the configured provider, then bounded reconcile + backfill every pass (1.366228ms)
+✔ maintenance: a site with an active or building target is not rebuilt; defaults are 50 rows and 5 pages (0.974811ms)
+✔ maintenance: failures are logged, never thrown, and a failed boot rebuild is retried on the next pass (1.292452ms)
+✔ maintenance: stop during a pass skips the remaining steps and schedules nothing more (1.890195ms)
+✔ maintenance: a pass whose ready rejects is logged and rescheduled; the default logger is console.error (0.706008ms)
+✔ maintenance: the default timers run a real unref'd pass and stop cleanly (10.236893ms)
+✔ bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, member sessions, settings and the plugin loader (2.954781ms)
+ℹ tests 715
+ℹ suites 1
+ℹ pass 713
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 163784.179502
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:1:5484
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (161.323997ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'fetch timed out after 60ms: https://example.com'
+  - 'fetch timed out after 60ms: https://example.com/hooks'
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:166:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:76:11)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'fetch timed out after 60ms: https://example.com',
+    expected: 'fetch timed out after 60ms: https://example.com/hooks',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

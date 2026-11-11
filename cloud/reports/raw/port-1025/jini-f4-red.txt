@@ -1,0 +1,30 @@
+   × verifySignature: signature value must be exactly the canonical hex digest > one trailing zero is refused 3ms
+     → expected true to be false // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/webhooks/__tests__/signing.edges.test.ts > verifySignature: signature value must be exactly the canonical hex digest > one trailing hex char (odd length) is refused
+ FAIL  src/webhooks/__tests__/signing.edges.test.ts > verifySignature: signature value must be exactly the canonical hex digest > one trailing zero is refused
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/webhooks/__tests__/signing.edges.test.ts:36:59
+     34|     ["empty", ""],
+     35|   ])("%s is refused", (_label, candidate) => {
+     36|     expect(verify({ header: `t=${ts},v1=${candidate}` })).toBe(false);
+       |                                                           ^
+     37|   });
+     38| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 33 passed (35)
+   Start at  03:22:40
+   Duration  516ms (transform 55ms, setup 0ms, collect 75ms, tests 34ms, environment 0ms, prepare 88ms)
+

@@ -92,3 +92,17 @@ test("empty, scalar and sequence YAML documents do not expose frontmatter fields
     assert.equal(readFrontmatterField(`---\n${block}\n---`, "description"), undefined);
   }
 });
+
+// L11 Stryker: the fallback's quote-strip anchors and the leading `---` check survived.
+test("the regex fallback strips only the outer quotes, keeping an inner apostrophe and quote", () => {
+  // `: [` inside an unclosed flow sequence makes YAML refuse the block, so the fallback runs.
+  assert.equal(readFrontmatterField(`---\nname: "it's a "quoted" one: [x\n---\nbody`, "name"), `it's a "quoted" one: [x`);
+  assert.equal(readFrontmatterField(`---\nname: 'O'Brien: [x'\n---\n`, "name"), `O'Brien: [x`);
+});
+
+test("frontmatter must start at the first byte", () => {
+  for (const markdown of [" ---\nname: x\n---\n", "\n---\nname: x\n---\n", "text\n---\nname: x\n---\n"]) {
+    assert.equal(readFrontmatterField(markdown, "name"), undefined, JSON.stringify(markdown));
+  }
+  assert.equal(readFrontmatterField("---\nname: x\n---", "name"), "x", "a close at end of file counts");
+});

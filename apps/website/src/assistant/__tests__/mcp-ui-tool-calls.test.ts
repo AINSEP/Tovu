@@ -342,3 +342,15 @@ test("direct theme replacements cannot execute through surface callbacks", () =>
     assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
   }
 });
+
+// L11 Stryker: PLUGIN_TOOL_ID's anchors, quantifiers and character class each survived mutation.
+test("security: the plugin-tool id table pins anchors, quantifiers and the character class", () => {
+  for (const id of ["p_a__b", "p_a1__b2", "p_acme_office__append_rows", "p_0__9", "p_a___b"]) {
+    assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
+    assert.equal(isMcpUiToolCallPermitted(id, false), false, `${id} never starts a fresh execution`);
+  }
+  for (const id of ["", "p_", "p___", "p__b", "p_a__", "p_a__b\n", "p_a__b ", " p_a__b", "p_a__B", "P_a__b", "p_a-b__c", "p_a__b-c",
+    "p_a.b__c", "pa__b", "p_a_b", "xp_a__b", "p_a__b/x"]) {
+    assert.equal(isMcpUiToolCallPermitted(id, true), false, JSON.stringify(id));
+  }
+});

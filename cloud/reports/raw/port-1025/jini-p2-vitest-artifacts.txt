@@ -1,0 +1,11 @@
+# packages/artifacts full vitest (exit 0, 3s)
+## failures
+## summary
+ ✓ src/__tests__/stub-guard-l071.test.ts (8 tests) 4ms
+ ✓ src/__tests__/publication-guard.universal.test.ts (1 test) 95ms
+
+ Test Files  15 passed (15)
+      Tests  242 passed (242)
+   Start at  03:51:20
+   Duration  2.24s (transform 498ms, setup 0ms, collect 927ms, tests 291ms, environment 3ms, prepare 902ms)
+

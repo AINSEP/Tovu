@@ -143,3 +143,55 @@ test("the host settings chokepoint (generic settings route and tools) refuses th
   assert.equal(counter.authorizeCalls, 0);
   assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
 });
+
+// F6 fix wave (L7 Stryker: 12 Regex survivors in SECRET_KEY / SECRET_VALUES / BASIC_VALUE). Each
+// near-miss below is allowed ONLY because a pattern is anchored or bounded; dropping that anchor
+// would refuse it. Each refused case is the minimal shape that must still be caught.
+const B64_USER_PASS = Buffer.from(`user:${"s".repeat(12)}`).toString("base64");
+const JWT_HEAD = "eyJ" + "hbGciOiJIUzI1NiJ9";
+const JWT_BODY = "eyJ" + "zdWIiOiIxIn0";
+
+test("whole-key secret names are anchored: words merely containing auth/pwd stay allowed", () => {
+  const config = { reauth: "a", authx: "a", pwdHint: "a", myPwd: "a" };
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
+});
+
+for (const [label, value, refused] of [
+  ["Bearer with leading spaces", "  bearer abc", true],
+  ["upper-case BEARER", "BEARER abc", true],
+  ["prose mentioning bearer tokens", "use bearer tokens here", false],
+  ["bearer with nothing after it", "Bearer ", false],
+  ["a JWT-shaped value", `${JWT_HEAD}.${JWT_BODY}.sig`, true],
+  ["a JWT glued to a preceding word", `x${JWT_HEAD}.${JWT_BODY}.sig`, false],
+  ["two JWT segments without the trailing dot", `${JWT_HEAD}.${JWT_BODY}`, false],
+  ["a public key block", "-----BEGIN " + "PUBLIC KEY-----\nabc", false],
+  ["a URL with user:pass@", "ftp://" + "u:" + "p".repeat(8) + "@files.example.com", true],
+  ["a URL with only a user@", "https://user@rows.example.com/api", false],
+  ["a colon-at pair in the URL path", "https://rows.example.com/a:b@c", false],
+  ["Basic with trailing whitespace", `Basic ${B64_USER_PASS}  `, true],
+  ["Basic followed by more words", `Basic ${B64_USER_PASS} and more`, false],
+  ["Basic preceded by a word", `My Basic ${B64_USER_PASS}`, false],
+  ["Bearer with several spaces", "bearer   abc", true],
+  ["Basic with several spaces", `Basic   ${B64_USER_PASS}`, true],
+  ["Basic glued to a preceding token", `xBasic ${B64_USER_PASS}`, false],
+  ["unpadded Basic base64", `Basic ${Buffer.from(`user:${"s".repeat(13)}`).toString("base64")}`, true],
+  ["double-padded Basic base64", `Basic ${Buffer.from(`user:${"s".repeat(11)}`).toString("base64")}`, true],
+] as const) {
+  test(`credential-shaped value table: ${label} is ${refused ? "refused" : "allowed"}`, () => {
+    const config = { note: value };
+    if (refused) assert.match(refusal([binding({ config })]).message, /"config\.note" holds a value that looks like a credential\./);
+    else assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
+  });
+}
+
+test("null config values are allowed (only strings are scanned, objects are walked)", () => {
+  const config = { optional: null, nested: { also: null } };
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
+});
+
+test("a refused field path is echoed whole up to 80 characters and truncated beyond", () => {
+  const exactly80 = `token${"x".repeat(80 - "config.".length - "token".length)}`;
+  assert.match(refusal([binding({ config: { [exactly80]: "a" } })]).message, new RegExp(`"config\\.${exactly80}" is named like a secret`));
+  const longer = `${exactly80}y`;
+  assert.match(refusal([binding({ config: { [longer]: "a" } })]).message, new RegExp(`"config\\.${exactly80.slice(0, 80 - "config.".length)}…" is named like a secret`));
+});

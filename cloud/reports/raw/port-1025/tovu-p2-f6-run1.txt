@@ -1,0 +1,668 @@
+✔ content_post_delete allows an answer to its parked policy card (1.142124ms)
+✔ content_post_search is on the allowlist — the real execution path behind the /search composer capability (0.271882ms)
+✔ deployment_execute_static_publish allows an answer to its parked policy card (0.159865ms)
+✔ the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason (0.080976ms)
+✔ credential_save redeems the publish-host card; the retired save id cannot redeem (0.319754ms)
+✔ deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a) (0.129019ms)
+✔ SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate (0.085932ms)
+✔ assistant_demo_choices is on the allowlist unconditionally — it performs no token redemption because it has nothing to redeem (0.07672ms)
+✔ assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out (0.096018ms)
+✔ plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16) (0.165845ms)
+✔ agent_plugins_update can answer its parked policy card but cannot start from a surface callback (0.092135ms)
+✔ custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31) (0.126015ms)
+✔ custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03) (5.823109ms)
+✔ external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02) (0.180395ms)
+✔ external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test) (0.107626ms)
+✔ credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either (0.148927ms)
+✔ custom_credential_write_files runs normally and cannot be executed by a surface callback (0.061354ms)
+✖ SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently (4.872384ms)
+✔ revoking a saved-key grant opens no exchange and cannot execute from a card callback (0.223258ms)
+✔ file-batch callbacks can only answer parked exchanges, never start fresh writes (0.089996ms)
+✔ a verified payment outcome can only answer its parked card, never run from a fresh callback (0.061257ms)
+✔ SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set (0.276784ms)
+✔ security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused (0.116044ms)
+✔ direct theme replacements cannot execute through surface callbacks (0.06582ms)
+/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/destination-store.authorize.unit.test.ts:5
+import { authorizeDestinationVaultContext } from "../destination-store.js";
+         ^
+SyntaxError: The requested module '../destination-store.js' does not provide an export named 'authorizeDestinationVaultContext'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/features/database-transfer/__tests__/destination-store.authorize.unit.test.ts (1598.62459ms)
+✔ every core table with a secret-shaped column is excluded from the copy, except the owner-approved member password hash (6.281466ms)
+✖ the member password hash is copied by a transfer but never by a public site share (5.317538ms)
+✔ the secret-column pattern matches whole underscore-delimited segments only (0.582282ms)
+✔ every excluded name is a current or migrated-away core table, and none of them is copied (10.224602ms)
+✔ partial exclusion counts skip settings tables absent from an older snapshot (12.005723ms)
+✔ the copy excludes every agreed login, saved-key, confirmation and running-lock table (0.2905ms)
+✔ a snapshot with member password hashes leaves the whole credential table behind (9.375593ms)
+✔ a snapshot leaves owner MFA, recovery codes and passkey login records behind (7.097379ms)
+✔ a copy carries form delivery plans and job index rows with their outbox rows, never the receiver pull lease (3.923903ms)
+✔ a copy plan names the receiver pull lease as left out because it is a lock held by the running site (175.348242ms)
+✔ an unarmed store refuses EVERYTHING — there is no permissive arm (2.169693ms)
+✔ mints a 256-bit token and redeems it exactly once (74.917758ms)
+✔ a REPLAY of a token that already worked fails (0.524436ms)
+✔ a wrong token does NOT burn the real one (0.461548ms)
+✔ two stores never accept each other's tokens (0.367214ms)
+✔ minting again replaces the previous token rather than accumulating (0.468108ms)
+✔ a short input does not throw — timingSafeEqual would, on unequal lengths (0.500924ms)
+✔ the production process wrappers share one armed single-use store (7.60108ms)
+✔ an ARMED store refuses empty and non-string tokens without throwing and without burning the real one (0.468967ms)
+✔ the catalog pins role.manage, a read-only risk and a strict one-field input schema (15.445652ms)
+✔ an allowed caller gets the policy's permissions, read from this workspace (5.490575ms)
+✔ a caller without role.manage is refused before any policy is read (5.250185ms)
+✔ missing policyId is refused with the non-empty-string message and reads nothing (0.379764ms)
+✔ empty policyId is refused with the non-empty-string message and reads nothing (0.212578ms)
+✔ blank policyId is refused with the non-empty-string message and reads nothing (0.174972ms)
+✔ numeric policyId is refused with the non-empty-string message and reads nothing (0.248058ms)
+✔ null policyId is refused with the non-empty-string message and reads nothing (0.200236ms)
+✔ array policyId is refused with the non-empty-string message and reads nothing (0.177852ms)
+✔ a non-object input is refused as a ToolInputError (1.680934ms)
+✔ an unknown policy is refused with lookup guidance and its grants are never listed (8.62257ms)
+✔ registerUserManagePermissionGrants registers exactly one admin user.manage role grant (1.108185ms)
+✔ the app permission grants give user.manage to admin only (0.439109ms)
+▶ mail observations and retention [sqlite]
+  ✔ real policy emits suppression, capture, throttling and redirected delivery with effective feedback attribution (133.85336ms)
+  ✔ failed sends retain bounded redacted diagnostics in activity and a successful retry clears them (107.663829ms)
+  ✔ expiry deletes final send identities and bodies while preserving unresolved reservations, recent retries and suppression protection (106.795612ms)
+  ✔ attempt rows normalize both addresses and classify captured, sent, unknown and failed results (96.341682ms)
+✔ mail observations and retention [sqlite] (446.187175ms)
+▶ mail observations and retention [pglite]
+  ✔ real policy emits suppression, capture, throttling and redirected delivery with effective feedback attribution (5760.963829ms)
+  ✔ failed sends retain bounded redacted diagnostics in activity and a successful retry clears them (41.25794ms)
+  ✔ expiry deletes final send identities and bodies while preserving unresolved reservations, recent retries and suppression protection (104.732723ms)
+  ✔ attempt rows normalize both addresses and classify captured, sent, unknown and failed results (31.175139ms)
+✔ mail observations and retention [pglite] (5938.842038ms)
+✔ linked subject keeps its member when email changes (1.863915ms)
+✔ disabled remains blocked even with an existing subject (0.218719ms)
+✔ trash remains blocked even with an existing subject (0.158281ms)
+✔ unlink blocks auto-link, deliberate connect permits relink (0.191402ms)
+✔ connect never moves an identity to another member (0.180739ms)
+✔ pending verified match links and new authoritative email creates (0.159796ms)
+✔ custom-domain first link needs inbox proof, subsequent subject sign-in does not (0.197748ms)
+✔ a signed-in connect whose member row is missing is a conflict, not a crash (0.13533ms)
+✔ new verified identity uses member creation owner and the sole member-session minter (4.013767ms)
+✔ pending verified match activates and revokes old sessions (1.886988ms)
+✔ disabled cannot link or mint a session (1.903716ms)
+✔ trash cannot link or mint a session (0.967427ms)
+✔ linked subject follows its original member when provider email changes (1.387699ms)
+✔ unlink blocks subsequent sign-in and deliberate signed-in connect may restore it (1.069772ms)
+✔ a foreign signed-in connect cannot move an already-linked subject (0.918518ms)
+✔ signed-in connect with a different Google address links without verifying the member's own email (0.752281ms)
+✔ custom-domain first link returns proof-needed without member/link/session writes (0.650063ms)
+✔ one existing email code permits first custom-domain link; replay fails (16.997106ms)
+✔ wrong email code spends an attempt outside the link transaction (5.514183ms)
+✔ credential revocation fences an outstanding callback (0.954217ms)
+✔ a subject already linked under ANOTHER provider id is a LOGIN_CONFLICT and mints nothing (0.465673ms)
+✔ a subject linked to a member row that no longer exists is a LOGIN_CONFLICT (0.40072ms)
+✔ a member whose provider slot holds a DIFFERENT live subject is a LOGIN_CONFLICT (0.421302ms)
+✔ an UNLINKED provider slot with a different subject is not a conflict: sign-in stays blocked, not conflicting (0.442095ms)
+✔ an unparseable sealed startedAt ("not-a-date") is LOGIN_INVALID (0.279163ms)
+✔ an unparseable sealed startedAt ("") is LOGIN_INVALID (0.401585ms)
+✔ an unparseable sealed startedAt ("2026-13-45T99:00:00Z") is LOGIN_INVALID (0.260055ms)
+✔ revocation AT startedAt blocks, revocation strictly before it does not (0.732102ms)
+✔ an inbox proof for a DIFFERENT address cannot link a custom-domain identity (2.752395ms)
+✔ any failure while requesting the inbox proof is masked as LOGIN_UNAVAILABLE (0.435433ms)
+✔ activating a pending member keeps an earlier email verification time (0.479208ms)
+✔ a returning linked, active member signs in without re-linking or revoking their other sessions (0.742179ms)
+✔ a uniqueness race retries the whole link transaction exactly once; any other failure is not retried (0.663292ms)
+✔ begin uses S256, fixed callback, nonce and identity-only scopes; complete returns no tokens (27.548596ms)
+✔ missing/wrong browser binding refuses forwarded authorization URL (0) before exchange (1.227109ms)
+✔ missing/wrong browser binding refuses forwarded authorization URL (5) before exchange (1.223362ms)
+✔ missing/wrong browser binding refuses forwarded authorization URL (43) before exchange (1.044426ms)
+✔ tampered or expired state refuses before token exchange (1.61034ms)
+✔ invalid claim rejected: iss=https://attacker.example (3.271017ms)
+✔ invalid claim rejected: aud=other-client (3.743455ms)
+✔ invalid claim rejected: nonce=other-nonce (3.312565ms)
+✔ invalid claim rejected: exp=1 (2.778833ms)
+✔ invalid claim rejected: iat=9999999999 (9.937085ms)
+✔ invalid claim rejected: email_verified=false (3.653309ms)
+✔ invalid claim rejected: email_verified=true (4.927173ms)
+✔ invalid claim rejected: email_verified=undefined (5.086574ms)
+✔ invalid claim rejected: sub= (4.066216ms)
+✔ invalid signature is rejected against the pinned JWKS (3.387021ms)
+✔ disable after start rejects the old redirect before exchange (0.945348ms)
+✔ rotate after start rejects the old redirect before exchange (0.989374ms)
+✔ rotateSecret after start rejects the old redirect before exchange (0.80678ms)
+✔ signed-in connect is bound to that member on completion (4.69726ms)
+✔ email authority user@gmail.com, hd=undefined (5.008326ms)
+✔ email authority user@googlemail.com, hd=undefined (3.347359ms)
+✔ email authority user@business.example, hd=business.example (3.944367ms)
+✔ email authority user@custom.example, hd=undefined (3.282838ms)
+✔ email authority user@alias.example, hd=primary.example (2.915119ms)
+✔ email authority user@custom.example, hd= (6.420529ms)
+✔ callback uses configured base path and URL escaping (0.335418ms)
+✔ custom-domain continuation retains only verified input and requires the same browser (5.267538ms)
+✔ disabling the provider invalidates an emailed-code continuation (4.702374ms)
+✔ verified email "320 chars" is accepted (2.928856ms)
+✔ verified email "321 chars" is refused (3.052195ms)
+✔ verified email "  Person@GMAIL.com " is accepted (5.604409ms)
+✔ verified email "a\tb@gmail.com" is refused (15.806834ms)
+✔ verified email "a b@gmail.com" is refused (6.513728ms)
+✔ verified email "@gmail.com" is refused (3.783717ms)
+✔ verified email "a@@gmail.com" is refused (7.764485ms)
+✔ verified email "a@b@gmail.com" is refused (3.107755ms)
+✔ verified email "a@gmail" is refused (4.586607ms)
+✔ verified email "a@.com" is refused (3.734585ms)
+✔ verified email "a@gmail." is refused (3.70183ms)
+✔ verified email "a@g.c" is accepted (3.559233ms)
+✔ subject limit: a 255-char subject is accepted (8.04116ms)
+✔ subject limit: a 256-char subject is refused (4.198336ms)
+✔ a browser binding that is not exactly 32 random bytes refuses to start (LOGIN_UNAVAILABLE) (1.048825ms)
+✔ sealing an emailed-code continuation refuses a login that does not match the request, or is stale (5.143225ms)
+✔ a verified claim whose email is not a string is refused (3.008264ms)
+✔ starting a login refuses a resolved provider with another id (LOGIN_UNAVAILABLE) (0.570164ms)
+✔ starting a login refuses a client whose auth method differs from the provider's (LOGIN_UNAVAILABLE) (0.201187ms)
+✔ starting a login refuses a client without an id (LOGIN_UNAVAILABLE) (0.092942ms)
+✔ starting a login refuses a client without a secret (LOGIN_UNAVAILABLE) (0.066761ms)
+✔ a provider with no authoritative-domain list still decides authority from the hosted-domain claim (6.488191ms)
+✔ a whitespace-only hosted-domain claim grants no mailbox authority (2.764908ms)
+✖ an admitted provider without a client card is not ready; saving one makes it ready on the next call (3.322425ms)
+✖ a client card in another workspace does not make this workspace's provider ready (0.419485ms)
+✖ a client card bound to a foreign token URL is not ready (0.495839ms)
+✖ a configured card cannot ready a provider shipped by a non-bundled plugin (0.311779ms)
+✔ every Members agent tool keeps its exact permission, side effect and strict input schema (1.679764ms)
+✔ the member id field tells the model where ids come from (0.22321ms)
+✔ a member-realm challenge with an identity is saved under that identity (1.097753ms)
+✔ an admin-realm challenge (cross-realm reuse) is refused and nothing is stored (0.74205ms)
+✔ a challenge without the deferred member identity is refused and nothing is stored (0.204584ms)
+✔ the member address validator refuses "x ada@example.test" before any write (0.472315ms)
+✔ the member address validator refuses "ada@example.test x" before any write (0.23815ms)
+✔ the member address validator refuses "ada@@example.test" before any write (0.393587ms)
+✔ the member address validator refuses "ada@example" before any write (0.190622ms)
+✔ the member address validator refuses "@example.test" before any write (0.102473ms)
+✔ the member address validator refuses "ada@.test x" before any write (0.139732ms)
+✔ the member address validator refuses "ada@exa mple.test" before any write (0.856615ms)
+✔ the member address validator refuses "" before any write (0.146783ms)
+✔ a config key named like a secret is refused at any depth, naming the field and the fix (4.553518ms)
+✔ a credential-shaped value under an innocent key is refused without repeating the value (1.372334ms)
+✔ the newer secret key names are refused: private/access keys, credential(s), auth/authorization, passphrase, pwd (0.99932ms)
+✔ ordinary keys that only contain a shorter word stay allowed (author, authorName) (0.901693ms)
+✔ an HTTP Basic credential or a URL with user:pass@ is refused as a config value (0.444646ms)
+✔ plain words after Basic and URLs without a password stay allowed (0.228565ms)
+✔ bindingId, adapterId and connectionRef holding a credential-shaped value are refused without repeating it (0.40339ms)
+✔ a secret smuggled as an extra top-level binding field is refused, not silently dropped (0.315712ms)
+✔ a repeated bindingId is refused, since the job index would abort the whole delivery plan (0.340935ms)
+✔ at most 100 bindings are accepted (2.746905ms)
+✔ at most 1000 formIds per binding are accepted (1.233289ms)
+✔ the validating write refuses a secret-carrying list before the ledger is touched (3.134037ms)
+✔ the host settings chokepoint (generic settings route and tools) refuses the same list (0.639591ms)
+✔ whole-key secret names are anchored: words merely containing auth/pwd stay allowed (0.154058ms)
+✔ credential-shaped value table: Bearer with leading spaces is refused (0.117986ms)
+✔ credential-shaped value table: upper-case BEARER is refused (0.04992ms)
+✔ credential-shaped value table: prose mentioning bearer tokens is allowed (0.340286ms)
+✔ credential-shaped value table: bearer with nothing after it is allowed (0.287619ms)
+✔ credential-shaped value table: a JWT-shaped value is refused (0.095386ms)
+✔ credential-shaped value table: a JWT glued to a preceding word is allowed (0.096234ms)
+✔ credential-shaped value table: two JWT segments without the trailing dot is allowed (0.071955ms)
+✔ credential-shaped value table: a public key block is allowed (0.056375ms)
+✔ credential-shaped value table: a URL with user:pass@ is refused (0.094059ms)
+✔ credential-shaped value table: a URL with only a user@ is allowed (0.064118ms)
+✔ credential-shaped value table: a colon-at pair in the URL path is allowed (0.037826ms)
+✔ credential-shaped value table: Basic with trailing whitespace is refused (0.066484ms)
+✔ credential-shaped value table: Basic followed by more words is allowed (0.370226ms)
+✔ credential-shaped value table: Basic preceded by a word is allowed (0.081174ms)
+✔ credential-shaped value table: Bearer with several spaces is refused (0.060235ms)
+✔ credential-shaped value table: Basic with several spaces is refused (0.049138ms)
+✔ credential-shaped value table: Basic glued to a preceding token is allowed (0.051444ms)
+✔ credential-shaped value table: unpadded Basic base64 is refused (0.060695ms)
+✔ credential-shaped value table: double-padded Basic base64 is refused (0.040229ms)
+✔ null config values are allowed (only strings are scanned, objects are walked) (0.135443ms)
+✔ a refused field path is echoed whole up to 80 characters and truncated beyond (2.434985ms)
+✔ only allowlisted, non-secret workspace values pack; secrets, user values, crawl controls and other namespaces never do (247.744463ms)
+✔ a share image URL on this computer does not pack, and a hand-made one is refused (194.858736ms)
+✔ the destination refuses a bundle naming a setting outside the allowlist, and never writes it (194.701688ms)
+✔ settings round-trip: created, then unchanged; the ledger records the write; a live edit is a conflict (227.353121ms)
+✔ a setting cleared on the source clears on the live site through the ledger, then re-plans unchanged (323.280596ms)
+✔ a cleared setting the live site never had lands as a clear too; a never-set one packs nothing (329.500957ms)
+✔ a title the destination's bounds reject is blocked, not written (258.26319ms)
+✔ active theme: a missing theme folder is refused; once it is there the switch lands and re-plans unchanged (195.155951ms)
+✔ active theme: the row is named by the theme's theme.json name, without touching its state or hash (226.158344ms)
+✔ active theme: a blank theme.json name is no display name, and an invalid theme folder is not an installed tree (212.333501ms)
+✔ active theme: only the 'site' row exists, and an unparsable updatedAt inspects as version 0 (187.713312ms)
+✔ active theme: a destination with no presentation row is refused cleanly (195.008083ms)
+✔ active theme: a denied theme.set cannot switch an installed theme (199.863669ms)
+✔ share-image local detection rejects malformed absolute URLs and every supported local host (0.521073ms)
+✔ share-image local detection is anchored: look-alike public hosts are not local (0.152705ms)
+✔ share-image references carry only UUID media identities, and other settings never add references (193.576069ms)
+✔ a share image targeting this computer is refused again at apply without writing a value or revision (191.648738ms)
+✔ allowlisted settings still refuse ineligible definitions: {"secret":true} (206.868849ms)
+✔ allowlisted settings still refuse ineligible definitions: {"scopes":4} (256.035401ms)
+✔ allowlisted settings still refuse ineligible definitions: {"status":"deprecated"} (220.180451ms)
+✔ an allowlisted setting with no destination definition is refused (274.603107ms)
+✔ an omitted incoming setting value is written as null through the revision ledger (186.252507ms)
+✔ every visitor-tools agent tool keeps its exact permission, side effect and strict input schema (2.341394ms)
+✔ the configure tool id pattern is anchored: a valid id passes, look-alikes do not (0.501866ms)
+✔ S3 provider metadata and plain start expose no client secrets; callback cookie is host-only and scoped (50.158111ms)
+✔ S3 missing callback binding refuses before exchange and clears cookie (48.270876ms)
+✔ S3 wrong callback binding refuses before exchange and clears cookie (9.678301ms)
+✔ S3 duplicate callback binding refuses before exchange and clears cookie (7.565108ms)
+✔ S3 duplicate-spaced callback binding refuses before exchange and clears cookie (10.885134ms)
+✔ S3 forwarded callback binding refuses before exchange and clears cookie (6.10425ms)
+✔ S3 tampered callback is refused without revealing upstream diagnostics (7.025676ms)
+✔ S3 expired callback is refused without revealing upstream diagnostics (7.054289ms)
+✔ S3 denied callback is refused without revealing upstream diagnostics (6.401629ms)
+✔ S3 duplicate-state callback is refused without revealing upstream diagnostics (6.470097ms)
+✔ S3 duplicate-code callback is refused without revealing upstream diagnostics (5.877051ms)
+✔ S3 invalid OIDC claim {"iss":"https://attacker.example"} never creates a member session (13.449207ms)
+✔ S3 invalid OIDC claim {"aud":"wrong"} never creates a member session (7.209206ms)
+✔ S3 invalid OIDC claim {"nonce":"wrong"} never creates a member session (6.973073ms)
+✔ S3 invalid OIDC claim {"exp":1} never creates a member session (7.275313ms)
+✔ S3 invalid OIDC claim {} never creates a member session (11.91131ms)
+✔ S3 invalid OIDC claim {"email_verified":"true"} never creates a member session (7.9628ms)
+✔ S3 invalid OIDC claim {"email_verified":false} never creates a member session (7.882343ms)
+✔ S3 invalid signature fails closed (8.516972ms)
+✔ S3 first auto-link activates pending and revokes active members' existing sessions (29.718578ms)
+✔ S3 disabled member cannot link or mint a session (8.169835ms)
+✔ S3 trash member cannot link or mint a session (7.772555ms)
+✔ S3 signed-in connect binds to that member on both legs and /me rejects duplicate member cookies (10.338256ms)
+✔ S3 custom domain requires one browser-bound emailed code; retries spend budget, success clears proof and replay fails (44.717331ms)
+✔ S3 continuation missing refuses before consuming inbox code (14.197843ms)
+✔ S3 continuation wrong refuses before consuming inbox code (11.282324ms)
+✔ S3 continuation duplicate refuses before consuming inbox code (10.732592ms)
+✔ S3 continuation tamper refuses before consuming inbox code (10.622303ms)
+✔ S3 continuation expire refuses before consuming inbox code (11.580463ms)
+✔ S3 continuation disable refuses before consuming inbox code (9.323899ms)
+✔ S3 continuation csrf refuses before consuming inbox code (7.548492ms)
+✔ S3 continuation inject refuses before consuming inbox code (7.75325ms)
+✔ S3 linked subject keeps original member when its provider email changes (11.984124ms)
+✔ S3 unlink marks identity, revokes all old sessions, reissues current, blocks auto-link and permits deliberate reconnect (18.919848ms)
+✔ S3 unlink refuses stale without altering association or issuing a session (7.075464ms)
+✔ S3 unlink refuses no-alternative without altering association or issuing a session (10.872621ms)
+✔ S3 unlink refuses csrf without altering association or issuing a session (8.209511ms)
+✔ S3 unlink refuses duplicate without altering association or issuing a session (8.125138ms)
+✔ S3 unlink refuses staff without altering association or issuing a session (7.638024ms)
+✔ S3 unlink refuses foreign-workspace without altering association or issuing a session (8.604273ms)
+✔ S3 strict IP limiter stops start and callback before protocol I/O (7.446667ms)
+✔ S3 cross-site start is refused before a binding cookie; a revoked member cookie starts anonymously (11.192678ms)
+✔ S3 unlink fences outstanding anonymous redirects and signed-in connects (21.371247ms)
+✔ S3 provider disable after start and workspace mismatch refuse completion before exchange (10.058331ms)
+✔ S3 a pending member's provisioned password is not a usable alternative for unlink (15.715379ms)
+✔ S3 unlink accepts a session exactly 15 minutes old (12.010248ms)
+✔ S3 unlink refuses a session 15 minutes and 1 ms old as LOGIN_BLOCKED (10.897822ms)
+✔ S3 unlink refuses a session dated 1 ms in the future as LOGIN_BLOCKED (11.970911ms)
+✔ S3 unlink refuses a non-empty or non-object body [] as LOGIN_INVALID (11.599764ms)
+✔ S3 unlink refuses a non-empty or non-object body ["google"] as LOGIN_INVALID (13.279894ms)
+✔ S3 unlink refuses a non-empty or non-object body {"providerId":"google"} as LOGIN_INVALID (11.718172ms)
+✔ S3 unlinking an already-unlinked provider is LOGIN_INVALID and issues no session (14.566031ms)
+✔ S3 unlink: an active member with a password needs no verified inbox, and the reply is exactly {ok:true} (11.953175ms)
+✔ S3 unlink: with no password and no verified inbox there is no alternative sign-in (LOGIN_BLOCKED) (11.845899ms)
+✔ S3 unlink and verify-email stop at their strict limiters with 429 and change nothing (13.619354ms)
+✔ S3 /me still lists linked identities (labelled by provider id) when the provider list cannot load (11.257303ms)
+✔ D2: fresh link session sets a password and retains only its own cookie session (274.978846ms)
+✔ D2: fresh code session sets a password and retains only its own cookie session (140.184975ms)
+✔ D2: existing password gives uniform 401 for missing/wrong proof and changes with exact proof (120.253373ms)
+✔ D2: passwordless stale session returns UI reauthentication code and leaves credentials untouched (79.720756ms)
+✔ D2: missing/staff/unknown/revoked/expired cookies and disabled members cannot set a password (88.233967ms)
+✔ D2: member limiter denies before hashing; the member counter is charged only after IP admission (100.713402ms)
+✔ D2: ip limiter denies before hashing; the member counter is charged only after IP admission (89.395518ms)
+✔ D2: LOGIN_STRICT exhausts after ten current-password guesses and resets after the window (100.199579ms)
+✔ D2: set-password policy matches reset and workspace mismatch is 404 (93.164395ms)
+✔ password account classes, links, codes and reset failures share exactly one 401 (127.935462ms)
+✔ every member POST refuses cross-origin and form requests before service work (127.149317ms)
+✔ malformed body shapes and missing IDs return 400 before repository access (121.06927ms)
+✔ T30: password limits check normalized email only after IP admission (158.820235ms)
+✔ T30: forgot and sign-in skip the shared email counter when their IP is denied (76.977159ms)
+✔ password bodies over 4 KB stop before lookup or hashing (78.322748ms)
+✔ sign-in: known, missing and disabled acceptance does not await lookup (108.129942ms)
+✔ sign-in: response does not await suppressed mail (130.279797ms)
+✔ sign-in: site-wide missing mail or origin stays 503 before address lookup (159.782635ms)
+✔ forgot-password: known, missing and disabled acceptance does not await lookup (101.545944ms)
+✔ forgot-password: response does not await suppressed mail (107.788557ms)
+✔ forgot-password: site-wide missing mail or origin stays 503 before address lookup (171.760934ms)
+✔ password session, /me status/no-store, and idempotent sign-out share cookie attributes (133.234499ms)
+✔ link/code purpose and replay failures share 401; reset accepts one-character passwords without a cookie (142.067729ms)
+✔ challenge CAS rejection is 401 but database outage surfaces as 500 (105.331085ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ createApp uses the staff hasher and admin routes reject a valid member cookie (559.806252ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+✔ memory-only createApp still changes passwords and revalidates concurrent changes (352.289862ms)
+✔ expired, consumed, exhausted, wrong-purpose and wrong-code challenges share the same 401 (156.644471ms)
+✔ /me under a foreign workspace id is 404 even with a valid member session cookie (125.784417ms)
+✔ the member session cookie's Max-Age is the session's remaining lifetime (102.50612ms)
+✔ sign-in completion stops at its per-IP limiter with 429 before the challenge is read (136.302803ms)
+✔ ceremony authorization preserves the human deps bag and replaces it only for a publishing context (1.477653ms)
+✔ content authorization returns the identical human deps bag and original authorize function (0.264507ms)
+✔ a publishing grant authorizes only the registered entity types it names (0.323144ms)
+✔ a publishing grant answers by the publish-type stamp, and refuses what no registered type declares (0.251148ms)
+✔ raw-row: allowed only with apply + backstop + the type named in the grant (0.276757ms)
+✔ raw-file: allowed only with apply + backstop + the type named in the grant (0.197521ms)
+✔ an ordinary type needs no backstop opt-in, and a backstop opt-in never widens it to unnamed types (0.271474ms)
+[routes/api-keys/deps] {
+  errorId: '44fbfb20-90b7-403f-86f4-9ed5acd3e54d',
+  diagnostic: 'Error: db fault /private/keys.db with raw secret\n' +
+    '    at InMemoryPrincipalRepo.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:56:34)\n' +
+    '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n' +
+    '    at <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:60:36)\n' +
+    '    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)\n' +
+    '    at exclusive (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:34:28)\n' +
+    '    at async createApiKeyPrincipal (/home/user/Tovu/apps/website/src/features/identity/api-key-service.ts:166:3)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/create-principal.ts:31:29)\n' +
+    '    at async invoke (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:52:3)\n' +
+    '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:63:19)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)'
+}
+[routes/api-keys/deps] {
+  errorId: 'd7d559c2-ab8e-4624-8f4f-fb69c1733493',
+  diagnostic: 'Error: db fault /private/keys.db with raw secret\n' +
+    '    at fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:56:34)\n' +
+    '    at InMemoryPrincipalRepo.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:74:135)\n' +
+    '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n' +
+    '    at <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:60:36)\n' +
+    '    at exclusive (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:27:44)\n' +
+    '    at Proxy.<anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:58:36)\n' +
+    '    at findIssuableTargetOrThrow (/home/user/Tovu/apps/website/src/features/identity/api-key-service.ts:200:46)\n' +
+    '    at execute (/home/user/Tovu/apps/website/src/features/identity/api-key-service.ts:300:11)\n' +
+    '    at async <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:50:16)\n' +
+    '    at async exclusive (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:34:14)'
+}
+[routes/api-keys/deps] {
+  errorId: '73444662-4bf3-49f9-8bde-aa8b731ef5b2',
+  diagnostic: 'Error: db fault /private/keys.db with raw secret\n' +
+    '    at InMemoryApiKeyRepo.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:56:34)\n' +
+    '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n' +
+    '    at revokeApiKey (/home/user/Tovu/apps/website/src/features/identity/api-key-service.ts:394:39)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/revoke.ts:26:7)\n' +
+    '    at async invoke (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:52:3)\n' +
+    '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts:86:19)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+✔ API-key principal create redacts a persistence failure after a valid request (15.79196ms)
+✔ API-key issuance redacts an unexpected target lookup failure (3.382904ms)
+✔ API-key revoke redacts an unexpected key lookup failure (3.023769ms)
+✔ revoking an unknown key returns RESOURCE_NOT_FOUND rather than a success receipt (1.007372ms)
+✔ API-key revoke: `req.params.id ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers the ordinary not-found (1.154373ms)
+✔ API-key issuance without a request body is a 400 refusal, not a 500 (1.084089ms)
+✔ API-key principal create without a request body is a 400 refusal, not a 500 (0.891164ms)
+✔ API-key issuance refuses an api-key credential with 403 and writes nothing (0.628913ms)
+✔ API-key principal create refuses an api-key credential with 403 and writes nothing (0.751451ms)
+/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares-job-id.unit.test.ts:5
+import { readShareJobId } from "../site-shares.js";
+         ^
+SyntaxError: The requested module '../site-shares.js' does not provide an export named 'readShareJobId'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares-job-id.unit.test.ts (1918.959003ms)
+✔ rate limit: an over-limit caller gets 429 before any state lookup or token exchange (40.760658ms)
+✔ state: a missing, empty or oversized state is refused as no_state without touching the store (8.429932ms)
+✔ state: a state of exactly 512 chars passes the size gate and is looked up (3.113388ms)
+✔ state: a repeated state parameter (not one string) is refused as no_state (6.030021ms)
+✔ security: an attempt row naming another workspace is answered like an unknown state, with no exchange (25.712035ms)
+✔ state: an attempt whose connection is no longer declared is answered like an unknown state, with no exchange (5.294959ms)
+✔ failures: an attempt that expired before its callback renders state_expired (invalid-attempt) (6.600373ms)
+✔ failures: an older attempt a newer completed sign-in superseded renders state_expired (22.932063ms)
+✔ failures: the person declining at the provider renders provider_denied, and nothing is exchanged (5.467381ms)
+✔ failures: a fault that is not an API-connection error renders exchange_failed and logs its name only (15.078974ms)
+✔ success: the page is the fixed no-store success page with the API-connection message type (11.301406ms)
+✔ log: without an injected log the failure goes to console.error by name and code; a callback on another address than the attempt's is refused (7.941352ms)
+✔ security (F1): a callback whose browser carries no binding cookie is refused as state_expired and installs nothing (5.737521ms)
+✔ security (F1): a callback carrying another sign-in's binding is refused as state_expired and installs nothing (7.843026ms)
+✔ security (F1): a malformed binding cookie counts as none (refused), never as a partial match (17.880314ms)
+✔ security (F1): the starting browser's callback succeeds and the binding cookie is cleared, on success and on a refusal (17.865459ms)
+✔ security (F1): a callback that never reaches a known attempt leaves the binding cookie alone (a stray request cannot cancel a sign-in) (2.825057ms)
+✔ failures: switching to the account that is already connected renders account_unchanged, not a retryable exchange failure (21.715999ms)
+✔ failures: an API-connection error with any other code still renders exchange_failed, logging only its code (6.704728ms)
+/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts:5
+import { completionCredential } from "../complete-sign-in.js";
+         ^
+SyntaxError: The requested module '../complete-sign-in.js' does not provide an export named 'completionCredential'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts (2096.335157ms)
+/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts:5
+import { callbackParams } from "../oidc-callback.js";
+         ^
+SyntaxError: The requested module '../oidc-callback.js' does not provide an export named 'callbackParams'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts (2103.846328ms)
+✔ pin then read uses the selected scheme and port over inherited PORT and TLS fallback (1.159023ms)
+✔ http: direct composition uses the configured PORT (0.267245ms)
+✔ https: direct composition uses the configured PORT (0.107385ms)
+✔ pinSiteListenerOrigin: host undefined is advertised as http://localhost:4000 (0.117565ms)
+✔ pinSiteListenerOrigin: host "" is advertised as http://localhost:4000 (0.141728ms)
+✔ pinSiteListenerOrigin: host "0.0.0.0" is advertised as http://localhost:4000 (0.100469ms)
+✔ pinSiteListenerOrigin: host "::" is advertised as http://localhost:4000 (0.082427ms)
+✔ pinSiteListenerOrigin: host "127.0.0.1" is advertised as http://127.0.0.1:4000 (1.818914ms)
+✔ pinSiteListenerOrigin: host "::1" is advertised as http://[::1]:4000 (0.318207ms)
+✔ pinSiteListenerOrigin: host "site.example" is advertised as http://site.example:4000 (0.267781ms)
+✔ pinSiteListenerOrigin: host "0.0.0.1" is advertised as http://0.0.0.1:4000 (0.083335ms)
+✔ readSiteListenerOrigin throws on an invalid pinned origin instead of falling back (0.702133ms)
+ℹ tests 361
+ℹ suites 2
+ℹ pass 351
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58093.485973
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts:1:7712
+✖ SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently (4.872384ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'agent_plugin_connect',
+      'agent_plugins_update',
+      'assistant_ask_choice',
+      'assistant_demo_choices',
+  ...
+      'members_delete',
+  -   'members_delete',
+      'newsletter_resume_campaign',
+      'newsletter_schedule_campaign',
+      'newsletter_send_campaign',
+      'page.click',
+      'plugin_source_delete',
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts:251:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'agent_plugin_connect',              'agent_plugins_update',
+      'assistant_ask_choice',              'assistant_demo_choices',
+      'assistant_tool_failure_recovery',   'backup_execute_restore',
+      'change_sets_revert',                'collections_content_type_tombstone',
+      'comments_purge_comment',            'comments_set_provider',
+      'comments_trash_comment',            'commerce_resolve_unknown',
+      'consent_publish_settings',          'consent_update_settings',
+      'content_post_delete',               'content_post_search',
+      'credential_copy_from_project',      'credential_save',
+      'custom_credential_delete',          'custom_credential_make_request',
+      'database_execute_migrate_forward',  'database_transfer_run',
+      'database_transfer_set_destination', 'deployment_delete_provider_credential',
+      'deployment_execute_static_publish', 'deployment_ops_deploy',
+      'deployment_ops_set_secret',         'deployment_ops_unset_secret',
+      'external_mcp_delete',               'external_mcp_reauth_prompt',
+      'external_mcp_save',                 'files_copy',
+      'fs_write_files',                    'identity_policy_delete',
+      'identity_role_delete',              'identity_user_create',
+      'identity_user_delete',              'image_transform',
+      'mail_remove_suppression',           'mail_send_test',
+      'mail_set_provider',                 'media_purge_asset',
+      'media_trash_asset',                 'members_delete',
+      'newsletter_resume_campaign',        'newsletter_schedule_campaign',
+      'newsletter_send_campaign',          'page.click',
+      'plugin_source_delete',              'plugins_set_enabled',
+      'plugins_uninstall',                 'publish_content_execute_pull',
+      'publish_content_publish',           'redirects_tombstone',
+      'search_reindex',                    'search_set_provider',
+      'settings_clear_value',              'settings_set_value',
+      'site_restart',                      'source_control_delete_credential',
+      'source_control_execute_commit',     'taxonomy_execute_merge_term',
+      'theme_duplicate',                   'theme_set_active',
+      'theme_trash',                       'theme_trash_file',
+      'trash_empty',                       'trash_item',
+      'trash_purge_item',                  'visitor_tool_configure',
+      'webhooks_delete_subscription',      'widgets_trash_instance'
+    ],
+    expected: [
+      'agent_plugin_connect',              'agent_plugins_update',
+      'assistant_ask_choice',              'assistant_demo_choices',
+      'assistant_tool_failure_recovery',   'backup_execute_restore',
+      'change_sets_revert',                'collections_content_type_tombstone',
+      'comments_purge_comment',            'comments_set_provider',
+      'comments_trash_comment',            'commerce_resolve_unknown',
+      'consent_publish_settings',          'consent_update_settings',
+      'content_post_delete',               'content_post_search',
+      'credential_copy_from_project',      'credential_save',
+      'custom_credential_delete',          'custom_credential_make_request',
+      'database_execute_migrate_forward',  'database_transfer_run',
+      'database_transfer_set_destination', 'deployment_delete_provider_credential',
+      'deployment_execute_static_publish', 'deployment_ops_deploy',
+      'deployment_ops_set_secret',         'deployment_ops_unset_secret',
+      'external_mcp_delete',               'external_mcp_reauth_prompt',
+      'external_mcp_save',                 'files_copy',
+      'fs_write_files',                    'identity_policy_delete',
+      'identity_role_delete',              'identity_user_create',
+      'identity_user_delete',              'image_transform',
+      'mail_remove_suppression',           'mail_send_test',
+      'mail_set_provider',                 'media_purge_asset',
+      'media_trash_asset',                 'members_delete',
+      'members_delete',                    'newsletter_resume_campaign',
+      'newsletter_schedule_campaign',      'newsletter_send_campaign',
+      'page.click',                        'plugin_source_delete',
+      'plugins_set_enabled',               'plugins_uninstall',
+      'publish_content_execute_pull',      'publish_content_publish',
+      'redirects_tombstone',               'search_reindex',
+      'search_set_provider',               'settings_clear_value',
+      'settings_set_value',                'site_restart',
+      'source_control_delete_credential',  'source_control_execute_commit',
+      'taxonomy_execute_merge_term',       'theme_duplicate',
+      'theme_set_active',                  'theme_trash',
+      'theme_trash_file',                  'trash_empty',
+      'trash_item',                        'trash_purge_item',
+      'visitor_tool_configure',            'webhooks_delete_subscription',
+      'widgets_trash_instance'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/database-transfer/__tests__/destination-store.authorize.unit.test.ts:1:1
+✖ apps/website/src/features/database-transfer/__tests__/destination-store.authorize.unit.test.ts (1598.62459ms)
+  'test failed'
+
+test at apps/website/src/features/database-transfer/__tests__/exclusions.unit.test.ts:1:1562
+✖ the member password hash is copied by a transfer but never by a public site share (5.317538ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/exclusions.unit.test.ts:43:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/member-login/__tests__/ready-providers.test.ts:1:1844
+✖ an admitted provider without a client card is not ready; saving one makes it ready on the next call (3.322425ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+      at fixture (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:21:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:36:13)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/member-login/__tests__/ready-providers.test.ts:1:2151
+✖ a client card in another workspace does not make this workspace's provider ready (0.419485ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+      at fixture (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:21:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:43:13)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/member-login/__tests__/ready-providers.test.ts:1:2354
+✖ a client card bound to a foreign token URL is not ready (0.495839ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+      at fixture (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:21:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:49:13)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/member-login/__tests__/ready-providers.test.ts:1:2559
+✖ a configured card cannot ready a provider shipped by a non-bundled plugin (0.311779ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+      at fixture (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:21:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/member-login/__tests__/ready-providers.test.ts:55:13)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares-job-id.unit.test.ts:1:1
+✖ apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares-job-id.unit.test.ts (1918.959003ms)
+  'test failed'
+
+test at apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts:1:1
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/member-proof-bodies.unit.test.ts (2096.335157ms)
+  'test failed'
+
+test at apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts:1:1
+✖ apps/website/src/server/inbound/public-http/routes/members/__tests__/oidc-callback-params.unit.test.ts (2103.846328ms)
+  'test failed'
