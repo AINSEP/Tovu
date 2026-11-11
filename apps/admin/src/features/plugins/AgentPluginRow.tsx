@@ -1,11 +1,12 @@
 import { agentHandle } from "@jini-ai/agentic";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { useId, type ReactNode } from "react";
 import { AgentPluginLinkedLock } from "./AgentPluginLinkedLock";
-import { AgentPluginMaturity } from "./AgentPluginMaturity";
+import { AgentPluginMaturity, SOON_PLUGIN_TIP } from "./AgentPluginMaturity";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
-import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
+import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "./agent-plugins-visuals";
 import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 
@@ -108,6 +109,23 @@ function AgentPluginRowStateArea({
   agentHandleBase: string;
   displayName: string;
 }) {
+  // "Soon" plugins are locked off (owner 2026-11-10): the server refuses to switch one on, so the
+  // switch shows disabled on both tabs, ahead of a linked face's padlock. A disabled control is not
+  // focusable, so the padlock tip beside it carries the reason to keyboard and touch. A Soon plugin
+  // still on (boot switches those off) keeps its real switch so it can be turned off.
+  if (plugin.maturity === "soon" && !plugin.enabled) {
+    return (
+      <>
+        <span className="agent-plugin-state">{t("Disabled")}</span>
+        <button type="button" role="switch" aria-checked={false} aria-label={agentPluginToggleAriaLabel(plugin, locale)} disabled className="agent-plugin-switch">
+          <span className="agent-plugin-switch-knob" aria-hidden="true" />
+        </button>
+        <span className="agent-plugin-linked-lock">
+          <InfoTip label={t(SOON_PLUGIN_TIP)} icon={<LockIcon />} agentHandle={`${agentHandleBase}-soon`} />
+        </span>
+      </>
+    );
+  }
   // One vendor, one switch (owner 2026-10-25): this plugin follows its provider plugin's switch on
   // the Plugins screen, so on both tabs it shows its state beside a padlock that explains and links
   // there, instead of a switch of its own.

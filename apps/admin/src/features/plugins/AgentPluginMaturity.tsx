@@ -2,7 +2,11 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminAgentPlugin } from "@/lib/api";
 
-/** Reuse the shared tap/keyboard tooltip; native titles leave touch users without the warning. */
+/** Why a "Soon" plugin is locked off (owner, 2026-11-10); shared by the tag and the disabled switch. */
+export const SOON_PLUGIN_TIP = "Not ready for production use yet. You can still view its files.";
+
+/** Reuse the shared tap/keyboard tooltip; native titles leave touch users without the warning.
+ *  "untested" is a warning only; "soon" is locked off, so its tip says it can't be used yet. */
 export function AgentPluginMaturity({ maturity, t }: { maturity: AdminAgentPlugin["maturity"]; t: Translate }) {
   if (!maturity) return null;
   const label = maturity === "untested" ? t("Untested") : t("Soon");
@@ -10,7 +14,7 @@ export function AgentPluginMaturity({ maturity, t }: { maturity: AdminAgentPlugi
     <span className="agent-plugin-maturity">
       <InfoTip
         triggerLabel={label}
-        label={t("Not yet tested end to end. It may not work.")}
+        label={maturity === "untested" ? t("Not yet tested end to end. It may not work.") : t(SOON_PLUGIN_TIP)}
         icon={<span className="soon">{label}</span>}
       />
     </span>

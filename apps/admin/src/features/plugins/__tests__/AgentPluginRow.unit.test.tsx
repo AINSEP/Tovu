@@ -56,7 +56,10 @@ function renderExpandedRow(plugin: {
   return screen.getByRole("listitem", { name: "Tovu Theme" });
 }
 
-it.each([["untested", "Untested"], ["soon", "Soon"]] as const)("renders the %s pill beside the version with a warning that stays open after a tap", (maturity, label) => {
+it.each([
+  ["untested", "Untested", "Not yet tested end to end. It may not work."],
+  ["soon", "Soon", "Not ready for production use yet. You can still view its files."],
+] as const)("renders the %s pill beside the version with a warning that stays open after a tap", (maturity, label, tip) => {
   const onToggleExpanded = vi.fn();
   const row = renderExpandedRow({ description: null, maturity }, onToggleExpanded);
   const trigger = within(row).getByRole("button", { name: label });
@@ -67,9 +70,35 @@ it.each([["untested", "Untested"], ["soon", "Soon"]] as const)("renders the %s p
   expect(onToggleExpanded).not.toHaveBeenCalled();
   fireEvent.mouseLeave(trigger);
   expect(trigger).toHaveAttribute("aria-expanded", "true");
-  expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Not yet tested end to end. It may not work.");
+  expect(document.querySelector(".info-tip-bubble")).toHaveTextContent(tip);
   fireEvent.click(trigger);
   expect(trigger).toHaveAttribute("aria-expanded", "false");
+});
+
+it.each(["toggle", "remove-or-enable"] as const)("a Soon plugin's switch is disabled on the %s tab, and a padlock tip says why to keyboard and touch", (kind) => {
+  const onToggleEnabled = vi.fn(); const onEnable = vi.fn(); const onInspect = vi.fn();
+  render(<ul><AgentPluginRow
+    plugin={{ pluginId: "posthog", version: "1.0.0", description: null, enabled: false, maturity: "soon", providerPlugin: "analytics-posthog", keywords: [], skills: [], mcpServerIds: [] }}
+    t={(key) => key} locale="en" expanded={false} busy={false} onToggleExpanded={vi.fn()}
+    stateControl={kind === "toggle" ? { kind, onToggleEnabled } : { kind, onEnable, onRemove: vi.fn() }}
+    onInspect={onInspect} uninstallNoteId="uninstall-note" agentHandleBase="row-posthog"
+  /></ul>);
+  const row = screen.getByRole("listitem", { name: "Posthog" });
+  const toggle = within(row).getByRole("switch");
+  expect(toggle).toBeDisabled();
+  fireEvent.click(toggle);
+  expect(onToggleEnabled).not.toHaveBeenCalled(); expect(onEnable).not.toHaveBeenCalled();
+  expect(within(row).queryByRole("button", { name: "Enable" })).toBeNull();
+  // Not the linked padlock that points at the Plugins page: a Soon face can't be switched on there either.
+  expect(within(row).queryByRole("button", { name: LINKED_PLUGIN_TIP })).toBeNull();
+  const tip = within(row).getByRole("button", { name: "Not ready for production use yet. You can still view its files." });
+  tip.focus();
+  expect(tip).toHaveFocus();
+  fireEvent.click(tip);
+  expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Not ready for production use yet. You can still view its files.");
+  // Viewing its files still works.
+  fireEvent.click(within(row).getByRole("button", { name: /Inspect package files/ }));
+  expect(onInspect).toHaveBeenCalled();
 });
 
 it("omits the maturity pill for a normal plugin", () => {
