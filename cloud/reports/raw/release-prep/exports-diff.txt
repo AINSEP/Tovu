@@ -1,0 +1,14 @@
+@jini-ai/agent-plugins REMOVED: - | ADDED: 17
+@jini-ai/chat REMOVED: - | ADDED: 1
+@jini-ai/cms REMOVED: ./consent ./consent/html ./consent/node ./consent/express | ADDED: 2
+@jini-ai/commerce REMOVED: - | ADDED: 2
+@jini-ai/cookie-consent REMOVED: - | ADDED: 1
+@jini-ai/core REMOVED: - | ADDED: 7
+@jini-ai/daemon REMOVED: - | ADDED: 1
+@jini-ai/db REMOVED: - | ADDED: 1
+@jini-ai/http-kit REMOVED: - | ADDED: 1
+@jini-ai/integrations REMOVED: - | ADDED: 3
+@jini-ai/mcp REMOVED: - | ADDED: 1
+@jini-ai/plugins REMOVED: - | ADDED: 1
+@jini-ai/provider-plugins REMOVED: - | ADDED: 4
+@jini-ai/ui REMOVED: - | ADDED: 5

@@ -1,0 +1,5 @@
+install 0
+core 0
+build 0
+declaration baseline: 35c4961af718f0f30591c46d2ea2756c4484a731; 3308 source mappings; /home/user/xp3-baseline
+baseline 0

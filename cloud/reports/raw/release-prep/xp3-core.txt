@@ -1,0 +1,4 @@
+
+> @jini-ai/core@0.6.23 build /home/user/xp3-src/packages/core
+> tsc -p tsconfig.json
+
