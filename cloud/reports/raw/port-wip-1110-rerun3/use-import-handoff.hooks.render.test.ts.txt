@@ -1,0 +1,14 @@
+✔ useImportHandoff: a valid address is typed in, then the Import tab opens (851.156736ms)
+✔ useImportHandoff: no address, or one the Import page would refuse, opens the tab without typing anything (1.885367ms)
+✔ useImportHandoff: while an import runs, the address it is using is left alone (1.605986ms)
+✔ useImportHandoff: subscribes once and detaches on unmount; without a bridge nothing subscribes (3.784116ms)
+✔ handoffAddress: only a string the Import page accepts survives (0.212208ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1219.743675
+exit 0

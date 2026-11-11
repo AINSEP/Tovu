@@ -1,0 +1,16 @@
+✔ the preload config includes speech source and the deployed bundle is fresh (1.407878ms)
+✔ the compiled preload requires nothing but "electron" — a sandboxed preload's require resolves no relative specifier (0.896483ms)
+✔ window.tovuFiles and window.tovuImport are exposed on the admin surface — /admin and every path under /admin/ (3.60892ms)
+✔ window.tovuFiles and window.tovuImport are NOT exposed to same-origin public pages, previews, or look-alike paths (4.708135ms)
+✔ compiled voice bridge forwards the channels, sample object and sample rate and returns IPC results (1.190743ms)
+✔ compiled admin file bridge delegates to webUtils and returns the resolved path (2.737371ms)
+✔ compiled admin import bridge asks main to open the Import tab, forwarding only a string address (1.525531ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 391.520683
+exit 0
