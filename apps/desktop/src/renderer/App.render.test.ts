@@ -477,7 +477,11 @@ test('App: Import is a temporary tab right after All; Cancel or its close button
   await app.click(app.byText('Import'));
   assert.deepEqual(tabLabels(app), ['All', 'Import']);
   assert.equal(title(), 'Import a website');
-  assert.equal(app.container.querySelector('.back-link'), null, 'the tab is the way back; no back link');
+  // Scoped to the Import page: the hidden Create form stays mounted and has its own back link.
+  // Compare a string, never a jsdom node: a failing compare of a node makes node:test print the whole page (13 GB).
+  const importPage = app.container.querySelector('section[aria-label="Import a website"]');
+  assert.ok(importPage, 'the Import page is shown');
+  assert.equal(importPage.querySelector('.back-link')?.outerHTML ?? null, null, 'the tab is the way back; no back link');
   await app.click(inImportPage(app, 'Cancel'));
   assert.deepEqual(tabLabels(app), ['All'], 'Cancel closes the tab');
   await app.click(app.byText('Import'));
