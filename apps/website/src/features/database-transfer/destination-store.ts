@@ -56,6 +56,15 @@ const destinationKinds = createTovuVaultKinds({ policy: {
   validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined,
 } });
 
+/** The vault's access check: only the site-wide (`principalId: null`) Tovu database-destination
+ * scope may open the sealed address; any other kind, owner or principal is refused with `context`. */
+export async function authorizeDestinationVaultContext(
+  { context }: { readonly context: { readonly kind: string; readonly ownerKey: string; readonly principalId: string | null } },
+  _options = {}
+): Promise<void> {
+  if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
+}
+
 export class SealedDatabaseDestinationStore implements DatabaseDestinationStorePort {
   private readonly vault: SecretsVaultService;
   private readonly deps: { readonly repo: DatabaseDestinationRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort };
@@ -63,9 +72,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
     this.deps = deps;
     this.vault = new SecretsVaultService({ ...deps, metaParsers: destinationKinds.metaParsers,
       now: () => new Date().toISOString(), newId: () => 'vault:["database-destination",null]',
-      authorize: async ({ context }) => {
-        if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
-      } });
+      authorize: authorizeDestinationVaultContext });
   }
 
   /** One indexed singleton read and at most one open; raw crypto errors never leave the store. */
