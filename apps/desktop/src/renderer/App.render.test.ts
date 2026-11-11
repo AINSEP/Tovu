@@ -470,6 +470,8 @@ test('App: Import is a temporary tab right after All; Cancel or its close button
   const app = await renderApp(t, {
     listSites: async () => [site('a')],
     importSiteArchive: async () => ({ ...site('new', { displayName: 'Portable' }), warnings: [] }),
+    // The import starts its site; main answers with the same site, so its name stays Portable.
+    startSite: async (id: string) => site(id, { displayName: 'Portable', status: 'running', port: 4100 }),
   } as never);
   const title = () => app.container.querySelector('.main__title')?.textContent;
   await app.click(app.byText('Import'));
@@ -500,7 +502,8 @@ test('App: Import is a temporary tab right after All; Cancel or its close button
   await app.click(app.byText('Choose file…'));
   const labels = tabLabels(app);
   assert.equal(labels.includes('Import'), false, 'the Import tab gives way to the new site\'s tab');
-  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')));
+  // A message on purpose: a falsy assert.ok without one makes Node rebuild it from this file's source.
+  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site\'s tab is selected');
 });
 
 test('App: a live import starts its new site, shows Starting, then opens the admin Import page', async t => {

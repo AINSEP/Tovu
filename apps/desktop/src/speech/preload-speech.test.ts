@@ -151,7 +151,9 @@ test("compiled admin import bridge asks main to open the Import tab, forwarding 
   assert.deepEqual(await f.exposed.tovuImport.open({ address: "https://example.com", extra: "dropped" }), { opened: true });
   assert.deepEqual(await f.exposed.tovuImport.open({ address: 42 }), { opened: true });
   assert.deepEqual(await f.exposed.tovuImport.open(), { opened: true });
-  assert.deepEqual(f.invokes, [
+  // The payloads are built inside the preload's vm context, whose Object.prototype is not this
+  // file's, so strict deepEqual rejects them; JSON copies them into this realm (values unchanged).
+  assert.deepEqual(JSON.parse(JSON.stringify(f.invokes)), [
     [IMPORT_HANDOFF_CHANNELS.request, { address: "https://example.com" }],
     [IMPORT_HANDOFF_CHANNELS.request, {}],
     [IMPORT_HANDOFF_CHANNELS.request, {}],
