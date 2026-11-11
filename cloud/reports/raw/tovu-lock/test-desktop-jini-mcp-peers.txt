@@ -1,0 +1,17 @@
+✔ every Jini package selected for either packaged consumer classifies optional peers (82.397383ms)
+✔ a default runtime peer cannot be exempted just because it is installed (0.292085ms)
+✔ an explicit opt-in contract is the sole optional-peer exemption (0.133177ms)
+✔ packaged peer discovery follows transitive and required peer edges, but not development or optional peers (3.034315ms)
+✔ desktop model discovery declares its integrations runtime library (3.020332ms)
+✔ the packaged desktop can load its shared agent daemon supervisor without the site payload (2.172315ms)
+✔ runtime source imports declare their packages instead of relying on hoisting (2858.626979ms)
+✔ desktop terminal opt-in enters the required packaged dependency closure with its helper unpacked (5.471438ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3369.245496
+exit 0

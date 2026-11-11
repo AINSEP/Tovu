@@ -1,0 +1,143 @@
+
+> tovu-admin-shell@0.1.0 prebuild
+> npm --prefix ../../packages/contracts run build
+
+
+> @tovu/contracts@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> tovu-admin-shell@0.1.0 build
+> node ../../development/scripts/check-no-linked-jini.mjs && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+
+./bg/glass-bg.webp referenced in ./bg/glass-bg.webp didn't resolve at build time, it will remain unchanged to be resolved at runtime
+✓ 3689 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                               1.40 kB │ gzip:     0.71 kB
+dist/assets/remixicon-CZw4FkzQ.woff2                        189.22 kB
+dist/assets/InterVariable-DiVDrmQJ.woff2                    352.24 kB
+dist/assets/InterVariable-Italic-FCBEiFp6.woff2             387.98 kB
+dist/assets/index-CkRtTNtf.css                                0.05 kB │ gzip:     0.06 kB
+dist/assets/index-DK_5bWBE.css                                0.11 kB │ gzip:     0.08 kB
+dist/assets/index-BZ5LAbm5.css                                0.22 kB │ gzip:     0.16 kB
+dist/assets/index-C79a_eds.css                                0.34 kB │ gzip:     0.21 kB
+dist/assets/index-fkjSJ81c.css                                0.35 kB │ gzip:     0.18 kB
+dist/assets/index-DMDfRQqA.css                                0.99 kB │ gzip:     0.43 kB
+dist/assets/index-BuU61BwP.css                                1.65 kB │ gzip:     0.58 kB
+dist/assets/AdminAppearance-DNlELGPM.css                      2.08 kB │ gzip:     0.73 kB
+dist/assets/InstallTabCard-CbapmGgN.css                       3.18 kB │ gzip:     0.86 kB
+dist/assets/index-DPMBmQm2.css                                3.42 kB │ gzip:     1.07 kB
+dist/assets/index-C7nyNKUZ.css                                5.11 kB │ gzip:     1.28 kB
+dist/assets/index-CGVnubze.css                                6.94 kB │ gzip:     1.73 kB
+dist/assets/index-XLrs3Cs8.css                               10.55 kB │ gzip:     2.36 kB
+dist/assets/PageEditor-kcEUIu4-.css                          59.67 kB │ gzip:    12.40 kB
+dist/assets/remixicon-D9cWxkfR.css                          157.15 kB │ gzip:    21.02 kB
+dist/assets/index-BeCQZcBb.css                              521.03 kB │ gzip:    82.86 kB
+dist/assets/unhandled-case-DwWrjKtY.js                        0.03 kB │ gzip:     0.05 kB
+dist/assets/resolve-active-tab-id-BsClf-Ta.js                 0.12 kB │ gzip:     0.12 kB
+dist/assets/use-credential-hint.hooks-ZjknUENW.js             0.27 kB │ gzip:     0.19 kB
+dist/assets/use-async-action.hooks-Bi0Az_HZ.js                0.30 kB │ gzip:     0.23 kB
+dist/assets/trim-chars-yf2umfns.js                            0.31 kB │ gzip:     0.16 kB
+dist/assets/format-timestamp-CMJ6Oxp9.js                      0.32 kB │ gzip:     0.24 kB
+dist/assets/errors-D--_5gs3.js                                0.40 kB │ gzip:     0.29 kB
+dist/assets/credential-copy-TnvwbruI.js                       0.47 kB │ gzip:     0.33 kB
+dist/assets/theme-layout-Dunht-Ak.js                          0.54 kB │ gzip:     0.23 kB
+dist/assets/use-dirty-guard.hooks-BhukBi9c.js                 0.55 kB │ gzip:     0.37 kB
+dist/assets/DevtoolsComponent-B-JX7seJ-BDAdMJ-x.js            0.64 kB │ gzip:     0.35 kB
+dist/assets/SeoModuleTabs-Bdd-BNDM.js                         0.64 kB │ gzip:     0.36 kB
+dist/assets/DevtoolsPanelComponent-CdrNDWsc-SE36ZFxG.js       0.74 kB │ gzip:     0.40 kB
+dist/assets/CodeView-CmBBseqB.js                              1.01 kB │ gzip:     0.50 kB
+dist/assets/DevicePreviewToggle-CF69ssKa.js                   1.16 kB │ gzip:     0.59 kB
+dist/assets/index-Cc9mVKRa.js                                 1.21 kB │ gzip:     0.59 kB
+dist/assets/rules-myA0Hlg8.js                                 1.35 kB │ gzip:     0.67 kB
+dist/assets/theme-page-publish-state-D_nRg7AJ.js              1.53 kB │ gzip:     0.70 kB
+dist/assets/MediaPage-ysYq92HD.js                             1.84 kB │ gzip:     0.74 kB
+dist/assets/MediaPicker-CS62MIXY.js                           1.86 kB │ gzip:     0.84 kB
+dist/assets/IntegrationDeliveries-CwDBeEWq.js                 1.91 kB │ gzip:     0.81 kB
+dist/assets/MediaPage.hooks-DqeqXKze.js                       2.29 kB │ gzip:     1.10 kB
+dist/assets/WidgetRegions-_uH1mt2O.js                         2.70 kB │ gzip:     1.06 kB
+dist/assets/use-settings-slice.hooks-CETNQx2Q.js              3.08 kB │ gzip:     1.24 kB
+dist/assets/library.controller-CkplXzYq.js                    3.18 kB │ gzip:     1.28 kB
+dist/assets/Lightbox-ay7XNo0z.js                              3.43 kB │ gzip:     1.30 kB
+dist/assets/WidgetInstanceEditor-BM4IW5Ir.js                  3.46 kB │ gzip:     1.37 kB
+dist/assets/WidgetsLibrary-CK0TLLZn.js                        3.52 kB │ gzip:     1.38 kB
+dist/assets/html-attributes-Bw3IDKLo.js                       3.57 kB │ gzip:     1.67 kB
+dist/assets/WidgetRegionEditor-B2U8t26K.js                    3.65 kB │ gzip:     1.37 kB
+dist/assets/useMediaProvidersTab-jlv-5QAL.js                  4.51 kB │ gzip:     1.87 kB
+dist/assets/rules-C6OIxDQS.js                                 4.89 kB │ gzip:     1.79 kB
+dist/assets/descriptor-i18n-BG_NPMCs.js                       5.32 kB │ gzip:     2.24 kB
+dist/assets/MediaIcons-CHZwhXeM.js                            5.46 kB │ gzip:     1.30 kB
+dist/assets/SettingsDialogShell-BhiMGgX-.js                   5.78 kB │ gzip:     1.91 kB
+dist/assets/MediaGrid-DLMmJvg3.js                             5.86 kB │ gzip:     2.11 kB
+dist/assets/ProvidersTab-DA4f-7p2.js                          9.15 kB │ gzip:     3.10 kB
+dist/assets/TermPicker-hqF_QL4f.js                           10.73 kB │ gzip:     4.16 kB
+dist/assets/InstallTabCard-C4MXpihw.js                       11.10 kB │ gzip:     4.02 kB
+dist/assets/CommentsPage-CG1n3v79.js                         11.31 kB │ gzip:     3.59 kB
+dist/assets/index-BsennTuF.js                                11.33 kB │ gzip:     3.68 kB
+dist/assets/RedirectsPage-Djst5-oe.js                        11.62 kB │ gzip:     3.80 kB
+dist/assets/Skills-BzDxRObk.js                               12.25 kB │ gzip:     4.31 kB
+dist/assets/index--mGAO5kO.js                                13.20 kB │ gzip:     4.86 kB
+dist/assets/index-BvzrNCpI.js                                13.24 kB │ gzip:     3.76 kB
+dist/assets/FileDropzone-Bz2COuPK.js                         14.14 kB │ gzip:     4.66 kB
+dist/assets/page-views.hooks-BJik6I1z.js                     15.25 kB │ gzip:     4.34 kB
+dist/assets/index-B8qi5waS.js                                15.32 kB │ gzip:     5.35 kB
+dist/assets/LibraryTab-CFthOJfd.js                           16.88 kB │ gzip:     5.99 kB
+dist/assets/index-CoAcHLJH.js                                21.45 kB │ gzip:     6.35 kB
+dist/assets/index-CXmDHgGQ.js                                26.82 kB │ gzip:     9.27 kB
+dist/assets/slug-CotKBr4x.js                                 27.96 kB │ gzip:     9.20 kB
+dist/assets/index-1XEWypSt.js                                28.56 kB │ gzip:     8.07 kB
+dist/assets/credential-copy-8FWBLAkA.js                      31.75 kB │ gzip:    12.71 kB
+dist/assets/SeoPage-DdfG5C6e.js                              36.89 kB │ gzip:    10.03 kB
+dist/assets/AdminByokKeyPanel-CK1jtgtv.js                    38.58 kB │ gzip:    11.23 kB
+dist/assets/index-Cmr_nu98.js                                40.35 kB │ gzip:    12.92 kB
+dist/assets/index-IehVv79D.js                                42.03 kB │ gzip:    12.35 kB
+dist/assets/production-_vJyrTvg.js                           43.15 kB │ gzip:    15.64 kB
+dist/assets/index-jqEcEvFX.js                                45.81 kB │ gzip:    14.35 kB
+dist/assets/FormEditor-CAX-72B0.js                           46.11 kB │ gzip:    13.62 kB
+dist/assets/index-BdsLa9Vy.js                                46.16 kB │ gzip:    13.94 kB
+dist/assets/rules-eryZVawR.js                                47.13 kB │ gzip:    13.53 kB
+dist/assets/index-CKCfJz-e.js                                49.83 kB │ gzip:    15.90 kB
+dist/assets/index-C_6i0Hn_.js                                55.81 kB │ gzip:    18.04 kB
+dist/assets/index-CmFwD21b.js                                62.90 kB │ gzip:    16.38 kB
+dist/assets/index-ahsnELRW.js                                64.62 kB │ gzip:    18.06 kB
+dist/assets/index-CAsQNJiv.js                                70.53 kB │ gzip:    21.96 kB
+dist/assets/index-k9xJsmKH.js                                73.11 kB │ gzip:    21.32 kB
+dist/assets/index-DyECtczf.js                                75.60 kB │ gzip:    21.67 kB
+dist/assets/index-CJZ4c6bu.js                                82.18 kB │ gzip:    24.27 kB
+dist/assets/new-term-form-dependencies.hooks-BCAfTuXf.js     86.26 kB │ gzip:    21.90 kB
+dist/assets/index-CX-UPQoc.js                                87.06 kB │ gzip:    23.20 kB
+dist/assets/index-BZE9ioVS.js                                94.66 kB │ gzip:    30.32 kB
+dist/assets/index-CDu8fjdE.js                                97.84 kB │ gzip:    31.19 kB
+dist/assets/rules-CDdgS4vf.js                               118.76 kB │ gzip:    28.55 kB
+dist/assets/index-DaF6VYfe.js                               121.41 kB │ gzip:    33.89 kB
+dist/assets/index-BVmIwLOT.js                               130.88 kB │ gzip:    31.39 kB
+dist/assets/index-c2lUYetT.js                               133.63 kB │ gzip:    36.47 kB
+dist/assets/index-BEhQ2md_.js                               144.76 kB │ gzip:    39.08 kB
+dist/assets/index-C2zHlKMm.js                               152.47 kB │ gzip:    38.24 kB
+dist/assets/preview-modal-icons-C6GtTzyG.js                 176.08 kB │ gzip:    54.16 kB
+dist/assets/AdminAppearance-oB0J2Xto.js                     224.57 kB │ gzip:    63.94 kB
+dist/assets/Devtools-BTIH1dw_-BMAKDT6f.js                   227.22 kB │ gzip:    64.11 kB
+dist/assets/index-9EZfdC24.js                               247.70 kB │ gzip:    80.82 kB
+dist/assets/html2canvas-pro.esm-D_vjCrZj.js                 250.95 kB │ gzip:    64.14 kB
+dist/assets/ThemePreviewReloadButton-BBr-5yIT.js            277.91 kB │ gzip:    61.27 kB
+dist/assets/index-DvblTWgM.js                               278.59 kB │ gzip:    85.02 kB
+dist/assets/index-BFPuaMIy.js                               286.03 kB │ gzip:    79.15 kB
+dist/assets/page-editor-i18n-DeexCM4P.js                    299.58 kB │ gzip:    74.95 kB
+dist/assets/index-DdsZDx00.js                               310.53 kB │ gzip:    77.24 kB
+dist/assets/widget-embed-extension-DgSZ0sXX.js              416.55 kB │ gzip:   132.26 kB
+dist/assets/rules-Cx8HUSHv.js                               468.59 kB │ gzip:    95.16 kB
+dist/assets/SiteImportTab-Dn8MCfjQ.js                       499.21 kB │ gzip:   128.55 kB
+dist/assets/index-BQaWsKG4.js                               560.10 kB │ gzip:   175.82 kB
+dist/assets/PageEditor-C415OfOE.js                        1,217.26 kB │ gzip:   327.64 kB
+dist/assets/index-DBvMoVSl.js                             4,600.94 kB │ gzip: 1,284.81 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 18.70s
+exit 0
