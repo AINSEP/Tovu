@@ -1,4 +1,4 @@
-import { checkTreePath } from "./file-tree-policy.js";
+import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
 import { scanTextForSecrets } from "#src/features/webhooks/index";
 
 /** An expected manual-publishing refusal with a caller-safe message.
@@ -98,8 +98,13 @@ export function gapLabelFor(
 /** Private names are denied at every depth, including backup and key suffix variants. */
 function isProtectedRawComponent({ part }: { part: string }, _optional: Record<string, never> = {}): boolean {
   const lower = part.toLowerCase();
-  if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
-      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower)) return true;
+  if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-")) return true;
+  return isPrivateRawName({ lower }) || isPrivateRawName({ lower: credentialBaseName({ name: part }) });
+}
+
+/** Checked on the name and on its backup-stripped base (`.npmrc.bak`, `tls.key~`). */
+function isPrivateRawName({ lower }: { lower: string }, _optional: Record<string, never> = {}): boolean {
+  if (lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower)) return true;
   if ([".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower)) return true;
   return /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
 }
