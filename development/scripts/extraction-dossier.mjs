@@ -27,6 +27,19 @@ const TOVU = path.resolve(arg("--tovu", process.cwd()));
 const JINI = path.resolve(arg("--jini", "/Users/la/Programming/tovu-integration-clones/ui-jini"));
 const today = new Date().toISOString().slice(0, 10);
 const OUT = path.resolve(arg("--out", path.join(TOVU, `ADS-memory/.local-artifacts/extraction-survey/${today}/dossier`)));
+// --drift DIR [--batch bNNN]: reviewers read a newer HEAD than the dossier was built at. A bare HEAD
+// mismatch was a false alarm in the pilot (DE #9: the only new commit added this script), so count
+// only the commits since the build that touch the batch's files (or apps/ packages/).
+if (arg("--drift")) {
+  const dir = path.resolve(arg("--drift")); const stamp = JSON.parse(fs.readFileSync(path.join(dir, "stamp.json"), "utf8"));
+  const batch = arg("--batch");
+  const paths = batch ? fs.readFileSync(path.join(dir, "batches", `${batch}.jsonl`), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l).path) : ["apps", "packages"];
+  const since = (repo, list) => execFileSync("git", ["-C", repo.dir, "log", "--oneline", `${repo.head}..HEAD`, "--", ...list], { encoding: "utf8", maxBuffer: 64 << 20 }).split("\n").filter(Boolean);
+  const t = since(stamp.tovu, paths); const j = since(stamp.jini, ["packages"]);
+  console.log(`commits since build touching slice files: ${t.length}${batch ? ` (batch ${batch})` : ""}`); t.slice(0, 20).forEach((l) => console.log(`  ${l}`));
+  console.log(`Jini commits since build touching packages/: ${j.length}`); j.slice(0, 10).forEach((l) => console.log(`  ${l}`));
+  process.exit(0);
+}
 const ts = createRequire(import.meta.url)(path.join(TOVU, "node_modules/typescript"));
 const t0 = Date.now();
 
@@ -41,9 +54,23 @@ const LSH_BUCKET_CAP = 30;         // a bucket shared by >30 bodies is a generic
 const TWIN_REPORT = 0.6;           // report body twins at Jaccard >= 0.6 ...
 const TWIN_STRONG = 0.75;          // ...but only >= 0.75 (or a type-shape twin) triggers Tier 2
 const SHAPE_BUCKET_CAP = 8;        // a type shape shared by >8 declarations is a common idiom
-const BATCH_SIZE = 20;
+const TWIN_STRONG_TT = 0.8;        // Tovu<->Tovu body twins >= 0.8 with >= 5 statements are Tier 2 (pilot DE: a sim-1
+const TWIN_STRONG_TT_STMTS = 5;    // twin of 5 statements sat at Tier 1 under the old 0.9/8 bar)
+const SMALL_EXACT_MIN_CHARS = 30;  // one-liner bodies twin only on identical text (whitespace/comments stripped) this long
+const SMALL_EXACT_BUCKET_CAP = 3;  // ...and only when that exact text appears at <= 3 sites (else it is an idiom)
+const BATCH_MAX_FILES = 25;        // pilot: 20-25 file batches with up to 9k lines overran a reviewer's context;
+const BATCH_MAX_LOC = 3500;        // cap by lines as well as files (a single bigger file is its own batch)
 const FEATURE_SPLIT = 120;         // a folder with >120 files (server/inbound, contracts/core) is split one level deeper
 const LIST_CAP = 15;               // cap long per-file lists in the dossier (counts stay exact)
+// Behaviour fingerprint (LEGACY-TWIN pre-pass): tokens in more than this share of all parsed files are
+// vocabulary (map, length, useState, "id"), not behaviour, and are dropped before the Jaccard.
+const BEH_MAX_DF_SHARE = 0.01;
+const LEGACY_MIN_SIM = 0.2;        // LEGACY-TWIN: behaviour Jaccard >= 0.2, or overlap (shared / smaller
+const LEGACY_MIN_OVERLAP = 0.2;    // side) >= 0.2, and always >= 20 shared distinctive tokens (smaller
+const LEGACY_MIN_SHARED = 20;      // modules say too little). Calibrated on admin media (overlap 0.23).
+// "Core" for CORE-CONTRACT-NEEDED: a file that would move into Jini but imports >= 2 Jini packages
+// other than these needs a contract in core first (owner 11-07: no package above domains).
+const CORE_PKGS = new Set(["@jini-ai/core"]);
 
 const VENDORS = ["github", "gitlab", "bitbucket", "vercel", "netlify", "cloudflare", "fly", "stripe", "shopify",
   "posthog", "openai", "anthropic", "gemini", "formspree", "higgsfield", "supabase", "resend", "sendgrid",
@@ -53,8 +80,31 @@ const CRUD_WRITE = new Set(["save", "update", "delete", "create", "remove", "put
 // A call is a "write" when its callee name starts with a mutating verb (commitSiteToSourceControl,
 // vault.put, fs.writeFile). `create` counts only as the exact name (createRouter is a factory) and
 // bare `push` is excluded (array push); both would drown the list.
-const WRITE_CALL_RE = /^(put|write|append|rm|rmdir|unlink|rename|mkdir|copy|cp|insert|upsert|update|delete|remove|save|commit|push[A-Z]|patch|replace|apply|fetch|post|send|exec|spawn|publish|deploy|upload|export)/;
-const isWriteCall = (name) => name === "create" || WRITE_CALL_RE.test(name);
+// Pilot judges (ABC #4, DE #3): the bare-verb rule flagged hash.update, String.replace, RegExp.exec,
+// Map.delete, removeEventListener, setState and `deploymentRefusal` (prefix without a word break),
+// and missed bridge.createSite, api.trashMedia, ledger settle and db.pragma('wal_checkpoint').
+// Now: a METHOD call is a write only on a store-like receiver (any verb incl. create/set/import/
+// cancel/trash/restore/settle/pragma); a BARE call needs a mutating verb followed by a noun
+// (writeFile, commitSiteToSourceControl, importSiteArchive). Verbs must end at a word break.
+const STORE_RECEIVER_RE = /(api|port|store|repo|repository|db|bridge|ledger|client|vault|fs|fsp|promises)$/i;
+const RECEIVER_VERB_RE = /^(put|set|write|append|rm|rmdir|unlink|rename|mkdir|copy|cp|insert|upsert|update|delete|remove|save|commit|push|patch|replace|create|import|cancel|trash|restore|checkpoint|settle|run|exec|pragma|publish|deploy|upload|send|post|revoke|clear|drop|move|purge|archive)([A-Z0-9_]|$)/;
+const BARE_VERB_RE = /^(write|append|unlink|rename|mkdir|insert|upsert|update|delete|remove|save|commit|push|patch|publish|deploy|upload|import|cancel|trash|restore|revoke|purge|archive|settle)[A-Z0-9_]/;
+// Callees that read like verbs but never touch persisted state (DOM, React, collections, strings).
+const NON_MUTATING = new Set(["update", "replace", "replaceAll", "exec", "test", "apply", "removeEventListener", "removeAllRanges",
+  "setState", "removeChild", "removeAttribute", "removeProperty", "deleteProperty", "postMessage", "importKey", "exportKey", "updateDigest"]);
+const recvName = (e) => { e = unwrap(e); if (!e) return null; if (ts.isCallExpression(e)) return recvName(e.expression); if (ts.isPropertyAccessExpression(e)) return e.name.text; if (ts.isIdentifier(e)) return e.text; if (e.kind === ts.SyntaxKind.ThisKeyword) return "this"; return null; };
+function isWriteCall(call) {
+  const callee = unwrap(call.expression);
+  if (ts.isPropertyAccessExpression(callee)) {
+    const verb = callee.name.text; if (NON_MUTATING.has(verb)) return false;
+    const recv = recvName(callee.expression);
+    return !!recv && STORE_RECEIVER_RE.test(recv) && RECEIVER_VERB_RE.test(verb);
+  }
+  if (!ts.isIdentifier(callee) || NON_MUTATING.has(callee.text)) return false;
+  // Bare fetch is a write only with a non-GET method in its init object.
+  if (callee.text === "fetch") return call.arguments.some((a) => ts.isObjectLiteralExpression(a) && a.properties.some((p) => ts.isPropertyAssignment(p) && memberName(p) === "method" && ts.isStringLiteralLike(p.initializer) && p.initializer.text.toUpperCase() !== "GET"));
+  return BARE_VERB_RE.test(callee.text);
+}
 const KEEP_GENERIC_TYPES = new Set(["Promise", "Readonly", "ReadonlyArray", "Array", "Record", "Partial", "Required", "Pick", "Omit",
   "Map", "ReadonlyMap", "Set", "ReadonlySet", "Date", "Error", "Uint8Array", "AbortSignal", "NonNullable", "Exclude", "Extract"]);
 const NODE_BUILTINS = new Set(createRequire(import.meta.url)("node:module").builtinModules);
@@ -76,22 +126,33 @@ const isDts = (p) => /\.d\.[mc]?ts$/.test(p);
 
 const tovuMain = rgFiles(TOVU, ["apps", "packages"]).filter((p) => !isDts(p));
 const tovuAux = rgFiles(TOVU, ["development", "content"]).filter((p) => !isDts(p) && !p.startsWith("development/coverage"));
-const jiniFiles = rgFiles(JINI, ["packages"]).filter((p) => /^packages\/[^/]+\/src\//.test(p) && !isDts(p) && !TEST_RE.test(p));
+const jiniAll = rgFiles(JINI, ["packages"]).filter((p) => /^packages\/[^/]+\/src\//.test(p) && !isDts(p));
+const jiniFiles = jiniAll.filter((p) => !TEST_RE.test(p));
+// Jini test helpers (memory fixtures, RecordingHttpClient under __tests__/) are twin TARGETS only:
+// Tovu often carries its own copy of a Jini fixture (pilot ABC #3). Spec files themselves are not.
+const jiniHelpers = jiniAll.filter((p) => TEST_RE.test(p) && !/\.(test|spec)\.[mc]?[jt]sx?$/.test(p));
+const FIXTURE_RE = /(^|\/)(__tests__|__mocks__|testing|fixtures?|test-support)\//;
 
-/** key = absolute path. role: main (labelled) | test | aux (importer only) | jini */
+/** key = absolute path. role: main (labelled) | test | aux (importer only) | jini.
+ * Jini `fixture` = under a testing/fixture dir (twin scope "tovu-jini-fixture", never Tier 2);
+ * `helper` = matched TEST_RE (kept out of the export, literal and rule indexes). */
 const files = new Map();
 for (const rel of tovuMain) files.set(path.join(TOVU, rel), { rel, repo: "tovu", role: TEST_RE.test(rel) ? "test" : "main" });
 for (const rel of tovuAux) files.set(path.join(TOVU, rel), { rel, repo: "tovu", role: "aux" });
-for (const rel of jiniFiles) files.set(path.join(JINI, rel), { rel, repo: "jini", role: "jini" });
+for (const rel of jiniFiles) files.set(path.join(JINI, rel), { rel, repo: "jini", role: "jini", fixture: FIXTURE_RE.test(rel) });
+for (const rel of jiniHelpers) files.set(path.join(JINI, rel), { rel, repo: "jini", role: "jini", fixture: true, helper: true });
+const jiniPkgOfRel = (rel) => jiniPkgByDir.get(rel.split("/")[1]) ?? `@jini-ai/${rel.split("/")[1]}`;
+/** "@jini-ai/cms/core" -> "@jini-ai/cms" (the package the import NAMES, not where the symbol lives). */
+const specPkg = (spec) => (/^(@jini-ai\/[^/]+)/.exec(spec ?? "") ?? [])[1] ?? null;
 const display = (abs) => { const f = files.get(abs); return f ? (f.repo === "jini" ? `jini:${f.rel}` : f.rel) : abs; };
 
 // Jini package map: "@jini-ai/x" -> { dir, exports } for subpath resolution to src files.
-const jiniPkgs = new Map();
+const jiniPkgs = new Map(); const jiniPkgByDir = new Map();
 for (const dir of fs.readdirSync(path.join(JINI, "packages"))) {
   const pj = path.join(JINI, "packages", dir, "package.json");
   if (!fs.existsSync(pj)) continue;
   const json = JSON.parse(fs.readFileSync(pj, "utf8"));
-  if (json.name?.startsWith("@jini-ai/")) jiniPkgs.set(json.name, { dir: path.join(JINI, "packages", dir), exports: json.exports ?? {} });
+  if (json.name?.startsWith("@jini-ai/")) { jiniPkgs.set(json.name, { dir: path.join(JINI, "packages", dir), exports: json.exports ?? {} }); jiniPkgByDir.set(dir, json.name); }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -176,8 +237,9 @@ function shapeOf(decl) {
   else if (ts.isTypeLiteralNode(decl.type)) { members = membersOf(decl.type.members, tparams); names = decl.type.members.map(memberName); }
   else if (ts.isUnionTypeNode(decl.type) && decl.type.types.every((x) => ts.isLiteralTypeNode(x))) {
     members = decl.type.types.map((x) => x.literal.getText()); names = members;
-    // Literal unions need >=2 members; their literal values make them distinctive.
-    return members.length >= 2 ? { strict: `U:${members.sort().join("|")}`, loose: null, size: members.length } : null;
+    // Literal unions need >=3 members; their literal values make them distinctive. Two-member
+    // unions ("critical" | "optional", BootCriticality) twin by accident (pilot DE #6).
+    return members.length >= 3 ? { strict: `U:${members.sort().join("|")}`, loose: null, size: members.length } : null;
   } else return null;
   // Object shapes: strict needs >=3 members, the names-only loose hash needs >=4.
   if (members.length < 3) return null;
@@ -226,12 +288,14 @@ function parseFile(abs, info) {
   const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, true, kind);
   const lineOf = (pos) => sf.getLineAndCharacterOfPosition(pos).line + 1;
   const full = info.role !== "aux" && info.role !== "test";   // tests/aux: imports only
-  const f = { loc: text.split("\n").length, imports: [], bindings: new Map(), nsUses: new Map(), localExports: new Map(),
+  // split("\n") counts the empty string after a trailing newline: every file read +1 (pilot ABC #9).
+  const f = { loc: text.split("\n").length - (text.endsWith("\n") ? 1 : 0), imports: [], bindings: new Map(), nsUses: new Map(), localExports: new Map(),
     reexports: new Map(), stars: [], localNames: new Set(), units: [], shapes: [], extendsInfo: [], literals: [], hostObjects: [],
-    jiniLits: null, staleCandidates: [], ports: [], bug: null, reexportOnly: false, toolRegistration: false, dataOnly: false };
+    jiniLits: null, staleCandidates: [], ports: [], bug: null, reexportOnly: false, toolRegistration: false, dataOnly: false,
+    beh: new Set(), constSets: [], constKinds: new Map(), couplingCands: [], expressType: false, approvalOrCtxSignal: false };
 
   // --- imports, bindings, exports ------------------------------------------------------------
-  const addImport = (spec, line, kindTag, names, typeOnly) => f.imports.push({ spec, line, kind: kindTag, names, typeOnly });
+  const addImport = (spec, line, kindTag, names, typeOnly, extra = {}) => f.imports.push({ spec, line, kind: kindTag, names, typeOnly, ...extra });
   let onlyReexports = sf.statements.length > 0;
   for (const st of sf.statements) {
     if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier)) {
@@ -278,36 +342,83 @@ function parseFile(abs, info) {
   function addUnit(name, kindTag, body, node, exported, extra = {}) {
     if (!full || !body) return;
     const { kinds, statements } = bodyKinds(body);
-    f.units.push({ name, kind: kindTag, line: lineOf(node.getStart()), statements, exported, shingles: shinglesOf(kinds), ...extra });
+    // One-liners (openSqliteSnapshot, safeHref) are skipped by the fingerprint; keep their exact
+    // text so an identical copy in Jini still shows up (pilot ABC #3).
+    let smallText = null;
+    if (statements < MIN_UNIT_STATEMENTS && kindTag !== "class" && !extra.closure) {
+      const t = body.getText().replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "");
+      if (t.length >= SMALL_EXACT_MIN_CHARS && t.length <= 600) smallText = t;
+    }
+    // register-only: every statement is `register*(...)` (route modules). A cycle edge from such a
+    // body is wiring, not logic, so it must not lift the tier (pilot DE #5).
+    const registerOnly = ts.isBlock(body) && body.statements.length > 0 && body.statements.every((s) => {
+      const e = ts.isExpressionStatement(s) ? unwrap(s.expression) : null;
+      return e && ts.isCallExpression(e) && /^register[A-Z]/.test(lastName(e.expression) ?? "");
+    });
+    f.units.push({ name, kind: kindTag, line: lineOf(node.getStart()), statements, exported, shingles: shinglesOf(kinds), smallText, registerOnly, ...extra });
   }
-  /** A body that is one call (`return jiniFn(...)` or `=> jiniFn(...)`): R2 pass-through candidate. */
-  function singleCallRoot(body) {
+  /** A body that is one call (`return jiniFn(...)` or `=> jiniFn(...)`): R2 pass-through candidate.
+   * Also returns what the call is FED: literals, identifiers (resolved later: npm values?) and
+   * host-copy objects. R3 ALL-PASS-THROUGH is wrong for driver binders that inject npm modules or
+   * product literals (pilot ABC #6): those stay in Tovu as wiring. */
+  function singleCall(body) {
     let e = null;
     if (!body) return null;
     if (!ts.isBlock(body)) e = body;
     else if (body.statements.length === 1) { const s = body.statements[0]; e = ts.isReturnStatement(s) ? s.expression : ts.isExpressionStatement(s) ? s.expression : null; }
     e = unwrap(e);
-    return e && (ts.isCallExpression(e) || ts.isNewExpression(e)) ? rootIdent(e.expression) : null;
+    if (!e || !(ts.isCallExpression(e) || ts.isNewExpression(e))) return null;
+    const args = { lit: false, idents: [], hostMsg: false };
+    const scan = (a, depth) => {
+      a = unwrap(a); if (!a) return;
+      if (ts.isStringLiteralLike(a) || ts.isTemplateExpression(a) || ts.isNumericLiteral(a)) args.lit = true;
+      else if (ts.isIdentifier(a)) { args.idents.push(a.text); if (/messages|copy|strings|i18n|labels|wording/i.test(a.text)) args.hostMsg = true; }
+      else if (ts.isPropertyAccessExpression(a)) { const r = rootIdent(a); if (r) args.idents.push(r); if (/messages|copy|strings|i18n|labels|wording/i.test(a.name.text)) args.hostMsg = true; }
+      else if (depth < 2 && ts.isObjectLiteralExpression(a)) for (const p of a.properties) { if (ts.isPropertyAssignment(p)) scan(p.initializer, depth + 1); else if (ts.isShorthandPropertyAssignment(p)) scan(p.name, depth + 1); }
+      else if (depth < 2 && ts.isArrayLiteralExpression(a)) a.elements.forEach((x) => scan(x, depth + 1));
+    };
+    for (const a of e.arguments ?? []) scan(a, 0);
+    return { root: rootIdent(e.expression), args };
   }
+  /** Exported const arrays / string sets (`["a","b","c"] as const`, `new Set([...])`): duplicated
+   * enums are invisible to the body fingerprint (pilot ABC #3, consent enums). */
+  function constSetOf(init) {
+    let a = unwrap(init);
+    if (a && (ts.isNewExpression(a) || ts.isCallExpression(a)) && a.arguments?.[0]) a = unwrap(a.arguments[0]);
+    if (!a || !ts.isArrayLiteralExpression(a) || a.elements.length < 3 || !a.elements.every((x) => ts.isStringLiteralLike(x))) return null;
+    return [...new Set(a.elements.map((x) => x.text))].sort().join("\u0001");
+  }
+  function constKindOf(init) { const i = unwrap(init); if (!i) return "other";
+    if (ts.isStringLiteralLike(i) || ts.isNumericLiteral(i) || ts.isTemplateExpression(i) || i.kind === ts.SyntaxKind.TrueKeyword || i.kind === ts.SyntaxKind.FalseKeyword) return "literal";
+    if (ts.isObjectLiteralExpression(i) || ts.isArrayLiteralExpression(i)) return "object";
+    if (ts.isArrowFunction(i) || ts.isFunctionExpression(i)) return "fn"; return "other"; }
   function collectTopLevel(st) {
     const exported = hasExport(st);
     if (ts.isFunctionDeclaration(st)) {
       const name = st.name?.text ?? "default"; declare(name, "function", st, exported);
-      addUnit(name, "fn", st.body, st, exported, { callRoot: singleCallRoot(st.body) });
+      const sc = singleCall(st.body);
+      addUnit(name, "fn", st.body, st, exported, { callRoot: sc?.root ?? null, callArgs: sc?.args });
     } else if (ts.isVariableStatement(st)) {
       for (const d of st.declarationList.declarations) {
         if (!ts.isIdentifier(d.name)) { d.name.elements?.forEach((el) => ts.isBindingElement(el) && ts.isIdentifier(el.name) && declare(el.name.text, "const", st, exported)); continue; }
         const init = unwrap(d.initializer);
         const isFn = init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init));
         declare(d.name.text, isFn ? "function" : "const", st, exported);
-        if (isFn) addUnit(d.name.text, "fn", init.body, st, exported, { callRoot: singleCallRoot(init.body) });
+        f.constKinds.set(d.name.text, constKindOf(init));
+        if (full || info.repo === "jini") { const key = constSetOf(init); if (key) f.constSets.push({ name: d.name.text, line: lineOf(st.getStart()), exported, key, size: key.split("\u0001").length }); }
+        if (isFn) { const sc = singleCall(init.body); addUnit(d.name.text, "fn", init.body, st, exported, { callRoot: sc?.root ?? null, callArgs: sc?.args }); }
         else if (init && ts.isIdentifier(init)) f.units.push({ name: d.name.text, kind: "alias", line: lineOf(st.getStart()), statements: 0, exported, shingles: new Uint32Array(), callRoot: init.text });
       }
     } else if (ts.isClassDeclaration(st)) {
       const name = st.name?.text ?? "default"; declare(name, "class", st, exported);
       const ext = st.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0];
       if (ext) f.extendsInfo.push({ name, base: rootIdent(ext.expression), members: st.members.length, line: lineOf(st.getStart()) });
-      addUnit(name, "class", st, st, exported, { methods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isPropertyDeclaration(m) || ts.isGetAccessor(m))).map(memberName) });
+      // Class API fingerprint (pilot ABC #3: keyring.memory / CredentialSetVaultRepo restructured,
+      // body sim .04): public method names + the set of callee names used anywhere in the class.
+      const isPublic = (m) => !ts.getModifiers?.(m)?.some((x) => x.kind === ts.SyntaxKind.PrivateKeyword || x.kind === ts.SyntaxKind.ProtectedKeyword) && !(m.name && ts.isPrivateIdentifier(m.name)) && !/^_/.test(m.name ? memberName(m) : "_");
+      const calls = new Set(); const walkCalls = (n) => { if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) calls.add(c); } ts.forEachChild(n, walkCalls); }; walkCalls(st);
+      addUnit(name, "class", st, st, exported, { methods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isPropertyDeclaration(m) || ts.isGetAccessor(m))).map(memberName),
+        publicMethods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isGetAccessor(m)) && isPublic(m)).map(memberName), calls: [...calls] });
       for (const m of st.members) if ((ts.isMethodDeclaration(m) || ts.isConstructorDeclaration(m) || ts.isGetAccessor(m)) && m.body) addUnit(`${name}.${m.name ? memberName(m) : "constructor"}`, "method", m.body, m, exported);
     } else if (ts.isInterfaceDeclaration(st) || ts.isTypeAliasDeclaration(st)) {
       declare(st.name.text, ts.isInterfaceDeclaration(st) ? "interface" : "type", st, exported);
@@ -320,8 +431,81 @@ function parseFile(abs, info) {
   }
 
   // --- whole-tree walk: inline import(), require, ns uses, literals, ports, bug hints ------------
-  const jiniLits = info.repo === "jini" ? { all: new Set(), formats: [] } : null;
-  const bug = { crud: [], signalParams: [], abortChecks: [], forwards: [], writes: [] };
+  const jiniLits = info.repo === "jini" && !info.helper ? { all: new Set(), formats: [], phrases: new Set() } : null;
+  const bug = { crud: [], signalParams: [], abortChecks: [], forwards: [], writes: [], awaitGaps: [], listenerGaps: [], swallows: [], wholePut: [] };
+  const tovuFull = full && info.repo === "tovu";
+  const unitBodies = new Set(); for (const st of sf.statements) { /* bodies already fingerprinted as top-level units */
+    if (ts.isFunctionDeclaration(st) && st.body) unitBodies.add(st.body);
+    else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) { const i = unwrap(d.initializer); if (i && (ts.isArrowFunction(i) || ts.isFunctionExpression(i))) unitBodies.add(i.body); }
+    else if (ts.isClassDeclaration(st)) for (const m of st.members) if (m.body) unitBodies.add(m.body);
+  }
+  // `await import(x)` / `await import(x).then(...)`; `lazy(() => import(x))` is code splitting, not this.
+  const awaitedCall = (cur) => { let p = cur.parent;
+    while (p && (ts.isParenthesizedExpression(p) || (ts.isPropertyAccessExpression(p) && p.expression === cur) || (ts.isCallExpression(p) && p.expression === cur))) { cur = p; p = p.parent; }
+    return !!p && ts.isAwaitExpression(p); };
+  /** Names a dynamic import actually uses: `import(x).then(m => m.X)`, `.then(({ X }) => …)`,
+   * `(await import(x)).X`, `const { X } = await import(x)`, `const m = await import(x); m.X`.
+   * Without this the edge stayed on the barrel: Media.tsx showed 0 prod importers although
+   * panel-pages.ts:61 does `import("./features/media").then(m => m.Media)` (pilot DE #2). */
+  function dynamicNames(call) {
+    let p = call.parent; while (p && (ts.isAwaitExpression(p) || ts.isParenthesizedExpression(p))) p = p.parent;
+    if (p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name)) return { names: p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) };
+    if (p && ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) return { names: ["*"], local: p.name.text };
+    if (p && ts.isPropertyAccessExpression(p) && p.name.text !== "then") return { names: [p.name.text] };
+    if (p && ts.isPropertyAccessExpression(p) && ts.isCallExpression(p.parent)) {
+      const cb = unwrap(p.parent.arguments[0]);
+      if (cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) && cb.parameters[0]) {
+        const pn = cb.parameters[0].name;
+        if (ts.isObjectBindingPattern(pn)) return { names: pn.elements.map((el) => (el.propertyName ?? el.name).getText()) };
+        if (ts.isIdentifier(pn)) {
+          const used = new Set(); const w = (n) => { if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === pn.text) used.add(n.name.text); ts.forEachChild(n, w); };
+          w(cb.body); if (used.size) return { names: [...used] };
+        }
+      }
+    }
+    return { names: ["*"] };
+  }
+  /** Per-handler timing (pilot ABC #5, DE #3). A `signal` variable name is no evidence; ORDER is:
+   * bugs ABC #7-#10 were "abort checked, then awaits, then a write with no recheck"; DE 2/8/23 were
+   * "an await before the close/abort listener is attached" (a client leaving during it is never
+   * seen). One function body in source order; nested functions are their own handlers. An await
+   * counts only if it ENDS before the write/listener starts (`await store.put()` is no gap). */
+  function timing(fn, name) {
+    const ev = { awaits: [], checks: [], writes: [], listeners: [] };
+    const walk = (n) => {
+      if (n !== fn.body && ts.isFunctionLike(n)) return;
+      if (ts.isAwaitExpression(n)) ev.awaits.push(n);
+      if (ts.isPropertyAccessExpression(n) && n.name.text === "aborted") ev.checks.push(n);
+      if (ts.isCallExpression(n)) {
+        const c = lastName(n.expression); const a0 = n.arguments[0];
+        if (c === "throwIfAborted") ev.checks.push(n);
+        if (isWriteCall(n)) ev.writes.push(n);
+        if ((c === "on" || c === "once" || c === "addListener") && a0 && ts.isStringLiteralLike(a0) && /^(close|aborted|abort)$/.test(a0.text)) ev.listeners.push(n);
+        if (c === "addEventListener" && a0 && ts.isStringLiteralLike(a0) && a0.text === "abort") ev.listeners.push(n);
+      }
+      if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "AbortController") ev.listeners.push(n);
+      ts.forEachChild(n, walk);
+    };
+    walk(fn.body);
+    const at = (n) => lineOf(n.getStart()); const first = (l) => l.reduce((a, b) => (a.getStart() <= b.getStart() ? a : b));
+    if (ev.writes.length && ev.checks.length) {
+      const w = first(ev.writes); const before = ev.checks.filter((c) => c.getStart() < w.getStart());
+      if (before.length) {
+        const c = before.reduce((a, b) => (a.getStart() >= b.getStart() ? a : b));
+        const gap = ev.awaits.filter((x) => x.getStart() > c.end && x.end <= w.getStart());
+        if (gap.length) bug.awaitGaps.push(`${name}@${at(fn)}: ${gap.length} await(s) @${gap.slice(0, 3).map(at).join(",")} after abort check @${at(c)} before write @${at(w)}`);
+      }
+    }
+    if (ev.listeners.length && ev.awaits.length) {
+      const l = first(ev.listeners); const pre = ev.awaits.filter((x) => x.end <= l.getStart());
+      if (pre.length) bug.listenerGaps.push(`${name}@${at(fn)}: await @${at(first(pre))} before close/abort listener @${at(l)}`);
+    }
+  }
+  const PHRASE_CALLEES = new Set(["startsWith", "endsWith", "includes", "indexOf", "lastIndexOf", "match", "split", "search", "replace"]);
+  const EVENT_CALLEES = new Set(["addEventListener", "removeEventListener", "on", "once", "off", "emit", "addListener"]);
+  const localStr = new Map(); // string consts seen so far in this file (name -> text)
+  const coupled = new Set();
+  const coupling = (kind, text, n) => { const line = lineOf(n.getStart()); const k = `${kind}\0${text}\0${line}`; if (coupled.has(k)) return; coupled.add(k); f.couplingCands.push({ kind, text, line, symbol: topSymbol(n) }); };
   const topSymbol = (n) => { while (n.parent && n.parent !== sf) n = n.parent; const d = n; return d.name?.text ?? (ts.isVariableStatement(d) ? d.declarationList.declarations[0]?.name.getText() : null); };
   const topExported = (n) => { while (n.parent && n.parent !== sf) n = n.parent; return hasExport(n); };
   const fnName = (fn) => fn.name ? fn.name.getText() : ts.isVariableDeclaration(fn.parent) || ts.isPropertyAssignment(fn.parent) ? fn.parent.name.getText() : "(anon)";
@@ -332,12 +516,23 @@ function parseFile(abs, info) {
       addImport(n.argument.literal.text, lineOf(n.getStart()), "importType", [q ? q.text : "*"], true);
     } else if (ts.isCallExpression(n) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) &&
       (n.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(n.expression) && n.expression.text === "require"))) {
-      // `const { a } = await import("x")` keeps names; otherwise the whole module counts as used.
-      let p = n.parent; while (p && (ts.isAwaitExpression(p) || ts.isParenthesizedExpression(p))) p = p.parent;
-      const names = p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) : ["*"];
-      addImport(n.arguments[0].text, lineOf(n.getStart()), n.expression.kind === ts.SyntaxKind.ImportKeyword ? "dynamic" : "require", names, false);
+      const dyn = n.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const dn = dyn ? dynamicNames(n) : (() => { let p = n.parent; while (p && ts.isParenthesizedExpression(p)) p = p.parent;
+        return { names: p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) : ["*"] }; })();
+      // `const m = await import(x)`: treat m as a namespace binding so `m.X` uses resolve the names.
+      if (dn.local && !f.bindings.has(dn.local)) f.bindings.set(dn.local, { spec: n.arguments[0].text, imported: "*" });
+      addImport(n.arguments[0].text, lineOf(n.getStart()), dyn ? "dynamic" : "require", dn.names, false, dyn ? { awaited: awaitedCall(n) } : {});
     } else if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && f.bindings.get(n.expression.text)?.imported === "*") {
       const set = f.nsUses.get(n.expression.text) ?? new Set(); set.add(n.name.text); f.nsUses.set(n.expression.text, set);
+    }
+    if (full) {
+      // Behaviour fingerprint tokens (LEGACY-TWIN pre-pass): what a module SAYS (string literals, route
+      // strings), CALLS and TOUCHES (property names). Restructured siblings keep these when their
+      // bodies and names differ (pilot DE #1: media 0.07/0.11 by body). Private closures included.
+      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && !isModuleSpecifier(n) && n.text.length >= 3 && n.text.length <= 60) f.beh.add(`s:${n.text}`);
+      else if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) f.beh.add(`c:${c}`); }
+      else if (ts.isPropertyAccessExpression(n)) f.beh.add(`p:${n.name.text}`);
+      else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n) || ts.isMethodDeclaration(n)) && n.name && ts.isIdentifier(n.name)) f.beh.add(`p:${n.name.text}`);
     }
     if (full || jiniLits) {
       if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateExpression(n)) && !isModuleSpecifier(n)) {
@@ -349,11 +544,65 @@ function parseFile(abs, info) {
             for (const seg of pattern.split(/:|\$\{\}/)) if (seg) jiniLits.all.add(seg);
             if (pattern.includes(":") && /[A-Za-z]{3}/.test(pattern)) jiniLits.formats.push({ pattern, line: lineOf(n.getStart()), symbol: topSymbol(n), exported: topExported(n) });
           }
-        } else {
+          // Wording Tovu may compare or parse ("failed to start daemon: ", pilot DE #4): >= 12 chars,
+          // whitespace allowed; each static piece of a template separately.
+          for (const piece of pattern.split("${}")) { const t = piece.trim(); if (t.length >= 12 && t.length <= 200) jiniLits.phrases.add(piece.length <= 200 ? piece : t); }
+        } else if (info.repo === "tovu") {
           const residue = RESIDUE_RE.test(pattern) ? "tovu" : vendorHit(pattern);
           const format = isFormatLike(pattern);
           if (residue || format) f.literals.push({ text: short(pattern, 80), line: lineOf(n.getStart()), ctx: literalContext(n), symbol: topSymbol(n), residue: residue ?? null, format });
+          // Template/script contents (RELEASE_PROBE holds 'jini:release-check', /admin, .admin-content,
+          // pilot DE #4): pull quoted strings, selectors/paths and colon ids out of long strings.
+          if (pattern.length > 40 || /\n/.test(pattern)) {
+            for (const m of pattern.matchAll(/['"]([^'"\s]{4,80})['"]/g)) coupling("template", m[1], n);
+            for (const m of pattern.matchAll(/(?:^|[\s(,='"`])([./#][A-Za-z_][\w./-]{3,60})/g)) coupling("template", m[1], n);
+            for (const m of pattern.matchAll(/\b([a-z][\w-]*:[a-z][\w:-]{2,60})\b/g)) coupling("template", m[1], n);
+          }
         }
+      }
+    }
+    if (tovuFull) {
+      // Format couplings beyond `x:y` ids (pilot DE #4): path.join literals, event names and
+      // operands Tovu compares/parses against (matched to Jini strings after the parse).
+      if (ts.isCallExpression(n)) {
+        const callee = lastName(n.expression); const ctext = n.expression.getText();
+        const pathCall = /^(path\.(posix\.)?)?(join|resolve)$/.test(ctext) && (ctext.startsWith("path.") || /^(node:)?path$/.test(f.bindings.get(ctext)?.spec ?? ""));
+        if (pathCall) for (const a of n.arguments) if (ts.isStringLiteralLike(a) && a.text.length >= 5 && (/\//.test(a.text) || /\.\w{2,4}$/.test(a.text))) coupling("path", a.text, a);
+        const a0 = n.arguments[0];
+        if (callee && EVENT_CALLEES.has(callee) && a0 && ts.isStringLiteralLike(a0)) coupling("event", a0.text, a0);
+        // `const prefix = "failed to start daemon: "; reason.startsWith(prefix)` (pilot DE #4): follow
+        // an identifier operand to a string const declared earlier in this file.
+        const opText = a0 && (ts.isStringLiteralLike(a0) ? a0.text : ts.isIdentifier(a0) ? localStr.get(a0.text) : null);
+        if (callee && PHRASE_CALLEES.has(callee) && opText && opText.trim().length >= 12) coupling("phrase", opText, a0);
+      }
+      if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && /^(Custom)?Event$/.test(n.expression.text) && n.arguments?.[0] && ts.isStringLiteralLike(n.arguments[0])) coupling("event", n.arguments[0].text, n);
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && ts.isStringLiteralLike(n.initializer)) localStr.set(n.name.text, n.initializer.text);
+      if (ts.isBinaryExpression(n) && /^[!=]==?$/.test(ts.tokenToString(n.operatorToken.kind) ?? "")) for (const s of [n.left, n.right]) if (ts.isStringLiteralLike(s) && s.text.trim().length >= 12) coupling("phrase", s.text, s);
+      if (ts.isCaseClause(n) && ts.isStringLiteralLike(n.expression) && n.expression.text.trim().length >= 12) coupling("phrase", n.expression.text, n);
+      if (ts.isRegularExpressionLiteral(n)) {
+        const src = n.text.slice(1, n.text.lastIndexOf("/")).replace(/\\([.\/\-:()[\]{}?*+^$|\\])/g, "$1");
+        for (const run of src.split(/\\[a-zA-Z]|[\^$*+?()[\]{}|]/)) if (run.trim().length >= 12) coupling("regex", run, n);
+      }
+      if (ts.isCatchClause(n)) {
+        // Swallow arms (pilot ABC #4, bugs #3/#5/#6): a catch that answers [] / null / {} / undefined,
+        // or rethrows a fresh generic Error that drops the cause.
+        const v = n.variableDeclaration?.name.getText(); const encl = ts.findAncestor(n, ts.isFunctionLike); const where = `${encl ? fnName(encl) : "(top)"}@${lineOf(n.getStart())}`;
+        for (const s of n.block.statements) {
+          if (ts.isReturnStatement(s) && s.expression) {
+            const e = unwrap(s.expression);
+            if (e.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(e) && e.text === "undefined") || (ts.isArrayLiteralExpression(e) && !e.elements.length) || (ts.isObjectLiteralExpression(e) && !e.properties.length)) bug.swallows.push(`${where} return ${e.getText()}`);
+          } else if (ts.isThrowStatement(s)) {
+            const e = unwrap(s.expression);
+            if (e && ts.isNewExpression(e) && /Error$/.test(e.expression.getText()) && (e.arguments?.length ?? 0) < 2 && !(v && e.getText().includes(v))) bug.swallows.push(`${where} rethrows generic ${short(e.getText(), 50)}`);
+          }
+        }
+      }
+      // Whole-collection PUT (pilot DE #3, bug 3): a PUT that replaces a whole map/list loses a
+      // concurrent writer's change. Flag PUT requests and PUT routes with no trailing :param.
+      if (ts.isPropertyAssignment(n) && memberName(n) === "method" && ts.isStringLiteralLike(n.initializer) && n.initializer.text.toUpperCase() === "PUT") bug.wholePut.push(`PUT request @${lineOf(n.getStart())}`);
+      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "put" && /^(app|router|server|fastify|routes?|r)$/i.test(recvName(n.expression.expression) ?? "")
+        && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/")) {
+        const route = n.arguments[0].text; bug.wholePut.push(`PUT route ${route} @${lineOf(n.getStart())}${/\/:[\w]+\/?$/.test(route) ? "" : " (collection)"}`);
       }
     }
     if (full) {
@@ -361,23 +610,37 @@ function parseFile(abs, info) {
       if (ts.isFunctionLike(n) && "body" in n && n.body) {
         fnCount++;
         const name = fnName(n);
-        for (const p of n.parameters ?? []) {
-          const pn = p.name; const ptype = p.type?.getText() ?? "";
-          const names = ts.isIdentifier(pn) ? [pn.text] : ts.isObjectBindingPattern(pn) ? pn.elements.map((el) => el.name.getText()) : [];
-          if (/AbortSignal|CancelToken/.test(ptype) || names.some((x) => /^(signal|abortSignal|cancel\w*)$/.test(x))) bug.signalParams.push(`${name}@${lineOf(n.getStart())}`);
-          else if (/\bsignal\??:/.test(ptype)) bug.signalParams.push(`${name}(opts.signal)@${lineOf(n.getStart())}`);
+        // Jini private closures as twin targets (pilot DE #1: toWireSurfacePayload <-> a closure in
+        // delegated-tool-bridge). Tovu nested functions stay out: rows label top-level symbols.
+        if (info.repo === "jini" && ts.isBlock(n.body) && !unitBodies.has(n.body) && name !== "(anon)") addUnit(`${topSymbol(n) ?? "?"}>${name}`, "fn", n.body, n, false, { closure: true });
+        if (tovuFull) {
+          // A function that talks about process exit (SIGTERM, .kill(, exit codes) uses `signal` for
+          // an OS signal, not cancellation (pilot DE #3: kill, classifyExit, computeExitReasonCode).
+          // `(code, signal)` / `{ code, signal }` is a child-process exit pair.
+          const osFn = /SIG[A-Z]{3,}|\.kill\(|\bexit(Code)?\b|\bkill\b/i.test(name) || (n.parameters ?? []).some((p) => /\bcode\b/.test(p.name.getText())) || ((n.parameters ?? []).some((p) => /signal/i.test(p.name.getText())) && /SIG[A-Z]{3,}|\.kill\(|exitCode|on\(["'](exit|close)["']/.test(n.getText()));
+          if (!osFn) for (const p of n.parameters ?? []) {
+            const pn = p.name; const ptype = p.type?.getText() ?? "";
+            // OS signals (NodeJS.Signals, "SIGTERM" strings, exit-code helpers) are not cancellation.
+            if (/Signals|^string|^number/.test(ptype)) continue;
+            const names = ts.isIdentifier(pn) ? [pn.text] : ts.isObjectBindingPattern(pn) ? pn.elements.map((el) => el.name.getText()) : [];
+            if (/AbortSignal|CancelToken/.test(ptype) || names.some((x) => /^(signal|abortSignal|cancel\w*)$/.test(x))) bug.signalParams.push(`${name}@${lineOf(n.getStart())}`);
+            else if (/\bsignal\??:\s*AbortSignal/.test(ptype)) bug.signalParams.push(`${name}(opts.signal)@${lineOf(n.getStart())}`);
+          }
+          if (CRUD_RE.test(name)) bug.crud.push(`${name}@${lineOf(n.getStart())}`);
+          timing(n, name);
         }
-        if (CRUD_RE.test(name)) bug.crud.push(`${name}@${lineOf(n.getStart())}`);
       }
-      if (ts.isCallExpression(n)) {
+      if (tovuFull && ts.isCallExpression(n)) {
         const callee = lastName(n.expression);
         if (callee === "throwIfAborted") bug.abortChecks.push(lineOf(n.getStart()));
-        const passes = n.arguments.some((a) => (ts.isIdentifier(a) && /signal/i.test(a.text)) || (ts.isPropertyAccessExpression(a) && /signal/i.test(a.name.text))
-          || (ts.isObjectLiteralExpression(a) && a.properties.some((p) => p.name && /^signal$/i.test(memberName(p)))));
+        const encl = ts.findAncestor(n.parent, ts.isFunctionLike);
+        const osSignal = /kill|exit|signal|^on$|^once$|^String$|^log$|^warn$|^error$/i.test(callee ?? "") || (!!encl && (/SIG[A-Z]{3,}|\.kill\(|exitCode/.test(encl.getText()) || (encl.parameters ?? []).some((p) => /\bcode\b/.test(p.name.getText()))));
+        const passes = !osSignal && n.arguments.some((a) => (ts.isIdentifier(a) && /^(signal|abortSignal)$/.test(a.text)) || (ts.isPropertyAccessExpression(a) && a.name.text === "signal")
+          || (ts.isObjectLiteralExpression(a) && a.properties.some((p) => p.name && /^signal$/.test(memberName(p)))));
         const label = short(n.expression.getText().replace(/\s+/g, ""), 48);
         if (passes) bug.forwards.push(`${label}@${lineOf(n.getStart())}`);
-        if (callee && isWriteCall(callee)) bug.writes.push(`${label}@${lineOf(n.getStart())}${passes ? "+sig" : ""}`);
-      } else if (ts.isPropertyAccessExpression(n) && n.name.text === "aborted") bug.abortChecks.push(lineOf(n.getStart()));
+        if (isWriteCall(n)) bug.writes.push(`${label}@${lineOf(n.getStart())}${passes ? "+sig" : ""}`);
+      } else if (tovuFull && ts.isPropertyAccessExpression(n) && n.name.text === "aborted") bug.abortChecks.push(lineOf(n.getStart()));
     }
     ts.forEachChild(n, visit);
   };
@@ -403,7 +666,10 @@ function parseFile(abs, info) {
     // wiring the same Jini host with the same keys are duplicate wiring even when bodies differ.
     if (obj.properties.length >= 4 && !ts.isPropertyAssignment(obj.parent)) {
       ctx = portContext(obj) ?? false;
-      if (ctx) f.hostObjects.push({ line: lineOf(obj.getStart()), root: ctx.root, label: ctx.label, keys: obj.properties.map((p) => (p.name ? memberName(p) : "...")).sort() });
+      // vals = key=value text: two sites passing the same factory its required options share KEYS
+      // by API, not by copy (pilot DE #6: createNodeDaemonProcessAdapter x6; ABC #8: DataModuleDecl).
+      if (ctx) f.hostObjects.push({ line: lineOf(obj.getStart()), root: ctx.root, label: ctx.label, keys: obj.properties.map((p) => (p.name ? memberName(p) : "...")).sort(),
+        vals: obj.properties.map((p) => `${p.name ? memberName(p) : "..."}=${short((ts.isPropertyAssignment(p) ? p.initializer.getText() : p.getText()).replace(/\s+/g, ""), 60)}`) });
     }
     for (const prop of obj.properties) {
       let value = null;
@@ -437,6 +703,11 @@ function parseFile(abs, info) {
     f.bug = bug; f.fnCount = fnCount;
     f.toolRegistration = /\bbuildDomainRegistrations\b|AgentToolDefinition\[\]/.test(text);
     f.dataIsh = /(i18n|locales?|copy|messages|strings)\b/i.test(info.rel);
+    // An approval handler or ctx.signal use is behaviour a Tier 0 skim misses (pilot ABC #7:
+    // project-keys/tools.ts and consent/tool-registrations.ts sat at Tier 0 as R9).
+    f.approvalOrCtxSignal = /\b(requiresApproval|needsApproval|approvalRequired|approval\w*\s*[:(]|onApprove\w*|approve[A-Z]\w*\s*\(|ctx\.signal)/.test(text);
+    // Rule check (pilot DE #7, D2): Jini must not name a specific server framework (owner 11-07).
+    f.expressType = f.imports.some((i) => /^(express|@types\/express)$/.test(i.spec)) || /(:\s*|<\s*)(Express|express\.(Application|Router|Request|Response))\b/.test(text);
   }
   return f;
 }
@@ -511,9 +782,15 @@ function resolveExport(abs, name, depth = 0) {
 }
 function resolveVia(fromAbs, spec, name, depth, star = false) {
   const t = resolveSpec(fromAbs, spec);
-  if (t.kind === "file") return resolveExport(t.abs, name, depth + 1) ?? (star ? null : { abs: t.abs, name });
-  if (t.kind === "jini") return star ? null : { jini: spec, name };
-  return star ? null : { ext: spec };
+  let r;
+  if (t.kind === "file") r = resolveExport(t.abs, name, depth + 1) ?? (star ? null : { abs: t.abs, name });
+  else if (t.kind === "jini") r = star ? null : { jini: spec, name };
+  else r = star ? null : { ext: spec };
+  // Keep the OUTERMOST @jini-ai specifier on the chain: the package the importer NAMED. Jini->Jini
+  // re-exports otherwise hide it (`@jini-ai/cms/core` showed as core#tool-permissions.ts, pilot
+  // ABC #2), and CORE-CONTRACT-NEEDED counts named packages. Outer calls assign last, so they win.
+  if (r && spec.startsWith("@jini-ai/")) r.jspec = spec;
+  return r;
 }
 /** Resolve a local binding (import) of file `abs` to its origin. */
 function resolveBinding(abs, local) {
@@ -528,38 +805,62 @@ const originLabel = (o) => o.jini ? `${o.jini}#${o.name}` : o.abs ? `${display(o
 // ---------------------------------------------------------------------------------------------
 const importers = new Map();      // defining Tovu abs -> Map(importer abs -> Set(names))
 const usedNames = new Map();      // defining abs -> Set(names) ("*" = all)
+// Direct importers: files whose specifier resolves to THIS file, before re-export resolution. A
+// facade/barrel (kernel/dialect.ts re-exporting @jini-ai/db) has no "defining" callers, so the
+// resolved count read 0 and invited a DELETE without a repoint (pilot ABC #1).
+const directImp = new Map();      // Tovu abs -> Map(importer abs -> { names: Set, reexport: bool })
 const fileEdges = new Map();      // importer abs -> [{ to, names, typeOnly, via, kind }]
 const addUse = (to, from, name) => {
   if (!importers.has(to)) importers.set(to, new Map());
   const m = importers.get(to); if (!m.has(from)) m.set(from, new Set()); m.get(from).add(name);
   if (!usedNames.has(to)) usedNames.set(to, new Set()); usedNames.get(to).add(name);
 };
+/** Every name a module exports, through named re-exports and `export *` chains. */
+function exportNames(abs, seen = new Set()) {
+  const out = new Set(); const f = facts.get(abs); if (!f || seen.has(abs)) return out; seen.add(abs);
+  for (const n of f.localExports.keys()) out.add(n);
+  for (const n of f.reexports.keys()) out.add(n);
+  for (const spec of f.stars) { const t = resolveSpec(abs, spec); if (t.kind === "file") for (const n of exportNames(t.abs, seen)) if (n !== "default") out.add(n); }
+  return out;
+}
 for (const [abs, f] of facts) {
   if (files.get(abs).repo !== "tovu") continue;
   const edges = [];
   for (const imp of f.imports) {
     const t = resolveSpec(abs, imp.spec);
-    const base = { spec: imp.spec, kind: imp.kind, typeOnly: imp.typeOnly, line: imp.line };
-    if (t.kind !== "file") { edges.push({ ...base, target: t.kind === "jini" ? "jini" : t.kind, to: null, names: imp.names }); continue; }
-    // Namespace imports: resolve the `ns.x` names actually used in this file.
+    const base = { spec: imp.spec, kind: imp.kind, typeOnly: imp.typeOnly, line: imp.line, awaited: !!imp.awaited };
+    if (t.kind !== "file") { edges.push({ ...base, target: t.kind === "jini" ? "jini" : t.kind, to: null, jiniPkg: specPkg(imp.spec), names: imp.names }); continue; }
+    // Namespace imports (static, or `const m = await import()`): resolve the `ns.x` names used here.
     let names = imp.names;
-    if (names.includes("*") && imp.kind === "import") {
+    if (names.includes("*") && (imp.kind === "import" || imp.kind === "dynamic")) {
       const local = [...f.bindings].find(([, b]) => b.spec === imp.spec && b.imported === "*")?.[0];
       const used = local && f.nsUses.get(local);
       if (used?.size) names = [...used];
     }
+    if (files.get(t.abs).repo === "tovu") {
+      if (!directImp.has(t.abs)) directImp.set(t.abs, new Map());
+      const d = directImp.get(t.abs); if (!d.has(abs)) d.set(abs, { names: new Set(), reexport: false });
+      const rec = d.get(abs); names.forEach((n) => rec.names.add(n)); if (imp.kind === "reexport") rec.reexport = true;
+    }
+    // A `*` use of a barrel/facade fans out to every name it re-exports, so the defining files
+    // behind it get their importers (pilot DE #2: re-export-only barrels kept the edge).
+    const tf = facts.get(t.abs);
+    if (names.includes("*") && imp.kind !== "reexport" && (tf.reexports.size || tf.stars.length)) names = [...new Set([...names.filter((n) => n !== "*"), ...exportNames(t.abs)])];
     const byTarget = new Map();
     for (const name of names) {
       const o = name === "*" ? { abs: t.abs, name: "*" } : resolveExport(t.abs, name) ?? { abs: t.abs, name };
       const to = o.abs ?? null;
-      const k = to ?? `jini:${o.jini}`;
-      if (!byTarget.has(k)) byTarget.set(k, { to, jini: o.jini ?? (to && files.get(to).repo === "jini" ? jiniSpecOf(to) : null), names: [] });
+      const jiniDef = o.jini ?? (to && files.get(to).repo === "jini" ? jiniSpecOf(to) : null);
+      // The package the import NAMES: the specifier itself, or the outermost Jini spec behind a Tovu barrel.
+      const named = specPkg(imp.spec) ?? specPkg(o.jspec);
+      const k = `${to ?? `jini:${o.jini}`}|${named}`;
+      if (!byTarget.has(k)) byTarget.set(k, { to, jini: jiniDef, jiniPkg: named, names: [] });
       byTarget.get(k).names.push(o.name);
       if (to && files.get(to).repo === "tovu" && imp.kind !== "reexport") addUse(to, abs, o.name);
     }
     for (const v of byTarget.values()) {
       const via = files.get(t.abs).repo === "tovu" && v.to !== t.abs ? display(t.abs) : null;
-      edges.push({ ...base, target: v.to && files.get(v.to).repo === "tovu" ? "tovu" : "jini", to: v.to, jiniSpec: v.jini, names: v.names, via });
+      edges.push({ ...base, target: v.to && files.get(v.to).repo === "tovu" ? "tovu" : "jini", to: v.to, jiniSpec: v.jini, jiniPkg: v.jiniPkg, names: v.names, via });
     }
   }
   fileEdges.set(abs, edges);
@@ -590,6 +891,9 @@ for (const a of mainFiles) {
     if (e.target !== "tovu" || !e.to || files.get(e.to).role !== "main") continue;
     const fb = files.get(e.to).feature; if (fb === fa) continue;
     featureEdges.get(fa).add(fb);
+    // The per-file cycle trigger uses value edges only: a type-only edge into a partner feature is
+    // no runtime coupling (pilot DE #5, media card hooks). Features/SCCs keep type edges for batching.
+    if (e.typeOnly || e.kind === "importType") continue;
     if (!crossEdges.has(a)) crossEdges.set(a, new Set()); crossEdges.get(a).add(fb);
   }
 }
@@ -628,6 +932,8 @@ const mutual = (a, b) => a !== b && !!featureEdges.get(a)?.has(b) && !!featureEd
 // type-shape hashes. Jini<->Jini pairs are not reported.
 // ---------------------------------------------------------------------------------------------
 const SEEDS = Array.from({ length: MINHASH_N }, (_, i) => Math.imul(0x9e3779b1, i + 1) >>> 0);
+// Scope of a pair, by the non-Tovu side: Jini fixtures are reported apart and never trigger Tier 2.
+const scopeOf = (abs) => abs.startsWith(JINI) ? (files.get(abs).fixture ? "tovu-jini-fixture" : "tovu-jini") : "tovu-tovu";
 const fmix = (h) => { h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; return h >>> 0; };
 const units = [];
 for (const [abs, f] of facts) {
@@ -653,7 +959,7 @@ units.forEach((x, ui) => {
   for (const s of x.u.shingles) for (let k = 0; k < MINHASH_N; k++) { const h = fmix(s ^ SEEDS[k]); if (h < sig[k]) sig[k] = h; }
   for (let b = 0; b < LSH_BANDS; b++) { const key = `${b}:${sig.slice(b * rows, b * rows + rows).join(",")}`; if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(ui); }
 });
-const twinPairs = []; const seenPair = new Set(); let skippedBuckets = 0;
+const twinPairs = []; const seenPair = new Set(); let skippedBuckets = 0; let suppressedSamePort = 0;
 for (const members of buckets.values()) {
   if (members.length < 2) continue;
   if (members.length > LSH_BUCKET_CAP) { skippedBuckets++; continue; }
@@ -672,24 +978,60 @@ for (const members of buckets.values()) {
     if (sim < TWIN_REPORT) continue;
     const [X, Y] = ra === "tovu" ? [A, B] : [B, A];
     twinPairs.push({ kind: "body", a: display(X.abs), aUnit: X.u.name, aLine: X.u.line, b: display(Y.abs), bUnit: Y.u.name, bLine: Y.u.line,
-      sim: +sim.toFixed(2), sameName: X.u.name.split(".").pop() === Y.u.name.split(".").pop(), scope: Y.abs.startsWith(JINI) ? "tovu-jini" : "tovu-tovu",
+      sim: +sim.toFixed(2), sameName: X.u.name.split(".").pop().split(">").pop() === Y.u.name.split(".").pop().split(">").pop(), scope: scopeOf(Y.abs),
       stmts: Math.min(X.u.statements, Y.u.statements) });
   }
 }
-// Class APIs: method/property-name Jaccard, Tovu<->Jini only, report-only. Mostly a Tovu SQL repo
-// implementing the same port as a Jini in-memory repo; sometimes a diverged sibling whose bodies
-// differ too much for the fingerprint (canary-2 vault-adapter vs CredentialSetVaultRepo: body 0.08).
+// Class APIs, Tovu<->Jini only. (a) method/property-name Jaccard >= 0.6 (>= 5 members): mostly a
+// Tovu SQL repo implementing the same port as a Jini in-memory repo, sometimes a diverged sibling
+// whose bodies differ too much for the fingerprint (canary-2 vault-adapter vs CredentialSetVaultRepo:
+// body 0.08). (b) API fingerprint: public method names >= 0.5 AND callee-name set >= 0.5 (>= 3
+// public methods): a restructured copy keeps its public surface and the calls it makes even when
+// fields and private helpers moved (pilot ABC #3: keyring.memory 0.04 by body).
 {
   const classes = [];
   for (const [abs, f] of facts) { const info = files.get(abs); if (info.role !== "main" && info.role !== "jini") continue;
-    for (const u of f.units) if (u.kind === "class" && u.methods?.length >= 5) classes.push({ abs, u, set: new Set(u.methods) }); }
+    for (const u of f.units) if (u.kind === "class" && (u.methods?.length >= 5 || u.publicMethods?.length >= 3)) classes.push({ abs, u, set: new Set(u.methods), pub: new Set(u.publicMethods), calls: new Set(u.calls) }); }
+  const jac = (a, b) => { if (!a.size || !b.size) return 0; let i = 0; for (const x of a) if (b.has(x)) i++; return i / (a.size + b.size - i); };
   const tovuC = classes.filter((c) => files.get(c.abs).repo === "tovu"), jiniC = classes.filter((c) => files.get(c.abs).repo === "jini");
   for (const A of tovuC) for (const B of jiniC) {
-    if (Math.min(A.set.size, B.set.size) / Math.max(A.set.size, B.set.size) < 0.6) continue;
-    let inter = 0; for (const m of A.set) if (B.set.has(m)) inter++;
-    const sim = inter / (A.set.size + B.set.size - inter);
-    if (sim >= 0.6) twinPairs.push({ kind: "class-api", a: display(A.abs), aUnit: A.u.name, aLine: A.u.line, b: display(B.abs), bUnit: B.u.name, bLine: B.u.line,
-      sim: +sim.toFixed(2), sameName: A.u.name === B.u.name, scope: "tovu-jini", members: Math.min(A.set.size, B.set.size) });
+    const sim = A.set.size >= 5 && B.set.size >= 5 && Math.min(A.set.size, B.set.size) / Math.max(A.set.size, B.set.size) >= 0.6 ? jac(A.set, B.set) : 0;
+    const api = A.pub.size >= 3 && B.pub.size >= 3 ? Math.min(jac(A.pub, B.pub), jac(A.calls, B.calls)) : 0;
+    if (sim < 0.6 && api < 0.5) continue;
+    twinPairs.push({ kind: sim >= 0.6 ? "class-api" : "class-fingerprint", a: display(A.abs), aUnit: A.u.name, aLine: A.u.line, b: display(B.abs), bUnit: B.u.name, bLine: B.u.line,
+      sim: +Math.max(sim, api).toFixed(2), sameName: A.u.name === B.u.name, scope: scopeOf(B.abs), members: Math.min(A.pub.size, B.pub.size) });
+  }
+}
+// Exact small bodies (< MIN_UNIT_STATEMENTS), only when one side is Jini: identical text is a copy
+// however short (pilot ABC #3: openSqliteSnapshot, safeHref). Tovu<->Tovu one-liners stay noise.
+{
+  const byText = new Map();
+  for (const [abs, f] of facts) { const info = files.get(abs); if (info.role !== "main" && info.role !== "jini") continue;
+    for (const u of f.units) if (u.smallText) { if (!byText.has(u.smallText)) byText.set(u.smallText, []); byText.get(u.smallText).push({ abs, u }); } }
+  for (const list of byText.values()) {
+    if (list.length < 2 || list.length > SMALL_EXACT_BUCKET_CAP) continue;
+    for (const X of list) for (const Y of list) {
+      if (files.get(X.abs).repo !== "tovu" || files.get(Y.abs).repo !== "jini") continue;
+      twinPairs.push({ kind: "exact-small", a: display(X.abs), aUnit: X.u.name, aLine: X.u.line, b: display(Y.abs), bUnit: Y.u.name, bLine: Y.u.line,
+        sim: 1, sameName: X.u.name === Y.u.name, scope: scopeOf(Y.abs), stmts: X.u.statements, chars: X.u.smallText.length });
+    }
+  }
+}
+// Constant string sets (exported or not): the same >= 3 strings as an array/Set in two places is a
+// duplicated enum the body fingerprint cannot see (pilot ABC #3, consent enums). Exact set equality.
+{
+  const bySet = new Map();
+  for (const [abs, f] of facts) { const info = files.get(abs); if (info.role !== "main" && info.role !== "jini") continue;
+    for (const c of f.constSets) { if (!bySet.has(c.key)) bySet.set(c.key, []); bySet.get(c.key).push({ abs, c }); } }
+  for (const list of bySet.values()) {
+    if (list.length < 2 || list.length > SHAPE_BUCKET_CAP) continue;
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const A = list[i], B = list[j]; const ra = files.get(A.abs).repo, rb = files.get(B.abs).repo;
+      if ((ra === "jini" && rb === "jini") || A.abs === B.abs) continue;
+      const [X, Y] = ra === "tovu" ? [A, B] : [B, A];
+      twinPairs.push({ kind: "const-set", a: display(X.abs), aUnit: X.c.name, aLine: X.c.line, b: display(Y.abs), bUnit: Y.c.name, bLine: Y.c.line,
+        sim: 1, sameName: X.c.name === Y.c.name, scope: scopeOf(Y.abs), members: X.c.size });
+    }
   }
 }
 // Type shapes: exact strict hash (score 1.0) or names-only hash (score 0.8).
@@ -707,7 +1049,7 @@ for (const [field, score] of [["strict", 1], ["loose", 0.8]]) {
       if (score < 1 && A.s.strict === B.s.strict) continue; // already reported as strict
       const [X, Y] = ra === "tovu" ? [A, B] : [B, A];
       twinPairs.push({ kind: field === "strict" ? "shape" : "shape-names", a: display(X.abs), aUnit: X.s.name, aLine: X.s.line, b: display(Y.abs), bUnit: Y.s.name, bLine: Y.s.line,
-        sim: score, sameName: X.s.name === Y.s.name, scope: Y.abs.startsWith(JINI) ? "tovu-jini" : "tovu-tovu", members: X.s.size });
+        sim: score, sameName: X.s.name === Y.s.name, scope: scopeOf(Y.abs), members: X.s.size });
     }
   }
 }
@@ -728,24 +1070,34 @@ for (const [k, sites] of hostSites) {
     const sa = new Set(A.keys); const inter = B.keys.filter((x) => sa.has(x)).length;
     const sim = inter / (A.keys.length + B.keys.length - inter);
     if (sim < TWIN_REPORT) continue;
+    // Same keys with different VALUES is the factory's option list, not copied wiring: require the
+    // key=value texts to overlap too (pilot DE #6, ABC #8).
+    const va = new Set(A.vals); const vInter = B.vals.filter((x) => va.has(x)).length;
+    if (vInter / (A.vals.length + B.vals.length - vInter) < 0.5) continue;
     twinPairs.push({ kind: "wiring", a: display(A.abs), aUnit: k.split(" :: ")[0].split("#").pop(), aLine: A.line, b: display(B.abs), bUnit: k.split(" :: ")[0].split("#").pop(), bLine: B.line,
       sim: +sim.toFixed(2), sameName: false, scope: "tovu-tovu", members: Math.min(A.keys.length, B.keys.length) });
   }
 }
-const twinsByFile = new Map();
-for (const p of twinPairs) for (const [side, other] of [[p.a, p.b], [p.b, p.a]]) {
-  if (side.startsWith("jini:")) continue;
-  if (!twinsByFile.has(side)) twinsByFile.set(side, []);
-  twinsByFile.get(side).push({ ...p, self: side === p.a ? `${p.aUnit}@${p.aLine}` : `${p.bUnit}@${p.bLine}`, other: side === p.a ? `${p.b}#${p.bUnit}@${p.bLine}` : `${p.a}#${p.aUnit}@${p.aLine}` });
+const twinsByFile = new Map(); const shapePartners = new Map();
+function indexTwins() { // run after the port-edge pass has dropped same-port pairs
+  for (const p of twinPairs) for (const [side] of [[p.a, p.b], [p.b, p.a]]) {
+    if (side.startsWith("jini:")) continue;
+    if (!twinsByFile.has(side)) twinsByFile.set(side, []);
+    twinsByFile.get(side).push({ ...p, self: side === p.a ? `${p.aUnit}@${p.aLine}` : `${p.bUnit}@${p.bLine}`, other: side === p.a ? `${p.b}#${p.bUnit}@${p.bLine}` : `${p.a}#${p.aUnit}@${p.aLine}` });
+  }
+  for (const p of twinPairs) if (p.kind === "shape" && !p.sameName) shapePartners.set(`${p.a}#${p.aUnit}`, (shapePartners.get(`${p.a}#${p.aUnit}`) ?? 0) + 1);
 }
-const shapePartners = new Map();
-for (const p of twinPairs) if (p.kind === "shape" && !p.sameName) shapePartners.set(`${p.a}#${p.aUnit}`, (shapePartners.get(`${p.a}#${p.aUnit}`) ?? 0) + 1);
 /** Which twins promote a file to Tier 2. Tovu<->Tovu body twins need near-identity and size, else
  * route boilerplate (registerAdmin*Route x100) floods Tier 2. Same-name type twins are DEDUPE
  * candidates a Tier 1 read handles (canary-2: the same-name trigger over-promoted); the
  * different-name ones are what a name match cannot see. Names-only shapes are report-only. */
 function isStrongTwin(p) {
-  if (p.kind === "body") return p.scope === "tovu-jini" ? p.sim >= TWIN_STRONG : p.sim >= 0.9 && p.stmts >= 8;
+  if (p.scope === "tovu-jini-fixture") return false;
+  if (p.kind === "body") return p.scope === "tovu-jini" ? p.sim >= TWIN_STRONG : p.sim >= TWIN_STRONG_TT && p.stmts >= TWIN_STRONG_TT_STMTS;
+  // Identical code or an identical enum shared with Jini is a copy, however small.
+  // (A copied `sleep`/`byteLength` one-liner is reported but too small to lift a file: >= 60 chars.)
+  if (p.kind === "exact-small") return p.scope === "tovu-jini" && p.chars >= 60;
+  if (p.kind === "const-set") return p.scope === "tovu-jini";
   // A Tovu type that matches >2 differently named types is a common idiom shape ({ id, module,
   // source }), not a twin. Wiring twins are report-only: shared keys are often just the API's fields.
   if (p.kind === "shape") return !p.sameName && (p.scope === "tovu-jini" || p.members >= 4) && (shapePartners.get(`${p.a}#${p.aUnit}`) ?? 0) <= 2;
@@ -758,8 +1110,10 @@ function isStrongTwin(p) {
 const jiniExportIndex = new Map(); // name -> [{ abs, unit? }]
 const jiniLitFiles = new Map();    // literal/segment -> Set(abs)
 const jiniFormats = [];            // { pattern, head, abs, line, symbol, exported }
+const jiniPhraseFiles = new Map(); // Jini wording >= 12 chars -> Set(abs) (pilot DE #4)
 for (const [abs, f] of facts) {
-  if (files.get(abs).repo !== "jini") continue;
+  if (files.get(abs).repo !== "jini" || files.get(abs).helper) continue;
+  for (const ph of f.jiniLits?.phrases ?? []) { if (!jiniPhraseFiles.has(ph)) jiniPhraseFiles.set(ph, new Set()); jiniPhraseFiles.get(ph).add(abs); }
   for (const name of f.localExports.keys()) {
     if (!jiniExportIndex.has(name)) jiniExportIndex.set(name, []);
     jiniExportIndex.get(name).push({ abs, unit: f.units.find((u) => u.name === name), shape: f.shapes.find((s) => s.name === name) });
@@ -786,6 +1140,118 @@ function matchFormat(pattern) {
   if (!common.length || common.length > 3) return null;
   const abs = common[0]; const fm = jiniFormats.find((x) => x.abs === abs && segs.some((s) => x.pattern.includes(s)));
   return { match: "segments", fm: fm ?? { abs, line: null, symbol: null, exported: null, pattern: segs.join("|") } };
+}
+
+// String couplings beyond `x:y` formats (pilot DE #4): event names, path.join literals, template
+// contents and wording Tovu compares/parses. Only Jini strings in few files count (distinctive).
+const phraseList = [...jiniPhraseFiles.entries()].filter(([, set]) => set.size <= 5);
+// First run's noise, now excluded: DOM/Electron events without a namespace (pointermove,
+// visibilitychange), CSS declarations (display:flex) and SQL column names (principal_id) inside
+// templates, well-known file names (package.json), and ids compared with === (shared enum values,
+// not wording: 'api-connection', 'observability').
+const CSS_DECL_RE = /^(display|position|color|background|width|height|margin|padding|border|font|overflow|cursor|opacity|flex|grid|align|justify|z-index|top|left|right|bottom|transform|transition|white-space|text|line-height|gap|box-sizing|visibility|pointer-events|content|min|max|outline|inset|fill|stroke)[\w-]*:/;
+const WELL_KNOWN_FILES = new Set(["package.json", "config.json", "plugin.json", "manifest.json", "tsconfig.json", "index.html", "index.js", "index.ts", "content.db", "README.md"]);
+function matchCoupling(c) {
+  const lit = (t, cap) => { const set = jiniLitFiles.get(t); return set && set.size <= cap ? [...set] : null; };
+  let hit = null; const t = c.text;
+  if (c.kind === "event") hit = /[:.]/.test(t) ? lit(t, 10) : /-/.test(t) ? lit(t, 3) : null;
+  else if (c.kind === "path") { if (t.includes("/") && !WELL_KNOWN_FILES.has(t)) hit = lit(t, 10); const leaf = t.split("/").pop(); if (!hit && leaf.length >= 10 && /-/.test(leaf) && !WELL_KNOWN_FILES.has(leaf)) hit = lit(leaf, 5); }
+  else if (c.kind === "template") hit = /^[./#]|[:.]/.test(t) && !/^[a-z]+(_[a-z]+)+$/.test(t) && !CSS_DECL_RE.test(t) && t.length >= 6 ? lit(t, 5) : null;
+  else {
+    // Wording only: a phrase/regex operand needs a space or >= 20 chars (ids are enum values).
+    if (!/\s/.test(t.trim()) && t.length < 20) return null;
+    const exact = jiniPhraseFiles.get(t);
+    if (exact && exact.size <= 5) hit = [...exact];
+    else { const m = phraseList.find(([ph]) => ph.includes(t)); if (m) hit = [...m[1]]; }
+  }
+  return hit ? { jini: display(hit[0]), jiniFiles: hit.length } : null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// LEGACY-TWIN pre-pass (pilot DE #1, the main miss of slice E): a Tovu feature folder or file whose
+// NAME matches a Jini module (admin/features/media <-> @jini-ai/admin/media; assistant-run-finalizer
+// <-> chat/server/run-finalizer) and whose BEHAVIOUR matches (Jaccard over string literals, called
+// names and property names, private closures included), or that a Tovu host file already mounts.
+// Body and name similarity cannot see restructured siblings (media scored 0.07/0.11 by body).
+// ---------------------------------------------------------------------------------------------
+const behDf = new Map(); let behN = 0;
+const behFile = (abs) => { const i = files.get(abs); return i.role === "main" || (i.role === "jini" && !i.fixture); };
+for (const [abs, f] of facts) { if (!behFile(abs)) continue; behN++; for (const t of f.beh) behDf.set(t, (behDf.get(t) ?? 0) + 1); }
+const behMax = Math.max(3, Math.floor(behN * BEH_MAX_DF_SHARE));
+const behOf = (list) => { const out = new Set(); for (const a of list) for (const t of facts.get(a).beh) if (behDf.get(t) <= behMax) out.add(t); return out; };
+const kebab = (s) => s.replace(/\.[^.]+$/, "").replace(/\.(hooks|types|store|routes|service)$/, "").replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+// Folder/file names that every package has: matching on them says nothing.
+const GENERIC_NAMES = new Set(["index", "types", "type", "utils", "util", "lib", "server", "client", "react", "core", "src", "components", "hooks", "ui", "api",
+  "routes", "shared", "common", "internal", "node", "browser", "config", "constants", "helpers", "store", "state", "model", "models", "schema", "contracts",
+  "features", "pages", "app", "main", "adapters", "plugins", "providers", "services", "data", "assets", "styles", "views", "cli", "http", "db", "errors",
+  "events", "logger", "tools", "runtime", "domain", "ports", "port", "service", "module", "modules", "registry", "context", "testing", "memory", "sqlite",
+  "postgres", "shell", "panels", "settings", "admin", "public", "web", "main", "desktop", "website", "platform", "infra", "inbound", "composition", "kit", "migrations", "fixtures", "lifecycle"]);
+function moduleIndex(list, rootOf) {
+  const mods = new Map(); // key -> { key, name, files: [] }
+  for (const abs of list) {
+    const rel = files.get(abs).rel; const root = rootOf(rel); if (!root) continue;
+    const add = (key, name) => { if (!mods.has(key)) mods.set(key, { key, name, files: [], root }); mods.get(key).files.push(abs); };
+    add(rel, kebab(path.basename(rel)));
+    const parts = rel.slice(root.length).split("/").slice(0, -1);
+    for (let i = 1; i <= parts.length; i++) add(`${root}${parts.slice(0, i).join("/")}/`, kebab(parts[i - 1]));
+  }
+  return mods;
+}
+const tovuMods = moduleIndex(mainFiles, (rel) => (/^(apps\/[^/]+\/src\/|packages\/[^/]+\/src\/)/.exec(rel) ?? [])[0] ?? null);
+const jiniMods = moduleIndex([...facts.keys()].filter((a) => files.get(a).repo === "jini" && !files.get(a).fixture), (rel) => (/^packages\/[^/]+\/src\//.exec(rel) ?? [])[0]);
+const jiniImporters = new Map(); // Jini abs -> [{ imp, line }] (Tovu main importers)
+for (const a of mainFiles) for (const e of fileEdges.get(a) ?? []) if (e.to && files.get(e.to).repo === "jini") { if (!jiniImporters.has(e.to)) jiniImporters.set(e.to, []); jiniImporters.get(e.to).push({ imp: a, line: e.line }); }
+const jiniByName = new Map(); for (const m of jiniMods.values()) { if (GENERIC_NAMES.has(m.name) || m.name.length < 4) continue; if (!jiniByName.has(m.name)) jiniByName.set(m.name, []); jiniByName.get(m.name).push(m); }
+const legacyTwins = []; const legacyByFile = new Map();
+{
+  const behCache = new Map(); const beh = (m) => { if (!behCache.has(m.key)) behCache.set(m.key, behOf(m.files)); return behCache.get(m.key); };
+  for (const tm of tovuMods.values()) {
+    if (GENERIC_NAMES.has(tm.name) || tm.name.length < 4) continue;
+    // Exact name, or a Tovu-prefixed name (assistant-run-finalizer -> run-finalizer) when the Jini name is compound.
+    const cands = [...(jiniByName.get(tm.name) ?? [])];
+    for (let i = tm.name.indexOf("-"); i > 0; i = tm.name.indexOf("-", i + 1)) { const tail = tm.name.slice(i + 1); if (tail.includes("-")) cands.push(...(jiniByName.get(tail) ?? [])); }
+    if (!cands.length) continue;
+    const app = (/^apps\/([^/]+)\//.exec(files.get(tm.files[0]).rel) ?? [])[1];
+    for (const jm of cands) {
+      const jpkg = jiniPkgOfRel(files.get(jm.files[0]).rel);
+      const strongName = /-/.test(jm.name) || jm.name.length >= 8 || (app && jpkg === `@jini-ai/${app}`);
+      const jset = new Set(jm.files); const tset = new Set(tm.files);
+      // Mount sites: Tovu files OUTSIDE the twin that import the Jini module (modules.hooks.ts mounts it).
+      const mounts = []; let inside = 0;
+      for (const ja of jm.files) for (const { imp, line } of jiniImporters.get(ja) ?? []) { if (tset.has(imp)) inside++; else mounts.push(`${display(imp)}:${line}`); }
+      if (!strongName && !mounts.length) continue;
+      // A name that names >3 Jini modules (repo, tool-registrations) identifies nothing on its own.
+      if ((jiniByName.get(jm.name)?.length ?? 0) > 3 && !(app && jpkg === `@jini-ai/${app}`)) continue;
+      const A = beh(tm), B = beh(jm); if (A.size < 15 || B.size < 15) continue;
+      let inter = 0; for (const t of A) if (B.has(t)) inter++;
+      const sim = inter / (A.size + B.size - inter);
+      // Overlap (shared / smaller side): a folder that grew hooks/ or a Jini module that grew
+      // adapters/ dilutes the Jaccard (admin media: Jaccard 0.06, overlap 0.23, 191 shared tokens).
+      const overlap = inter / Math.min(A.size, B.size);
+      // Spot-check aid: --legacy-debug <name> prints every candidate pair for that module name.
+      if (arg("--legacy-debug") === tm.name) console.error("legacy-debug", tm.key, jm.key, JSON.stringify({ sim: +sim.toFixed(3), inter, A: A.size, B: B.size, mounts: mounts.length, inside, strongName }));
+      if (inter < LEGACY_MIN_SHARED || (sim < LEGACY_MIN_SIM && overlap < LEGACY_MIN_OVERLAP)) continue;
+      const rec = { tovu: tm.key, jini: `jini:${jm.key}`, jiniPkg: jpkg, sim: +sim.toFixed(2), overlap: +overlap.toFixed(2), shared: inter, files: tm.files.length, mounts: [...new Set(mounts)].slice(0, 5), mountsTotal: new Set(mounts).size, mountsInside: inside };
+      legacyTwins.push(rec);
+      for (const a of tm.files) { const cur = legacyByFile.get(a); if (!cur || cur.sim + cur.overlap < rec.sim + rec.overlap) legacyByFile.set(a, rec); }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Rule checks on Jini (pilot DE #7): first-party `await import()`, imports of non-core Jini packages
+// (CORE-CONTRACT-NEEDED precomputed), and Express types (owner 11-07: no specific server in Jini).
+// ---------------------------------------------------------------------------------------------
+const jiniRules = [];
+for (const [abs, f] of facts) {
+  const info = files.get(abs); if (info.repo !== "jini" || info.fixture) continue;
+  const own = jiniPkgOfRel(info.rel);
+  for (const i of f.imports) {
+    if (i.kind === "dynamic" && i.awaited && (i.spec.startsWith(".") || i.spec.startsWith("@jini-ai/"))) jiniRules.push({ file: display(abs), rule: "await-import", spec: i.spec, line: i.line });
+    const pk = specPkg(i.spec);
+    if (pk && pk !== own && !CORE_PKGS.has(pk)) jiniRules.push({ file: display(abs), rule: "imports-non-core", pkg: own, imports: pk, spec: i.spec, line: i.line, ...(i.typeOnly ? { typeOnly: true } : {}) });
+  }
+  if (f.expressType) jiniRules.push({ file: display(abs), rule: "express-type" });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -817,10 +1283,21 @@ for (const abs of mainFiles) {
     if (f.bindings.has(p.value)) { const o = resolveBinding(abs, p.value); if (o?.abs && files.get(o.abs).repo === "tovu") impl = o; }
     else if (f.localNames.has(p.value)) impl = { abs, name: p.value };
     if (!impl) continue;
+    // A port is implemented by a function or an object, not a string/number field (pilot ABC #8:
+    // `pluginId: PLUGIN_ID` read as an implementer).
+    if (facts.get(impl.abs).constKinds.get(impl.name) === "literal") continue;
     const implKind = facts.get(impl.abs).localExports.get(impl.name)?.kind ?? "local";
     portEdges.push({ site: `${display(abs)}:${p.line}`, siteAbs: abs, port: `${originLabel(host)} :: ${p.label}.${p.field}`, symbol: impl.name, implAbs: impl.abs, impl: display(impl.abs),
       implKind, crossFile: impl.abs !== abs });
   }
+}
+// Two Tovu bodies that implement the SAME Jini port field look alike because the port shapes them
+// (pilot DE #6: stopRunsForToolAccessChange). Drop those Tovu<->Tovu body pairs before indexing.
+{
+  const portsOf = new Map(); for (const e of portEdges) { const k = `${e.impl}#${e.symbol}`; if (!portsOf.has(k)) portsOf.set(k, new Set()); portsOf.get(k).add(e.port); }
+  const samePort = (p) => { const A = portsOf.get(`${p.a}#${p.aUnit}`), B = portsOf.get(`${p.b}#${p.bUnit}`); return !!A && !!B && [...A].some((x) => B.has(x)); };
+  for (let i = twinPairs.length - 1; i >= 0; i--) if (twinPairs[i].kind === "body" && twinPairs[i].scope === "tovu-tovu" && samePort(twinPairs[i])) { twinPairs.splice(i, 1); suppressedSamePort++; }
+  indexTwins();
 }
 const portsByImpl = new Map(); const portsBySite = new Map();
 for (const e of portEdges) {
@@ -841,11 +1318,17 @@ for (const [abs, info] of files) {
 for (const abs of mainFiles) {
   const info = files.get(abs); const f = facts.get(abs); const rel = info.rel;
   const edges = fileEdges.get(abs) ?? [];
-  const T = [], J = [], N = new Set(), NPM = new Set(), missing = [];
+  const T = [], J = [], N = new Set(), NPM = new Set(), missing = [], rules = []; const namedPkgs = new Set();
   for (const e of edges) {
     const tag = `${e.typeOnly || e.kind === "importType" ? "type " : ""}${e.kind === "dynamic" || e.kind === "importType" ? "inline " : ""}`;
+    // Rule check (pilot DE #7): prod `await import()` of a first-party module (Tovu or Jini).
+    if (e.kind === "dynamic" && e.awaited && (e.target === "tovu" || e.target === "jini")) rules.push(`await-import ${e.spec} @${e.line}`);
     if (e.target === "tovu") T.push(`${tag}${display(e.to)}${e.via ? ` (via ${e.via})` : ""}`);
-    else if (e.target === "jini") J.push(`${tag}${e.jiniSpec ?? e.spec}${e.to ? `#${files.get(e.to).rel.split("/src/")[1] ?? ""}` : ""}${e.spec.startsWith("@jini-ai/") ? "" : ` (R7 via ${e.via ?? e.spec})`}`);
+    else if (e.target === "jini") {
+      // pkg= is the package the import NAMES (may differ from where the symbol is defined).
+      if (e.jiniPkg) namedPkgs.add(e.jiniPkg);
+      J.push(`${tag}${e.jiniSpec ?? e.spec}${e.to ? `#${files.get(e.to).rel.split("/src/")[1] ?? ""}` : ""}${e.jiniPkg ? ` pkg=${e.jiniPkg}` : ""}${e.spec.startsWith("@jini-ai/") ? "" : ` (R7 via ${e.via ?? e.spec})`}`);
+    }
     else if (e.target === "node") N.add(e.spec.replace(/^node:/, ""));
     else if (e.target === "missing") missing.push(e.spec);
     else NPM.add(e.spec.split("/").slice(0, e.spec.startsWith("@") ? 2 : 1).join("/"));
@@ -854,9 +1337,26 @@ for (const abs of mainFiles) {
   const imps = [...(importers.get(abs) ?? new Map()).keys()];
   const prod = imps.filter((x) => files.get(x).role === "main").map(display).sort();
   const aux = imps.filter((x) => files.get(x).role === "aux").length;
-  const used = usedNames.get(abs) ?? new Set();
-  const exportsList = [...f.localExports].map(([n, e]) => `${n}:${e.kind}@${e.line}`);
-  const unused = used.has("*") ? [] : [...f.localExports.keys()].filter((n) => !used.has(n));
+  // Direct importers (specifier resolves to this file): the only callers a facade/barrel has.
+  const dmap = directImp.get(abs) ?? new Map();
+  const dProd = [...dmap].filter(([x, r]) => files.get(x).role === "main" && !r.reexport).map(([x]) => x);
+  const dRe = [...dmap].filter(([x, r]) => files.get(x).role === "main" && r.reexport).length;
+  const dTests = [...dmap.keys()].filter((x) => files.get(x).role === "test").length;
+  // Per-export importer counts (prod/tests), from both resolved and direct importers, so test-only
+  // exports surface (pilot DE #2: isDaemonProcessForWorkspace, the Tovu createDaemonSupervisor).
+  const perName = new Map(); const bump = (n, x) => { if (!perName.has(n)) perName.set(n, { prod: new Set(), tests: new Set() }); const role = files.get(x).role; if (role === "main") perName.get(n).prod.add(x); else if (role === "test") perName.get(n).tests.add(x); };
+  for (const [x, names] of importers.get(abs) ?? new Map()) for (const n of names) bump(n, x);
+  for (const [x, r] of dmap) if (!r.reexport) for (const n of r.names) bump(n, x);
+  const used = new Set([...(usedNames.get(abs) ?? []), ...[...dmap.values()].flatMap((r) => [...r.names])]);
+  // Re-exported names are this file's API too (tag re:), or a facade reads as exporting nothing.
+  const exportsList = [...[...f.localExports].map(([n, e]) => `${n}:${e.kind}@${e.line}`), ...[...f.reexports].map(([n, r]) => `re:${n}<-${r.spec}`), ...f.stars.map((sp) => `re:*<-${sp}`)];
+  const allExported = [...f.localExports.keys(), ...f.reexports.keys()];
+  const unused = used.has("*") ? [] : allExported.filter((n) => !used.has(n));
+  const anyStar = perName.get("*"); const starProd = anyStar?.prod.size ?? 0, starTests = anyStar?.tests.size ?? 0;
+  const exportImporters = allExported.filter((n) => n !== "*").map((n) => { const c = perName.get(n); return { n, prod: (c?.prod.size ?? 0) + starProd, tests: (c?.tests.size ?? 0) + starTests }; });
+  // Test-only: LOCAL value exports only. A re-exported name reached by prod through an upstream barrel
+  // resolves past this file, so its prod count here is 0 by construction; types prove nothing.
+  const testOnly = exportImporters.filter((x) => x.prod === 0 && x.tests > 0 && f.localExports.has(x.n) && !/^(interface|type)$/.test(f.localExports.get(x.n).kind)).map((x) => x.n);
   // Same-name Jini exports, scored with the body fingerprint (R2: >=0.6 copy, 0.3-0.6 diverged).
   const sameName = [];
   for (const [name] of f.localExports) {
@@ -881,9 +1381,15 @@ for (const abs of mainFiles) {
   });
   // Pass-through functions (R2/R3): body is a single call into a Jini binding.
   const fnUnits = f.units.filter((u) => u.kind === "fn" || u.kind === "alias");
-  const passThrough = fnUnits.filter((u) => u.callRoot && isJiniOrigin(resolveBinding(abs, u.callRoot))).map((u) => `${u.name}@${u.line}`);
+  const passUnits = fnUnits.filter((u) => u.callRoot && isJiniOrigin(resolveBinding(abs, u.callRoot)));
+  const passThrough = passUnits.map((u) => `${u.name}@${u.line}`);
+  // Driver binders inject npm modules, product literals or host copy into the Jini call: that is
+  // Tovu wiring, not a pass-through to delete (pilot ABC #6: pglite*, postgres, enable-access).
+  const fedHost = passUnits.some((u) => u.callArgs && (u.callArgs.lit || u.callArgs.hostMsg || u.callArgs.idents.some((id) => resolveBinding(abs, id)?.ext)));
   // Literals: format coupling + product residue, with key-vs-value context.
   const formats = []; const residue = [];
+  const couplings = [];
+  for (const c of f.couplingCands) { const m = matchCoupling(c); if (m) { const row = { kind: c.kind, lit: short(c.text, 80), line: c.line, symbol: c.symbol, ...m }; couplings.push(row); formatCouplings.push({ file: rel, ...row }); } }
   for (const lit of f.literals) {
     if (lit.format) {
       const m = matchFormat(lit.text);
@@ -903,7 +1409,11 @@ for (const abs of mainFiles) {
   const portTriggers = implPorts.filter((e) => e.crossFile && (e.implKind === "function" || e.implKind === "class"));
   const sitePorts = portsBySite.get(abs) ?? [];
   const scc = sccOf.get(info.feature); const sccSize = sccs[scc].length;
-  const cycleTargets = [...(crossEdges.get(abs) ?? [])].filter((ft) => mutual(info.feature, ft));
+  // A body made only of register*(app, deps) calls is route wiring: its cycle edge is no logic.
+  const registerOnly = fnUnits.length > 0 && fnUnits.every((u) => u.registerOnly || u.kind === "alias");
+  const cycleTargets = registerOnly ? [] : [...(crossEdges.get(abs) ?? [])].filter((ft) => mutual(info.feature, ft));
+  const legacy = legacyByFile.get(abs);
+  const nonCore = [...namedPkgs].filter((pk) => !CORE_PKGS.has(pk)).sort();
 
   // ---- tier suggestion (refined rules + canary-2's changed Tier 2 trigger) ----
   const why = [];
@@ -914,25 +1424,40 @@ for (const abs of mainFiles) {
   else if (f.loc <= 30 && classes.length === 1 && ext.some((x) => !x.iface && x.where === "tovu" && x.members <= 3) && fnUnits.length === 0) auto = "TINY-EXTENDS-ADAPTER (R4)";
   // i18n/copy dictionaries first: their few `t()` wrappers would otherwise read as R3 pass-throughs.
   else if (f.dataIsh && classes.length === 0 && passThrough.length === fnUnits.length) auto = "DATA-ONLY";
-  else if (fnUnits.length > 0 && passThrough.length === fnUnits.length && classes.length === 0 && f.loc <= 80) auto = "ALL-PASS-THROUGH (R3)";
+  else if (fnUnits.length > 0 && passThrough.length === fnUnits.length && classes.length === 0 && f.loc <= 80) auto = fedHost ? "STAY-WIRING?" : "ALL-PASS-THROUGH (R3)";
   else if (f.toolRegistration && f.loc <= 120) auto = "TOOL-REGISTRATION (R9)";
   if (auto) { tier = 0; why.push(auto); }
+  // STAY-WIRING? needs a look to confirm; an approval handler or ctx.signal is behaviour (pilot ABC #7).
+  if (auto === "STAY-WIRING?") tier = 1;
+  if (tier === 0 && f.approvalOrCtxSignal) { tier = 1; why.push("approval/ctx.signal (Tier >= 1)"); }
   const strong = twins.filter(isStrongTwin);
-  if (strong.length) why.push(`shape-twin x${strong.length}`);
+  if (strong.length) why.push(`strong-twin x${strong.length}`);
   if (portTriggers.length) why.push(`port-impl x${portTriggers.length}`);
   if (formats.length) why.push(`private-format x${formats.length}`);
+  if (couplings.length) why.push(`string-coupling x${couplings.length}`);
+  if (legacy) why.push(`LEGACY-TWIN ${legacy.jini} j${legacy.sim}/o${legacy.overlap}`);
   if (cycleTargets.length) why.push(`cycle-edge -> ${cycleTargets.join(", ")}`);
   const diverged = sameName.filter((s) => s.verdict === "diverged" && !ext.some((x) => x.jiniSameName && x.name === s.name));
   if (diverged.length) why.push(`diverged-pair x${diverged.length}`);
   // A cycle edge alone does not lift an R3/R4 mechanical file: it matters for batching, not reading.
-  if (strong.length || portTriggers.length || formats.length || diverged.length || (cycleTargets.length && tier !== 0)) tier = 2;
+  // Port-impl alone is Tier 1 (binding-only files were over-promoted, pilot ABC #7); it lifts to
+  // Tier 2 only with a body twin (any score) next to it. A body twin >= 0.8 or LEGACY-TWIN is Tier 2.
+  const bodyTwin = twins.some((p) => p.kind === "body" && p.scope !== "tovu-jini-fixture");
+  if (strong.length || (portTriggers.length && bodyTwin) || formats.length || couplings.length || legacy || diverged.length || (cycleTargets.length && tier !== 0)) tier = 2;
   if (tier === 1 && ext.some((x) => x.jiniSameName)) why.push("extends Jini same-name (Tier 1)");
 
   const row = { path: rel, feature: info.feature, loc: f.loc, tier, why, ...(auto ? { auto } : {}),
     imports: { ...(T.length ? { T } : {}), ...(J.length ? { J } : {}), ...(N.size ? { N: [...N] } : {}), ...(NPM.size ? { npm: [...NPM] } : {}), ...(missing.length ? { unresolved: missing } : {}) },
-    importers: { prod: prod.length, tests: testCount.get(abs) ?? 0, aux, ...(prod.length ? { list: prod.slice(0, LIST_CAP) } : {}) },
+    importers: { prod: prod.length, tests: testCount.get(abs) ?? 0, aux, ...(prod.length ? { list: prod.slice(0, LIST_CAP) } : {}),
+      direct: { prod: dProd.length, reexporters: dRe, tests: dTests, ...(dProd.length && !prod.length ? { list: dProd.map(display).sort().slice(0, LIST_CAP) } : {}) } },
     exports: exportsList.slice(0, 40), ...(exportsList.length > 40 ? { exportsTotal: exportsList.length } : {}),
-    ...(unused.length && f.localExports.size ? { noStaticImporter: unused.slice(0, LIST_CAP) } : {}),
+    ...(exportImporters.length > 1 || testOnly.length ? { exportProdImporters: exportImporters.slice(0, 40).map((x) => `${x.n}:${x.prod}/${x.tests}t`) } : {}),
+    ...(testOnly.length ? { testOnlyExports: testOnly.slice(0, LIST_CAP) } : {}),
+    ...(unused.length && allExported.length ? { noStaticImporter: unused.slice(0, LIST_CAP) } : {}),
+    ...(legacy ? { legacyTwin: { tovuModule: legacy.tovu, jini: legacy.jini, sim: legacy.sim, overlap: legacy.overlap, shared: legacy.shared, mounts: legacy.mounts, mountsTotal: legacy.mountsTotal, mountsInside: legacy.mountsInside } } : {}),
+    ...(nonCore.length >= 2 ? { coreContractNeeded: nonCore } : {}),
+    ...(rules.length ? { rules } : {}),
+    ...(couplings.length ? { stringCouplings: couplings.slice(0, LIST_CAP).map((c) => `${c.kind} "${c.lit}" @${c.line} [in ${c.symbol ?? "?"}] ~ ${c.jini}${c.jiniFiles > 1 ? ` (+${c.jiniFiles - 1})` : ""}`) } : {}),
     ...(sameName.length ? { jiniSameName: sameName.slice(0, LIST_CAP) } : {}),
     ...(ext.length ? { extends: ext.map((x) => `${x.name} extends ${x.origin} [${x.where}${x.jiniSameName ? ", same-name" : ""}, ${x.members} members]`) } : {}),
     ...(passThrough.length ? { passThrough } : {}),
@@ -947,16 +1472,20 @@ for (const abs of mainFiles) {
   if (f.fnCount > 0) {
     const b = f.bug; const verbs = new Set(b.crud.map((c) => CRUD_RE.exec(c.split("@")[0])[1]));
     const store = [...verbs].some((v) => CRUD_WRITE.has(v)) && [...verbs].some((v) => !CRUD_WRITE.has(v));
+    // writesWithSignal is gone: a count of `signal` arguments was read as cancellation evidence (pilot ABC #5).
     const bugRow = { ...(store ? { storeOps: b.crud.slice(0, 20) } : {}), ...(b.signalParams.length ? { acceptsSignal: b.signalParams.slice(0, 10) } : {}),
       ...(b.abortChecks.length ? { abortChecks: [...new Set(b.abortChecks)].slice(0, 10) } : {}), ...(b.forwards.length ? { forwardsSignal: b.forwards.slice(0, 10) } : {}),
-      ...(b.writes.length ? { writes: b.writes.slice(0, 12), writesTotal: b.writes.length, writesWithSignal: b.writes.filter((w) => w.endsWith("+sig")).length } : {}) };
+      ...(b.awaitGaps.length ? { awaitAfterAbortCheck: b.awaitGaps.slice(0, 8) } : {}), ...(b.listenerGaps.length ? { awaitBeforeCloseListener: b.listenerGaps.slice(0, 8) } : {}),
+      ...(b.swallows.length ? { swallows: b.swallows.slice(0, 10) } : {}), ...(b.wholePut.length ? { wholePut: b.wholePut.slice(0, 8) } : {}),
+      ...(b.writes.length ? { writes: b.writes.slice(0, 12), writesTotal: b.writes.length } : {}) };
     if (Object.keys(bugRow).length) row.bug = bugRow;
   }
   rowsOut.set(abs, row);
 }
 
 // ---------------------------------------------------------------------------------------------
-// Batches: each SCC together, leaf-first; ~20 files per batch, whole features where possible.
+// Batches: each SCC together, leaf-first; <= BATCH_MAX_FILES files AND <= BATCH_MAX_LOC lines per
+// batch, whole features where possible (pilot: file-count-only batches reached 9k lines).
 // ---------------------------------------------------------------------------------------------
 const filesByFeature = new Map();
 for (const a of mainFiles) { const ft = files.get(a).feature; if (!filesByFeature.has(ft)) filesByFeature.set(ft, []); filesByFeature.get(ft).push(a); }
@@ -976,13 +1505,19 @@ sccs.forEach((comp, sccId) => {
     // Smallest partners first so they share the picked feature's batch where they fit.
     for (const partner of [...rem].filter((z) => mutual(pick, z)).sort((a, b) => filesByFeature.get(a).length - filesByFeature.get(b).length || a.localeCompare(b))) { order.push(partner); rem.delete(partner); }
   }
+  const locOf = (a) => facts.get(a).loc; let curLoc = 0;
+  const flushLoc = () => { flush(); curLoc = 0; };
   for (const ft of order) {
     const list = filesByFeature.get(ft).sort((a, b) => files.get(a).rel.localeCompare(files.get(b).rel));
-    if (cur.length && cur.length + list.length > BATCH_SIZE * 1.25) flush();
-    for (const a of list) { cur.push(a); if (cur.length >= BATCH_SIZE && list.length > BATCH_SIZE) flush(); }
-    if (cur.length >= BATCH_SIZE) flush();
+    const listLoc = list.reduce((s, a) => s + locOf(a), 0);
+    // A whole feature that does not fit the open batch starts a new one (order keeps cycle partners adjacent).
+    if (cur.length && (cur.length + list.length > BATCH_MAX_FILES || curLoc + listLoc > BATCH_MAX_LOC)) flushLoc();
+    for (const a of list) {
+      if (cur.length && (cur.length + 1 > BATCH_MAX_FILES || curLoc + locOf(a) > BATCH_MAX_LOC)) flushLoc();
+      cur.push(a); curLoc += locOf(a);
+    }
   }
-  flush();
+  flushLoc();
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -996,7 +1531,10 @@ const batchIndex = batches.map((b, i) => {
   fs.writeFileSync(path.join(OUT, "batches", `${id}.jsonl`), rows.map((r) => JSON.stringify({ batch: id, ...r })).join("\n") + "\n");
   const tiers = [0, 1, 2].map((t) => rows.filter((r) => r.tier === t).length);
   const feats = new Set(rows.map((r) => r.feature));
-  return { id, scc: b.scc, _feats: feats, sccFeatures: b.sccFeatures.length > 6 ? `${b.sccFeatures.length} features` : b.sccFeatures, features: [...new Set(rows.map((r) => r.feature))], files: rows.length, loc: rows.reduce((s, r) => s + r.loc, 0), tiers };
+  // LEGACY-TWIN on the batch too: the reviewer must read the Jini module before labelling any file.
+  const legacy = [...new Map(b.files.map((a) => legacyByFile.get(a)).filter(Boolean).map((l) => [`${l.tovu}|${l.jini}`, l])).values()]
+    .map((l) => ({ tovu: l.tovu, jini: l.jini, sim: l.sim, mounts: l.mounts }));
+  return { id, scc: b.scc, _feats: feats, sccFeatures: b.sccFeatures.length > 6 ? `${b.sccFeatures.length} features` : b.sccFeatures, features: [...new Set(rows.map((r) => r.feature))], files: rows.length, loc: rows.reduce((s, r) => s + r.loc, 0), tiers, ...(legacy.length ? { legacyTwins: legacy } : {}) };
 });
 // Cross-reference: batches holding a direct-cycle partner of one of this batch's features.
 for (const b of batchIndex) {
@@ -1015,21 +1553,28 @@ const jsonl = (name, list) => fs.writeFileSync(path.join(OUT, name), list.map((x
 jsonl("twins.jsonl", twinPairs.sort((a, b) => b.sim - a.sim));
 jsonl("port-edges.jsonl", portEdges.map(({ siteAbs, implAbs, ...e }) => e));
 jsonl("format-couplings.jsonl", formatCouplings);
+jsonl("legacy-twins.jsonl", legacyTwins.sort((a, b) => b.sim - a.sim));
+jsonl("jini-rules.jsonl", jiniRules);
+fs.writeFileSync(path.join(OUT, "stamp.json"), JSON.stringify({ built: new Date().toISOString(), tovu: { dir: TOVU, head: head(TOVU) }, jini: { dir: JINI, head: head(JINI) } }, null, 1));
 fs.writeFileSync(path.join(OUT, "sccs.json"), JSON.stringify(sccs.map((c, i) => ({ id: i, features: c, files: c.reduce((s, ft) => s + (filesByFeature.get(ft)?.length ?? 0), 0) })).filter((x) => x.features.length > 1), null, 1));
 
 const all = [...rowsOut.values()];
 const tierCount = [0, 1, 2].map((t) => all.filter((r) => r.tier === t).length);
 const tierLoc = [0, 1, 2].map((t) => all.filter((r) => r.tier === t).reduce((s, r) => s + r.loc, 0));
 const autoCount = {}; for (const r of all) if (r.auto && r.tier === 0) autoCount[r.auto] = (autoCount[r.auto] ?? 0) + 1;
-const trig = { "shape-twin": 0, "port-impl": 0, "private-format": 0, "cycle-edge": 0, "diverged-pair": 0 };
+const trig = { "strong-twin": 0, "port-impl": 0, "private-format": 0, "string-coupling": 0, "LEGACY-TWIN": 0, "cycle-edge": 0, "diverged-pair": 0 };
 for (const r of all) for (const w of r.why) for (const k of Object.keys(trig)) if (w.startsWith(k)) trig[k]++;
 const multi = sccs.filter((c) => c.length > 1);
+const ruleCount = (r) => jiniRules.filter((x) => x.rule === r).length;
+const pkgPairs = new Map(); for (const r of jiniRules) if (r.rule === "imports-non-core") { const k = `${r.pkg} -> ${r.imports}`; pkgPairs.set(k, (pkgPairs.get(k) ?? 0) + 1); }
+const dirtySlice = (() => { try { return execFileSync("git", ["-C", TOVU, "status", "--porcelain", "--", "apps", "packages"], { encoding: "utf8" }).split("\n").filter(Boolean).length; } catch { return "?"; } })();
 const runtime = ((Date.now() - t0) / 1000).toFixed(1);
 const summary = `# Extraction dossier — ${today}
 
 Generated by \`development/scripts/extraction-dossier.mjs\` in ${runtime}s (parse ${((tParse - t0) / 1000).toFixed(1)}s). Facts only, no judgement.
 
-- Tovu: \`${TOVU}\` @ ${git(TOVU)}; Jini: \`${JINI}\` @ ${git(JINI)}
+- Tovu: \`${TOVU}\` @ ${git(TOVU)} (HEAD ${head(TOVU)}); Jini: \`${JINI}\` @ ${git(JINI)} (HEAD ${head(JINI)}). Uncommitted changes under apps/ packages/ at build: ${dirtySlice}.
+- Drift check for reviewers: \`node development/scripts/extraction-dossier.mjs --drift <this dir> [--batch bNNN]\` prints "commits since build touching slice files: N".
 - Files: ${mainFiles.length} labelled (non-test) Tovu files, ${[...files.values()].filter((i) => i.role === "test").length} test files (tests.tsv), ${tovuAux.length} aux importer-only files (development/, content/), ${jiniFiles.length} Jini src files. Parse errors: ${parseErrors}.
 
 ## Tiers (suggestion)
@@ -1045,26 +1590,30 @@ Tier 2 triggers (files; a file can have several): ${Object.entries(trig).map(([k
 
 ## Cross-file facts
 
-- Twin pairs: ${twinPairs.length} (${["body", "shape", "shape-names", "wiring", "class-api"].map((k) => `${k} ${twinPairs.filter((p) => p.kind === k).length} [Tovu-Jini ${twinPairs.filter((p) => p.kind === k && p.scope === "tovu-jini").length}]`).join("; ")}). Strong (Tier 2 trigger): ${twinPairs.filter(isStrongTwin).length}. LSH buckets skipped as generic idioms: ${skippedBuckets}.
+- Twin pairs: ${twinPairs.length} (${["body", "exact-small", "const-set", "shape", "shape-names", "wiring", "class-api", "class-fingerprint"].map((k) => `${k} ${twinPairs.filter((p) => p.kind === k).length} [Tovu-Jini ${twinPairs.filter((p) => p.kind === k && p.scope === "tovu-jini").length}]`).join("; ")}). Strong (Tier 2 trigger): ${twinPairs.filter(isStrongTwin).length}. Jini-fixture pairs: ${twinPairs.filter((p) => p.scope === "tovu-jini-fixture").length}. Same-port body pairs dropped: ${suppressedSamePort}. LSH buckets skipped as generic idioms: ${skippedBuckets}.
+- LEGACY-TWIN modules: ${legacyTwins.length} (${legacyByFile.size} Tovu files; legacy-twins.jsonl). STAY-WIRING? files: ${all.filter((r) => r.auto === "STAY-WIRING?").length}. CORE-CONTRACT-NEEDED files: ${all.filter((r) => r.coreContractNeeded).length}.
+- String couplings (event/path/template/phrase/regex): ${formatCouplings.filter((c) => c.kind).length} in ${new Set(formatCouplings.filter((c) => c.kind).map((c) => c.file)).size} files.
+- Rule checks: Tovu prod await-import ${all.reduce((s, r) => s + (r.rules?.length ?? 0), 0)} in ${all.filter((r) => r.rules).length} files; Jini await-import ${ruleCount("await-import")}, imports-non-core ${ruleCount("imports-non-core")} (${pkgPairs.size} package pairs; top: ${[...pkgPairs].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${v}`).join(", ")}), express-type ${ruleCount("express-type")} (jini-rules.jsonl).
 - Port-implementation edges: ${portEdges.length} (${portsByImpl.size} implementer files).
-- Private-format couplings: ${formatCouplings.length} literals in ${new Set(formatCouplings.map((c) => c.file)).size} files.
+- Private-format couplings: ${formatCouplings.filter((c) => !c.kind).length} literals in ${new Set(formatCouplings.filter((c) => !c.kind).map((c) => c.file)).size} files.
 - Stale comment path refs: ${all.reduce((s, r) => s + (r.staleRefs?.length ?? 0), 0)} in ${all.filter((r) => r.staleRefs).length} files.
 - Features: ${features.length}. SCCs: ${sccs.length} (${multi.length} with >1 feature; largest ${Math.max(...sccs.map((c) => c.length))} features).
-- Batches: ${batches.length} (sizes ${Math.min(...batchIndex.map((b) => b.files))}-${Math.max(...batchIndex.map((b) => b.files))}), leaf-first in batches.json.
+- Batches: ${batches.length} (files ${Math.min(...batchIndex.map((b) => b.files))}-${Math.max(...batchIndex.map((b) => b.files))}, lines up to ${Math.max(...batchIndex.map((b) => b.loc))}; caps ${BATCH_MAX_FILES} files / ${BATCH_MAX_LOC} lines, a bigger single file alone), leaf-first in batches.json.
 
 ## Files
 
 - \`batches.json\` ordered batch list; \`batches/bNNN.jsonl\` one JSON row per file.
 - \`files.tsv\` all labelled files; \`tests.tsv\` test files and their subjects.
-- \`twins.jsonl\`, \`port-edges.jsonl\`, \`format-couplings.jsonl\`, \`sccs.json\` (multi-feature SCCs).
+- \`twins.jsonl\`, \`port-edges.jsonl\`, \`format-couplings.jsonl\` (string couplings carry \`kind\`), \`legacy-twins.jsonl\`, \`jini-rules.jsonl\`, \`sccs.json\` (multi-feature SCCs), \`stamp.json\`.
 
 ## Row fields
 
-imports.T/J/N/npm (\`type\`/\`inline\` tags; J entries reached through a Tovu re-export say "R7 via"), importers (real callers through barrels; prod list, tests, aux counts),
-exports, noStaticImporter (exports no file imports by name: entry points and dynamic loading are false positives), jiniSameName (verdict from body fingerprint: copy >=0.6,
+imports.T/J/N/npm (\`type\`/\`inline\` tags; J entries carry pkg= (the package the import names) and say "R7 via" when reached through a Tovu re-export), importers (real callers through barrels; prod list, tests, aux counts; direct = files whose specifier resolves to this file, the callers a facade/barrel has),
+exports (re: = re-exported), exportProdImporters (name:prod/tests), testOnlyExports, legacyTwin, coreContractNeeded (>= 2 non-core Jini packages named), rules (await-import), stringCouplings, noStaticImporter (exports no file imports by name: entry points and dynamic loading are false positives), jiniSameName (verdict from body fingerprint: copy >=0.6,
 diverged 0.3-0.6, pass-through, name-only), extends, passThrough, twins, implementsPorts / wiresPorts, privateFormats, productLiterals (with key/value context), staleRefs, scc, bug (storeOps,
-acceptsSignal, abortChecks, forwardsSignal, writes with "+sig" when a signal is passed to that call).
+acceptsSignal, abortChecks, forwardsSignal, awaitAfterAbortCheck, awaitBeforeCloseListener, swallows, wholePut, writes on store-like receivers with "+sig" when a signal is passed).
 `;
 fs.writeFileSync(path.join(OUT, "summary.md"), summary);
+function head(dir) { try { return execFileSync("git", ["-C", dir, "rev-parse", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "?"; } }
 function git(dir) { try { return execFileSync("git", ["-C", dir, "log", "-1", "--format=%h (%cd)", "--date=short"], { encoding: "utf8" }).trim(); } catch { return "?"; } }
 console.log(summary);
