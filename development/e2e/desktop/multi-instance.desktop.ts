@@ -79,7 +79,7 @@ test("two instances run side by side, each with its own running site, and closin
     second = undefined;
     expect(first.app.process().exitCode, "closing the second instance must not exit the first").toBeNull();
     await expect(first.win.locator(".app")).toBeVisible();
-    await expect(siteCard(first.win, ALPHA).locator(".state")).toHaveText("Running");
+    await expect(siteCard(first.win, ALPHA).locator(".jini-site-card__status")).toHaveText("Running");
     expect(await portAnswers(alphaPort), "the first instance's site must keep serving").toBe(true);
     await first.win.reload();
     await expect(first.win.locator(".app")).toBeVisible();
@@ -112,9 +112,9 @@ test("two sites in one instance run on distinct ports and stop independently", {
     await captureOwnedProcesses({ launch });
     const alphaCard = siteCard(win, ALPHA);
     await alphaCard.getByRole("button", { name: `Stop ${ALPHA}`, exact: true }).click();
-    await expect(alphaCard.locator(".state")).toHaveText("Stopped", { timeout: 60_000 });
+    await expect(alphaCard.locator(".jini-site-card__status")).toHaveText("Stopped", { timeout: 60_000 });
     await expect.poll(() => portAnswers(alphaPort), { timeout: 30_000 }).toBe(false);
-    await expect(siteCard(win, BETA).locator(".state"), "stopping one site must not stop the other").toHaveText("Running");
+    await expect(siteCard(win, BETA).locator(".jini-site-card__status"), "stopping one site must not stop the other").toHaveText("Running");
     expect(await portAnswers(betaPort)).toBe(true);
   } finally {
     try { await captureOwnedProcesses({ launch }); }

@@ -87,7 +87,7 @@ test("Start, Restart and Stop drive the real site process", { tag: ["@unrun"] },
     expect(await portAnswers(port), "a Running site must answer on its port").toBe(true);
 
     await card.getByRole("button", { name: `Restart ${POWER}`, exact: true }).click();
-    await expect(card.locator(".state")).toHaveText("Running", { timeout: 150_000 });
+    await expect(card.locator(".jini-site-card__status")).toHaveText("Running", { timeout: 150_000 });
     const portAfterRestart = await portOf(win, POWER);
     await expect.poll(() => portAnswers(portAfterRestart), { timeout: 60_000 }).toBe(true);
     // Restart immediately after returning to All overlaps the old 1.5 s capture debounce.
@@ -99,7 +99,7 @@ test("Start, Restart and Stop drive the real site process", { tag: ["@unrun"] },
       "no hidden preview may hit a stopped or stale port").toEqual([]);
 
     await card.getByRole("button", { name: `Stop ${POWER}`, exact: true }).click();
-    await expect(card.locator(".state")).toHaveText("Stopped", { timeout: 60_000 });
+    await expect(card.locator(".jini-site-card__status")).toHaveText("Stopped", { timeout: 60_000 });
     await expect.poll(() => portAnswers(portAfterRestart), { timeout: 30_000, message: "a stopped site must stop answering" }).toBe(false);
     await expect(card.getByRole("button", { name: `Start ${POWER}`, exact: true })).toBeEnabled();
   } finally {

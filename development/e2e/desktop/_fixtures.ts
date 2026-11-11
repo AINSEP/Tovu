@@ -294,7 +294,7 @@ export async function closeDesktop(launch: DesktopLaunch): Promise<void> {
 /** One card on the sites home grid, by its exact display name. */
 export function siteCard(win: Page, name: string): Locator {
   const exact = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
-  return win.locator(".card").filter({ has: win.locator(".card__name", { hasText: exact }) });
+  return win.locator(".card").filter({ has: win.locator(".jini-site-card__name", { hasText: exact }) });
 }
 
 /**
@@ -312,7 +312,7 @@ export async function startSite(win: Page, name: string): Promise<void> {
   await expect(tabs.getByRole("tab", { name, exact: true }), "a Start that comes back running opens the site")
     .toHaveAttribute("aria-selected", "true", { timeout: 150_000 });
   await tabs.getByRole("tab", { name: "All", exact: true }).click();
-  await expect(card.locator(".state")).toHaveText("Running");
+  await expect(card.locator(".jini-site-card__status")).toHaveText("Running");
 }
 
 /**
@@ -320,7 +320,7 @@ export async function startSite(win: Page, name: string): Promise<void> {
  * Menu commands sent to an unready guest are dropped by design.
  */
 export async function openSiteTab(app: ElectronApplication, win: Page, name: string): Promise<void> {
-  await siteCard(win, name).locator(".card__name").click();
+  await siteCard(win, name).locator(".jini-site-card__name").click();
   await expect(win.locator("webview")).toBeVisible();
   await expect.poll(() => guestUrl(app), { timeout: 60_000 }).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/admin\//);
   await expect.poll(() => app.evaluate(({ webContents }) => {
