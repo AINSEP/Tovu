@@ -28,6 +28,14 @@ function fakeChild() {
 }
 
 const RESULT = JSON.stringify({ dir: "/d", name: "d", siteId: "i" });
+
+/** `importSiteArchive` resolves `null` only when the person cancels; these tests expect a site, so a
+ *  `null` here is itself a failure rather than something the caller has to guard against. */
+async function importedSite(promise: ReturnType<typeof importSiteArchive>) {
+  const site = await promise;
+  assert.ok(site, "expected an imported site, got a cancelled import");
+  return site;
+}
 const tick = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function run(source: Parameters<typeof importSiteArchive>[0]["source"], optional: { timeoutMs?: number; graceMs?: number; closeWaitMs?: number } = {}) {
@@ -53,7 +61,7 @@ test("sends the source on stdin, never argv, and gives the child no deployment c
   const { child, promise, spawned, stdinText } = run({ url: "https://example.com/x.tovu.zip?token=SECRET" });
   child.stdout.write(`${JSON.stringify({ dir: "/d", name: "d", siteId: "i" })}\n`);
   child.exit(0);
-  assert.deepEqual((await promise).warnings, []);
+  assert.deepEqual((await importedSite(promise)).warnings, []);
   assert.deepEqual(JSON.parse(stdinText.join("")), { url: "https://example.com/x.tovu.zip?token=SECRET" });
   assert.equal(stdinText.join("").endsWith("\n"), true, "one line, so the child can read it without waiting for the end of stdin");
   assert.equal(spawned[0]!.args.join(" ").includes("SECRET"), false);
@@ -168,7 +176,7 @@ test("an import that finished as the stop arrived still returns its site: it exi
   child.stdout.write(`${RESULT}\n`);
   child.exit(0);
   await stopped;
-  assert.equal((await promise).siteId, "i");
+  assert.equal((await importedSite(promise)).siteId, "i");
 });
 
 test("Cancel resolves with no site, and a second stop reason does not change that", async () => {
@@ -186,7 +194,7 @@ test("output that arrives between exit and close is still read", async () => {
   child.stdout.write(`${RESULT}\n`);
   await tick(5);
   child.close(0);
-  assert.equal((await promise).siteId, "i");
+  assert.equal((await importedSite(promise)).siteId, "i");
 });
 
 test("a refusal that arrives between exit and close is not lost", async () => {
@@ -203,7 +211,7 @@ test("a grandchild that holds stdout open cannot keep the import pending after t
   child.stdout.write(`${RESULT}\n`);
   await tick(1);
   child.exitOnly(0);
-  assert.equal((await promise).siteId, "i");
+  assert.equal((await importedSite(promise)).siteId, "i");
 });
 
 for (const [name, files, spawns] of [
