@@ -6051,3 +6051,241 @@ ok 398 - credential minting is rate limited per authenticated guest across IPs
   duration_ms: 147.443402
   type: 'test'
   ...
+# Subtest: the whole point: a marker-less but working site directory is REFUSED by serve, and tovu adopt is what makes it servable
+ok 399 - the whole point: a marker-less but working site directory is REFUSED by serve, and tovu adopt is what makes it servable
+  ---
+  duration_ms: 110589.892961
+  type: 'test'
+  ...
+# Subtest: adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest
+ok 400 - adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest
+  ---
+  duration_ms: 47186.419577
+  type: 'test'
+  ...
+# Subtest: --dry-run prints the exact stamp it would write and writes NOTHING
+ok 401 - --dry-run prints the exact stamp it would write and writes NOTHING
+  ---
+  duration_ms: 46508.258238
+  type: 'test'
+  ...
+# Subtest: adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId)
+ok 402 - adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId)
+  ---
+  duration_ms: 51081.635452
+  type: 'test'
+  ...
+# Subtest: adopt is reversible: deleting the two markers returns the directory to exactly its prior state
+ok 403 - adopt is reversible: deleting the two markers returns the directory to exactly its prior state
+  ---
+  duration_ms: 36330.728857
+  type: 'test'
+  ...
+# Subtest: adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it
+ok 404 - adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it
+  ---
+  duration_ms: 41155.935908
+  type: 'test'
+  ...
+# Subtest: a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten
+ok 405 - a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten
+  ---
+  duration_ms: 66113.625782
+  type: 'test'
+  ...
+# Subtest: config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json
+ok 406 - config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json
+  ---
+  duration_ms: 100024.350316
+  type: 'test'
+  ...
+# Subtest: a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward
+ok 407 - a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward
+  ---
+  duration_ms: 48167.137683
+  type: 'test'
+  ...
+# Subtest: a directory with no content.db is refused, and any other .db files present are named as candidates rather than silently adopted
+ok 408 - a directory with no content.db is refused, and any other .db files present are named as candidates rather than silently adopted
+  ---
+  duration_ms: 21508.654914
+  type: 'test'
+  ...
+# Subtest: a content.db that has never been migrated is refused rather than stamped with an invented version
+ok 409 - a content.db that has never been migrated is refused rather than stamped with an invented version
+  ---
+  duration_ms: 17818.629018
+  type: 'test'
+  ...
+# Subtest: a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss
+ok 410 - a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss
+  ---
+  duration_ms: 41578.995475
+  type: 'test'
+  ...
+# Subtest: adopt --name sets the display name config.json carries, and defaults to the directory basename without it
+ok 411 - adopt --name sets the display name config.json carries, and defaults to the directory basename without it
+  ---
+  duration_ms: 77467.293795
+  type: 'test'
+  ...
+# Subtest: adopt on a path that is not an existing directory is refused, never created
+ok 412 - adopt on a path that is not an existing directory is refused, never created
+  ---
+  duration_ms: 18908.36141
+  type: 'test'
+  ...
+# Subtest: adopt is a discoverable, registered command: it appears in --help and in the introspect manifest a programmatic caller reads
+ok 413 - adopt is a discoverable, registered command: it appears in --help and in the introspect manifest a programmatic caller reads
+  ---
+  duration_ms: 37758.367157
+  type: 'test'
+  ...
+# Subtest: stdin that is not a JSON object of plugin ids to strings is refused
+ok 414 - stdin that is not a JSON object of plugin ids to strings is refused
+  ---
+  duration_ms: 2.392092
+  type: 'test'
+  ...
+# Subtest: a rejected token creates no site and seals nothing
+ok 415 - a rejected token creates no site and seals nothing
+  ---
+  duration_ms: 1.111995
+  type: 'test'
+  ...
+# Subtest: no token typed: the site is created as before, nothing is checked or sealed, no token line
+ok 416 - no token typed: the site is created as before, nothing is checked or sealed, no token line
+  ---
+  duration_ms: 2415.260042
+  type: 'test'
+  ...
+# Subtest: an accepted token is sealed with the new site's own id and reported as saved
+ok 417 - an accepted token is sealed with the new site's own id and reported as saved
+  ---
+  duration_ms: 1491.669775
+  type: 'test'
+  ...
+# Subtest: a seal failure after the create keeps the site and reports failed without the token
+ok 418 - a seal failure after the create keeps the site and reports failed without the token
+  ---
+  duration_ms: 1925.456793
+  type: 'test'
+  ...
+# Subtest: a Postgres connection string read from stdin cannot share stdin with tokens
+ok 419 - a Postgres connection string read from stdin cannot share stdin with tokens
+  ---
+  duration_ms: 1.177514
+  type: 'test'
+  ...
+# Subtest: site-key plan §A3a: a fresh tovu serve boot, with no key anywhere, mints this site's own per-site key file under HOME/.tovu/site-keys/<siteId>.hex
+ok 420 - site-key plan §A3a: a fresh tovu serve boot, with no key anywhere, mints this site's own per-site key file under HOME/.tovu/site-keys/<siteId>.hex
+  ---
+  duration_ms: 50232.239162
+  type: 'test'
+  ...
+# Subtest: site-key plan §A3a: a site with sealed key-dependent data and no key anywhere still boots successfully (refuse must never block boot) but mints no per-site file
+ok 421 - site-key plan §A3a: a site with sealed key-dependent data and no key anywhere still boots successfully (refuse must never block boot) but mints no per-site file
+  ---
+  duration_ms: 51201.396891
+  type: 'test'
+  ...
+# Subtest: 2026-10-05: a dev site whose .site-meta.json holds only the site-key fields boots via tovu serve, keeps its siteKeyId/fingerprint, and uses the same key file
+ok 422 - 2026-10-05: a dev site whose .site-meta.json holds only the site-key fields boots via tovu serve, keeps its siteKeyId/fingerprint, and uses the same key file
+  ---
+  duration_ms: 45180.302833
+  type: 'test'
+  ...
+# Subtest: adopt writes both markers for a marker-less site and reports the derived stamp
+ok 423 - adopt writes both markers for a marker-less site and reports the derived stamp
+  ---
+  duration_ms: 2165.714646
+  type: 'test'
+  ...
+# Subtest: adopt --dry-run previews the markers and writes nothing
+ok 424 - adopt --dry-run previews the markers and writes nothing
+  ---
+  duration_ms: 1198.893132
+  type: 'test'
+  ...
+# Subtest: adopt on a fully adopted directory is an idempotent no-op
+ok 425 - adopt on a fully adopted directory is an idempotent no-op
+  ---
+  duration_ms: 1426.820838
+  type: 'test'
+  ...
+# Subtest: adopt refuses a partially adopted directory and writes nothing
+ok 426 - adopt refuses a partially adopted directory and writes nothing
+  ---
+  duration_ms: 1683.973349
+  type: 'test'
+  ...
+# Subtest: adopt completes a key-only .site-meta.json in place and keeps config.json
+ok 427 - adopt completes a key-only .site-meta.json in place and keeps config.json
+  ---
+  duration_ms: 2014.985857
+  type: 'test'
+  ...
+# Subtest: adopt --dry-run on a key-only meta previews the completion and leaves the file as it was
+ok 428 - adopt --dry-run on a key-only meta previews the completion and leaves the file as it was
+  ---
+  duration_ms: 1616.146025
+  type: 'test'
+  ...
+# Subtest: a no-content.db refusal is relabelled adopt: and names the sibling .db files it declined to guess at
+ok 429 - a no-content.db refusal is relabelled adopt: and names the sibling .db files it declined to guess at
+  ---
+  duration_ms: 29.038451
+  type: 'test'
+  ...
+# Subtest: a no-content.db refusal without sibling databases carries no candidate list (dry run too)
+ok 430 - a no-content.db refusal without sibling databases carries no candidate list (dry run too)
+  ---
+  duration_ms: 14.95656
+  type: 'test'
+  ...
+# Subtest: a non-refusal error (an invalid --name) propagates unchanged
+ok 431 - a non-refusal error (an invalid --name) propagates unchanged
+  ---
+  duration_ms: 2241.844821
+  type: 'test'
+  ...
+# Subtest: any other refusal (a never-migrated content.db) is relabelled but never carries the candidate list
+ok 432 - any other refusal (a never-migrated content.db) is relabelled but never carries the candidate list
+  ---
+  duration_ms: 18.166708
+  type: 'test'
+  ...
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# tovu export: skipped (no-favicon-or-manifest-route): Tovu has no /favicon.ico or web-app-manifest route today — nothing to export for either convention
+# tovu export: warning: 20 theme file(s) were never referenced by a rendered page and were not exported (template shells, build/preview artifacts, and anything a theme's own JS builds a path to at runtime all look identical from here):
+#   - NOTICE.md
+#   - assets/fonts/geist-LICENSE.txt
+#   - assets/vendor/kuinetic/LICENSE
+#   - assets/vendor/kuinetic/README.md
+#   - render/pages/listing-default.html
+#   - render/pages/pages-blank.html
+#   - render/pages/pages-default.html
+#   - render/pages/posts-default.html
+#   - render/pages/posts-sidebar.html
+#   - render/partials/footer-minimal.html
+#   - render/partials/footer.html
+#   - render/partials/nav.html
+#   - screenshots/index-light.png
+#   - screenshots/index.png
+#   - scripts/docs-sidebar.js
+#   - scripts/docs-toc.js
+#   - scripts/vendor/lightbox.js
+#   - theme.json
+#   - tokens.json
+#   - tokens.light.json
+# Subtest: exports a fresh site to static files with the default boot, composition and close
+ok 433 - exports a fresh site to static files with the default boot, composition and close
+  ---
+  duration_ms: 4921.475728
+  type: 'test'
+  ...

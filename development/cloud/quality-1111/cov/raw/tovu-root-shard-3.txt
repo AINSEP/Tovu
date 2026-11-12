@@ -209,4 +209,718 @@ XXX.................
 ....................
 ...............X....
 ....................
-...............
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+
+
+Failed tests:
+
+✖ vertical slice: connect -> public callback -> plugin access token -> form-delivery credential (111.470963ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:161:20)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:157:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/PjHD9DhpDOHXWlIINU77DnMQX5ei-1d4LD1lCnY90-8'
+  }
+✖ security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request (62.034152ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:136:32)
+      at followConsent (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:147:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:190:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:188:29)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/kZnRIG6iES-ihlal5b2z3mpLNpE1YI8r3HUFAzwkmEg'
+  }
+✖ frozen fixture [postgres]: replayed sealed bytes open, refresh under the lease, re-save and survive a reconnect (0.80214ms)
+  Error: failed to drop fixture database "tovu_external_mcp_frozen_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts:48:22)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts:47:1)
+✖ /home/user/Tovu/apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts (64.265834ms)
+  Error: failed to drop fixture database "tovu_external_mcp_frozen_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts:63:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ canary: shipped theme static/tovu-starter's committed original matches what the generator produces from it (47.799385ms)
+  AssertionError [ERR_ASSERTION]: content/themes/__original-themes__/static/tovu-starter no longer matches what 'tovu theme sync-originals' generates from content/themes/static/tovu-starter.
+    generated but not committed: (none)
+    committed but not generated: (none)
+    byte-different: scripts/theme-toggle.js
+  Run 'tovu theme sync-originals content/themes' and commit the result — the catalog is a generated artifact now, never hand-edited.
+  + actual - expected
+  
+    {
+      added: [],
+  +   changed: [
+  +     'scripts/theme-toggle.js'
+  +   ],
+  -   changed: [],
+      removed: []
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts:129:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { added: [], removed: [], changed: [ 'scripts/theme-toggle.js' ] },
+    expected: { added: [], removed: [], changed: [] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ psql() returns ok:true with stdout for a successful query (92.246292ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:30:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ psql() returns ok:false with stderr populated, never throwing, for a failing statement (54.917606ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /this_table_does_not_exist_xyz/. Input:
+  
+  'psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory\n' +
+    '\tIs the server running locally and accepting connections on that socket?\n'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:37:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory\n\tIs the server running locally and accepting connections on that socket?\n',
+    expected: /this_table_does_not_exist_xyz/,
+    operator: 'match',
+    diff: 'simple'
+  }
+✖ recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails (164.019595ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database (47.563794ms)
+  Error: failed to drop fixture database "tovu_pg_fixture_unit_15027": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:88:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ Postgres copyTo is refused with what to do instead (0.650744ms)
+  Error: failed to drop fixture database "tovu_kernel_ops_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts:28:60)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts:27:1)
+✖ Postgres compactAndVerify refuses a missing ledger, then passes once it has a step (0.114378ms)
+  Error: failed to drop fixture database "tovu_kernel_ops_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts:28:60)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts:27:1)
+✖ /home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts (0.189314ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'close')
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts:31:16)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+✖ Postgres: concurrent upgrades archive once with stable relation identities; dumps restore all rows (60.847554ms)
+  Error: failed to drop fixture database "tovu_commerce_archive_pg": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/archive-legacy-commerce.postgres.test.ts:40:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ bootSiteDir on a postgres site opens the store (migrated, workspace resolved) without a content.db (0.705268ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+✖ bootSiteDir honors an explicit Postgres workspace instead of the oldest (0.115051ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+✖ createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store) (0.043107ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+✖ bootSiteDir on a postgres site rejects an unknown --workspace and closes the store it opened (0.039423ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+✖ createSiteRouteDeps refuses overrides.store without workspaceId (the pair rule covers the store too) (0.050652ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+✖ /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts (98.618688ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+      at Object.rmSync (node:fs:1282:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:58:6)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+✖ publish preview: refusals are logged; with a configured credential an invalid credentialId is a 400, an absent one inspects the named project (1092.547034ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        "[publish-site] plugin 'broken' refused: descriptor id collides with 'fixture'"
+      ],
+      [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+        "[publish-site] plugin 'broken' refused: descriptor id collides with 'fixture'"
+      ]
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site-listing.unit.test.ts:151:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ "[publish-site] plugin 'broken' refused: descriptor id collides with 'fixture'" ], [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[publish-site] plugin 'broken' refused: descriptor id collides with 'fixture'" ] ],
+    expected: [ [ "[publish-site] plugin 'broken' refused: descriptor id collides with 'fixture'" ], [ "[publish-site] plugin 'broken' refused: descriptor id collides with 'fixture'" ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (50.930399ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:37:34) {
+    name: 'Error',
+    log: []
+  }
+✖ contact form fallback error and success colors apply in both modes without theme tokens (22.560767ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:54:34) {
+    name: 'Error',
+    log: []
+  }
+✖ checkbox fields render inline before their label with only the emitted stylesheet (36.104806ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:87:34) {
+    name: 'Error',
+    log: []
+  }
+✖ handlebars-worker.ts source graph contains no @jini-ai package roots, including deferred imports (4554.356336ms)
+  AssertionError [ERR_ASSERTION]: handlebars-worker.ts names @jini-ai root barrels; use narrow export subpaths:
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:134:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ handlebars-worker.ts loads no database, blob-store or agent packages (2498.445073ms)
+  AssertionError [ERR_ASSERTION]: handlebars-worker.ts loaded @jini-ai root barrels; use narrow export subpaths:
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:141:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ liquid-worker.ts source graph contains no @jini-ai package roots, including deferred imports (3586.985461ms)
+  AssertionError [ERR_ASSERTION]: liquid-worker.ts names @jini-ai root barrels; use narrow export subpaths:
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:134:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ liquid-worker.ts loads no database, blob-store or agent packages (3319.053749ms)
+  AssertionError [ERR_ASSERTION]: liquid-worker.ts loaded @jini-ai root barrels; use narrow export subpaths:
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:141:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/submit-service.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/forms/notify-subscriber.js -> @jini-ai/core', '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition (88.089714ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:48:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/AFOd-q-PybDoR66nDL1m5lR35f_YU5JH5kt_wAeYhKY'
+  }
+✖ vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it (34.043936ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:71:3)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/cLjkc8YD00fu1wDLUtuMI-3Zak4MWsBdqV7Q77adyzo'
+  }
+✖ security: the shared connection port refuses another workspace's target and reads no account for it (11.248089ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:101:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/jVeG2jLFuwJP2ObjWG0PWyVvVztbkOFherrdywkaGmg'
+  }
+✖ security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation) (6.657571ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:113:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/Dj7X2RvtaD3tgdxtDIk6i2z9JrtTwQdr4ayfzu5q-yw'
+  }
+✖ security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer (47.228939ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:156:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/-7p0tIM3XrXzRCHfQqogdsBVBvZH809MkXmEQdhJEhM'
+  }
+✖ security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output (9.582382ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:167:3)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/qBkN0NcSPIvHYFi7L1qynDG1kb-E0QsZEo7kV5Ve97Y'
+  }
+✖ vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery (22.485977ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:216:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/696VCmoLV3GWr9WQVcFjVvaK3YXPwPlJA9qHi6HD_OQ'
+  }
+✖ security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned (37.300799ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:286:5)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/sNap2DSLl8r-ohPzKLLfwCKPWgvANiY7uEREl7CM2-o'
+  }
+✖ counter: token lookup (contribution reload, credential opens) per getAccessToken (46.314707ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:147:64)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async connectForRef (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:176:37)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:102:25)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/cvb9kpWmIhij5HvTVFRRm5xCe2EjuxeaNdOy8dLZtMk'
+  }
+✖ cost counters equal the baseline recorded before any move (4.286367ms)
+  AssertionError [ERR_ASSERTION]: tokenLookup
+  + actual - expected
+  
+  + undefined
+  - {
+  -   first: {
+  -     contributionLoads: [
+  -       'tovu-connections.json'
+  -     ],
+  -     credentialOpens: 4
+  -   },
+  -   second: {
+  -     contributionLoads: [
+  -       'tovu-connections.json'
+  -     ],
+  -     credentialOpens: 4
+  -   }
+  - }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:196:55)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { first: { contributionLoads: [Array], credentialOpens: 4 }, second: { contributionLoads: [Array], credentialOpens: 4 } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ Postgres composition boot sequence preserves data across env, sealed-secret and wrong-key boots (0.619453ms)
+  Error: failed to drop fixture database "tovu_r1f_create_site_route_deps": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts:41:22)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts:40:1)
+✖ /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts (41.708973ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+      at Object.rmSync (node:fs:1282:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts:58:6)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (176.705462ms)
+  AssertionError [ERR_ASSERTION]: the receiver was still sending when it was cut off
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:161:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:76:11)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

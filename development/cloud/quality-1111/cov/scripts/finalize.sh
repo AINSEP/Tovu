@@ -20,6 +20,8 @@ node $S/build-coverage-table.mjs $O "Tovu=/home/user/Tovu=$C/report-tovu/coverag
 # failures
 F=()
 for f in $O/raw/tovu-root-shard-*.tap.txt $O/raw/tovu-desktop-*.tap.txt; do F+=("Tovu:tap:$f"); done
+# partial TAP of the stopped original shards 5/6 (files 1-67 / 1-39 ran to completion there); 5a/6a are subsets, not used
+for f in $O/raw/aborted/tovu-root-shard-5.tap.txt $O/raw/aborted/tovu-root-shard-6.tap.txt; do [ -s "$f" ] && F+=("Tovu:tap:$f"); done
 F+=("Tovu:vitest:$C/admin-results.json")
 for f in $C/jini/*.results.json; do F+=("Jini:vitest:$f"); done
 [ -s $O/raw/jini-test-commerce-nodetest.txt ] && F+=("Jini:tap:$O/raw/jini-test-commerce-nodetest.txt")

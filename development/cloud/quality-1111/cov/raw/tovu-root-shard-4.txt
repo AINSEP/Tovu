@@ -172,4 +172,162 @@
 ....................
 ....................
 ....................
-...........
+....................
+....................
+....................
+....................
+.........X..........
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+.............X....
+
+Failed tests:
+
+✖ independent connections cannot both apply an access decision from the same snapshot (0.563571ms)
+  Error: failed to drop fixture database "tovu_external_mcp_choice_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts:20:28)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts:19:1)
+✖ /home/user/Tovu/apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts (114.803448ms)
+  Error: failed to drop fixture database "tovu_external_mcp_choice_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts:29:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict (0.550097ms)
+  Error: failed to drop fixture database "tovu_menu_cas_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:30:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:29:1)
+✖ postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict (0.104764ms)
+  Error: failed to drop fixture database "tovu_menu_cas_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:30:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:29:1)
+✖ observes real rendered evidence from a real page (6480.593231ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts:186:44) {
+    name: 'Error',
+    log: []
+  }
+✖ security: a failing pull or a throwing sign-in port never changes the sign-in response, and logs no detail (1286.994199ms)
+  AssertionError [ERR_ASSERTION]: timed out waiting for the failed pull's log line
+      at until (/home/user/Tovu/apps/website/src/server/__tests__/admin-local-boot-session-route.test.ts:378:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/admin-local-boot-session-route.test.ts:501:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+✖ [postgres] member purchase settles only from signed paid evidence and survives relay redelivery (7.726265ms)
+  Error: connect ENOENT /tmp/.s.PGSQL.5432
+      at /home/user/Tovu/node_modules/pg-pool/index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async BoundPool.pool.connect (/home/user/Jini/packages/db/src/kernel/postgres/driver.ts:42:20)
+      at async PostgresDriver.acquireConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:21:24)
+      at async RuntimeDriver.acquireConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/runtime-driver.js:54:28)
+      at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:8:28)
+      at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+      at async Object.execute (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:154:7)
+      at async kernelFor (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts:46:3)
+      at async fixture (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts:79:18) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'connect',
+    address: '/tmp/.s.PGSQL.5432'
+  }
+✖ ../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS (14.905945ms)
+  AssertionError [ERR_ASSERTION]: ../../../inbound/assistant/agent-daemon-server.ts must have one OAuth ports call
+  
+  0 !== 1
+  
+      at wiredOAuthPorts (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts:38:10)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts:65:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ SDK external type contracts are declared package dependencies for standalone consumers (7.996273ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '^0.7.0'
+  - '^0.6.17'
+        ^
+  
+      at TestContext.<anonymous> (/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:142:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '^0.7.0',
+    expected: '^0.6.17',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
