@@ -29,8 +29,8 @@ Brief: `development/cloud/quality-1111/BRIEF-SEC.md` + `COMMON.md`. No subagents
 ## Totals (check × repo)
 | check | Tovu | Jini |
 |---|---|---|
-| Floating promises: `no-floating-promises` | 17 | 8 |
-| Floating promises: `no-misused-promises` | 90 | 59 |
+| Floating promises: `no-floating-promises` (Tovu excludes SKIPPED apps/website) | 17 | 8 |
+| Floating promises: `no-misused-promises` (Tovu excludes SKIPPED apps/website) | 90 | 59 |
 | Floating promises: units SKIPPED / partial | 1 / 2 of 6 | 0 / 3 of 38 |
 | osv-scanner rows (package@version × advisory × lockfile) | 248 (MODERATE 131 / HIGH 89 / LOW 22 / CRITICAL 6) | 184 (MODERATE 92 / HIGH 66 / LOW 21 / CRITICAL 5) |
 | osv-scanner unique package@version × advisory | 201 | 184 |
@@ -58,6 +58,9 @@ Files: `git ls-files` `*.ts/*.tsx/*.mts/*.cts` with the scope exclusions (Jini: 
   EXIT 0, `raw/jini-build.txt`).
 - Tovu `packages/sdk`, `packages/contracts` and `apps/site-chat` were also run (they are in the `apps/`/`packages/`
   scope); `content/` has no in-scope TypeScript (only tests and theme `.js` scripts), so it has no typed-lint unit.
+- **Tovu `apps/website` (2165 files) is SKIPPED (time-box)** — run last as the largest unit, as the brief orders;
+  it did not finish within step 1's 60 minutes (single eslint process, ~4.1 GB RSS, no output before stop). So the
+  Tovu promise totals cover sdk, contracts, site-chat, desktop and admin only. Exact entry in the SKIPPED section.
 
 Per unit (every unit run; `files_not_type_loaded` = files the project service could not place in a tsconfig):
 
@@ -916,4 +919,4 @@ Floating-promises skips (every entry, from `floating-promises-skipped.tsv`, 15):
 | tovu | apps/admin | apps/admin/vitest.config.ts | Parsing error: /home/user/Tovu/apps/admin/vitest.config.ts was not found by the project service. Consider either including it in the tsconfig.json or including it in allowDefaultProject. |
 | tovu | apps/desktop | apps/desktop/scripts/verify-find-in-page.ts | Parsing error: "parserOptions.project" has been provided for @typescript-eslint/parser. The file was not found in any of the provided project(s): scripts/verify-find-in-page.ts |
 | tovu | apps/desktop | apps/desktop/scripts/verify-site-power.ts | Parsing error: "parserOptions.project" has been provided for @typescript-eslint/parser. The file was not found in any of the provided project(s): scripts/verify-site-power.ts |
-| tovu | apps/website | unit |  |
+| tovu | apps/website | unit | SKIPPED (time-box): eslint over 2165 files (typed via the Tovu root tsconfig.json — apps/website has none) ran 01:56→02:56 wall clock (started 02:01:10), single process at ~4.1 GB RSS, ~109% CPU, produced no output before the step-1 60-minute time-box; the run was stopped at its 3600 s background li |

@@ -120,8 +120,8 @@
    "tovu|LOW": 22
   },
   "unique_by_repo": {
-   "tovu": 201,
-   "jini": 184
+   "jini": 184,
+   "tovu": 201
   },
   "by_repo_lock": {
    "jini|pnpm-lock.yaml": 184,
@@ -1560,12 +1560,12 @@
    "tovu": 46
   },
   "kb_files_by_repo": {
-   "jini": 22,
-   "tovu": 26
+   "tovu": 26,
+   "jini": 22
   },
   "kb_elements_by_repo": {
-   "tovu": 35,
-   "jini": 26
+   "jini": 26,
+   "tovu": 35
   },
   "kb_files": {
    "jini|packages/chat/src/react/components/ChatSettingsDialog.tsx": 1,

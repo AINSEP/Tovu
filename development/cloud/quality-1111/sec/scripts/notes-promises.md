@@ -14,3 +14,6 @@ Files: `git ls-files` `*.ts/*.tsx/*.mts/*.cts` with the scope exclusions (Jini: 
   EXIT 0, `raw/jini-build.txt`).
 - Tovu `packages/sdk`, `packages/contracts` and `apps/site-chat` were also run (they are in the `apps/`/`packages/`
   scope); `content/` has no in-scope TypeScript (only tests and theme `.js` scripts), so it has no typed-lint unit.
+- **Tovu `apps/website` (2165 files) is SKIPPED (time-box)** — run last as the largest unit, as the brief orders;
+  it did not finish within step 1's 60 minutes (single eslint process, ~4.1 GB RSS, no output before stop). So the
+  Tovu promise totals cover sdk, contracts, site-chat, desktop and admin only. Exact entry in the SKIPPED section.

@@ -1,0 +1,1 @@
+SKIPPED (time-box): eslint over 2165 files (typed via the Tovu root tsconfig.json — apps/website has none) ran 01:56→02:56 wall clock (started 02:01:10), single process at ~4.1 GB RSS, ~109% CPU, produced no output before the step-1 60-minute time-box; the run was stopped at its 3600 s background limit. No partial results exist (eslint writes JSON only at exit).

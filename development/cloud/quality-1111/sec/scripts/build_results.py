@@ -52,8 +52,8 @@ def sevfmt(rows, repo):
 out.append('## Totals (check × repo)\n')
 rows = []
 for label, data, extra in [
-    ('Floating promises: `no-floating-promises`', prom, lambda r: r['rule'].endswith('no-floating-promises')),
-    ('Floating promises: `no-misused-promises`', prom, lambda r: r['rule'].endswith('no-misused-promises')),
+    ('Floating promises: `no-floating-promises` (Tovu excludes SKIPPED apps/website)', prom, lambda r: r['rule'].endswith('no-floating-promises')),
+    ('Floating promises: `no-misused-promises` (Tovu excludes SKIPPED apps/website)', prom, lambda r: r['rule'].endswith('no-misused-promises')),
     ('Floating promises: units SKIPPED / partial', None, None),
     ('osv-scanner rows (package@version × advisory × lockfile)', osv, lambda r: True),
     ('osv-scanner unique package@version × advisory', None, None),
