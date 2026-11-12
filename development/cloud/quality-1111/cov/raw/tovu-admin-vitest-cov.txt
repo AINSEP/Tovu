@@ -1547,3 +1547,294 @@ stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import 
  ✓ src/features/dashboard/__tests__/use-dashboard-port.unit.test.ts (37 tests) 2409ms
  ✓ src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx (18 tests) 457ms
  ✓ src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx (23 tests) 2479ms
+ ✓ src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx (41 tests) 5230ms
+     ✓ page.click on post-view-preview's handle actually switches the view — reachable AND clickable, not merely tagged  303ms
+     ✓ post-preview-expand stays reachable once already expanded — same single handle, now on the preview itself  351ms
+     ✓ post-view-edit switches back to the editor view  338ms
+ ✓ src/features/sites/__tests__/create-site-plugin-tokens.unit.test.tsx (18 tests) 4327ms
+     ✓ has no standalone Connect services section, including with offered plugins  421ms
+     ✓ offers no token disclosure without an installed Supabase plugin  360ms
+     ✓ shows and focuses the optional password field under Supabase only after selecting it  442ms
+     ✓ sends only the name after a typed Supabase token is hidden by selecting SQLite  665ms
+     ✓ sends only the name after a typed Supabase token is hidden by selecting Custom DB Provider  774ms
+     ✓ sends the selected inline token through the existing flow without echoing it into form copy  573ms
+ ✓ src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx (21 tests) 3453ms
+   ✓ wcmp: the visitor Widget selector defaults to React and saves Lightweight without enabling visitors  991ms
+     ✓ persists a toggle through a PUT and re-renders from the response  302ms
+ ✓ src/components/__tests__/Select.hooks.unit.test.tsx (36 tests) 136ms
+ ✓ src/lib/__tests__/credential-input-autocomplete.unit.test.ts (22 tests) 1261ms
+     ✓ the installed Jini reset-password fields use new-password, hidden and revealed  1106ms
+ ✓ src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx (21 tests) 488ms
+ ✓ src/features/security/__tests__/OtherCredentialsSection.unit.test.tsx (18 tests) 910ms
+ ✓ src/features/settings/hooks/__tests__/use-external-mcp-admissions.unit.test.tsx (25 tests) 1690ms
+ ✓ src/features/pages/__tests__/use-theme-pages.unit.test.ts (26 tests) 1324ms
+ ✓ src/components/WidgetConfigFields/__tests__/MediaContentEditor.unit.test.tsx (21 tests) 2411ms
+     ✓ switching to an empty tab changes nothing until the first edit there (no false "Leave site?")  449ms
+ ✓ src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx (21 tests) 323ms
+ ✓ src/features/settings/__tests__/ExternalMcpToolsModal.unit.test.tsx (12 tests) 2058ms
+   ✓ updates the modal Escape receiver, ignores interior clicks, and detaches on unmount  493ms
+   ✓ renders destructive and undeclared warnings on their own rows and saves the edited grants  391ms
+   ✓ filters rows by name or description and selects all / none among the visible, unlocked rows only  359ms
+ ✓ src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx (20 tests) 1410ms
+ ✓ src/integrations/jini-admin/__tests__/media-ports.unit.test.ts (28 tests) 51ms
+ ✓ src/features/voice-input/hooks/__tests__/use-push-to-talk.hooks.unit.test.ts (22 tests) 2170ms
+     ✓ a transcribe failure surfaces as the error indicator and never calls onTranscript  363ms
+ ✓ src/components/__tests__/ChatFab.hooks.unit.test.tsx (23 tests) 107ms
+ ✓ src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx (21 tests) 355ms
+ ✓ src/features/menus/__tests__/use-menus.hooks.unit.test.tsx (23 tests) 1572ms
+ ✓ src/features/deployment/__tests__/DockerfileTab.unit.test.tsx (24 tests) 794ms
+ ✓ src/lib/__tests__/browser-stream.unit.test.ts (30 tests) 27ms
+ ✓ src/lib/__tests__/api-system-endpoints.unit.test.ts (36 tests) 37ms
+ ✓ src/features/security/__tests__/SiteKeyTab.unit.test.tsx (28 tests) 1017ms
+     ✓ labels the section "Site key" with the canonical terminology  364ms
+ ✓ src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx (26 tests) 915ms
+   ✓ renders the exact reason, hint and full stderr disclosure in Jini's real message renderer  408ms
+ ✓ src/features/ai-assistant/__tests__/AdminExecutionMode.unit.test.tsx (19 tests) 1778ms
+ ✓ src/features/plugins/__tests__/agent-plugin-update.unit.test.tsx (45 tests) 2172ms
+     ✓ only an operator-installed row with its digest offers Update; bundled rows never do  687ms
+ ✓ src/features/ai-assistant/__tests__/VisitorToolsPanel.unit.test.tsx (39 tests) 3393ms
+ ✓ src/features/import-export/__tests__/GitBackupCard.unit.test.tsx (22 tests) 1309ms
+     ✓ drives each backup field directly and cancels the resulting plan  448ms
+ ✓ src/lib/__tests__/assistant-transport.run-status.unit.test.ts (13 tests) 343ms
+ ✓ src/features/sites/__tests__/site-card-view.unit.test.tsx (28 tests) 325ms
+ ✓ src/features/collections/__tests__/rules.unit.test.ts (59 tests) 25ms
+ ✓ src/features/settings/__tests__/AdminAppearance.unit.test.tsx (56 tests) 7027ms
+     ✓ has one compact Light / Dark / System control that repaints and saves the shell's setting  365ms
+     ✓ selects classic's resolved light default, saves through the real adapter, and reloads with no override  762ms
+     ✓ selects classic's resolved dark default, saves through the real adapter, and reloads with no override  762ms
+     ✓ selects glass's resolved light default, saves through the real adapter, and reloads with no override  723ms
+     ✓ selects glass's resolved dark default, saves through the real adapter, and reloads with no override  732ms
+     ✓ uses the existing debounced settings lifecycle and persists against the loaded diff base  620ms
+     ✓ uses Classic's scheme default and accent setting for parked Glass  643ms
+ ✓ src/admin-themes/__tests__/admin-themes.unit.test.ts (27 tests) 156ms
+ ✓ src/features/roles/__tests__/rules.unit.test.ts (133 tests) 45ms
+ ✓ src/features/consent/__tests__/use-consent-page.hooks.unit.test.tsx (26 tests) 1312ms
+ ✓ src/hooks/__tests__/use-admin-appearance.unit.test.ts (15 tests) 1223ms
+ ✓ src/admin-themes/__tests__/use-admin-theme.hooks.unit.test.tsx (20 tests) 1586ms
+ ✓ src/features/users/__tests__/users-agent-drive.unit.test.tsx (9 tests) 2330ms
+     ✓ page.fill on the username and email fields reaches React state (via the injected setters)  615ms
+     ✓ keeps reset-password fields and reveal controls human-only while reset actions retain handles  348ms
+ ✓ src/features/skills/__tests__/Skills.unit.test.tsx (17 tests) 4241ms
+     ✓ defaults to installed Skills for   365ms
+     ✓ switches from the empty-state button and tabs without growing history, preserving the URL draft  515ms
+     ✓ opens the read-only viewer from the eye and selects SKILL.md first  492ms
+     ✓ lists real skills, disables and removes via the shared workspace API  300ms
+     ✓ shows a failed removal as an alert and keeps the skill listed  365ms
+     ✓ stays on Add after an install failure, then switches only after a successful retry  733ms
+ ✓ src/features/security/__tests__/AccessTokensTab.unit.test.tsx (18 tests) 2464ms
+     ✓ links to Plugins when the Hosting filter has no providers  329ms
+     ✓ saves and clears Works for with the token and required account fields left blank  622ms
+     ✓ clears the mounted Account ID input after saving a replacement token  727ms
+ ✓ src/features/content-analysis/__tests__/content-analysis-rules.unit.test.ts (123 tests) 58ms
+ ✓ src/components/__tests__/MediaPickerDialog.unit.test.tsx (19 tests) 842ms
+stdout | src/lib/__tests__/durable-run-subscription.unit.test.ts > 404 or a lost connection never terminalizes the run or asks the user to resend
+[durable-subscription] {"runId":"old","reason":"stream-error","cursor":"","retryDelayMs":1000}
+
+ ✓ src/lib/__tests__/durable-run-subscription.unit.test.ts (19 tests) 64ms
+ ✓ src/features/trash/__tests__/Trash.unit.test.tsx (24 tests) 2745ms
+     ✓ opens confirmation from the toolbar and purges only after Confirm, never after Cancel  576ms
+     ✓ restores the selected row through the real controller  347ms
+     ✓ select-all toggles every visible row and Load more appends the next page  534ms
+ ✓ src/features/skills/__tests__/use-skills.unit.test.ts (18 tests) 1538ms
+ ✓ src/components/WidgetConfigFields/__tests__/media-content-rules.unit.test.ts (34 tests) 27ms
+ ✓ src/features/taxonomy/__tests__/rules.unit.test.ts (47 tests) 46ms
+ ✓ src/features/posts/__tests__/Posts.unit.test.tsx (35 tests) 3159ms
+     ✓ clicking Slug after Title cancels Title's active sort — only one column active at a time  337ms
+ ✓ src/features/sites/__tests__/site-transfer-credential-warnings.unit.test.tsx (15 tests) 1746ms
+     ✓ shows the warning in the export's detail line, not the Status column, with each file once and its kinds beside it  423ms
+ ✓ src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts (16 tests) 1152ms
+ ✓ src/features/collections/__tests__/use-collections.unit.test.tsx (21 tests) 1430ms
+ ✓ src/components/WidgetConfigFields/__tests__/MediaContentEditor.markup.unit.test.tsx (32 tests) 2782ms
+     ✓ omits editor-owned handles without a base while shared controls retain their default handles  486ms
+     ✓ shows no preview status once the render has finished without error  445ms
+     ✓ says the preview is unavailable when the render fails  426ms
+ ✓ src/components/__tests__/WidgetPickerDialog.unit.test.tsx (12 tests) 1439ms
+   ✓ Escape closes the Select's dropdown without cancelling the dialog underneath it  417ms
+     ✓ changing the type Select, typing a new title, then Cancel — all three reach the real hook with no widget created  351ms
+ ✓ src/lib/__tests__/widget-embed-extension.hooks.unit.test.ts (25 tests) 932ms
+ ✓ src/features/users/__tests__/Users.crud.unit.test.tsx (13 tests) 3637ms
+     ✓ is closed by default; New user opens it, Cancel closes it again  536ms
+     ✓ submits username/email/password and reloads the list on success  510ms
+     ✓ shows Creating… and disables submit while the create request is in flight  354ms
+     ✓ keeps the form open and shows the error on a failed create  343ms
+     ✓ assigns a role and reloads  494ms
+     ✓ saves an edited email and reloads  410ms
+ ✓ src/features/settings/__tests__/use-external-mcp-tool-picker.hooks.unit.test.tsx (11 tests) 1299ms
+ ✓ src/features/workspace/__tests__/use-workspace.hooks.unit.test.ts (13 tests) 1038ms
+ ✓ src/features/taxonomy/__tests__/TermPicker.unit.test.tsx (30 tests) 2731ms
+       ✓ shows the first few with ticked terms first, and See more reveals up to 100 then Show less folds back  1335ms
+ ✓ src/lib/__tests__/api-assistant.unit.test.ts (24 tests) 99ms
+ ✓ src/features/library/__tests__/use-library.hooks.unit.test.tsx (21 tests) 1054ms
+ ✓ src/features/collections/__tests__/use-new-content-type-dialog.unit.test.tsx (15 tests) 700ms
+ ✓ src/__tests__/fqfix-actions.unit.test.tsx (13 tests) 1618ms
+ ✓ src/features/taxonomy/__tests__/taxonomy-agent-drive.unit.test.tsx (6 tests) 1684ms
+     ✓ each taxonomy's own Add-term trigger reveals only ITS OWN name/submit handles  556ms
+ ✓ src/features/members/__tests__/use-members.hooks.unit.test.ts (9 tests) 1129ms
+stderr | src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx > AssistantDock Chat settings > hands ChatPane the stored display choices from the first render
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+ ❯ src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx (9 tests | 2 failed) 4750ms
+     ✓ keeps the server's restricted mode in picker preflight even when native permissions are ON 141ms
+     × passes the effective current CLI limits to the picker before a message is sent 1069ms
+     ✓ A8: dropdown and modal save through the same display owner and reload those values on remount  1556ms
+     ✓ keeps quick settings and the advanced modal in sync and restores gear focus  557ms
+     ✓ hands ChatPane the stored display choices from the first render 58ms
+     ✓ changes the choices from the gear menu itself, reaching ChatPane at once, with no dialog  328ms
+     ✓ offers Agent plugins in the gear and More settings, and Off reaches ChatPane at once  331ms
+     × keeps personal MCP opt-in and the master OFF while other local-owner permissions default ON 435ms
+     ✓ locks the permission switches and says why when the server reports an env lock 270ms
+ ✓ src/features/ai-assistant/__tests__/use-assistant-owner-grant.hooks.unit.test.tsx (19 tests) 1336ms
+ ✓ src/components/AssistantDock/__tests__/dock-header.unit.test.tsx (14 tests) 1670ms
+     ✓ navigates from the clicked setting after opening with the mouse, including wraparound  563ms
+ ✓ src/features/themes/__tests__/themes-delete.unit.test.tsx (23 tests) 1932ms
+     ✓ replaces the Duplicate icon button with a ⋮ beside Explore  389ms
+     ✓ a built-in theme's Delete explains instead of asking  378ms
+ ✓ src/features/ai-assistant/__tests__/AdminSubagents.unit.test.tsx (16 tests) 2188ms
+     ✓ shows the default-ON grant and copy; disabling and re-enabling save without confirmation  609ms
+     ✓ a failed save reports the real error and leaves both checkbox and dock at server truth  319ms
+ ✓ src/features/posts/__tests__/posts-i18n.unit.test.ts (47 tests) 5756ms
+     ✓ renders translated scheduling text and the URL dialog's accessible controls  908ms
+     ✓ renders the translated saved version notice after saving  760ms
+     ✓ translates a new post's first Save failure reached through the editor  310ms
+     ✓ renders translated scheduling text and the URL dialog's accessible controls  337ms
+     ✓ renders the translated saved version notice after saving  433ms
+     ✓ renders the translated published version notice after saving  403ms
+     ✓ translates a new post's first Save failure reached through the editor  374ms
+     ✓ translates the editor editorDelete fallback  366ms
+ ✓ src/features/integrations/__tests__/use-integrations.unit.test.tsx (14 tests) 1386ms
+     ✓ resumes a paused subscription through the port and refreshes its status  421ms
+ ✓ src/features/security/hooks/__tests__/access-tokens-dependencies.unit.test.ts (22 tests) 37ms
+ ✓ src/features/media/__tests__/media-html-attributes.unit.test.tsx (36 tests) 43ms
+ ✓ src/lib/__tests__/assistant-chats.unit.test.ts (35 tests) 77ms
+ ✓ src/features/users/__tests__/rules.unit.test.ts (281 tests) 49ms
+ ✓ src/integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx (15 tests) 4731ms
+     ✓ mounts the library loading notice, row handles, create route and publish contribution  973ms
+     ✓ threads a Spanish locale into the nested WidgetConfigFields via a SECOND t bound to shared-components-i18n, not this screen's own widgets-i18n t  313ms
+     ✓ refreshes locale without remounting a loaded editor or losing unsaved title/config  333ms
+     ✓ forwards new-editor type and navigates a created widget to its slug  582ms
+     ✓ binds a new region and retains the host regions route  449ms
+     ✓ renders the Add widget control and places the selected existing widget  749ms
+     ✓ refreshes only the mounted library resource and unsubscribes on unmount  403ms
+     ✓ replaces a raw id bookmark with its loaded slug without adding history  390ms
+     ✓ keeps an unsaved region draft through locale changes and unrelated refreshes  358ms
+ ✓ src/lib/__tests__/server-reconnect.unit.test.ts (22 tests) 32ms
+ ✓ src/integrations/jini-admin/__tests__/modules.hooks.unit.test.tsx (17 tests) 2273ms
+     ✓ mounts the page inside its provider and contributions, passing the requested tab  374ms
+     ✓ shows the media loading fallback while the page module loads, and no requested tab when absent  308ms
+     ✓ renders the caller loading content while the page module loads  308ms
+     ✓ passes route params to the page when given  322ms
+     ✓ omits the params prop entirely when none are given  311ms
+     ✓ navigates a tab change to the module page path, keeping other query values and history length  342ms
+ ✓ src/hooks/__tests__/use-assistant-chats.run-stub.unit.test.ts (9 tests) 106ms
+ ✓ src/features/sites/__tests__/Sites.hooks.unit.test.tsx (23 tests) 48ms
+ ✓ src/features/ai-assistant/__tests__/AdminPermanentDeletes.unit.test.tsx (15 tests) 3041ms
+     ✓ defaults OFF; names every danger; Escape cancels and returns focus without saving  497ms
+     ✓ confirmed enable shows the 13-tool groups; checkboxes/select all/select none autosave; OFF keeps the list  1168ms
+ ✓ src/features/themes/__tests__/theme-preview-refresh.unit.test.tsx (19 tests) 464ms
+ ✓ src/features/security/__tests__/AccessTokensTab.hooks.unit.test.tsx (13 tests) 63ms
+ ✓ src/features/skills/__tests__/chat-drop.unit.test.tsx (23 tests) 139ms
+ ✓ src/features/sites/__tests__/sites-home-setting.unit.test.tsx (20 tests) 1613ms
+ ✓ src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx (19 tests) 1321ms
+   ✓ renders site-compliance with its own category glyph  389ms
+ ✓ src/lib/__tests__/assistant-transport.translate.unit.test.ts (23 tests) 15ms
+ ✓ src/lib/__tests__/agent-screenshot.unit.test.ts (20 tests) 41ms
+ ✓ src/features/voice-input/__tests__/voice-to-composer.integration.test.tsx (14 tests) 9841ms
+     ✓ puts the exact transcript into the draft and does not send it  961ms
+     ✓ appends onto the draft "summarise the release notes" without destroying it or doubling whitespace  539ms
+     ✓ appends onto the draft "summarise the release notes " without destroying it or doubling whitespace  412ms
+     ✓ appends onto the draft "summarise the release notes\n" without destroying it or doubling whitespace  340ms
+     ✓ opens the mic and delivers the transcript to the draft on release  746ms
+     ✓ does not record ControlLeft + Space in the real composer  454ms
+     ✓ does not record MetaLeft + Space in the real composer  783ms
+     ✓ does not record AltLeft + Space in the real composer  414ms
+     ✓ does not record ShiftLeft + Space in the real composer  772ms
+     ✓ leaves composing Space events unprevented without opening the microphone  432ms
+     ✓ releases an engaged hold on blur and delivers its transcript to the real composer  982ms
+     ✓ leaves a quick tap alone: no recording, and the browser still types the space  857ms
+     ✓ suppresses OS key repeat during a hold so no run of spaces is typed  1080ms
+     ✓ does not engage while the draft has text — the space types normally instead  1065ms
+ ✓ src/components/__tests__/MediaEditDialog.unit.test.tsx (17 tests) 1769ms
+     ✓ renders every label through the controller's own t, so the dialog needs no second useAdminLocale call  515ms
+     ✓ Escape, real validation hint, and Save-not-gated all work end to end through the default hook, alt included  337ms
+ ✓ src/lib/__tests__/api-connectors-policies-forms-seo-redirects-posts.unit.test.ts (23 tests) 44ms
+ ✓ src/features/posts/__tests__/use-post-editor-ui.hooks.unit.test.tsx (12 tests) 507ms
+ ✓ src/features/plugins/__tests__/PluginsAddTab.unit.test.tsx (11 tests) 2961ms
+   ✓ shows the trust warning and stays-off promise before install, then installs and clears the form  729ms
+   ✓ Cancel drops the review without installing  599ms
+   ✓ Enter in the folder field previews, like the button  390ms
+   ✓ no conflicts: no conflict heading  306ms
+   ✓ publishes stable handles for the drop zone, Advanced, Replace and Cancel  340ms
+ ✓ src/features/security/__tests__/use-site-key-recovery.unit.test.ts (15 tests) 63ms
+ ✓ src/components/__tests__/MediaPickerDialog.hooks.unit.test.tsx (17 tests) 762ms
+ ✓ src/features/observability/__tests__/Observability.unit.test.tsx (15 tests) 931ms
+   ✓ shows delivery evidence and an authorized diagnostic button without claiming remote success  369ms
+stderr | src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.unit.test.tsx > RoutedA2uiSurfaceCard > keeps a refused surface in the chat, not on the Playground canvas, even with a target registered
+Cannot update a component (`RoutedA2uiSurfaceCard`) while rendering a different component (`A2uiSurfaceCard`). To locate the bad setState() call inside `A2uiSurfaceCard`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+
+ ✓ src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.unit.test.tsx (13 tests) 94ms
+ ✓ src/lib/__tests__/api-request-unreachable.unit.test.ts (16 tests) 45ms
+ ✓ src/features/settings/__tests__/ExternalMcpAdmissionsBanner.unit.test.tsx (15 tests) 463ms
+ ✓ src/features/publish-content/hooks/__tests__/use-publish-content-confirm.guards.unit.test.ts (16 tests) 2083ms
+ ✓ src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx (52 tests) 18444ms
+     ✓ opening navigation evaluates only the thin adapters and required Forms bridge  899ms
+     ✓ /comments has a synchronous adapter while its page waits for rendering  373ms
+     ✓ /redirects has a synchronous adapter while its page waits for rendering  378ms
+     ✓ /seo has a synchronous adapter while its page waits for rendering  393ms
+     ✓ /widgets has a synchronous adapter while its page waits for rendering  382ms
+     ✓ /widgets/regions has a synchronous adapter while its page waits for rendering  371ms
+     ✓ /widgets/regions/footer has a synchronous adapter while its page waits for rendering  345ms
+     ✓ /widgets/new?type=text has a synchronous adapter while its page waits for rendering  357ms
+     ✓ a direct link to /skills renders the matching page without loading unrelated routes  343ms
+     ✓ a direct link to /themes renders the matching page without loading unrelated routes  344ms
+     ✓ a direct link to /admin-ui renders the matching page without loading unrelated routes  341ms
+     ✓ a direct link to /dashboard renders the matching page without loading unrelated routes  354ms
+     ✓ a direct link to /import-export renders the matching page without loading unrelated routes  324ms
+     ✓ a direct link to /consent renders the matching page without loading unrelated routes  333ms
+     ✓ a direct link to /posts renders the matching page without loading unrelated routes  338ms
+     ✓ a direct link to /pages renders the matching page without loading unrelated routes  328ms
+     ✓ a direct link to /members renders the matching page without loading unrelated routes  340ms
+     ✓ a direct link to /comments renders the matching page without loading unrelated routes  340ms
+     ✓ a direct link to /analytics renders the matching page without loading unrelated routes  355ms
+     ✓ a direct link to /library renders the matching page without loading unrelated routes  404ms
+     ✓ a direct link to /menus renders the matching page without loading unrelated routes  370ms
+     ✓ a direct link to /providers renders the matching page without loading unrelated routes  334ms
+     ✓ a direct link to /users renders the matching page without loading unrelated routes  371ms
+     ✓ a direct link to /authentication renders the matching page without loading unrelated routes  333ms
+     ✓ a direct link to /roles renders the matching page without loading unrelated routes  340ms
+     ✓ a direct link to /settings renders the matching page without loading unrelated routes  338ms
+     ✓ a direct link to /seo renders the matching page without loading unrelated routes  352ms
+     ✓ a direct link to /redirects renders the matching page without loading unrelated routes  348ms
+     ✓ a direct link to /plugins renders the matching page without loading unrelated routes  398ms
+     ✓ a direct link to /collections renders the matching page without loading unrelated routes  337ms
+     ✓ a direct link to /taxonomy renders the matching page without loading unrelated routes  440ms
+     ✓ a direct link to /trash renders the matching page without loading unrelated routes  352ms
+     ✓ a direct link to /email renders the matching page without loading unrelated routes  365ms
+     ✓ a direct link to /database renders the matching page without loading unrelated routes  351ms
+     ✓ a direct link to /recovery renders the matching page without loading unrelated routes  332ms
+     ✓ a direct link to /deployment renders the matching page without loading unrelated routes  353ms
+     ✓ a direct link to /source-control renders the matching page without loading unrelated routes  329ms
+     ✓ a direct link to /access-tokens renders the matching page without loading unrelated routes  357ms
+     ✓ a direct link to /observability renders the matching page without loading unrelated routes  379ms
+     ✓ a direct link to /widgets renders the matching page without loading unrelated routes  336ms
+     ✓ a direct link to /ai-assistant renders the matching page without loading unrelated routes  332ms
+     ✓ a direct link to /playground renders the matching page without loading unrelated routes  343ms
+     ✓ a direct link to /sites renders the matching page without loading unrelated routes  325ms
+     ✓ a direct link to /media renders the matching page without loading unrelated routes  342ms
+     ✓ a direct link to /integrations/sub-1 renders the matching page without loading unrelated routes  333ms
+     ✓ a direct link to /posts/hello renders the matching page without loading unrelated routes  327ms
+     ✓ a direct link to /posts?create=1 renders the matching page without loading unrelated routes  326ms
+     ✓ a direct link to /pages/about-us renders the matching page without loading unrelated routes  333ms
+     ✓ a direct link to /media?tab=videos&id=asset-1 renders the matching page without loading unrelated routes  324ms
+     ✓ a direct link to /settings?tab=interface renders the matching page without loading unrelated routes  333ms
+     ✓ a direct link to /collections/articles/new renders the matching page without loading unrelated routes  341ms
+ ✓ src/features/source-control/__tests__/rules.unit.test.ts (27 tests) 35ms
+ ✓ src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx (15 tests) 2844ms
+     ✓ the working Add a plugin tab is untagged and opens  340ms
+     ✓ installs a chosen .zip with its SHA-256, adds the row, and says it stays off  352ms
+     ✓ says so when the same package was already installed  426ms
+ ✓ src/features/posts/__tests__/post-cover-image.unit.test.tsx (13 tests) 945ms
+ ✓ src/lib/__tests__/api-themes.unit.test.ts (22 tests) 52ms

@@ -1,0 +1,16 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-plugins
+      Coverage enabled with v8
+
+ ✓ src/lifecycle/__tests__/unit/update.unit.test.ts (36 tests) 8345ms
+   ✓ enabled update keeps memory and a single live digest; audit is filed at commit; boot collects frozen rollback 498ms
+   ✓ same bytes are a no-op, disabled updates remain off, and missing capabilities warn 398ms
+   ✓ a disabled plugin may update to a host-incompatible candidate and stays off; plan warnings pass through 445ms
+   ✓ an incomplete rollback keeps the journal, blocks updates until boot, and boot recovers; a malformed journal refuses recovery 393ms
+   ✓ an ordinary install after an incomplete rollback is refused until boot recovers, so recovery never restores beside it 301ms
+   ✓ A to B to A to C same-version replacements without a restart never collide with a retained rollback copy 844ms
+   ✓ unversioned revisions update, then a later update freezes a fresh rollback over the retained one 596ms
+   ✓ an audit filing failure after commit keeps the update and defers filing to the next update or boot 375ms
+   ✓ boot recovery of a published update degrades to "restored but off" when MCP cannot be re-provisioned 380ms
+   ✓ an MCP failure while restoring leaves the old revision off, and reports the original failure 382ms
+   ✓ an MCP failure during the switch whose rollback cannot switch off still leaves the candidate off 330ms

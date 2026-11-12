@@ -3477,3 +3477,1885 @@ ok 461 - existing site: an earlier explicitly ENABLED deploy record is retired a
   type: 'test'
   ...
 # [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-43FCs1/ws/workspace-local
+# Subtest: an untouched disabled deploy seed retires without enabling opt-in hosts
+ok 462 - an untouched disabled deploy seed retires without enabling opt-in hosts
+  ---
+  duration_ms: 5463.448454
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-DlLZxA/ws/workspace-local
+# Subtest: an existing site whose operator switched deploy off keeps the split-out hosting plugins off
+ok 463 - an existing site whose operator switched deploy off keeps the split-out hosting plugins off
+  ---
+  duration_ms: 6481.335243
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-75YSTh/ws/workspace-local
+# Subtest: an operator who switched fly (deploy's server successor) off stays switched off across boots
+ok 464 - an operator who switched fly (deploy's server successor) off stays switched off across boots
+  ---
+  duration_ms: 10875.777456
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-uz6jBo/ws/workspace-local
+# Subtest: seeded by the real seeder, hosts start disabled, explicit enable loads targets, deploy is never seeded, and the registry loads Netlify from the installed digest
+ok 465 - seeded by the real seeder, hosts start disabled, explicit enable loads targets, deploy is never seeded, and the registry loads Netlify from the installed digest
+  ---
+  duration_ms: 3836.754796
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-6cPtWR/ws/workspace-local
+# Subtest: upgrade: a site holding an OLDER bundled host digest serves the new one after the next boot, with no user action
+ok 466 - upgrade: a site holding an OLDER bundled host digest serves the new one after the next boot, with no user action
+  ---
+  duration_ms: 582.084956
+  type: 'test'
+  ...
+# Subtest: plugin.json parses under the Agent Plugins v1.0.0 validator
+ok 467 - plugin.json parses under the Agent Plugins v1.0.0 validator
+  ---
+  duration_ms: 20.205023
+  type: 'test'
+  ...
+# Subtest: plugin.json's keywords carry the vocabulary an operator would actually search for
+ok 468 - plugin.json's keywords carry the vocabulary an operator would actually search for
+  ---
+  duration_ms: 2.060425
+  type: 'test'
+  ...
+# Subtest: mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust
+ok 469 - mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust
+  ---
+  duration_ms: 4.625679
+  type: 'test'
+  ...
+# Subtest: the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name
+ok 470 - the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name
+  ---
+  duration_ms: 1.447657
+  type: 'test'
+  ...
+# Subtest: the package packs through the real installer's own packer, references included
+ok 471 - the package packs through the real installer's own packer, references included
+  ---
+  duration_ms: 5.113359
+  type: 'test'
+  ...
+# Subtest: SKILL.md points at every reference file that exists — an unreferenced reference is never read
+ok 472 - SKILL.md points at every reference file that exists — an unreferenced reference is never read
+  ---
+  duration_ms: 1.419401
+  type: 'test'
+  ...
+# Subtest: SKILL.md says EARLY and plainly that generate_image returns a job id, not an image
+ok 473 - SKILL.md says EARLY and plainly that generate_image returns a job id, not an image
+  ---
+  duration_ms: 1.149971
+  type: 'test'
+  ...
+# Subtest: SKILL.md forbids sync:true AND carries the two numbers that make it unarguable
+ok 474 - SKILL.md forbids sync:true AND carries the two numbers that make it unarguable
+  ---
+  duration_ms: 2.728533
+  type: 'test'
+  ...
+# Subtest: SKILL.md documents the TWO-list write grant and quotes the exact refusal line
+ok 475 - SKILL.md documents the TWO-list write grant and quotes the exact refusal line
+  ---
+  duration_ms: 1.944541
+  type: 'test'
+  ...
+# Subtest: host guidance: a sign-in needs no restart; only widening a running connection does
+ok 476 - host guidance: a sign-in needs no restart; only widening a running connection does
+  ---
+  duration_ms: 1.413968
+  type: 'test'
+  ...
+# Subtest: SKILL.md forbids inventing a cause for an absent or refused federated tool
+ok 477 - SKILL.md forbids inventing a cause for an absent or refused federated tool
+  ---
+  duration_ms: 1.121488
+  type: 'test'
+  ...
+# Subtest: SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table
+ok 478 - SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table
+  ---
+  duration_ms: 1.637464
+  type: 'test'
+  ...
+# Subtest: SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client
+ok 479 - SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client
+  ---
+  duration_ms: 0.82201
+  type: 'test'
+  ...
+# Subtest: SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL
+ok 480 - SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL
+  ---
+  duration_ms: 2.103992
+  type: 'test'
+  ...
+# Subtest: plugin.json's keywords also reach an operator who says 'photo' or 'illustration'
+ok 481 - plugin.json's keywords also reach an operator who says 'photo' or 'illustration'
+  ---
+  duration_ms: 14.212248
+  type: 'test'
+  ...
+# Subtest: SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand
+ok 482 - SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand
+  ---
+  duration_ms: 37.654462
+  type: 'test'
+  ...
+# Subtest: delivered failure guidance maps every observed failure string to a real cause
+ok 483 - delivered failure guidance maps every observed failure string to a real cause
+  ---
+  duration_ms: 2.593727
+  type: 'test'
+  ...
+# Subtest: delivered failure guidance routes an expired OAuth token to the one tool that can surface it
+ok 484 - delivered failure guidance routes an expired OAuth token to the one tool that can surface it
+  ---
+  duration_ms: 2.521391
+  type: 'test'
+  ...
+# Subtest: no file in the package carries credential material
+ok 485 - no file in the package carries credential material
+  ---
+  duration_ms: 10.16128
+  type: 'test'
+  ...
+# Subtest: site-import is on the seeded-enabled list
+ok 486 - site-import is on the seeded-enabled list
+  ---
+  duration_ms: 42.87743
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-site-import-plugin-3EJGK2/ws/workspace-local
+# Subtest: a fresh site seeds site-import ENABLED with no owner action
+ok 487 - a fresh site seeds site-import ENABLED with no owner action
+  ---
+  duration_ms: 140.292474
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-site-import-plugin-aWIOqj/ws/workspace-local
+# Subtest: an existing site whose record is the seeder's untouched OFF is switched on at the next boot
+ok 488 - an existing site whose record is the seeder's untouched OFF is switched on at the next boot
+  ---
+  duration_ms: 223.861054
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-site-import-plugin-S426U2/ws/workspace-local
+# Subtest: an owner who switched site-import off stays off across boots
+ok 489 - an owner who switched site-import off stays off across boots
+  ---
+  duration_ms: 145.162668
+  type: 'test'
+  ...
+# Subtest: plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings
+ok 490 - plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings
+  ---
+  duration_ms: 7.735302
+  type: 'test'
+  ...
+# Subtest: plugin.json's keywords carry the words an owner uses when asking to move a site
+ok 491 - plugin.json's keywords carry the words an owner uses when asking to move a site
+  ---
+  duration_ms: 1.47996
+  type: 'test'
+  ...
+# Subtest: mcp.json declares ZERO servers — the plugin runs entirely on native tools
+ok 492 - mcp.json declares ZERO servers — the plugin runs entirely on native tools
+  ---
+  duration_ms: 5.574175
+  type: 'test'
+  ...
+# Subtest: the eponymous skill exists and its frontmatter names it
+ok 493 - the eponymous skill exists and its frontmatter names it
+  ---
+  duration_ms: 1.402273
+  type: 'test'
+  ...
+# Subtest: the generic connect card's sign-in button sends ui/open-link as a request the Host answers
+ok 494 - the generic connect card's sign-in button sends ui/open-link as a request the Host answers
+  ---
+  duration_ms: 774.419424
+  type: 'test'
+  ...
+# Subtest: the sign-in card uses the plugin declaration to explain the connection and permissions
+ok 495 - the sign-in card uses the plugin declaration to explain the connection and permissions
+  ---
+  duration_ms: 0.59281
+  type: 'test'
+  ...
+# Subtest: plugin token decoration preserves the token app, cancel action and submission fields
+ok 496 - plugin token decoration preserves the token app, cancel action and submission fields
+  ---
+  duration_ms: 0.646416
+  type: 'test'
+  ...
+# Subtest: Agent Plugins shows signed-in state independently of whether a plugin is enabled
+ok 497 - Agent Plugins shows signed-in state independently of whether a plugin is enabled
+  ---
+  duration_ms: 3.823476
+  type: 'test'
+  ...
+# Subtest: all declared plugin connections must be signed in, and unrelated manual servers never confer status
+ok 498 - all declared plugin connections must be signed in, and unrelated manual servers never confer status
+  ---
+  duration_ms: 0.937916
+  type: 'test'
+  ...
+# Subtest: strict JSON declaration validation accepts only the data contract
+ok 499 - strict JSON declaration validation accepts only the data contract
+  ---
+  duration_ms: 5.150328
+  type: 'test'
+  ...
+# Subtest: nonthrowing reader rejects ambiguous declarations as a whole for the core fallback
+ok 500 - nonthrowing reader rejects ambiguous declarations as a whole for the core fallback
+  ---
+  duration_ms: 0.961774
+  type: 'test'
+  ...
+# Subtest: conflicting advice and duplicate names within one package yield no hints
+ok 501 - conflicting advice and duplicate names within one package yield no hints
+  ---
+  duration_ms: 0.30277
+  type: 'test'
+  ...
+# Subtest: path-fact and read/evaluation failures never fail boot; supplied roots select the declaration
+ok 502 - path-fact and read/evaluation failures never fail boot; supplied roots select the declaration
+  ---
+  duration_ms: 0.897081
+  type: 'test'
+  ...
+# Subtest: real synchronous bundled selection reads manifests, excludes retired/non-packages, needs no activation
+ok 503 - real synchronous bundled selection reads manifests, excludes retired/non-packages, needs no activation
+  ---
+  duration_ms: 12.756328
+  type: 'test'
+  ...
+# Subtest: explicit shipped and unavailable payloads keep independent no-signal defaults
+ok 504 - explicit shipped and unavailable payloads keep independent no-signal defaults
+  ---
+  duration_ms: 5.006848
+  type: 'test'
+  ...
+# Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+# Subtest: a macOS-style folder zip installs from inside its one folder, switched off
+ok 505 - a macOS-style folder zip installs from inside its one folder, switched off
+  ---
+  duration_ms: 243.378528
+  type: 'test'
+  ...
+# Subtest: a different package under an installed id is refused, and the first stays the only one
+ok 506 - a different package under an installed id is refused, and the first stays the only one
+  ---
+  duration_ms: 87.03648
+  type: 'test'
+  ...
+# Subtest: refusals: digest, missing or ambiguous manifest, unreadable bytes, symlinks
+ok 507 - refusals: digest, missing or ambiguous manifest, unreadable bytes, symlinks
+  ---
+  duration_ms: 29.545989
+  type: 'test'
+  ...
+# Subtest: explicit replacement upgrades the same id, leaves one disabled version and preserves memory
+ok 508 - explicit replacement upgrades the same id, leaves one disabled version and preserves memory
+  ---
+  duration_ms: 160.757209
+  type: 'test'
+  ...
+# Subtest: invalid replacement archive leaves the old version and activation untouched
+ok 509 - invalid replacement archive leaves the old version and activation untouched
+  ---
+  duration_ms: 69.13831
+  type: 'test'
+  ...
+# Subtest: preview refuses oversized or unverified bytes before opening the archive
+ok 510 - preview refuses oversized or unverified bytes before opening the archive
+  ---
+  duration_ms: 14.312933
+  type: 'test'
+  ...
+# Subtest: replacement refuses enabled, bundled and undetermined activation without touching the old package
+ok 511 - replacement refuses enabled, bundled and undetermined activation without touching the old package
+  ---
+  duration_ms: 204.583023
+  type: 'test'
+  ...
+# Subtest: publication failure restores the old digest and its exact disabled activation record
+ok 512 - publication failure restores the old digest and its exact disabled activation record
+  ---
+  duration_ms: 79.876532
+  type: 'test'
+  ...
+# Plugin 'root-choice' has no publisher-qualified id; using 'unknown/root-choice'.
+# Subtest: L025b prepass pins root precedence, unrelated top-level files and bounded manifest reads
+ok 513 - L025b prepass pins root precedence, unrelated top-level files and bounded manifest reads
+  ---
+  duration_ms: 125.937909
+  type: 'test'
+  ...
+# Plugin 'hosted' has no publisher-qualified id; using 'unknown/hosted'.
+# Subtest: L025b host admission surrounds publication and same-byte no-ops
+ok 514 - L025b host admission surrounds publication and same-byte no-ops
+  ---
+  duration_ms: 133.785407
+  type: 'test'
+  ...
+# Plugin 'fresh' has no publisher-qualified id; using 'unknown/fresh'.
+# Subtest: replacing a package that declared no version reports no upgradeFrom, and a version-less candidate previews none
+ok 515 - replacing a package that declared no version reports no upgradeFrom, and a version-less candidate previews none
+  ---
+  duration_ms: 191.687124
+  type: 'test'
+  ...
+# Subtest: a passed tool-name validator and classifier retain canonical error identity through the compatibility entry
+ok 516 - a passed tool-name validator and classifier retain canonical error identity through the compatibility entry
+  ---
+  duration_ms: 12.864629
+  type: 'test'
+  ...
+# Subtest: no overlay GUIDANCE.md repeats a \#\# heading or a fenced/embed block
+ok 517 - no overlay GUIDANCE.md repeats a \#\# heading or a fenced/embed block
+  ---
+  duration_ms: 6.458219
+  type: 'test'
+  ...
+# Subtest: T1: inactive metadata is admitted only through the bundled digest gate; active set stays separate
+ok 518 - T1: inactive metadata is admitted only through the bundled digest gate; active set stays separate
+  ---
+  duration_ms: 5.290378
+  type: 'test'
+  ...
+# Subtest: agent_plugin_deploy is Fly's own registration under the old name: same handler, same gate
+ok 519 - agent_plugin_deploy is Fly's own registration under the old name: same handler, same gate
+  ---
+  duration_ms: 10.73738
+  type: 'test'
+  ...
+# Subtest: a still-installed deploy package keeps its own agent_plugin_deploy, in either order, and nothing throws
+ok 520 - a still-installed deploy package keeps its own agent_plugin_deploy, in either order, and nothing throws
+  ---
+  duration_ms: 0.298301
+  type: 'test'
+  ...
+# Subtest: no Fly tool (Fly off or not installed): no alias
+ok 521 - no Fly tool (Fly off or not installed): no alias
+  ---
+  duration_ms: 0.145128
+  type: 'test'
+  ...
+# Subtest: Cloudflare Pages legacy tool aliases the successor handler and activation/digest gate
+ok 522 - Cloudflare Pages legacy tool aliases the successor handler and activation/digest gate
+  ---
+  duration_ms: 0.114257
+  type: 'test'
+  ...
+# Subtest: Cloudflare alias never overrides a retained old package; disabled successor has no alias
+ok 523 - Cloudflare alias never overrides a retained old package; disabled successor has no alias
+  ---
+  duration_ms: 0.128498
+  type: 'test'
+  ...
+# Subtest: a successor registered without a description still yields a clean former-name description
+ok 524 - a successor registered without a description still yields a clean former-name description
+  ---
+  duration_ms: 0.114176
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance
+ok 525 - opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance
+  ---
+  duration_ms: 407.738315
+  type: 'test'
+  ...
+# Subtest: each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills
+ok 526 - each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills
+  ---
+  duration_ms: 417.561264
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain
+ok 527 - registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain
+  ---
+  duration_ms: 190.709121
+  type: 'test'
+  ...
+# Subtest: the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has
+ok 528 - the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has
+  ---
+  duration_ms: 85.625054
+  type: 'test'
+  ...
+# Subtest: calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names
+ok 529 - calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names
+  ---
+  duration_ms: 145.700967
+  type: 'test'
+  ...
+# Subtest: when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so
+ok 530 - when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so
+  ---
+  duration_ms: 207.585133
+  type: 'test'
+  ...
+# Subtest: an explicit, recognized 'skill' argument returns that skill's own guidance, not the default
+ok 531 - an explicit, recognized 'skill' argument returns that skill's own guidance, not the default
+  ---
+  duration_ms: 195.586494
+  type: 'test'
+  ...
+# Subtest: an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error
+ok 532 - an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error
+  ---
+  duration_ms: 75.088888
+  type: 'test'
+  ...
+# Subtest: a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful
+ok 533 - a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful
+  ---
+  duration_ms: 82.980508
+  type: 'test'
+  ...
+# Subtest: the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub
+ok 534 - the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub
+  ---
+  duration_ms: 34.943837
+  type: 'test'
+  ...
+# Subtest: SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output
+ok 535 - SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output
+  ---
+  duration_ms: 22.937076
+  type: 'test'
+  ...
+# [agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+# Subtest: two installed digests of the same plugin id refuse that plugin loudly, without aborting the load
+ok 536 - two installed digests of the same plugin id refuse that plugin loudly, without aborting the load
+  ---
+  duration_ms: 61.967721
+  type: 'test'
+  ...
+# Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+# Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+# Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+# [agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+# Subtest: a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source
+ok 537 - a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source
+  ---
+  duration_ms: 75.870971
+  type: 'test'
+  ...
+# Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+# Subtest: a current upgrade exposes only the accepted replacement's guidance
+ok 538 - a current upgrade exposes only the accepted replacement's guidance
+  ---
+  duration_ms: 195.978879
+  type: 'test'
+  ...
+# Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+# Subtest: workspace isolation: a load for workspace A sees nothing installed only under a different workspace
+ok 539 - workspace isolation: a load for workspace A sees nothing installed only under a different workspace
+  ---
+  duration_ms: 35.315234
+  type: 'test'
+  ...
+# Subtest: an empty (never-installed) workspace produces zero sources and an empty registration list, no throw
+ok 540 - an empty (never-installed) workspace produces zero sources and an empty registration list, no throw
+  ---
+  duration_ms: 6.615816
+  type: 'test'
+  ...
+# Subtest: the executor denies cached guidance after disable
+ok 541 - the executor denies cached guidance after disable
+  ---
+  duration_ms: 241.754213
+  type: 'test'
+  ...
+# Subtest: the executor denies cached guidance after uninstall
+ok 542 - the executor denies cached guidance after uninstall
+  ---
+  duration_ms: 350.798261
+  type: 'test'
+  ...
+# [agent-plugins] 'coffee-roastery': tool call denied — activation could not be established (activations.json is not valid JSON (Expected property name or '}' in JSON at position 1 (line 1 column 2)))
+# Subtest: the executor denies cached guidance after unreadable-activation
+ok 543 - the executor denies cached guidance after unreadable-activation
+  ---
+  duration_ms: 278.712856
+  type: 'test'
+  ...
+# Subtest: the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay
+ok 544 - the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay
+  ---
+  duration_ms: 330.695861
+  type: 'test'
+  ...
+# Subtest: a refused host file keeps the overlay and skill guidance with a recovery note
+ok 545 - a refused host file keeps the overlay and skill guidance with a recovery note
+  ---
+  duration_ms: 70.570993
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: an untested plugin's caution stays ahead of its overlay guidance
+ok 546 - an untested plugin's caution stays ahead of its overlay guidance
+  ---
+  duration_ms: 39.690415
+  type: 'test'
+  ...
+# Subtest: a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged
+ok 547 - a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged
+  ---
+  duration_ms: 86.345463
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-OhCr6C/ws/55555555-5555-4555-8555-555555555555
+# Subtest: the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access
+ok 548 - the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access
+  ---
+  duration_ms: 126.173274
+  type: 'test'
+  ...
+# Subtest: plugin guidance carries maturity and warns before keys/actions for every maturity flag
+ok 549 - plugin guidance carries maturity and warns before keys/actions for every maturity flag
+  ---
+  duration_ms: 0.953032
+  type: 'test'
+  ...
+# Subtest: L025b guidance pins selection guards, reader recovery and sanitized unknown names
+ok 550 - L025b guidance pins selection guards, reader recovery and sanitized unknown names
+  ---
+  duration_ms: 1.02062
+  type: 'test'
+  ...
+# Subtest: the vitest compat matchers fail wrong assertions and pass right ones
+ok 551 - the vitest compat matchers fail wrong assertions and pass right ones
+  ---
+  duration_ms: 16.545719
+  type: 'test'
+  ...
+# Subtest: compat mocks retain exact arguments, resolve configured values and clear calls
+ok 552 - compat mocks retain exact arguments, resolve configured values and clear calls
+  ---
+  duration_ms: 1.119763
+  type: 'test'
+  ...
+# Subtest: compat timers fire at the deadline and globals restore to their original value
+ok 553 - compat timers fire at the deadline and globals restore to their original value
+  ---
+  duration_ms: 32.306427
+  type: 'test'
+  ...
+# Subtest: caught forbidden fetch still fails after every cleanup; broken cleanup=false
+ok 554 - caught forbidden fetch still fails after every cleanup; broken cleanup=false
+  ---
+  duration_ms: 763.806828
+  type: 'test'
+  ...
+# Subtest: caught forbidden fetch still fails after every cleanup; broken cleanup=true
+ok 555 - caught forbidden fetch still fails after every cleanup; broken cleanup=true
+  ---
+  duration_ms: 624.553818
+  type: 'test'
+  ...
+# Subtest: compat value and error matchers accept the right value and reject the wrong one
+ok 556 - compat value and error matchers accept the right value and reject the wrong one
+  ---
+  duration_ms: 1.556253
+  type: 'test'
+  ...
+# Subtest: write defaults to the existing confirmation card and returns the screen handler URL only after confirmation
+ok 557 - write defaults to the existing confirmation card and returns the screen handler URL only after confirmation
+  ---
+  duration_ms: 32.010072
+  type: 'test'
+  ...
+# Subtest: read/destructive discovery metadata follows declarations, with no confirmation for read
+ok 558 - read/destructive discovery metadata follows declarations, with no confirmation for read
+  ---
+  duration_ms: 2.007936
+  type: 'test'
+  ...
+# Subtest: assistant permission alone cannot invoke an admin action or request its confirmation
+ok 559 - assistant permission alone cannot invoke an admin action or request its confirmation
+  ---
+  duration_ms: 2.751006
+  type: 'test'
+  ...
+# Subtest: disable while confirmation is pending prevents execution; a refresh removes every admin tool
+ok 560 - disable while confirmation is pending prevents execution; a refresh removes every admin tool
+  ---
+  duration_ms: 19.139631
+  type: 'test'
+  ...
+# Subtest: invalid schema input cannot reach a handler or create a card
+ok 561 - invalid schema input cannot reach a handler or create a card
+  ---
+  duration_ms: 1.338077
+  type: 'test'
+  ...
+# Subtest: a surface whose declaration changed before confirmation is refused, and its handler never runs
+ok 562 - a surface whose declaration changed before confirmation is refused, and its handler never runs
+  ---
+  duration_ms: 2.634905
+  type: 'test'
+  ...
+# Subtest: a switched-off plugin denies its read admin action before the admin permission is checked
+ok 563 - a switched-off plugin denies its read admin action before the admin permission is checked
+  ---
+  duration_ms: 0.966944
+  type: 'test'
+  ...
+# Subtest: without assistant permission the admin gate is never consulted
+ok 564 - without assistant permission the admin gate is never consulted
+  ---
+  duration_ms: 0.987611
+  type: 'test'
+  ...
+# Subtest: refresh keeps still-listed admin tools; a disposed registration refuses to refresh
+ok 565 - refresh keeps still-listed admin tools; a disposed registration refuses to refresh
+  ---
+  duration_ms: 8.510956
+  type: 'test'
+  ...
+# Subtest: security: an admin action whose account is switched while its approval waits is refused at token time
+ok 566 - security: an admin action whose account is switched while its approval waits is refused at token time
+  ---
+  duration_ms: 5.960448
+  type: 'test'
+  ...
+# Subtest: the plugin id grammar refuses an underscore, so no installable id can collide with its hyphenated twin
+ok 567 - the plugin id grammar refuses an underscore, so no installable id can collide with its hyphenated twin
+  ---
+  duration_ms: 3.634988
+  type: 'test'
+  ...
+# Subtest: the hyphenated twin is admitted, so the refusal above is about the underscore alone
+ok 568 - the hyphenated twin is admitted, so the refusal above is about the underscore alone
+  ---
+  duration_ms: 1.117159
+  type: 'test'
+  ...
+# Subtest: the collision the grammar prevents is real at the id mapping: a-b and a_b share one tool id
+ok 569 - the collision the grammar prevents is real at the id mapping: a-b and a_b share one tool id
+  ---
+  duration_ms: 0.274023
+  type: 'test'
+  ...
+# Subtest: distinct admissible plugin ids and tool names give distinct tool ids
+ok 570 - distinct admissible plugin ids and tool names give distinct tool ids
+  ---
+  duration_ms: 0.844215
+  type: 'test'
+  ...
+# Subtest: [memory] accept() then list() round-trips
+ok 571 - [memory] accept() then list() round-trips
+  ---
+  duration_ms: 3.000503
+  type: 'test'
+  ...
+# Subtest: [memory] list() returns hits newest-first
+ok 572 - [memory] list() returns hits newest-first
+  ---
+  duration_ms: 0.296733
+  type: 'test'
+  ...
+# Subtest: [memory] acceptBatch() persists every hit in the batch
+ok 573 - [memory] acceptBatch() persists every hit in the batch
+  ---
+  duration_ms: 0.881034
+  type: 'test'
+  ...
+# Subtest: [memory] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched
+ok 574 - [memory] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched
+  ---
+  duration_ms: 0.317691
+  type: 'test'
+  ...
+# Subtest: [memory] list() honors an explicit limit
+ok 575 - [memory] list() honors an explicit limit
+  ---
+  duration_ms: 0.297096
+  type: 'test'
+  ...
+# Subtest: [memory] a hit with a populated eventProps bag round-trips
+ok 576 - [memory] a hit with a populated eventProps bag round-trips
+  ---
+  duration_ms: 1.050595
+  type: 'test'
+  ...
+# Subtest: AnalyticsSinkPort (SQL) [sqlite]
+    # Subtest: [sqlite] accept() then list() round-trips
+    ok 1 - [sqlite] accept() then list() round-trips
+      ---
+      duration_ms: 192.308054
+      type: 'test'
+      ...
+    # Subtest: [sqlite] list() returns hits newest-first
+    ok 2 - [sqlite] list() returns hits newest-first
+      ---
+      duration_ms: 214.406414
+      type: 'test'
+      ...
+    # Subtest: [sqlite] acceptBatch() persists every hit in the batch
+    ok 3 - [sqlite] acceptBatch() persists every hit in the batch
+      ---
+      duration_ms: 161.960418
+      type: 'test'
+      ...
+    # Subtest: [sqlite] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched
+    ok 4 - [sqlite] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched
+      ---
+      duration_ms: 151.600687
+      type: 'test'
+      ...
+    # Subtest: [sqlite] list() honors an explicit limit
+    ok 5 - [sqlite] list() honors an explicit limit
+      ---
+      duration_ms: 171.235697
+      type: 'test'
+      ...
+    # Subtest: [sqlite] a hit with a populated eventProps bag round-trips
+    ok 6 - [sqlite] a hit with a populated eventProps bag round-trips
+      ---
+      duration_ms: 193.41252
+      type: 'test'
+      ...
+    # Subtest: [sqlite] list() reads back only this sink's workspace
+    ok 7 - [sqlite] list() reads back only this sink's workspace
+      ---
+      duration_ms: 217.735662
+      type: 'test'
+      ...
+    1..7
+ok 577 - AnalyticsSinkPort (SQL) [sqlite]
+  ---
+  duration_ms: 1303.690104
+  type: 'suite'
+  ...
+# Subtest: AnalyticsSinkPort (SQL) [pglite]
+    # Subtest: [postgres] accept() then list() round-trips
+    ok 1 - [postgres] accept() then list() round-trips
+      ---
+      duration_ms: 8245.64126
+      type: 'test'
+      ...
+    # Subtest: [postgres] list() returns hits newest-first
+    ok 2 - [postgres] list() returns hits newest-first
+      ---
+      duration_ms: 12.008412
+      type: 'test'
+      ...
+    # Subtest: [postgres] acceptBatch() persists every hit in the batch
+    ok 3 - [postgres] acceptBatch() persists every hit in the batch
+      ---
+      duration_ms: 21.387965
+      type: 'test'
+      ...
+    # Subtest: [postgres] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched
+    ok 4 - [postgres] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched
+      ---
+      duration_ms: 24.248435
+      type: 'test'
+      ...
+    # Subtest: [postgres] list() honors an explicit limit
+    ok 5 - [postgres] list() honors an explicit limit
+      ---
+      duration_ms: 43.624738
+      type: 'test'
+      ...
+    # Subtest: [postgres] a hit with a populated eventProps bag round-trips
+    ok 6 - [postgres] a hit with a populated eventProps bag round-trips
+      ---
+      duration_ms: 12.954787
+      type: 'test'
+      ...
+    # Subtest: [postgres] list() reads back only this sink's workspace
+    ok 7 - [postgres] list() reads back only this sink's workspace
+      ---
+      duration_ms: 15.25345
+      type: 'test'
+      ...
+    1..7
+ok 578 - AnalyticsSinkPort (SQL) [pglite]
+  ---
+  duration_ms: 8375.855785
+  type: 'suite'
+  ...
+# Subtest: SqliteBufferSink reports durable: true, LocalBufferSink reports durable: false
+ok 579 - SqliteBufferSink reports durable: true, LocalBufferSink reports durable: false
+  ---
+  duration_ms: 259.469983
+  type: 'test'
+  ...
+# Subtest: ADR-046 Phase 1: analytics_events survives a simulated process restart (real on-disk file)
+ok 580 - ADR-046 Phase 1: analytics_events survives a simulated process restart (real on-disk file)
+  ---
+  duration_ms: 260.740816
+  type: 'test'
+  ...
+# (node:13992) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:13992) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: load: a non-Error thrown by the descriptor parser drops the connection with a generic, log-safe reason
+ok 581 - load: a non-Error thrown by the descriptor parser drops the connection with a generic, log-safe reason
+  ---
+  duration_ms: 252.947869
+  type: 'test'
+  ...
+# Subtest: two SQLite owner handles redeem one rotation after a delayed lease, then site/global revocation survives restart
+ok 582 - two SQLite owner handles redeem one rotation after a delayed lease, then site/global revocation survives restart
+  ---
+  duration_ms: 440.321319
+  type: 'test'
+  ...
+# one unexpired shared acquisition: {"owner":[{"reads":7,"readBytes":8475,"writes":0,"writeBytes":0,"scans":0},{"reads":0,"readBytes":0,"writes":0,"writeBytes":0,"scans":0}],"sites":[{"reads":2,"readBytes":1500,"writes":0,"writeBytes":0,"scans":0},{"reads":0,"readBytes":0,"writes":0,"writeBytes":0,"scans":0}],"grants":{"reads":2,"readBytes":8}}
+# Subtest: a separate process cannot take an owner SQLite refresh lease held by another process
+ok 583 - a separate process cannot take an owner SQLite refresh lease held by another process
+  ---
+  duration_ms: 10213.888946
+  type: 'test'
+  ...
+# Subtest: public SSR escapes the corpus, omits private fields and gates status/entry/site with one 200-row query
+ok 584 - public SSR escapes the corpus, omits private fields and gates status/entry/site with one 200-row query
+  ---
+  duration_ms: 3.455463
+  type: 'test'
+  ...
+# Subtest: rendering reads fresh settings and rows; disable and foreign sites cannot disclose data
+ok 585 - rendering reads fresh settings and rows; disable and foreign sites cannot disclose data
+  ---
+  duration_ms: 1.450858
+  type: 'test'
+  ...
+# Subtest: submission preserves CMS ingress, hash and honeypot; moderation keeps engine OCC and actor attribution
+ok 586 - submission preserves CMS ingress, hash and honeypot; moderation keeps engine OCC and actor attribution
+  ---
+  duration_ms: 6.284855
+  type: 'test'
+  ...
+# Subtest: theme markers resolve once, preserve wrappers and remove draft/unavailable threads
+ok 587 - theme markers resolve once, preserve wrappers and remove draft/unavailable threads
+  ---
+  duration_ms: 4.44427
+  type: 'test'
+  ...
+# Subtest: replies follow their parent; orphans and malformed cycles still render once, after the threads
+ok 588 - replies follow their parent; orphans and malformed cycles still render once, after the threads
+  ---
+  duration_ms: 0.509373
+  type: 'test'
+  ...
+# Subtest: a stale or hand-edited cursor falls back to the first page; other repo failures still surface
+ok 589 - a stale or hand-edited cursor falls back to the first page; other repo failures still surface
+  ---
+  duration_ms: 0.420089
+  type: 'test'
+  ...
+# Subtest: ensureCommentsSettingDefinitions: idempotent — calling twice registers exactly 6 definitions, not 12
+ok 590 - ensureCommentsSettingDefinitions: idempotent — calling twice registers exactly 6 definitions, not 12
+  ---
+  duration_ms: 17.350118
+  type: 'test'
+  ...
+# Subtest: getCommentsSettings before any definitions exist falls back to the pre-ledger defaults
+ok 591 - getCommentsSettings before any definitions exist falls back to the pre-ledger defaults
+  ---
+  duration_ms: 3.513067
+  type: 'test'
+  ...
+# Subtest: getCommentsSettings after ensureCommentsSettingDefinitions reads the same defaults from the ledger
+ok 592 - getCommentsSettings after ensureCommentsSettingDefinitions reads the same defaults from the ledger
+  ---
+  duration_ms: 14.305697
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings writes a partial patch; getCommentsSettings reflects it
+ok 593 - setCommentsSettings writes a partial patch; getCommentsSettings reflects it
+  ---
+  duration_ms: 36.126396
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings rejects an out-of-range spamAutoRejectScore, all-or-nothing
+ok 594 - setCommentsSettings rejects an out-of-range spamAutoRejectScore, all-or-nothing
+  ---
+  duration_ms: 2.411586
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings rejects a negative maxDepth
+ok 595 - setCommentsSettings rejects a negative maxDepth
+  ---
+  duration_ms: 24.685309
+  type: 'test'
+  ...
+# Subtest: comments.configure alone permits settings writes; denied writes leave the effective settings unchanged
+ok 596 - comments.configure alone permits settings writes; denied writes leave the effective settings unchanged
+  ---
+  duration_ms: 12.45353
+  type: 'test'
+  ...
+# Subtest: ISO-only clocks register definitions and timestamp persisted settings without a nowMs adapter
+ok 597 - ISO-only clocks register definitions and timestamp persisted settings without a nowMs adapter
+  ---
+  duration_ms: 15.119809
+  type: 'test'
+  ...
+# Subtest: raw scripts and inline handlers remain unmanaged; no tracker category is inferred
+ok 598 - raw scripts and inline handlers remain unmanaged; no tracker category is inferred
+  ---
+  duration_ms: 10.720529
+  type: 'test'
+  ...
+# Subtest: source label redaction remains bounded: undefined
+ok 599 - source label redaction remains bounded: undefined
+  ---
+  duration_ms: 0.563437
+  type: 'test'
+  ...
+# Subtest: source label redaction remains bounded: https://example.test/a.js
+ok 600 - source label redaction remains bounded: https://example.test/a.js
+  ---
+  duration_ms: 12.598461
+  type: 'test'
+  ...
+# Subtest: source label redaction remains bounded: [invalid resource URL]
+ok 601 - source label redaction remains bounded: [invalid resource URL]
+  ---
+  duration_ms: 0.552215
+  type: 'test'
+  ...
+# Subtest: source label redaction remains bounded: /xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ok 602 - source label redaction remains bounded: /xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  ---
+  duration_ms: 91.346604
+  type: 'test'
+  ...
+# Subtest: inert template contents and nonexecutable script data are not executable warning claims
+ok 603 - inert template contents and nonexecutable script data are not executable warning claims
+  ---
+  duration_ms: 8.540594
+  type: 'test'
+  ...
+# Subtest: invalid declarations are blockers, separate from unmanaged warnings
+ok 604 - invalid declarations are blockers, separate from unmanaged warnings
+  ---
+  duration_ms: 0.567363
+  type: 'test'
+  ...
+# Subtest: known generated declarations and consent assets are not unmanaged page code
+ok 605 - known generated declarations and consent assets are not unmanaged page code
+  ---
+  duration_ms: 0.669039
+  type: 'test'
+  ...
+# Subtest: 199 unmanaged items report truncation only with another diagnostic entry
+ok 606 - 199 unmanaged items report truncation only with another diagnostic entry
+  ---
+  duration_ms: 27.102038
+  type: 'test'
+  ...
+# Subtest: 200 unmanaged items report truncation only with another diagnostic entry
+ok 607 - 200 unmanaged items report truncation only with another diagnostic entry
+  ---
+  duration_ms: 18.17573
+  type: 'test'
+  ...
+# Subtest: 201 unmanaged items report truncation only with another diagnostic entry
+ok 608 - 201 unmanaged items report truncation only with another diagnostic entry
+  ---
+  duration_ms: 3.421871
+  type: 'test'
+  ...
+# Subtest: exactly 200 declaration entries remain complete with ordinary DOM nodes left
+ok 609 - exactly 200 declaration entries remain complete with ordinary DOM nodes left
+  ---
+  duration_ms: 41.464169
+  type: 'test'
+  ...
+# Subtest: oversized sample is blocking evidence and never passed to an HTML gate
+ok 610 - oversized sample is blocking evidence and never passed to an HTML gate
+  ---
+  duration_ms: 1.054034
+  type: 'test'
+  ...
+# Subtest: full-document loading-slot gap is separately labelled, even at the diagnostics cap
+ok 611 - full-document loading-slot gap is separately labelled, even at the diagnostics cap
+  ---
+  duration_ms: 0.781262
+  type: 'test'
+  ...
+# Subtest: public store reads only published head and publication row, never the draft row
+ok 612 - public store reads only published head and publication row, never the draft row
+  ---
+  duration_ms: 2.739204
+  type: 'test'
+  ...
+# Subtest: a site without a published head performs no revision read
+ok 613 - a site without a published head performs no revision read
+  ---
+  duration_ms: 0.247094
+  type: 'test'
+  ...
+# Subtest: an unreadable newer draft cannot affect the live publication read
+ok 614 - an unreadable newer draft cannot affect the live publication read
+  ---
+  duration_ms: 2146.620396
+  type: 'test'
+  ...
+# Subtest: content-type repo [sqlite]
+    # Subtest: save inserts, then a second save fully replaces the row
+    ok 1 - save inserts, then a second save fully replaces the row
+      ---
+      duration_ms: 246.371459
+      type: 'test'
+      ...
+    # Subtest: saving a legacy record with no tombstone marker clears the previous marker to NULL
+    ok 2 - saving a legacy record with no tombstone marker clears the previous marker to NULL
+      ---
+      duration_ms: 313.712623
+      type: 'test'
+      ...
+    # Subtest: findByKey misses an unknown key and another workspace's row
+    ok 3 - findByKey misses an unknown key and another workspace's row
+      ---
+      duration_ms: 237.63689
+      type: 'test'
+      ...
+    # Subtest: listByWorkspace returns only that workspace's rows
+    ok 4 - listByWorkspace returns only that workspace's rows
+      ---
+      duration_ms: 232.198228
+      type: 'test'
+      ...
+    # Subtest: appendRevision persists both complete payloads
+    ok 5 - appendRevision persists both complete payloads
+      ---
+      duration_ms: 173.554498
+      type: 'test'
+      ...
+    # Subtest: the widget types read back carrying their envelope owner; every other type carries none
+    ok 6 - the widget types read back carrying their envelope owner; every other type carries none
+      ---
+      duration_ms: 201.741768
+      type: 'test'
+      ...
+    # Subtest: saving an owner the schema cannot hold is refused, never silently dropped
+    ok 7 - saving an owner the schema cannot hold is refused, never silently dropped
+      ---
+      duration_ms: 172.341849
+      type: 'test'
+      ...
+    # Subtest: a transaction's save + appendRevision roll back together; a nested one joins
+    ok 8 - a transaction's save + appendRevision roll back together; a nested one joins
+      ---
+      duration_ms: 245.053169
+      type: 'test'
+      ...
+    1..8
+ok 615 - content-type repo [sqlite]
+  ---
+  duration_ms: 1824.554912
+  type: 'suite'
+  ...
+# Subtest: content-type repo [pglite]
+    # Subtest: save inserts, then a second save fully replaces the row
+    ok 1 - save inserts, then a second save fully replaces the row
+      ---
+      duration_ms: 9685.288408
+      type: 'test'
+      ...
+    # Subtest: saving a legacy record with no tombstone marker clears the previous marker to NULL
+    ok 2 - saving a legacy record with no tombstone marker clears the previous marker to NULL
+      ---
+      duration_ms: 29.681532
+      type: 'test'
+      ...
+    # Subtest: findByKey misses an unknown key and another workspace's row
+    ok 3 - findByKey misses an unknown key and another workspace's row
+      ---
+      duration_ms: 9.441623
+      type: 'test'
+      ...
+    # Subtest: listByWorkspace returns only that workspace's rows
+    ok 4 - listByWorkspace returns only that workspace's rows
+      ---
+      duration_ms: 10.017686
+      type: 'test'
+      ...
+    # Subtest: appendRevision persists both complete payloads
+    ok 5 - appendRevision persists both complete payloads
+      ---
+      duration_ms: 128.725453
+      type: 'test'
+      ...
+    # Subtest: the widget types read back carrying their envelope owner; every other type carries none
+    ok 6 - the widget types read back carrying their envelope owner; every other type carries none
+      ---
+      duration_ms: 42.579442
+      type: 'test'
+      ...
+    # Subtest: saving an owner the schema cannot hold is refused, never silently dropped
+    ok 7 - saving an owner the schema cannot hold is refused, never silently dropped
+      ---
+      duration_ms: 21.938469
+      type: 'test'
+      ...
+    # Subtest: a transaction's save + appendRevision roll back together; a nested one joins
+    ok 8 - a transaction's save + appendRevision roll back together; a nested one joins
+      ---
+      duration_ms: 59.283529
+      type: 'test'
+      ...
+    1..8
+ok 616 - content-type repo [pglite]
+  ---
+  duration_ms: 9987.888088
+  type: 'suite'
+  ...
+# Subtest: one owner card approves only its selected reference; metadata stays out of the model result
+ok 617 - one owner card approves only its selected reference; metadata stays out of the model result
+  ---
+  duration_ms: 34.042968
+  type: 'test'
+  ...
+# Subtest: the key dropdown opens on a plain prompt, never on a dash
+ok 618 - the key dropdown opens on a plain prompt, never on a dash
+  ---
+  duration_ms: 1.933419
+  type: 'test'
+  ...
+# Subtest: cancel, expiry and forged site identity never create a grant
+ok 619 - cancel, expiry and forged site identity never create a grant
+  ---
+  duration_ms: 23.681193
+  type: 'test'
+  ...
+# Subtest: an interrupted run reports interrupted, never a choice by the owner
+ok 620 - an interrupted run reports interrupted, never a choice by the owner
+  ---
+  duration_ms: 6.746634
+  type: 'test'
+  ...
+# Subtest: nothing to pick says so; the card still offers a new key
+ok 621 - nothing to pick says so; the card still offers a new key
+  ---
+  duration_ms: 22.624764
+  type: 'test'
+  ...
+# Subtest: a key saved on another site is offered by name, adopted after approval, and the secret never returns
+ok 622 - a key saved on another site is offered by name, adopted after approval, and the secret never returns
+  ---
+  duration_ms: 2.46742
+  type: 'test'
+  ...
+# Subtest: a non-owner session is refused before any site is read
+ok 623 - a non-owner session is refused before any site is read
+  ---
+  duration_ms: 7.16188
+  type: 'test'
+  ...
+# Subtest: permissions are rechecked after approval and deleted entries cannot be granted
+ok 624 - permissions are rechecked after approval and deleted entries cannot be granted
+  ---
+  duration_ms: 14.419073
+  type: 'test'
+  ...
+# Subtest: new-key choice opens the normal secret card and model selection is rejected
+ok 625 - new-key choice opens the normal secret card and model selection is rejected
+  ---
+  duration_ms: 1.614993
+  type: 'test'
+  ...
+# Subtest: a successful normal-card fallback creates its site grant through the common save-result owner
+ok 626 - a successful normal-card fallback creates its site grant through the common save-result owner
+  ---
+  duration_ms: 7.100017
+  type: 'test'
+  ...
+# Subtest: sets/ shims import only the Jini entry; the moved code imports nothing but @jini-ai/core subpaths and same-directory files
+ok 627 - sets/ shims import only the Jini entry; the moved code imports nothing but @jini-ai/core subpaths and same-directory files
+  ---
+  duration_ms: 6.023817
+  type: 'test'
+  ...
+# Subtest: store.ts re-exports the canonical sets/ error classes as the same objects
+ok 628 - store.ts re-exports the canonical sets/ error classes as the same objects
+  ---
+  duration_ms: 8.058439
+  type: 'test'
+  ...
+# Subtest: CustomCredentialVaultRepo keeps its class identity, constructor shape and own fields
+ok 629 - CustomCredentialVaultRepo keeps its class identity, constructor shape and own fields
+  ---
+  duration_ms: 2.859459
+  type: 'test'
+  ...
+# Subtest: prototype-derived repo wrappers (Object.create) still reach the host policy
+ok 630 - prototype-derived repo wrappers (Object.create) still reach the host policy
+  ---
+  duration_ms: 0.750178
+  type: 'test'
+  ...
+# Subtest: Tovu bindings keep the tovu owner scope and canonical VaultError codes
+ok 631 - Tovu bindings keep the tovu owner scope and canonical VaultError codes
+  ---
+  duration_ms: 8.79035
+  type: 'test'
+  ...
+# Subtest: a vault label conflict keeps the historical raw UNIQUE message
+ok 632 - a vault label conflict keeps the historical raw UNIQUE message
+  ---
+  duration_ms: 3.164094
+  type: 'test'
+  ...
+# Subtest: custom_credential_list has a catalog entry with a parameterless inputSchema
+ok 633 - custom_credential_list has a catalog entry with a parameterless inputSchema
+  ---
+  duration_ms: 5.437957
+  type: 'test'
+  ...
+# Subtest: custom_credential_list is wired to a real handler
+ok 634 - custom_credential_list is wired to a real handler
+  ---
+  duration_ms: 17.353482
+  type: 'test'
+  ...
+# Subtest: returns every saved credential's label, category, baseUrl, additionalHosts, username, configured, and timestamps
+ok 635 - returns every saved credential's label, category, baseUrl, additionalHosts, username, configured, and timestamps
+  ---
+  duration_ms: 64.623135
+  type: 'test'
+  ...
+# Subtest: returns an empty list, not an error, when nothing is saved yet
+ok 636 - returns an empty list, not an error, when nothing is saved yet
+  ---
+  duration_ms: 1.012648
+  type: 'test'
+  ...
+# Subtest: list annotates exact active API card labels with display metadata, keeping purposes and worksFor separate
+ok 637 - list annotates exact active API card labels with display metadata, keeping purposes and worksFor separate
+  ---
+  duration_ms: 35.24422
+  type: 'test'
+  ...
+# Subtest: is workspace-scoped: a credential saved in a different workspace is never returned
+ok 638 - is workspace-scoped: a credential saved in a different workspace is never returned
+  ---
+  duration_ms: 1.27603
+  type: 'test'
+  ...
+# Subtest: never exposes the secret value: neither field name nor its plaintext value appear anywhere in the serialized output
+ok 639 - never exposes the secret value: neither field name nor its plaintext value appear anywhere in the serialized output
+  ---
+  duration_ms: 6.493153
+  type: 'test'
+  ...
+# Subtest: reports a saved username without ever opening the sealer
+ok 640 - reports a saved username without ever opening the sealer
+  ---
+  duration_ms: 1.905364
+  type: 'test'
+  ...
+# Subtest: omits `username` entirely for a credential saved without one — never an empty string
+ok 641 - omits `username` entirely for a credential saved without one — never an empty string
+  ---
+  duration_ms: 3.820547
+  type: 'test'
+  ...
+# Subtest: a denied principal is refused and the repo is never read
+ok 642 - a denied principal is refused and the repo is never read
+  ---
+  duration_ms: 5.168421
+  type: 'test'
+  ...
+# Subtest: rejects a non-empty input — this tool takes no arguments
+ok 643 - rejects a non-empty input — this tool takes no arguments
+  ---
+  duration_ms: 0.513081
+  type: 'test'
+  ...
+# Subtest: the description names every field a listed row actually carries
+ok 644 - the description names every field a listed row actually carries
+  ---
+  duration_ms: 4.968035
+  type: 'test'
+  ...
+# Subtest: the description never denies returning a field a listed row actually carries
+ok 645 - the description never denies returning a field a listed row actually carries
+  ---
+  duration_ms: 4.669667
+  type: 'test'
+  ...
+# Subtest: make_request's url description points the model at this tool for a credential's hosts, and this tool really returns them
+ok 646 - make_request's url description points the model at this tool for a credential's hosts, and this tool really returns them
+  ---
+  duration_ms: 1.894477
+  type: 'test'
+  ...
+# Subtest: discovery exposes explicit worksFor independently of the label
+ok 647 - discovery exposes explicit worksFor independently of the label
+  ---
+  duration_ms: 4.254858
+  type: 'test'
+  ...
+# Subtest: custom record refuses foreign context {"kind":"source-control"}
+ok 648 - custom record refuses foreign context {"kind":"source-control"}
+  ---
+  duration_ms: 7.096852
+  type: 'test'
+  ...
+# Subtest: custom record refuses foreign context {"kind":"vendor","meta":{}}
+ok 649 - custom record refuses foreign context {"kind":"vendor","meta":{}}
+  ---
+  duration_ms: 0.213915
+  type: 'test'
+  ...
+# Subtest: custom record refuses foreign context {"ownerKey":"foreign"}
+ok 650 - custom record refuses foreign context {"ownerKey":"foreign"}
+  ---
+  duration_ms: 0.10636
+  type: 'test'
+  ...
+# Subtest: custom record refuses foreign context {"principalId":"person"}
+ok 651 - custom record refuses foreign context {"principalId":"person"}
+  ---
+  duration_ms: 0.103853
+  type: 'test'
+  ...
+# Subtest: custom record refuses foreign context {"binding":"bound"}
+ok 652 - custom record refuses foreign context {"binding":"bound"}
+  ---
+  duration_ms: 0.200366
+  type: 'test'
+  ...
+# Subtest: custom record refuses foreign context {"provider":"provider"}
+ok 653 - custom record refuses foreign context {"provider":"provider"}
+  ---
+  duration_ms: 0.131
+  type: 'test'
+  ...
+# Subtest: projection supports legacy/custom vendor rows, metadata-only usernames and private revisions
+ok 654 - projection supports legacy/custom vendor rows, metadata-only usernames and private revisions
+  ---
+  duration_ms: 14.474658
+  type: 'test'
+  ...
+# Subtest: find filters unrelated kinds but keeps context validation on matching kinds
+ok 655 - find filters unrelated kinds but keeps context validation on matching kinds
+  ---
+  duration_ms: 1.103869
+  type: 'test'
+  ...
+# Subtest: compatibility custom writes preserve identical-envelope hints and metadata fallbacks
+ok 656 - compatibility custom writes preserve identical-envelope hints and metadata fallbacks
+  ---
+  duration_ms: 14.635059
+  type: 'test'
+  ...
+# Subtest: compatibility vendor writes preserve identical-envelope hints and metadata fallbacks
+ok 657 - compatibility vendor writes preserve identical-envelope hints and metadata fallbacks
+  ---
+  duration_ms: 4.608899
+  type: 'test'
+  ...
+# Subtest: insert defaults and explicit compatibility IDs are preserved; missing update is a no-op
+ok 658 - insert defaults and explicit compatibility IDs are preserved; missing update is a no-op
+  ---
+  duration_ms: 0.7319
+  type: 'test'
+  ...
+# Subtest: prepared records carry CAS unchanged and reject mismatched identities before persistence
+ok 659 - prepared records carry CAS unchanged and reject mismatched identities before persistence
+  ---
+  duration_ms: 5.659462
+  type: 'test'
+  ...
+# Subtest: only a conflicting sibling label maps to the historical UNIQUE error
+ok 660 - only a conflicting sibling label maps to the historical UNIQUE error
+  ---
+  duration_ms: 8.468733
+  type: 'test'
+  ...
+# Subtest: DatabaseDestinationRepo [sqlite]
+    # Subtest: insert, replacement, and targeted lastRun patch preserve workspace scoping
+    ok 1 - insert, replacement, and targeted lastRun patch preserve workspace scoping
+      ---
+      duration_ms: 207.925841
+      type: 'test'
+      ...
+    # Subtest: a stale lastRun patch cannot overwrite a concurrent credential replacement
+    ok 2 - a stale lastRun patch cannot overwrite a concurrent credential replacement
+      ---
+      duration_ms: 235.925857
+      type: 'test'
+      ...
+    1..2
+ok 661 - DatabaseDestinationRepo [sqlite]
+  ---
+  duration_ms: 445.279388
+  type: 'suite'
+  ...
+# Subtest: DatabaseDestinationRepo [pglite]
+    # Subtest: insert, replacement, and targeted lastRun patch preserve workspace scoping
+    ok 1 - insert, replacement, and targeted lastRun patch preserve workspace scoping
+      ---
+      duration_ms: 11028.662709
+      type: 'test'
+      ...
+    # Subtest: a stale lastRun patch cannot overwrite a concurrent credential replacement
+    ok 2 - a stale lastRun patch cannot overwrite a concurrent credential replacement
+      ---
+      duration_ms: 97.668336
+      type: 'test'
+      ...
+    1..2
+ok 662 - DatabaseDestinationRepo [pglite]
+  ---
+  duration_ms: 11126.883102
+  type: 'suite'
+  ...
+# Subtest: the host schema retains the submission-IP retention index's partial predicate
+ok 663 - the host schema retains the submission-IP retention index's partial predicate
+  ---
+  duration_ms: 17.473879
+  type: 'test'
+  ...
+# Subtest: the full schema retains vault expression indexes with unqualified column references
+ok 664 - the full schema retains vault expression indexes with unqualified column references
+  ---
+  duration_ms: 7.124443
+  type: 'test'
+  ...
+# Subtest: plugin layout uses affinity, literal defaults and INTEGER identity; drops partial and expression indexes
+ok 665 - plugin layout uses affinity, literal defaults and INTEGER identity; drops partial and expression indexes
+  ---
+  duration_ms: 49.410523
+  type: 'test'
+  ...
+# Subtest: composite keys follow declared key order and never become row-id identities
+ok 666 - composite keys follow declared key order and never become row-id identities
+  ---
+  duration_ms: 11.147094
+  type: 'test'
+  ...
+# Subtest: content.db's legacy chat tables are left out with a reason: chat.db is the one source of the conversation tables
+ok 667 - content.db's legacy chat tables are left out with a reason: chat.db is the one source of the conversation tables
+  ---
+  duration_ms: 6.709265
+  type: 'test'
+  ...
+# Subtest: core projection carries literal and SQL defaults, identity modes and application-generated defaults
+ok 668 - core projection carries literal and SQL defaults, identity modes and application-generated defaults
+  ---
+  duration_ms: 1.211167
+  type: 'test'
+  ...
+# Subtest: core projection rejects unsupported defaults and missing manifest exports
+ok 669 - core projection rejects unsupported defaults and missing manifest exports
+  ---
+  duration_ms: 2.556554
+  type: 'test'
+  ...
+# Subtest: core projection retains composite keys, unique columns and multi-column unique constraints
+ok 670 - core projection retains composite keys, unique columns and multi-column unique constraints
+  ---
+  duration_ms: 1.343028
+  type: 'test'
+  ...
+# Subtest: chat snapshot order places the three owned tables first and sorts other tables by name
+ok 671 - chat snapshot order places the three owned tables first and sorts other tables by name
+  ---
+  duration_ms: 9.577214
+  type: 'test'
+  ...
+# Subtest: foreign keys without actions project SQL's no-action defaults
+ok 672 - foreign keys without actions project SQL's no-action defaults
+  ---
+  duration_ms: 0.443032
+  type: 'test'
+  ...
+# Subtest: AC-24 / REQ-20: every read tool in the catalog requires only 'database.read'
+ok 673 - AC-24 / REQ-20: every read tool in the catalog requires only 'database.read'
+  ---
+  duration_ms: 17.887821
+  type: 'test'
+  ...
+# Subtest: AC-25 / REQ-21: the catalog contains a plan tool and an execute tool, both agent-callable, and no confirm-equivalent tool
+ok 674 - AC-25 / REQ-21: the catalog contains a plan tool and an execute tool, both agent-callable, and no confirm-equivalent tool
+  ---
+  duration_ms: 0.641941
+  type: 'test'
+  ...
+# Subtest: AC-33 / REQ-25: no tool in the catalog exposes a Tier-3 table browser
+ok 675 - AC-33 / REQ-25: no tool in the catalog exposes a Tier-3 table browser
+  ---
+  duration_ms: 0.35248
+  type: 'test'
+  ...
+# Subtest: AC-28 / REQ-23: an agent seeking to trigger a restore only finds a guidance tool (database_get_restore_guidance), never a lever that executes a restore itself
+ok 676 - AC-28 / REQ-23: an agent seeking to trigger a restore only finds a guidance tool (database_get_restore_guidance), never a lever that executes a restore itself
+  ---
+  duration_ms: 0.67009
+  type: 'test'
+  ...
+# Subtest: the execute tool carries actorClassRule='confirmer-must-equal-own-delegatedBy' per SPEC-016 REQ-13/REQ-22
+ok 677 - the execute tool carries actorClassRule='confirmer-must-equal-own-delegatedBy' per SPEC-016 REQ-13/REQ-22
+  ---
+  duration_ms: 0.222579
+  type: 'test'
+  ...
+# Subtest: HOST_DEPLOY_ENV is Tovu's production switch, frozen
+ok 678 - HOST_DEPLOY_ENV is Tovu's production switch, frozen
+  ---
+  duration_ms: 2.058023
+  type: 'test'
+  ...
+# Subtest: appends the overlay's notes for the target after the generator's, by plugin name (publisher id or bare)
+ok 679 - appends the overlay's notes for the target after the generator's, by plugin name (publisher id or bare)
+  ---
+  duration_ms: 0.570071
+  type: 'test'
+  ...
+# Subtest: a note the generator already printed is not repeated (the pre-cutover bundled generators print it)
+ok 680 - a note the generator already printed is not repeated (the pre-cutover bundled generators print it)
+  ---
+  duration_ms: 0.174427
+  type: 'test'
+  ...
+# Subtest: no overlay file, or no entry for this target, leaves the rendered config unchanged
+ok 681 - no overlay file, or no entry for this target, leaves the rendered config unchanged
+  ---
+  duration_ms: 0.144885
+  type: 'test'
+  ...
+# Subtest: a malformed notes entry fails loudly, naming the file
+ok 682 - a malformed notes entry fails loudly, naming the file
+  ---
+  duration_ms: 1.223862
+  type: 'test'
+  ...
+# Subtest: a malformed deploy notes document fails loudly instead of silently dropping host notes
+ok 683 - a malformed deploy notes document fails loudly instead of silently dropping host notes
+  ---
+  duration_ms: 0.712894
+  type: 'test'
+  ...
+# Subtest: only an own deploy target entry contributes host notes
+ok 684 - only an own deploy target entry contributes host notes
+  ---
+  duration_ms: 0.300762
+  type: 'test'
+  ...
+# Subtest: Tovu's real fly, render and railway overlays each add the headless-Chromium opt-in for their own target
+ok 685 - Tovu's real fly, render and railway overlays each add the headless-Chromium opt-in for their own target
+  ---
+  duration_ms: 0.62845
+  type: 'test'
+  ...
+# Subtest: the core deployment barrel exposes generic publishing and no dormant provider implementation
+ok 686 - the core deployment barrel exposes generic publishing and no dormant provider implementation
+  ---
+  duration_ms: 1.870126
+  type: 'test'
+  ...
+# Subtest: G-deploy real-tool results, card bytes, history, and I/O counts equal the immutable pre-seam recording
+ok 687 - G-deploy real-tool results, card bytes, history, and I/O counts equal the immutable pre-seam recording
+  ---
+  duration_ms: 133.04816
+  type: 'test'
+  ...
+# Subtest: a different stored value opens a replace card naming the source; declining writes nothing
+ok 688 - a different stored value opens a replace card naming the source; declining writes nothing
+  ---
+  duration_ms: 50.979037
+  type: 'test'
+  ...
+# Subtest: an unreadable stored value says it could not be compared; an abort while the click is re-authorized is abandoned
+ok 689 - an unreadable stored value says it could not be compared; an abort while the click is re-authorized is abandoned
+  ---
+  duration_ms: 20.465837
+  type: 'test'
+  ...
+# Subtest: contributeDeployOpsTools builds from the supplied registry, or from the deps' registry when none is given
+ok 690 - contributeDeployOpsTools builds from the supplied registry, or from the deps' registry when none is given
+  ---
+  duration_ms: 47.03874
+  type: 'test'
+  ...
+# Subtest: copying from another secret on the target writes the source's value; list goes through the same handler
+ok 691 - copying from another secret on the target writes the source's value; list goes through the same handler
+  ---
+  duration_ms: 31.09494
+  type: 'test'
+  ...
+# Subtest: full website/admin roots include contracts; desktop scope remains the existing two files
+ok 692 - full website/admin roots include contracts; desktop scope remains the existing two files
+  ---
+  duration_ms: 79.954953
+  type: 'test'
+  ...
+# Subtest: traversal preserves exclusions, supports TS variants and scans overlapping roots once
+ok 693 - traversal preserves exclusions, supports TS variants and scans overlapping roots once
+  ---
+  duration_ms: 91.420657
+  type: 'test'
+  ...
+# Subtest: comments never count; executable strings, template substitutions and TSX do
+ok 694 - comments never count; executable strings, template substitutions and TSX do
+  ---
+  duration_ms: 15.893809
+  type: 'test'
+  ...
+# Subtest: the raw pre-filter cannot hide comment-separated provider or environment syntax
+ok 695 - the raw pre-filter cannot hide comment-separated provider or environment syntax
+  ---
+  duration_ms: 19.66605
+  type: 'test'
+  ...
+# Subtest: manifest canonical IDs and literal aliases do not depend on plugin activation
+ok 696 - manifest canonical IDs and literal aliases do not depend on plugin activation
+  ---
+  duration_ms: 16.104126
+  type: 'test'
+  ...
+# Subtest: portable vendor aliases take precedence while legacy-only manifests retain boundary detection
+ok 697 - portable vendor aliases take precedence while legacy-only manifests retain boundary detection
+  ---
+  duration_ms: 20.023701
+  type: 'test'
+  ...
+# Subtest: deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere
+ok 698 - deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere
+  ---
+  duration_ms: 1.385228
+  type: 'test'
+  ...
+# Subtest: vendor words respect identifier boundaries and ordinary replicate prose without path exceptions
+ok 699 - vendor words respect identifier boundaries and ordinary replicate prose without path exceptions
+  ---
+  duration_ms: 1.15493
+  type: 'test'
+  ...
+# Subtest: Render React/rendering terminology and the ordinary resend verb stay allowed
+ok 700 - Render React/rendering terminology and the ordinary resend verb stay allowed
+  ---
+  duration_ms: 1.15128
+  type: 'test'
+  ...
+# Subtest: unified mail rules preserve branded names, domains, old adapter, selections and secrets
+ok 701 - unified mail rules preserve branded names, domains, old adapter, selections and secrets
+  ---
+  duration_ms: 1.490674
+  type: 'test'
+  ...
+# Subtest: exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys
+ok 702 - exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys
+  ---
+  duration_ms: 5.077685
+  type: 'test'
+  ...
+# Subtest: pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail
+ok 703 - pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail
+  ---
+  duration_ms: 9.297876
+  type: 'test'
+  ...
+# Subtest: malformed policy data and supplemental vendor declarations fail closed
+ok 704 - malformed policy data and supplemental vendor declarations fail closed
+  ---
+  duration_ms: 11.759812
+  type: 'test'
+  ...
+# Subtest: outside-scan release infrastructure is documented and never treated as a source allowance
+ok 705 - outside-scan release infrastructure is documented and never treated as a source allowance
+  ---
+  duration_ms: 7.799566
+  type: 'test'
+  ...
+# Subtest: tool search metadata has no hosting product names; plugin manifests own vendor search words
+ok 706 - tool search metadata has no hosting product names; plugin manifests own vendor search words
+  ---
+  duration_ms: 3.888994
+  type: 'test'
+  ...
+# Subtest: real core tree has only reviewed pattern exceptions, each with its exact current total
+not ok 707 - real core tree has only reviewed pattern exceptions, each with its exact current total
+  ---
+  duration_ms: 25871.723804
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:1:12301'
+  failureType: 'testCodeFailure'
+  error: |-
+    Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+    + actual - expected
+    
+    + [
+    +   'apps/admin/src/lib/admin-nav-i18n.ts: commerce 22',
+    +   'apps/admin/src/panels.tsx: commerce 4',
+    +   'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,security,settings,skills}/**,hooks/admin-execution-credential-dependencies.hooks.ts,lib/execution-settings.ts}: anthropic 100 -> 121',
+    +   'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,skills}/**,lib/execution-settings.ts}: google 13 -> 159',
+    +   'apps/website/src/assistant/host-contracts.ts: commerce 1',
+    +   'apps/website/src/assistant/tool-registrations.ts: commerce 1',
+    +   'apps/website/src/contracts/core/tool-metadata/index.ts: commerce 4',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: calendly 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: charts-recharts 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: commerce 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: composio 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google 4',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-forms 2',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-login 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-workspace 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: higgsfield-media 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: meilisearch 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: opentelemetry 2',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: posthog 2',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: sentry 2',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: slide-design 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: software-engineering 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: stripe 2',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: supabase 1',
+    +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: wordpress 1',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: cloudflare 11 -> 12',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: fly 4 -> 5',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github 3 -> 5',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github-pages 1 -> 2',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: netlify 1 -> 2',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: railway 1 -> 2',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: s3-compatible 1 -> 2',
+    +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: vercel 1 -> 2',
+    +   'apps/website/src/features/forms/agent-tools.ts: cloudflare 1',
+    +   'apps/website/src/features/source-control/provider-module.ts: github 2',
+    +   'apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts: commerce 2',
+    +   'apps/website/src/platform/db/migrations/checksums.ts: commerce 1',
+    +   'apps/website/src/platform/db/migrations/index.ts: commerce 2',
+    +   'apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: commerce 4',
+    +   'apps/website/src/server/inbound/public-http/http/site/render.ts: commerce 1',
+    +   'apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts: commerce 22',
+    +   'apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts: commerce 13',
+    +   'apps/website/src/server/inbound/public-http/routes/site/products.ts: commerce 2',
+    +   'apps/website/src/server/routes/types.ts: commerce 2',
+    +   'apps/website/src/server/runtime/composition/app.ts: charts-recharts 1',
+    +   'apps/website/src/server/runtime/composition/app.ts: commerce 1',
+    +   'apps/website/src/server/runtime/composition/charts-recharts-source.ts: charts-recharts 2',
+    +   'apps/website/src/server/runtime/composition/commerce-drain.ts: commerce 3',
+    +   'apps/website/src/server/runtime/composition/commerce-http.ts: commerce 12',
+    +   'apps/website/src/server/runtime/composition/commerce-origin.ts: commerce 1',
+    +   'apps/website/src/server/runtime/composition/commerce-settings.ts: commerce 5',
+    +   'apps/website/src/server/runtime/composition/commerce-worker.ts: commerce 2',
+    +   'apps/website/src/server/runtime/composition/commerce.ts: commerce 28',
+    +   'apps/website/src/server/runtime/composition/deps.ts: charts-recharts 1',
+    +   'apps/website/src/server/runtime/composition/deps.ts: commerce 4',
+    +   'apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts: anthropic 1',
+    +   'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1',
+    +   'apps/website/src/server/runtime/composition/provider-contracts.ts: commerce 1',
+    +   'apps/website/src/server/runtime/composition/provider-plugins.ts: commerce 1',
+    +   'apps/website/src/server/runtime/composition/tool-catalog-manifest.ts: commerce 6',
+    +   'apps/{admin/src/features/skills/**,website/src/features/skills/**,website/src/server/inbound/admin-http/routes/skills/**,website/src/contracts/headless/assistant-tool-approval-policy.ts}: github 16 -> 77'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/admin/src/lib/admin-nav-i18n.ts: commerce 22'
+    1: 'apps/admin/src/panels.tsx: commerce 4'
+    2: 'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,security,settings,skills}/**,hooks/admin-execution-credential-dependencies.hooks.ts,lib/execution-settings.ts}: anthropic 100 -> 121'
+    3: 'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,skills}/**,lib/execution-settings.ts}: google 13 -> 159'
+    4: 'apps/website/src/assistant/host-contracts.ts: commerce 1'
+    5: 'apps/website/src/assistant/tool-registrations.ts: commerce 1'
+    6: 'apps/website/src/contracts/core/tool-metadata/index.ts: commerce 4'
+    7: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: calendly 1'
+    8: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: charts-recharts 1'
+    9: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: commerce 1'
+    10: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: composio 1'
+    11: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google 4'
+    12: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-forms 2'
+    13: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-login 1'
+    14: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-workspace 1'
+    15: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: higgsfield-media 1'
+    16: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: meilisearch 1'
+    17: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: opentelemetry 2'
+    18: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: posthog 2'
+    19: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: sentry 2'
+    20: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: slide-design 1'
+    21: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: software-engineering 1'
+    22: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: stripe 2'
+    23: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: supabase 1'
+    24: 'apps/website/src/features/agent-plugins/bundled-catalog.ts: wordpress 1'
+    25: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: cloudflare 11 -> 12'
+    26: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: fly 4 -> 5'
+    27: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github 3 -> 5'
+    28: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github-pages 1 -> 2'
+    29: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: netlify 1 -> 2'
+    30: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: railway 1 -> 2'
+    31: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: s3-compatible 1 -> 2'
+    32: 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: vercel 1 -> 2'
+    33: 'apps/website/src/features/forms/agent-tools.ts: cloudflare 1'
+    34: 'apps/website/src/features/source-control/provider-module.ts: github 2'
+    35: 'apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts: commerce 2'
+    36: 'apps/website/src/platform/db/migrations/checksums.ts: commerce 1'
+    37: 'apps/website/src/platform/db/migrations/index.ts: commerce 2'
+    38: 'apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: commerce 4'
+    39: 'apps/website/src/server/inbound/public-http/http/site/render.ts: commerce 1'
+    40: 'apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts: commerce 22'
+    41: 'apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts: commerce 13'
+    42: 'apps/website/src/server/inbound/public-http/routes/site/products.ts: commerce 2'
+    43: 'apps/website/src/server/routes/types.ts: commerce 2'
+    44: 'apps/website/src/server/runtime/composition/app.ts: charts-recharts 1'
+    45: 'apps/website/src/server/runtime/composition/app.ts: commerce 1'
+    46: 'apps/website/src/server/runtime/composition/charts-recharts-source.ts: charts-recharts 2'
+    47: 'apps/website/src/server/runtime/composition/commerce-drain.ts: commerce 3'
+    48: 'apps/website/src/server/runtime/composition/commerce-http.ts: commerce 12'
+    49: 'apps/website/src/server/runtime/composition/commerce-origin.ts: commerce 1'
+    50: 'apps/website/src/server/runtime/composition/commerce-settings.ts: commerce 5'
+    51: 'apps/website/src/server/runtime/composition/commerce-worker.ts: commerce 2'
+    52: 'apps/website/src/server/runtime/composition/commerce.ts: commerce 28'
+    53: 'apps/website/src/server/runtime/composition/deps.ts: charts-recharts 1'
+    54: 'apps/website/src/server/runtime/composition/deps.ts: commerce 4'
+    55: 'apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts: anthropic 1'
+    56: 'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1'
+    57: 'apps/website/src/server/runtime/composition/provider-contracts.ts: commerce 1'
+    58: 'apps/website/src/server/runtime/composition/provider-plugins.ts: commerce 1'
+    59: 'apps/website/src/server/runtime/composition/tool-catalog-manifest.ts: commerce 6'
+    60: 'apps/{admin/src/features/skills/**,website/src/features/skills/**,website/src/server/inbound/admin-http/routes/skills/**,website/src/contracts/headless/assistant-tool-approval-policy.ts}: github 16 -> 77'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:209:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: planStaticPublish refuses an unknown host, a missing or blank required field, and the module's own validation
+ok 708 - planStaticPublish refuses an unknown host, a missing or blank required field, and the module's own validation
+  ---
+  duration_ms: 2.789325
+  type: 'test'
+  ...
+# Subtest: planStaticPublish returns the target and only a base path the module supplies
+ok 709 - planStaticPublish returns the target and only a base path the module supplies
+  ---
+  duration_ms: 0.453859
+  type: 'test'
+  ...
+# Subtest: readStaticPublishConfig keeps declared string fields, refuses non-strings in JSON mode, and drops unknown keys
+ok 710 - readStaticPublishConfig keeps declared string fields, refuses non-strings in JSON mode, and drops unknown keys
+  ---
+  duration_ms: 0.290909
+  type: 'test'
+  ...
+# Subtest: T24: blankAsAbsent refuses non-string declared fields instead of silently dropping them
+ok 711 - T24: blankAsAbsent refuses non-string declared fields instead of silently dropping them
+  ---
+  duration_ms: 0.229019
+  type: 'test'
+  ...

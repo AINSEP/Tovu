@@ -2645,3 +2645,425 @@ ok 345 - tovu export --public-url writes absolute discovery and SEO; omitting it
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: tovu export <dir> --out <out>: exits 0, prints an honest route/asset summary, and writes a real static file tree
+ok 346 - tovu export <dir> --out <out>: exits 0, prints an honest route/asset summary, and writes a real static file tree
+  ---
+  duration_ms: 34636.00709
+  type: 'test'
+  ...
+# Subtest: tovu export: a non-empty --out preserves unrelated files unless --clean is passed
+ok 347 - tovu export: a non-empty --out preserves unrelated files unless --clean is passed
+  ---
+  duration_ms: 56716.512722
+  type: 'test'
+  ...
+# Subtest: tovu export --base-path <path>: rewrites root-relative links and prints the disclosed-limit warning
+ok 348 - tovu export --base-path <path>: rewrites root-relative links and prints the disclosed-limit warning
+  ---
+  duration_ms: 33091.142566
+  type: 'test'
+  ...
+# Subtest: tovu export: TOVU_EXPORT_DIR env var sets the default output directory when --out is omitted
+ok 349 - tovu export: TOVU_EXPORT_DIR env var sets the default output directory when --out is omitted
+  ---
+  duration_ms: 30400.915321
+  type: 'test'
+  ...
+# Subtest: tovu export <dir>: with neither --out nor TOVU_EXPORT_DIR, the export lands under <dir>/out/export even when run from another directory
+ok 350 - tovu export <dir>: with neither --out nor TOVU_EXPORT_DIR, the export lands under <dir>/out/export even when run from another directory
+  ---
+  duration_ms: 32088.457595
+  type: 'test'
+  ...
+# Subtest: tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc
+not ok 351 - tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc
+  ---
+  duration_ms: 13011.758847
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:1:909'
+  failureType: 'testCodeFailure'
+  error: |-
+    introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'owner-store status',
+        'owner-store list',
+        'owner-store put',
+        'owner-store delete',
+    ...
+        'import',
+    +   'import-local',
+        'sites move-home',
+        'plugin install',
+        'plugin integrity',
+        'init',
+        'agent-plugins token-sign-in',
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'owner-store status'
+    1: 'owner-store list'
+    2: 'owner-store put'
+    3: 'owner-store delete'
+    4: 'owner-store import'
+    5: 'owner-store disconnect'
+    6: 'reset-owner'
+    7: 'site rename'
+    8: 'import'
+    9: 'sites move-home'
+    10: 'plugin install'
+    11: 'plugin integrity'
+    12: 'init'
+    13: 'agent-plugins token-sign-in'
+    14: 'storage move'
+    15: 'adopt'
+    16: 'serve'
+    17: 'export'
+    18: 'theme validate'
+    19: 'theme migrate'
+    20: 'theme generate-index'
+    21: 'theme sync-originals'
+    22: 'theme normalize-build'
+    23: 'deploy config'
+  actual:
+    0: 'owner-store status'
+    1: 'owner-store list'
+    2: 'owner-store put'
+    3: 'owner-store delete'
+    4: 'owner-store import'
+    5: 'owner-store disconnect'
+    6: 'reset-owner'
+    7: 'site rename'
+    8: 'import'
+    9: 'import-local'
+    10: 'sites move-home'
+    11: 'plugin install'
+    12: 'plugin integrity'
+    13: 'init'
+    14: 'agent-plugins token-sign-in'
+    15: 'storage move'
+    16: 'adopt'
+    17: 'serve'
+    18: 'export'
+    19: 'theme validate'
+    20: 'theme migrate'
+    21: 'theme generate-index'
+    22: 'theme sync-originals'
+    23: 'theme normalize-build'
+    24: 'deploy config'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:40:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions
+not ok 352 - tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions
+  ---
+  duration_ms: 16570.169951
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:1:2055'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'tovu_owner-store_status',
+        'tovu_owner-store_list',
+        'tovu_owner-store_put',
+        'tovu_owner-store_delete',
+    ...
+        'tovu_import',
+    +   'tovu_import-local',
+        'tovu_sites_move-home',
+        'tovu_plugin_install',
+        'tovu_plugin_integrity',
+        'tovu_init',
+        'tovu_agent-plugins_token-sign-in',
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'tovu_owner-store_status'
+    1: 'tovu_owner-store_list'
+    2: 'tovu_owner-store_put'
+    3: 'tovu_owner-store_delete'
+    4: 'tovu_owner-store_import'
+    5: 'tovu_owner-store_disconnect'
+    6: 'tovu_reset-owner'
+    7: 'tovu_site_rename'
+    8: 'tovu_import'
+    9: 'tovu_sites_move-home'
+    10: 'tovu_plugin_install'
+    11: 'tovu_plugin_integrity'
+    12: 'tovu_init'
+    13: 'tovu_agent-plugins_token-sign-in'
+    14: 'tovu_storage_move'
+    15: 'tovu_adopt'
+    16: 'tovu_serve'
+    17: 'tovu_export'
+    18: 'tovu_theme_validate'
+    19: 'tovu_theme_migrate'
+    20: 'tovu_theme_generate-index'
+    21: 'tovu_theme_sync-originals'
+    22: 'tovu_theme_normalize-build'
+    23: 'tovu_deploy_config'
+  actual:
+    0: 'tovu_owner-store_status'
+    1: 'tovu_owner-store_list'
+    2: 'tovu_owner-store_put'
+    3: 'tovu_owner-store_delete'
+    4: 'tovu_owner-store_import'
+    5: 'tovu_owner-store_disconnect'
+    6: 'tovu_reset-owner'
+    7: 'tovu_site_rename'
+    8: 'tovu_import'
+    9: 'tovu_import-local'
+    10: 'tovu_sites_move-home'
+    11: 'tovu_plugin_install'
+    12: 'tovu_plugin_integrity'
+    13: 'tovu_init'
+    14: 'tovu_agent-plugins_token-sign-in'
+    15: 'tovu_storage_move'
+    16: 'tovu_adopt'
+    17: 'tovu_serve'
+    18: 'tovu_export'
+    19: 'tovu_theme_validate'
+    20: 'tovu_theme_migrate'
+    21: 'tovu_theme_generate-index'
+    22: 'tovu_theme_sync-originals'
+    23: 'tovu_theme_normalize-build'
+    24: 'tovu_deploy_config'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:71:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: tovu introspect --format <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+ok 353 - tovu introspect --format <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+  ---
+  duration_ms: 16141.865571
+  type: 'test'
+  ...
+# Subtest: tovu theme migrate <dir>: migrates a valid v1 declarative theme in place and exits 0
+ok 354 - tovu theme migrate <dir>: migrates a valid v1 declarative theme in place and exits 0
+  ---
+  duration_ms: 33011.565739
+  type: 'test'
+  ...
+# Subtest: tovu theme migrate <dir> --dry-run --json: prints the machine-readable staged result, real dir untouched
+ok 355 - tovu theme migrate <dir> --dry-run --json: prints the machine-readable staged result, real dir untouched
+  ---
+  duration_ms: 15615.878118
+  type: 'test'
+  ...
+# Subtest: tovu theme migrate <dir>: an already-migrated theme is a no-op and exits 0
+ok 356 - tovu theme migrate <dir>: an already-migrated theme is a no-op and exits 0
+  ---
+  duration_ms: 31883.773067
+  type: 'test'
+  ...
+# Subtest: tovu theme migrate <dir>: a theme that fails staged-output verification exits 1 and prints validator + loadTheme findings plus the staged output path
+ok 357 - tovu theme migrate <dir>: a theme that fails staged-output verification exits 1 and prints validator + loadTheme findings plus the staged output path
+  ---
+  duration_ms: 19415.388757
+  type: 'test'
+  ...
+# Subtest: tovu theme migrate <dir>: refusing an unrecognized file exits 1 (a finding, not a crash)
+ok 358 - tovu theme migrate <dir>: refusing an unrecognized file exits 1 (a finding, not a crash)
+  ---
+  duration_ms: 13859.04082
+  type: 'test'
+  ...
+# Subtest: commander success commander.helpDisplayed omits diagnostics
+ok 359 - commander success commander.helpDisplayed omits diagnostics
+  ---
+  duration_ms: 6.499047
+  type: 'test'
+  ...
+# Subtest: commander success commander.help omits diagnostics
+ok 360 - commander success commander.help omits diagnostics
+  ---
+  duration_ms: 0.206804
+  type: 'test'
+  ...
+# Subtest: commander success commander.version omits diagnostics
+ok 361 - commander success commander.version omits diagnostics
+  ---
+  duration_ms: 0.094498
+  type: 'test'
+  ...
+# Subtest: commander commander.missingArgument preserves usage property presence
+ok 362 - commander commander.missingArgument preserves usage property presence
+  ---
+  duration_ms: 0.424176
+  type: 'test'
+  ...
+# Subtest: commander commander.invalidArgument preserves usage property presence
+ok 363 - commander commander.invalidArgument preserves usage property presence
+  ---
+  duration_ms: 0.172823
+  type: 'test'
+  ...
+# Subtest: commander commander.excessArguments preserves usage property presence
+ok 364 - commander commander.excessArguments preserves usage property presence
+  ---
+  duration_ms: 0.208394
+  type: 'test'
+  ...
+# Subtest: commander commander.unknownOption preserves usage property presence
+ok 365 - commander commander.unknownOption preserves usage property presence
+  ---
+  duration_ms: 3.382724
+  type: 'test'
+  ...
+# Subtest: commander commander.unknownCommand preserves usage property presence
+ok 366 - commander commander.unknownCommand preserves usage property presence
+  ---
+  duration_ms: 0.110332
+  type: 'test'
+  ...
+# Subtest: commander commander.missingMandatoryOptionValue preserves usage property presence
+ok 367 - commander commander.missingMandatoryOptionValue preserves usage property presence
+  ---
+  duration_ms: 0.105816
+  type: 'test'
+  ...
+# Subtest: commander commander.optionMissingArgument preserves usage property presence
+ok 368 - commander commander.optionMissingArgument preserves usage property presence
+  ---
+  duration_ms: 0.09296
+  type: 'test'
+  ...
+# Subtest: commander commander.futureCode preserves usage property presence
+ok 369 - commander commander.futureCode preserves usage property presence
+  ---
+  duration_ms: 0.08232
+  type: 'test'
+  ...
+# Subtest: maps PLUGIN_REFUSED/PluginInstallError: detail by class
+ok 370 - maps PLUGIN_REFUSED/PluginInstallError: detail by class
+  ---
+  duration_ms: 0.229258
+  type: 'test'
+  ...
+# Subtest: maps VALIDATION/ValidationError: detail by class
+ok 371 - maps VALIDATION/ValidationError: detail by class
+  ---
+  duration_ms: 0.749958
+  type: 'test'
+  ...
+# Subtest: maps INIT_DIR_NOT_EMPTY/InitDirNotEmptyError: detail by class
+ok 372 - maps INIT_DIR_NOT_EMPTY/InitDirNotEmptyError: detail by class
+  ---
+  duration_ms: 0.175513
+  type: 'test'
+  ...
+# Subtest: maps SITE_DIR_INVALID/SiteDirInvalidError: detail by class
+ok 373 - maps SITE_DIR_INVALID/SiteDirInvalidError: detail by class
+  ---
+  duration_ms: 0.080137
+  type: 'test'
+  ...
+# Subtest: maps SITE_NEWER_THAN_RUNTIME/SiteNewerThanRuntimeError: detail by class
+ok 374 - maps SITE_NEWER_THAN_RUNTIME/SiteNewerThanRuntimeError: detail by class
+  ---
+  duration_ms: 0.093221
+  type: 'test'
+  ...
+# Subtest: maps SITE_CORRUPT/SiteCorruptError: detail by class
+ok 375 - maps SITE_CORRUPT/SiteCorruptError: detail by class
+  ---
+  duration_ms: 0.155752
+  type: 'test'
+  ...
+# Subtest: maps PORT_IN_USE/PortInUseError: detail by class
+ok 376 - maps PORT_IN_USE/PortInUseError: detail by class
+  ---
+  duration_ms: 0.11117
+  type: 'test'
+  ...
+# Subtest: maps EXPORT_OUTPUT_NOT_EMPTY/Error: detail by class
+ok 377 - maps EXPORT_OUTPUT_NOT_EMPTY/Error: detail by class
+  ---
+  duration_ms: 0.086172
+  type: 'test'
+  ...
+# Subtest: maps EXPORT_INCOMPLETE/ExportIncompleteError: detail by class
+ok 378 - maps EXPORT_INCOMPLETE/ExportIncompleteError: detail by class
+  ---
+  duration_ms: 0.076619
+  type: 'test'
+  ...
+# Subtest: maps EXPORT_BLOCKED_PENDING_RECOVERY/ExportBlockedPendingRecoveryError: detail by class
+ok 379 - maps EXPORT_BLOCKED_PENDING_RECOVERY/ExportBlockedPendingRecoveryError: detail by class
+  ---
+  duration_ms: 2.604968
+  type: 'test'
+  ...
+# Subtest: maps INTERNAL/InternalError: detail by class
+ok 380 - maps INTERNAL/InternalError: detail by class
+  ---
+  duration_ms: 1.230975
+  type: 'test'
+  ...
+# Subtest: maps INTERNAL/Error: detail by class
+ok 381 - maps INTERNAL/Error: detail by class
+  ---
+  duration_ms: 0.247922
+  type: 'test'
+  ...
+# Subtest: maps INTERNAL/detail by class
+ok 382 - maps INTERNAL/detail by class
+  ---
+  duration_ms: 0.759966
+  type: 'test'
+  ...
+# Subtest: repair refusal NOT_A_DIRECTORY uses its typed reason
+ok 383 - repair refusal NOT_A_DIRECTORY uses its typed reason
+  ---
+  duration_ms: 1.772841
+  type: 'test'
+  ...
+# Subtest: repair refusal MARKER_ALREADY_EXISTS uses its typed reason
+ok 384 - repair refusal MARKER_ALREADY_EXISTS uses its typed reason
+  ---
+  duration_ms: 0.163391
+  type: 'test'
+  ...
+# Subtest: repair refusal CONTENT_DB_MISSING uses its typed reason
+ok 385 - repair refusal CONTENT_DB_MISSING uses its typed reason
+  ---
+  duration_ms: 0.063478
+  type: 'test'
+  ...
+# Subtest: repair refusal CONTENT_DB_UNMIGRATED uses its typed reason
+ok 386 - repair refusal CONTENT_DB_UNMIGRATED uses its typed reason
+  ---
+  duration_ms: 0.038985
+  type: 'test'
+  ...
+# Subtest: repair refusal CONTENT_DB_DIVERGED uses its typed reason
+ok 387 - repair refusal CONTENT_DB_DIVERGED uses its typed reason
+  ---
+  duration_ms: 0.049847
+  type: 'test'
+  ...
+# Subtest: an error name cannot impersonate a domain class
+ok 388 - an error name cannot impersonate a domain class
+  ---
+  duration_ms: 0.117917
+  type: 'test'
+  ...

@@ -88,3 +88,307 @@ If you used to conditionally omit it with placeholder={condition && value}, pass
    ✓ inspects disabled packages with file omissions, caps, keyboard navigation and per-file wrap reset 495ms
    ✓ honors host Button overrides for page and confirmation actions 419ms
  ✓ src/forms/react/__tests__/use-form-editor.unit.test.tsx (9 tests) 547ms
+ ✓ src/forms/react/__tests__/forms-agent-drive.unit.test.tsx (4 tests) 4372ms
+   ✓ driving a new form's field editor through page.* verbs > page.fill on the name and slug fields reaches React state 1942ms
+   ✓ driving a new form's field editor through page.* verbs > a second find_elements after page.click("form-fields-add") discovers the new row's handles 1367ms
+   ✓ driving a new form's field editor through page.* verbs > page.select_option to "checkbox" removes that row's max-length handle from the next find_elements 856ms
+ ✓ src/seo/react/__tests__/MediaRefField.unit.test.tsx (25 tests) 544ms
+ ✓ src/seo/react/__tests__/use-seo.unit.test.ts (13 tests) 792ms
+ ✓ src/forms/react/__tests__/use-form-editor.branches.unit.test.tsx (10 tests) 382ms
+ ✓ src/media/react/__tests__/media-component-states.test.tsx (12 tests) 764ms
+ ✓ src/react/shell/__tests__/session.test.tsx (13 tests) 535ms
+ ✓ src/seo/react/__tests__/seo-binding.unit.test.tsx (12 tests) 2704ms
+   ✓ seo module binding > reports tab switches to the host 923ms
+   ✓ seo module binding > mounts the standalone defaults tab once settings load 368ms
+   ✓ seo module binding > shows the standalone tab load error when settings cannot be read 317ms
+   ✓ seo module binding > opens the shell sitemap modal from the sitemap tab and closes it on dismiss 426ms
+   ✓ seo module binding > mounts the standalone entries tab 309ms
+ ✓ src/security/react/__tests__/security-editor.test.tsx (6 tests) 3181ms
+   ✓ security credential editor > collects the custom-provider fields and saves them under the chosen category 665ms
+   ✓ security credential editor > titles an existing credential as an edit and cancelling discards the draft 650ms
+   ✓ security provider-described fields > labels the token with the provider field and edits its extra fields 379ms
+   ✓ security page binding > reports tab changes to the host and shows the host-supplied root-key scope notice 705ms
+   ✓ access tokens tab > links to the provider token page and promotes a saved token to default 453ms
+   ✓ access tokens tab > denies the tab itself to a viewer without the read grant 328ms
+ ✓ src/react/entities/__tests__/entity-field.test.tsx (23 tests) 601ms
+ ✓ src/forms/react/__tests__/FieldSettingsSection.unit.test.tsx (16 tests) 528ms
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > fetches once request() is called, and resolves with the hit stats
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > keeps two redirect requests and cached results separate under one provider
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > keeps two redirect requests and cached results separate under one provider
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > resolves data even for a rule with zero recorded hits — the caller must branch on data being present, not on hitCount's truthiness
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > is fetching while the request is in flight, and settles once it resolves
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > is fetching while the request is in flight, and settles once it resolves
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > surfaces a request failure as an error
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell — injected port (no fetch stub) > stays lazy against the injected port too — request() is what triggers the read
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell — injected port (no fetch stub) > resolves whatever hitCount the injected port was seeded with
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+ ✓ src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx (9 tests) 461ms
+ ✓ src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.test.tsx (22 tests) 12ms
+ ✓ src/comments/react/__tests__/use-comment-settings.unit.test.tsx (7 tests) 483ms
+ ✓ src/seo/react/__tests__/copy-polish.unit.test.tsx (5 tests) 1277ms
+   ✓ SEO copy polish through the injected ports > keeps the lowercase title token and saves a selected library image without exposing its stored reference 365ms
+   ✓ SEO copy polish through the injected ports > uses plain image labels for entry overrides and preserves picker selection and removal 504ms
+ ✓ src/__tests__/fqfix-loading.unit.test.tsx (9 tests) 749ms
+ ✓ src/react/entities/__tests__/entity-routes-and-states.test.tsx (13 tests) 320ms
+ ✓ src/react/entities/__tests__/use-entity-edit.test.tsx (10 tests) 751ms
+ ✓ src/widgets/react/__tests__/widgets-binding.unit.test.tsx (12 tests) 3968ms
+   ✓ widgets module pages > opens the editor from route params and lists every place the widget is used 424ms
+   ✓ widgets module pages > shows no usage banner for a widget used nowhere 337ms
+   ✓ widgets module pages > lists bound regions on the regions page 331ms
+   ✓ widgets module pages > opens the editor from a direct widget id and words a single use in the singular 321ms
+   ✓ widgets module pages > starts a new widget from a type param and shows the pending save 360ms
+   ✓ widgets module pages > starts a new widget from a direct type prop 318ms
+   ✓ widgets module pages > asks for a widget type when neither an id nor a type is supplied 306ms
+   ✓ widgets module pages > shows the load error, after a loading notice, when the widget cannot be read 314ms
+   ✓ widgets module pages > blocks the library with the first-load error 313ms
+   ✓ widgets module pages > loads the region named by route params, a direct prop, or none 932ms
+ ✓ src/source-control/react/__tests__/source-control-surface.unit.test.tsx (11 tests) 1885ms
+   ✓ source-control React > shows token guidance and links to the provider token page 517ms
+   ✓ source-control React > surfaces a failed token save 404ms
+   ✓ source-control React > flags a saved token whose provider is no longer listed 315ms
+   ✓ source-control React > opens the host credential manager when navigation is supplied 316ms
+   ✓ source-control React > denies the providers tab to a viewer without the read grant 308ms
+ ✓ src/widgets/react/__tests__/use-widget-regions.hooks.unit.test.tsx (7 tests) 662ms
+ ✓ src/forms/react/__tests__/use-field-attributes-dialog.hooks.unit.test.ts (6 tests) 187ms
+ ✓ src/seo/react/__tests__/seo-hooks-fallbacks.unit.test.tsx (12 tests) 550ms
+ ✓ src/react/shell/__tests__/admin-theme.test.tsx (4 tests) 250ms
+ ✓ src/redirects/react/__tests__/Redirects.unit.test.tsx (5 tests) 1692ms
+   ✓ Redirects — create form > keeps the operator's input after a failed create, and shows the banner 358ms
+   ✓ Redirects — table actions and bulk import > disables the selected rule from its row menu, then deletes only after confirmation 390ms
+   ✓ Redirects — table actions and bulk import > loads a row's hit count and imports the JSON typed into the bulk form 543ms
+ ✓ src/comments/react/__tests__/use-comment-queue.boundary.unit.test.tsx (10 tests) 442ms
+ ✓ src/media/react/__tests__/qa-round2.test.tsx (6 tests) 2102ms
+   ✓ keeps the existing grid mounted during uploads and focuses it without scrolling 551ms
+   ✓ restores focus and announces Trash and Restore after their refreshes 654ms
+   ✓ announces Replace and returns focus without removing the grid 611ms
+ ✓ src/browser/__tests__/navigation-interceptor.test.ts (25 tests) 65ms
+ ✓ src/security/react/__tests__/security.test.tsx (6 tests) 3023ms
+   ✓ security React slice > renders denied without grants and never loads credentials 370ms
+   ✓ security React slice > renders saved rows read-only without write grants, and omits optional root-key tab 384ms
+   ✓ security React slice > lazily switches root-key tab with grants and never offers reveal 705ms
+   ✓ security React slice > clears newly saved secret drafts and supports multiple named tokens 503ms
+   ✓ security React slice > allows host confirmation overrides and executes only through the safety controller 347ms
+   ✓ security React slice > refuses fresh recovery without a typed confirmation and accepts it after preview 706ms
+ ✓ src/forms/react/__tests__/use-form-submission-detail.unit.test.tsx (6 tests) 397ms
+ ✓ src/react/entities/__tests__/screen-states.test.tsx (10 tests) 332ms
+ ✓ src/source-control/react/__tests__/providers-tab-hooks.test.tsx (7 tests) 490ms
+ ✓ src/comments/react/__tests__/comments-states.unit.test.tsx (6 tests) 560ms
+   ✓ comments module page > lazily loads the queue page through the bound module and renders it with the host translator 422ms
+ ✓ src/react/__tests__/hooks/use-nav-sections.test.tsx (12 tests) 67ms
+ ✓ src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts (11 tests) 204ms
+ ✓ src/react/__tests__/components/converted-callers.test.tsx (6 tests) 276ms
+ ✓ src/react/__tests__/components/ConfirmButton.test.tsx (14 tests) 295ms
+ ✓ src/react/__tests__/hooks/use-sidebar-rail-controlled.test.tsx (5 tests) 33ms
+ ✓ src/comments/react/__tests__/QueueSection.unit.test.tsx (5 tests) 425ms
+ ✓ src/react/components/__tests__/Sidebar.accordion.test.tsx (7 tests) 358ms
+ ✓ src/forms/react/__tests__/FormEditor.field-settings.unit.test.tsx (3 tests) 1245ms
+   ✓ field settings in the form editor > adds an option, makes it the default, and saves both in the PUT body 732ms
+ ✓ src/agent-plugins/react/__tests__/agent-plugins-states.test.tsx (7 tests) 1256ms
+   ✓ shows the load failure as a danger notice when the backend list fails 430ms
+   ✓ announces an empty workspace once the list has loaded with no packages 331ms
+   ✓ raises an alert when an enable is refused and keeps the row off 395ms
+ ✓ src/forms/react/__tests__/field-row-editing.unit.test.tsx (5 tests) 995ms
+ ✓ src/forms/react/__tests__/html-mode.unit.test.tsx (4 tests) 910ms
+   ✓ HTML form authoring — owner acceptance 2026-10-04 > toggle seeds current fields, preserves draft across toggles, and copies the real saved slug 786ms
+ ✓ src/media/react/__tests__/media-card-hooks.test.tsx (7 tests) 71ms
+ ✓ src/agent-plugins/react/__tests__/AgentPluginRow.test.tsx (10 tests) 299ms
+ ✓ src/consent/react/__tests__/ConsentSettingsPanel.test.tsx (5 tests) 920ms
+   ✓ cookie consent settings panel > offers a labeled OFF switch and keyboard-editable copy, region mode and policy version 569ms
+ ✓ src/widgets/react/__tests__/WidgetRegions.unit.test.tsx (9 tests) 288ms
+ ✓ src/widgets/react/__tests__/use-widgets-library.wiring.unit.test.tsx (6 tests) 494ms
+ ✓ src/react/shell/__tests__/use-admin-theme.unit.test.tsx (7 tests) 46ms
+ ✓ src/forms/react/__tests__/copy-polish.unit.test.tsx (6 tests) 513ms
+   ✓ forms copy polish > carries builder field labels from the editor through the list into detail 357ms
+ ✓ src/forms/react/__tests__/FormSubmissions.unit.test.tsx (10 tests) 374ms
+ ✓ src/comments/react/__tests__/SettingsSection.unit.test.tsx (4 tests) 673ms
+   ✓ SettingsSection — useCommentSettingsHook injection > submits the edited real form fields under the names the settings patch reads 534ms
+stderr | src/forms/react/__tests__/FormEditor.leave-and-focus.unit.test.tsx > FormEditor Back with unsaved edits > asks first after an edit; Keep editing stays, Discard changes leaves
+A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:
+
+await act(() => ...)
+
+ ✓ src/forms/react/__tests__/FormEditor.leave-and-focus.unit.test.tsx (4 tests) 788ms
+   ✓ FormEditor Back with unsaved edits > asks first after an edit; Keep editing stays, Discard changes leaves 327ms
+ ✓ src/comments/react/__tests__/use-comment-settings.boundary.unit.test.tsx (5 tests) 211ms
+ ✓ src/widgets/react/__tests__/use-widget-regions.wiring.unit.test.tsx (4 tests) 261ms
+ ✓ src/forms/react/__tests__/FormsModule.unit.test.tsx (3 tests) 753ms
+   ✓ Forms module list API failure regression > renders the visible error when the API read rejects: 'Forms API unavailable' 410ms
+   ✓ Forms module list API failure regression > renders the visible error when the API read rejects: 'Forms API request timed out' 319ms
+ ✓ src/security/react/__tests__/RootKeyTab.test.tsx (9 tests) 275ms
+ ✓ src/react/__tests__/hooks/use-sidebar-rail.test.tsx (8 tests) 48ms
+ ✓ src/redirects/react/__tests__/copy-polish.unit.test.tsx (2 tests) 571ms
+   ✓ redirect copy polish > shows human type, provenance and status labels and keeps creation values unchanged 570ms
+ ✓ src/forms/react/__tests__/use-form-fields-editor.hooks.unit.test.tsx (2 tests) 35ms
+ ✓ src/comments/react/__tests__/use-comments.unit.test.tsx (3 tests) 206ms
+ ✓ src/react/__tests__/components/confirm-guards.test.tsx (5 tests) 146ms
+ ✓ src/browser/__tests__/navigation-args.test.ts (7 tests) 23ms
+ ✓ src/react/__tests__/overlays.test.tsx (5 tests) 133ms
+ ✓ src/react/__tests__/components/use-confirm-request.test.tsx (4 tests) 53ms
+ ✓ src/source-control/react/__tests__/source-control.test.tsx (3 tests) 1187ms
+   ✓ does not fetch or show credentials without page grants 405ms
+   ✓ renders a read-only provider row without write grants or optional navigation 376ms
+   ✓ accepts a ui-kit token save and never displays saved secret drafts 406ms
+ ✓ src/widgets/react/__tests__/fetch-query-migration.test.ts (3 tests) 216ms
+ ✓ src/react/__tests__/hooks/preference-ports.test.tsx (3 tests) 45ms
+ ✓ src/forms/react/__tests__/forms-view.hooks.unit.test.tsx (4 tests) 38ms
+stderr | src/browser/__tests__/shell-navigation.test.ts
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/browser/__tests__/shell-navigation.test.ts (3 tests) 44ms
+ ✓ src/core/react/__tests__/bind-react.test.tsx (2 tests) 418ms
+   ✓ binds lazy pages and tabs to a private per-binding port context when the host passes none 407ms
+ ✓ src/playground/react/__tests__/playground.test.tsx (2 tests) 771ms
+   ✓ denies canvas publication without grants 384ms
+   ✓ read-only canvas survives rerenders and clears on unmount under StrictMode 387ms
+ ✓ src/seo/react/__tests__/use-entry-picker.unit.test.ts (2 tests) 141ms
+ ✓ src/react/entities/__tests__/relation-rules.test.ts (3 tests) 7ms
+ ✓ src/react/__tests__/components/dialog-args.test.tsx (2 tests) 60ms
+ ✓ src/consent/react/__tests__/ConsentFields-m1.unit.test.tsx (2 tests) 116ms
+ ✓ src/react/shell/__tests__/model.test.ts (2 tests) 5ms
+ ✓ src/react/components/__tests__/Sidebar.controlled.test.tsx (1 test) 113ms
+ ✓ src/react/shell/__tests__/theme-boundaries.test.ts (1 test) 20ms
+ ✓ src/forms/react/__tests__/native-dialog-dismissal.unit.test.ts (1 test) 108ms
+ ✓ src/react/__tests__/integration-barrels.test.tsx (3 tests) 4ms
+ ✓ src/media/react/__tests__/gallery-selection.test.tsx (1 test) 23ms
+ ✓ src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.wiring.test.tsx (1 test) 19ms
+ ✓ src/playground/react/__tests__/playground-scope.test.tsx (2 tests) 93ms
+ ✓ src/media/react/__tests__/card-metadata.test.tsx (2 tests) 151ms
+ ✓ src/forms/react/__tests__/use-form-submission-date.hooks.unit.test.tsx (1 test) 46ms
+ ✓ src/media/react/__tests__/media-lightbox-hooks.test.tsx (3 tests) 6ms
+ ✓ src/consent/react/__tests__/consent-entry.test.tsx (1 test) 206ms
+ ✓ src/react/entities/__tests__/entity-text.test.ts (2 tests) 3ms
+ ✓ src/forms/__tests__/field-settings.unit.test.ts (79 tests) 39ms
+ ✓ src/seo/__tests__/rules.unit.test.ts (78 tests) 34ms
+ ✓ src/agent-plugins/__tests__/controllers.test.ts (36 tests) 23ms
+ ✓ src/comments/__tests__/comment-queue.controller.unit.test.ts (38 tests) 32ms
+ ✓ src/core/__tests__/entities.test.ts (63 tests) 29ms
+ ✓ src/security/__tests__/http.test.ts (26 tests) 34ms
+ ✓ src/redirects/__tests__/redirects-api.conformance.unit.test.ts (36 tests) 34ms
+ ✓ src/media/__tests__/library-controller.test.ts (26 tests) 189ms
+ ✓ src/security/__tests__/memory.test.ts (41 tests) 44ms
+ ✓ src/media/__tests__/legacy-rules.test.ts (109 tests) 66ms
+ ✓ src/security/__tests__/access-tokens.controller.test.ts (34 tests) 29ms
+ ✓ src/security/__tests__/root-key.controller.test.ts (35 tests) 27ms
+ ✓ src/core/module/__tests__/create-admin.boundary.test.ts (41 tests) 27ms
+ ✓ src/seo/__tests__/seo-surface.unit.test.ts (20 tests) 21ms
+ ✓ src/security/__tests__/rules.test.ts (34 tests) 104ms
+ ✓ src/forms/__tests__/answer-format.unit.test.ts (27 tests) 30ms
+ ✓ src/forms/__tests__/memory-adapter.unit.test.ts (30 tests) 27ms
+ ✓ src/source-control/__tests__/controllers.test.ts (14 tests) 19ms
+ ✓ src/core/__tests__/manifest.test.ts (35 tests) 18ms
+ ✓ src/media/__tests__/parity-controllers.test.ts (12 tests) 31ms
+ ✓ src/forms/__tests__/rules.unit.test.ts (21 tests) 41ms
+ ✓ src/media/__tests__/memory.test.ts (28 tests) 20ms
+ ✓ src/comments/__tests__/comments-surface.unit.test.ts (13 tests) 21ms
+ ✓ src/widgets/__tests__/instance-editor.controller.unit.test.ts (19 tests) 19ms
+ ✓ src/redirects/__tests__/rules.unit.test.ts (24 tests) 16ms
+ ✓ src/core/__tests__/entities-rules.boundary.test.ts (27 tests) 23ms
+ ✓ src/security/__tests__/controllers.test.ts (10 tests) 17ms
+ ✓ src/forms/__tests__/forms-api.conformance.test.ts (17 tests) 17ms
+ ✓ src/widgets/__tests__/region-editor.controller.unit.test.ts (14 tests) 17ms
+ ✓ src/widgets/__tests__/library.controller.unit.test.ts (17 tests) 15ms
+ ✓ src/widgets/__tests__/rules.unit.test.ts (25 tests) 16ms
+ ✓ src/core/__tests__/transport.test.ts (18 tests) 15ms
+ ✓ src/media/__tests__/media-surface.test.ts (11 tests) 26ms
+ ✓ src/widgets/__tests__/widgets-surface.unit.test.ts (12 tests) 14ms
+ ✓ src/agent-plugins/__tests__/package-file-tree.test.ts (32 tests) 18ms
+ ✓ src/core/__tests__/transport-regressions.test.ts (17 tests) 60ms
+ ✓ src/forms/__tests__/html-starter.unit.test.ts (12 tests) 37ms
+ ✓ src/comments/__tests__/comments-api.conformance.test.ts (12 tests) 19ms
+ ✓ src/comments/__tests__/memory.unit.test.ts (22 tests) 13ms
+ ✓ src/media/__tests__/controllers.test.ts (6 tests) 20ms
+ ✓ src/media/__tests__/rules.test.ts (51 tests) 18ms
+ ✓ src/redirects/__tests__/redirects-surface.unit.test.ts (10 tests) 13ms
+ ✓ src/core/__tests__/routing.test.ts (24 tests) 13ms
+ ✓ src/forms/__tests__/forms-surface.unit.test.ts (9 tests) 9ms
+ ✓ src/media/__tests__/qa-recovery.test.ts (7 tests) 20ms
+ ✓ src/security/__tests__/security-guards.unit.test.ts (7 tests) 13ms
+ ✓ src/core/module/__tests__/composition.test.ts (5 tests) 8ms
+ ✓ src/browser/__tests__/telemetry-boundaries.unit.test.ts (5 tests) 13ms
+ ✓ src/source-control/__tests__/conformance.test.ts (9 tests) 14ms
+ ✓ src/agent-plugins/__tests__/rules.test.ts (5 tests) 8ms
+ ✓ src/browser/__tests__/telemetry.unit.test.ts (6 tests) 87ms
+ ✓ src/agent-plugins/__tests__/adapter-contracts.test.ts (5 tests) 9ms
+ ✓ src/core/__tests__/args-convention.contract.test.ts (5 tests) 12ms
+ ✓ src/core/__tests__/ledger-slice.test.ts (4 tests) 5ms
+ ✓ src/media/__tests__/html-attributes.test.ts (9 tests) 7ms
+ ✓ src/core/__tests__/menu-target-narrowing.test.ts (3 tests) 4ms
+ ✓ src/agent-plugins/__tests__/http.test.ts (2 tests) 7ms
+ ✓ src/core/module/__tests__/controller-store.test.ts (5 tests) 6ms
+ ✓ src/source-control/__tests__/http.test.ts (2 tests) 12ms
+ ✓ src/forms/__tests__/form-editor-dirty.unit.test.ts (4 tests) 3ms
+ ✓ src/core/__tests__/transport-http.boundary.test.ts (7 tests) 13ms
+ ✓ src/source-control/__tests__/rules.test.ts (3 tests) 4ms
+ ✓ src/playground/__tests__/controllers.test.ts (4 tests) 32ms
+ ✓ src/widgets/__tests__/widgets-api-conformance.unit.test.ts (3 tests) 9ms
+ ✓ src/core/__tests__/transport-headers.test.ts (4 tests) 14ms
+ ✓ src/playground/__tests__/targets-contract.test.ts (4 tests) 7ms
+ ✓ src/redirects/__tests__/memory.conformance.test.ts (2 tests) 6ms
+ ✓ src/core/__tests__/recovery-gated.test.ts (3 tests) 2ms
+ ✓ src/core/__tests__/default-panel-navigation.test.ts (2 tests) 5ms
+ ✓ src/media/__tests__/http.test.ts (1 test) 6ms
+ ✓ src/core/__tests__/permissions.test.ts (5 tests) 5ms
+ ✓ src/core/__tests__/integration-entries.test.ts (4 tests) 5ms
+ ✓ src/seo/__tests__/conformance.test.ts (1 test) 4ms
+ ✓ src/core/__tests__/default-theme-css.unit.test.ts (1 test) 10ms
+ ✓ src/core/__tests__/database-gated.test.ts (1 test) 2ms
+ ✓ src/media/__tests__/media-file-name.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/field-settings-upload-choices.unit.test.ts (1 test) 113ms
+ ✓ src/agent-plugins/__tests__/package-file-tree.hwa.test.ts (1 test) 3ms
+ ✓ src/widgets/__tests__/memory-conformance.test.ts (1 test) 6ms
+ ✓ src/media/__tests__/metadata-exports.test.ts (1 test) 17ms
+ ✓ src/playground/__tests__/http.test.ts (1 test) 3ms
+
+ Test Files  211 passed (211)
+      Tests  2847 passed (2847)
+   Start at  00:19:49
+   Duration  348.49s (transform 12.20s, setup 29.12s, collect 50.65s, tests 110.87s, environment 60.41s, prepare 18.91s)
+
+JSON report written to /tmp/claude-0/cov/jini/admin.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.98% ( 14169/14171 )
+Branches     : 99.75% ( 7838/7857 )
+Functions    : 100% ( 2121/2121 )
+Lines        : 99.98% ( 14169/14171 )
+================================================================================
+admin exit 0 350s
