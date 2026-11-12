@@ -1,0 +1,1055 @@
+TAP version 13
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# tovu export: skipped (no-favicon-or-manifest-route): Tovu has no /favicon.ico or web-app-manifest route today — nothing to export for either convention
+# tovu export: warning: 20 theme file(s) were never referenced by a rendered page and were not exported (template shells, build/preview artifacts, and anything a theme's own JS builds a path to at runtime all look identical from here):
+#   - NOTICE.md
+#   - assets/fonts/geist-LICENSE.txt
+#   - assets/vendor/kuinetic/LICENSE
+#   - assets/vendor/kuinetic/README.md
+#   - render/pages/listing-default.html
+#   - render/pages/pages-blank.html
+#   - render/pages/pages-default.html
+#   - render/pages/posts-default.html
+#   - render/pages/posts-sidebar.html
+#   - render/partials/footer-minimal.html
+#   - render/partials/footer.html
+#   - render/partials/nav.html
+#   - screenshots/index-light.png
+#   - screenshots/index.png
+#   - scripts/docs-sidebar.js
+#   - scripts/docs-toc.js
+#   - scripts/vendor/lightbox.js
+#   - theme.json
+#   - tokens.json
+#   - tokens.light.json
+# Subtest: exports a fresh site to static files with the default boot, composition and close
+ok 1 - exports a fresh site to static files with the default boot, composition and close
+  ---
+  duration_ms: 3028.055069
+  type: 'test'
+  ...
+# Subtest: introspectProgram: reads real commands/arguments/options off the live Command tree
+ok 2 - introspectProgram: reads real commands/arguments/options off the live Command tree
+  ---
+  duration_ms: 7.580487
+  type: 'test'
+  ...
+# Subtest: toMcpTools: reshapes the manifest into MCP tool definitions, one per command, prefixed tovu_
+ok 3 - toMcpTools: reshapes the manifest into MCP tool definitions, one per command, prefixed tovu_
+  ---
+  duration_ms: 0.783956
+  type: 'test'
+  ...
+# Subtest: introspectProgram: a nested subcommand group (theme -> validate) is flattened to its full invocation path, and the empty parent group itself is not listed
+ok 4 - introspectProgram: a nested subcommand group (theme -> validate) is flattened to its full invocation path, and the empty parent group itself is not listed
+  ---
+  duration_ms: 0.42369
+  type: 'test'
+  ...
+# Subtest: toMcpTools: a nested subcommand's tool name replaces spaces with underscores (tovu_theme_validate)
+ok 5 - toMcpTools: a nested subcommand's tool name replaces spaces with underscores (tovu_theme_validate)
+  ---
+  duration_ms: 4.468737
+  type: 'test'
+  ...
+# Subtest: toMcpTools: a boolean switch (--dry-run) is omitted from inputSchema properties — an agent has nothing to supply for it
+ok 6 - toMcpTools: a boolean switch (--dry-run) is omitted from inputSchema properties — an agent has nothing to supply for it
+  ---
+  duration_ms: 0.436514
+  type: 'test'
+  ...
+# (node:24222) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:24222) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: server boot schedules cleanup once without waiting and warns on cleanup failure
+ok 7 - server boot schedules cleanup once without waiting and warns on cleanup failure
+  ---
+  duration_ms: 11861.503532
+  type: 'test'
+  ...
+# Subtest: blank token refused (missing)
+ok 8 - blank token refused (missing)
+  ---
+  duration_ms: 2.382509
+  type: 'test'
+  ...
+# Subtest: blank token refused (0)
+ok 9 - blank token refused (0)
+  ---
+  duration_ms: 0.200272
+  type: 'test'
+  ...
+# Subtest: blank token refused (4)
+ok 10 - blank token refused (4)
+  ---
+  duration_ms: 0.193939
+  type: 'test'
+  ...
+# Subtest: normalization changes only the edges, and preserves the entire accepted alphabet
+ok 11 - normalization changes only the edges, and preserves the entire accepted alphabet
+  ---
+  duration_ms: 0.527001
+  type: 'test'
+  ...
+# Subtest: 8192 stored characters accepted, 8193 rejected with the exact limit
+ok 12 - 8192 stored characters accepted, 8193 rejected with the exact limit
+  ---
+  duration_ms: 0.40452
+  type: 'test'
+  ...
+# Subtest: plaintext metadata refused (url)
+ok 13 - plaintext metadata refused (url)
+  ---
+  duration_ms: 1.831932
+  type: 'test'
+  ...
+# Subtest: plaintext metadata refused (url)
+ok 14 - plaintext metadata refused (url)
+  ---
+  duration_ms: 0.177005
+  type: 'test'
+  ...
+# Subtest: plaintext metadata refused (url)
+ok 15 - plaintext metadata refused (url)
+  ---
+  duration_ms: 0.323587
+  type: 'test'
+  ...
+# Subtest: plaintext metadata refused (arg)
+ok 16 - plaintext metadata refused (arg)
+  ---
+  duration_ms: 1.409738
+  type: 'test'
+  ...
+# Subtest: plaintext metadata refused (arg)
+ok 17 - plaintext metadata refused (arg)
+  ---
+  duration_ms: 0.548619
+  type: 'test'
+  ...
+# Subtest: plaintext metadata refused (label)
+ok 18 - plaintext metadata refused (label)
+  ---
+  duration_ms: 0.262011
+  type: 'test'
+  ...
+# Subtest: ordinary labels, URLs and arguments remain usable
+ok 19 - ordinary labels, URLs and arguments remain usable
+  ---
+  duration_ms: 0.652339
+  type: 'test'
+  ...
+# Subtest: server-derived hints hide every character of a short token
+ok 20 - server-derived hints hide every character of a short token
+  ---
+  duration_ms: 22.091861
+  type: 'test'
+  ...
+# Subtest: new credential copy is translated for every supported admin locale
+ok 21 - new credential copy is translated for every supported admin locale
+  ---
+  duration_ms: 16.019317
+  type: 'test'
+  ...
+# Subtest: with no theme resources every directive is exact, with no trailing space
+ok 22 - with no theme resources every directive is exact, with no trailing space
+  ---
+  duration_ms: 1.950537
+  type: 'test'
+  ...
+# Subtest: theme resources contribute their origins once each, never paths
+ok 23 - theme resources contribute their origins once each, never paths
+  ---
+  duration_ms: 0.347367
+  type: 'test'
+  ...
+# Subtest: the header set is frozen
+ok 24 - the header set is frozen
+  ---
+  duration_ms: 0.223717
+  type: 'test'
+  ...
+# Subtest: childProcessCoverageEnv: sets NODE_V8_COVERAGE to exactly the given directory
+ok 25 - childProcessCoverageEnv: sets NODE_V8_COVERAGE to exactly the given directory
+  ---
+  duration_ms: 1.610265
+  type: 'test'
+  ...
+# Subtest: childProcessCoverageEnv: overrides an ambient NODE_V8_COVERAGE rather than inheriting it
+ok 26 - childProcessCoverageEnv: overrides an ambient NODE_V8_COVERAGE rather than inheriting it
+  ---
+  duration_ms: 0.51515
+  type: 'test'
+  ...
+# Subtest: childProcessCoverageEnv: carries the rest of process.env through unchanged
+ok 27 - childProcessCoverageEnv: carries the rest of process.env through unchanged
+  ---
+  duration_ms: 2.999942
+  type: 'test'
+  ...
+# Subtest: hook-registry re-exports the SAME class, so its throws match instanceof here
+ok 28 - hook-registry re-exports the SAME class, so its throws match instanceof here
+  ---
+  duration_ms: 1.050134
+  type: 'test'
+  ...
+# Subtest: PluginHookFailedError carries name, pluginId, message and cause
+ok 29 - PluginHookFailedError carries name, pluginId, message and cause
+  ---
+  duration_ms: 0.266764
+  type: 'test'
+  ...
+# Subtest: toModelFacingPluginHookError publishes only the fixed refusal and the plugin id
+ok 30 - toModelFacingPluginHookError publishes only the fixed refusal and the plugin id
+  ---
+  duration_ms: 0.818408
+  type: 'test'
+  ...
+# Subtest: PluginHookFailedError has no refused item unless a multi-item apply names one
+ok 31 - PluginHookFailedError has no refused item unless a multi-item apply names one
+  ---
+  duration_ms: 0.151318
+  type: 'test'
+  ...
+# Subtest: toModelFacingPluginHookError names the refused item and that earlier items stay saved
+ok 32 - toModelFacingPluginHookError names the refused item and that earlier items stay saved
+  ---
+  duration_ms: 0.209846
+  type: 'test'
+  ...
+# Subtest: toModelFacingPluginHookError returns any other rejection unchanged
+ok 33 - toModelFacingPluginHookError returns any other rejection unchanged
+  ---
+  duration_ms: 0.078039
+  type: 'test'
+  ...
+# Subtest: withPluginHookRefusals passes success and arguments through and reclassifies a refusal
+ok 34 - withPluginHookRefusals passes success and arguments through and reclassifies a refusal
+  ---
+  duration_ms: 2.955167
+  type: 'test'
+  ...
+# Subtest: an allowed caller's mutation executes and records exactly one change set
+ok 35 - an allowed caller's mutation executes and records exactly one change set
+  ---
+  duration_ms: 11.835967
+  type: 'test'
+  ...
+# Subtest: a denied caller's mutation never executes and no change set is written (REQ-05)
+ok 36 - a denied caller's mutation never executes and no change set is written (REQ-05)
+  ---
+  duration_ms: 1.110018
+  type: 'test'
+  ...
+# Subtest: EC-08/INV-04: authorize() runs before the idempotency check — a denied replay never leaks DUPLICATE_COMMAND
+ok 37 - EC-08/INV-04: authorize() runs before the idempotency check — a denied replay never leaks DUPLICATE_COMMAND
+  ---
+  duration_ms: 0.637738
+  type: 'test'
+  ...
+# Subtest: wiring guard: supplying only command.permission without deps.authorize throws (not a silent skip)
+ok 38 - wiring guard: supplying only command.permission without deps.authorize throws (not a silent skip)
+  ---
+  duration_ms: 0.913826
+  type: 'test'
+  ...
+# Subtest: wiring guard: supplying only deps.authorize without command.permission throws (not a silent allow)
+ok 39 - wiring guard: supplying only deps.authorize without command.permission throws (not a silent allow)
+  ---
+  duration_ms: 1.644561
+  type: 'test'
+  ...
+# Subtest: legacy path: omitting both permission and authorize preserves pre-identity behavior (no regression)
+ok 40 - legacy path: omitting both permission and authorize preserves pre-identity behavior (no regression)
+  ---
+  duration_ms: 0.448963
+  type: 'test'
+  ...
+# Subtest: conflicts constructed without version metadata expose explicit nulls
+ok 41 - conflicts constructed without version metadata expose explicit nulls
+  ---
+  duration_ms: 1.523219
+  type: 'test'
+  ...
+# Subtest: throws ChangeSetNotFoundError when no change set matches (workspace + id)
+ok 42 - throws ChangeSetNotFoundError when no change set matches (workspace + id)
+  ---
+  duration_ms: 1.16146
+  type: 'test'
+  ...
+# Subtest: throws ChangeSetInvalidStatusError when the change set is not 'applied'
+ok 43 - throws ChangeSetInvalidStatusError when the change set is not 'applied'
+  ---
+  duration_ms: 0.457585
+  type: 'test'
+  ...
+# Subtest: throws RevertNotPossibleError when no reverter is registered for the item's (entityType, operation)
+ok 44 - throws RevertNotPossibleError when no reverter is registered for the item's (entityType, operation)
+  ---
+  duration_ms: 0.425809
+  type: 'test'
+  ...
+# Subtest: throws RevertNotPossibleError when the item has no inverse payload
+ok 45 - throws RevertNotPossibleError when the item has no inverse payload
+  ---
+  duration_ms: 0.556279
+  type: 'test'
+  ...
+# Subtest: throws RevertConflictError with 'missing' when the entity no longer exists (currentVersion returns null)
+ok 46 - throws RevertConflictError with 'missing' when the entity no longer exists (currentVersion returns null)
+  ---
+  duration_ms: 0.47284
+  type: 'test'
+  ...
+# Subtest: throws RevertConflictError with the found version when the entity has since moved on (version mismatch)
+ok 47 - throws RevertConflictError with the found version when the entity has since moved on (version mismatch)
+  ---
+  duration_ms: 0.458606
+  type: 'test'
+  ...
+# Subtest: applies inverses in descending position order (last-applied item is reverted first)
+ok 48 - applies inverses in descending position order (last-applied item is reverted first)
+  ---
+  duration_ms: 2.012397
+  type: 'test'
+  ...
+# Subtest: throws ChangeSetInvalidStatusError ('already reverted concurrently') when the status changed between the initial read and the CAS re-check
+ok 49 - throws ChangeSetInvalidStatusError ('already reverted concurrently') when the status changed between the initial read and the CAS re-check
+  ---
+  duration_ms: 1.061268
+  type: 'test'
+  ...
+# Subtest: enqueues a change-set.reverted event on the outbox when one is provided
+ok 50 - enqueues a change-set.reverted event on the outbox when one is provided
+  ---
+  duration_ms: 0.896955
+  type: 'test'
+  ...
+# Subtest: completes without enqueuing anything when no outbox is provided
+ok 51 - completes without enqueuing anything when no outbox is provided
+  ---
+  duration_ms: 0.436787
+  type: 'test'
+  ...
+# Subtest: conflict message names the actor when the reverter resolves one via currentActor
+ok 52 - conflict message names the actor when the reverter resolves one via currentActor
+  ---
+  duration_ms: 0.555289
+  type: 'test'
+  ...
+# Subtest: conflict message omits the actor suffix when a currentActor method exists but resolves null
+ok 53 - conflict message omits the actor suffix when a currentActor method exists but resolves null
+  ---
+  duration_ms: 0.268937
+  type: 'test'
+  ...
+# Subtest: force:true past a stale-version conflict resolves without throwing and applies the inverse anyway
+ok 54 - force:true past a stale-version conflict resolves without throwing and applies the inverse anyway
+  ---
+  duration_ms: 0.191134
+  type: 'test'
+  ...
+# Subtest: force:true does NOT bypass a missing entity — still throws RevertConflictError
+ok 55 - force:true does NOT bypass a missing entity — still throws RevertConflictError
+  ---
+  duration_ms: 0.343273
+  type: 'test'
+  ...
+# Subtest: force omitted/false with a real mismatch is unchanged — the default path still refuses
+ok 56 - force omitted/false with a real mismatch is unchanged — the default path still refuses
+  ---
+  duration_ms: 0.302882
+  type: 'test'
+  ...
+# Subtest: force:true with an agent principal throws RevertForbiddenError before any repo read
+ok 57 - force:true with an agent principal throws RevertForbiddenError before any repo read
+  ---
+  duration_ms: 0.282203
+  type: 'test'
+  ...
+# Subtest: an agent principal WITHOUT force reverts normally — the restriction is force-specific, not agent-specific
+ok 58 - an agent principal WITHOUT force reverts normally — the restriction is force-specific, not agent-specific
+  ---
+  duration_ms: 0.329321
+  type: 'test'
+  ...
+# Subtest: checks every item's version before applying any inverse or emitting/saving a reverted record
+ok 59 - checks every item's version before applying any inverse or emitting/saving a reverted record
+  ---
+  duration_ms: 0.585429
+  type: 'test'
+  ...
+# Subtest: a change set deleted during inverse application cannot be saved back as reverted
+ok 60 - a change set deleted during inverse application cannot be saved back as reverted
+  ---
+  duration_ms: 0.418726
+  type: 'test'
+  ...
+# Subtest: L079: inverse availability is checked before any version read, including under force
+ok 61 - L079: inverse availability is checked before any version read, including under force
+  ---
+  duration_ms: 0.209886
+  type: 'test'
+  ...
+# Subtest: L079: force without principal kind is refused before any write
+ok 62 - L079: force without principal kind is refused before any write
+  ---
+  duration_ms: 0.385158
+  type: 'test'
+  ...
+# Subtest: L079: a later inverse failure leaves earlier writes applied (reported, not fixed)
+ok 63 - L079: a later inverse failure leaves earlier writes applied (reported, not fixed)
+  ---
+  duration_ms: 0.688757
+  type: 'test'
+  ...
+# Subtest: the serving owner receives the complete event after an enqueue-only daemon drain
+ok 64 - the serving owner receives the complete event after an enqueue-only daemon drain
+  ---
+  duration_ms: 8.481806
+  type: 'test'
+  ...
+# Subtest: a backing enqueue error reaches the daemon and a retry uses the same full event
+ok 65 - a backing enqueue error reaches the daemon and a retry uses the same full event
+  ---
+  duration_ms: 1.320505
+  type: 'test'
+  ...
+# Subtest: [memory] settling an unknown id leaves existing pending events untouched
+ok 66 - [memory] settling an unknown id leaves existing pending events untouched
+  ---
+  duration_ms: 4.173417
+  type: 'test'
+  ...
+# Subtest: [memory] enqueue() of an id already in the outbox is a no-op, even once delivered
+ok 67 - [memory] enqueue() of an id already in the outbox is a no-op, even once delivered
+  ---
+  duration_ms: 0.566364
+  type: 'test'
+  ...
+# Subtest: [memory] enqueue() then claimPending() returns the event as pending->processing
+ok 68 - [memory] enqueue() then claimPending() returns the event as pending->processing
+  ---
+  duration_ms: 0.383808
+  type: 'test'
+  ...
+# Subtest: [memory] claimPending never returns a row already claimed (no double-claim)
+ok 69 - [memory] claimPending never returns a row already claimed (no double-claim)
+  ---
+  duration_ms: 0.271164
+  type: 'test'
+  ...
+# Subtest: [memory] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+ok 70 - [memory] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+  ---
+  duration_ms: 0.314478
+  type: 'test'
+  ...
+# Subtest: [memory] claimPending respects batchSize
+ok 71 - [memory] claimPending respects batchSize
+  ---
+  duration_ms: 0.418148
+  type: 'test'
+  ...
+# Subtest: [memory] markDelivered removes the row from future claims
+ok 72 - [memory] markDelivered removes the row from future claims
+  ---
+  duration_ms: 0.35981
+  type: 'test'
+  ...
+# Subtest: [memory] markFailed returns the row to pending with the error and new retry time
+ok 73 - [memory] markFailed returns the row to pending with the error and new retry time
+  ---
+  duration_ms: 0.341467
+  type: 'test'
+  ...
+# Subtest: [memory] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+ok 74 - [memory] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+  ---
+  duration_ms: 0.630711
+  type: 'test'
+  ...
+# Subtest: [memory] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+ok 75 - [memory] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+  ---
+  duration_ms: 0.327227
+  type: 'test'
+  ...
+# Subtest: [memory] a row left in processing is claimed again once its claim lease has expired
+ok 76 - [memory] a row left in processing is claimed again once its claim lease has expired
+  ---
+  duration_ms: 0.566263
+  type: 'test'
+  ...
+# Subtest: [memory] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+ok 77 - [memory] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+  ---
+  duration_ms: 0.363108
+  type: 'test'
+  ...
+# Subtest: [memory] a delivered or terminally failed row is never reclaimed, however old its claim
+ok 78 - [memory] a delivered or terminally failed row is never reclaimed, however old its claim
+  ---
+  duration_ms: 0.29206
+  type: 'test'
+  ...
+# Subtest: [sqlite] settling an unknown id leaves existing pending events untouched
+ok 79 - [sqlite] settling an unknown id leaves existing pending events untouched
+  ---
+  duration_ms: 151.349819
+  type: 'test'
+  ...
+# Subtest: [sqlite] enqueue() of an id already in the outbox is a no-op, even once delivered
+ok 80 - [sqlite] enqueue() of an id already in the outbox is a no-op, even once delivered
+  ---
+  duration_ms: 147.169525
+  type: 'test'
+  ...
+# Subtest: [sqlite] enqueue() then claimPending() returns the event as pending->processing
+ok 81 - [sqlite] enqueue() then claimPending() returns the event as pending->processing
+  ---
+  duration_ms: 171.769569
+  type: 'test'
+  ...
+# Subtest: [sqlite] claimPending never returns a row already claimed (no double-claim)
+ok 82 - [sqlite] claimPending never returns a row already claimed (no double-claim)
+  ---
+  duration_ms: 124.69446
+  type: 'test'
+  ...
+# Subtest: [sqlite] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+ok 83 - [sqlite] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+  ---
+  duration_ms: 143.569763
+  type: 'test'
+  ...
+# Subtest: [sqlite] claimPending respects batchSize
+ok 84 - [sqlite] claimPending respects batchSize
+  ---
+  duration_ms: 100.884868
+  type: 'test'
+  ...
+# Subtest: [sqlite] markDelivered removes the row from future claims
+ok 85 - [sqlite] markDelivered removes the row from future claims
+  ---
+  duration_ms: 128.044902
+  type: 'test'
+  ...
+# Subtest: [sqlite] markFailed returns the row to pending with the error and new retry time
+ok 86 - [sqlite] markFailed returns the row to pending with the error and new retry time
+  ---
+  duration_ms: 193.0028
+  type: 'test'
+  ...
+# Subtest: [sqlite] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+ok 87 - [sqlite] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+  ---
+  duration_ms: 145.179691
+  type: 'test'
+  ...
+# Subtest: [sqlite] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+ok 88 - [sqlite] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+  ---
+  duration_ms: 122.733891
+  type: 'test'
+  ...
+# Subtest: [sqlite] a row left in processing is claimed again once its claim lease has expired
+ok 89 - [sqlite] a row left in processing is claimed again once its claim lease has expired
+  ---
+  duration_ms: 116.231785
+  type: 'test'
+  ...
+# Subtest: [sqlite] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+ok 90 - [sqlite] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+  ---
+  duration_ms: 101.785339
+  type: 'test'
+  ...
+# Subtest: [sqlite] a delivered or terminally failed row is never reclaimed, however old its claim
+ok 91 - [sqlite] a delivered or terminally failed row is never reclaimed, however old its claim
+  ---
+  duration_ms: 196.474092
+  type: 'test'
+  ...
+# Subtest: [sqlite] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)
+ok 92 - [sqlite] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)
+  ---
+  duration_ms: 106.331447
+  type: 'test'
+  ...
+# Subtest: [sqlite] a delivered row is not reopened by a stale claimer's late failure
+ok 93 - [sqlite] a delivered row is not reopened by a stale claimer's late failure
+  ---
+  duration_ms: 109.399237
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] settling an unknown id leaves existing pending events untouched
+ok 94 - [kysely/sqlite] settling an unknown id leaves existing pending events untouched
+  ---
+  duration_ms: 100.983405
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] enqueue() of an id already in the outbox is a no-op, even once delivered
+ok 95 - [kysely/sqlite] enqueue() of an id already in the outbox is a no-op, even once delivered
+  ---
+  duration_ms: 120.571721
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] enqueue() then claimPending() returns the event as pending->processing
+ok 96 - [kysely/sqlite] enqueue() then claimPending() returns the event as pending->processing
+  ---
+  duration_ms: 188.101699
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] claimPending never returns a row already claimed (no double-claim)
+ok 97 - [kysely/sqlite] claimPending never returns a row already claimed (no double-claim)
+  ---
+  duration_ms: 207.726524
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+ok 98 - [kysely/sqlite] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+  ---
+  duration_ms: 125.894784
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] claimPending respects batchSize
+ok 99 - [kysely/sqlite] claimPending respects batchSize
+  ---
+  duration_ms: 107.439945
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markDelivered removes the row from future claims
+ok 100 - [kysely/sqlite] markDelivered removes the row from future claims
+  ---
+  duration_ms: 109.766397
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markFailed returns the row to pending with the error and new retry time
+ok 101 - [kysely/sqlite] markFailed returns the row to pending with the error and new retry time
+  ---
+  duration_ms: 142.625493
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+ok 102 - [kysely/sqlite] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+  ---
+  duration_ms: 163.348982
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+ok 103 - [kysely/sqlite] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+  ---
+  duration_ms: 170.698691
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] a row left in processing is claimed again once its claim lease has expired
+ok 104 - [kysely/sqlite] a row left in processing is claimed again once its claim lease has expired
+  ---
+  duration_ms: 133.515255
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+ok 105 - [kysely/sqlite] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+  ---
+  duration_ms: 118.363603
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] a delivered or terminally failed row is never reclaimed, however old its claim
+ok 106 - [kysely/sqlite] a delivered or terminally failed row is never reclaimed, however old its claim
+  ---
+  duration_ms: 105.858639
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)
+ok 107 - [kysely/sqlite] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)
+  ---
+  duration_ms: 115.870842
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] a delivered row is not reopened by a stale claimer's late failure
+ok 108 - [kysely/sqlite] a delivered row is not reopened by a stale claimer's late failure
+  ---
+  duration_ms: 105.538696
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] settling an unknown id leaves existing pending events untouched
+ok 109 - [kysely/pglite] settling an unknown id leaves existing pending events untouched
+  ---
+  duration_ms: 5620.557947
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] enqueue() of an id already in the outbox is a no-op, even once delivered
+ok 110 - [kysely/pglite] enqueue() of an id already in the outbox is a no-op, even once delivered
+  ---
+  duration_ms: 40.182875
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] enqueue() then claimPending() returns the event as pending->processing
+ok 111 - [kysely/pglite] enqueue() then claimPending() returns the event as pending->processing
+  ---
+  duration_ms: 12.136807
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] claimPending never returns a row already claimed (no double-claim)
+ok 112 - [kysely/pglite] claimPending never returns a row already claimed (no double-claim)
+  ---
+  duration_ms: 35.751069
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+ok 113 - [kysely/pglite] claimPending respects nextAttemptAt — a not-yet-eligible row is not claimed
+  ---
+  duration_ms: 6.230944
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] claimPending respects batchSize
+ok 114 - [kysely/pglite] claimPending respects batchSize
+  ---
+  duration_ms: 11.466836
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markDelivered removes the row from future claims
+ok 115 - [kysely/pglite] markDelivered removes the row from future claims
+  ---
+  duration_ms: 30.899996
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markFailed returns the row to pending with the error and new retry time
+ok 116 - [kysely/pglite] markFailed returns the row to pending with the error and new retry time
+  ---
+  duration_ms: 14.235702
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+ok 117 - [kysely/pglite] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)
+  ---
+  duration_ms: 30.593007
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+ok 118 - [kysely/pglite] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)
+  ---
+  duration_ms: 10.311261
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] a row left in processing is claimed again once its claim lease has expired
+ok 119 - [kysely/pglite] a row left in processing is claimed again once its claim lease has expired
+  ---
+  duration_ms: 12.515537
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+ok 120 - [kysely/pglite] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away
+  ---
+  duration_ms: 16.717696
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] a delivered or terminally failed row is never reclaimed, however old its claim
+ok 121 - [kysely/pglite] a delivered or terminally failed row is never reclaimed, however old its claim
+  ---
+  duration_ms: 45.743271
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)
+ok 122 - [kysely/pglite] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)
+  ---
+  duration_ms: 10.536895
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] a delivered row is not reopened by a stale claimer's late failure
+ok 123 - [kysely/pglite] a delivered row is not reopened by a stale claimer's late failure
+  ---
+  duration_ms: 10.878293
+  type: 'test'
+  ...
+# Subtest: AC-10: plan() succeeds for a principal holding only {domain}.read and produces no state change
+ok 124 - AC-10: plan() succeeds for a principal holding only {domain}.read and produces no state change
+  ---
+  duration_ms: 2.801038
+  type: 'test'
+  ...
+# Subtest: AC-11: plan() returns an identical planHash for user, agent, and api_key principal kinds holding the same permission
+ok 125 - AC-11: plan() returns an identical planHash for user, agent, and api_key principal kinds holding the same permission
+  ---
+  duration_ms: 0.54581
+  type: 'test'
+  ...
+# Subtest: AC-09: plan() rejects when the caller lacks {domain}.read
+ok 126 - AC-09: plan() rejects when the caller lacks {domain}.read
+  ---
+  duration_ms: 1.493177
+  type: 'test'
+  ...
+# Subtest: architectural guard (AC-09): gateway.ts exposes no direct single-call mutation entry point beyond plan/confirm/execute
+ok 127 - architectural guard (AC-09): gateway.ts exposes no direct single-call mutation entry point beyond plan/confirm/execute
+  ---
+  duration_ms: 1.319549
+  type: 'test'
+  ...
+# Subtest: AC-12: an agent principal calling confirm() is rejected regardless of any permission it holds
+ok 128 - AC-12: an agent principal calling confirm() is rejected regardless of any permission it holds
+  ---
+  duration_ms: 0.455553
+  type: 'test'
+  ...
+# Subtest: AC-13 / INV-04: a user lacking the gated mutation's permission calling confirm() is rejected and no token is minted
+ok 129 - AC-13 / INV-04: a user lacking the gated mutation's permission calling confirm() is rejected and no token is minted
+  ---
+  duration_ms: 0.199452
+  type: 'test'
+  ...
+# Subtest: AC-14: an authorized user's confirm() mints a token with exactly a 600-second TTL bound to (planHash, scopeId, confirmerPrincipalId)
+ok 130 - AC-14: an authorized user's confirm() mints a token with exactly a 600-second TTL bound to (planHash, scopeId, confirmerPrincipalId)
+  ---
+  duration_ms: 1.562745
+  type: 'test'
+  ...
+# Subtest: AC-14: a confirmed token cannot execute in another scope with the same principal and plan hash
+ok 131 - AC-14: a confirmed token cannot execute in another scope with the same principal and plan hash
+  ---
+  duration_ms: 1.206825
+  type: 'test'
+  ...
+# Subtest: AC-15 / U-001-B1 / U-001-ORD1: authorize() is evaluated fresh before the token expiry/redemption-state check — an unauthorized caller with an independently-expired token sees FORBIDDEN, never TOKEN_EXPIRED
+ok 132 - AC-15 / U-001-B1 / U-001-ORD1: authorize() is evaluated fresh before the token expiry/redemption-state check — an unauthorized caller with an independently-expired token sees FORBIDDEN, never TOKEN_EXPIRED
+  ---
+  duration_ms: 0.805246
+  type: 'test'
+  ...
+# Subtest: U-001-ORD2: the token expiry/redemption-state check completes before the actor-class rule — an already-redeemed token from an actor-class-mismatched caller reports TOKEN_ALREADY_REDEEMED, not FORBIDDEN
+ok 133 - U-001-ORD2: the token expiry/redemption-state check completes before the actor-class rule — an already-redeemed token from an actor-class-mismatched caller reports TOKEN_ALREADY_REDEEMED, not FORBIDDEN
+  ---
+  duration_ms: 0.841437
+  type: 'test'
+  ...
+# Subtest: AC-18 / EC-08: a user redeeming a token minted by a different user is rejected with FORBIDDEN/ACTOR_CLASS_MISMATCH
+ok 134 - AC-18 / EC-08: a user redeeming a token minted by a different user is rejected with FORBIDDEN/ACTOR_CLASS_MISMATCH
+  ---
+  duration_ms: 0.435511
+  type: 'test'
+  ...
+# Subtest: AC-19 / EC-07: an agent redeeming a token whose confirmerPrincipalId is not its current delegatedBy is rejected
+ok 135 - AC-19 / EC-07: an agent redeeming a token whose confirmerPrincipalId is not its current delegatedBy is rejected
+  ---
+  duration_ms: 0.308859
+  type: 'test'
+  ...
+# Subtest: AC-20: an agent redeeming a token whose confirmerPrincipalId equals its current delegatedBy succeeds
+ok 136 - AC-20: an agent redeeming a token whose confirmerPrincipalId equals its current delegatedBy succeeds
+  ---
+  duration_ms: 0.268922
+  type: 'test'
+  ...
+# Subtest: AC-16 / AC-17 / U-001-B3: a recomputed plan hash mismatch rejects with PLAN_STALE before any mutation runs
+ok 137 - AC-16 / AC-17 / U-001-B3: a recomputed plan hash mismatch rejects with PLAN_STALE before any mutation runs
+  ---
+  duration_ms: 0.60102
+  type: 'test'
+  ...
+# Subtest: AC-38 / U-001-B2 / U-001-ORD3: actor-class mismatch AND a stale plan together report FORBIDDEN, never PLAN_STALE
+ok 138 - AC-38 / U-001-B2 / U-001-ORD3: actor-class mismatch AND a stale plan together report FORBIDDEN, never PLAN_STALE
+  ---
+  duration_ms: 1.07034
+  type: 'test'
+  ...
+# Subtest: REQ-11 / AC-35: execute() with a confirmationToken string never minted by this contract returns TOKEN_EXPIRED, indistinguishable from a genuinely expired token
+ok 139 - REQ-11 / AC-35: execute() with a confirmationToken string never minted by this contract returns TOKEN_EXPIRED, indistinguishable from a genuinely expired token
+  ---
+  duration_ms: 1.812571
+  type: 'test'
+  ...
+# Subtest: AC-22 / REQ-15: execute() re-evaluates authorize() fresh, reflecting a delegator permission change since confirm()-time, never a cached confirm-time result
+ok 140 - AC-22 / REQ-15: execute() re-evaluates authorize() fresh, reflecting a delegator permission change since confirm()-time, never a cached confirm-time result
+  ---
+  duration_ms: 0.933027
+  type: 'test'
+  ...
+# Subtest: execute() succeeds exactly once for a valid token satisfying every check, and stamps a single mutation run (INV-03 exactly-once)
+ok 141 - execute() succeeds exactly once for a valid token satisfying every check, and stamps a single mutation run (INV-03 exactly-once)
+  ---
+  duration_ms: 0.574006
+  type: 'test'
+  ...
+# Subtest: concurrent execute() calls with one valid token permit exactly one mutation
+ok 142 - concurrent execute() calls with one valid token permit exactly one mutation
+  ---
+  duration_ms: 0.849615
+  type: 'test'
+  ...
+# Subtest: execute() passes the re-derived verified plan hash and details to the mutation
+ok 143 - execute() passes the re-derived verified plan hash and details to the mutation
+  ---
+  duration_ms: 0.542382
+  type: 'test'
+  ...
+# Subtest: instance scope: full plan()->confirm()->execute() ceremony succeeds for a principal authorizeInstance grants, and the workspace-scoped evaluator is never consulted
+ok 144 - instance scope: full plan()->confirm()->execute() ceremony succeeds for a principal authorizeInstance grants, and the workspace-scoped evaluator is never consulted
+  ---
+  duration_ms: 1.882854
+  type: 'test'
+  ...
+# Subtest: instance scope: a workspace-scoped admin (deps.authorize always allows) is REFUSED at plan(), even though it holds the workspace permission
+ok 145 - instance scope: a workspace-scoped admin (deps.authorize always allows) is REFUSED at plan(), even though it holds the workspace permission
+  ---
+  duration_ms: 0.393721
+  type: 'test'
+  ...
+# Subtest: instance scope: a workspace-scoped admin is REFUSED at confirm() too, and no token is minted for it
+ok 146 - instance scope: a workspace-scoped admin is REFUSED at confirm() too, and no token is minted for it
+  ---
+  duration_ms: 0.439246
+  type: 'test'
+  ...
+# Subtest: instance scope: execute() re-checks the instance evaluator fresh and refuses a workspace-scoped admin even for an otherwise-valid token
+ok 147 - instance scope: execute() re-checks the instance evaluator fresh and refuses a workspace-scoped admin even for an otherwise-valid token
+  ---
+  duration_ms: 0.282005
+  type: 'test'
+  ...
+# Subtest: instance scope: fails closed with INSTANCE_AUTHORIZATION_NOT_CONFIGURED when deps.authorizeInstance is not bound at all
+ok 148 - instance scope: fails closed with INSTANCE_AUTHORIZATION_NOT_CONFIGURED when deps.authorizeInstance is not bound at all
+  ---
+  duration_ms: 0.253977
+  type: 'test'
+  ...
+# Subtest: workspace scope (default, regression guard): omitting scopeKind still routes through deps.authorize with the hooks' scopeId as workspaceId, unaffected by the instance-scope addition
+ok 149 - workspace scope (default, regression guard): omitting scopeKind still routes through deps.authorize with the hooks' scopeId as workspaceId, unaffected by the instance-scope addition
+  ---
+  duration_ms: 0.21744
+  type: 'test'
+  ...
+# Subtest: the headless barrel exposes exactly the owning modules' runtime values
+ok 150 - the headless barrel exposes exactly the owning modules' runtime values
+  ---
+  duration_ms: 2.284015
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server
+ok 151 - install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server
+  ---
+  duration_ms: 126.188261
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty
+ok 152 - approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty
+  ---
+  duration_ms: 188.34484
+  type: 'test'
+  ...
+# Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+# Subtest: Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update
+ok 153 - Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update
+  ---
+  duration_ms: 195.920668
+  type: 'test'
+  ...
+# Subtest: uninstall keeps memory/data by default; reinstall resumes it; explicit preview-bound deletion removes the plugin folder
+ok 154 - uninstall keeps memory/data by default; reinstall resumes it; explicit preview-bound deletion removes the plugin folder
+  ---
+  duration_ms: 267.882193
+  type: 'test'
+  ...
+# Subtest: notes autoload in pinned skill guidance; learned knowledge does not; package notes-seed is ignored
+ok 155 - notes autoload in pinned skill guidance; learned knowledge does not; package notes-seed is ignored
+  ---
+  duration_ms: 96.22131
+  type: 'test'
+  ...
+# Plugin 'staging' has no publisher-qualified id; using 'unknown/staging'.
+# Subtest: learned capability refuses traversal, sibling plugin aliases, notes writes, invalid UTF-8 and size overflows
+ok 156 - learned capability refuses traversal, sibling plugin aliases, notes writes, invalid UTF-8 and size overflows
+  ---
+  duration_ms: 151.980378
+  type: 'test'
+  ...
+# Subtest: memory tools cannot select a different plugin/kind and obey the per-call revocation gate
+ok 157 - memory tools cannot select a different plugin/kind and obey the per-call revocation gate
+  ---
+  duration_ms: 26.55898
+  type: 'test'
+  ...
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-4inXPd/ws/workspace-local/packages/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae -> /tmp/plugin-layout-b-4inXPd/ws/workspace-local/example/package/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-4inXPd/ws/workspace-local/memory/example -> /tmp/plugin-layout-b-4inXPd/ws/workspace-local/example/memory
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-4inXPd/ws/workspace-local/data/example -> /tmp/plugin-layout-b-4inXPd/ws/workspace-local/example/data
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-4inXPd/ws/workspace-local
+# Subtest: migration moves legacy packages, Layout A memory and PLUGIN_DATA once, preserving frozen modes and activations
+ok 158 - migration moves legacy packages, Layout A memory and PLUGIN_DATA once, preserving frozen modes and activations
+  ---
+  duration_ms: 121.725821
+  type: 'test'
+  ...
+# Plugin 'first' has no publisher-qualified id; using 'unknown/first'.
+# Subtest: migration resumes after interruption, isolates malformed manifests, and serializes concurrent boots
+ok 159 - migration resumes after interruption, isolates malformed manifests, and serializes concurrent boots
+  ---
+  duration_ms: 79.922043
+  type: 'test'
+  ...
+# [agent-plugins:migration-quarantined] /tmp/plugin-layout-b-sHQmhM/ws/workspace-local/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff -> /tmp/plugin-layout-b-sHQmhM/ws/workspace-local/staging/legacy-quarantine/2026-11-12T02-09-42.937Z-22a5d429-fa59-4964-978a-dcd5a9af037a/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff: SyntaxError: Unexpected token 'b', "bad json" is not valid JSON
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-sHQmhM/ws/workspace-local
+# Subtest: malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next
+ok 160 - malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next
+  ---
+  duration_ms: 85.497503
+  type: 'test'
+  ...
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-0ksgCw/ws/workspace-local/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-0ksgCw/ws/workspace-local/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-0ksgCw/ws/workspace-local
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-0ksgCw/ws/ws-second/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-0ksgCw/ws/ws-second/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-0ksgCw/ws/ws-second
+# Subtest: site boot migrates every existing workspace before seeding the active one
+ok 161 - site boot migrates every existing workspace before seeding the active one
+  ---
+  duration_ms: 63.070604
+  type: 'test'
+  ...
+# Subtest: a crash after rename but before permission restoration never leaves the migrated package writable
+ok 162 - a crash after rename but before permission restoration never leaves the migrated package writable
+  ---
+  duration_ms: 27.518185
+  type: 'test'
+  ...
+# Subtest: other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+ok 163 - other host grant uses its projection pair and saved actor, skips failed servers, and preserves explicit decline
+  ---
+  duration_ms: 13.684293
+  type: 'test'
+  ...
+# Subtest: approved grant failure uses safe host guidance; advisory healing warns and continues
+ok 164 - approved grant failure uses safe host guidance; advisory healing warns and continues
+  ---
+  duration_ms: 14.622285
+  type: 'test'
+  ...
+# Subtest: boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+ok 165 - boot reads one host snapshot after listing and never grants an off plugin or a previously attributed row
+  ---
+  duration_ms: 9.57186
+  type: 'test'
+  ...
+# Subtest: import keeps an existing credential and finishes switch-on without replacement
+ok 166 - import keeps an existing credential and finishes switch-on without replacement
+  ---
+  duration_ms: 2.400981
+  type: 'test'
+  ...
+# Subtest: env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+ok 167 - env import requires the seeded digest, honors pending tokens, uses host actor and screen, and keeps failures secret
+  ---
+  duration_ms: 22.547406
+  type: 'test'
+  ...
+# Subtest: installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+ok 168 - installed listing uses the one host ledger, preferred selection and fresh declaration reads, first id wins
+  ---
+  duration_ms: 0.693166
+  type: 'test'
+  ...

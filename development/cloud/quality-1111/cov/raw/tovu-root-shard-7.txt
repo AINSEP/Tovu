@@ -239,4 +239,1665 @@ X...................
 ....................
 ....X...............
 ....................
-.............X.....
+.............X......
+.X..................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+..............XXXXXX
+XXXXXXXXXXXXXXXXXXXX
+XXXXXX.............X
+....................
+....................
+...............
+
+Failed tests:
+
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (2720.148455ms)
+  AssertionError [ERR_ASSERTION]: catalog
+  + actual - expected
+  
+    {
+  +   bytes: 752572,
+  -   bytes: 752240,
+      names: 328
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:163:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { names: 328, bytes: 752572 },
+    expected: { names: 328, bytes: 752240 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ postgres: persisted notifications survive restart, honour 429 delay and stop uncertain resend (90.95017ms)
+  Error: failed to drop fixture database "tovu_mail_restart_outcomes": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at store (/home/user/Tovu/apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts:40:30)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts:82:27)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ postgres: restart after acceptance before ledger mark does not send twice (35.078123ms)
+  Error: failed to drop fixture database "tovu_mail_restart_acceptance": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at store (/home/user/Tovu/apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts:40:30)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts:132:27)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ PostgreSQL persists only the consumer reference across pools; a copied reference cannot grant access (150.096258ms)
+  Error: failed to drop fixture database "tovu_shared_oauth_binding_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/shared-bindings.postgres.test.ts:17:28)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ the CLI exits successfully and prints OK when the real repository has no seal violations (20073.631909ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + Error: spawnSync /root/.local/node24/bin/node ETIMEDOUT
+  +     at Object.spawnSync (node:internal/child_process:1191:20)
+  +     at spawnSync (node:child_process:929:24)
+  +     at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts:172:18)
+  +     at Test.runInAsyncScope (node:async_hooks:227:14)
+  +     at Test.run (node:internal/test_runner/test:1402:25)
+  +     at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+  +     at Test.postRun (node:internal/test_runner/test:1542:19)
+  +     at Test.run (node:internal/test_runner/test:1467:12)
+  +     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+  +   code: 'ETIMEDOUT',
+  +   errno: -110,
+  +   path: '/root/.local/node24/bin/node',
+  +   spawnargs: [
+  +     '--import',
+  +     'tsx',
+  +     '/home/user/Tovu/apps/website/src/features/webhooks/seal-aad-invariant.ts'
+  +   ],
+  +   syscall: 'spawnSync /root/.local/node24/bin/node'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts:177:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: spawnSync /root/.local/node24/bin/node ETIMEDOUT
+        at Object.spawnSync (node:internal/child_process:1191:20)
+        at spawnSync (node:child_process:929:24)
+        at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts:172:18)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19)
+        at Test.run (node:internal/test_runner/test:1467:12)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ FIXTURE_DB is namespaced by this run's own process.pid — two different pids can never compute the same fixture database name, which is the entire fix for the collision (1.052387ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid has died, and leaves one whose pid is still alive completely untouched (0.075759ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ sweepStaleFixtureDatabases: a non-canonical suffix Number() would coerce into a plausible dead pid is never touched, even though the pre-fix Number()-based guard would have dropped it (0.037505ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ CANONICAL_PID_SUFFIX: matches only a bare decimal pid shape; rejects every adversarial suffix Number() would otherwise coerce (0.038669ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ int4 rejects 2147483648 on a live server; int8 accepts the identical value (0.028694ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ reseedSequenceSql, executed after a copy that preserved original ids, makes the next plain insert land at max+1 with no collision (0.244449ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ reseedSequenceSql handles the empty-table edge case: reseeding an empty table still starts identity at 1 (3.504915ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ reseedSequenceSql: a table containing ONLY non-positive copied ids (0 and -1) reseeds to 1, not a collision and not a jump to 2 (0.221236ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ reseedSequenceSql: a mixed-sign table (some non-positive, some positive ids) still reseeds to max+1 — the non-positive-id fix does not regress the ordinary case (0.36599ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ a plain INSERT naming an explicit identity-column value fails WITHOUT OVERRIDING SYSTEM VALUE, and succeeds WITH it (0.140416ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ COPY accepts an explicit identity-column value with NO override syntax at all — the override clause this manifest exports must never be prepended to a COPY statement (0.033415ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ a naive-local timestamp string casts to a DIFFERENT instant depending on the reading session's timezone; a UTC-offset string does not (0.029177ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ string-collation ORDER BY on a text timestamp column disagrees with chronological ORDER BY when Z and offset forms mix — the concrete mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents (0.023814ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the bound a UTC-offset check must enforce, not the ±23:59 Date.parse allows (0.032333ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ a plain Postgres text column silently accepts malformed JSON — proving a json-text column needs a semantic check beyond either dialect's type system (1.039624ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ publish backstop audit is workspace-scoped core data included once in the Postgres copy catalog (0.111577ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+✖ /home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts (33.480269ms)
+  Error: failed to drop fixture database "tovu_migration_fixture_3943": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:180:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+✖ findSiteKeyDependentData: Postgres (env) site — a clean database is no data; a sealed row is data (30.861491ms)
+  Error: failed to drop fixture database "tovu_site_key_dependent_data_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts:29:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts (37.257839ms)
+  Error: failed to drop fixture database "tovu_site_key_dependent_data_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts:19:13)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+✖ AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (object) (350.580315ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+        "[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable"
+      ]
+    ]
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:683:14)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:83:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:667:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable" ] ],
+    expected: [ [ "[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable" ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (string) (261.792531ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+  +     "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +     "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +       '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +       '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +   ],
+  +   [
+        "[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable"
+      ]
+    ]
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:683:14)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:83:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:667:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ "[plugin-runtime] bundled initialization failed for 'charts-recharts'", `PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}` ], [ "[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable" ] ],
+    expected: [ [ "[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable" ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs (790.009643ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'plugin.recharts'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/browser-provider.integration.test.ts:26:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'plugin.recharts',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (3148.853673ms)
+  AssertionError [ERR_ASSERTION]: expected the daemon to start listening, but it exited:
+  [agent-daemon] failed to start standalone daemon requires its site binding
+  
+  + actual - expected
+  
+  + 'exited'
+  - 'listening'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts:92:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'exited',
+    expected: 'listening',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault (1351.80323ms)
+  AssertionError [ERR_ASSERTION]
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts:166:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+✖ a running site is refused; nothing changes (0.615916ms)
+  Error: failed to drop fixture database "tovu_move_site_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:64:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:63:1)
+✖ a target that already holds data is refused; nothing changes (0.078903ms)
+  Error: failed to drop fixture database "tovu_move_site_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:64:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:63:1)
+✖ a row written to the target after the emptiness check refuses the copy; nothing is truncated (0.043365ms)
+  Error: failed to drop fixture database "tovu_move_site_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:64:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:63:1)
+✖ a failure after the copy rolls the target back and leaves the site on PGlite (0.040887ms)
+  Error: failed to drop fixture database "tovu_move_site_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:64:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:63:1)
+✖ the move copies every table, seals the secret, switches the meta last, and the site boots on Postgres (0.072608ms)
+  Error: failed to drop fixture database "tovu_move_site_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:64:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:63:1)
+✖ /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts (36.680124ms)
+  Error: failed to drop fixture database "tovu_move_site_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts:98:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+✖ Tovu consumes agent and provider subpaths and declares no standalone vendor packages (7.545719ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '^0.7.0'
+  - '^0.6.23'
+        ^
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts:497:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '^0.7.0',
+    expected: '^0.6.23',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ an accepted memory-mode answer reaches CLI launch through the site's attempt authority (1222.50471ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + null
+  - 'cli-session'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts:50:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 'cli-session',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ BYOK repeats pinned guidance while retaining good picks around failures (reported, not fixed) (324.126802ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Relevant agent plugins for this request:/. Input:
+  
+  `Before planning or building this site, call site_guide({"operation":"overview"}), then site_guide({"operation":"explain","topic":"<topic id from overview>"}) for the relevant building blocks. If tools are proxied, use execute_readonly_delegated_tool with toolId "site_guide" and that input; search_tools can locate it. Respect the caller permissions and unavailable facts it reports. When asked to open, bring up, show, or take the user to an admin entity, use page.navigate with its entity target, then discover and click its details handle if needed. This includes plugins and skills; loading their text is for requests to use or apply them. Check the returned target and after state, including expanded when present, before reporting success; inspect with page.find_elements if the result is inconclusive. Answer direct questions in words before opening a card. Explain what each card does and name it plainly; never call cards boxes. Even with Full CLI access, use these Tovu tools instead of Bash/shell for site work: list site files with fs_list_files; list/read theme files with theme_list_files and theme_read_file; import assets with media_import_local_file (disk) or media_import_from_url (HTTPS). For an external folder, ask the owner to select it with the chat composer folder button, then use root "custom". The open post/page editor automatically picks up successful assistant edits when it has no unsaved changes and is not saving; the editor URL follows a changed slug. Unsaved local edits are preserved and the editor offers a conflict choice. Do not tell the user to reload the editor or claim its URL still uses the old slug. Declare optional theme/plugin scripts as {src, consent:[category]} rather than pasting executable tracker tags into page HTML. Omitted consent runs automatically; several categories must all be allowed. Use window.jiniConsent.allows({consent:[...]}) for permission checks. Keep ordinary stored comments visible and gate only their optional scripts. Existing raw scripts need explicit author review; adding a declaration does not disable the old tag. Full-document themes need a supported document asset slot before consent can load; report that gap and never rewrite stored pages or promise blanket protection. You are the Tovu admin assistant, running with the operator's own AI provider key (BYOK mode). Use the tools you are given to inspect and manage this Tovu site on the operator's behalf. Keep replies short and direct: lead with the answer, skip preamble and skip restating the request. Use headers, lists, or tables only when they carry real structure. Give full detail when asked, and never trade correctness for brevity — error text, failing output, and confirmations for destructive actions keep their full content. Only call tools that exist in your tool list; never invent one. Never ask the human to type or paste a key, token, password or connection string into chat, assistant_ask_choice or a question-form. When a task needs a missing vendor credential, inspect content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities, then open the matching secure card in the same turn: Reuse the configured provider connection (including a server environment credential). credentialConfigured:true with ready:false or verified:null does not mean credentials are missing. Do not open a replacement card unless the person explicitly requests replacement or that configured connection actually failed authentication. Network, export and deployment failures are not authentication failures. Prefer credential_save with kind plugin-provider and the target declared by the installed plugin’s skill; that card supplies its own connection and permission guidance. Hosted sign-in uses agent_plugin_connect and the plugin’s own sign-in card. If no plugin declares a suitable card, use the domain fallback: Open credential_save with kind media-provider for AI image/video keys, source-control for git host credentials, publish-host for static hosting, or api for any other API (a payments or email API, registrar, or hosting provider). Set target to the provider id; for api rotation target is the exact saved label, while api creation uses optional label/baseUrl/category hints without target. Use agent-plugin-token only as the token fallback after agent_plugin_connect cannot start sign-in; target is the installed plugin id. MCP server configuration uses external_mcp_save. To set a new environment secret on an app, use deployment_ops_set_secret with source {kind:'typed'} to open its masked card. After a successful card save, retry the original request exactly once; never start a second recovery cycle. Only notify about a secret removed from the current user message when this turn carries an explicit redaction notice. Never infer a new paste from [token removed], older history or an earlier assistant warning; never repeat an earlier warning. Do not repeat a removed value. Tell the user to rotate it if real; a redaction alone does not require a credential card or replacing a configured connection. Open a card only for a missing credential needed by the task, an actual authentication failure, or an explicit replacement request. Use an already pending credential card when exactly one is open.  Prefer recoverable Trash. Use a permanent-delete tool only if it is available to you; each call requires a human confirmation of the exact targets. If it is unavailable, reply with a direct link to its human admin screen: trash_empty: /admin/trash; trash_purge_item: /admin/trash; media_purge_asset: /admin/trash; comments_purge_comment: /admin/trash; identity_user_delete: /admin/trash; deployment_ops_unset_secret: there is no Tovu admin screen for this operation; say so; external_mcp_delete: /admin/addons/integrations?tab=external-mcp; custom_credential_delete: /admin/access-tokens?tab=access-tokens; deployment_delete_provider_credential: /admin/access-tokens?tab=access-tokens; source_control_delete_credential: /admin/access-tokens?tab=access-tokens; webhooks_delete_subscription: /admin/addons/integrations?tab=webhooks; identity_role_delete: /admin/roles; identity_policy_delete: /admin/roles. Never change the owner's chat-delete setting yourself. workspace_delete and collections_execute_cleanup are never available from chat. Secrets, credentials and MCP connections have no Trash screen.\n` +
+    '\n' +
+    '<<AGENT_PLUGIN pluginId="pin-guidance">>\n' +
+    '---\n' +
+    'name: pin-guidance\n' +
+    'description: Holography guidance\n' +
+    '---\n' +
+    'Preserve the unique pin guidance.\n' +
+    '\n' +
+    `The SKILL.md above is this Agent Plugin's own instructions — follow them, including any files it directs you to load before starting work. Readable supporting files are listed relative to this skill folder. Request one with load_agent_plugin({"pluginId":"pin-guidance","skill":"pin-guidance","file":"<relative path>"}).\n` +
+    'files: []\n' +
+    '<</AGENT_PLUGIN>>'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-byok.inputs-pin.test.ts:113:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `Before planning or building this site, call site_guide({"operation":"overview"}), then site_guide({"operation":"explain","topic":"<topic id from overview>"}) for the relevant building blocks. If tools are proxied, use execute_readonly_delegated_tool with toolId "site_guide" and that input; search_tools can locate it. Respect the caller permissions and unavailable facts it reports. When asked to open, bring up, show, or take the user to an admin entity, use page.navigate with its entity target, then discover and click its details handle if needed. This includes plugins and skills; loading their text is for requests to use or apply them. Check the returned target and after state, including expanded when present, before reporting success; inspect with page.find_elements if the result is inconclusive. Answer direct questions in words before opening a card. Explain what each card does and name it plainly; never call cards boxes. Even with Full CLI access, use these Tovu tools instead of Bash/shell for site work: list site files with fs_list_files; list/read theme files with theme_list_files and theme_read_file; import assets with media_import_local_file (disk) or media_import_from_url (HTTPS). For an external folder, ask the owner to select it with the chat composer folder button, then use root "custom". The open post/page editor automatically picks up successful assistant edits when it has no unsaved changes and is not saving; the editor URL follows a changed slug. Unsaved local edits are preserved and the editor offers a conflict choice. Do not tell the user to reload the editor or claim its URL still uses the old slug. Declare optional theme/plugin scripts as {src, consent:[category]} rather than pasting executable tracker tags into page HTML. Omitted consent runs automatically; several categories must all be allowed. Use window.jiniConsent.allows({consent:[...]}) for permission checks. Keep ordinary stored comments visible and gate only their optional scripts. Existing raw scripts need explicit author review; adding a declaration does not disable the old tag. Full-document themes need a supported document asset slot before consent can load; report that gap and never rewrite stored pages or promise blanket protection. You are the Tovu admin assistant, running with the operator's own AI provider key (BYOK mode). Use the tools you are given to inspect and manage this Tovu site on the operator's behalf. Keep replies short and direct: lead with the answer, skip preamble and skip restating the request. Use headers, lists, or tables only when they carry real structure. Give full detail when asked, and never trade correctness for brevity — error text, failing output, and confirmations for destructive actions keep their full content. Only call tools that exist in your tool list; never invent one. Never ask the human to type or paste a key, token, password or connection string into chat, assistant_ask_choice or a question-form. When a task needs a missing vendor credential, inspect content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities, then open the matching secure card in the same turn: Reuse the configured provider connection (including a server environment credential). credentialConfigured:true with ready:false or verified:null does not mean credentials are missing. Do not open a replacement card unless the person explicitly requests replacement or that configured connection actually failed authentication. Network, export and deployment failures are not authentication failures. Prefer credential_save with kind plugin-provider and the target declared by the installed plugin’s skill; that card supplies its own connection and permission guidance. Hosted sign-in uses agent_plugin_connect and the plugin’s own sign-in card. If no plugin declares a suitable card, use the domain fallback: Open credential_save with kind media-provider for AI image/video keys, source-control for git host credentials, publish-host for static hosting, or api for any other API (a payments or email API, registrar, or hosting provider). Set target to the provider id; for api rotation target is the exact saved label, while api creation uses optional label/baseUrl/category hints without target. Use agent-plugin-token only as the token fallback after agent_plugin_connect cannot start sign-in; target is the installed plugin id. MCP server configuration uses external_mcp_save. To set a new environment secret on an app, use deployment_ops_set_secret with source {kind:'typed'} to open its masked card. After a successful card save, retry the original request exactly once; never start a second recovery cycle. Only notify about a secret removed from the current user message when this turn carries an explicit redaction notice. Never infer a new paste from [token removed], older history or an earlier assistant warning; never repeat an earlier warning. Do not repeat a removed value. Tell the user to rotate it if real; a redaction alone does not require a credential card or replacing a configured connection. Open a card only for a missing credential needed by the task, an actual authentication failure, or an explicit replacement request. Use an already pending credential card when exactly one is open.  Prefer recoverable Trash. Use a permanent-delete tool only if it is available to you; each call requires a human confirmation of the exact targets. If it is unavailable, reply with a direct link to its human admin screen: trash_empty: /admin/trash; trash_purge_item: /admin/trash; media_purge_asset: /admin/trash; comments_purge_comment: /admin/trash; identity_user_delete: /admin/trash; deployment_ops_unset_secret: there is no Tovu admin screen for this operation; say so; external_mcp_delete: /admin/addons/integrations?tab=external-mcp; custom_credential_delete: /admin/access-tokens?tab=access-tokens; deployment_delete_provider_credential: /admin/access-tokens?tab=access-tokens; source_control_delete_credential: /admin/access-tokens?tab=access-tokens; webhooks_delete_subscription: /admin/addons/integrations?tab=webhooks; identity_role_delete: /admin/roles; identity_policy_delete: /admin/roles. Never change the owner's chat-delete setting yourself. workspace_delete and collections_execute_cleanup are never available from chat. Secrets, credentials and MCP connections have no Trash screen.\n\n<<AGENT_PLUGIN pluginId="pin-guidance">>\n---\nname: pin-guidance\ndescription: Holography guidance\n---\nPreserve the unique pin guidance.\n\nThe SKILL.md above is this Agent Plugin's own instructions — follow them, including any files it directs you to load before starting work. Readable supporting files are listed relative to this skill folder. Request one with load_agent_plugin({"pluginId":"pin-guidance","skill":"pin-guidance","file":"<relative path>"}).\nfiles: []\n<</AGENT_PLUGIN>>`,
+    expected: /Relevant agent plugins for this request:/,
+    operator: 'match',
+    diff: 'simple'
+  }
+✖ valid shipped declaration: 4,500 combinations match frozen HEAD for every consumer (2.554611ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ valid shipped declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.726559ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ missing declaration: 4,500 combinations match frozen HEAD for every consumer (0.429089ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ missing declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.346325ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ unreadable manifest: 4,500 combinations match frozen HEAD for every consumer (0.407445ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ unreadable manifest: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.322673ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ malformed JSON: 4,500 combinations match frozen HEAD for every consumer (0.399494ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ malformed JSON: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.3813ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ missing metadata: 4,500 combinations match frozen HEAD for every consumer (0.446764ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ missing metadata: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.278207ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ malformed declaration: 4,500 combinations match frozen HEAD for every consumer (0.456109ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ malformed declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.300807ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ empty security declaration: 4,500 combinations match frozen HEAD for every consumer (0.321509ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ empty security declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.315502ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ partial security declaration: 4,500 combinations match frozen HEAD for every consumer (0.302251ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ partial security declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.286445ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ weakened security facts: 4,500 combinations match frozen HEAD for every consumer (0.340214ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ weakened security facts: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.253007ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ ambiguous cross-package ownership: 4,500 combinations match frozen HEAD for every consumer (0.281628ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ ambiguous cross-package ownership: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.272034ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ ambiguous ownership within package: 4,500 combinations match frozen HEAD for every consumer (0.20056ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ ambiguous ownership within package: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.168119ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ conflicting advice: 4,500 combinations match frozen HEAD for every consumer (0.240173ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ conflicting advice: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.254597ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ unresolved product root: 4,500 combinations match frozen HEAD for every consumer (0.370424ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ unresolved product root: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.208734ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ absent source root: 4,500 combinations match frozen HEAD for every consumer (0.329683ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ absent source root: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.196346ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ reader failure: 4,500 combinations match frozen HEAD for every consumer (0.203578ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ reader failure: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.158573ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ missing advice: 4,500 combinations match frozen HEAD for every consumer (0.282622ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:178:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ missing advice: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.273817ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      fileWrite: true,
+      loginEnvironment: true,
+      shell: true,
+      subagents: true,
+  +   userMcp: true,
+  -   userMcp: false,
+      userSettings: true,
+      web: true,
+      workflows: true
+    }
+  
+      at assertHeadConsumers (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:112:10)
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs:197:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { shell: true, fileWrite: true, userMcp: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true },
+    expected: { shell: true, fileWrite: true, subagents: true, userSettings: true, web: true, workflows: true, loginEnvironment: true, userMcp: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ U1: every bundled public export template passes the single CMS fragment validator (10.941068ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "executable or unsupported widget element"
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:111:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: executable or unsupported widget element
+        at assertAllowedNode (/home/user/Jini/packages/cms/src/widgets/html/server-fragment.ts:38:112)
+        at assertAllowedNode (/home/user/Jini/packages/cms/src/widgets/html/server-fragment.ts:41:40)
+        at validateServerWidgetFragment (/home/user/Jini/packages/cms/src/widgets/html/server-fragment.ts:51:39)
+        at fillPluginExportTemplate (/home/user/Jini/packages/cms/src/widgets/html/plugin-export.ts:160:3)
+        at file:///home/user/Tovu/content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:111:33
+        at getActual (node:assert:611:5)
+        at strict.doesNotThrow (node:assert:779:32)
+        at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:111:14)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+shard 7 exit 1 3512s

@@ -17,3 +17,7 @@ shard 5a exit 137 1640s
 shard 6a exit 137 1634s
 (note 02:05:15: sub-shards 5a and 6a stopped at file 40/197 and 39/197 (CPU saturated; ~650 files left at ~10 files/min could not finish by the cap). Their 394 test files did NOT complete; lists in raw/aborted/not-run-files-shard-5a.txt / -6a.txt; partial output in raw/aborted/)
 shard-watch: shard 4 node process gone at 02:05:23, lcov 9186503 bytes
+shard 7 exit 1 3512s
+shard-watch: shard 7 node process gone at 02:08:23, lcov 8719037 bytes
+LATE-DONE 02:08:23
+(note 02:08:47: with CPU free after shards 4/7, chunks 5ax/6ax started (30m cap): files 41-~110 of 5a/6a excluding src/cli/__tests__/integration/*; lists in /tmp shard-5ax.txt/6ax.txt, copied to raw/aborted at the end)

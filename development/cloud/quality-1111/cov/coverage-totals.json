@@ -440,15 +440,15 @@
     "statements": "1775/1799 (98.67%)"
   },
   "Tovu (all)": {
-    "files": 3373,
-    "at99_all4": 1690,
-    "below99": 1683,
-    "zero_coverage": 215,
-    "never_loaded": 215,
-    "lines": "317494/348368 (91.14%)",
-    "branches": "65635/82448 (79.61%)",
-    "functions": "29244/36757 (79.56%)",
-    "statements": "321626/352544 (91.23%)"
+    "files": 3367,
+    "at99_all4": 1969,
+    "below99": 1398,
+    "zero_coverage": 168,
+    "never_loaded": 168,
+    "lines": "334763/352719 (94.91%)",
+    "branches": "83054/96813 (85.79%)",
+    "functions": "33783/41614 (81.18%)",
+    "statements": "338895/356895 (94.96%)"
   },
   "Tovu: .claude": {
     "files": 2,
@@ -518,25 +518,25 @@
   },
   "Tovu: apps/site-chat": {
     "files": 28,
-    "at99_all4": 9,
-    "below99": 19,
-    "zero_coverage": 8,
-    "never_loaded": 8,
-    "lines": "1315/1591 (82.65%)",
-    "branches": "268/374 (71.66%)",
-    "functions": "126/222 (56.76%)",
-    "statements": "1315/1591 (82.65%)"
+    "at99_all4": 13,
+    "below99": 15,
+    "zero_coverage": 6,
+    "never_loaded": 6,
+    "lines": "1818/1878 (96.81%)",
+    "branches": "495/536 (92.35%)",
+    "functions": "209/231 (90.48%)",
+    "statements": "1818/1878 (96.81%)"
   },
   "Tovu: apps/website": {
     "files": 2069,
-    "at99_all4": 778,
-    "below99": 1291,
-    "zero_coverage": 40,
-    "never_loaded": 40,
-    "lines": "252016/267942 (94.06%)",
-    "branches": "39775/46169 (86.15%)",
-    "functions": "16967/20748 (81.78%)",
-    "statements": "252016/267942 (94.06%)"
+    "at99_all4": 1050,
+    "below99": 1019,
+    "zero_coverage": 20,
+    "never_loaded": 20,
+    "lines": "264123/269296 (98.08%)",
+    "branches": "55772/60441 (92.28%)",
+    "functions": "20994/25614 (81.96%)",
+    "statements": "264123/269296 (98.08%)"
   },
   "Tovu: cloud": {
     "files": 1,
@@ -560,27 +560,16 @@
     "functions": "0/257 (0.00%)",
     "statements": "0/1238 (0.00%)"
   },
-  "Tovu: development/cloud": {
-    "files": 6,
-    "at99_all4": 0,
-    "below99": 6,
-    "zero_coverage": 6,
-    "never_loaded": 6,
-    "lines": "0/290 (0.00%)",
-    "branches": "0/322 (0.00%)",
-    "functions": "0/64 (0.00%)",
-    "statements": "0/290 (0.00%)"
-  },
   "Tovu: development/eslint-rules": {
     "files": 2,
     "at99_all4": 0,
     "below99": 2,
     "zero_coverage": 0,
     "never_loaded": 0,
-    "lines": "81/216 (37.50%)",
-    "branches": "2/2 (100.00%)",
-    "functions": "0/7 (0.00%)",
-    "statements": "81/216 (37.50%)"
+    "lines": "92/216 (42.59%)",
+    "branches": "13/14 (92.86%)",
+    "functions": "3/9 (33.33%)",
+    "statements": "92/216 (42.59%)"
   },
   "Tovu: development/evals": {
     "files": 32,
@@ -650,14 +639,14 @@
   },
   "Tovu: development/scripts": {
     "files": 102,
-    "at99_all4": 3,
-    "below99": 99,
-    "zero_coverage": 74,
-    "never_loaded": 74,
-    "lines": "6128/15096 (40.59%)",
-    "branches": "1200/8715 (13.77%)",
-    "functions": "525/2439 (21.53%)",
-    "statements": "6128/15096 (40.59%)"
+    "at99_all4": 5,
+    "below99": 97,
+    "zero_coverage": 58,
+    "never_loaded": 58,
+    "lines": "10380/17710 (58.61%)",
+    "branches": "2357/8925 (26.41%)",
+    "functions": "929/2462 (37.73%)",
+    "statements": "10380/17710 (58.61%)"
   },
   "Tovu: development/sonarjs": {
     "files": 3,
@@ -694,25 +683,25 @@
   },
   "Tovu: packages/contracts": {
     "files": 4,
-    "at99_all4": 0,
-    "below99": 4,
-    "zero_coverage": 4,
-    "never_loaded": 4,
-    "lines": "0/8 (0.00%)",
-    "branches": "0/0 (100.00%)",
+    "at99_all4": 1,
+    "below99": 3,
+    "zero_coverage": 3,
+    "never_loaded": 3,
+    "lines": "116/123 (94.31%)",
+    "branches": "1/1 (100.00%)",
     "functions": "0/2 (0.00%)",
-    "statements": "0/8 (0.00%)"
+    "statements": "116/123 (94.31%)"
   },
   "Tovu: packages/sdk": {
     "files": 2,
     "at99_all4": 0,
     "below99": 2,
-    "zero_coverage": 2,
-    "never_loaded": 2,
-    "lines": "0/12 (0.00%)",
-    "branches": "0/0 (100.00%)",
-    "functions": "0/1 (0.00%)",
-    "statements": "0/12 (0.00%)"
+    "zero_coverage": 0,
+    "never_loaded": 0,
+    "lines": "280/283 (98.94%)",
+    "branches": "26/30 (86.67%)",
+    "functions": "22/22 (100.00%)",
+    "statements": "280/283 (98.94%)"
   },
   "Tovu: scripts": {
     "files": 1,

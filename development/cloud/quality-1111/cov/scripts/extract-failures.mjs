@@ -6,6 +6,7 @@
 //               module/export the test imports, or a timeout — i.e. the test's expectation no longer matches.
 //   PRODUCT     a runtime exception thrown from non-test source (TypeError/ReferenceError/... whose first stack
 //               frame is outside __tests__/test files).
+//   Children cancelled by a failing parent take ENV when the same file has an ENV failure (basis cancelled-by-parent(...)).
 //   Remaining unmatched rows are TEST DRIFT with basis "default". Usage:
 //   node extract-failures.mjs <out.tsv> <repo>:<tap|vitest>:<file> ...
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -14,7 +15,7 @@ const rows = [];
 const clean = s => (s || '').replace(/\s+/g, ' ').trim().slice(0, 600);
 function classify(err, stack) {
   const t = `${err}\n${stack}`;
-  if (/PGSQL|:5432|postgres(ql)?:\/\/|ECONNREFUSED 127\.0\.0\.1:5432|psql: error|pg_ctl|initdb/i.test(t)) return ['ENV', 'postgres'];
+  if (/PGSQL|:5432|postgres(ql)?:\/\/|ECONNREFUSED 127\.0\.0\.1:5432|psql: error|psql request failed|pg_ctl|initdb/i.test(t)) return ['ENV', 'postgres'];
   if (/chromium|playwright|Executable doesn't exist|browserType\.launch/i.test(t)) return ['ENV', 'chromium'];
   if (/EADDRNOTAVAIL|::1|IPv6|EAFNOSUPPORT/.test(t)) return ['ENV', 'ipv6'];
   if (/\bEPERM\b|\bEACCES\b|operation not permitted/i.test(t)) return ['ENV', 'eperm'];
@@ -22,6 +23,8 @@ function classify(err, stack) {
   if (/ENOTFOUND|getaddrinfo|EAI_AGAIN|network/i.test(t) && /fetch|request|connect/i.test(t)) return ['ENV', 'network'];
   if (/Cannot find module|ERR_MODULE_NOT_FOUND|does not provide an export|is not exported|Failed to load url|Failed to resolve import/i.test(t)) return ['TEST DRIFT', 'module-resolution'];
   if (/AssertionError|expected .* to |Expected|Received|toMatchSnapshot|Snapshot .* mismatched|deepStrictEqual|strictEqual|ERR_ASSERTION/i.test(err)) return ['TEST DRIFT', 'assertion-mismatch'];
+  if (/charts-recharts\/0\.6\.24/.test(t)) return ['TEST DRIFT', 'linked-jini-plugin-asset-missing'];
+  if (/did not finish before its parent and was cancelled/.test(err)) return ['TEST DRIFT', 'cancelled-by-parent'];
   if (/Test timed out|timed out after|ERR_TEST_TIMEOUT|cancelledByParent|test timed out/i.test(t)) return ['TEST DRIFT', 'timeout'];
   const firstFrame = (stack.split('\n').find(l => /\//.test(l)) || '');
   if (/(TypeError|ReferenceError|RangeError|SyntaxError|Error):/.test(err) && firstFrame && !/__tests__|\.test\.|\.spec\.|test-support|node:internal/.test(firstFrame)) return ['PRODUCT', 'exception-in-source'];
@@ -74,6 +77,9 @@ for (const spec of inputs) {
   const [repo, kind, file] = spec.split(':');
   if (kind === 'tap') fromTap(repo, file); else fromVitest(repo, file);
 }
+// a child cancelled because its parent failed takes the ENV class when its file has an ENV failure
+const envFiles = new Map(rows.filter(r => r.cls === 'ENV').map(r => [r.file, r.basis]));
+for (const r of rows) if (r.basis === 'cancelled-by-parent' && envFiles.has(r.file)) { r.cls = 'ENV'; r.basis = `cancelled-by-parent(${envFiles.get(r.file)})`; }
 writeFileSync(out, ['repo\tfile\ttest\tclass\tbasis\terror\tsource', ...rows.map(r => [r.repo, r.file, r.test, r.cls, r.basis, r.error, r.source].map(x => String(x).replace(/\t/g, ' ')).join('\t'))].join('\n') + '\n');
 const t = {};
 for (const r of rows) { const k = `${r.repo}\t${r.cls}`; t[k] = (t[k] || 0) + 1; }

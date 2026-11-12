@@ -1,0 +1,941 @@
+TAP version 13
+# Subtest: export waits for both boot work before closing
+ok 1 - export waits for both boot work before closing
+  ---
+  duration_ms: 2.045497
+  type: 'test'
+  ...
+# Subtest: export closes the boot and partially composed store when composition fails
+ok 2 - export closes the boot and partially composed store when composition fails
+  ---
+  duration_ms: 3.774777
+  type: 'test'
+  ...
+# Subtest: a dry run plans every entry and writes nothing, not even a transaction
+ok 3 - a dry run plans every entry and writes nothing, not even a transaction
+  ---
+  duration_ms: 3.207492
+  type: 'test'
+  ...
+# Subtest: apply writes only the new entries, non-default and project-owned, in one transaction
+ok 4 - apply writes only the new entries, non-default and project-owned, in one transaction
+  ---
+  duration_ms: 1.296677
+  type: 'test'
+  ...
+# Subtest: a vault refusal mid-apply rejects the whole import; the transaction owns the rollback
+ok 5 - a vault refusal mid-apply rejects the whole import; the transaction owns the rollback
+  ---
+  duration_ms: 1.833269
+  type: 'test'
+  ...
+# Subtest: the same id with the same metadata and decrypted payload is already imported; apply writes nothing
+ok 6 - the same id with the same metadata and decrypted payload is already imported; apply writes nothing
+  ---
+  duration_ms: 0.790112
+  type: 'test'
+  ...
+# Subtest: the same id with a different secret, metadata or identity is a conflict and stays untouched
+ok 7 - the same id with a different secret, metadata or identity is a conflict and stays untouched
+  ---
+  duration_ms: 0.48754
+  type: 'test'
+  ...
+# Subtest: a taken name (same kind, provider and label) is a conflict; another provider or kind is not
+ok 8 - a taken name (same kind, provider and label) is a conflict; another provider or kind is not
+  ---
+  duration_ms: 0.349115
+  type: 'test'
+  ...
+# Subtest: media-provider and publish-peer keys are listed as unsupported, not imported: no project reader uses them yet
+ok 9 - media-provider and publish-peer keys are listed as unsupported, not imported: no project reader uses them yet
+  ---
+  duration_ms: 0.179621
+  type: 'test'
+  ...
+# Subtest: site-assistant and database-destination kinds are refused by name; plugin-owned rows by owner
+ok 10 - site-assistant and database-destination kinds are refused by name; plugin-owned rows by owner
+  ---
+  duration_ms: 0.206997
+  type: 'test'
+  ...
+# Subtest: every recorded site destination is reported pending: grants keep a copy, revocations may still hold one
+ok 11 - every recorded site destination is reported pending: grants keep a copy, revocations may still hold one
+  ---
+  duration_ms: 0.246252
+  type: 'test'
+  ...
+# Subtest: an empty snapshot is the empty report and touches nothing
+ok 12 - an empty snapshot is the empty report and touches nothing
+  ---
+  duration_ms: 0.194974
+  type: 'test'
+  ...
+# Subtest: pinServedSiteDirIntoEnv points the site root at the directory this invocation was told to serve
+ok 13 - pinServedSiteDirIntoEnv points the site root at the directory this invocation was told to serve
+  ---
+  duration_ms: 7.322249
+  type: 'test'
+  ...
+# Subtest: pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the explicit <dir> argument is what this process serves
+ok 14 - pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the explicit <dir> argument is what this process serves
+  ---
+  duration_ms: 0.568987
+  type: 'test'
+  ...
+# Subtest: tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory
+ok 15 - tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory
+  ---
+  duration_ms: 6.274
+  type: 'test'
+  ...
+# Subtest: the pinned value is what the daemon child inherits — buildDaemonSpawnEnvOverrides leaves an already-set TOVU_SITE_DIR alone
+ok 16 - the pinned value is what the daemon child inherits — buildDaemonSpawnEnvOverrides leaves an already-set TOVU_SITE_DIR alone
+  ---
+  duration_ms: 0.567997
+  type: 'test'
+  ...
+# Subtest: tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal
+ok 17 - tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal
+  ---
+  duration_ms: 0.506752
+  type: 'test'
+  ...
+# Subtest: tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable
+ok 18 - tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable
+  ---
+  duration_ms: 8.760097
+  type: 'test'
+  ...
+# Subtest: a switcher-chosen boot is untouched — the default dev boot keeps site switching enabled
+ok 19 - a switcher-chosen boot is untouched — the default dev boot keeps site switching enabled
+  ---
+  duration_ms: 1.727573
+  type: 'test'
+  ...
+# Subtest: pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair exists
+ok 20 - pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair exists
+  ---
+  duration_ms: 1.236855
+  type: 'test'
+  ...
+# Subtest: serve <dir> ignores legacy DB overrides so the web server and daemon share chat.db
+ok 21 - serve <dir> ignores legacy DB overrides so the web server and daemon share chat.db
+  ---
+  duration_ms: 24.547583
+  type: 'test'
+  ...
+# Subtest: F4 positional mail parser retains its exact parser-location and host-label rationale
+ok 22 - F4 positional mail parser retains its exact parser-location and host-label rationale
+  ---
+  duration_ms: 1.214757
+  type: 'test'
+  ...
+# Subtest: F5 boot mail catalog drops the named unused imports
+ok 23 - F5 boot mail catalog drops the named unused imports
+  ---
+  duration_ms: 0.548209
+  type: 'test'
+  ...
+# Subtest: F5 active credential-card shim binds direct find/load exports and keeps only its required reader factory
+ok 24 - F5 active credential-card shim binds direct find/load exports and keeps only its required reader factory
+  ---
+  duration_ms: 0.186004
+  type: 'test'
+  ...
+# Subtest: BUG: a rejected one-shot emission closes routing and preserves the original failure
+ok 25 - BUG: a rejected one-shot emission closes routing and preserves the original failure
+  ---
+  duration_ms: 3.867388
+  type: 'test'
+  ...
+# Subtest: a rejected ask/report emission closes routing and preserves the original failure
+ok 26 - a rejected ask/report emission closes routing and preserves the original failure
+  ---
+  duration_ms: 0.875532
+  type: 'test'
+  ...
+# Subtest: every offered locale translates every credential message id
+ok 27 - every offered locale translates every credential message id
+  ---
+  duration_ms: 6.208763
+  type: 'test'
+  ...
+# Subtest: credentialText returns the locale copy and defaults to English
+ok 28 - credentialText returns the locale copy and defaults to English
+  ---
+  duration_ms: 0.234814
+  type: 'test'
+  ...
+# Subtest: credentialText falls back to English for an unoffered locale
+ok 29 - credentialText falls back to English for an unoffered locale
+  ---
+  duration_ms: 0.131954
+  type: 'test'
+  ...
+# Subtest: formatCredentialHint renders nothing without a hint
+ok 30 - formatCredentialHint renders nothing without a hint
+  ---
+  duration_ms: 0.158046
+  type: 'test'
+  ...
+# Subtest: formatCredentialHint shows the tail and the locale-formatted length
+ok 31 - formatCredentialHint shows the tail and the locale-formatted length
+  ---
+  duration_ms: 11.719451
+  type: 'test'
+  ...
+# Subtest: formatCredentialHint omits the tail for short tokens
+ok 32 - formatCredentialHint omits the tail for short tokens
+  ---
+  duration_ms: 0.308005
+  type: 'test'
+  ...
+# Subtest: formatCredentialHint separates a leading-dot tail from the ellipsis without rewriting it
+ok 33 - formatCredentialHint separates a leading-dot tail from the ellipsis without rewriting it
+  ---
+  duration_ms: 0.261576
+  type: 'test'
+  ...
+# Subtest: translateCredentialMessage translates only known policy messages
+ok 34 - translateCredentialMessage translates only known policy messages
+  ---
+  duration_ms: 0.264856
+  type: 'test'
+  ...
+# Subtest: formatCredentialHints joins named hints and tolerates missing hints
+ok 35 - formatCredentialHints joins named hints and tolerates missing hints
+  ---
+  duration_ms: 0.496187
+  type: 'test'
+  ...
+# Subtest: credentialText resolves every id for every locale to a non-empty string
+ok 36 - credentialText resolves every id for every locale to a non-empty string
+  ---
+  duration_ms: 0.929044
+  type: 'test'
+  ...
+# Subtest: page guidance sends third-party widgets to plugin embeds and names no vendor host
+ok 37 - page guidance sends third-party widgets to plugin embeds and names no vendor host
+  ---
+  duration_ms: 1.40002
+  type: 'test'
+  ...
+# Subtest: theme data keeps the entire shared public header set byte-identical
+ok 38 - theme data keeps the entire shared public header set byte-identical
+  ---
+  duration_ms: 2.193753
+  type: 'test'
+  ...
+# Subtest: origins derive from data, deduplicate stably, and retain all core directives
+ok 39 - origins derive from data, deduplicate stably, and retain all core directives
+  ---
+  duration_ms: 0.651389
+  type: 'test'
+  ...
+# Subtest: theme data reader uses its port and preserves malformed/missing-data failures
+ok 40 - theme data reader uses its port and preserves malformed/missing-data failures
+  ---
+  duration_ms: 0.538387
+  type: 'test'
+  ...
+# Subtest: a page adds its declared hosts to the matching directives only, never twice or as policy text
+ok 41 - a page adds its declared hosts to the matching directives only, never twice or as policy text
+  ---
+  duration_ms: 0.389123
+  type: 'test'
+  ...
+# Subtest: no vendor name is hard-coded in the core policy
+ok 42 - no vendor name is hard-coded in the core policy
+  ---
+  duration_ms: 0.238176
+  type: 'test'
+  ...
+# Subtest: SqliteChangeSetRepo: an applied change set (header + items) survives a simulated process restart
+ok 43 - SqliteChangeSetRepo: an applied change set (header + items) survives a simulated process restart
+  ---
+  duration_ms: 267.601201
+  type: 'test'
+  ...
+# Subtest: canary: every marker in every migrated theme file parses, with zero rejections
+ok 44 - canary: every marker in every migrated theme file parses, with zero rejections
+  ---
+  duration_ms: 8.16028
+  type: 'test'
+  ...
+# Subtest: canary: no theme still carries an attribute from the retired vocabularies
+ok 45 - canary: no theme still carries an attribute from the retired vocabularies
+  ---
+  duration_ms: 3.114905
+  type: 'test'
+  ...
+# Subtest: canary: the nav partial marker carries type, id, and its current-page key
+ok 46 - canary: the nav partial marker carries type, id, and its current-page key
+  ---
+  duration_ms: 0.58598
+  type: 'test'
+  ...
+# Subtest: canary: the footer variant survived as a config key, not a lost attribute
+ok 47 - canary: the footer variant survived as a config key, not a lost attribute
+  ---
+  duration_ms: 0.268415
+  type: 'test'
+  ...
+# Subtest: canary: the docs sidebar keeps its tree variant AND its authored fallback content
+ok 48 - canary: the docs sidebar keeps its tree variant AND its authored fallback content
+  ---
+  duration_ms: 0.714407
+  type: 'test'
+  ...
+# Subtest: canary: the real theme's content-slot marker carries no id, and a real id can be added without breaking the JSON
+ok 49 - canary: the real theme's content-slot marker carries no id, and a real id can be added without breaking the JSON
+  ---
+  duration_ms: 1.063907
+  type: 'test'
+  ...
+# Subtest: canary: other authored attributes on a marker element are preserved verbatim
+ok 50 - canary: other authored attributes on a marker element are preserved verbatim
+  ---
+  duration_ms: 0.770005
+  type: 'test'
+  ...
+# Subtest: canary: malformed config is REJECTED, never silently treated as an empty marker
+ok 51 - canary: malformed config is REJECTED, never silently treated as an empty marker
+  ---
+  duration_ms: 0.557468
+  type: 'test'
+  ...
+# Subtest: canary: occurrence numbering is stable and 1-based, for entry_refs locators
+ok 52 - canary: occurrence numbering is stable and 1-based, for entry_refs locators
+  ---
+  duration_ms: 0.549485
+  type: 'test'
+  ...
+# Subtest: enqueue passes through to the real outbox
+ok 53 - enqueue passes through to the real outbox
+  ---
+  duration_ms: 2.329961
+  type: 'test'
+  ...
+# Subtest: a drain through the view claims and publishes nothing, leaving the row pending for the real owner
+ok 54 - a drain through the view claims and publishes nothing, leaving the row pending for the real owner
+  ---
+  duration_ms: 1.285374
+  type: 'test'
+  ...
+# Subtest: markDelivered and markFailed reject, naming the row, because this view never hands out a claim
+ok 55 - markDelivered and markFailed reject, naming the row, because this view never hands out a claim
+  ---
+  duration_ms: 0.747233
+  type: 'test'
+  ...
+# Subtest: SqliteOutboxAdapter: an enqueued event survives a simulated process restart and is claimable after
+ok 56 - SqliteOutboxAdapter: an enqueued event survives a simulated process restart and is claimable after
+  ---
+  duration_ms: 159.860213
+  type: 'test'
+  ...
+# Subtest: SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event survives a restart via the SAME table
+ok 57 - SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event survives a restart via the SAME table
+  ---
+  duration_ms: 144.597354
+  type: 'test'
+  ...
+# Subtest: SqliteOutboxAdapter: a row stranded in processing by a process that died mid-drain is delivered by the next process once the claim lease expires (2026-09-14)
+ok 58 - SqliteOutboxAdapter: a row stranded in processing by a process that died mid-drain is delivered by the next process once the claim lease expires (2026-09-14)
+  ---
+  duration_ms: 232.310805
+  type: 'test'
+  ...
+# Subtest: AC-14: mintToken sets expiresAt to exactly createdAt + 600 seconds, no jitter
+ok 59 - AC-14: mintToken sets expiresAt to exactly createdAt + 600 seconds, no jitter
+  ---
+  duration_ms: 9.568698
+  type: 'test'
+  ...
+# Subtest: AC-14: mintToken binds (planHash, scopeId, confirmerPrincipalId) exactly as given
+ok 60 - AC-14: mintToken binds (planHash, scopeId, confirmerPrincipalId) exactly as given
+  ---
+  duration_ms: 0.32692
+  type: 'test'
+  ...
+# Subtest: behavior.spec.md §4: token redemption limit is exactly 1 — isRedeemable false once status !== 'minted'
+ok 61 - behavior.spec.md §4: token redemption limit is exactly 1 — isRedeemable false once status !== 'minted'
+  ---
+  duration_ms: 0.179581
+  type: 'test'
+  ...
+# Subtest: EC (§7): execute() at exact TTL boundary — redeemable at expiresAt itself, not redeemable one second after
+ok 62 - EC (§7): execute() at exact TTL boundary — redeemable at expiresAt itself, not redeemable one second after
+  ---
+  duration_ms: 0.103911
+  type: 'test'
+  ...
+# Subtest: INV-03: redeemToken on an already-redeemed token throws TokenAlreadyRedeemedError, never re-succeeds
+ok 63 - INV-03: redeemToken on an already-redeemed token throws TokenAlreadyRedeemedError, never re-succeeds
+  ---
+  duration_ms: 14.90371
+  type: 'test'
+  ...
+# Subtest: redeemToken on an expired token throws TokenExpiredError
+ok 64 - redeemToken on an expired token throws TokenExpiredError
+  ---
+  duration_ms: 0.305572
+  type: 'test'
+  ...
+# Subtest: REQ-11 / AC-35: redeemToken on a confirmationToken string never minted by this contract throws TokenExpiredError, never a distinct code
+ok 65 - REQ-11 / AC-35: redeemToken on a confirmationToken string never minted by this contract throws TokenExpiredError, never a distinct code
+  ---
+  duration_ms: 3.938075
+  type: 'test'
+  ...
+# Subtest: no un-redeeming: expireToken never transitions a redeemed token back toward mintable/expired-only-from-minted
+ok 66 - no un-redeeming: expireToken never transitions a redeemed token back toward mintable/expired-only-from-minted
+  ---
+  duration_ms: 0.435258
+  type: 'test'
+  ...
+# Subtest: U-003-B1 / INV-03 (property): under N concurrent redemption attempts on one minted token, exactly one succeeds and N-1 fail with TokenAlreadyRedeemedError
+ok 67 - U-003-B1 / INV-03 (property): under N concurrent redemption attempts on one minted token, exactly one succeeds and N-1 fail with TokenAlreadyRedeemedError
+  ---
+  duration_ms: 0.94864
+  type: 'test'
+  ...
+# Subtest: TokenStorePort.tryRedeem itself reports which single caller performed the transition (contract test, C-005)
+ok 68 - TokenStorePort.tryRedeem itself reports which single caller performed the transition (contract test, C-005)
+  ---
+  duration_ms: 0.337158
+  type: 'test'
+  ...
+# Subtest: expireToken persists expired for a minted token past its TTL
+ok 69 - expireToken persists expired for a minted token past its TTL
+  ---
+  duration_ms: 0.222609
+  type: 'test'
+  ...
+# Subtest: expireToken reports missing atomic expiry without changing the minted token
+ok 70 - expireToken reports missing atomic expiry without changing the minted token
+  ---
+  duration_ms: 3.548131
+  type: 'test'
+  ...
+# Subtest: fxpid: plugin-host.ts has no imports or re-exports into feature/server/app layers
+ok 71 - fxpid: plugin-host.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 100.736288
+  type: 'test'
+  ...
+# Subtest: fxpid: plugin-install-source.ts has no imports or re-exports into feature/server/app layers
+ok 72 - fxpid: plugin-install-source.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 27.95153
+  type: 'test'
+  ...
+# Subtest: fxpid: plugin-export-catalog.ts has no imports or re-exports into feature/server/app layers
+ok 73 - fxpid: plugin-export-catalog.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 2.347018
+  type: 'test'
+  ...
+# Subtest: fxpid: chat-attachment.ts has no imports or re-exports into feature/server/app layers
+ok 74 - fxpid: chat-attachment.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 3.099916
+  type: 'test'
+  ...
+# Subtest: fxpid: moved attachment vocabulary still validates and reads opaque install refs
+ok 75 - fxpid: moved attachment vocabulary still validates and reads opaque install refs
+  ---
+  duration_ms: 2.776335
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: undefined
+ok 76 - install rejects a non-object source: undefined
+  ---
+  duration_ms: 0.280347
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: null
+ok 77 - install rejects a non-object source: null
+  ---
+  duration_ms: 0.132444
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: "zip"
+ok 78 - install rejects a non-object source: "zip"
+  ---
+  duration_ms: 0.078599
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: []
+ok 79 - install rejects a non-object source: []
+  ---
+  duration_ms: 0.127188
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"tar","path":"/tmp/plugin"}
+ok 80 - install request refuses {"kind":"tar","path":"/tmp/plugin"}
+  ---
+  duration_ms: 0.13005
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip"}
+ok 81 - install request refuses {"kind":"zip"}
+  ---
+  duration_ms: 0.058364
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","path":"/tmp/plugin.zip","attachmentRef":"attachment:12345678"}
+ok 82 - install request refuses {"kind":"zip","path":"/tmp/plugin.zip","attachmentRef":"attachment:12345678"}
+  ---
+  duration_ms: 0.049911
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"folder","attachmentRef":"attachment:12345678"}
+ok 83 - install request refuses {"kind":"folder","attachmentRef":"attachment:12345678"}
+  ---
+  duration_ms: 0.352864
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","attachmentRef":12345678}
+ok 84 - install request refuses {"kind":"zip","attachmentRef":12345678}
+  ---
+  duration_ms: 0.120212
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","path":42}
+ok 85 - install request refuses {"kind":"zip","path":42}
+  ---
+  duration_ms: 0.057663
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","path":"~/plugin.zip"}
+ok 86 - install request refuses {"kind":"zip","path":"~/plugin.zip"}
+  ---
+  duration_ms: 3.506491
+  type: 'test'
+  ...
+# Subtest: install preserves absolute folder and ZIP paths and only accepts boolean replacement
+ok 87 - install preserves absolute folder and ZIP paths and only accepts boolean replacement
+  ---
+  duration_ms: 0.422455
+  type: 'test'
+  ...
+# Subtest: install refuses unavailable attachments without interpreting their refs as disk paths
+ok 88 - install refuses unavailable attachments without interpreting their refs as disk paths
+  ---
+  duration_ms: 0.507729
+  type: 'test'
+  ...
+# Subtest: local archive reads accept the byte limit and reject missing and oversized files
+ok 89 - local archive reads accept the byte limit and reject missing and oversized files
+  ---
+  duration_ms: 19.828404
+  type: 'test'
+  ...
+# Subtest: local archive reads grown bytes before the final size refusal (reported, not fixed)
+ok 90 - local archive reads grown bytes before the final size refusal (reported, not fixed)
+  ---
+  duration_ms: 0.443226
+  type: 'test'
+  ...
+# Subtest: L079: invalid kind precedes source exclusivity and invalid path precedes replacement
+ok 91 - L079: invalid kind precedes source exclusivity and invalid path precedes replacement
+  ---
+  duration_ms: 0.179417
+  type: 'test'
+  ...
+# Subtest: L079: oversized stat prevents allocation and read failures propagate unchanged
+ok 92 - L079: oversized stat prevents allocation and read failures propagate unchanged
+  ---
+  duration_ms: 0.306478
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: search results carry host maturity untested
+ok 93 - search results carry host maturity untested
+  ---
+  duration_ms: 65.178955
+  type: 'test'
+  ...
+# Subtest: search results carry host maturity soon
+ok 94 - search results carry host maturity soon
+  ---
+  duration_ms: 23.694933
+  type: 'test'
+  ...
+# Subtest: search results carry host maturity (absent)
+ok 95 - search results carry host maturity (absent)
+  ---
+  duration_ms: 51.685687
+  type: 'test'
+  ...
+# Subtest: the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'
+ok 96 - the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'
+  ---
+  duration_ms: 10.851477
+  type: 'test'
+  ...
+# Subtest: the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins
+ok 97 - the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins
+  ---
+  duration_ms: 2.138978
+  type: 'test'
+  ...
+# Subtest: finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader
+ok 98 - finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader
+  ---
+  duration_ms: 56.427436
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched'
+ok 99 - a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched'
+  ---
+  duration_ms: 37.172675
+  type: 'test'
+  ...
+# Subtest: an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw
+ok 100 - an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw
+  ---
+  duration_ms: 3.990702
+  type: 'test'
+  ...
+# Subtest: a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation
+ok 101 - a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation
+  ---
+  duration_ms: 60.386228
+  type: 'test'
+  ...
+# Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+# Subtest: MCP server ids stay on the detail path, while discovery omits transport config
+ok 102 - MCP server ids stay on the detail path, while discovery omits transport config
+  ---
+  duration_ms: 23.537897
+  type: 'test'
+  ...
+# Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+# Subtest: a plugin with no mcp.json remains discoverable and has no servers on the detail path
+ok 103 - a plugin with no mcp.json remains discoverable and has no servers on the detail path
+  ---
+  duration_ms: 28.387037
+  type: 'test'
+  ...
+# Subtest: SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it
+ok 104 - SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it # SKIP root bypasses chmod read permissions
+  ---
+  duration_ms: 1.098494
+  type: 'test'
+  ...
+# Subtest: two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal
+ok 105 - two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal
+  ---
+  duration_ms: 68.151862
+  type: 'test'
+  ...
+# Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+# Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+# Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+# Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+# Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+# Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+# Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+# Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+# Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+# Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+# Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+# Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+# Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+# Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+# Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+# Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+# Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+# Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+# Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+# Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+# Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+# Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+# Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+# Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+# Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+# Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+# Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+# Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+# Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+# Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+# Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+# Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+# Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+# Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+# Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+# Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+# Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+# Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+# Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+# Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+# Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+# Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+# Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+# Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+# Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+# Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+# Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+# Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+# Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+# Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+# Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+# Subtest: limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50]
+ok 106 - limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50]
+  ---
+  duration_ms: 3097.204402
+  type: 'test'
+  ...
+# Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+# Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+# Subtest: blank queries list the existing loader's enabled and disabled plugins
+ok 107 - blank queries list the existing loader's enabled and disabled plugins
+  ---
+  duration_ms: 144.591451
+  type: 'test'
+  ...
+# Subtest: SECURITY: no absolute host path leaks into the response, even for a matched plugin
+ok 108 - SECURITY: no absolute host path leaks into the response, even for a matched plugin
+  ---
+  duration_ms: 29.827553
+  type: 'test'
+  ...
+# Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+# Subtest: workspace isolation: a search in workspace A finds nothing installed only under a different workspace
+ok 109 - workspace isolation: a search in workspace A finds nothing installed only under a different workspace
+  ---
+  duration_ms: 27.099547
+  type: 'test'
+  ...
+# Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+# Plugin 'bad-pinned' has no publisher-qualified id; using 'unknown/bad-pinned'.
+# Subtest: L025b search projection preserves optional metadata and isolates invalid identities
+ok 110 - L025b search projection preserves optional metadata and isolates invalid identities
+  ---
+  duration_ms: 46.365114
+  type: 'test'
+  ...
+# Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+# Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+# Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+# Subtest: offset pages the ranked catalog; a negative or fractional offset is an input error
+ok 111 - offset pages the ranked catalog; a negative or fractional offset is an input error
+  ---
+  duration_ms: 148.177438
+  type: 'test'
+  ...
+# Subtest: withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result
+ok 112 - withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result
+  ---
+  duration_ms: 30.441126
+  type: 'test'
+  ...
+# Subtest: withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking
+ok 113 - withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking
+  ---
+  duration_ms: 5.149038
+  type: 'test'
+  ...
+# Subtest: a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated
+ok 114 - a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated
+  ---
+  duration_ms: 56.446577
+  type: 'test'
+  ...
+# Subtest: appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does
+ok 115 - appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does
+  ---
+  duration_ms: 16.909173
+  type: 'test'
+  ...
+# Subtest: a plugin that is not installed is refused before any form or network call
+ok 116 - a plugin that is not installed is refused before any form or network call
+  ---
+  duration_ms: 10.515156
+  type: 'test'
+  ...
+# Subtest: a plugin whose servers declare no tokenAuth is refused: there is no token form for it
+ok 117 - a plugin whose servers declare no tokenAuth is refused: there is no token form for it
+  ---
+  duration_ms: 1.348491
+  type: 'test'
+  ...
+# Subtest: a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+ok 118 - a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+  ---
+  duration_ms: 1.591905
+  type: 'test'
+  ...
+# Subtest: a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+ok 119 - a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+  ---
+  duration_ms: 1.46227
+  type: 'test'
+  ...
+# Subtest: a row an operator pointed at another host is refused, so the token is never sent there
+ok 120 - a row an operator pointed at another host is refused, so the token is never sent there
+  ---
+  duration_ms: 1.932667
+  type: 'test'
+  ...
+# Subtest: INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+ok 121 - INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+  ---
+  duration_ms: 0.90584
+  type: 'test'
+  ...
+# Subtest: with no emitSurface the token tool fails closed with no exchange and no network call
+ok 122 - with no emitSurface the token tool fails closed with no exchange and no network call
+  ---
+  duration_ms: 1.77066
+  type: 'test'
+  ...
+# Subtest: the form names the plugin and displays its declared tokens page in the help text
+ok 123 - the form names the plugin and displays its declared tokens page in the help text
+  ---
+  duration_ms: 16.938825
+  type: 'test'
+  ...
+# Subtest: AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+ok 124 - AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+  ---
+  duration_ms: 11.898317
+  type: 'test'
+  ...
+# Subtest: EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+ok 125 - EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+  ---
+  duration_ms: 2.599917
+  type: 'test'
+  ...
+# Subtest: an unreachable vendor stores nothing and says the plugin is unavailable
+ok 126 - an unreachable vendor stores nothing and says the plugin is unavailable
+  ---
+  duration_ms: 1.929907
+  type: 'test'
+  ...
+# Subtest: a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+ok 127 - a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+  ---
+  duration_ms: 5.897267
+  type: 'test'
+  ...
+# Subtest: a 403 without optional plugin copy is still a refusal rather than an invalid token
+ok 128 - a 403 without optional plugin copy is still a refusal rather than an invalid token
+  ---
+  duration_ms: 16.610663
+  type: 'test'
+  ...
+# Subtest: a blank token is refused without a probe, and a cancel stores nothing
+ok 129 - a blank token is refused without a probe, and a cancel stores nothing
+  ---
+  duration_ms: 3.91377
+  type: 'test'
+  ...
+# Subtest: AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+ok 130 - AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+  ---
+  duration_ms: 11.728622
+  type: 'test'
+  ...
+# Subtest: IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+ok 131 - IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+  ---
+  duration_ms: 14.055493
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+ok 132 - a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+  ---
+  duration_ms: 8.228409
+  type: 'test'
+  ...
+# Subtest: a failure switching on after the save still reports the token as saved, with a retry step
+ok 133 - a failure switching on after the save still reports the token as saved, with a retry step
+  ---
+  duration_ms: 3.94574
+  type: 'test'
+  ...
+# Subtest: permission denial raises no form, opens no exchange and leaves the token row unchanged
+ok 134 - permission denial raises no form, opens no exchange and leaves the token row unchanged
+  ---
+  duration_ms: 5.653582
+  type: 'test'
+  ...
+# Subtest: a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+ok 135 - a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+  ---
+  duration_ms: 3.18522
+  type: 'test'
+  ...
+# Subtest: a store failure after a successful probe is redacted and leaves the previous row intact
+ok 136 - a store failure after a successful probe is redacted and leaves the previous row intact
+  ---
+  duration_ms: 20.403495
+  type: 'test'
+  ...
+# Subtest: a pending form that is expired saves nothing and rejects late answers
+ok 137 - a pending form that is expired saves nothing and rejects late answers
+  ---
+  duration_ms: 7.397276
+  type: 'test'
+  ...
+# Subtest: a pending form that is abandoned saves nothing and rejects late answers
+ok 138 - a pending form that is abandoned saves nothing and rejects late answers
+  ---
+  duration_ms: 1.585977
+  type: 'test'
+  ...
+# Subtest: a pending form that is abort saves nothing and rejects late answers
+ok 139 - a pending form that is abort saves nothing and rejects late answers
+  ---
+  duration_ms: 1.451455
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+ok 140 - credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+  ---
+  duration_ms: 4.08385
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 141 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 5.760977
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 142 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 1.321483
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+ok 143 - credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+  ---
+  duration_ms: 1.442611
+  type: 'test'
+  ...
+# Subtest: an abort during the token probe prevents the sealed write and plugin activation
+ok 144 - an abort during the token probe prevents the sealed write and plugin activation
+  ---
+  duration_ms: 1.771875
+  type: 'test'
+  ...
+# Subtest: a run aborted before preparation opens no form and leaves the plugin row unchanged
+ok 145 - a run aborted before preparation opens no form and leaves the plugin row unchanged
+  ---
+  duration_ms: 1.022251
+  type: 'test'
+  ...
+# Subtest: a destination repointed while the token form is open cannot receive the submitted credential
+ok 146 - a destination repointed while the token form is open cannot receive the submitted credential
+  ---
+  duration_ms: 3.847439
+  type: 'test'
+  ...

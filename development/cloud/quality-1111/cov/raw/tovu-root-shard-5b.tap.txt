@@ -14028,3 +14028,3753 @@ ok 573 - admin forms PUT: no-op bodies require manage permission before revealin
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET mail-providers returns the safe DTO; a wrong workspace 404s; no control is a 503
+ok 574 - GET mail-providers returns the safe DTO; a wrong workspace 404s; no control is a 503
+  ---
+  duration_ms: 1119.429466
+  type: 'test'
+  ...
+# Subtest: each action has its own permission
+ok 575 - each action has its own permission
+  ---
+  duration_ms: 824.515263
+  type: 'test'
+  ...
+# Subtest: credential plan, then a save that stores the key without switching, then a re-checked activation
+ok 576 - credential plan, then a save that stores the key without switching, then a re-checked activation
+  ---
+  duration_ms: 410.385812
+  type: 'test'
+  ...
+# Subtest: refusals map to statuses and leave everything unchanged
+ok 577 - refusals map to statuses and leave everything unchanged
+  ---
+  duration_ms: 406.307761
+  type: 'test'
+  ...
+# Subtest: mail card saves attach the project key immediately and re-saving rotates that same key
+ok 578 - mail card saves attach the project key immediately and re-saving rotates that same key
+  ---
+  duration_ms: 413.890835
+  type: 'test'
+  ...
+# Subtest: a non-object body reads as empty; an unexpected fault is a 500 without detail
+ok 579 - a non-object body reads as empty; an unexpected fault is a 500 without detail
+  ---
+  duration_ms: 633.881765
+  type: 'test'
+  ...
+# Subtest: mail-status ?refresh=1 (or true) asks for a rebuilt status; otherwise the cached one
+ok 580 - mail-status ?refresh=1 (or true) asks for a rebuilt status; otherwise the cached one
+  ---
+  duration_ms: 411.86739
+  type: 'test'
+  ...
+# Subtest: credential races and vault failures keep typed safe envelopes and leave configuration unchanged
+ok 581 - credential races and vault failures keep typed safe envelopes and leave configuration unchanged
+  ---
+  duration_ms: 1010.985206
+  type: 'test'
+  ...
+# Subtest: mail provider selection conflicts map to 409 with a caller-safe reason
+ok 582 - mail provider selection conflicts map to 409 with a caller-safe reason
+  ---
+  duration_ms: 337.578861
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: T30: an already limited IP cannot consume a victim's email or identity budget
+ok 583 - T30: an already limited IP cannot consume a victim's email or identity budget
+  ---
+  duration_ms: 3.430394
+  type: 'test'
+  ...
+# Subtest: T30: Retry-After and its JSON detail report the longest applicable wait
+ok 584 - T30: Retry-After and its JSON detail report the longest applicable wait
+  ---
+  duration_ms: 1.108217
+  type: 'test'
+  ...
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: campaigns: create -> get -> list -> update -> schedule -> send/send-test correctly blocked by the Launch Gate -> cancel
+ok 585 - campaigns: create -> get -> list -> update -> schedule -> send/send-test correctly blocked by the Launch Gate -> cancel
+  ---
+  duration_ms: 1439.239063
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: lists: create -> list (includes the seeded default) -> archive -> default list archive is protected 409
+ok 586 - lists: create -> list (includes the seeded default) -> archive -> default list archive is protected 409
+  ---
+  duration_ms: 1449.467736
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [mail:console] to=real-subscriber-19a0542c-3fa9-41ec-bd63-69c77467c9bb@example.com subject="Confirm your subscription"
+# Please confirm your subscription: http://localhost:3000/newsletter/confirm?token=753adf5bf5c68e496a2cadb0c0ccd9d51c39af2f2bf1479f1527937e5410fa0b
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [mail:console] to=real-subscriber-2-48f96fb2-214d-4472-8d75-5ff534d26f76@example.com subject="Confirm your subscription"
+# Please confirm your subscription: http://localhost:3000/newsletter/confirm?token=2a3fdeca2d98a77f8592bd67ef0f5fbc61f3b45463e9c83c3e55096637e6c824
+# [mail:console] to=real-subscriber-19a0542c-3fa9-41ec-bd63-69c77467c9bb@example.com subject="Confirm your subscription"
+# Please confirm your subscription: http://localhost:3000/newsletter/confirm?token=696679cbcb1497c63db9b0cae8bf2bed21a607ca1e20c10943c5802bc7e7ab45
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: subscriptions: create -> list -> import (partial success, 207) -> remove -> resend-confirmation
+ok 587 - subscriptions: create -> list -> import (partial success, 207) -> remove -> resend-confirmation
+  ---
+  duration_ms: 2339.022609
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: send-log: an empty (never-sent) campaign's send log is a 200 empty array, not a 404/500
+ok 588 - send-log: an empty (never-sent) campaign's send log is a 200 empty array, not a 404/500
+  ---
+  duration_ms: 1135.23665
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: 404s for unknown workspace and unknown campaign id
+ok 589 - 404s for unknown workspace and unknown campaign id
+  ---
+  duration_ms: 1206.398852
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'featured-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'featured-test-theme/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'featured-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'featured-test-theme/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'featured-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'featured-test-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: featfallback: static heroes and post-preview cards use doc and HTML body images without storing featured ids
+ok 590 - featfallback: static heroes and post-preview cards use doc and HTML body images without storing featured ids
+  ---
+  duration_ms: 386.817935
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'featured-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'featured-test-theme/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: REGRESSION: a static post template shows the post's featured image
+ok 591 - REGRESSION: a static post template shows the post's featured image
+  ---
+  duration_ms: 186.27539
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'featured-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'featured-test-theme/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: a post without a featured image renders no featured-image wrapper at all
+ok 592 - a post without a featured image renders no featured-image wrapper at all
+  ---
+  duration_ms: 172.957847
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publish-content import: plan -> confirm -> execute reaches the Task 8 seam and captures a restore point first
+ok 593 - publish-content import: plan -> confirm -> execute reaches the Task 8 seam and captures a restore point first
+  ---
+  duration_ms: 989.278894
+  type: 'test'
+  ...
+# Subtest: publish-content import: a destination edit between confirm and execute is rejected PLAN_STALE, never silently applied
+ok 594 - publish-content import: a destination edit between confirm and execute is rejected PLAN_STALE, never silently applied
+  ---
+  duration_ms: 733.958734
+  type: 'test'
+  ...
+# Subtest: publish-content import: replaying an already-redeemed confirmation token is rejected TOKEN_ALREADY_REDEEMED
+ok 595 - publish-content import: replaying an already-redeemed confirmation token is rejected TOKEN_ALREADY_REDEEMED
+  ---
+  duration_ms: 773.1035
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publish-content import: execute refuses RESTORE_POINT_UNAVAILABLE with no override when the site's restore-point mechanism is unavailable
+ok 596 - publish-content import: execute refuses RESTORE_POINT_UNAVAILABLE with no override when the site's restore-point mechanism is unavailable
+  ---
+  duration_ms: 917.856579
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publish-content import: overwriteEntityKeys forces a no-baseline conflict row past its refusal, and a mismatched set at execute is rejected PLAN_STALE
+ok 597 - publish-content import: overwriteEntityKeys forces a no-baseline conflict row past its refusal, and a mismatched set at execute is rejected PLAN_STALE
+  ---
+  duration_ms: 881.140752
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publish-content import: a malformed overwriteEntityKeys is rejected with the exact validation text, on both plan and execute
+ok 598 - publish-content import: a malformed overwriteEntityKeys is rejected with the exact validation text, on both plan and execute
+  ---
+  duration_ms: 818.26243
+  type: 'test'
+  ...
+# Subtest: gated-mutations gateway: an agent principal can never confirm a publish-content import plan
+ok 599 - gated-mutations gateway: an agent principal can never confirm a publish-content import plan
+  ---
+  duration_ms: 1.611134
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publish-content import: grantless sessions cannot plan and read-only sessions cannot confirm or execute writes
+ok 600 - publish-content import: grantless sessions cannot plan and read-only sessions cannot confirm or execute writes
+  ---
+  duration_ms: 1010.650897
+  type: 'test'
+  ...
+# Subtest: publish-content run status returns persisted progress, isolates workspaces and requires publish_content.read
+ok 601 - publish-content run status returns persisted progress, isolates workspaces and requires publish_content.read
+  ---
+  duration_ms: 451.034971
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: ceremony authorization preserves the human deps bag and replaces it only for a publishing context
+ok 602 - ceremony authorization preserves the human deps bag and replaces it only for a publishing context
+  ---
+  duration_ms: 2.011958
+  type: 'test'
+  ...
+# Subtest: content authorization returns the identical human deps bag and original authorize function
+ok 603 - content authorization returns the identical human deps bag and original authorize function
+  ---
+  duration_ms: 0.390844
+  type: 'test'
+  ...
+# Subtest: a publishing grant authorizes only the registered entity types it names
+ok 604 - a publishing grant authorizes only the registered entity types it names
+  ---
+  duration_ms: 0.290064
+  type: 'test'
+  ...
+# Subtest: a publishing grant answers by the publish-type stamp, and refuses what no registered type declares
+ok 605 - a publishing grant answers by the publish-type stamp, and refuses what no registered type declares
+  ---
+  duration_ms: 0.42831
+  type: 'test'
+  ...
+# Subtest: raw-row: allowed only with apply + backstop + the type named in the grant
+ok 606 - raw-row: allowed only with apply + backstop + the type named in the grant
+  ---
+  duration_ms: 0.439162
+  type: 'test'
+  ...
+# Subtest: raw-file: allowed only with apply + backstop + the type named in the grant
+ok 607 - raw-file: allowed only with apply + backstop + the type named in the grant
+  ---
+  duration_ms: 0.178292
+  type: 'test'
+  ...
+# Subtest: an ordinary type needs no backstop opt-in, and a backstop opt-in never widens it to unnamed types
+ok 608 - an ordinary type needs no backstop opt-in, and a backstop opt-in never widens it to unnamed types
+  ---
+  duration_ms: 0.236628
+  type: 'test'
+  ...
+# Subtest: all 7 admin redirects endpoints deny 403 FORBIDDEN without admin.redirects.manage
+ok 609 - all 7 admin redirects endpoints deny 403 FORBIDDEN without admin.redirects.manage
+  ---
+  duration_ms: 729.473238
+  type: 'test'
+  ...
+# [routes/redirects/shared] {
+#   errorId: '059514c0-9a59-4ac5-88f4-92cb8ed18e93',
+#   diagnostic: 'Error: unexpected error\\n' +
+#     '    at InMemoryRedirectRepo.deps.redirectRepo.findById (/home/user/Tovu/apps/website/src/server/__tests__/routes/redirects-auth.test.ts:280:11)\\n' +
+#     '    at updateRedirect (/home/user/Jini/packages/cms/src/redirects/redirects.ts:667:36)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/update.ts:43:32)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# Subtest: admin redirects update route: workspace mismatch, update happy path, undefined optionals, not found, loop error, unexpected error
+ok 610 - admin redirects update route: workspace mismatch, update happy path, undefined optionals, not found, loop error, unexpected error
+  ---
+  duration_ms: 351.294025
+  type: 'test'
+  ...
+# [routes/redirects/import] {
+#   errorId: '50973ffd-94f4-45b8-a31d-82c582568892',
+#   diagnostic: 'Error: boom\\n' +
+#     '    at Object.deps.authorize (/home/user/Tovu/apps/website/src/server/__tests__/routes/redirects-auth.test.ts:357:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/import.ts:34:37)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)\\n' +
+#     '    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)'
+# }
+# Subtest: admin redirects import route: workspace mismatch, batch-size validation, all-created, partial failure, unexpected error
+ok 611 - admin redirects import route: workspace mismatch, batch-size validation, all-created, partial failure, unexpected error
+  ---
+  duration_ms: 263.495508
+  type: 'test'
+  ...
+# Subtest: admin redirects import route: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call
+ok 612 - admin redirects import route: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call
+  ---
+  duration_ms: 173.98767
+  type: 'test'
+  ...
+# [routes/redirects/get-by-id] {
+#   errorId: 'a1ba5cfc-801b-4ca2-a58a-d0d7bcd156ca',
+#   diagnostic: 'Error: unexpected error\\n' +
+#     '    at InMemoryRedirectRepo.deps.redirectRepo.findById (/home/user/Tovu/apps/website/src/server/__tests__/routes/redirects-auth.test.ts:462:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/get-by-id.ts:33:44)'
+# }
+# Subtest: admin redirects get-by-id route: workspace mismatch, found, not found, unexpected error
+ok 613 - admin redirects get-by-id route: workspace mismatch, found, not found, unexpected error
+  ---
+  duration_ms: 291.596507
+  type: 'test'
+  ...
+# [routes/redirects/tombstone] {
+#   errorId: '3f7015f1-3b9f-4a65-bb26-99deed10b4bc',
+#   diagnostic: 'Error: unexpected error\\n' +
+#     '    at InMemoryRedirectRepo.deps.redirectRepo.findById (/home/user/Tovu/apps/website/src/server/__tests__/routes/redirects-auth.test.ts:567:11)\\n' +
+#     '    at tombstoneRedirect (/home/user/Jini/packages/cms/src/redirects/redirects.ts:714:36)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/tombstone.ts:36:32)'
+# }
+# Subtest: admin redirects tombstone route: workspace mismatch, happy path, not found, unexpected error
+ok 614 - admin redirects tombstone route: workspace mismatch, happy path, not found, unexpected error
+  ---
+  duration_ms: 365.587134
+  type: 'test'
+  ...
+# Subtest: admin redirects get-by-id route: missing :workspaceId and :id params fall back to "" (404 workspace, then 404 for the empty id)
+ok 615 - admin redirects get-by-id route: missing :workspaceId and :id params fall back to "" (404 workspace, then 404 for the empty id)
+  ---
+  duration_ms: 158.76412
+  type: 'test'
+  ...
+# Subtest: admin redirects tombstone route: missing workspaceId/id params fall back to empty strings
+ok 616 - admin redirects tombstone route: missing workspaceId/id params fall back to empty strings
+  ---
+  duration_ms: 209.391175
+  type: 'test'
+  ...
+# Subtest: admin redirects update route: missing params and a missing body fall back to defaults
+ok 617 - admin redirects update route: missing params and a missing body fall back to defaults
+  ---
+  duration_ms: 185.52702
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type
+ok 618 - SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type
+  ---
+  duration_ms: 713.494225
+  type: 'test'
+  ...
+# Subtest: SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies
+ok 619 - SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies
+  ---
+  duration_ms: 332.394743
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: op='constructor' (an Object.prototype member) is rejected as an unknown op, not dispatched
+ok 620 - SETTINGS_REGISTER_DEFINITIONS: op='constructor' (an Object.prototype member) is rejected as an unknown op, not dispatched
+  ---
+  duration_ms: 1509.548177
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: op='toString' (an Object.prototype member) is rejected as an unknown op, not dispatched
+ok 621 - SETTINGS_REGISTER_DEFINITIONS: op='toString' (an Object.prototype member) is rejected as an unknown op, not dispatched
+  ---
+  duration_ms: 1159.293195
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: op='hasOwnProperty' (an Object.prototype member) is rejected as an unknown op, not dispatched
+ok 622 - SETTINGS_REGISTER_DEFINITIONS: op='hasOwnProperty' (an Object.prototype member) is rejected as an unknown op, not dispatched
+  ---
+  duration_ms: 1251.186438
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: op='__proto__' (an Object.prototype member) is rejected as an unknown op, not dispatched
+ok 623 - SETTINGS_REGISTER_DEFINITIONS: op='__proto__' (an Object.prototype member) is rejected as an unknown op, not dispatched
+  ---
+  duration_ms: 1273.369512
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: rename persists its definition transition and retains the stored value
+ok 624 - SETTINGS_REGISTER_DEFINITIONS: rename persists its definition transition and retains the stored value
+  ---
+  duration_ms: 1475.566985
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: retype persists its definition transition and retains the stored value
+ok 625 - SETTINGS_REGISTER_DEFINITIONS: retype persists its definition transition and retains the stored value
+  ---
+  duration_ms: 1263.238369
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: deprecate persists its definition transition and retains the stored value
+ok 626 - SETTINGS_REGISTER_DEFINITIONS: deprecate persists its definition transition and retains the stored value
+  ---
+  duration_ms: 1334.262647
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: tombstone persists its definition transition and retains the stored value
+ok 627 - SETTINGS_REGISTER_DEFINITIONS: tombstone persists its definition transition and retains the stored value
+  ---
+  duration_ms: 1317.051463
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: sites: a mismatched workspaceId in the URL 404s
+ok 628 - sites: a mismatched workspaceId in the URL 404s
+  ---
+  duration_ms: 624.095778
+  type: 'test'
+  ...
+# Subtest: sites: an unauthorized principal (no grants) gets 403 on create, not a create attempt
+ok 629 - sites: an unauthorized principal (no grants) gets 403 on create, not a create attempt
+  ---
+  duration_ms: 445.70948
+  type: 'test'
+  ...
+# Subtest: sites: read and write grants gate each handler before its dependencies are reached
+ok 630 - sites: read and write grants gate each handler before its dependencies are reached
+  ---
+  duration_ms: 281.507809
+  type: 'test'
+  ...
+# Subtest: sites: List — 200 with switchingEnabled + the injected site list, regardless of the flag's value
+ok 631 - sites: List — 200 with switchingEnabled + the injected site list, regardless of the flag's value
+  ---
+  duration_ms: 309.921993
+  type: 'test'
+  ...
+# Subtest: sites: List — currentSite.listed is FALSE when the served directory is absent from sites[] (the marker-less live site case)
+ok 632 - sites: List — currentSite.listed is FALSE when the served directory is absent from sites[] (the marker-less live site case)
+  ---
+  duration_ms: 319.201438
+  type: 'test'
+  ...
+# Subtest: sites: List — the served directory appears in sites[] as `unregistered` even though listSites() drops it
+ok 633 - sites: List — the served directory appears in sites[] as `unregistered` even though listSites() drops it
+  ---
+  duration_ms: 318.640785
+  type: 'test'
+  ...
+# Subtest: sites: List — a served directory that IS registered reports registration:'registered' and listed:true
+ok 634 - sites: List — a served directory that IS registered reports registration:'registered' and listed:true
+  ---
+  duration_ms: 295.82004
+  type: 'test'
+  ...
+# Subtest: sites: Activate — an `unregistered` served name is STILL a 404, because the write path keeps using the strict listSites()
+ok 635 - sites: Activate — an `unregistered` served name is STILL a 404, because the write path keeps using the strict listSites()
+  ---
+  duration_ms: 293.414929
+  type: 'test'
+  ...
+# Subtest: sites: List — reports a pending persisted choice and the TOVU_SITE_DIR override that would defeat it
+ok 636 - sites: List — reports a pending persisted choice and the TOVU_SITE_DIR override that would defeat it
+  ---
+  duration_ms: 310.798788
+  type: 'test'
+  ...
+# Subtest: sites: Create — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never calls createSite
+ok 637 - sites: Create — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never calls createSite
+  ---
+  duration_ms: 321.952785
+  type: 'test'
+  ...
+# Subtest: sites: Create — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never calls createSite
+ok 638 - sites: Create — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never calls createSite
+  ---
+  duration_ms: 335.243429
+  type: 'test'
+  ...
+# Subtest: sites: Create — flag ON, seeded owner, 201 with the created site's name/dir/siteId
+ok 639 - sites: Create — flag ON, seeded owner, 201 with the created site's name/dir/siteId
+  ---
+  duration_ms: 372.688911
+  type: 'test'
+  ...
+# Subtest: sites: Create — a missing 'name' in the body is a 400 VALIDATION_ERROR, before createSite is ever called
+ok 640 - sites: Create — a missing 'name' in the body is a 400 VALIDATION_ERROR, before createSite is ever called
+  ---
+  duration_ms: 302.290531
+  type: 'test'
+  ...
+# Subtest: sites: Activate — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never persists
+ok 641 - sites: Activate — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never persists
+  ---
+  duration_ms: 308.534405
+  type: 'test'
+  ...
+# Subtest: sites: Activate — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never persists
+ok 642 - sites: Activate — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never persists
+  ---
+  duration_ms: 278.741948
+  type: 'test'
+  ...
+# Subtest: sites: Activate — a name not present in listSites() is a 404 SITE_NOT_FOUND, and never persists
+ok 643 - sites: Activate — a name not present in listSites() is a 404 SITE_NOT_FOUND, and never persists
+  ---
+  duration_ms: 325.430495
+  type: 'test'
+  ...
+# Subtest: sites: Activate — an existing site, flag ON, persists via persistActiveSite and returns restart instructions, never killing anything
+ok 644 - sites: Activate — an existing site, flag ON, persists via persistActiveSite and returns restart instructions, never killing anything
+  ---
+  duration_ms: 335.832435
+  type: 'test'
+  ...
+# Subtest: sites: Create — a `storage` field in the body never reaches createSite (PGlite/Postgres creation is `tovu init --storage` only)
+ok 645 - sites: Create — a `storage` field in the body never reaches createSite (PGlite/Postgres creation is `tovu init --storage` only)
+  ---
+  duration_ms: 324.412703
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# Subtest: Finding A: a `menu` widget renders real resolved menu content on a real GET / request, proving wireCoreResolvers is actually wired
+ok 646 - Finding A: a `menu` widget renders real resolved menu content on a real GET / request, proving wireCoreResolvers is actually wired
+  ---
+  duration_ms: 524.458663
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# Subtest: recent-entries and contact-form resolve real records through the public serving composition
+ok 647 - recent-entries and contact-form resolve real records through the public serving composition
+  ---
+  duration_ms: 301.080333
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the owner answers the composed root the host names, else the product's content/agent-plugins
+ok 648 - the owner answers the composed root the host names, else the product's content/agent-plugins
+  ---
+  duration_ms: 1.779954
+  type: 'test'
+  ...
+# Subtest: tool search keywords come from a plugin present only in the composed root
+ok 649 - tool search keywords come from a plugin present only in the composed root
+  ---
+  duration_ms: 3.773472
+  type: 'test'
+  ...
+# Subtest: the deploy-ops tool catalog lists a platform present only in the composed root
+ok 650 - the deploy-ops tool catalog lists a platform present only in the composed root
+  ---
+  duration_ms: 1.647045
+  type: 'test'
+  ...
+# Subtest: the installed deploy-ops registry treats a plugin present only in the composed root as an owner
+ok 651 - the installed deploy-ops registry treats a plugin present only in the composed root as an owner
+  ---
+  duration_ms: 2.952933
+  type: 'test'
+  ...
+# Subtest: no production module composes content/agent-plugins or reads TOVU_BUNDLED_AGENT_PLUGINS_DIR but the owner
+ok 652 - no production module composes content/agent-plugins or reads TOVU_BUNDLED_AGENT_PLUGINS_DIR but the owner
+  ---
+  duration_ms: 75.52645
+  type: 'test'
+  ...
+# Subtest: index.ts builds its app with createServingApp, never a bare createApp
+ok 653 - index.ts builds its app with createServingApp, never a bare createApp
+  ---
+  duration_ms: 4.375582
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts builds its app with createServingApp, never a bare createApp
+ok 654 - cli/commands/serve.ts builds its app with createServingApp, never a bare createApp
+  ---
+  duration_ms: 1.028683
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts stops the outbox drainer on shutdown
+ok 655 - cli/commands/serve.ts stops the outbox drainer on shutdown
+  ---
+  duration_ms: 0.712952
+  type: 'test'
+  ...
+# Subtest: createServingApp is called only by the two site-serving boot paths
+ok 656 - createServingApp is called only by the two site-serving boot paths
+  ---
+  duration_ms: 161.325713
+  type: 'test'
+  ...
+# Subtest: startOutboxDrainer is called only by createServingApp
+ok 657 - startOutboxDrainer is called only by createServingApp
+  ---
+  duration_ms: 117.638309
+  type: 'test'
+  ...
+# Subtest: startTrashSweeper is called only by createServingApp
+ok 658 - startTrashSweeper is called only by createServingApp
+  ---
+  duration_ms: 91.358624
+  type: 'test'
+  ...
+# Subtest: the theme watcher starts only in the website's serving composition
+ok 659 - the theme watcher starts only in the website's serving composition
+  ---
+  duration_ms: 95.838061
+  type: 'test'
+  ...
+# Subtest: index.ts owns the theme watcher through shutdown and listener closure
+ok 660 - index.ts owns the theme watcher through shutdown and listener closure
+  ---
+  duration_ms: 0.774938
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts owns the theme watcher through shutdown and listener closure
+ok 661 - cli/commands/serve.ts owns the theme watcher through shutdown and listener closure
+  ---
+  duration_ms: 0.385232
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts stops the trash sweeper on shutdown
+ok 662 - cli/commands/serve.ts stops the trash sweeper on shutdown
+  ---
+  duration_ms: 0.506396
+  type: 'test'
+  ...
+# Subtest: createTrashModule is mounted by exactly one composition, and it is app.ts
+ok 663 - createTrashModule is mounted by exactly one composition, and it is app.ts
+  ---
+  duration_ms: 103.857876
+  type: 'test'
+  ...
+# Subtest: index.ts hands the legacy tail and createServingApp's bootWork to the store close
+ok 664 - index.ts hands the legacy tail and createServingApp's bootWork to the store close
+  ---
+  duration_ms: 0.676265
+  type: 'test'
+  ...
+# Subtest: the automatic form pull trigger is built only by createServingApp, the only runner of autoPull
+ok 665 - the automatic form pull trigger is built only by createServingApp, the only runner of autoPull
+  ---
+  duration_ms: 349.256223
+  type: 'test'
+  ...
+# Subtest: createServingApp pulls once at startup, after createApp attached the subscribers
+ok 666 - createServingApp pulls once at startup, after createApp attached the subscribers
+  ---
+  duration_ms: 1.109674
+  type: 'test'
+  ...
+# Subtest: index.ts stops the automatic form pull trigger at shutdown
+ok 667 - index.ts stops the automatic form pull trigger at shutdown
+  ---
+  duration_ms: 0.648356
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts stops the automatic form pull trigger at shutdown
+ok 668 - cli/commands/serve.ts stops the automatic form pull trigger at shutdown
+  ---
+  duration_ms: 0.293535
+  type: 'test'
+  ...
+# Subtest: the webhook delivery loop starts only in createServingApp
+ok 669 - the webhook delivery loop starts only in createServingApp
+  ---
+  duration_ms: 200.411331
+  type: 'test'
+  ...
+# Subtest: index.ts stops the webhook delivery loop at shutdown
+ok 670 - index.ts stops the webhook delivery loop at shutdown
+  ---
+  duration_ms: 0.531361
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts stops the webhook delivery loop at shutdown
+ok 671 - cli/commands/serve.ts stops the webhook delivery loop at shutdown
+  ---
+  duration_ms: 0.31556
+  type: 'test'
+  ...
+# Subtest: the due-bindings DNS sweep starts only in createServingApp
+ok 672 - the due-bindings DNS sweep starts only in createServingApp
+  ---
+  duration_ms: 99.518879
+  type: 'test'
+  ...
+# Subtest: index.ts stops the due-bindings DNS sweep at shutdown
+ok 673 - index.ts stops the due-bindings DNS sweep at shutdown
+  ---
+  duration_ms: 0.737678
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts stops the due-bindings DNS sweep at shutdown
+ok 674 - cli/commands/serve.ts stops the due-bindings DNS sweep at shutdown
+  ---
+  duration_ms: 0.419877
+  type: 'test'
+  ...
+# Subtest: the post go-live sweep is started only by createServingApp, after createApp
+ok 675 - the post go-live sweep is started only by createServingApp, after createApp
+  ---
+  duration_ms: 123.736075
+  type: 'test'
+  ...
+# Subtest: index.ts stops the post go-live sweep at shutdown
+ok 676 - index.ts stops the post go-live sweep at shutdown
+  ---
+  duration_ms: 0.59674
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts stops the post go-live sweep at shutdown
+ok 677 - cli/commands/serve.ts stops the post go-live sweep at shutdown
+  ---
+  duration_ms: 0.503344
+  type: 'test'
+  ...
+# Subtest: index.ts routes idle shutdown through the existing registered store stop
+ok 678 - index.ts routes idle shutdown through the existing registered store stop
+  ---
+  duration_ms: 0.537437
+  type: 'test'
+  ...
+# Subtest: cli/commands/serve.ts routes idle shutdown through the existing registered store stop
+ok 679 - cli/commands/serve.ts routes idle shutdown through the existing registered store stop
+  ---
+  duration_ms: 0.390547
+  type: 'test'
+  ...
+# Subtest: admin and content serializers stay aligned with shared headless contracts
+ok 680 - admin and content serializers stay aligned with shared headless contracts
+  ---
+  duration_ms: 2.834751
+  type: 'test'
+  ...
+# Subtest: every credential kind maps to its own principal class, never collapsing to 'user'
+ok 681 - every credential kind maps to its own principal class, never collapsing to 'user'
+  ---
+  duration_ms: 2.013733
+  type: 'test'
+  ...
+# Subtest: a machine credential is not labelled 'user'
+ok 682 - a machine credential is not labelled 'user'
+  ---
+  duration_ms: 0.359344
+  type: 'test'
+  ...
+# Subtest: a publishing installation may confirm its own gated import
+ok 683 - a publishing installation may confirm its own gated import
+  ---
+  duration_ms: 2.259794
+  type: 'test'
+  ...
+# Subtest: widening PrincipalKind did not open the agent-confirm arm
+ok 684 - widening PrincipalKind did not open the agent-confirm arm
+  ---
+  duration_ms: 1.224696
+  type: 'test'
+  ...
+# Subtest: a publish_key's actor-class identity is itself, so only the confirming installation can redeem
+ok 685 - a publish_key's actor-class identity is itself, so only the confirming installation can redeem
+  ---
+  duration_ms: 3.154121
+  type: 'test'
+  ...
+# Subtest: browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes
+not ok 686 - browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes
+  ---
+  duration_ms: 57.259892
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts:1:448'
+  failureType: 'testCodeFailure'
+  error: |-
+    browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     npx playwright install                                 ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts:21:32)
+  ...
+# Subtest: entityNotLiveResponse: an EntityNotLiveError maps to 409 with its code and message
+ok 687 - entityNotLiveResponse: an EntityNotLiveError maps to 409 with its code and message
+  ---
+  duration_ms: 2.201322
+  type: 'test'
+  ...
+# Subtest: entityNotLiveResponse: any other error is left unhandled (returns null)
+ok 688 - entityNotLiveResponse: any other error is left unhandled (returns null)
+  ---
+  duration_ms: 0.232756
+  type: 'test'
+  ...
+# Subtest: entityNotLiveResponse: a permanently deleted entity retains ENTITY_TOMBSTONED and its own message
+ok 689 - entityNotLiveResponse: a permanently deleted entity retains ENTITY_TOMBSTONED and its own message
+  ---
+  duration_ms: 0.160135
+  type: 'test'
+  ...
+# Subtest: /api/admin/v1/workspaces/ws/site-imports: unexpected exceptions are private, redacted and correlated
+ok 690 - /api/admin/v1/workspaces/ws/site-imports: unexpected exceptions are private, redacted and correlated
+  ---
+  duration_ms: 25.857542
+  type: 'test'
+  ...
+# Subtest: /api/admin/v1/recovery/restore/plan: unexpected exceptions are private, redacted and correlated
+ok 691 - /api/admin/v1/recovery/restore/plan: unexpected exceptions are private, redacted and correlated
+  ---
+  duration_ms: 31.276172
+  type: 'test'
+  ...
+# Subtest: import expected refusals keep their diagnosis without reporting an incident
+ok 692 - import expected refusals keep their diagnosis without reporting an incident
+  ---
+  duration_ms: 2.703074
+  type: 'test'
+  ...
+# Subtest: restore gateway Result errors have the same private diagnostic envelope as thrown exceptions
+ok 693 - restore gateway Result errors have the same private diagnostic envelope as thrown exceptions
+  ---
+  duration_ms: 2.170384
+  type: 'test'
+  ...
+# Subtest: the recorded duplicate-skill-name refusal remains actionable while unexpected discovery errors stay private
+ok 694 - the recorded duplicate-skill-name refusal remains actionable while unexpected discovery errors stay private
+  ---
+  duration_ms: 28.926617
+  type: 'test'
+  ...
+# Subtest: a failing logger cannot suppress the private 500 or prevent the other diagnostic sink
+ok 695 - a failing logger cannot suppress the private 500 or prevent the other diagnostic sink
+  ---
+  duration_ms: 2.139631
+  type: 'test'
+  ...
+# Subtest: a failing tracker cannot suppress the private 500 or prevent the other diagnostic sink
+ok 696 - a failing tracker cannot suppress the private 500 or prevent the other diagnostic sink
+  ---
+  duration_ms: 2.508467
+  type: 'test'
+  ...
+# Subtest: newsletter: the mapping fallback reports Error and non-Error exceptions without leaking details
+ok 697 - newsletter: the mapping fallback reports Error and non-Error exceptions without leaking details
+  ---
+  duration_ms: 3.962445
+  type: 'test'
+  ...
+# Subtest: widgets: the mapping fallback reports Error and non-Error exceptions without leaking details
+ok 698 - widgets: the mapping fallback reports Error and non-Error exceptions without leaking details
+  ---
+  duration_ms: 4.160735
+  type: 'test'
+  ...
+# Subtest: publishing: the mapping fallback reports Error and non-Error exceptions without leaking details
+ok 699 - publishing: the mapping fallback reports Error and non-Error exceptions without leaking details
+  ---
+  duration_ms: 3.802487
+  type: 'test'
+  ...
+# Subtest: peers: the mapping fallback reports Error and non-Error exceptions without leaking details
+ok 700 - peers: the mapping fallback reports Error and non-Error exceptions without leaking details
+  ---
+  duration_ms: 2.929692
+  type: 'test'
+  ...
+# Subtest: installation: the mapping fallback reports Error and non-Error exceptions without leaking details
+ok 701 - installation: the mapping fallback reports Error and non-Error exceptions without leaking details
+  ---
+  duration_ms: 2.703024
+  type: 'test'
+  ...
+# Subtest: class guard: admin route error mappings send unexpected 500s through the shared diagnostic handler
+ok 702 - class guard: admin route error mappings send unexpected 500s through the shared diagnostic handler
+  ---
+  duration_ms: 1449.834418
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/agent-plugins/memory] {
+#   errorId: 'cfba30f1-6f64-4335-a8ed-c85247b7c275',
+#   diagnostic: 'Error: private /secret/plugins\\n' +
+#     '    at Object.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-memory.integration.test.ts:78:87)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at isInstalled (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/memory.ts:46:44)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/memory.ts:60:19)'
+# }
+# Subtest: admin memory round-trips a user note, refuses learned writes/traversal, and package viewer excludes state
+ok 703 - admin memory round-trips a user note, refuses learned writes/traversal, and package viewer excludes state
+  ---
+  duration_ms: 541.604454
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory GET answers both lists and the memory limits
+ok 704 - admin memory GET answers both lists and the memory limits
+  ---
+  duration_ms: 333.524434
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory answers an unknown plugin with the not-found code
+ok 705 - admin memory answers an unknown plugin with the not-found code
+  ---
+  duration_ms: 381.777073
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory checks the plugin exists before validating a write
+ok 706 - admin memory checks the plugin exists before validating a write
+  ---
+  duration_ms: 240.896374
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory refuses a write with no body
+ok 707 - admin memory refuses a write with no body
+  ---
+  duration_ms: 331.119553
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory refuses an extra key even when entryPath and text are valid
+ok 708 - admin memory refuses an extra key even when entryPath and text are valid
+  ---
+  duration_ms: 317.194335
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory answers a rejected note path with the invalid-note code
+ok 709 - admin memory answers a rejected note path with the invalid-note code
+  ---
+  duration_ms: 276.613065
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin memory PUT answers the saved note in the notes list
+ok 710 - admin memory PUT answers the saved note in the notes list
+  ---
+  duration_ms: 360.010672
+  type: 'test'
+  ...
+# Subtest: test-agent preserves unknown id and forces a fresh probe
+ok 711 - test-agent preserves unknown id and forces a fresh probe
+  ---
+  duration_ms: 4.368706
+  type: 'test'
+  ...
+# Subtest: test-agent preserves unavailable CLI and forces a fresh probe
+ok 712 - test-agent preserves unavailable CLI and forces a fresh probe
+  ---
+  duration_ms: 0.512886
+  type: 'test'
+  ...
+# Subtest: test-agent preserves missing authentication and forces a fresh probe
+ok 713 - test-agent preserves missing authentication and forces a fresh probe
+  ---
+  duration_ms: 0.390854
+  type: 'test'
+  ...
+# Subtest: test-agent preserves unknown authentication and forces a fresh probe
+ok 714 - test-agent preserves unknown authentication and forces a fresh probe
+  ---
+  duration_ms: 0.328035
+  type: 'test'
+  ...
+# Subtest: test-agent preserves stale model and forces a fresh probe
+ok 715 - test-agent preserves stale model and forces a fresh probe
+  ---
+  duration_ms: 0.37167
+  type: 'test'
+  ...
+# Subtest: test-agent preserves ready with model and forces a fresh probe
+ok 716 - test-agent preserves ready with model and forces a fresh probe
+  ---
+  duration_ms: 0.34359
+  type: 'test'
+  ...
+# Subtest: test-agent preserves ready without model and forces a fresh probe
+ok 717 - test-agent preserves ready without model and forces a fresh probe
+  ---
+  duration_ms: 0.317009
+  type: 'test'
+  ...
+# Subtest: detect-agents reads injected inventory with strict force undefined
+ok 718 - detect-agents reads injected inventory with strict force undefined
+  ---
+  duration_ms: 1.496348
+  type: 'test'
+  ...
+# Subtest: detect-agents reads injected inventory with strict force false
+ok 719 - detect-agents reads injected inventory with strict force false
+  ---
+  duration_ms: 0.448696
+  type: 'test'
+  ...
+# Subtest: detect-agents reads injected inventory with strict force true
+ok 720 - detect-agents reads injected inventory with strict force true
+  ---
+  duration_ms: 0.300886
+  type: 'test'
+  ...
+# Subtest: detect-agents reads injected inventory with strict force true
+ok 721 - detect-agents reads injected inventory with strict force true
+  ---
+  duration_ms: 0.279523
+  type: 'test'
+  ...
+# Subtest: test-agent probes through the assistant inventory's runtime when no detector is injected
+ok 722 - test-agent probes through the assistant inventory's runtime when no detector is injected
+  ---
+  duration_ms: 0.525779
+  type: 'test'
+  ...
+# Subtest: test-agent refuses another workspace before authorizing or probing
+ok 723 - test-agent refuses another workspace before authorizing or probing
+  ---
+  duration_ms: 0.442666
+  type: 'test'
+  ...
+# Subtest: test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired (isolated PATH)
+ok 724 - test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired (isolated PATH)
+  ---
+  duration_ms: 9074.223736
+  type: 'test'
+  ...
+# Subtest: useAdminStoredCredential opens the CALLER'S OWN admin row and sends its stored endpoint
+ok 725 - useAdminStoredCredential opens the CALLER'S OWN admin row and sends its stored endpoint
+  ---
+  duration_ms: 6.258695
+  type: 'test'
+  ...
+# Subtest: an omitted principal cannot open a credential owned by the literal 'undefined' principal
+ok 726 - an omitted principal cannot open a credential owned by the literal 'undefined' principal
+  ---
+  duration_ms: 0.443466
+  type: 'test'
+  ...
+# Subtest: useStoredCredential still opens the SITE row and never the admin's
+ok 727 - useStoredCredential still opens the SITE row and never the admin's
+  ---
+  duration_ms: 0.898254
+  type: 'test'
+  ...
+# Subtest: a typed key still wins over the admin stored one, and no row is decrypted at all
+ok 728 - a typed key still wins over the admin stored one, and no row is decrypted at all
+  ---
+  duration_ms: 0.295118
+  type: 'test'
+  ...
+# Subtest: both stored flags select only the caller's admin row, including its endpoint pin
+ok 729 - both stored flags select only the caller's admin row, including its endpoint pin
+  ---
+  duration_ms: 0.784494
+  type: 'test'
+  ...
+# Subtest: the endpoint pin applies to the admin row: a mismatched destination is a 400, not a substitution
+ok 730 - the endpoint pin applies to the admin row: a mismatched destination is a 400, not a substitution
+  ---
+  duration_ms: 0.576502
+  type: 'test'
+  ...
+# Subtest: a trailing slash is the same endpoint, not a mismatch
+ok 731 - a trailing slash is the same endpoint, not a mismatch
+  ---
+  duration_ms: 0.464264
+  type: 'test'
+  ...
+# Subtest: an admin row with no saved endpoint is a 400 naming the admin credential, not the site one
+ok 732 - an admin row with no saved endpoint is a 400 naming the admin credential, not the site one
+  ---
+  duration_ms: 0.419276
+  type: 'test'
+  ...
+# Subtest: no admin row at all falls through to an empty key, letting the provider give its own answer
+ok 733 - no admin row at all falls through to an empty key, letting the provider give its own answer
+  ---
+  duration_ms: 0.244608
+  type: 'test'
+  ...
+# Subtest: neither flag: unchanged for every pre-existing caller, and neither stored row is read
+ok 734 - neither flag: unchanged for every pre-existing caller, and neither stored row is read
+  ---
+  duration_ms: 0.1679
+  type: 'test'
+  ...
+# Subtest: list: returns 200 with content types when authorized
+ok 735 - list: returns 200 with content types when authorized
+  ---
+  duration_ms: 49.346545
+  type: 'test'
+  ...
+# Subtest: list: returns 403 when principal is not authorized for admin.collections.read
+ok 736 - list: returns 403 when principal is not authorized for admin.collections.read
+  ---
+  duration_ms: 16.763541
+  type: 'test'
+  ...
+# [routes/content-types/list] {
+#   errorId: '8ebe8bcc-0f00-4d68-aa7c-4b9b22b77624',
+#   diagnostic: 'Error: connection failure\\n' +
+#     '    at Object.listByWorkspace (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/list.test.ts:83:15)\\n' +
+#     '    at listContentTypes (/home/user/Jini/packages/cms/src/content-types/list.ts:44:28)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/list.ts:34:28)'
+# }
+# Subtest: list: an Error is a private, correlated 500 that never leaks its message
+ok 737 - list: an Error is a private, correlated 500 that never leaks its message
+  ---
+  duration_ms: 18.334764
+  type: 'test'
+  ...
+# [routes/content-types/list] {
+#   errorId: 'f8300d79-b4f0-42eb-93de-01916ed6ec5d',
+#   diagnostic: 'something went wrong'
+# }
+# Subtest: list: returns 500 when non-Error is thrown
+ok 738 - list: returns 500 when non-Error is thrown
+  ---
+  duration_ms: 7.061141
+  type: 'test'
+  ...
+# [routes/external-mcp/admissions] {
+#   errorId: 'bea39436-cdab-4631-8736-a90dc56f93bb',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/admissions.ts:16:19)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# [routes/external-mcp/delete] {
+#   errorId: 'f545068b-c571-4161-ac19-4b86149186e3',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/delete.ts:22:19)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# [routes/external-mcp/list] {
+#   errorId: '4b5d218d-d5a5-42cb-b587-8740ef2ae1d0',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/list.ts:23:19)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# [routes/external-mcp/put] {
+#   errorId: '041fb095-05f2-4ec2-81e3-03bdc4c3a8e3',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts:136:19)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# [routes/external-mcp/tool-approvals] {
+#   errorId: '887620c6-ef78-4260-9a8a-901185c4a60c',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts:22:19)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# [routes/external-mcp/tool-approvals] {
+#   errorId: '717e69ea-b312-4811-9397-1081891e1da6',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts:35:19)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# [routes/external-mcp/probe] {
+#   errorId: '70a1bd4c-d313-4263-9c0c-9966e227699a',
+#   diagnostic: 'Error: private credential\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\\n' +
+#     '    at guardExternalMcpRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts:43:33)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts:79:19)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# [routes/external-mcp/tool-approvals] {
+#   errorId: '34748942-f714-4d20-a9f4-081ea74b4770',
+#   diagnostic: 'Error: private fingerprint\\n' +
+#     '    at Object.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:31:38)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts:23:61)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# [routes/external-mcp/tool-approvals] {
+#   errorId: '8a17de76-d98e-4f8b-809d-8b5df5bfeca2',
+#   diagnostic: 'Error: private fingerprint\\n' +
+#     '    at Object.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:31:38)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts:37:50)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# [routes/external-mcp/probe] {
+#   errorId: '2d710a7b-838a-45fd-a9f7-2eab34b74f8c',
+#   diagnostic: 'Error: secret\\n' +
+#     '    at Object.findByServerId (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:40:66)\\n' +
+#     '    at resolveProbeTarget (/home/user/Tovu/apps/website/src/server/runtime/services/external-mcp-probe.ts:118:51)\\n' +
+#     '    at probeExternalMcpServer (/home/user/Tovu/apps/website/src/server/runtime/services/external-mcp-probe.ts:190:28)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts:82:29)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# Subtest: MCP admissions: authorization failure is private and does not become a success
+ok 739 - MCP admissions: authorization failure is private and does not become a success
+  ---
+  duration_ms: 322.005811
+  type: 'test'
+  ...
+# Subtest: MCP admissions: denied permission stops before reaching repositories
+ok 740 - MCP admissions: denied permission stops before reaching repositories
+  ---
+  duration_ms: 201.210784
+  type: 'test'
+  ...
+# Subtest: MCP admissions: workspace isolation precedes authorization
+ok 741 - MCP admissions: workspace isolation precedes authorization
+  ---
+  duration_ms: 148.648992
+  type: 'test'
+  ...
+# Subtest: MCP admissions: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 742 - MCP admissions: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 134.595833
+  type: 'test'
+  ...
+# Subtest: MCP delete: authorization failure is private and does not become a success
+ok 743 - MCP delete: authorization failure is private and does not become a success
+  ---
+  duration_ms: 168.890981
+  type: 'test'
+  ...
+# Subtest: MCP delete: denied permission stops before reaching repositories
+ok 744 - MCP delete: denied permission stops before reaching repositories
+  ---
+  duration_ms: 124.69347
+  type: 'test'
+  ...
+# Subtest: MCP delete: workspace isolation precedes authorization
+ok 745 - MCP delete: workspace isolation precedes authorization
+  ---
+  duration_ms: 124.367336
+  type: 'test'
+  ...
+# Subtest: MCP delete: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 746 - MCP delete: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 116.560433
+  type: 'test'
+  ...
+# Subtest: MCP list: authorization failure is private and does not become a success
+ok 747 - MCP list: authorization failure is private and does not become a success
+  ---
+  duration_ms: 144.062786
+  type: 'test'
+  ...
+# Subtest: MCP list: denied permission stops before reaching repositories
+ok 748 - MCP list: denied permission stops before reaching repositories
+  ---
+  duration_ms: 147.410353
+  type: 'test'
+  ...
+# Subtest: MCP list: workspace isolation precedes authorization
+ok 749 - MCP list: workspace isolation precedes authorization
+  ---
+  duration_ms: 133.98527
+  type: 'test'
+  ...
+# Subtest: MCP list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 750 - MCP list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 117.511049
+  type: 'test'
+  ...
+# Subtest: MCP put: authorization failure is private and does not become a success
+ok 751 - MCP put: authorization failure is private and does not become a success
+  ---
+  duration_ms: 148.1949
+  type: 'test'
+  ...
+# Subtest: MCP put: denied permission stops before reaching repositories
+ok 752 - MCP put: denied permission stops before reaching repositories
+  ---
+  duration_ms: 126.434778
+  type: 'test'
+  ...
+# Subtest: MCP put: workspace isolation precedes authorization
+ok 753 - MCP put: workspace isolation precedes authorization
+  ---
+  duration_ms: 128.264325
+  type: 'test'
+  ...
+# Subtest: MCP put: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 754 - MCP put: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 145.057775
+  type: 'test'
+  ...
+# Subtest: MCP approvals list: authorization failure is private and does not become a success
+ok 755 - MCP approvals list: authorization failure is private and does not become a success
+  ---
+  duration_ms: 188.526606
+  type: 'test'
+  ...
+# Subtest: MCP approvals list: denied permission stops before reaching repositories
+ok 756 - MCP approvals list: denied permission stops before reaching repositories
+  ---
+  duration_ms: 183.462877
+  type: 'test'
+  ...
+# Subtest: MCP approvals list: workspace isolation precedes authorization
+ok 757 - MCP approvals list: workspace isolation precedes authorization
+  ---
+  duration_ms: 141.937219
+  type: 'test'
+  ...
+# Subtest: MCP approvals list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 758 - MCP approvals list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 127.22516
+  type: 'test'
+  ...
+# Subtest: MCP approvals revoke: authorization failure is private and does not become a success
+ok 759 - MCP approvals revoke: authorization failure is private and does not become a success
+  ---
+  duration_ms: 164.343378
+  type: 'test'
+  ...
+# Subtest: MCP approvals revoke: denied permission stops before reaching repositories
+ok 760 - MCP approvals revoke: denied permission stops before reaching repositories
+  ---
+  duration_ms: 119.803853
+  type: 'test'
+  ...
+# Subtest: MCP approvals revoke: workspace isolation precedes authorization
+ok 761 - MCP approvals revoke: workspace isolation precedes authorization
+  ---
+  duration_ms: 152.407604
+  type: 'test'
+  ...
+# Subtest: MCP approvals revoke: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 762 - MCP approvals revoke: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 176.593292
+  type: 'test'
+  ...
+# Subtest: MCP probe: authorization failure is private and does not become a success
+ok 763 - MCP probe: authorization failure is private and does not become a success
+  ---
+  duration_ms: 194.216961
+  type: 'test'
+  ...
+# Subtest: MCP probe: denied permission stops before reaching repositories
+ok 764 - MCP probe: denied permission stops before reaching repositories
+  ---
+  duration_ms: 152.566222
+  type: 'test'
+  ...
+# Subtest: MCP probe: workspace isolation precedes authorization
+ok 765 - MCP probe: workspace isolation precedes authorization
+  ---
+  duration_ms: 124.381261
+  type: 'test'
+  ...
+# Subtest: MCP probe: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+ok 766 - MCP probe: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization
+  ---
+  duration_ms: 119.42757
+  type: 'test'
+  ...
+# Subtest: MCP approvals GET: store failure cannot masquerade as empty or removed
+ok 767 - MCP approvals GET: store failure cannot masquerade as empty or removed
+  ---
+  duration_ms: 154.320459
+  type: 'test'
+  ...
+# Subtest: MCP approvals DELETE: store failure cannot masquerade as empty or removed
+ok 768 - MCP approvals DELETE: store failure cannot masquerade as empty or removed
+  ---
+  duration_ms: 130.795023
+  type: 'test'
+  ...
+# Subtest: MCP probe: repository failure is a private 500 rather than an unreachable-vendor report
+ok 769 - MCP probe: repository failure is a private 500 rather than an unreachable-vendor report
+  ---
+  duration_ms: 150.812137
+  type: 'test'
+  ...
+# Subtest: MCP probe limiter uses the shared outbound call budget and restores it after the window
+ok 770 - MCP probe limiter uses the shared outbound call budget and restores it after the window
+  ---
+  duration_ms: 3.011029
+  type: 'test'
+  ...
+# Subtest: MCP OAuth connect: wrong workspace and denied permission do not invoke the service
+ok 771 - MCP OAuth connect: wrong workspace and denied permission do not invoke the service
+  ---
+  duration_ms: 170.901966
+  type: 'test'
+  ...
+# Subtest: MCP OAuth poll: wrong workspace and denied permission do not invoke the service
+ok 772 - MCP OAuth poll: wrong workspace and denied permission do not invoke the service
+  ---
+  duration_ms: 212.723828
+  type: 'test'
+  ...
+# Subtest: MCP OAuth disconnect: wrong workspace and denied permission do not invoke the service
+ok 773 - MCP OAuth disconnect: wrong workspace and denied permission do not invoke the service
+  ---
+  duration_ms: 199.895958
+  type: 'test'
+  ...
+# Subtest: MCP OAuth: provider polling error preserves optional retry delay undefined
+ok 774 - MCP OAuth: provider polling error preserves optional retry delay undefined
+  ---
+  duration_ms: 172.98569
+  type: 'test'
+  ...
+# Subtest: MCP OAuth: provider polling error preserves optional retry delay 7
+ok 775 - MCP OAuth: provider polling error preserves optional retry delay 7
+  ---
+  duration_ms: 141.76763
+  type: 'test'
+  ...
+# Subtest: MCP probe: exhausted budget answers before checking permissions or connecting
+ok 776 - MCP probe: exhausted budget answers before checking permissions or connecting
+  ---
+  duration_ms: 294.79263
+  type: 'test'
+  ...
+# Subtest: MCP PUT: invalid or empty OAuth block preserves static configuration undefined
+ok 777 - MCP PUT: invalid or empty OAuth block preserves static configuration undefined
+  ---
+  duration_ms: 848.636967
+  type: 'test'
+  ...
+# [routes/external-mcp/list] {
+#   errorId: '399d98cd-fd11-40e3-9c04-d9cce535b983',
+#   diagnostic: 'Error: private\\n' +
+#     '    at Object.listByWorkspaceId (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:130:75)\\n' +
+#     '    at Module.listExternalMcpServerViews (/home/user/Jini/packages/mcp/src/federation/hosted/store.ts:451:35)\\n' +
+#     '    at listExternalMcpServerViews (/home/user/Tovu/apps/website/src/features/external-mcp/external-mcp-store.ts:38:17)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/list.ts:24:29)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# [routes/external-mcp/delete] {
+#   errorId: '17494398-a288-4aef-b88c-6a2c0f2006b8',
+#   diagnostic: 'Error: private\\n' +
+#     '    at Object.deleteByServerId (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:131:84)\\n' +
+#     '    at deleteExternalMcpServer (/home/user/Jini/packages/mcp/src/federation/hosted/store.ts:1669:20)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/delete.ts:29:29)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# Subtest: MCP PUT: invalid or empty OAuth block preserves static configuration null
+# [routes/external-mcp/put] {
+#   errorId: '3cd0da96-4c6d-4f34-b9d7-f289a56ea991',
+#   diagnostic: 'Error: private\\n' +
+#     '    at Object.findByServerId (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:132:79)\\n' +
+#     '    at Module.saveExternalMcpServer (/home/user/Jini/packages/mcp/src/federation/hosted/store.ts:1604:36)\\n' +
+#     '    at saveExternalMcpServer (/home/user/Tovu/apps/website/src/features/external-mcp/external-mcp-store.ts:73:17)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts:138:28)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+ok 778 - MCP PUT: invalid or empty OAuth block preserves static configuration null
+  ---
+  duration_ms: 307.744788
+  type: 'test'
+  ...
+# [routes/external-mcp/oauth] {
+#   errorId: '6f8cb09e-b2f4-44dd-94ce-4c277ef896fe',
+#   diagnostic: 'secret upstream body'
+# }
+# [routes/external-mcp/oauth] {
+#   errorId: '942ed39d-8979-4830-8bbf-2e6b48b68d3c',
+#   diagnostic: 'Error: secret upstream body\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/external-mcp-route-failures.unit.test.ts:141:47)\\n' +
+#     '    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\\n' +
+#     '    at async node:internal/modules/esm/loader:647:26\\n' +
+#     '    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)'
+# }
+# Subtest: MCP PUT: invalid or empty OAuth block preserves static configuration []
+ok 779 - MCP PUT: invalid or empty OAuth block preserves static configuration []
+  ---
+  duration_ms: 270.367147
+  type: 'test'
+  ...
+# Subtest: MCP PUT: invalid or empty OAuth block preserves static configuration "invalid"
+ok 780 - MCP PUT: invalid or empty OAuth block preserves static configuration "invalid"
+  ---
+  duration_ms: 185.742701
+  type: 'test'
+  ...
+# Subtest: MCP PUT: invalid or empty OAuth block preserves static configuration {}
+ok 781 - MCP PUT: invalid or empty OAuth block preserves static configuration {}
+  ---
+  duration_ms: 292.649109
+  type: 'test'
+  ...
+# Subtest: MCP PUT: invalid or empty OAuth block preserves static configuration {"clientId":42}
+ok 782 - MCP PUT: invalid or empty OAuth block preserves static configuration {"clientId":42}
+  ---
+  duration_ms: 146.845864
+  type: 'test'
+  ...
+# Subtest: MCP PUT: absent body is rejected and never creates an empty command server
+ok 783 - MCP PUT: absent body is rejected and never creates an empty command server
+  ---
+  duration_ms: 273.382643
+  type: 'test'
+  ...
+# Subtest: MCP GET: storage failure is a private 500
+ok 784 - MCP GET: storage failure is a private 500
+  ---
+  duration_ms: 304.040151
+  type: 'test'
+  ...
+# Subtest: MCP DELETE: storage failure is a private 500
+ok 785 - MCP DELETE: storage failure is a private 500
+  ---
+  duration_ms: 274.776139
+  type: 'test'
+  ...
+# Subtest: MCP PUT: storage failure is a private 500
+ok 786 - MCP PUT: storage failure is a private 500
+  ---
+  duration_ms: 251.715526
+  type: 'test'
+  ...
+# Subtest: MCP OAuth unexpected string is never reflected to the operator
+ok 787 - MCP OAuth unexpected string is never reflected to the operator
+  ---
+  duration_ms: 129.856568
+  type: 'test'
+  ...
+# Subtest: MCP OAuth unexpected object is never reflected to the operator
+ok 788 - MCP OAuth unexpected object is never reflected to the operator
+  ---
+  duration_ms: 134.675636
+  type: 'test'
+  ...
+# Subtest: MCP delete: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe
+ok 789 - MCP delete: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe
+  ---
+  duration_ms: 320.675948
+  type: 'test'
+  ...
+# Subtest: MCP put: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe
+ok 790 - MCP put: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe
+  ---
+  duration_ms: 126.432475
+  type: 'test'
+  ...
+# Subtest: MCP probe: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe
+ok 791 - MCP probe: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe
+  ---
+  duration_ms: 175.053004
+  type: 'test'
+  ...
+# Subtest: MCP approvals revoke: `req.params.serverId ?? ""` / `req.params.toolName ?? ""` fallbacks, forced via a direct handler call, delete nothing and answer 404
+ok 792 - MCP approvals revoke: `req.params.serverId ?? ""` / `req.params.toolName ?? ""` fallbacks, forced via a direct handler call, delete nothing and answer 404
+  ---
+  duration_ms: 243.60267
+  type: 'test'
+  ...
+# Subtest: MCP OAuth connect: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id
+ok 793 - MCP OAuth connect: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id
+  ---
+  duration_ms: 246.202868
+  type: 'test'
+  ...
+# Subtest: MCP OAuth poll: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id
+ok 794 - MCP OAuth poll: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id
+  ---
+  duration_ms: 288.773299
+  type: 'test'
+  ...
+# Subtest: MCP OAuth disconnect: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id
+ok 795 - MCP OAuth disconnect: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id
+  ---
+  duration_ms: 176.676799
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: resolveFormDefinitionByIdOrSlug: a mixed-case, padded slug in the URL resolves the lowercase slug
+ok 796 - resolveFormDefinitionByIdOrSlug: a mixed-case, padded slug in the URL resolves the lowercase slug
+  ---
+  duration_ms: 6.403642
+  type: 'test'
+  ...
+# Subtest: resolveFormDefinitionByIdOrSlug: falls back to the raw, un-normalized id when no slug matches
+ok 797 - resolveFormDefinitionByIdOrSlug: falls back to the raw, un-normalized id when no slug matches
+  ---
+  duration_ms: 0.30282
+  type: 'test'
+  ...
+# Subtest: resolveFormDefinitionByIdOrSlug: when one row's slug equals another row's id, the slug wins
+ok 798 - resolveFormDefinitionByIdOrSlug: when one row's slug equals another row's id, the slug wins
+  ---
+  duration_ms: 0.121147
+  type: 'test'
+  ...
+# Subtest: resolveFormDefinitionByIdOrSlug: neither a slug nor an id is null
+ok 799 - resolveFormDefinitionByIdOrSlug: neither a slug nor an id is null
+  ---
+  duration_ms: 0.103026
+  type: 'test'
+  ...
+# Subtest: integration list handles equal timestamps and empty histories independently for each subscription
+ok 800 - integration list handles equal timestamps and empty histories independently for each subscription
+  ---
+  duration_ms: 4.368476
+  type: 'test'
+  ...
+# Subtest: Library HTTP: allowed formats ignore MIME labels, list/download/rename/text preserve bytes and metadata
+ok 801 - Library HTTP: allowed formats ignore MIME labels, list/download/rename/text preserve bytes and metadata
+  ---
+  duration_ms: 1231.379098
+  type: 'test'
+  ...
+# [admin-route] {
+#   errorId: '636f5bce-9b50-4918-897f-a0b1ad242873',
+#   diagnostic: 'Error: private parser details\\n' +
+#     '    at Object.extractor.extract (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts:103:43)\\n' +
+#     '    at extractDocumentBytes (/home/user/Jini/packages/cms/src/media/document-read.ts:75:38)\\n' +
+#     '    at prepareDocumentText (/home/user/Jini/packages/cms/src/media/document-read.ts:202:22)\\n' +
+#     '    at async readDocumentTextPage (/home/user/Jini/packages/cms/src/media/document-read.ts:185:43)\\n' +
+#     '    at async readBeforeDeadline (/home/user/Jini/packages/cms/src/media/document-read.ts:167:12)\\n' +
+#     '    at async read (/home/user/Jini/packages/cms/src/media/document-read.ts:147:18)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/text.ts:19:16)'
+# }
+# Subtest: Library HTTP: configured text extraction returns its page; typed failures are 400 and unexpected failures stay private
+ok 802 - Library HTTP: configured text extraction returns its page; typed failures are 400 and unexpected failures stay private
+  ---
+  duration_ms: 52.027424
+  type: 'test'
+  ...
+# Subtest: Library HTTP: 64 KiB pages, Trash exclusion, wrong workspace and denied principals fail before blob I/O
+ok 803 - Library HTTP: 64 KiB pages, Trash exclusion, wrong workspace and denied principals fail before blob I/O
+  ---
+  duration_ms: 49.639583
+  type: 'test'
+  ...
+# Subtest: Library HTTP: fake PDF/DOCX rejected without durable rows; media uploads retain their old policy
+ok 804 - Library HTTP: fake PDF/DOCX rejected without durable rows; media uploads retain their old policy
+  ---
+  duration_ms: 12.202382
+  type: 'test'
+  ...
+# Subtest: media text: every response, even a foreign workspace 404, is private and nosniff
+ok 805 - media text: every response, even a foreign workspace 404, is private and nosniff
+  ---
+  duration_ms: 373.227143
+  type: 'test'
+  ...
+# Subtest: media text: denial writes its own 403 body and names the asset to authorize
+ok 806 - media text: denial writes its own 403 body and names the asset to authorize
+  ---
+  duration_ms: 249.233123
+  type: 'test'
+  ...
+# Subtest: media text: without an offset the document is read from byte 0
+ok 807 - media text: without an offset the document is read from byte 0
+  ---
+  duration_ms: 229.161791
+  type: 'test'
+  ...
+# Subtest: media text: a numeric offset pages from that byte
+ok 808 - media text: a numeric offset pages from that byte
+  ---
+  duration_ms: 244.947181
+  type: 'test'
+  ...
+# Subtest: media text: an offset past the document is a 400 with the domain message
+ok 809 - media text: an offset past the document is a 400 with the domain message
+  ---
+  duration_ms: 216.215634
+  type: 'test'
+  ...
+# Subtest: media text: a non-document asset is 404 with the domain message
+ok 810 - media text: a non-document asset is 404 with the domain message
+  ---
+  duration_ms: 173.607562
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: MEMBER_DISABLE route: 400 VALIDATION_ERROR when disableMember throws MemberValidationError (currently dead, defensive)
+ok 811 - MEMBER_DISABLE route: 400 VALIDATION_ERROR when disableMember throws MemberValidationError (currently dead, defensive)
+  ---
+  duration_ms: 4.013936
+  type: 'test'
+  ...
