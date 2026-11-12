@@ -42,3 +42,2319 @@ ok 2 - visitorFacingError
   duration_ms: 7.791283
   type: 'suite'
   ...
+# Subtest: visitor markdown supports GFM, escapes raw HTML and rejects executable links
+ok 3 - visitor markdown supports GFM, escapes raw HTML and rejects executable links
+  ---
+  duration_ms: 262.041016
+  type: 'test'
+  ...
+# Subtest: model image https://evil.test/beacon?q=private never enters the rendered DOM
+ok 4 - model image https://evil.test/beacon?q=private never enters the rendered DOM
+  ---
+  duration_ms: 39.820587
+  type: 'test'
+  ...
+# Subtest: model image //evil.test/beacon never enters the rendered DOM
+ok 5 - model image //evil.test/beacon never enters the rendered DOM
+  ---
+  duration_ms: 37.02015
+  type: 'test'
+  ...
+# Subtest: model image data:image/png;base64,AAAA never enters the rendered DOM
+ok 6 - model image data:image/png;base64,AAAA never enters the rendered DOM
+  ---
+  duration_ms: 26.258348
+  type: 'test'
+  ...
+# Subtest: model image http://[invalid never enters the rendered DOM
+ok 7 - model image http://[invalid never enters the rendered DOM
+  ---
+  duration_ms: 36.324877
+  type: 'test'
+  ...
+# Subtest: encoded executable links and GFM footnotes cannot introduce active links or repeated IDs
+ok 8 - encoded executable links and GFM footnotes cannot introduce active links or repeated IDs
+  ---
+  duration_ms: 145.173093
+  type: 'test'
+  ...
+# Subtest: boot preserves non-EADDRINUSE listen errors and never reports a successful exit
+ok 9 - boot preserves non-EADDRINUSE listen errors and never reports a successful exit
+  ---
+  duration_ms: 306.742654
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port exports exactly the documented runtime surface, no more and no less
+ok 10 - agent-daemon-port exports exactly the documented runtime surface, no more and no less
+  ---
+  duration_ms: 8.492004
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped
+ok 11 - agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.354551
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped
+ok 12 - agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.116838
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped
+ok 13 - agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.084895
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped
+ok 14 - agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.219374
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped
+ok 15 - agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.257631
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped
+ok 16 - agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.134583
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped
+ok 17 - agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.055975
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped
+ok 18 - agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.077767
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped
+ok 19 - agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.06054
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped
+ok 20 - agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.049661
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 21 - agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.045293
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped
+ok 22 - agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.044754
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped
+ok 23 - agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.048401
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped
+ok 24 - agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.052958
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped
+ok 25 - agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.167617
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped
+ok 26 - agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.056675
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped
+ok 27 - agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.050719
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped
+ok 28 - agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.093289
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped
+ok 29 - agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.070093
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped
+ok 30 - agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.054566
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped
+ok 31 - agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.072157
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped
+ok 32 - agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.049862
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped
+ok 33 - agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.088014
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped
+ok 34 - agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.05037
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped
+ok 35 - agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.049802
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped
+ok 36 - agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.049598
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped
+ok 37 - agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.053276
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 38 - agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.078958
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped
+ok 39 - agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.042275
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 40 - agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.082031
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped
+ok 41 - agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.358626
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped
+ok 42 - agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.533995
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped
+ok 43 - agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.084448
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped
+ok 44 - agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.084088
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped
+ok 45 - agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.098221
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped
+ok 46 - agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.138047
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped
+ok 47 - agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.12865
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped
+ok 48 - agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.182935
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped
+ok 49 - agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 4.259825
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped
+ok 50 - agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.075767
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.askAgentPluginChoice is the owning module's own binding, defined and unwrapped
+ok 51 - agent-daemon-port.askAgentPluginChoice is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.036992
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.applyToolApprovalPolicy is the owning module's own binding, defined and unwrapped
+ok 52 - agent-daemon-port.applyToolApprovalPolicy is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.029059
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createAssistantAgentInventory is the owning module's own binding, defined and unwrapped
+ok 53 - agent-daemon-port.createAssistantAgentInventory is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.035154
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.attachAssistantToolExtensions is the owning module's own binding, defined and unwrapped
+ok 54 - agent-daemon-port.attachAssistantToolExtensions is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.067294
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createStoredExternalMcpConnectionSource is the owning module's own binding, defined and unwrapped
+ok 55 - agent-daemon-port.createStoredExternalMcpConnectionSource is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.036973
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildExternalMcpFederationDeps is the owning module's own binding, defined and unwrapped
+ok 56 - agent-daemon-port.buildExternalMcpFederationDeps is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.028399
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.onExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+ok 57 - agent-daemon-port.onExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.029476
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.notifyExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+ok 58 - agent-daemon-port.notifyExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.026596
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.agentCarriesOwnMemory is the owning module's own binding, defined and unwrapped
+ok 59 - agent-daemon-port.agentCarriesOwnMemory is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.024909
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.extractSessionRefFromEndEvent is the owning module's own binding, defined and unwrapped
+ok 60 - agent-daemon-port.extractSessionRefFromEndEvent is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.025938
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveResumeSessionField is the owning module's own binding, defined and unwrapped
+ok 61 - agent-daemon-port.resolveResumeSessionField is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022076
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.shouldClearSessionOnFailedResume is the owning module's own binding, defined and unwrapped
+ok 62 - agent-daemon-port.shouldClearSessionOnFailedResume is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.021978
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.wouldForcedColdStartLoseConversationContext is the owning module's own binding, defined and unwrapped
+ok 63 - agent-daemon-port.wouldForcedColdStartLoseConversationContext is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022666
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.CONCURRENT_RUN_REFUSAL_MESSAGE is the owning module's own binding, defined and unwrapped
+ok 64 - agent-daemon-port.CONCURRENT_RUN_REFUSAL_MESSAGE is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.044536
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLiveRunTracker is the owning module's own binding, defined and unwrapped
+ok 65 - agent-daemon-port.createLiveRunTracker is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.03498
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.failRunBeforeStart is the owning module's own binding, defined and unwrapped
+ok 66 - agent-daemon-port.failRunBeforeStart is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.026327
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.STOPPING_RUN_WAIT_MS is the owning module's own binding, defined and unwrapped
+ok 67 - agent-daemon-port.STOPPING_RUN_WAIT_MS is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.0225
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.waitForStoppingRuns is the owning module's own binding, defined and unwrapped
+ok 68 - agent-daemon-port.waitForStoppingRuns is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022435
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.agentAcceptsHostMintedSessionId is the owning module's own binding, defined and unwrapped
+ok 69 - agent-daemon-port.agentAcceptsHostMintedSessionId is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022456
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveHostMintedSessionId is the owning module's own binding, defined and unwrapped
+ok 70 - agent-daemon-port.resolveHostMintedSessionId is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.037145
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveNewSessionField is the owning module's own binding, defined and unwrapped
+ok 71 - agent-daemon-port.resolveNewSessionField is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.027906
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createConversationStartLock is the owning module's own binding, defined and unwrapped
+ok 72 - agent-daemon-port.createConversationStartLock is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.023752
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readChatPermanentDeletesPolicy is the owning module's own binding, defined and unwrapped
+ok 73 - agent-daemon-port.readChatPermanentDeletesPolicy is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.072773
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createChatDeleteScope is the owning module's own binding, defined and unwrapped
+ok 74 - agent-daemon-port.createChatDeleteScope is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.031157
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.ALL_CHAT_DELETE_TOOLS is the owning module's own binding, defined and unwrapped
+ok 75 - agent-daemon-port.ALL_CHAT_DELETE_TOOLS is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.025794
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readAssistantCliPermissions is the owning module's own binding, defined and unwrapped
+ok 76 - agent-daemon-port.readAssistantCliPermissions is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.039298
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLostFrontendBindings is the owning module's own binding, defined and unwrapped
+ok 77 - agent-daemon-port.createLostFrontendBindings is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.034792
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withPageNavigateErrorRewrap is the owning module's own binding, defined and unwrapped
+ok 78 - agent-daemon-port.withPageNavigateErrorRewrap is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.040277
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.delegatedToolErrorDisclosure is the owning module's own binding, defined and unwrapped
+ok 79 - agent-daemon-port.delegatedToolErrorDisclosure is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.038446
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunActiveContextStore is the owning module's own binding, defined and unwrapped
+ok 80 - agent-daemon-port.createRunActiveContextStore is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.025935
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerRunActiveContextRoute is the owning module's own binding, defined and unwrapped
+ok 81 - agent-daemon-port.registerRunActiveContextRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.025399
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunScopedCredentials is the owning module's own binding, defined and unwrapped
+ok 82 - agent-daemon-port.createRunScopedCredentials is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02266
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with title and flat option IDs renders and answers the intended card
+ok 83 - typed MCP + gate: owner input with title and flat option IDs renders and answers the intended card
+  ---
+  duration_ms: 719.499378
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with question, a distinct title and flat option IDs renders and answers the intended card
+ok 84 - typed MCP + gate: owner input with question, a distinct title and flat option IDs renders and answers the intended card
+  ---
+  duration_ms: 162.213686
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with question and label-only options with descriptions renders and answers the intended card
+ok 85 - typed MCP + gate: owner input with question and label-only options with descriptions renders and answers the intended card
+  ---
+  duration_ms: 89.297701
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: flat multiple flag and explicit label render a checklist and retain its answer values
+ok 86 - typed MCP + gate: flat multiple flag and explicit label render a checklist and retain its answer values
+  ---
+  duration_ms: 6.46787
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: an explicit false multiple flag renders radios using the question as label
+ok 87 - typed MCP + gate: an explicit false multiple flag renders radios using the question as label
+  ---
+  duration_ms: 162.376322
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: nested singleSelect renders descriptions and retains IDs and label-default answer values
+ok 88 - typed MCP + gate: nested singleSelect renders descriptions and retains IDs and label-default answer values
+  ---
+  duration_ms: 19.429796
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: nested multiSelect renders descriptions and retains IDs and label-default answer values
+ok 89 - typed MCP + gate: nested multiSelect renders descriptions and retains IDs and label-default answer values
+  ---
+  duration_ms: 6.962519
+  type: 'test'
+  ...
+# Subtest: typed MCP refuses malformed options, flags, unknown keys and model-authored answers before entering the gate
+ok 90 - typed MCP refuses malformed options, flags, unknown keys and model-authored answers before entering the gate
+  ---
+  duration_ms: 142.160857
+  type: 'test'
+  ...
+# Subtest: typed MCP passes declared aliases but the gate refuses conflicting IDs and mixed select shapes
+ok 91 - typed MCP passes declared aliases but the gate refuses conflicting IDs and mixed select shapes
+  ---
+  duration_ms: 3.581468
+  type: 'test'
+  ...
+# Subtest: the gate rejects malformed flat fields before normalization can discard them
+ok 92 - the gate rejects malformed flat fields before normalization can discard them
+  ---
+  duration_ms: 13.015831
+  type: 'test'
+  ...
+# Subtest: createRequestSuppliedExecutionCredentialPort resolves a valid request-supplied config
+ok 93 - createRequestSuppliedExecutionCredentialPort resolves a valid request-supplied config
+  ---
+  duration_ms: 5.253091
+  type: 'test'
+  ...
+# Subtest: createRequestSuppliedExecutionCredentialPort never reads a store — a missing apiKey resolves to null regardless of identity
+ok 94 - createRequestSuppliedExecutionCredentialPort never reads a store — a missing apiKey resolves to null regardless of identity
+  ---
+  duration_ms: 0.289554
+  type: 'test'
+  ...
+# Subtest: a request-supplied credential wins even when a stored one exists
+ok 95 - a request-supplied credential wins even when a stored one exists
+  ---
+  duration_ms: 15.814996
+  type: 'test'
+  ...
+# Subtest: falls back to the stored credential when the request omits apiKey
+ok 96 - falls back to the stored credential when the request omits apiKey
+  ---
+  duration_ms: 5.926266
+  type: 'test'
+  ...
+# Subtest: falls back to stored when the request supplies an empty apiKey (not just an omitted one)
+ok 97 - falls back to stored when the request supplies an empty apiKey (not just an omitted one)
+  ---
+  duration_ms: 1.073192
+  type: 'test'
+  ...
+# Subtest: resolves null when neither the request nor the stored row has a usable credential
+ok 98 - resolves null when neither the request nor the stored row has a usable credential
+  ---
+  duration_ms: 5.345147
+  type: 'test'
+  ...
+# Subtest: a stored row with no model set is treated as unusable, not returned with model missing
+ok 99 - a stored row with no model set is treated as unusable, not returned with model missing
+  ---
+  duration_ms: 1.084561
+  type: 'test'
+  ...
+# Subtest: a decrypt failure on the stored row degrades to null, it does not throw
+ok 100 - a decrypt failure on the stored row degrades to null, it does not throw
+  ---
+  duration_ms: 3.43343
+  type: 'test'
+  ...
+# Subtest: resolves the OTHER admin's stored row when that principal id is passed — proves the port is identity-scoped, not global
+ok 101 - resolves the OTHER admin's stored row when that principal id is passed — proves the port is identity-scoped, not global
+  ---
+  duration_ms: 3.304894
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with an unknown protocol is not a usable credential
+ok 102 - a request-supplied config with an unknown protocol is not a usable credential
+  ---
+  duration_ms: 0.248289
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a non-string protocol is not a usable credential
+ok 103 - a request-supplied config with a non-string protocol is not a usable credential
+  ---
+  duration_ms: 0.08183
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a blank apiKey is not a usable credential
+ok 104 - a request-supplied config with a blank apiKey is not a usable credential
+  ---
+  duration_ms: 0.066844
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a non-string apiKey is not a usable credential
+ok 105 - a request-supplied config with a non-string apiKey is not a usable credential
+  ---
+  duration_ms: 0.085371
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a missing model is not a usable credential
+ok 106 - a request-supplied config with a missing model is not a usable credential
+  ---
+  duration_ms: 0.055934
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a blank model is not a usable credential
+ok 107 - a request-supplied config with a blank model is not a usable credential
+  ---
+  duration_ms: 0.083422
+  type: 'test'
+  ...
+# Subtest: a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped
+ok 108 - a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped
+  ---
+  duration_ms: 0.342188
+  type: 'test'
+  ...
+# Subtest: a stored row with no baseUrl and no maxTokens resolves without those keys
+ok 109 - a stored row with no baseUrl and no maxTokens resolves without those keys
+  ---
+  duration_ms: 3.338107
+  type: 'test'
+  ...
+# Subtest: a stored row whose protocol this adapter cannot dispatch is treated as unusable
+ok 110 - a stored row whose protocol this adapter cannot dispatch is treated as unusable
+  ---
+  duration_ms: 3.933207
+  type: 'test'
+  ...
+# Subtest: cold and repeated requests return immediately while one background probe runs
+ok 111 - cold and repeated requests return immediately while one background probe runs
+  ---
+  duration_ms: 45.443874
+  type: 'test'
+  ...
+# Subtest: Rescan queues one forced refresh behind an in-flight probe and keeps the previous value
+ok 112 - Rescan queues one forced refresh behind an in-flight probe and keeps the previous value
+  ---
+  duration_ms: 2.679576
+  type: 'test'
+  ...
+# Subtest: failed background probes retain the cache and require an explicit Rescan to retry
+ok 113 - failed background probes retain the cache and require an explicit Rescan to retry
+  ---
+  duration_ms: 14.294087
+  type: 'test'
+  ...
+# Subtest: initial rejection retains the snapshot and retries after the supplied cooldown
+ok 114 - initial rejection retains the snapshot and retries after the supplied cooldown
+  ---
+  duration_ms: 5.818641
+  type: 'test'
+  ...
+# Subtest: post-expiry rejection retains the snapshot and retries after the supplied cooldown
+ok 115 - post-expiry rejection retains the snapshot and retries after the supplied cooldown
+  ---
+  duration_ms: 0.803294
+  type: 'test'
+  ...
+# Subtest: offline-fallback inventory refreshes lazily at its catalog expiry
+ok 116 - offline-fallback inventory refreshes lazily at its catalog expiry
+  ---
+  duration_ms: 13.7768
+  type: 'test'
+  ...
+# Subtest: fresh inventory refreshes lazily at its catalog expiry
+ok 117 - fresh inventory refreshes lazily at its catalog expiry
+  ---
+  duration_ms: 20.534441
+  type: 'test'
+  ...
+# Subtest: TW3 content cards preserve single get, single list, list lookup and paired dispatch
+ok 118 - TW3 content cards preserve single get, single list, list lookup and paired dispatch
+  ---
+  duration_ms: 68.909588
+  type: 'test'
+  ...
+# Subtest: TW3 unavailable paired cards leave the original registration and handler intact
+ok 119 - TW3 unavailable paired cards leave the original registration and handler intact
+  ---
+  duration_ms: 0.347621
+  type: 'test'
+  ...
+# Subtest: TW3 schema-less single readers retain the empty schema fallback
+ok 120 - TW3 schema-less single readers retain the empty schema fallback
+  ---
+  duration_ms: 0.459169
+  type: 'test'
+  ...
+# Subtest: TW3 a list-lookup member that returns a non-object is a shape drift, not a miss
+ok 121 - TW3 a list-lookup member that returns a non-object is a shape drift, not a miss
+  ---
+  duration_ms: 172.069171
+  type: 'test'
+  ...
+# Subtest: TW3 a list-lookup skips non-record items rather than matching through them
+ok 122 - TW3 a list-lookup skips non-record items rather than matching through them
+  ---
+  duration_ms: 83.960171
+  type: 'test'
+  ...
+# Subtest: TW3 paired members without schema properties still dispatch by id presence, and a non-object input lists
+ok 123 - TW3 paired members without schema properties still dispatch by id presence, and a non-object input lists
+  ---
+  duration_ms: 0.705109
+  type: 'test'
+  ...
+# Subtest: TW3 a lookup card over a list with no schema properties still publishes its id selector
+ok 124 - TW3 a lookup card over a list with no schema properties still publishes its id selector
+  ---
+  duration_ms: 0.488156
+  type: 'test'
+  ...
+# Subtest: TW3 a reader schema with required fields but no properties is canonicalized to the id selector
+ok 125 - TW3 a reader schema with required fields but no properties is canonicalized to the id selector
+  ---
+  duration_ms: 0.38588
+  type: 'test'
+  ...
+# Subtest: credential queries discover executable ids in the full production catalog after the read collapse
+ok 126 - credential queries discover executable ids in the full production catalog after the read collapse
+  ---
+  duration_ms: 587.30486
+  type: 'test'
+  ...
+# Subtest: 'what credentials do I have saved' finds custom_credential_list in the top 3
+ok 127 - 'what credentials do I have saved' finds custom_credential_list in the top 3
+  ---
+  duration_ms: 15.65656
+  type: 'test'
+  ...
+# Subtest: 'list my API keys' and 'what tokens do I have' both find custom_credential_list
+ok 128 - 'list my API keys' and 'what tokens do I have' both find custom_credential_list
+  ---
+  duration_ms: 16.696958
+  type: 'test'
+  ...
+# Subtest: 'do I have a registrar token' and 'what did I save for my hosting provider' both find custom_credential_list
+ok 129 - 'do I have a registrar token' and 'what did I save for my hosting provider' both find custom_credential_list
+  ---
+  duration_ms: 14.364452
+  type: 'test'
+  ...
+# Subtest: 'call an external API with my saved token' finds custom_credential_make_request in the top 3
+ok 130 - 'call an external API with my saved token' finds custom_credential_make_request in the top 3
+  ---
+  duration_ms: 2.696959
+  type: 'test'
+  ...
+# Subtest: 'make a request to an external service' and 'hit a third-party API with my saved credential' both find custom_credential_make_request
+ok 131 - 'make a request to an external service' and 'hit a third-party API with my saved credential' both find custom_credential_make_request
+  ---
+  duration_ms: 16.749311
+  type: 'test'
+  ...
+# Subtest: 'check if my token works' and 'is this API key still valid' both find custom_credential_verify
+ok 132 - 'check if my token works' and 'is this API key still valid' both find custom_credential_verify
+  ---
+  duration_ms: 2.978715
+  type: 'test'
+  ...
+# Subtest: vendor-shaped vocabulary (DNS, registrar, hosting, deployment provider, third-party API) finds all three custom-credential tools somewhere in the results
+ok 133 - vendor-shaped vocabulary (DNS, registrar, hosting, deployment provider, third-party API) finds all three custom-credential tools somewhere in the results
+  ---
+  duration_ms: 14.298579
+  type: 'test'
+  ...
+# Subtest: the unrelated distractors never outrank custom_credential_list for a credential-shaped query
+ok 134 - the unrelated distractors never outrank custom_credential_list for a credential-shaped query
+  ---
+  duration_ms: 2.082715
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the call stays open across two turns, and both actions become the call's result
+ok 135 - the call stays open across two turns, and both actions become the call's result
+  ---
+  duration_ms: 143.60087
+  type: 'test'
+  ...
+# Subtest: the surface id doubles as the exchange id — a2ui-actions-route.ts needs no separate callback param
+ok 136 - the surface id doubles as the exchange id — a2ui-actions-route.ts needs no separate callback param
+  ---
+  duration_ms: 2.69718
+  type: 'test'
+  ...
+# Subtest: an unanswered surface returns an explicit no-answer result, not a hang or a throw
+ok 137 - an unanswered surface returns an explicit no-answer result, not a hang or a throw
+  ---
+  duration_ms: 1.154647
+  type: 'test'
+  ...
+# Subtest: a cancelled run closes the exchange rather than holding the handler to the deadline
+ok 138 - a cancelled run closes the exchange rather than holding the handler to the deadline
+  ---
+  duration_ms: 3.055736
+  type: 'test'
+  ...
+# Subtest: with no emit seam the tool reports it cannot run, and opens no exchange
+ok 139 - with no emit seam the tool reports it cannot run, and opens no exchange
+  ---
+  duration_ms: 0.418682
+  type: 'test'
+  ...
+# Subtest: registers unconditionally — no environment can switch this tool off
+ok 140 - registers unconditionally — no environment can switch this tool off
+  ---
+  duration_ms: 0.41105
+  type: 'test'
+  ...
+# Subtest: a second turn delivered without an action is reported as an unknown step, not dropped
+ok 141 - a second turn delivered without an action is reported as an unknown step, not dropped
+  ---
+  duration_ms: 4.55467
+  type: 'test'
+  ...
+# Subtest: a run cancelled between the two turns returns the no-answer result for the second turn
+ok 142 - a run cancelled between the two turns returns the no-answer result for the second turn
+  ---
+  duration_ms: 2.069682
+  type: 'test'
+  ...
+# Subtest: validateDemoA2uiMessage returns a valid message as parsed and refuses an invalid one by name
+ok 143 - validateDemoA2uiMessage returns a valid message as parsed and refuses an invalid one by name
+  ---
+  duration_ms: 1.709722
+  type: 'test'
+  ...
+# Subtest: an admin nobody has configured reads as not-set, with sensible defaults
+ok 144 - an admin nobody has configured reads as not-set, with sensible defaults
+  ---
+  duration_ms: 32.198046
+  type: 'test'
+  ...
+# Subtest: setting an apiKey seals it, masks it, and never returns the plaintext
+ok 145 - setting an apiKey seals it, masks it, and never returns the plaintext
+  ---
+  duration_ms: 11.85185
+  type: 'test'
+  ...
+# Subtest: an empty apiKey is rejected — DELETE clears a key, PUT does not accept blank
+ok 146 - an empty apiKey is rejected — DELETE clears a key, PUT does not accept blank
+  ---
+  duration_ms: 0.8099
+  type: 'test'
+  ...
+# Subtest: a non-string protocol/baseUrl/model is rejected before any write
+ok 147 - a non-string protocol/baseUrl/model is rejected before any write
+  ---
+  duration_ms: 22.270196
+  type: 'test'
+  ...
+# Subtest: a non-positive maxTokens is rejected before any write
+ok 148 - a non-positive maxTokens is rejected before any write
+  ---
+  duration_ms: 0.529825
+  type: 'test'
+  ...
+# Subtest: a non-string providerId is rejected before creating a credential
+ok 149 - a non-string providerId is rejected before creating a credential
+  ---
+  duration_ms: 0.292342
+  type: 'test'
+  ...
+# Subtest: omitting apiKey leaves the previously-stored key untouched — only model changes
+ok 150 - omitting apiKey leaves the previously-stored key untouched — only model changes
+  ---
+  duration_ms: 8.192619
+  type: 'test'
+  ...
+# Subtest: a rotation (second apiKey) fully replaces the first — the old key no longer resolves
+ok 151 - a rotation (second apiKey) fully replaces the first — the old key no longer resolves
+  ---
+  duration_ms: 1.360451
+  type: 'test'
+  ...
+# Subtest: a missing site key fails CLOSED with a distinct error, and writes nothing
+ok 152 - a missing site key fails CLOSED with a distinct error, and writes nothing
+  ---
+  duration_ms: 0.875048
+  type: 'test'
+  ...
+# Subtest: two different admins in the SAME workspace have fully independent credentials
+ok 153 - two different admins in the SAME workspace have fully independent credentials
+  ---
+  duration_ms: 3.947017
+  type: 'test'
+  ...
+# Subtest: the SAME principal id in two different workspaces has fully independent credentials
+ok 154 - the SAME principal id in two different workspaces has fully independent credentials
+  ---
+  duration_ms: 1.720229
+  type: 'test'
+  ...
+# Subtest: delete clears only the key — protocol/providerId/baseUrl/model/maxTokens survive
+ok 155 - delete clears only the key — protocol/providerId/baseUrl/model/maxTokens survive
+  ---
+  duration_ms: 2.215682
+  type: 'test'
+  ...
+# Subtest: deleting an already-unset key is a harmless no-op, not an error
+ok 156 - deleting an already-unset key is a harmless no-op, not an error
+  ---
+  duration_ms: 0.313243
+  type: 'test'
+  ...
+# Subtest: resolveExecutionCredential's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null
+ok 157 - resolveExecutionCredential's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null
+  ---
+  duration_ms: 1.242812
+  type: 'test'
+  ...
+# Subtest: resolveExecutionCredential returns null when no row exists
+ok 158 - resolveExecutionCredential returns null when no row exists
+  ---
+  duration_ms: 10.81448
+  type: 'test'
+  ...
+# Subtest: resolveExecutionCredential refuses a decrypted payload with a non-string apiKey
+ok 159 - resolveExecutionCredential refuses a decrypted payload with a non-string apiKey
+  ---
+  duration_ms: 3.720903
+  type: 'test'
+  ...
+# Subtest: resolveExecutionCredential returns null (not a throw) when the sealed row cannot be opened
+ok 160 - resolveExecutionCredential returns null (not a throw) when the sealed row cannot be opened
+  ---
+  duration_ms: 1.008934
+  type: 'test'
+  ...
+# Subtest: resolveExecutionCredential returns the key and config together on success
+ok 161 - resolveExecutionCredential returns the key and config together on success
+  ---
+  duration_ms: 1.01384
+  type: 'test'
+  ...
+# Subtest: a freshly saved key is sealed with AAD bound to (workspaceId, principalId) and the row is marked vault aadVersion 2
+ok 162 - a freshly saved key is sealed with AAD bound to (workspaceId, principalId) and the row is marked vault aadVersion 2
+  ---
+  duration_ms: 1.009167
+  type: 'test'
+  ...
+# Subtest: AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in the SAME workspace fails closed (adversarial cross-row transplant)
+ok 163 - AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in the SAME workspace fails closed (adversarial cross-row transplant)
+  ---
+  duration_ms: 1.651166
+  type: 'test'
+  ...
+# Subtest: AAD binding rejects a ciphertext transplanted across workspaces for the same principal
+ok 164 - AAD binding rejects a ciphertext transplanted across workspaces for the same principal
+  ---
+  duration_ms: 7.30153
+  type: 'test'
+  ...
+# Subtest: BYOK hints use the shared server policy on writes and reads, including short keys and open failures
+ok 165 - BYOK hints use the shared server policy on writes and reads, including short keys and open failures
+  ---
+  duration_ms: 20.254197
+  type: 'test'
+  ...
+# Subtest: providerId moves and explicit null preserve the personal envelope and identity
+ok 166 - providerId moves and explicit null preserve the personal envelope and identity
+  ---
+  duration_ms: 2.927375
+  type: 'test'
+  ...
+# Subtest: gated personal rotation never exposes mixed settings/key and never changes a sibling
+ok 167 - gated personal rotation never exposes mixed settings/key and never changes a sibling
+  ---
+  duration_ms: 34.064229
+  type: 'test'
+  ...
+# Subtest: a stale prepared personal rotation loses CAS without overwriting a committed settings edit
+ok 168 - a stale prepared personal rotation loses CAS without overwriting a committed settings edit
+  ---
+  duration_ms: 6.647253
+  type: 'test'
+  ...
+# Subtest: personal runtime rejects a row from another principal before opening it
+ok 169 - personal runtime rejects a row from another principal before opening it
+  ---
+  duration_ms: 1.224516
+  type: 'test'
+  ...
+# Subtest: TW3 execution settings-only creation, partial update and explicit provider clearing retain their defaults and key
+ok 170 - TW3 execution settings-only creation, partial update and explicit provider clearing retain their defaults and key
+  ---
+  duration_ms: 7.045826
+  type: 'test'
+  ...
+# Subtest: a non-Error seal failure still fails closed with the distinct error, carrying the raw reason
+ok 171 - a non-Error seal failure still fails closed with the distinct error, carrying the raw reason
+  ---
+  duration_ms: 0.602478
+  type: 'test'
+  ...
+# Subtest: an expired-token connection raises the re-auth surface, naming the server
+ok 172 - an expired-token connection raises the re-auth surface, naming the server
+  ---
+  duration_ms: 124.822028
+  type: 'test'
+  ...
+# Subtest: an unanswered reconnect notice expires without claiming an acknowledgement
+ok 173 - an unanswered reconnect notice expires without claiming an acknowledgement
+  ---
+  duration_ms: 34.654102
+  type: 'test'
+  ...
+# Subtest: without a dialog channel, an unlabelled OAuth server returns reconnect instructions using its id
+ok 174 - without a dialog channel, an unlabelled OAuth server returns reconnect instructions using its id
+  ---
+  duration_ms: 2.278963
+  type: 'test'
+  ...
+# Subtest: an OAuth server without a provider or client identity refuses reauthentication
+ok 175 - an OAuth server without a provider or client identity refuses reauthentication
+  ---
+  duration_ms: 2.185309
+  type: 'test'
+  ...
+# Subtest: real round trip: an mcp-ui acknowledgement of external_mcp_reauth_prompt's dialog is redeemed, not refused as unallowlisted
+ok 176 - real round trip: an mcp-ui acknowledgement of external_mcp_reauth_prompt's dialog is redeemed, not refused as unallowlisted
+  ---
+  duration_ms: 231.871029
+  type: 'test'
+  ...
+# Subtest: degrades to the existing terminal error when the connection is not OAuth-authenticated, rather than raising a broken dialog
+ok 177 - degrades to the existing terminal error when the connection is not OAuth-authenticated, rather than raising a broken dialog
+  ---
+  duration_ms: 1.933397
+  type: 'test'
+  ...
+# Subtest: degrades to the existing terminal error when the connection does not exist
+ok 178 - degrades to the existing terminal error when the connection does not exist
+  ---
+  duration_ms: 0.451344
+  type: 'test'
+  ...
+# Subtest: idempotent under two concurrent failures for the SAME connection: only one exchange opens
+ok 179 - idempotent under two concurrent failures for the SAME connection: only one exchange opens
+  ---
+  duration_ms: 3.838379
+  type: 'test'
+  ...
+# Subtest: a second admin's run for the same connection raises its own notice, not 'already showing'
+ok 180 - a second admin's run for the same connection raises its own notice, not 'already showing'
+  ---
+  duration_ms: 24.23788
+  type: 'test'
+  ...
+# Subtest: cancelling the run closes the notice and clears the guard, so the next failure raises a fresh one
+ok 181 - cancelling the run closes the notice and clears the guard, so the next failure raises a fresh one
+  ---
+  duration_ms: 36.93791
+  type: 'test'
+  ...
+# Subtest: external_mcp_reauth_prompt called with no 'id' fails with errorKind 'validation' (400), not a redacted 'internal' (500)
+ok 182 - external_mcp_reauth_prompt called with no 'id' fails with errorKind 'validation' (400), not a redacted 'internal' (500)
+  ---
+  duration_ms: 30.778144
+  type: 'test'
+  ...
+# Subtest: nullish reauth input is rejected as a validation error
+ok 183 - nullish reauth input is rejected as a validation error
+  ---
+  duration_ms: 1.953333
+  type: 'test'
+  ...
+# Subtest: a connection reconnected while the notice was open is reported connected, with a retry-now note
+ok 184 - a connection reconnected while the notice was open is reported connected, with a retry-now note
+  ---
+  duration_ms: 7.172857
+  type: 'test'
+  ...
+# Subtest: a connection deleted while the notice was open is reported disconnected
+ok 185 - a connection deleted while the notice was open is reported disconnected
+  ---
+  duration_ms: 6.887657
+  type: 'test'
+  ...
+# Subtest: the registration's own handler refuses an absent input with the domain's id validation
+ok 186 - the registration's own handler refuses an absent input with the domain's id validation
+  ---
+  duration_ms: 8.84896
+  type: 'test'
+  ...
+# Subtest: federation.start() does not read the roster until installed-extension registration settles
+ok 187 - federation.start() does not read the roster until installed-extension registration settles
+  ---
+  duration_ms: 32.728796
+  type: 'test'
+  ...
+# Subtest: an injected federation connect is the one the boot pass uses for each resolved connection
+ok 188 - an injected federation connect is the one the boot pass uses for each resolved connection
+  ---
+  duration_ms: 26.067116
+  type: 'test'
+  ...
+# [connect-test] mcp-federation: 'conn-injected' failed, continuing without its tools — Error: injected connect refuses
+#     at connect (/home/user/Tovu/apps/website/src/assistant/__tests__/installed-extension-tools.order.test.ts:108:15)
+#     at connect (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:199:34)
+#     at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:300:21)
+#     at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:199:28)
+#     at attachFederatedMcpTools (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:24)
+#     at runStart (/home/user/Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:138:30)
+#     at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/installed-extension-tools.order.test.ts:115:3)
+#     at async Test.run (node:internal/test_runner/test:1409:7)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+# Subtest: G3 drift: an unchanged tool stays allowed — Always allow and Allow for this chat both keep skipping the card
+ok 189 - G3 drift: an unchanged tool stays allowed — Always allow and Allow for this chat both keep skipping the card
+  ---
+  duration_ms: 149.61845
+  type: 'test'
+  ...
+# Subtest: G3 drift: a changed description voids an Always allow — the card asks again and the stale row is removed
+ok 190 - G3 drift: a changed description voids an Always allow — the card asks again and the stale row is removed
+  ---
+  duration_ms: 58.303106
+  type: 'test'
+  ...
+# Subtest: G3 drift: a changed description voids an Allow for this chat
+ok 191 - G3 drift: a changed description voids an Allow for this chat
+  ---
+  duration_ms: 20.559645
+  type: 'test'
+  ...
+# Subtest: G3 drift: a changed input schema voids an Always allow
+ok 192 - G3 drift: a changed input schema voids an Always allow
+  ---
+  duration_ms: 2.728885
+  type: 'test'
+  ...
+# Subtest: G3 drift: changed hints void an Always allow
+ok 193 - G3 drift: changed hints void an Always allow
+  ---
+  duration_ms: 7.207657
+  type: 'test'
+  ...
+# Subtest: G3 drift: an Always allow saved before this check (hints-only fingerprint) counts as drifted and asks once
+ok 194 - G3 drift: an Always allow saved before this check (hints-only fingerprint) counts as drifted and asks once
+  ---
+  duration_ms: 1.757156
+  type: 'test'
+  ...
+# Subtest: G3 drift: the fingerprint changes with the description and the schema, not with schema key order
+ok 195 - G3 drift: the fingerprint changes with the description and the schema, not with schema key order
+  ---
+  duration_ms: 0.657705
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: the generic word list covers the owner's examples
+ok 196 - G3 write-shaped: the generic word list covers the owner's examples
+  ---
+  duration_ms: 0.137142
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: names match by word, in any case or separator style; ordinary names do not
+ok 197 - G3 write-shaped: names match by word, in any case or separator style; ordinary names do not
+  ---
+  duration_ms: 0.323586
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: acronym-led names split at the acronym boundary — SQLQuery, DDLScript, GraphQLMutation
+ok 198 - G3 write-shaped: acronym-led names split at the acronym boundary — SQLQuery, DDLScript, GraphQLMutation
+  ---
+  duration_ms: 0.110446
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: a read-only search with a query input is admitted without a card
+ok 199 - G3 write-shaped: a read-only search with a query input is admitted without a card
+  ---
+  duration_ms: 0.149717
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'sql' input names alone do not ask, even with older remembered approvals
+ok 200 - G3 write-shaped: 'sql' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 11.246153
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'query' input names alone do not ask, even with older remembered approvals
+ok 201 - G3 write-shaped: 'query' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 24.163096
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'queries' input names alone do not ask, even with older remembered approvals
+ok 202 - G3 write-shaped: 'queries' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 0.969368
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'statement' input names alone do not ask, even with older remembered approvals
+ok 203 - G3 write-shaped: 'statement' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 1.697434
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'statements' input names alone do not ask, even with older remembered approvals
+ok 204 - G3 write-shaped: 'statements' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 1.394542
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'mutation' input names alone do not ask, even with older remembered approvals
+ok 205 - G3 write-shaped: 'mutation' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 1.184703
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'mutations' input names alone do not ask, even with older remembered approvals
+ok 206 - G3 write-shaped: 'mutations' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 34.482923
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'delete' input names alone do not ask, even with older remembered approvals
+ok 207 - G3 write-shaped: 'delete' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 1.183065
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'drop' input names alone do not ask, even with older remembered approvals
+ok 208 - G3 write-shaped: 'drop' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 25.987041
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'truncate' input names alone do not ask, even with older remembered approvals
+ok 209 - G3 write-shaped: 'truncate' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 1.107741
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'alter' input names alone do not ask, even with older remembered approvals
+ok 210 - G3 write-shaped: 'alter' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 0.878897
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'insert' input names alone do not ask, even with older remembered approvals
+ok 211 - G3 write-shaped: 'insert' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 27.766951
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'update' input names alone do not ask, even with older remembered approvals
+ok 212 - G3 write-shaped: 'update' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 9.78685
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'upsert' input names alone do not ask, even with older remembered approvals
+ok 213 - G3 write-shaped: 'upsert' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 9.093379
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'migration' input names alone do not ask, even with older remembered approvals
+ok 214 - G3 write-shaped: 'migration' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 7.580828
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'migrations' input names alone do not ask, even with older remembered approvals
+ok 215 - G3 write-shaped: 'migrations' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 1.22694
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'ddl' input names alone do not ask, even with older remembered approvals
+ok 216 - G3 write-shaped: 'ddl' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 23.251233
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'exec' input names alone do not ask, even with older remembered approvals
+ok 217 - G3 write-shaped: 'exec' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 0.817342
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'execute' input names alone do not ask, even with older remembered approvals
+ok 218 - G3 write-shaped: 'execute' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 23.119764
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'command' input names alone do not ask, even with older remembered approvals
+ok 219 - G3 write-shaped: 'command' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 0.726876
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: 'script' input names alone do not ask, even with older remembered approvals
+ok 220 - G3 write-shaped: 'script' input names alone do not ask, even with older remembered approvals
+  ---
+  duration_ms: 8.984547
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: an undeclared SQL-named argument does not add a card to a read-only list tool
+ok 221 - G3 write-shaped: an undeclared SQL-named argument does not add a card to a read-only list tool
+  ---
+  duration_ms: 0.769672
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: a forged Always allow on a write-shaped card runs that one call and saves nothing
+ok 222 - G3 write-shaped: a forged Always allow on a write-shaped card runs that one call and saves nothing
+  ---
+  duration_ms: 35.021663
+  type: 'test'
+  ...
+# Subtest: G3 write-shaped: a read-only tool with ordinary inputs is unaffected — it runs with no card
+ok 223 - G3 write-shaped: a read-only tool with ordinary inputs is unaffected — it runs with no card
+  ---
+  duration_ms: 1.188704
+  type: 'test'
+  ...
+# Subtest: the parser enumerates alternate opener shapes and reports unresolved bindings
+ok 224 - the parser enumerates alternate opener shapes and reports unresolved bindings
+  ---
+  duration_ms: 20.910524
+  type: 'test'
+  ...
+# Subtest: the parser follows identity dialogs to prepared confirmation IDs and fails closed for unknown flows
+ok 225 - the parser follows identity dialogs to prepared confirmation IDs and fails closed for unknown flows
+  ---
+  duration_ms: 1.880026
+  type: 'test'
+  ...
+# Subtest: the federated card adapter permits only its reviewed dynamic spec expression
+ok 226 - the federated card adapter permits only its reviewed dynamic spec expression
+  ---
+  duration_ms: 0.876108
+  type: 'test'
+  ...
+# Subtest: the sealer adapter exemption leaves other unresolved open calls visible
+ok 227 - the sealer adapter exemption leaves other unresolved open calls visible
+  ---
+  duration_ms: 0.837781
+  type: 'test'
+  ...
+# Subtest: reviewed non-exchange open calls do not hide new surface bindings in the same file
+ok 228 - reviewed non-exchange open calls do not hide new surface bindings in the same file
+  ---
+  duration_ms: 10.38933
+  type: 'test'
+  ...
+# Subtest: every surfaceExchanges.open(...) call names a toolId constant this scan can resolve
+not ok 229 - every surfaceExchanges.open(...) call names a toolId constant this scan can resolve
+  ---
+  duration_ms: 24.765595
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts:48:480'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'assistant/ask-choice-custom-answer.ts:143: args',
+    +   'cli/commands/import-local.ts:151: file'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'assistant/ask-choice-custom-answer.ts:143: args'
+    1: 'cli/commands/import-local.ts:151: file'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts:324:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: the scan finds the known exchange openers (guards against a scan that silently matches nothing)
+ok 230 - the scan finds the known exchange openers (guards against a scan that silently matches nothing)
+  ---
+  duration_ms: 0.377693
+  type: 'test'
+  ...
+# Subtest: every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS
+ok 231 - every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS
+  ---
+  duration_ms: 0.251606
+  type: 'test'
+  ...
+# Subtest: the completeness check reports a tool whose allowlist entry is missing
+ok 232 - the completeness check reports a tool whose allowlist entry is missing
+  ---
+  duration_ms: 0.220798
+  type: 'test'
+  ...
+# Subtest: every allowlisted id opens an exchange or is a named carve-out
+ok 233 - every allowlisted id opens an exchange or is a named carve-out
+  ---
+  duration_ms: 0.313364
+  type: 'test'
+  ...
+# Subtest: real round trip: a browser confirmation click for external_mcp_save is accepted by the allowlist and actually saves the server
+ok 234 - real round trip: a browser confirmation click for external_mcp_save is accepted by the allowlist and actually saves the server
+  ---
+  duration_ms: 1213.196153
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SECURITY: a Cancel click for external_mcp_save also reaches the allowlist and reports the cancellation, not a 403
+ok 235 - SECURITY: a Cancel click for external_mcp_save also reaches the allowlist and reports the cancellation, not a 403
+  ---
+  duration_ms: 399.340865
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a hosted token delivered by the human MCP-UI form is stored without echoing it to the model
+ok 236 - a hosted token delivered by the human MCP-UI form is stored without echoing it to the model
+  ---
+  duration_ms: 594.890076
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content_post_delete allows an answer to its parked policy card
+ok 237 - content_post_delete allows an answer to its parked policy card
+  ---
+  duration_ms: 1.795356
+  type: 'test'
+  ...
+# Subtest: content_post_search is on the allowlist — the real execution path behind the /search composer capability
+ok 238 - content_post_search is on the allowlist — the real execution path behind the /search composer capability
+  ---
+  duration_ms: 0.460127
+  type: 'test'
+  ...
+# Subtest: deployment_execute_static_publish allows an answer to its parked policy card
+ok 239 - deployment_execute_static_publish allows an answer to its parked policy card
+  ---
+  duration_ms: 0.224928
+  type: 'test'
+  ...
+# Subtest: the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason
+ok 240 - the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason
+  ---
+  duration_ms: 0.08984
+  type: 'test'
+  ...
+# Subtest: credential_save redeems the publish-host card; the retired save id cannot redeem
+ok 241 - credential_save redeems the publish-host card; the retired save id cannot redeem
+  ---
+  duration_ms: 0.388346
+  type: 'test'
+  ...
+# Subtest: deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a)
+ok 242 - deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a)
+  ---
+  duration_ms: 0.260349
+  type: 'test'
+  ...
+# Subtest: SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate
+ok 243 - SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate
+  ---
+  duration_ms: 0.264256
+  type: 'test'
+  ...
+# Subtest: assistant_demo_choices is on the allowlist unconditionally — it performs no token redemption because it has nothing to redeem
+ok 244 - assistant_demo_choices is on the allowlist unconditionally — it performs no token redemption because it has nothing to redeem
+  ---
+  duration_ms: 0.099561
+  type: 'test'
+  ...
+# Subtest: assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out
+ok 245 - assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out
+  ---
+  duration_ms: 0.429322
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16)
+ok 246 - plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16)
+  ---
+  duration_ms: 0.112654
+  type: 'test'
+  ...
+# Subtest: agent_plugins_update can answer its parked policy card but cannot start from a surface callback
+ok 247 - agent_plugins_update can answer its parked policy card but cannot start from a surface callback
+  ---
+  duration_ms: 0.537226
+  type: 'test'
+  ...
+# Subtest: custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)
+ok 248 - custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)
+  ---
+  duration_ms: 0.341786
+  type: 'test'
+  ...
+# Subtest: custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03)
+ok 249 - custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03)
+  ---
+  duration_ms: 0.153244
+  type: 'test'
+  ...
+# Subtest: external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02)
+ok 250 - external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02)
+  ---
+  duration_ms: 0.669237
+  type: 'test'
+  ...
+# Subtest: external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test)
+ok 251 - external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test)
+  ---
+  duration_ms: 0.119169
+  type: 'test'
+  ...
+# Subtest: credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either
+ok 252 - credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either
+  ---
+  duration_ms: 0.161658
+  type: 'test'
+  ...
+# Subtest: custom_credential_write_files runs normally and cannot be executed by a surface callback
+ok 253 - custom_credential_write_files runs normally and cannot be executed by a surface callback
+  ---
+  duration_ms: 0.066226
+  type: 'test'
+  ...
+# Subtest: SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently
+ok 254 - SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently
+  ---
+  duration_ms: 2.757339
+  type: 'test'
+  ...
+# Subtest: revoking a saved-key grant opens no exchange and cannot execute from a card callback
+ok 255 - revoking a saved-key grant opens no exchange and cannot execute from a card callback
+  ---
+  duration_ms: 0.231237
+  type: 'test'
+  ...
+# Subtest: file-batch callbacks can only answer parked exchanges, never start fresh writes
+ok 256 - file-batch callbacks can only answer parked exchanges, never start fresh writes
+  ---
+  duration_ms: 0.121012
+  type: 'test'
+  ...
+# Subtest: a verified payment outcome can only answer its parked card, never run from a fresh callback
+ok 257 - a verified payment outcome can only answer its parked card, never run from a fresh callback
+  ---
+  duration_ms: 0.081413
+  type: 'test'
+  ...
+# Subtest: SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set
+ok 258 - SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set
+  ---
+  duration_ms: 0.311587
+  type: 'test'
+  ...
+# Subtest: security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused
+ok 259 - security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused
+  ---
+  duration_ms: 0.178473
+  type: 'test'
+  ...
+# Subtest: direct theme replacements cannot execute through surface callbacks
+ok 260 - direct theme replacements cannot execute through surface callbacks
+  ---
+  duration_ms: 0.107178
+  type: 'test'
+  ...
+# Subtest: security: the plugin-tool id table pins anchors, quantifiers and the character class
+ok 261 - security: the plugin-tool id table pins anchors, quantifiers and the character class
+  ---
+  duration_ms: 0.130838
+  type: 'test'
+  ...
+# Subtest: six real credential_save card paths retain saved/dismissed resources, frames and counters
+ok 262 - six real credential_save card paths retain saved/dismissed resources, frames and counters
+  ---
+  duration_ms: 792.221373
+  type: 'test'
+  ...
+# Subtest: pages_read_html resolves slash-prefixed slugs and home after authorization
+ok 263 - pages_read_html resolves slash-prefixed slugs and home after authorization
+  ---
+  duration_ms: 72.195061
+  type: 'test'
+  ...
+# Subtest: pages_read_html returns three stored HTML documents in one batch
+ok 264 - pages_read_html returns three stored HTML documents in one batch
+  ---
+  duration_ms: 10.163988
+  type: 'test'
+  ...
+# Subtest: pages_read_html isolates a missing id field and reads the following item
+ok 265 - pages_read_html isolates a missing id field and reads the following item
+  ---
+  duration_ms: 13.46224
+  type: 'test'
+  ...
+# Subtest: pages_read_html isolates a nonexistent page and reads the following item
+ok 266 - pages_read_html isolates a nonexistent page and reads the following item
+  ---
+  duration_ms: 11.510309
+  type: 'test'
+  ...
+# Subtest: pages_read_html authorizes each batch item and isolates a permission denial
+ok 267 - pages_read_html authorizes each batch item and isolates a permission denial
+  ---
+  duration_ms: 5.163171
+  type: 'test'
+  ...
+# Subtest: pages_read_html rejects more than 25 items before authorization
+ok 268 - pages_read_html rejects more than 25 items before authorization
+  ---
+  duration_ms: 2.913966
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: pages_read_html scopes shared and overridden sites per item and continues after an unknown site
+ok 269 - pages_read_html scopes shared and overridden sites per item and continues after an unknown site
+  ---
+  duration_ms: 4852.652554
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses every non-owner cross-site batch item before opening peer databases
+ok 270 - pages_read_html refuses every non-owner cross-site batch item before opening peer databases
+  ---
+  duration_ms: 3712.585178
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: scalar content readers retain batching after the production read-card collapse
+ok 271 - scalar content readers retain batching after the production read-card collapse
+  ---
+  duration_ms: 3502.089123
+  type: 'test'
+  ...
+# Subtest: ensurePublicAssistantSettingDefinitions is idempotent — switch and widget definitions register once
+ok 272 - ensurePublicAssistantSettingDefinitions is idempotent — switch and widget definitions register once
+  ---
+  duration_ms: 4.337799
+  type: 'test'
+  ...
+# Subtest: wcmp: widget defaults to React, persists per site, and switching does not enable the assistant
+ok 273 - wcmp: widget defaults to React, persists per site, and switching does not enable the assistant
+  ---
+  duration_ms: 25.179254
+  type: 'test'
+  ...
+# Subtest: wcmp: invalid widget rejects a combined patch before changing the switch
+ok 274 - wcmp: invalid widget rejects a combined patch before changing the switch
+  ---
+  duration_ms: 1.51924
+  type: 'test'
+  ...
+# Subtest: wcmp: a denied principal cannot change the widget
+ok 275 - wcmp: a denied principal cannot change the widget
+  ---
+  duration_ms: 7.942862
+  type: 'test'
+  ...
+# Subtest: the definition is namespaced under 'site.' — the ledger's owner fence rejects a bare namespace
+ok 276 - the definition is namespaced under 'site.' — the ledger's owner fence rejects a bare namespace
+  ---
+  duration_ms: 4.415783
+  type: 'test'
+  ...
+# Subtest: a brand-new site is OFF before any definition exists at all
+ok 277 - a brand-new site is OFF before any definition exists at all
+  ---
+  duration_ms: 2.462756
+  type: 'test'
+  ...
+# Subtest: registering the definition does not turn anything on — the registered default is false
+ok 278 - registering the definition does not turn anything on — the registered default is false
+  ---
+  duration_ms: 10.031596
+  type: 'test'
+  ...
+# Subtest: the read fails CLOSED — anything that is not literally true reads as off
+ok 279 - the read fails CLOSED — anything that is not literally true reads as off
+  ---
+  duration_ms: 0.783918
+  type: 'test'
+  ...
+# Subtest: setPublicAssistantSettings turns the switch on and back off, and returns the persisted state
+ok 280 - setPublicAssistantSettings turns the switch on and back off, and returns the persisted state
+  ---
+  duration_ms: 0.67054
+  type: 'test'
+  ...
+# Subtest: an empty patch is a no-op read, not an accidental reset
+ok 281 - an empty patch is a no-op read, not an accidental reset
+  ---
+  duration_ms: 7.164893
+  type: 'test'
+  ...
+# Subtest: a non-boolean publicEnabled is rejected before any write happens
+ok 282 - a non-boolean publicEnabled is rejected before any write happens
+  ---
+  duration_ms: 2.426122
+  type: 'test'
+  ...
+# Subtest: a denied principal cannot flip the switch
+ok 283 - a denied principal cannot flip the switch
+  ---
+  duration_ms: 13.375025
+  type: 'test'
+  ...
+# Subtest: the switch is workspace-scoped — enabling one workspace does not enable another
+ok 284 - the switch is workspace-scoped — enabling one workspace does not enable another
+  ---
+  duration_ms: 0.893941
+  type: 'test'
+  ...
+# Subtest: a non-owner cannot read another principal's run status
+ok 285 - a non-owner cannot read another principal's run status
+  ---
+  duration_ms: 242.509264
+  type: 'test'
+  ...
+# Subtest: the non-owner refusal is byte-identical to a genuinely unknown run, so a runId cannot be confirmed
+ok 286 - the non-owner refusal is byte-identical to a genuinely unknown run, so a runId cannot be confirmed
+  ---
+  duration_ms: 190.9621
+  type: 'test'
+  ...
+# Subtest: a non-owner cannot subscribe to another principal's run event stream — the whole transcript
+ok 287 - a non-owner cannot subscribe to another principal's run event stream — the whole transcript
+  ---
+  duration_ms: 25.470776
+  type: 'test'
+  ...
+# Subtest: the owner can still stream their own run's events
+ok 288 - the owner can still stream their own run's events
+  ---
+  duration_ms: 83.761376
+  type: 'test'
+  ...
+# Subtest: a non-owner cannot cancel another principal's in-flight run, and the run keeps running
+ok 289 - a non-owner cannot cancel another principal's in-flight run, and the run keeps running
+  ---
+  duration_ms: 7.5633
+  type: 'test'
+  ...
+# Subtest: a run with no recorded owner is unreadable and uncancellable by every admin
+ok 290 - a run with no recorded owner is unreadable and uncancellable by every admin
+  ---
+  duration_ms: 12.694568
+  type: 'test'
+  ...
+# Subtest: forget() drops a run's owner, so the registry does not grow for the daemon's lifetime
+ok 291 - forget() drops a run's owner, so the registry does not grow for the daemon's lifetime
+  ---
+  duration_ms: 0.526213
+  type: 'test'
+  ...
+# Subtest: the owner can cancel their own run
+ok 292 - the owner can cancel their own run
+  ---
+  duration_ms: 30.456447
+  type: 'test'
+  ...
+# Subtest: ownership outlives the run — a finished run is still readable, so it must still be guarded
+ok 293 - ownership outlives the run — a finished run is still readable, so it must still be guarded
+  ---
+  duration_ms: 13.242575
+  type: 'test'
+  ...
+# Subtest: run-scoped routes fail closed when no principal is asserted
+ok 294 - run-scoped routes fail closed when no principal is asserted
+  ---
+  duration_ms: 24.778809
+  type: 'test'
+  ...
+# Subtest: GET /api/runs lists only the caller's own runs, not every run on the daemon
+ok 295 - GET /api/runs lists only the caller's own runs, not every run on the daemon
+  ---
+  duration_ms: 14.267357
+  type: 'test'
+  ...
+# Subtest: the ?contextRef= filter still applies, and stays owner-scoped underneath it
+ok 296 - the ?contextRef= filter still applies, and stays owner-scoped underneath it
+  ---
+  duration_ms: 12.298793
+  type: 'test'
+  ...
+# Subtest: the production daemon mounts ownership before run routes and records the decoded principal on start
+ok 297 - the production daemon mounts ownership before run routes and records the decoded principal on start
+  ---
+  duration_ms: 437.079204
+  type: 'test'
+  ...
+# Subtest: assistant repositories without singleton lookup are rejected as invalid records
+ok 298 - assistant repositories without singleton lookup are rejected as invalid records
+  ---
+  duration_ms: 2.619168
+  type: 'test'
+  ...
+# Subtest: assistant vault creation refuses non-assistant credential kinds
+ok 299 - assistant vault creation refuses non-assistant credential kinds
+  ---
+  duration_ms: 1.060961
+  type: 'test'
+  ...
+# Subtest: assistant snapshot reads require singleton lookup even when a record is supplied
+ok 300 - assistant snapshot reads require singleton lookup even when a record is supplied
+  ---
+  duration_ms: 6.322292
+  type: 'test'
+  ...
+# Subtest: assistant settings refuse metadata returned from another workspace
+ok 301 - assistant settings refuse metadata returned from another workspace
+  ---
+  duration_ms: 1.444674
+  type: 'test'
+  ...
+# Subtest: a workspace nobody has configured reads as not-set, with sensible defaults
+ok 302 - a workspace nobody has configured reads as not-set, with sensible defaults
+  ---
+  duration_ms: 0.904231
+  type: 'test'
+  ...
+# Subtest: setting an apiKey seals it, masks it, and never returns the plaintext
+ok 303 - setting an apiKey seals it, masks it, and never returns the plaintext
+  ---
+  duration_ms: 2.765238
+  type: 'test'
+  ...
+# Subtest: an empty apiKey is rejected — DELETE clears a key, PUT does not accept blank
+ok 304 - an empty apiKey is rejected — DELETE clears a key, PUT does not accept blank
+  ---
+  duration_ms: 0.997322
+  type: 'test'
+  ...
+# Subtest: a non-string provider/baseUrl/model is rejected before any write
+ok 305 - a non-string provider/baseUrl/model is rejected before any write
+  ---
+  duration_ms: 0.384337
+  type: 'test'
+  ...
+# Subtest: a non-string baseUrl or model is also rejected before any write — not just provider
+ok 306 - a non-string baseUrl or model is also rejected before any write — not just provider
+  ---
+  duration_ms: 0.937503
+  type: 'test'
+  ...
+# Subtest: setting nothing at all on a never-before-configured workspace seeds an empty row with defaults, touching neither sealer nor keyring
+ok 307 - setting nothing at all on a never-before-configured workspace seeds an empty row with defaults, touching neither sealer nor keyring
+  ---
+  duration_ms: 5.396454
+  type: 'test'
+  ...
+# Subtest: omitting apiKey leaves the previously-stored key untouched — only provider/baseUrl/model change
+ok 308 - omitting apiKey leaves the previously-stored key untouched — only provider/baseUrl/model change
+  ---
+  duration_ms: 3.399162
+  type: 'test'
+  ...
+# Subtest: a rotation (second apiKey) fully replaces the first — the old key no longer resolves
+ok 309 - a rotation (second apiKey) fully replaces the first — the old key no longer resolves
+  ---
+  duration_ms: 5.287917
+  type: 'test'
+  ...
+# Subtest: a missing site key fails CLOSED with a distinct error, and writes nothing
+ok 310 - a missing site key fails CLOSED with a distinct error, and writes nothing
+  ---
+  duration_ms: 1.152227
+  type: 'test'
+  ...
+# Subtest: a non-Error seal failure still fails CLOSED and names the thrown value
+ok 311 - a non-Error seal failure still fails CLOSED and names the thrown value
+  ---
+  duration_ms: 2.860961
+  type: 'test'
+  ...
+# Subtest: delete clears only the key — provider/baseUrl/model survive
+ok 312 - delete clears only the key — provider/baseUrl/model survive
+  ---
+  duration_ms: 3.771033
+  type: 'test'
+  ...
+# Subtest: deleting an already-unset key is a harmless no-op, not an error
+ok 313 - deleting an already-unset key is a harmless no-op, not an error
+  ---
+  duration_ms: 0.275113
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantApiKey returns null (not a throw) when the repo read itself fails
+ok 314 - resolveSiteAssistantApiKey returns null (not a throw) when the repo read itself fails
+  ---
+  duration_ms: 0.357576
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantApiKey returns null when no row exists
+ok 315 - resolveSiteAssistantApiKey returns null when no row exists
+  ---
+  duration_ms: 0.19478
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantApiKey refuses a decrypted payload with a non-string apiKey
+ok 316 - resolveSiteAssistantApiKey refuses a decrypted payload with a non-string apiKey
+  ---
+  duration_ms: 2.184733
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantApiKey returns null (not a throw) when the sealed row cannot be opened
+ok 317 - resolveSiteAssistantApiKey returns null (not a throw) when the sealed row cannot be opened
+  ---
+  duration_ms: 1.005867
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null
+ok 318 - resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null
+  ---
+  duration_ms: 4.325481
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model together on success
+ok 319 - resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model together on success
+  ---
+  duration_ms: 1.156686
+  type: 'test'
+  ...
+# Subtest: a freshly saved key is sealed with AAD bound to workspaceId and the row is marked vault aadVersion 2
+ok 320 - a freshly saved key is sealed with AAD bound to workspaceId and the row is marked vault aadVersion 2
+  ---
+  duration_ms: 5.573237
+  type: 'test'
+  ...
+# Subtest: AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fails closed (adversarial cross-workspace transplant)
+ok 321 - AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fails closed (adversarial cross-workspace transplant)
+  ---
+  duration_ms: 1.744501
+  type: 'test'
+  ...
+# Subtest: BYOK hints use the shared server policy on writes and reads, including short keys and open failures
+ok 322 - BYOK hints use the shared server policy on writes and reads, including short keys and open failures
+  ---
+  duration_ms: 2.787146
+  type: 'test'
+  ...
+# Subtest: provider-only edits preserve vault identity, envelope and hints without deriving or resealing
+ok 323 - provider-only edits preserve vault identity, envelope and hints without deriving or resealing
+  ---
+  duration_ms: 7.072046
+  type: 'test'
+  ...
+# Subtest: public readiness performs one singleton read and at most one open for each outcome
+ok 324 - public readiness performs one singleton read and at most one open for each outcome
+  ---
+  duration_ms: 226.53163
+  type: 'test'
+  ...
+# Subtest: gated rotation publishes the key and settings together and leaves old reads usable until commit
+ok 325 - gated rotation publishes the key and settings together and leaves old reads usable until commit
+  ---
+  duration_ms: 7.367275
+  type: 'test'
+  ...
+# Subtest: a read gated at open keeps its old metadata when a concurrent rotation commits
+ok 326 - a read gated at open keeps its old metadata when a concurrent rotation commits
+  ---
+  duration_ms: 6.992886
+  type: 'test'
+  ...
+# Subtest: concurrent first saves with different providers contend on one singleton identity
+ok 327 - concurrent first saves with different providers contend on one singleton identity
+  ---
+  duration_ms: 1.543256
+  type: 'test'
+  ...
+# Subtest: TW3 site settings-only creation and omitted settings retain defaults, identity and key
+ok 328 - TW3 site settings-only creation and omitted settings retain defaults, identity and key
+  ---
+  duration_ms: 8.916588
+  type: 'test'
+  ...
+# Subtest: public readiness refuses an unsupported provider, a missing or blank model, and a blank key, by code
+ok 329 - public readiness refuses an unsupported provider, a missing or blank model, and a blank key, by code
+  ---
+  duration_ms: 13.800362
+  type: 'test'
+  ...
+# Subtest: public readiness reports a decrypt failure to the callback and stays key-free
+ok 330 - public readiness reports a decrypt failure to the callback and stays key-free
+  ---
+  duration_ms: 1.328836
+  type: 'test'
+  ...
+# Subtest: the registered commit schema shows the selected target folder through the shared approval renderer
+ok 331 - the registered commit schema shows the selected target folder through the shared approval renderer
+  ---
+  duration_ms: 29.940317
+  type: 'test'
+  ...
+# Subtest: unclassified registration fails closed, regardless of readOnly hint
+ok 332 - unclassified registration fails closed, regardless of readOnly hint
+  ---
+  duration_ms: 0.626032
+  type: 'test'
+  ...
+# Subtest: ordinary edits and draft creation run without an approval channel
+ok 333 - ordinary edits and draft creation run without an approval channel
+  ---
+  duration_ms: 6.287454
+  type: 'test'
+  ...
+# Subtest: publishing on this site through status is an ordinary reversible edit
+ok 334 - publishing on this site through status is an ordinary reversible edit
+  ---
+  duration_ms: 0.346049
+  type: 'test'
+  ...
+# Subtest: reversible writes (publish on this site, trash, moderation) run without an approval channel
+ok 335 - reversible writes (publish on this site, trash, moderation) run without an approval channel
+  ---
+  duration_ms: 7.743982
+  type: 'test'
+  ...
+# Subtest: only read, edit and trash run directly; every other class, including an unknown one, asks
+ok 336 - only read, edit and trash run directly; every other class, including an unknown one, asks
+  ---
+  duration_ms: 0.644815
+  type: 'test'
+  ...
+# Subtest: permanent deletes and actions that leave this site refuse without a human confirmation channel
+ok 337 - permanent deletes and actions that leave this site refuse without a human confirmation channel
+  ---
+  duration_ms: 22.528787
+  type: 'test'
+  ...
+# Subtest: one principal-bound confirmation approves one frozen call; cancel changes nothing
+ok 338 - one principal-bound confirmation approves one frozen call; cancel changes nothing
+  ---
+  duration_ms: 8.384823
+  type: 'test'
+  ...
+# Subtest: every supported locale translates the exact approval text and choices
+ok 339 - every supported locale translates the exact approval text and choices
+  ---
+  duration_ms: 7.392707
+  type: 'test'
+  ...
+# Subtest: unsupported approval locales fall back to English for every label
+ok 340 - unsupported approval locales fall back to English for every label
+  ---
+  duration_ms: 0.512917
+  type: 'test'
+  ...
+# Subtest: the target folder label is translated in every supported approval locale
+ok 341 - the target folder label is translated in every supported approval locale
+  ---
+  duration_ms: 0.646352
+  type: 'test'
+  ...
+# Subtest: page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask
+ok 342 - page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask
+  ---
+  duration_ms: 3.830152
+  type: 'test'
+  ...
+# Subtest: direct page actions reject unclassified capability ids
+ok 343 - direct page actions reject unclassified capability ids
+  ---
+  duration_ms: 0.264273
+  type: 'test'
+  ...
+# Subtest: page fill runs directly without a reviewed click handle
+ok 344 - page fill runs directly without a reviewed click handle
+  ---
+  duration_ms: 0.075445
+  type: 'test'
+  ...
+# Subtest: source-control export commits ask because they can remove stale exported paths; dry runs are direct
+ok 345 - source-control export commits ask because they can remove stale exported paths; dry runs are direct
+  ---
+  duration_ms: 0.950822
+  type: 'test'
+  ...
+# Subtest: disclosed approval facts precede technical Input, computed from the frozen call before asking
+ok 346 - disclosed approval facts precede technical Input, computed from the frozen call before asking
+  ---
+  duration_ms: 2.705629
+  type: 'test'
+  ...
+# Subtest: generic approval input uses the shared structured renderer and escapes untrusted values
+ok 347 - generic approval input uses the shared structured renderer and escapes untrusted values
+  ---
+  duration_ms: 2.05006
+  type: 'test'
+  ...
+# Subtest: deployment approval shows catalog title and summary with technical input only behind Details
+ok 348 - deployment approval shows catalog title and summary with technical input only behind Details
+  ---
+  duration_ms: 2.062851
+  type: 'test'
+  ...
+# Subtest: approval without metadata has a readable title and localized fallback choices
+ok 349 - approval without metadata has a readable title and localized fallback choices
+  ---
+  duration_ms: 1.424112
+  type: 'test'
+  ...
+# Subtest: approval uses input-schema titles and descriptions through the shared field renderer
+ok 350 - approval uses input-schema titles and descriptions through the shared field renderer
+  ---
+  duration_ms: 1.428582
+  type: 'test'
+  ...
+# Subtest: a disclose failure refuses the call before any card or effect
+ok 351 - a disclose failure refuses the call before any card or effect
+  ---
+  duration_ms: 0.606126
+  type: 'test'
+  ...
+# Subtest: a failing locale lookup still asks, in English, and never bypasses the gate
+ok 352 - a failing locale lookup still asks, in English, and never bypasses the gate
+  ---
+  duration_ms: 1.869003
+  type: 'test'
+  ...
+# Subtest: published plugin details and inspect disclosures run directly; state-changing handles still ask
+ok 353 - published plugin details and inspect disclosures run directly; state-changing handles still ask
+  ---
+  duration_ms: 0.295335
+  type: 'test'
+  ...
+# Subtest: the shared domain confirmer refuses commerce without an interactive channel
+ok 354 - the shared domain confirmer refuses commerce without an interactive channel
+  ---
+  duration_ms: 0.566187
+  type: 'test'
+  ...
+# Subtest: execution-setting rule: only an exact namespace AND key pair escalates
+ok 355 - execution-setting rule: only an exact namespace AND key pair escalates
+  ---
+  duration_ms: 0.393932
+  type: 'test'
+  ...
+# Subtest: http-method rule: only a DELETE (any case) is a delete
+ok 356 - http-method rule: only a DELETE (any case) is a delete
+  ---
+  duration_ms: 0.171035
+  type: 'test'
+  ...
+# Subtest: plugin-enable rule: only an explicit enabled:false is a plain edit
+ok 357 - plugin-enable rule: only an explicit enabled:false is a plain edit
+  ---
+  duration_ms: 0.135685
+  type: 'test'
+  ...
+# Subtest: export-commit rule: only dryRun:true is an edit
+ok 358 - export-commit rule: only dryRun:true is an edit
+  ---
+  duration_ms: 0.363772
+  type: 'test'
+  ...
+# Subtest: an explicit policy option overrides the table, and an unknown id without one throws
+ok 359 - an explicit policy option overrides the table, and an unknown id without one throws
+  ---
+  duration_ms: 0.198681
+  type: 'test'
+  ...
+# Subtest: plan tools and rule-free direct tools are returned unwrapped; ruled or policy tools are wrapped
+ok 360 - plan tools and rule-free direct tools are returned unwrapped; ruled or policy tools are wrapped
+  ---
+  duration_ms: 0.263299
+  type: 'test'
+  ...
+# Subtest: federated restore-over-existing description: verb forms and the bounded gaps are pinned
+ok 361 - federated restore-over-existing description: verb forms and the bounded gaps are pinned
+  ---
+  duration_ms: 4.891128
+  type: 'test'
+  ...
+# Subtest: audit forwards every execute argument, including the cancellation and surface channels
+ok 362 - audit forwards every execute argument, including the cancellation and surface channels
+  ---
+  duration_ms: 2.180534
+  type: 'test'
+  ...
+# Subtest: ORDERING GAP: an unknown tool leaves a durable attempt record — Jini writes none at all, because it throws before minting one
+ok 363 - ORDERING GAP: an unknown tool leaves a durable attempt record — Jini writes none at all, because it throws before minting one
+  ---
+  duration_ms: 110.069149
+  type: 'test'
+  ...
+# Subtest: the 'requested' row is appended BEFORE the inner executor is called, which is what makes the case above recordable
+ok 364 - the 'requested' row is appended BEFORE the inner executor is called, which is what makes the case above recordable
+  ---
+  duration_ms: 0.411369
+  type: 'test'
+  ...
+# Subtest: a denied execution records requested + denied, carrying Jini's executionId
+ok 365 - a denied execution records requested + denied, carrying Jini's executionId
+  ---
+  duration_ms: 0.274663
+  type: 'test'
+  ...
+# Subtest: a completed execution records requested + completed and returns the inner result unchanged
+ok 366 - a completed execution records requested + completed and returns the inner result unchanged
+  ---
+  duration_ms: 0.377022
+  type: 'test'
+  ...
+# Subtest: every non-throwing result status is recorded under its own phase, so the table can distinguish them
+ok 367 - every non-throwing result status is recorded under its own phase, so the table can distinguish them
+  ---
+  duration_ms: 0.355513
+  type: 'test'
+  ...
+# Subtest: a throwing handler records requested + failed, and the original error still propagates untouched
+ok 368 - a throwing handler records requested + failed, and the original error still propagates untouched
+  ---
+  duration_ms: 24.688603
+  type: 'test'
+  ...
+# Subtest: ADVERSARIAL: a sink that throws on every append cannot break tool execution — audit is observation, not a gate
+ok 369 - ADVERSARIAL: a sink that throws on every append cannot break tool execution — audit is observation, not a gate
+  ---
+  duration_ms: 1.280145
+  type: 'test'
+  ...
+# Subtest: ADVERSARIAL: a throwing sink on the error path does not mask the tool's own error
+ok 370 - ADVERSARIAL: a throwing sink on the error path does not mask the tool's own error
+  ---
+  duration_ms: 0.443435
+  type: 'test'
+  ...
+# Subtest: REDACTION: detail records the input's key names and array sizes, never any value
+ok 371 - REDACTION: detail records the input's key names and array sizes, never any value
+  ---
+  duration_ms: 0.295672
+  type: 'test'
+  ...
+# Subtest: REDACTION: a thrown error contributes only its class name, never its message
+ok 372 - REDACTION: a thrown error contributes only its class name, never its message
+  ---
+  duration_ms: 0.28072
+  type: 'test'
+  ...
+# Subtest: every row carries the workspace, run, tool and principal needed to attribute it
+ok 373 - every row carries the workspace, run, tool and principal needed to attribute it
+  ---
+  duration_ms: 0.47538
+  type: 'test'
+  ...
+# Subtest: a truncated output is noted, since the recorded result is then not the whole story
+ok 374 - a truncated output is noted, since the recorded result is then not the whole story
+  ---
+  duration_ms: 0.255618
+  type: 'test'
+  ...
+# Subtest: 2026-09-16: a redacted internal failure's row links to its error ID, never its (already redacted) text
+ok 375 - 2026-09-16: a redacted internal failure's row links to its error ID, never its (already redacted) text
+  ---
+  duration_ms: 0.243237
+  type: 'test'
+  ...
+# Subtest: distinct executions get distinct attempt ids, so concurrent runs cannot be conflated
+ok 376 - distinct executions get distinct attempt ids, so concurrent runs cannot be conflated
+  ---
+  duration_ms: 32.299016
+  type: 'test'
+  ...
+# Subtest: resumeConfirmation, cancel and getAuditRecord delegate straight through — Jini keeps its own contract
+ok 377 - resumeConfirmation, cancel and getAuditRecord delegate straight through — Jini keeps its own contract
+  ---
+  duration_ms: 0.447826
+  type: 'test'
+  ...
+# Subtest: describeInput handles every shape without throwing, and never returns a value
+ok 378 - describeInput handles every shape without throwing, and never returns a value
+  ---
+  duration_ms: 0.138888
+  type: 'test'
+  ...

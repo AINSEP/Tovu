@@ -365,3 +365,1620 @@ ok 61 - v2-strict: descriptive/discovery metadata fields (authors, attributions,
   duration_ms: 4.075701
   type: 'test'
   ...
+# Subtest: user adapter hide: injected target guard refuses before any writes
+ok 62 - user adapter hide: injected target guard refuses before any writes
+  ---
+  duration_ms: 741.342637
+  type: 'test'
+  ...
+# Subtest: user adapter purge: injected target guard refuses before any writes
+ok 63 - user adapter purge: injected target guard refuses before any writes
+  ---
+  duration_ms: 538.033558
+  type: 'test'
+  ...
+# Subtest: trash: independent last active owner floor, including retention purge
+ok 64 - trash: independent last active owner floor, including retention purge
+  ---
+  duration_ms: 793.648361
+  type: 'test'
+  ...
+# Subtest: purge: independent last active owner floor, including retention purge
+ok 65 - purge: independent last active owner floor, including retention purge
+  ---
+  duration_ms: 496.685613
+  type: 'test'
+  ...
+# Subtest: disable: independent last active owner floor, including retention purge
+ok 66 - disable: independent last active owner floor, including retention purge
+  ---
+  duration_ms: 1018.737749
+  type: 'test'
+  ...
+# Subtest: lazy kernel preserves the supplied kernel without querying its connection
+ok 67 - lazy kernel preserves the supplied kernel without querying its connection
+  ---
+  duration_ms: 65.609363
+  type: 'test'
+  ...
+# Subtest: null expectedVersion still flips the real marker and increments the existing version
+ok 68 - null expectedVersion still flips the real marker and increments the existing version
+  ---
+  duration_ms: 48.464385
+  type: 'test'
+  ...
+# Subtest: trash() persists the adapter's priorMarker on the TrashItem row
+ok 69 - trash() persists the adapter's priorMarker on the TrashItem row
+  ---
+  duration_ms: 380.015244
+  type: 'test'
+  ...
+# Subtest: trash() stores null, not undefined, when the adapter's hide result carries no priorMarker key
+ok 70 - trash() stores null, not undefined, when the adapter's hide result carries no priorMarker key
+  ---
+  duration_ms: 511.417246
+  type: 'test'
+  ...
+# Subtest: restore() passes the trashed row's stored priorMarker back into the adapter's unhide
+ok 71 - restore() passes the trashed row's stored priorMarker back into the adapter's unhide
+  ---
+  duration_ms: 601.467031
+  type: 'test'
+  ...
+# Subtest: trash() stores a caller-supplied priorMarker when the adapter reports none (an adopted legacy widget)
+ok 72 - trash() stores a caller-supplied priorMarker when the adapter reports none (an adopted legacy widget)
+  ---
+  duration_ms: 235.976526
+  type: 'test'
+  ...
+# Subtest: trash() keeps the adapter's own priorMarker over a caller-supplied one — the marker column is the truth
+ok 73 - trash() keeps the adapter's own priorMarker over a caller-supplied one — the marker column is the truth
+  ---
+  duration_ms: 442.526732
+  type: 'test'
+  ...
+# Subtest: bindRemoveEntity passes a domain's priorMarker through, and restore hands it back to unhide
+ok 74 - bindRemoveEntity passes a domain's priorMarker through, and restore hands it back to unhide
+  ---
+  duration_ms: 397.057788
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-delete-catalog-WwVZLG/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: gapb: real assistant composition exposes only recoverable deletion (content_read collapse=true)
+ok 75 - gapb: real assistant composition exposes only recoverable deletion (content_read collapse=true)
+  ---
+  duration_ms: 6013.992152
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-delete-catalog-S30PAm/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: gapb: real assistant composition exposes only recoverable deletion (content_read collapse=false)
+ok 76 - gapb: real assistant composition exposes only recoverable deletion (content_read collapse=false)
+  ---
+  duration_ms: 3607.67087
+  type: 'test'
+  ...
+# Subtest: opt-in absorbs the old ban: only checked tools return, forbidden tools never do
+ok 77 - opt-in absorbs the old ban: only checked tools return, forbidden tools never do
+  ---
+  duration_ms: 407.419561
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: user trash adapter [sqlite]
+    # Subtest: hide disables and revokes sessions; unhide restores the prior status; each records its event
+    ok 1 - hide disables and revokes sessions; unhide restores the prior status; each records its event
+      ---
+      duration_ms: 413.635183
+      type: 'test'
+      ...
+    # Subtest: unhide with no prior marker leaves the principal disabled; the event falls back to the display name without a login
+    ok 2 - unhide with no prior marker leaves the principal disabled; the event falls back to the display name without a login
+      ---
+      duration_ms: 149.72794
+      type: 'test'
+      ...
+    # Subtest: purge refuses a live principal, deletes a hidden one through SqlUserPurge, then reports already-gone
+    ok 3 - purge refuses a live principal, deletes a hidden one through SqlUserPurge, then reports already-gone
+      ---
+      duration_ms: 296.923841
+      type: 'test'
+      ...
+    # Subtest: a failing outbox insert rolls back the hide's disable and session revoke, and the purge's deletes
+    ok 4 - a failing outbox insert rolls back the hide's disable and session revoke, and the purge's deletes
+      ---
+      duration_ms: 260.820133
+      type: 'test'
+      ...
+    1..4
+ok 78 - user trash adapter [sqlite]
+  ---
+  duration_ms: 1123.364438
+  type: 'suite'
+  ...
+# Subtest: user trash adapter [pglite]
+    # Subtest: hide disables and revokes sessions; unhide restores the prior status; each records its event
+    ok 1 - hide disables and revokes sessions; unhide restores the prior status; each records its event
+      ---
+      duration_ms: 16590.914568
+      type: 'test'
+      ...
+    # Subtest: unhide with no prior marker leaves the principal disabled; the event falls back to the display name without a login
+    ok 2 - unhide with no prior marker leaves the principal disabled; the event falls back to the display name without a login
+      ---
+      duration_ms: 209.100172
+      type: 'test'
+      ...
+    # Subtest: purge refuses a live principal, deletes a hidden one through SqlUserPurge, then reports already-gone
+    ok 3 - purge refuses a live principal, deletes a hidden one through SqlUserPurge, then reports already-gone
+      ---
+      duration_ms: 382.745632
+      type: 'test'
+      ...
+    # Subtest: a failing outbox insert rolls back the hide's disable and session revoke, and the purge's deletes
+    ok 4 - a failing outbox insert rolls back the hide's disable and session revoke, and the purge's deletes
+      ---
+      duration_ms: 393.12779
+      type: 'test'
+      ...
+    1..4
+ok 79 - user trash adapter [pglite]
+  ---
+  duration_ms: 17576.391145
+  type: 'suite'
+  ...
+# Subtest: launches sandboxed Chromium behind a dead proxy, in a fresh isolated context per capture, and reuses one browser
+ok 80 - launches sandboxed Chromium behind a dead proxy, in a fresh isolated context per capture, and reuses one browser
+  ---
+  duration_ms: 24.612049
+  type: 'test'
+  ...
+# Subtest: allowUnsandboxed is the only way to turn the sandbox off
+ok 81 - allowUnsandboxed is the only way to turn the sandbox off
+  ---
+  duration_ms: 5.577225
+  type: 'test'
+  ...
+# Subtest: full page: height is measured, capped at maxPageHeightPx, and captured as a clip of that size
+ok 82 - full page: height is measured, capped at maxPageHeightPx, and captured as a clip of that size
+  ---
+  duration_ms: 1.463196
+  type: 'test'
+  ...
+# Subtest: a top-level navigation the egress guard refuses is a 'refused' PageCaptureError, and the context is still closed
+ok 83 - a top-level navigation the egress guard refuses is a 'refused' PageCaptureError, and the context is still closed
+  ---
+  duration_ms: 6.358681
+  type: 'test'
+  ...
+# Subtest: a missing browser is 'unavailable', and the next capture tries to launch again
+ok 84 - a missing browser is 'unavailable', and the next capture tries to launch again
+  ---
+  duration_ms: 0.640903
+  type: 'test'
+  ...
+# Subtest: a page that never finishes is a 'timeout', and the whole browser is closed so a hung renderer cannot linger
+ok 85 - a page that never finishes is a 'timeout', and the whole browser is closed so a hung renderer cannot linger
+  ---
+  duration_ms: 40.296503
+  type: 'test'
+  ...
+# (node:4783) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:4783) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: the browser closes by itself after the idle period
+ok 86 - the browser closes by itself after the idle period
+  ---
+  duration_ms: 91.220703
+  type: 'test'
+  ...
+# Subtest: the page's own redirect is followed by navigating to its target, so the capture reports the real final URL
+ok 87 - the page's own redirect is followed by navigating to its target, so the capture reports the real final URL
+  ---
+  duration_ms: 4.750891
+  type: 'test'
+  ...
+# Subtest: a redirect to a private address is 'refused' at that hop; endless redirects are 'failed' after MAX_REDIRECT_HOPS
+ok 88 - a redirect to a private address is 'refused' at that hop; endless redirects are 'failed' after MAX_REDIRECT_HOPS
+  ---
+  duration_ms: 7.318987
+  type: 'test'
+  ...
+# Subtest: screenshots preserve cookie banners by default and wait for capped load after their wait strategy
+ok 89 - screenshots preserve cookie banners by default and wait for capped load after their wait strategy
+  ---
+  duration_ms: 4.280478
+  type: 'test'
+  ...
+# Subtest: screenshot uses an injected shared browser pool without launching or closing an active sibling
+ok 90 - screenshot uses an injected shared browser pool without launching or closing an active sibling
+  ---
+  duration_ms: 1.059105
+  type: 'test'
+  ...
+# Subtest: the default launcher resolves the host Playwright module and captures through its structural adapter
+ok 91 - the default launcher resolves the host Playwright module and captures through its structural adapter
+  ---
+  duration_ms: 46.944218
+  type: 'test'
+  ...
+# Subtest: full-page capture rounds a finite height up and falls back to the viewport for invalid measurements
+ok 92 - full-page capture rounds a finite height up and falls back to the viewport for invalid measurements
+  ---
+  duration_ms: 3.794085
+  type: 'test'
+  ...
+# Subtest: a page without a navigation response still produces a capture with null status
+ok 93 - a page without a navigation response still produces a capture with null status
+  ---
+  duration_ms: 1.171225
+  type: 'test'
+  ...
+# Subtest: a scroll-reveal script failure is best effort and does not prevent the full-page screenshot
+ok 94 - a scroll-reveal script failure is best effort and does not prevent the full-page screenshot
+  ---
+  duration_ms: 1.035367
+  type: 'test'
+  ...
+# Subtest: a scroll-reveal budget timeout aborts capture and closes the context
+ok 95 - a scroll-reveal budget timeout aborts capture and closes the context
+  ---
+  duration_ms: 1.556452
+  type: 'test'
+  ...
+# Subtest: navigation errors expose only a Chromium code or a generic message
+ok 96 - navigation errors expose only a Chromium code or a generic message
+  ---
+  duration_ms: 79.329227
+  type: 'test'
+  ...
+# Subtest: a caller's already-aborted signal prevents launch and an active abort prevents a screenshot
+ok 97 - a caller's already-aborted signal prevents launch and an active abort prevents a screenshot
+  ---
+  duration_ms: 1.245404
+  type: 'test'
+  ...
+# Subtest: a shared browser without screenshot support reports a safe failure and releases its lease
+ok 98 - a shared browser without screenshot support reports a safe failure and releases its lease
+  ---
+  duration_ms: 1.363653
+  type: 'test'
+  ...
+# Subtest: a page still animating spends its stable budget, captures a fallback, and reads metadata inside the remaining budget
+ok 99 - a page still animating spends its stable budget, captures a fallback, and reads metadata inside the remaining budget
+  ---
+  duration_ms: 18.200746
+  type: 'test'
+  ...
+# Subtest: a page that settles normally carries no note
+ok 100 - a page that settles normally carries no note
+  ---
+  duration_ms: 0.756138
+  type: 'test'
+  ...
+# Subtest: a screenshot error that is not a timeout is still a 'failed' capture (no fallback frame)
+ok 101 - a screenshot error that is not a timeout is still a 'failed' capture (no fallback frame)
+  ---
+  duration_ms: 0.853125
+  type: 'test'
+  ...
+# Subtest: when the current-frame fallback also times out the capture is a 'timeout'
+ok 102 - when the current-frame fallback also times out the capture is a 'timeout'
+  ---
+  duration_ms: 59.371087
+  type: 'test'
+  ...
+# Subtest: a non-timeout error from the current-frame fallback is still a 'failed' capture
+ok 103 - a non-timeout error from the current-frame fallback is still a 'failed' capture
+  ---
+  duration_ms: 1.3081
+  type: 'test'
+  ...
+# Subtest: fallback exhausting the remaining deadline cannot start the metadata read
+ok 104 - fallback exhausting the remaining deadline cannot start the metadata read
+  ---
+  duration_ms: 1.738968
+  type: 'test'
+  ...
+# Subtest: an HTML page comes back as markdown with absolute, deduped links/images and page facts
+ok 105 - an HTML page comes back as markdown with absolute, deduped links/images and page facts
+  ---
+  duration_ms: 189.748571
+  type: 'test'
+  ...
+# Subtest: format raw returns a sitemap byte-for-byte and lists its <loc> entries as links
+ok 106 - format raw returns a sitemap byte-for-byte and lists its <loc> entries as links
+  ---
+  duration_ms: 5.819062
+  type: 'test'
+  ...
+# Subtest: format raw on an HTML page returns the untouched source; text and html formats drop scripts
+ok 107 - format raw on an HTML page returns the untouched source; text and html formats drop scripts
+  ---
+  duration_ms: 9.623331
+  type: 'test'
+  ...
+# Subtest: non-HTML text types (CSS, JSON, RSS) are returned as-is whatever the format
+ok 108 - non-HTML text types (CSS, JSON, RSS) are returned as-is whatever the format
+  ---
+  duration_ms: 0.945695
+  type: 'test'
+  ...
+# Subtest: maxChars truncates the content without splitting a surrogate pair, and flags it
+ok 109 - maxChars truncates the content without splitting a surrogate pair, and flags it
+  ---
+  duration_ms: 0.922351
+  type: 'test'
+  ...
+# Subtest: a body clipped at the transport's size cap is reported as truncated
+ok 110 - a body clipped at the transport's size cap is reported as truncated
+  ---
+  duration_ms: 0.414531
+  type: 'test'
+  ...
+# Subtest: a 404 page is a result, not an error
+ok 111 - a 404 page is a result, not an error
+  ---
+  duration_ms: 1.282565
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 127.0.0.1 is refused before any connection
+ok 112 - a hostname resolving to 127.0.0.1 is refused before any connection
+  ---
+  duration_ms: 1.334316
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 10.0.0.5 is refused before any connection
+ok 113 - a hostname resolving to 10.0.0.5 is refused before any connection
+  ---
+  duration_ms: 0.406512
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 172.16.0.1 is refused before any connection
+ok 114 - a hostname resolving to 172.16.0.1 is refused before any connection
+  ---
+  duration_ms: 0.397304
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 192.168.1.1 is refused before any connection
+ok 115 - a hostname resolving to 192.168.1.1 is refused before any connection
+  ---
+  duration_ms: 0.259791
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 100.64.0.1 is refused before any connection
+ok 116 - a hostname resolving to 100.64.0.1 is refused before any connection
+  ---
+  duration_ms: 0.210862
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 169.254.169.254 is refused before any connection
+ok 117 - a hostname resolving to 169.254.169.254 is refused before any connection
+  ---
+  duration_ms: 0.231581
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to 0.0.0.0 is refused before any connection
+ok 118 - a hostname resolving to 0.0.0.0 is refused before any connection
+  ---
+  duration_ms: 0.253673
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to ::1 is refused before any connection
+ok 119 - a hostname resolving to ::1 is refused before any connection
+  ---
+  duration_ms: 0.927221
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to fd00::1 is refused before any connection
+ok 120 - a hostname resolving to fd00::1 is refused before any connection
+  ---
+  duration_ms: 0.554926
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to fe80::1 is refused before any connection
+ok 121 - a hostname resolving to fe80::1 is refused before any connection
+  ---
+  duration_ms: 0.331609
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to ::ffff:127.0.0.1 is refused before any connection
+ok 122 - a hostname resolving to ::ffff:127.0.0.1 is refused before any connection
+  ---
+  duration_ms: 0.552497
+  type: 'test'
+  ...
+# Subtest: a hostname resolving to ::ffff:169.254.169.254 is refused before any connection
+ok 123 - a hostname resolving to ::ffff:169.254.169.254 is refused before any connection
+  ---
+  duration_ms: 0.366711
+  type: 'test'
+  ...
+# Subtest: an IP-literal URL http://127.0.0.1:8080/ is refused without DNS or a connection
+ok 124 - an IP-literal URL http://127.0.0.1:8080/ is refused without DNS or a connection
+  ---
+  duration_ms: 0.513184
+  type: 'test'
+  ...
+# Subtest: an IP-literal URL http://169.254.169.254/latest/meta-data/ is refused without DNS or a connection
+ok 125 - an IP-literal URL http://169.254.169.254/latest/meta-data/ is refused without DNS or a connection
+  ---
+  duration_ms: 0.355802
+  type: 'test'
+  ...
+# Subtest: an IP-literal URL http://[::1]/ is refused without DNS or a connection
+ok 126 - an IP-literal URL http://[::1]/ is refused without DNS or a connection
+  ---
+  duration_ms: 0.466369
+  type: 'test'
+  ...
+# Subtest: an IP-literal URL http://[::ffff:10.0.0.1]/ is refused without DNS or a connection
+ok 127 - an IP-literal URL http://[::ffff:10.0.0.1]/ is refused without DNS or a connection
+  ---
+  duration_ms: 0.621619
+  type: 'test'
+  ...
+# Subtest: a DNS answer mixing public and private addresses is refused as a whole
+ok 128 - a DNS answer mixing public and private addresses is refused as a whole
+  ---
+  duration_ms: 0.490862
+  type: 'test'
+  ...
+# Subtest: a redirect to a private address is refused at that hop
+ok 129 - a redirect to a private address is refused at that hop
+  ---
+  duration_ms: 1.24212
+  type: 'test'
+  ...
+# Subtest: a redirect to a loopback IP literal or a non-http scheme is refused
+ok 130 - a redirect to a loopback IP literal or a non-http scheme is refused
+  ---
+  duration_ms: 1.32962
+  type: 'test'
+  ...
+# Subtest: public redirects are followed (each hop re-resolved) and finalUrl names the last hop
+ok 131 - public redirects are followed (each hop re-resolved) and finalUrl names the last hop
+  ---
+  duration_ms: 2.336274
+  type: 'test'
+  ...
+# Subtest: after five redirects the sixth 3xx is returned as the result, not followed
+ok 132 - after five redirects the sixth 3xx is returned as the result, not followed
+  ---
+  duration_ms: 1.770213
+  type: 'test'
+  ...
+# Subtest: non-http(s) schemes and credential-bearing URLs are refused before DNS
+ok 133 - non-http(s) schemes and credential-bearing URLs are refused before DNS
+  ---
+  duration_ms: 9.816439
+  type: 'test'
+  ...
+# Subtest: a page that never finishes responding times out with an actionable message
+ok 134 - a page that never finishes responding times out with an actionable message
+  ---
+  duration_ms: 66.032313
+  type: 'test'
+  ...
+# Subtest: a DNS failure becomes a caller-safe message naming only the error code
+ok 135 - a DNS failure becomes a caller-safe message naming only the error code
+  ---
+  duration_ms: 43.992792
+  type: 'test'
+  ...
+# Subtest: a cancelled tool call propagates the cancellation unchanged
+ok 136 - a cancelled tool call propagates the cancellation unchanged
+  ---
+  duration_ms: 13.50022
+  type: 'test'
+  ...
+# Subtest: binary and non-text content types are refused
+ok 137 - binary and non-text content types are refused
+  ---
+  duration_ms: 3.933396
+  type: 'test'
+  ...
+# Subtest: a page declaring a non-UTF-8 charset is decoded from its raw bytes
+ok 138 - a page declaring a non-UTF-8 charset is decoded from its raw bytes
+  ---
+  duration_ms: 1.310983
+  type: 'test'
+  ...
+# Subtest: the per-host limit refuses the 31st fetch of one host in a minute without connecting
+ok 139 - the per-host limit refuses the 31st fetch of one host in a minute without connecting
+  ---
+  duration_ms: 172.348881
+  type: 'test'
+  ...
+# Subtest: tool input validation names the exact constraint
+ok 140 - tool input validation names the exact constraint
+  ---
+  duration_ms: 0.514309
+  type: 'test'
+  ...
+# Subtest: InMemoryKeyring reports the default v1 key id and a caller-chosen key id
+ok 141 - InMemoryKeyring reports the default v1 key id and a caller-chosen key id
+  ---
+  duration_ms: 62.195522
+  type: 'test'
+  ...
+# Subtest: InMemoryKeyring derives deterministic 32-byte signing secrets that vary by subscription and version
+ok 142 - InMemoryKeyring derives deterministic 32-byte signing secrets that vary by subscription and version
+  ---
+  duration_ms: 3.558816
+  type: 'test'
+  ...
+# Subtest: InMemoryKeyring purpose derivation is stable per instance, separated by purpose/info, and isolated across instances
+ok 143 - InMemoryKeyring purpose derivation is stable per instance, separated by purpose/info, and isolated across instances
+  ---
+  duration_ms: 0.701195
+  type: 'test'
+  ...
+# Subtest: signPayload matches the published timestamp-dot-body HMAC-SHA256 wire format
+ok 144 - signPayload matches the published timestamp-dot-body HMAC-SHA256 wire format
+  ---
+  duration_ms: 3.136569
+  type: 'test'
+  ...
+# Subtest: signPayload then verifySignature round-trips for the same secret and body
+ok 145 - signPayload then verifySignature round-trips for the same secret and body
+  ---
+  duration_ms: 0.806961
+  type: 'test'
+  ...
+# Subtest: verifySignature rejects a tampered body
+ok 146 - verifySignature rejects a tampered body
+  ---
+  duration_ms: 0.581453
+  type: 'test'
+  ...
+# Subtest: verifySignature rejects a signature made with a different secret
+ok 147 - verifySignature rejects a signature made with a different secret
+  ---
+  duration_ms: 1.019045
+  type: 'test'
+  ...
+# Subtest: verifySignature rejects timestamps outside either side of the tolerance window and accepts its exact boundaries
+ok 148 - verifySignature rejects timestamps outside either side of the tolerance window and accepts its exact boundaries
+  ---
+  duration_ms: 1.896557
+  type: 'test'
+  ...
+# Subtest: verifySignature accepts a header carrying two v1 values (rotation overlap) if either matches
+ok 149 - verifySignature accepts a header carrying two v1 values (rotation overlap) if either matches
+  ---
+  duration_ms: 0.416915
+  type: 'test'
+  ...
+# Subtest: verifySignature rejects a malformed header
+ok 150 - verifySignature rejects a malformed header
+  ---
+  duration_ms: 0.304311
+  type: 'test'
+  ...
+# Subtest: signPayload stamps the current wall-clock second when no timestampSeconds is supplied
+ok 151 - signPayload stamps the current wall-clock second when no timestampSeconds is supplied
+  ---
+  duration_ms: 0.684063
+  type: 'test'
+  ...
+# [@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=b8da1a4b-2a0f-4b6b-9081-e7b483146c61) 'SQL failure in /private/operator/content.db: SELECT secret FROM credentials'
+# Subtest: webhooks_get_deliveries for an unknown subscription is BAD_REQUEST with the real not-found reason, not a redacted 500
+ok 152 - webhooks_get_deliveries for an unknown subscription is BAD_REQUEST with the real not-found reason, not a redacted 500
+  ---
+  duration_ms: 41.503372
+  type: 'test'
+  ...
+# Subtest: webhooks_delete_subscription for an unknown subscription says so rather than 'an internal error occurred'
+ok 153 - webhooks_delete_subscription for an unknown subscription says so rather than 'an internal error occurred'
+  ---
+  duration_ms: 80.282792
+  type: 'test'
+  ...
+# Subtest: webhooks_create_subscription with a non-https target says WHICH rule refused it
+ok 154 - webhooks_create_subscription with a non-https target says WHICH rule refused it
+  ---
+  duration_ms: 14.393861
+  type: 'test'
+  ...
+# Subtest: webhooks_create_subscription refused by the egress allowlist names the allowlist, not a 500
+ok 155 - webhooks_create_subscription refused by the egress allowlist names the allowlist, not a 500
+  ---
+  duration_ms: 7.792877
+  type: 'test'
+  ...
+# Subtest: every Integrations tool surfaces a denial with the permission named — the sibling-arm check
+ok 156 - every Integrations tool surfaces a denial with the permission named — the sibling-arm check
+  ---
+  duration_ms: 24.797577
+  type: 'test'
+  ...
+# Subtest: an unlisted repository error stays redacted through the delegated transport
+ok 157 - an unlisted repository error stays redacted through the delegated transport
+  ---
+  duration_ms: 26.594578
+  type: 'test'
+  ...
+# Subtest: webhook update uses existing egress validation, preserves lifecycle and returns no secret
+ok 158 - webhook update uses existing egress validation, preserves lifecycle and returns no secret
+  ---
+  duration_ms: 9.151477
+  type: 'test'
+  ...
+# Subtest: webhook update rejects a missing row and malformed topics with real reasons
+ok 159 - webhook update rejects a missing row and malformed topics with real reasons
+  ---
+  duration_ms: 8.794422
+  type: 'test'
+  ...
+# Subtest: webhook update refuses a soft-deleted subscription with its domain reason and preserves the row
+ok 160 - webhook update refuses a soft-deleted subscription with its domain reason and preserves the row
+  ---
+  duration_ms: 4.622759
+  type: 'test'
+  ...
+# Subtest: webhook update returns the existing latest delivery rather than a fabricated empty history
+ok 161 - webhook update returns the existing latest delivery rather than a fabricated empty history
+  ---
+  duration_ms: 1.28536
+  type: 'test'
+  ...
+# Subtest: gallery resolves real media and renders ordered figures, captions, responsive source and occurrence layouts
+ok 162 - gallery resolves real media and renders ordered figures, captions, responsive source and occurrence layouts
+  ---
+  duration_ms: 20.505109
+  type: 'test'
+  ...
+# Subtest: gallery media references protect every image and publish keys remain visible with invalid layout
+ok 163 - gallery media references protect every image and publish keys remain visible with invalid layout
+  ---
+  duration_ms: 14.80332
+  type: 'test'
+  ...
+# Subtest: 50 gallery image references do not hide the following ordinary media embed
+ok 164 - 50 gallery image references do not hide the following ordinary media embed
+  ---
+  duration_ms: 0.925913
+  type: 'test'
+  ...
+# Subtest: gallery source URLs retain the image renderer security policy and missing-alt flags
+ok 165 - gallery source URLs retain the image renderer security policy and missing-alt flags
+  ---
+  duration_ms: 1.318402
+  type: 'test'
+  ...
+# Subtest: widgets_list_instances: a missing input object lists every active instance instead of failing
+ok 166 - widgets_list_instances: a missing input object lists every active instance instead of failing
+  ---
+  duration_ms: 38.555771
+  type: 'test'
+  ...
+# Subtest: widgets_list_instances: a string widgetType filters by type
+ok 167 - widgets_list_instances: a string widgetType filters by type
+  ---
+  duration_ms: 4.409864
+  type: 'test'
+  ...
+# Subtest: widgets_create_instance: an explicit slug is kept
+ok 168 - widgets_create_instance: an explicit slug is kept
+  ---
+  duration_ms: 5.106117
+  type: 'test'
+  ...
+# Subtest: widgets_get_region: a bound area entry that is missing is WIDGETS_AREA_NOT_FOUND
+ok 169 - widgets_get_region: a bound area entry that is missing is WIDGETS_AREA_NOT_FOUND
+  ---
+  duration_ms: 5.387616
+  type: 'test'
+  ...
+# Subtest: widgets_get_region: a bound area entry that is not an area entry is WIDGETS_AREA_NOT_FOUND
+ok 170 - widgets_get_region: a bound area entry that is not an area entry is WIDGETS_AREA_NOT_FOUND
+  ---
+  duration_ms: 2.161406
+  type: 'test'
+  ...
+# Subtest: widgets_trash_instance: when the Trash reports no new version, the reply carries the row's version
+ok 171 - widgets_trash_instance: when the Trash reports no new version, the reply carries the row's version
+  ---
+  duration_ms: 5.750087
+  type: 'test'
+  ...
+# Subtest: an error the widgets mapper does not know reaches the executor unchanged
+ok 172 - an error the widgets mapper does not know reaches the executor unchanged
+  ---
+  duration_ms: 3.469159
+  type: 'test'
+  ...
+# Subtest: core assembly injects the Gallery media port with the render workspace context
+ok 173 - core assembly injects the Gallery media port with the render workspace context
+  ---
+  duration_ms: 6.926519
+  type: 'test'
+  ...
+# Subtest: REQ-25: never returns more than the registered clamp, even with far more published entries than the clamp and no instance-level maxItems
+ok 174 - REQ-25: never returns more than the registered clamp, even with far more published entries than the clamp and no instance-level maxItems
+  ---
+  duration_ms: 111.023345
+  type: 'test'
+  ...
+# Subtest: REQ-25/D7: newest-updated-first, draft excluded, and an old {maxItems:5} config yields the same entries in the same order as before
+ok 175 - REQ-25/D7: newest-updated-first, draft excluded, and an old {maxItems:5} config yields the same entries in the same order as before
+  ---
+  duration_ms: 21.550255
+  type: 'test'
+  ...
+# Subtest: REQ-25: each legacy instance applies its own maxItems below the shared registry cap
+ok 176 - REQ-25: each legacy instance applies its own maxItems below the shared registry cap
+  ---
+  duration_ms: 1.259439
+  type: 'test'
+  ...
+# Subtest: D1/D7: every legacy-path item's href is null (entry pages are off) — never a dead entry link
+ok 177 - D1/D7: every legacy-path item's href is null (entry pages are off) — never a dead entry link
+  ---
+  duration_ms: 0.495694
+  type: 'test'
+  ...
+# Subtest: D8: system content types (widget/widget_area/nav-menu) never appear when no collection is set
+ok 178 - D8: system content types (widget/widget_area/nav-menu) never appear when no collection is set
+  ---
+  duration_ms: 310.670967
+  type: 'test'
+  ...
+# Subtest: REQ-25/3b: the legacy-path query itself is bounded/sorted/filtered — not a full unbounded scan truncated in memory afterward, and system types are excluded IN the query, not after its limit
+ok 179 - REQ-25/3b: the legacy-path query itself is bounded/sorted/filtered — not a full unbounded scan truncated in memory afterward, and system types are excluded IN the query, not after its limit
+  ---
+  duration_ms: 0.513469
+  type: 'test'
+  ...
+# Subtest: 3b: 20+ newer system-type rows cannot crowd a real entry out of the legacy-path result (RED before the query-level exclusion fix)
+ok 180 - 3b: 20+ newer system-type rows cannot crowd a real entry out of the legacy-path result (RED before the query-level exclusion fix)
+  ---
+  duration_ms: 35.509617
+  type: 'test'
+  ...
+# Subtest: collection filter: only entries of the named content type are returned, via listPublishedForDisplay
+ok 181 - collection filter: only entries of the named content type are returned, via listPublishedForDisplay
+  ---
+  duration_ms: 12.691601
+  type: 'test'
+  ...
+# Subtest: collection filter: valid where and newest sort return only ordered live published matches with dependency keys
+ok 182 - collection filter: valid where and newest sort return only ordered live published matches with dependency keys
+  ---
+  duration_ms: 5.743238
+  type: 'test'
+  ...
+# Subtest: D7: legacy columns clamp to 1..6 and dependency keys match the resolved entries
+ok 183 - D7: legacy columns clamp to 1..6 and dependency keys match the resolved entries
+  ---
+  duration_ms: 4.844606
+  type: 'test'
+  ...
+# Subtest: collection settings preserve filtering, title order and an explicit field subset
+ok 184 - collection settings preserve filtering, title order and an explicit field subset
+  ---
+  duration_ms: 9.133577
+  type: 'test'
+  ...
+# Subtest: collection filter: an unknown content type key resolves as target-disabled, not a crash or an unfiltered list
+ok 185 - collection filter: an unknown content type key resolves as target-disabled, not a crash or an unfiltered list
+  ---
+  duration_ms: 0.343821
+  type: 'test'
+  ...
+# Subtest: collection filter: an invalid config (unknown where field) resolves as invalid-config, never an unfiltered fallback
+ok 186 - collection filter: an invalid config (unknown where field) resolves as invalid-config, never an unfiltered fallback
+  ---
+  duration_ms: 0.385383
+  type: 'test'
+  ...
+# Subtest: D1: a collection-path item's href is also null (entry pages are off)
+ok 187 - D1: a collection-path item's href is also null (entry pages are off)
+  ---
+  duration_ms: 0.698426
+  type: 'test'
+  ...
+# Subtest: REQ-25: the registered clamp (20) still wins over a collection instance's own maxItems, defense in depth
+ok 188 - REQ-25: the registered clamp (20) still wins over a collection instance's own maxItems, defense in depth
+  ---
+  duration_ms: 0.429001
+  type: 'test'
+  ...
+# Subtest: D7: a collection-configured instance with no `layout` key defaults to the widget's own "list" layout, not the collection marker's "cards" default
+ok 189 - D7: a collection-configured instance with no `layout` key defaults to the widget's own "list" layout, not the collection marker's "cards" default
+  ---
+  duration_ms: 1.995884
+  type: 'test'
+  ...
+# Subtest: AW-7: a collection instance carries any known layout and opt-in faq-page structured data; an unknown layout is the widget's list
+ok 190 - AW-7: a collection instance carries any known layout and opt-in faq-page structured data; an unknown layout is the widget's list
+  ---
+  duration_ms: 1.11847
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: a non-null sealed_ciphertext row counts as key-dependent data
+ok 191 - findKeyDependentData: a non-null sealed_ciphertext row counts as key-dependent data
+  ---
+  duration_ms: 170.08426
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: a webhook_subscriptions row counts as key-dependent data
+ok 192 - findKeyDependentData: a webhook_subscriptions row counts as key-dependent data
+  ---
+  duration_ms: 90.683425
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: a DB with neither table counts as clean
+ok 193 - findKeyDependentData: a DB with neither table counts as clean
+  ---
+  duration_ms: 53.106113
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: an unreadable DB path fails closed (counts as data present)
+ok 194 - findKeyDependentData: an unreadable DB path fails closed (counts as data present)
+  ---
+  duration_ms: 1.108552
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: a non-null column ending in sealed_ciphertext (oauth_sealed_ciphertext) counts too
+ok 195 - findKeyDependentData: a non-null column ending in sealed_ciphertext (oauth_sealed_ciphertext) counts too
+  ---
+  duration_ms: 260.570672
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: empty webhook and all-NULL sealed tables count as clean
+ok 196 - findKeyDependentData: empty webhook and all-NULL sealed tables count as clean
+  ---
+  duration_ms: 142.347
+  type: 'test'
+  ...
+# Subtest: scanOpenedKernel: a catalog failure fails closed and closes the opened kernel even if close rejects
+ok 197 - scanOpenedKernel: a catalog failure fails closed and closes the opened kernel even if close rejects
+  ---
+  duration_ms: 59.673733
+  type: 'test'
+  ...
+# Subtest: scanOpenedKernel: a close rejection does not turn a successfully scanned clean DB into a failure
+ok 198 - scanOpenedKernel: a close rejection does not turn a successfully scanned clean DB into a failure
+  ---
+  duration_ms: 41.03634
+  type: 'test'
+  ...
+# Subtest: restore artifacts and metadata-only vault rows do not block minting; a live envelope does
+ok 199 - restore artifacts and metadata-only vault rows do not block minting; a live envelope does
+  ---
+  duration_ms: 70.067567
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: a populated column that only contains sealed_ciphertext (not as its suffix) is not key-dependent
+ok 200 - findKeyDependentData: a populated column that only contains sealed_ciphertext (not as its suffix) is not key-dependent
+  ---
+  duration_ms: 27.880272
+  type: 'test'
+  ...
+# Subtest: findKeyDependentData: no paths means nothing to scan
+ok 201 - findKeyDependentData: no paths means nothing to scan
+  ---
+  duration_ms: 0.214183
+  type: 'test'
+  ...
+# Subtest: scanOpenedKernel: an open that throws fails closed without a kernel to close
+ok 202 - scanOpenedKernel: an open that throws fails closed without a kernel to close
+  ---
+  duration_ms: 0.180167
+  type: 'test'
+  ...
+# Subtest: vault hot paths [sqlite]
+    # Subtest: site-assistant key on the public render path: one indexed read
+    ok 1 - site-assistant key on the public render path: one indexed read
+      ---
+      duration_ms: 21.798644
+      type: 'test'
+      ...
+    # Subtest: personal execution key on every assistant turn: one indexed read
+    ok 2 - personal execution key on every assistant turn: one indexed read
+      ---
+      duration_ms: 4.555725
+      type: 'test'
+      ...
+    # Subtest: vendor group default repository lookup: one LIMIT 1 index read keyed on the exact group, no group scan
+    ok 3 - vendor group default repository lookup: one LIMIT 1 index read keyed on the exact group, no group scan
+      ---
+      duration_ms: 20.589025
+      type: 'test'
+      ...
+    # Subtest: publish compatibility selection: one inventory per kind and one selected row read
+    ok 4 - publish compatibility selection: one inventory per kind and one selected row read
+      ---
+      duration_ms: 41.940307
+      type: 'test'
+      ...
+    # Subtest: MCP server list: statement count does not grow with the number of servers
+    ok 5 - MCP server list: statement count does not grow with the number of servers
+      ---
+      duration_ms: 134.559708
+      type: 'test'
+      ...
+    # Subtest: custom-credential list: one indexed read per stored kind
+    ok 6 - custom-credential list: one indexed read per stored kind
+      ---
+      duration_ms: 5.70729
+      type: 'test'
+      ...
+    1..6
+ok 203 - vault hot paths [sqlite]
+  ---
+  duration_ms: 3523.628282
+  type: 'suite'
+  ...
+# Subtest: vault hot paths [pglite]
+    # Subtest: site-assistant key on the public render path: one indexed read
+    ok 1 - site-assistant key on the public render path: one indexed read
+      ---
+      duration_ms: 28.028458
+      type: 'test'
+      ...
+    # Subtest: personal execution key on every assistant turn: one indexed read
+    ok 2 - personal execution key on every assistant turn: one indexed read
+      ---
+      duration_ms: 10.323899
+      type: 'test'
+      ...
+    # Subtest: vendor group default repository lookup: one LIMIT 1 index read keyed on the exact group, no group scan
+    ok 3 - vendor group default repository lookup: one LIMIT 1 index read keyed on the exact group, no group scan
+      ---
+      duration_ms: 15.969705
+      type: 'test'
+      ...
+    # Subtest: publish compatibility selection: one inventory per kind and one selected row read
+    ok 4 - publish compatibility selection: one inventory per kind and one selected row read
+      ---
+      duration_ms: 33.621845
+      type: 'test'
+      ...
+    # Subtest: MCP server list: statement count does not grow with the number of servers
+    ok 5 - MCP server list: statement count does not grow with the number of servers
+      ---
+      duration_ms: 155.323434
+      type: 'test'
+      ...
+    # Subtest: custom-credential list: one indexed read per stored kind
+    ok 6 - custom-credential list: one indexed read per stored kind
+      ---
+      duration_ms: 20.467653
+      type: 'test'
+      ...
+    1..6
+ok 204 - vault hot paths [pglite]
+  ---
+  duration_ms: 20464.052629
+  type: 'suite'
+  ...
+# Subtest: an omitted key takes its $defaultFn, else its $onUpdateFn, and $defaultFn wins when both exist
+ok 205 - an omitted key takes its $defaultFn, else its $onUpdateFn, and $defaultFn wins when both exist
+  ---
+  duration_ms: 49.238512
+  type: 'test'
+  ...
+# Subtest: supplied values map to driver values under real column names; null passes through; unknown keys drop
+ok 206 - supplied values map to driver values under real column names; null passes through; unknown keys drop
+  ---
+  duration_ms: 0.678993
+  type: 'test'
+  ...
+# Subtest: runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation
+not ok 207 - runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation
+  ---
+  duration_ms: 136.396659
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:1640'
+  failureType: 'testCodeFailure'
+  error: |-
+    failed to drop fixture database "tovu_seed_content_store_pg_fixture_twice": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:56:26)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte
+not ok 208 - a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte
+  ---
+  duration_ms: 88.489702
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:2707'
+  failureType: 'testCodeFailure'
+  error: |-
+    failed to drop fixture database "tovu_seed_content_store_pg_fixture_edits": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:71:26)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts
+not ok 209 - an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts
+  ---
+  duration_ms: 87.201278
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:3463'
+  failureType: 'testCodeFailure'
+  error: |-
+    failed to drop fixture database "tovu_seed_content_store_pg_fixture_same_slug": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:86:26)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice
+not ok 210 - two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice
+  ---
+  duration_ms: 66.754123
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:4131'
+  failureType: 'testCodeFailure'
+  error: |-
+    failed to drop fixture database "tovu_seed_content_store_pg_fixture_concurrent": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:98:33)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: json dialect helpers [sqlite]
+    # Subtest: setup
+    ok 1 - setup
+      ---
+      duration_ms: 14.674391
+      type: 'test'
+      ...
+    # Subtest: jsonScalarEquals matches strings, numbers and booleans by value and type
+    ok 2 - jsonScalarEquals matches strings, numbers and booleans by value and type
+      ---
+      duration_ms: 19.462197
+      type: 'test'
+      ...
+    # Subtest: jsonScalarEquals: a missing key matches nothing, a string does not match a number
+    ok 3 - jsonScalarEquals: a missing key matches nothing, a string does not match a number
+      ---
+      duration_ms: 1.4508
+      type: 'test'
+      ...
+    # Subtest: jsonScalarEquals binds the value: an apostrophe is data, not SQL
+    ok 4 - jsonScalarEquals binds the value: an apostrophe is data, not SQL
+      ---
+      duration_ms: 0.652413
+      type: 'test'
+      ...
+    # Subtest: jsonSortKey orders numbers numerically (2 < 9 < 10), NULLs first asc / last desc
+    ok 5 - jsonSortKey orders numbers numerically (2 < 9 < 10), NULLs first asc / last desc
+      ---
+      duration_ms: 17.562784
+      type: 'test'
+      ...
+    # Subtest: jsonSortKey orders booleans false before true, missing key first asc
+    ok 6 - jsonSortKey orders booleans false before true, missing key first asc
+      ---
+      duration_ms: 0.671521
+      type: 'test'
+      ...
+    # Subtest: jsonSortKey orders strings
+    ok 7 - jsonSortKey orders strings
+      ---
+      duration_ms: 0.362831
+      type: 'test'
+      ...
+    # Subtest: both helpers refuse a path key that is not a plain identifier
+    ok 8 - both helpers refuse a path key that is not a plain identifier
+      ---
+      duration_ms: 0.655468
+      type: 'test'
+      ...
+    1..8
+ok 211 - json dialect helpers [sqlite]
+  ---
+  duration_ms: 57.716141
+  type: 'suite'
+  ...
+# Subtest: json dialect helpers [pglite]
+    # Subtest: setup
+    ok 1 - setup
+      ---
+      duration_ms: 13557.634867
+      type: 'test'
+      ...
+    # Subtest: jsonScalarEquals matches strings, numbers and booleans by value and type
+    ok 2 - jsonScalarEquals matches strings, numbers and booleans by value and type
+      ---
+      duration_ms: 8.650142
+      type: 'test'
+      ...
+    # Subtest: jsonScalarEquals: a missing key matches nothing, a string does not match a number
+    ok 3 - jsonScalarEquals: a missing key matches nothing, a string does not match a number
+      ---
+      duration_ms: 3.394987
+      type: 'test'
+      ...
+    # Subtest: jsonScalarEquals binds the value: an apostrophe is data, not SQL
+    ok 4 - jsonScalarEquals binds the value: an apostrophe is data, not SQL
+      ---
+      duration_ms: 1.224455
+      type: 'test'
+      ...
+    # Subtest: jsonSortKey orders numbers numerically (2 < 9 < 10), NULLs first asc / last desc
+    ok 5 - jsonSortKey orders numbers numerically (2 < 9 < 10), NULLs first asc / last desc
+      ---
+      duration_ms: 52.736095
+      type: 'test'
+      ...
+    # Subtest: jsonSortKey orders booleans false before true, missing key first asc
+    ok 6 - jsonSortKey orders booleans false before true, missing key first asc
+      ---
+      duration_ms: 8.284819
+      type: 'test'
+      ...
+    # Subtest: jsonSortKey orders strings
+    ok 7 - jsonSortKey orders strings
+      ---
+      duration_ms: 6.031517
+      type: 'test'
+      ...
+    # Subtest: both helpers refuse a path key that is not a plain identifier
+    ok 8 - both helpers refuse a path key that is not a plain identifier
+      ---
+      duration_ms: 0.587524
+      type: 'test'
+      ...
+    1..8
+ok 212 - json dialect helpers [pglite]
+  ---
+  duration_ms: 13640.127582
+  type: 'suite'
+  ...
+# Subtest: defaultPgliteSocketDir places the socket dir under the given home's .tovu/run namespace, keyed by data dir
+ok 213 - defaultPgliteSocketDir places the socket dir under the given home's .tovu/run namespace, keyed by data dir
+  ---
+  duration_ms: 1.761439
+  type: 'test'
+  ...
+# Subtest: defaultPgliteSocketDir without a home uses the OS home directory
+ok 214 - defaultPgliteSocketDir without a home uses the OS home directory
+  ---
+  duration_ms: 0.266801
+  type: 'test'
+  ...
+# Subtest: defaultPgliteSocketDir falls back to the per-user /tmp/tovu namespace when the home path would overflow a socket path
+ok 215 - defaultPgliteSocketDir falls back to the per-user /tmp/tovu namespace when the home path would overflow a socket path
+  ---
+  duration_ms: 0.257078
+  type: 'test'
+  ...
+# Subtest: SQLite chat migration preserves milliseconds, defaults, ownership constraints and child cascades
+ok 216 - SQLite chat migration preserves milliseconds, defaults, ownership constraints and child cascades
+  ---
+  duration_ms: 185.262725
+  type: 'test'
+  ...
+# Subtest: PGlite chat migration preserves milliseconds, defaults, ownership constraints and child cascades
+ok 217 - PGlite chat migration preserves milliseconds, defaults, ownership constraints and child cascades
+  ---
+  duration_ms: 11854.70712
+  type: 'test'
+  ...
+# Subtest: Postgres chat baseline performs no work on SQLite
+ok 218 - Postgres chat baseline performs no work on SQLite
+  ---
+  duration_ms: 2.70089
+  type: 'test'
+  ...
+# Subtest: SQLite chat step performs no work on Postgres and baseline failure preserves pre-existing tables
+ok 219 - SQLite chat step performs no work on Postgres and baseline failure preserves pre-existing tables
+  ---
+  duration_ms: 10585.517849
+  type: 'test'
+  ...
+# Subtest: SQLite chat migration propagates an incompatible existing table error without losing its rows
+ok 220 - SQLite chat migration propagates an incompatible existing table error without losing its rows
+  ---
+  duration_ms: 6.725129
+  type: 'test'
+  ...
+# Subtest: SQLite active-run index is added idempotently through the migration step
+ok 221 - SQLite active-run index is added idempotently through the migration step
+  ---
+  duration_ms: 4.532634
+  type: 'test'
+  ...
+# Subtest: PGlite active-run index is added idempotently through the migration step
+ok 222 - PGlite active-run index is added idempotently through the migration step
+  ---
+  duration_ms: 10276.686007
+  type: 'test'
+  ...
+# Subtest: sqlite: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op
+ok 223 - sqlite: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op
+  ---
+  duration_ms: 1863.325257
+  type: 'test'
+  ...
+# Subtest: sqlite: a fresh database ends without core commerce and keeps newsletter tables
+ok 224 - sqlite: a fresh database ends without core commerce and keeps newsletter tables
+  ---
+  duration_ms: 1940.871954
+  type: 'test'
+  ...
+# Subtest: sqlite: every populated target is named with its exact count before any DROP
+ok 225 - sqlite: every populated target is named with its exact count before any DROP
+  ---
+  duration_ms: 21.639533
+  type: 'test'
+  ...
+# Subtest: sqlite: a populated last target protects its five empty siblings
+ok 226 - sqlite: a populated last target protects its five empty siblings
+  ---
+  duration_ms: 22.241049
+  type: 'test'
+  ...
+# Subtest: sqlite: missing targets and partial manual cleanup are harmless
+ok 227 - sqlite: missing targets and partial manual cleanup are harmless
+  ---
+  duration_ms: 12.993815
+  type: 'test'
+  ...
+# Subtest: sqlite: absent or invalid counts refuse before a DROP
+ok 228 - sqlite: absent or invalid counts refuse before a DROP
+  ---
+  duration_ms: 23.532192
+  type: 'test'
+  ...
+# Subtest: pglite: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op
+ok 229 - pglite: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op
+  ---
+  duration_ms: 15233.888445
+  type: 'test'
+  ...
+# Subtest: pglite: a fresh database ends without core commerce and keeps newsletter tables
+ok 230 - pglite: a fresh database ends without core commerce and keeps newsletter tables
+  ---
+  duration_ms: 12365.570242
+  type: 'test'
+  ...
+# Subtest: pglite: every populated target is named with its exact count before any DROP
+ok 231 - pglite: every populated target is named with its exact count before any DROP
+  ---
+  duration_ms: 8306.088302
+  type: 'test'
+  ...
+# Subtest: pglite: a populated last target protects its five empty siblings
+ok 232 - pglite: a populated last target protects its five empty siblings
+  ---
+  duration_ms: 6756.454262
+  type: 'test'
+  ...
+# Subtest: pglite: missing targets and partial manual cleanup are harmless
+ok 233 - pglite: missing targets and partial manual cleanup are harmless
+  ---
+  duration_ms: 10898.866102
+  type: 'test'
+  ...
+# Subtest: pglite: absent or invalid counts refuse before a DROP
+ok 234 - pglite: absent or invalid counts refuse before a DROP
+  ---
+  duration_ms: 8253.341107
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0031 adds indexed purposes and retention once, preserving historical outcomes
+ok 235 - [sqlite] 0031 adds indexed purposes and retention once, preserving historical outcomes
+  ---
+  duration_ms: 920.934332
+  type: 'test'
+  ...
+# Subtest: [pglite] 0031 adds indexed purposes and retention once, preserving historical outcomes
+ok 236 - [pglite] 0031 adds indexed purposes and retention once, preserving historical outcomes
+  ---
+  duration_ms: 17143.415736
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0032 preserves legacy tokens and round-trips new-address tokens without members
+ok 237 - [sqlite] 0032 preserves legacy tokens and round-trips new-address tokens without members
+  ---
+  duration_ms: 438.59772
+  type: 'test'
+  ...

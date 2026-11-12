@@ -40684,3 +40684,2092 @@ ok 3604 - AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsF
   duration_ms: 2388.158218
   type: 'test'
   ...
+# Subtest: GET /: an override redirect rule claiming / answers before any content render
+ok 3605 - GET /: an override redirect rule claiming / answers before any content render
+  ---
+  duration_ms: 1307.132273
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /_more/1/<after>: a batch request for a static home with no see-more listing falls through to the 404
+ok 3606 - GET /_more/1/<after>: a batch request for a static home with no see-more listing falls through to the 404
+  ---
+  duration_ms: 2077.227301
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /: a static index.html keeps its own title when no explicit site title is set
+ok 3607 - GET /: a static index.html keeps its own title when no explicit site title is set
+  ---
+  duration_ms: 1487.812835
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /: a static index.html takes the fold's title when the explicit site-title lookup fails
+ok 3608 - GET /: a static index.html takes the fold's title when the explicit site-title lookup fails
+  ---
+  duration_ms: 848.92634
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'a' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'b' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'a' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-8' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-9' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-10' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-11' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-12' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-13' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-14' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-15' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-16' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-17' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-18' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-19' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-20' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-21' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-22' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-23' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-24' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-25' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-26' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-27' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-28' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-29' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-30' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-31' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-32' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-33' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-34' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-35' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-36' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-37' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-38' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-recursion', entityId: 'branch-1-leaf-39' }
+# Subtest: GUARD 3: a self-referencing body (A embeds A) terminates
+ok 3609 - GUARD 3: a self-referencing body (A embeds A) terminates
+  ---
+  duration_ms: 9.957155
+  type: 'test'
+  ...
+# Subtest: GUARD 3: a mutually-referencing chain (A embeds B, B embeds A) terminates
+ok 3610 - GUARD 3: a mutually-referencing chain (A embeds B, B embeds A) terminates
+  ---
+  duration_ms: 2.522257
+  type: 'test'
+  ...
+# Subtest: GUARD 3: depth alone bounds a self-reference to a FIXED fetch count, never growing with more recursion
+ok 3611 - GUARD 3: depth alone bounds a self-reference to a FIXED fetch count, never growing with more recursion
+  ---
+  duration_ms: 1.559739
+  type: 'test'
+  ...
+# Subtest: GUARD 3 (resource bound): a WIDE branching structure exceeding the fetch budget is capped, not exponential
+ok 3612 - GUARD 3 (resource bound): a WIDE branching structure exceeding the fetch budget is capped, not exponential
+  ---
+  duration_ms: 4.207562
+  type: 'test'
+  ...
+# Subtest: a non-recursive, non-cyclic html-format reference resolves normally and splices real content in
+ok 3613 - a non-recursive, non-cyclic html-format reference resolves normally and splices real content in
+  ---
+  duration_ms: 0.455464
+  type: 'test'
+  ...
+# Subtest: a doc-format reference is left untouched for the registry resolver, not consumed by this recursive pass
+ok 3614 - a doc-format reference is left untouched for the registry resolver, not consumed by this recursive pass
+  ---
+  duration_ms: 0.469607
+  type: 'test'
+  ...
+# Subtest: a slug-only reference to an html-format page is spliced by this recursive pass, the same as an id-based one
+ok 3615 - a slug-only reference to an html-format page is spliced by this recursive pass, the same as an id-based one
+  ---
+  duration_ms: 0.56791
+  type: 'test'
+  ...
+# Subtest: a mixed body -- one resolvable content marker, one referencing an id that doesn't exist at all, and one non-content marker type -- only splices the resolvable one
+ok 3616 - a mixed body -- one resolvable content marker, one referencing an id that doesn't exist at all, and one non-content marker type -- only splices the resolvable one
+  ---
+  duration_ms: 0.312561
+  type: 'test'
+  ...
+# Subtest: pendingHtmlOverride matches a slug-only ref by the previewed row's slug, the same way pendingContentOverride does
+ok 3617 - pendingHtmlOverride matches a slug-only ref by the previewed row's slug, the same way pendingContentOverride does
+  ---
+  duration_ms: 0.680544
+  type: 'test'
+  ...
+# Subtest: pendingHtmlOverride never matches by slug a marker that carries an id — id stays authoritative
+ok 3618 - pendingHtmlOverride never matches by slug a marker that carries an id — id stays authoritative
+  ---
+  duration_ms: 0.510416
+  type: 'test'
+  ...
+# Subtest: GUARD 2 (slug twin): a slug naming a DRAFT html-format page is not spliced by this pass
+ok 3619 - GUARD 2 (slug twin): a slug naming a DRAFT html-format page is not spliced by this pass
+  ---
+  duration_ms: 0.255543
+  type: 'test'
+  ...
+# Subtest: GUARD 3: nested branches share the recursive splice budget
+ok 3620 - GUARD 3: nested branches share the recursive splice budget
+  ---
+  duration_ms: 8.049683
+  type: 'test'
+  ...
+# Subtest: static export suppresses the assistant before consulting settings or credentials
+ok 3621 - static export suppresses the assistant before consulting settings or credentials
+  ---
+  duration_ms: 5.44895
+  type: 'test'
+  ...
+# Subtest: docs pager crosses group boundaries and preserves both neighbours authored classes
+ok 3622 - docs pager crosses group boundaries and preserves both neighbours authored classes
+  ---
+  duration_ms: 2.838274
+  type: 'test'
+  ...
+# Subtest: media metadata batches only live distinct assets and retains a missing content type as null
+ok 3623 - media metadata batches only live distinct assets and retains a missing content type as null
+  ---
+  duration_ms: 1.23102
+  type: 'test'
+  ...
+# Subtest: /api/admin/v1/workspaces/ws/publish-content/peers/PRIVATE_PEER/push/execute: the final failure explains publishing uncertainty before another mutation
+ok 3624 - /api/admin/v1/workspaces/ws/publish-content/peers/PRIVATE_PEER/push/execute: the final failure explains publishing uncertainty before another mutation
+  ---
+  duration_ms: 79.980833
+  type: 'test'
+  ...
+# Subtest: /api/admin/v1/workspaces/ws/publish-content/backstop: the final failure explains publishing uncertainty before another mutation
+ok 3625 - /api/admin/v1/workspaces/ws/publish-content/backstop: the final failure explains publishing uncertainty before another mutation
+  ---
+  duration_ms: 40.131914
+  type: 'test'
+  ...
+# Subtest: /api/admin/v1/workspaces/ws/publish-content/runs/PRIVATE_RUN/undo-backstop: the final failure explains publishing uncertainty before another mutation
+ok 3626 - /api/admin/v1/workspaces/ws/publish-content/runs/PRIVATE_RUN/undo-backstop: the final failure explains publishing uncertainty before another mutation
+  ---
+  duration_ms: 19.164656
+  type: 'test'
+  ...
+# Subtest: publishing mapper sends anonymous failures without a details envelope
+ok 3627 - publishing mapper sends anonymous failures without a details envelope
+  ---
+  duration_ms: 24.597501
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: undefined with fallback '127.0.0.1' returns the fallback
+ok 3628 - resolveBindHost: undefined with fallback '127.0.0.1' returns the fallback
+  ---
+  duration_ms: 1.414192
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: undefined with fallback undefined returns undefined
+ok 3629 - resolveBindHost: undefined with fallback undefined returns undefined
+  ---
+  duration_ms: 0.162941
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: a whitespace-only raw value is treated as unset -- returns the fallback
+ok 3630 - resolveBindHost: a whitespace-only raw value is treated as unset -- returns the fallback
+  ---
+  duration_ms: 0.151867
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: '0.0.0.0' passes through verbatim
+ok 3631 - resolveBindHost: '0.0.0.0' passes through verbatim
+  ---
+  duration_ms: 0.580099
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: an arbitrary IPv4 literal passes through verbatim
+ok 3632 - resolveBindHost: an arbitrary IPv4 literal passes through verbatim
+  ---
+  duration_ms: 0.352692
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: '::1' passes through verbatim
+ok 3633 - resolveBindHost: '::1' passes through verbatim
+  ---
+  duration_ms: 3.6215
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: '::' resolves to undefined (Node's own all-interfaces default)
+ok 3634 - resolveBindHost: '::' resolves to undefined (Node's own all-interfaces default)
+  ---
+  duration_ms: 0.204565
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: 'localhost' throws ValidationError with the exact documented text
+ok 3635 - resolveBindHost: 'localhost' throws ValidationError with the exact documented text
+  ---
+  duration_ms: 1.517607
+  type: 'test'
+  ...
+# Subtest: resolveBindHost: a hostname with a space throws ValidationError naming the given value
+ok 3636 - resolveBindHost: a hostname with a space throws ValidationError naming the given value
+  ---
+  duration_ms: 0.209087
+  type: 'test'
+  ...
+# Subtest: isLoopbackHost: 127.0.0.1 is loopback
+ok 3637 - isLoopbackHost: 127.0.0.1 is loopback
+  ---
+  duration_ms: 0.093491
+  type: 'test'
+  ...
+# Subtest: isLoopbackHost: another 127.x.x.x literal is loopback
+ok 3638 - isLoopbackHost: another 127.x.x.x literal is loopback
+  ---
+  duration_ms: 0.095957
+  type: 'test'
+  ...
+# Subtest: isLoopbackHost: ::1 is loopback
+ok 3639 - isLoopbackHost: ::1 is loopback
+  ---
+  duration_ms: 0.072253
+  type: 'test'
+  ...
+# Subtest: isLoopbackHost: 0.0.0.0 is not loopback
+ok 3640 - isLoopbackHost: 0.0.0.0 is not loopback
+  ---
+  duration_ms: 0.062384
+  type: 'test'
+  ...
+# Subtest: isLoopbackHost: undefined (all interfaces) is not loopback
+ok 3641 - isLoopbackHost: undefined (all interfaces) is not loopback
+  ---
+  duration_ms: 31.164094
+  type: 'test'
+  ...
+# Subtest: isLoopbackHost: an arbitrary LAN literal is not loopback
+ok 3642 - isLoopbackHost: an arbitrary LAN literal is not loopback
+  ---
+  duration_ms: 0.279132
+  type: 'test'
+  ...
+# Subtest: DEFAULT_LOCAL_BIND_HOST is '127.0.0.1'
+ok 3643 - DEFAULT_LOCAL_BIND_HOST is '127.0.0.1'
+  ---
+  duration_ms: 0.278951
+  type: 'test'
+  ...
+# Subtest: a lost running lock rejects boot into one actionable diagnostic followed by exit 1
+ok 3644 - a lost running lock rejects boot into one actionable diagnostic followed by exit 1
+  ---
+  duration_ms: 33.594894
+  type: 'test'
+  ...
+# Subtest: other composition and readiness failures also exit, with a single diagnostic line
+ok 3645 - other composition and readiness failures also exit, with a single diagnostic line
+  ---
+  duration_ms: 0.461992
+  type: 'test'
+  ...
+# Subtest: the raw reason reaches the log so the stack survives in server.log
+ok 3646 - the raw reason reaches the log so the stack survives in server.log
+  ---
+  duration_ms: 1.023647
+  type: 'test'
+  ...
+# Subtest: non-Error rejections retain their reason and fail boot
+ok 3647 - non-Error rejections retain their reason and fail boot
+  ---
+  duration_ms: 0.154424
+  type: 'test'
+  ...
+# Subtest: a broken diagnostic sink cannot leave the startup listener alive
+ok 3648 - a broken diagnostic sink cannot leave the startup listener alive
+  ---
+  duration_ms: 0.567838
+  type: 'test'
+  ...
+# Subtest: the real index entrypoint catches main's rejection with the fatal boot adapter
+ok 3649 - the real index entrypoint catches main's rejection with the fatal boot adapter
+  ---
+  duration_ms: 113.896837
+  type: 'test'
+  ...
+# Subtest: default ports report on console.error and exit the real process with code 1
+ok 3650 - default ports report on console.error and exit the real process with code 1
+  ---
+  duration_ms: 3.611317
+  type: 'test'
+  ...
+# Subtest: installUnhandledRejectionGuard's default logger writes the rejection to console.error
+ok 3651 - installUnhandledRejectionGuard's default logger writes the rejection to console.error
+  ---
+  duration_ms: 0.896214
+  type: 'test'
+  ...
+# Subtest: domain-read fallback refuses a wrong plugin before decryption
+ok 3652 - domain-read fallback refuses a wrong plugin before decryption
+  ---
+  duration_ms: 42.053078
+  type: 'test'
+  ...
+# Subtest: domain-read fallback refuses a disabled account before decryption
+ok 3653 - domain-read fallback refuses a disabled account before decryption
+  ---
+  duration_ms: 12.99869
+  type: 'test'
+  ...
+# Subtest: domain-read fallback refuses a missing row before decryption
+ok 3654 - domain-read fallback refuses a missing row before decryption
+  ---
+  duration_ms: 38.085171
+  type: 'test'
+  ...
+# Subtest: domain-read fallback refuses a OAuth MCP account before decryption
+ok 3655 - domain-read fallback refuses a OAuth MCP account before decryption
+  ---
+  duration_ms: 2.103188
+  type: 'test'
+  ...
+# Subtest: domain-read fallback refuses a unknown auth mode before decryption
+ok 3656 - domain-read fallback refuses a unknown auth mode before decryption
+  ---
+  duration_ms: 13.966972
+  type: 'test'
+  ...
+# Subtest: domain-read fallback refuses HTTP before looking up an account key
+ok 3657 - domain-read fallback refuses HTTP before looking up an account key
+  ---
+  duration_ms: 1.65062
+  type: 'test'
+  ...
+# Subtest: domain-read fallback returns the active plugin's enabled static key at its declared HTTPS API
+ok 3658 - domain-read fallback returns the active plugin's enabled static key at its declared HTTPS API
+  ---
+  duration_ms: 10.422827
+  type: 'test'
+  ...
+# Subtest: separate rejection occurrences remain reportable; fatal reports flush before exiting
+ok 3659 - separate rejection occurrences remain reportable; fatal reports flush before exiting
+  ---
+  duration_ms: 80.553579
+  type: 'test'
+  ...
+# Subtest: a hung fatal drain exits at its deadline, once, even when the drain later settles
+ok 3660 - a hung fatal drain exits at its deadline, once, even when the drain later settles
+  ---
+  duration_ms: 24.923464
+  type: 'test'
+  ...
+# Subtest: a rejected fatal drain still exits and a failing logger cannot skip the drain
+ok 3661 - a rejected fatal drain still exits and a failing logger cannot skip the drain
+  ---
+  duration_ms: 11.307327
+  type: 'test'
+  ...
+# Subtest: without flush: retain rejection + monitor listeners exactly, with no fatal handler, log or exit
+ok 3662 - without flush: retain rejection + monitor listeners exactly, with no fatal handler, log or exit
+  ---
+  duration_ms: 3.10446
+  type: 'test'
+  ...
+# Subtest: fatal path logs, reports, awaits flush and exits 1 in that order
+ok 3663 - fatal path logs, reports, awaits flush and exits 1 in that order
+  ---
+  duration_ms: 6.513411
+  type: 'test'
+  ...
+# Subtest: fatal flush is bounded to 2000ms even if a caller requests a longer deadline
+ok 3664 - fatal flush is bounded to 2000ms even if a caller requests a longer deadline
+  ---
+  duration_ms: 1.487564
+  type: 'test'
+  ...
+# Subtest: pin then read uses the selected scheme and port over inherited PORT and TLS fallback
+ok 3665 - pin then read uses the selected scheme and port over inherited PORT and TLS fallback
+  ---
+  duration_ms: 2.151157
+  type: 'test'
+  ...
+# Subtest: http: direct composition uses the configured PORT
+ok 3666 - http: direct composition uses the configured PORT
+  ---
+  duration_ms: 0.315507
+  type: 'test'
+  ...
+# Subtest: https: direct composition uses the configured PORT
+ok 3667 - https: direct composition uses the configured PORT
+  ---
+  duration_ms: 0.242337
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host undefined is advertised as http://localhost:4000
+ok 3668 - pinSiteListenerOrigin: host undefined is advertised as http://localhost:4000
+  ---
+  duration_ms: 0.170699
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "" is advertised as http://localhost:4000
+ok 3669 - pinSiteListenerOrigin: host "" is advertised as http://localhost:4000
+  ---
+  duration_ms: 0.096871
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "0.0.0.0" is advertised as http://localhost:4000
+ok 3670 - pinSiteListenerOrigin: host "0.0.0.0" is advertised as http://localhost:4000
+  ---
+  duration_ms: 0.106142
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "::" is advertised as http://localhost:4000
+ok 3671 - pinSiteListenerOrigin: host "::" is advertised as http://localhost:4000
+  ---
+  duration_ms: 0.130904
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "127.0.0.1" is advertised as http://127.0.0.1:4000
+ok 3672 - pinSiteListenerOrigin: host "127.0.0.1" is advertised as http://127.0.0.1:4000
+  ---
+  duration_ms: 0.054309
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "::1" is advertised as http://[::1]:4000
+ok 3673 - pinSiteListenerOrigin: host "::1" is advertised as http://[::1]:4000
+  ---
+  duration_ms: 0.896813
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "site.example" is advertised as http://site.example:4000
+ok 3674 - pinSiteListenerOrigin: host "site.example" is advertised as http://site.example:4000
+  ---
+  duration_ms: 0.109796
+  type: 'test'
+  ...
+# Subtest: pinSiteListenerOrigin: host "0.0.0.1" is advertised as http://0.0.0.1:4000
+ok 3675 - pinSiteListenerOrigin: host "0.0.0.1" is advertised as http://0.0.0.1:4000
+  ---
+  duration_ms: 0.051501
+  type: 'test'
+  ...
+# Subtest: readSiteListenerOrigin throws on an invalid pinned origin instead of falling back
+ok 3676 - readSiteListenerOrigin throws on an invalid pinned origin instead of falling back
+  ---
+  duration_ms: 0.580521
+  type: 'test'
+  ...
+# [plugin-runtime] plugin activation poll failed to attach 'broken-plugin': package missing from disk
+# Subtest: a plugin newly enabled in the durable repo is attached, and its id is added to attachedIds
+ok 3677 - a plugin newly enabled in the durable repo is attached, and its id is added to attachedIds
+  ---
+  duration_ms: 2.243582
+  type: 'test'
+  ...
+# Subtest: an already-attached plugin is NOT re-attached on a later pass — no redundant reload, no reset quarantine counter
+ok 3678 - an already-attached plugin is NOT re-attached on a later pass — no redundant reload, no reset quarantine counter
+  ---
+  duration_ms: 0.352542
+  type: 'test'
+  ...
+# Subtest: a plugin disabled elsewhere (no longer in the durable enabled set) is detached and dropped from attachedIds
+ok 3679 - a plugin disabled elsewhere (no longer in the durable enabled set) is detached and dropped from attachedIds
+  ---
+  duration_ms: 0.279281
+  type: 'test'
+  ...
+# Subtest: a workspace this daemon does not serve is ignored, even if enabled there
+ok 3680 - a workspace this daemon does not serve is ignored, even if enabled there
+  ---
+  duration_ms: 0.166538
+  type: 'test'
+  ...
+# Subtest: one plugin's attach failure is logged and skipped, never blocking reconciliation of the rest
+ok 3681 - one plugin's attach failure is logged and skipped, never blocking reconciliation of the rest
+  ---
+  duration_ms: 1.067927
+  type: 'test'
+  ...
+# Subtest: a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability
+not ok 3682 - a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability
+  ---
+  duration_ms: 973.590534
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts:1:637'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + []
+    - [
+    -   'POST /api/federation/reload'
+    - ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'POST /api/federation/reload'
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts:53:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] /tmp/tovu-boot-settings-zswbWg/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce is unavailable; the rest of the site remains online.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a settings registration failing while provider boot is still pending is never an unhandled rejection, and settingsReady still rejects
+ok 3683 - a settings registration failing while provider boot is still pending is never an unhandled rejection, and settingsReady still rejects
+  ---
+  duration_ms: 3173.313355
+  type: 'test'
+  ...
+# Subtest: the real dormant runtime registers four tools and resolution refuses before absent-table storage
+ok 3684 - the real dormant runtime registers four tools and resolution refuses before absent-table storage
+  ---
+  duration_ms: 243.450858
+  type: 'test'
+  ...
+# Subtest: an active restart with removed settings still exposes the original late-webhook receiver
+ok 3685 - an active restart with removed settings still exposes the original late-webhook receiver
+  ---
+  duration_ms: 81.136976
+  type: 'test'
+  ...
+# Subtest: unknown payments are discoverable by order id with a ten-order bound
+ok 3686 - unknown payments are discoverable by order id with a ten-order bound
+  ---
+  duration_ms: 154.361917
+  type: 'test'
+  ...
+# Subtest: blocked and not-succeeded projections remain quarantined after acknowledgement, with distinct payment alerts
+ok 3687 - blocked and not-succeeded projections remain quarantined after acknowledgement, with distinct payment alerts
+  ---
+  duration_ms: 72.065712
+  type: 'test'
+  ...
+# Subtest: a quarantine storage fault leaves blocked settlement queued for redelivery
+ok 3688 - a quarantine storage fault leaves blocked settlement queued for redelivery
+  ---
+  duration_ms: 58.105088
+  type: 'test'
+  ...
+# Subtest: disabled draining checks payment migrations once across repeated worker cycles
+ok 3689 - disabled draining checks payment migrations once across repeated worker cycles
+  ---
+  duration_ms: 5181.269217
+  type: 'test'
+  ...
+# Subtest: the real commerce card shows stored facts and decline writes no payment state
+ok 3690 - the real commerce card shows stored facts and decline writes no payment state
+  ---
+  duration_ms: 373.705723
+  type: 'test'
+  ...
+# Subtest: a one-connection PostgreSQL pool refuses checkout before any order or payment write
+ok 3691 - a one-connection PostgreSQL pool refuses checkout before any order or payment write
+  ---
+  duration_ms: 108.186066
+  type: 'test'
+  ...
+# Subtest: retry after a publish acknowledgement fault keeps one quarantine record
+ok 3692 - retry after a publish acknowledgement fault keeps one quarantine record
+  ---
+  duration_ms: 186.555765
+  type: 'test'
+  ...
+# Subtest: [sqlite] host composition stays dormant, guards configuration, and drains original payments across disabled restart
+ok 3693 - [sqlite] host composition stays dormant, guards configuration, and drains original payments across disabled restart
+  ---
+  duration_ms: 1720.17537
+  type: 'test'
+  ...
+# Subtest: [pglite] host composition stays dormant, guards configuration, and drains original payments across disabled restart
+ok 3694 - [pglite] host composition stays dormant, guards configuration, and drains original payments across disabled restart
+  ---
+  duration_ms: 16846.454513
+  type: 'test'
+  ...
+# Subtest: [sqlite] configuration before provider keys recovers when the current lease attaches
+ok 3695 - [sqlite] configuration before provider keys recovers when the current lease attaches
+  ---
+  duration_ms: 351.869097
+  type: 'test'
+  ...
+# Subtest: [sqlite] runtime enabling and configuration changes prepare storefront without a setup tool call
+ok 3696 - [sqlite] runtime enabling and configuration changes prepare storefront without a setup tool call
+  ---
+  duration_ms: 315.045923
+  type: 'test'
+  ...
+# [migrations] /tmp/composition-release-fNOLY2/sqlite-site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: SQLite: a composition failing after the open closes content.db and chat.db
+ok 3697 - SQLite: a composition failing after the open closes content.db and chat.db
+  ---
+  duration_ms: 2677.254249
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: PGlite: a composition failing after the open releases the owner lock, so the next owner opens
+ok 3698 - PGlite: a composition failing after the open releases the owner lock, so the next owner opens
+  ---
+  duration_ms: 14847.215419
+  type: 'test'
+  ...
+# [migrations] /tmp/composition-release-fNOLY2/supplied-client/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: L005: failure on a supplied client store releases users without closing the caller's kernels
+ok 3699 - L005: failure on a supplied client store releases users without closing the caller's kernels
+  ---
+  duration_ms: 2414.756954
+  type: 'test'
+  ...
+# Subtest: no pre-bound sweep: an idle handle and no timer (off by injection)
+ok 3700 - no pre-bound sweep: an idle handle and no timer (off by injection)
+  ---
+  duration_ms: 1.285937
+  type: 'test'
+  ...
+# Subtest: sweeps once per interval at the default minute with the default batch limit, single flight
+ok 3701 - sweeps once per interval at the default minute with the default batch limit, single flight
+  ---
+  duration_ms: 1.338005
+  type: 'test'
+  ...
+# Subtest: a failed sweep is logged by name and capped message, never thrown, and the loop keeps going
+ok 3702 - a failed sweep is logged by name and capped message, never thrown, and the loop keeps going
+  ---
+  duration_ms: 0.429913
+  type: 'test'
+  ...
+# Subtest: stop waits a bounded grace for a running sweep, logs when it gives up, and is idempotent
+ok 3703 - stop waits a bounded grace for a running sweep, logs when it gives up, and is idempotent
+  ---
+  duration_ms: 26.67897
+  type: 'test'
+  ...
+# Subtest: rejects a non-positive or non-finite interval
+ok 3704 - rejects a non-positive or non-finite interval
+  ---
+  duration_ms: 0.781562
+  type: 'test'
+  ...
+# Subtest: the default scheduler and log are the real unref'd timers and console.error
+ok 3705 - the default scheduler and log are the real unref'd timers and console.error
+  ---
+  duration_ms: 0.862469
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-form-delivery-slice-cdVS8s/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [agent-plugins:migration-complete] /tmp/tovu-form-delivery-slice-cdVS8s/agent-plugins/ws/workspace-local
+# Plugin 'form-delivery-fixture' has no publisher-qualified id; using 'unknown/form-delivery-fixture'.
+# Subtest: form delivery vertical slice: pull → plan → two destinations through the outbox
+    # Subtest: a submission pulled from the receiver is planned once, with one frozen job per matching binding
+    ok 1 - a submission pulled from the receiver is planned once, with one frozen job per matching binding
+      ---
+      duration_ms: 79.274138
+      type: 'test'
+      ...
+    # Subtest: drain 1: A completes, B is retrying with its next retry time and safe error code
+    ok 2 - drain 1: A completes, B is retrying with its next retry time and safe error code
+      ---
+      duration_ms: 33.329049
+      type: 'test'
+      ...
+    # Subtest: drain 2 after the wait: B completes with the same job id, idempotency key and frozen payload, and A is not called again
+    ok 3 - drain 2 after the wait: B completes with the same job id, idempotency key and frozen payload, and A is not called again
+      ---
+      duration_ms: 15.264263
+      type: 'test'
+      ...
+    # Subtest: replaying form.submission.received adds no plan and no job
+    ok 4 - replaying form.submission.received adds no plan and no job
+      ---
+      duration_ms: 3.600878
+      type: 'test'
+      ...
+    # Subtest: editing the bindings after planning changes nothing for an already planned submission
+    ok 5 - editing the bindings after planning changes nothing for an already planned submission
+      ---
+      duration_ms: 5.923988
+      type: 'test'
+      ...
+    # Subtest: a non-retryable failure goes terminal at once and is never retried
+    ok 6 - a non-retryable failure goes terminal at once and is never retried
+      ---
+      duration_ms: 125.042168
+      type: 'test'
+      ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 3,
+#       envelopes: 3,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+    # Subtest: restart: a new worker over the same database delivers a job a crashed worker had claimed, once its lease expires
+    ok 7 - restart: a new worker over the same database delivers a job a crashed worker had claimed, once its lease expires
+      ---
+      duration_ms: 970.856636
+      type: 'test'
+      ...
+# [migrations] /tmp/tovu-form-autopull-FxoQJf/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+    1..7
+ok 3706 - form delivery vertical slice: pull → plan → two destinations through the outbox
+  ---
+  duration_ms: 5011.537473
+  type: 'suite'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [agent-plugins:migration-complete] /tmp/tovu-form-autopull-FxoQJf/agent-plugins/ws/workspace-local
+# Subtest: automatic pull: the autoPull setting, startup and sign-in triggers, and the receiver lease
+    # Subtest: autoPull OFF: neither the serving startup nor an owner sign-in pulls
+    ok 1 - autoPull OFF: neither the serving startup nor an owner sign-in pulls
+      ---
+      duration_ms: 398.635103
+      type: 'test'
+      ...
+    # Subtest: autoPull ON: one pull at startup, and an owner sign-in within 60 s pulls nothing
+    ok 2 - autoPull ON: one pull at startup, and an owner sign-in within 60 s pulls nothing
+      ---
+      duration_ms: 441.856025
+      type: 'test'
+      ...
+    # Subtest: once the serving app's form pull trigger has stopped, an owner sign-in starts no pull
+    ok 3 - once the serving app's form pull trigger has stopped, an owner sign-in starts no pull
+      ---
+      duration_ms: 552.569661
+      type: 'test'
+      ...
+    # Subtest: a manual pull while another pull of the same receiver is in flight answers already-running
+    ok 4 - a manual pull while another pull of the same receiver is in flight answers already-running
+      ---
+      duration_ms: 62.828489
+      type: 'test'
+      ...
+    1..4
+ok 3707 - automatic pull: the autoPull setting, startup and sign-in triggers, and the receiver lease
+  ---
+  duration_ms: 3834.935558
+  type: 'suite'
+  ...
+# Subtest: composition resolves process.env at call time when no env is injected
+ok 3708 - composition resolves process.env at call time when no env is injected
+  ---
+  duration_ms: 27.296643
+  type: 'test'
+  ...
+# [migration-recovery] restored /tmp/tovu-open-site-content-db-hPb7k2/content.db from /tmp/tovu-open-site-content-db-hPb7k2/content.db.snapshot-crashed-plugin-1794447743891 (interrupted dataModule migration of plugin 'crashed-plugin')
+# [migrations] /tmp/tovu-open-site-content-db-hPb7k2/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   backed up the database to /tmp/tovu-open-site-content-db-hPb7k2/ops/pre-migrations-2026-11-12T01-42-24-120Z.db before migrating it
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# [migrations] /tmp/tovu-open-site-content-db-fresh-kv2B4w/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: openSiteContentDb restores a crash-interrupted dataModule attempt, then prepares the restored file
+ok 3709 - openSiteContentDb restores a crash-interrupted dataModule attempt, then prepares the restored file
+  ---
+  duration_ms: 1687.197916
+  type: 'test'
+  ...
+# Subtest: openSiteContentDb on a fresh path creates, migrates, seeds once and writes the watermark row
+ok 3710 - openSiteContentDb on a fresh path creates, migrates, seeds once and writes the watermark row
+  ---
+  duration_ms: 960.163566
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-open-site-content-db-backup-StBlMS/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   backed up the database to /tmp/tovu-open-site-content-db-backup-StBlMS/ops/pre-migrations-2026-11-12T01-42-26-404Z.db before migrating it
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# [migrations] /tmp/tovu-open-site-content-db-fail-gS7mQw/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest five copies
+ok 3711 - openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest five copies
+  ---
+  duration_ms: 934.854069
+  type: 'test'
+  ...
+# Subtest: openSiteContentDb closes its connection when a boot step rejects (a checksum mismatch here)
+ok 3712 - openSiteContentDb closes its connection when a boot step rejects (a checksum mismatch here)
+  ---
+  duration_ms: 1259.65266
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-pages-revisions-wiring-Onf5td/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller
+ok 3713 - createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller
+  ---
+  duration_ms: 1987.804954
+  type: 'test'
+  ...
+# Subtest: createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller
+ok 3714 - createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller
+  ---
+  duration_ms: 338.172672
+  type: 'test'
+  ...
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: first-party catalog registers both install families and forwards the scoped attachment reader
+ok 3715 - first-party catalog registers both install families and forwards the scoped attachment reader
+  ---
+  duration_ms: 22.694847
+  type: 'test'
+  ...
+# Subtest: vault adapter: nothing saved reads as null; a write is read back as one row; the public read returns secret names only
+ok 3716 - vault adapter: nothing saved reads as null; a write is read back as one row; the public read returns secret names only
+  ---
+  duration_ms: 2.794871
+  type: 'test'
+  ...
+# Subtest: vault adapter: malformed rows read as empty, never as values
+ok 3717 - vault adapter: malformed rows read as empty, never as values
+  ---
+  duration_ms: 44.948263
+  type: 'test'
+  ...
+# Subtest: a site without a stable id keeps saving locally
+ok 3718 - a site without a stable id keeps saving locally
+  ---
+  duration_ms: 0.826202
+  type: 'test'
+  ...
+# Subtest: effective provider usage reports independently owned local settings first
+ok 3719 - effective provider usage reports independently owned local settings first
+  ---
+  duration_ms: 0.683048
+  type: 'test'
+  ...
+# Subtest: precedence: without a project store the site vault is the source
+ok 3720 - precedence: without a project store the site vault is the source
+  ---
+  duration_ms: 0.140912
+  type: 'test'
+  ...
+# Subtest: ungranted sites cannot read or overwrite owner provider keys and revoke ignores site copies
+ok 3721 - ungranted sites cannot read or overwrite owner provider keys and revoke ignores site copies
+  ---
+  duration_ms: 1.606776
+  type: 'test'
+  ...
+# Subtest: a project provider save commits its attachment before returning usage
+ok 3722 - a project provider save commits its attachment before returning usage
+  ---
+  duration_ms: 0.666085
+  type: 'test'
+  ...
+# Subtest: an unavailable owner store leaves local reads and saves working
+ok 3723 - an unavailable owner store leaves local reads and saves working
+  ---
+  duration_ms: 0.32528
+  type: 'test'
+  ...
+# Subtest: vault adapter: a save that fails part-way leaves the previous settings + secrets pair whole (Codex fix-lane HIGH)
+ok 3724 - vault adapter: a save that fails part-way leaves the previous settings + secrets pair whole (Codex fix-lane HIGH)
+  ---
+  duration_ms: 0.496207
+  type: 'test'
+  ...
+# Subtest: vault adapter: a read racing a rotation never pairs the old endpoint with the new secret (Codex fix-lane HIGH)
+ok 3725 - vault adapter: a read racing a rotation never pairs the old endpoint with the new secret (Codex fix-lane HIGH)
+  ---
+  duration_ms: 0.288515
+  type: 'test'
+  ...
+# Subtest: vault adapter: only a failure to OPEN a listed row is unreadable; a store failure (SQLITE_BUSY) surfaces, so a save never drops a valid key
+ok 3726 - vault adapter: only a failure to OPEN a listed row is unreadable; a store failure (SQLITE_BUSY) surfaces, so a save never drops a valid key
+  ---
+  duration_ms: 2.428992
+  type: 'test'
+  ...
+# Subtest: vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself
+ok 3727 - vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself
+  ---
+  duration_ms: 0.833183
+  type: 'test'
+  ...
+# Subtest: OTel's old auth choice is normalized in both vault scopes, without writing or mutating the saved snapshot
+ok 3728 - OTel's old auth choice is normalized in both vault scopes, without writing or mutating the saved snapshot
+  ---
+  duration_ms: 2.9285
+  type: 'test'
+  ...
+# Subtest: an attached project's migrated OTel choice feeds boot and cards without mutating the shared owner entry
+ok 3729 - an attached project's migrated OTel choice feeds boot and cards without mutating the shared owner entry
+  ---
+  duration_ms: 3.26329
+  type: 'test'
+  ...
+# Subtest: legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry
+ok 3730 - legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry
+  ---
+  duration_ms: 1.175975
+  type: 'test'
+  ...
+# Subtest: core applies another plugin's declared migrations and leaves the same raw row unchanged without that hook
+ok 3731 - core applies another plugin's declared migrations and leaves the same raw row unchanged without that hook
+  ---
+  duration_ms: 0.289808
+  type: 'test'
+  ...
+# Subtest: local provider settings survive owner outages and override an attached shared row
+ok 3732 - local provider settings survive owner outages and override an attached shared row
+  ---
+  duration_ms: 0.22695
+  type: 'test'
+  ...
+# Subtest: anonymous guide exposes public content only, using the real Jini filtering shell
+ok 3733 - anonymous guide exposes public content only, using the real Jini filtering shell
+  ---
+  duration_ms: 4.492583
+  type: 'test'
+  ...
+# Subtest: guide explains only effective policy grants, without exposing tool ids
+ok 3734 - guide explains only effective policy grants, without exposing tool ids
+  ---
+  duration_ms: 13.149575
+  type: 'test'
+  ...
+# Subtest: default grants preserve the original guide card through the injected engine
+ok 3735 - default grants preserve the original guide card through the injected engine
+  ---
+  duration_ms: 0.435228
+  type: 'test'
+  ...
+# Subtest: all default tools leave both model-facing guide operations unchanged
+ok 3736 - all default tools leave both model-facing guide operations unchanged
+  ---
+  duration_ms: 3.766989
+  type: 'test'
+  ...
+# Subtest: reduced guide cards include every allowed CMS action and preserve the operator guidance
+ok 3737 - reduced guide cards include every allowed CMS action and preserve the operator guidance
+  ---
+  duration_ms: 0.497718
+  type: 'test'
+  ...
+# Subtest: visitor registry grants only the explicitly injected guide and still denies unknown names/callers
+ok 3738 - visitor registry grants only the explicitly injected guide and still denies unknown names/callers
+  ---
+  duration_ms: 8.755289
+  type: 'test'
+  ...
+# Subtest: visitor preamble points directly to the public guide without admin-only discovery or delegation
+ok 3739 - visitor preamble points directly to the public guide without admin-only discovery or delegation
+  ---
+  duration_ms: 0.13865
+  type: 'test'
+  ...
+# Subtest: visitor guidance hides internal tool names and ids, including unavailable actions
+ok 3740 - visitor guidance hides internal tool names and ids, including unavailable actions
+  ---
+  duration_ms: 0.762059
+  type: 'test'
+  ...
+# Subtest: visitorsafe: public guide prose and pointers contain no raw tool identifiers
+ok 3741 - visitorsafe: public guide prose and pointers contain no raw tool identifiers
+  ---
+  duration_ms: 18.21107
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-redirects-phase-close-ktVU7F/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: closing the site store removes its redirect resolver from both resolve phases
+ok 3742 - closing the site store removes its redirect resolver from both resolve phases
+  ---
+  duration_ms: 2177.64995
+  type: 'test'
+  ...
+# (node:7867) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:7867) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: a missing site-guide engine export is refused with the rebuild instruction
+ok 3743 - a missing site-guide engine export is refused with the rebuild instruction
+  ---
+  duration_ms: 1758.369757
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-site-search-a7tUUy/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the real composition serves search from one runtime: 503 until a provider exists, a recorded boot target, four tools
+ok 3744 - the real composition serves search from one runtime: 503 until a provider exists, a recorded boot target, four tools
+  ---
+  duration_ms: 2185.955824
+  type: 'test'
+  ...
+# Subtest: new-site sealing prepares its identified key file and the default reader reopens it
+not ok 3745 - new-site sealing prepares its identified key file and the default reader reopens it
+  ---
+  duration_ms: 3707.189889
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/storage-secret.unit.test.ts:1:762'
+  failureType: 'testCodeFailure'
+  error: |-
+    /home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:149
+          throw new Error(`no site key: none of the configured sources resolved (${this.sources.map(describeSiteKeySource).join(", ")})`);
+                ^
+    
+    Error: no site key: none of the configured sources resolved (the site key file at /tmp/tovu-test-catalog-7gpEcJ/.tovu/site-keys/storage-secret-audit-site.hex, env var TOVU_SITE_KEY, the site key file at /tmp/tovu-test-catalog-7gpEcJ/.tovu/integrations-root-key.hex)
+        at EnvOrFileKeyring.resolveKeyring (/home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:149:13)
+        at EnvOrFileKeyring.derive (/home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:136:29)
+        at AesGcmSecretSealer.deriveAesKey (/home/user/Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts:78:25)
+        at AesGcmSecretSealer.seal (/home/user/Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts:36:31)
+        at AesGcmSecretSealer.seal (/home/user/Tovu/apps/website/src/features/webhooks/secret-sealer.aesgcm.ts:130:24)
+        at writeSealedConnectionString (/home/user/Tovu/apps/website/src/server/runtime/composition/storage-secret.ts:77:31)
+        at async sealConnectionStringForNewSite (/home/user/Tovu/apps/website/src/server/runtime/composition/storage-secret.ts:116:3)
+        at async file:///home/user/Tovu/[eval1]:10:5
+    
+    Node.js v24.22.3
+    
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    EnvOrFileKeyring.resolveKeyring (/home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:149:13)
+    EnvOrFileKeyring.derive (/home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:136:29)
+    AesGcmSecretSealer.deriveAesKey (/home/user/Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts:78:25)
+    AesGcmSecretSealer.seal (/home/user/Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts:36:31)
+    AesGcmSecretSealer.seal (/home/user/Tovu/apps/website/src/features/webhooks/secret-sealer.aesgcm.ts:130:24)
+    writeSealedConnectionString (/home/user/Tovu/apps/website/src/server/runtime/composition/storage-secret.ts:77:31)
+    async sealConnectionStringForNewSite (/home/user/Tovu/apps/website/src/server/runtime/composition/storage-secret.ts:116:3)
+    async file:///home/user/Tovu/[eval1]:10:5
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/storage-secret.unit.test.ts:54:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: a sealed connection string round-trips; the file is 0600 and never holds it in the clear
+ok 3746 - a sealed connection string round-trips; the file is 0600 and never holds it in the clear
+  ---
+  duration_ms: 8.328426
+  type: 'test'
+  ...
+# Subtest: another site key, a tampered file or a malformed one is refused without the value
+ok 3747 - another site key, a tampered file or a malformed one is refused without the value
+  ---
+  duration_ms: 7.119912
+  type: 'test'
+  ...
+# Subtest: secretRef { env }: the variable's value, or an error naming the variable
+ok 3748 - secretRef { env }: the variable's value, or an error naming the variable
+  ---
+  duration_ms: 3.202152
+  type: 'test'
+  ...
+# Subtest: new-site sealing refuses (invalid site key) before writing any sealed file
+ok 3749 - new-site sealing refuses (invalid site key) before writing any sealed file
+  ---
+  duration_ms: 1.463295
+  type: 'test'
+  ...
+# Subtest: new-site sealing refuses (refuse site key) before writing any sealed file
+ok 3750 - new-site sealing refuses (refuse site key) before writing any sealed file
+  ---
+  duration_ms: 1.039365
+  type: 'test'
+  ...
+# Subtest: new-site sealing seals with the sealer built for the new site's key id and returns it
+ok 3751 - new-site sealing seals with the sealer built for the new site's key id and returns it
+  ---
+  duration_ms: 21.998161
+  type: 'test'
+  ...
+# Subtest: tool product events follow committed audit insertion and preserve stable retry identity
+ok 3752 - tool product events follow committed audit insertion and preserve stable retry identity
+  ---
+  duration_ms: 2.68621
+  type: 'test'
+  ...
+# Subtest: failed inserts, requested rows and public attempts cannot use operator consent
+ok 3753 - failed inserts, requested rows and public attempts cannot use operator consent
+  ---
+  duration_ms: 0.381724
+  type: 'test'
+  ...
+# Subtest: throwing audit sinks retain their error and never emit a product event
+ok 3754 - throwing audit sinks retain their error and never emit a product event
+  ---
+  duration_ms: 0.635046
+  type: 'test'
+  ...

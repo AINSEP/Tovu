@@ -29,3 +29,1463 @@ ok 5 - stale and foreign writes preserve the row; purge deletes only the comment
   duration_ms: 34.277514
   type: 'test'
   ...
+# [routes/members/delete] {
+#   errorId: '81dd4715-fcda-4fa2-ae89-7b2677970be0',
+#   diagnostic: 'Error: private database failure\\n' +
+#     '    at Object.remove (/home/user/Tovu/apps/website/src/features/trash/__tests__/member-adapter.test.ts:358:35)\\n' +
+#     '    at trashMember (/home/user/Tovu/apps/website/src/features/members/trash-member.ts:17:29)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/members/delete.ts:23:16)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/trash/__tests__/member-adapter.test.ts:365:5)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: gapb member: active survives Trash/list/restore; credentials never revive
+ok 6 - gapb member: active survives Trash/list/restore; credentials never revive
+  ---
+  duration_ms: 575.503268
+  type: 'test'
+  ...
+# Subtest: gapb member: pending survives Trash/list/restore; credentials never revive
+ok 7 - gapb member: pending survives Trash/list/restore; credentials never revive
+  ---
+  duration_ms: 631.742952
+  type: 'test'
+  ...
+# Subtest: gapb member: disabled survives Trash/list/restore; credentials never revive
+ok 8 - gapb member: disabled survives Trash/list/restore; credentials never revive
+  ---
+  duration_ms: 517.208913
+  type: 'test'
+  ...
+# Subtest: gapb member: permissions, wrong workspace and stale version cannot touch credentials
+ok 9 - gapb member: permissions, wrong workspace and stale version cannot touch credentials
+  ---
+  duration_ms: 366.87357
+  type: 'test'
+  ...
+# Subtest: gapb member: malformed payload is byte-identical and purge cascades credentials only after Trash
+ok 10 - gapb member: malformed payload is byte-identical and purge cascades credentials only after Trash
+  ---
+  duration_ms: 232.957233
+  type: 'test'
+  ...
+# Subtest: gapb member: revocation failure rolls back marker and Trash index together
+ok 11 - gapb member: revocation failure rolls back marker and Trash index together
+  ---
+  duration_ms: 378.704725
+  type: 'test'
+  ...
+# Subtest: gapb member: Trash revokes credentials and purge works without a core-commerce blocker
+ok 12 - gapb member: Trash revokes credentials and purge works without a core-commerce blocker
+  ---
+  duration_ms: 216.743244
+  type: 'test'
+  ...
+# Subtest: gapb member: generic tool schemas include member without a per-resource delete tool
+ok 13 - gapb member: generic tool schemas include member without a per-resource delete tool
+  ---
+  duration_ms: 387.718509
+  type: 'test'
+  ...
+# Subtest: gapb member: memory reader retains email reservation but prevents list/get/update resurrection
+ok 14 - gapb member: memory reader retains email reservation but prevents list/get/update resurrection
+  ---
+  duration_ms: 0.812856
+  type: 'test'
+  ...
+# Subtest: gapb member: sign-in request for a trashed email returns an unstored handle without mail or persisted credentials
+ok 15 - gapb member: sign-in request for a trashed email returns an unstored handle without mail or persisted credentials
+  ---
+  duration_ms: 1.821981
+  type: 'test'
+  ...
+# Subtest: gapb member: a late link minted before restore cannot sign the restored account in
+ok 16 - gapb member: a late link minted before restore cannot sign the restored account in
+  ---
+  duration_ms: 0.87005
+  type: 'test'
+  ...
+# Subtest: gapb member: corrupt payload restores without parsing; repeat hide does not revoke a sibling
+ok 17 - gapb member: corrupt payload restores without parsing; repeat hide does not revoke a sibling
+  ---
+  duration_ms: 541.974262
+  type: 'test'
+  ...
+# Subtest: member restore cutoff rejects a link minted late while hidden without reviving credentials
+ok 18 - member restore cutoff rejects a link minted late while hidden without reviving credentials
+  ---
+  duration_ms: 835.959809
+  type: 'test'
+  ...
+# Subtest: member restore cutoff failure rolls back status, marker and Trash index
+ok 19 - member restore cutoff failure rolls back status, marker and Trash index
+  ---
+  duration_ms: 1207.202447
+  type: 'test'
+  ...
+# Subtest: member adapter: a refused or no-op marker flip returns verbatim and never touches credentials
+ok 20 - member adapter: a refused or no-op marker flip returns verbatim and never touches credentials
+  ---
+  duration_ms: 791.839631
+  type: 'test'
+  ...
+# Subtest: signin-lab: member api delete uses Trash, revokes sessions, restores and purges
+ok 21 - signin-lab: member api delete uses Trash, revokes sessions, restores and purges
+  ---
+  duration_ms: 471.20895
+  type: 'test'
+  ...
+# Subtest: signin-lab: member tool delete uses Trash, revokes sessions, restores and purges
+ok 22 - signin-lab: member tool delete uses Trash, revokes sessions, restores and purges
+  ---
+  duration_ms: 264.708438
+  type: 'test'
+  ...
+# Subtest: member deletion refuses stale/not-found removals and leaves unexpected adapter failures internal
+ok 23 - member deletion refuses stale/not-found removals and leaves unexpected adapter failures internal
+  ---
+  duration_ms: 337.30793
+  type: 'test'
+  ...
+# Subtest: member DELETE maps stale writes and unavailable runtime, and keeps store failures private
+ok 24 - member DELETE maps stale writes and unavailable runtime, and keeps store failures private
+  ---
+  duration_ms: 276.695465
+  type: 'test'
+  ...
+# Subtest: the post adapter purges for real once hardDelete is wired — the row and its ledger are gone
+ok 25 - the post adapter purges for real once hardDelete is wired — the row and its ledger are gone
+  ---
+  duration_ms: 4.829993
+  type: 'test'
+  ...
+# Subtest: without hardDelete the same adapter still stands down rather than claiming a removal
+ok 26 - without hardDelete the same adapter still stands down rather than claiming a removal
+  ---
+  duration_ms: 0.348076
+  type: 'test'
+  ...
+# Subtest: hide then unhide restores the stored payload and marker with a fresh timestamp and version
+ok 27 - hide then unhide restores the stored payload and marker with a fresh timestamp and version
+  ---
+  duration_ms: 0.4244
+  type: 'test'
+  ...
+# Subtest: a listed row carries the snapshot, the resolved actor username and the days left — never a read of the entity
+ok 28 - a listed row carries the snapshot, the resolved actor username and the days left — never a read of the entity
+  ---
+  duration_ms: 8.041914
+  type: 'test'
+  ...
+# Subtest: a listed trashItemId resolves the purge target while entityId still restores it
+ok 29 - a listed trashItemId resolves the purge target while entityId still restores it
+  ---
+  duration_ms: 5.169585
+  type: 'test'
+  ...
+# Subtest: list forwards the workspace, clock, cursor, limit and requested kind filter
+ok 30 - list forwards the workspace, clock, cursor, limit and requested kind filter
+  ---
+  duration_ms: 0.890628
+  type: 'test'
+  ...
+# Subtest: list refuses a non-positive or fractional limit before reading, and caps one above 100
+ok 31 - list refuses a non-positive or fractional limit before reading, and caps one above 100
+  ---
+  duration_ms: 1.94206
+  type: 'test'
+  ...
+# Subtest: a call with no input at all lists the first default-sized page, like an empty input
+ok 32 - a call with no input at all lists the first default-sized page, like an empty input
+  ---
+  duration_ms: 2.189995
+  type: 'test'
+  ...
+# Subtest: content.write without content.read cannot list deleted titles or reach either repository
+ok 33 - content.write without content.read cannot list deleted titles or reach either repository
+  ---
+  duration_ms: 0.866327
+  type: 'test'
+  ...
+# Subtest: a row deleted by a plugin names the plugin's human grantor, not the raw principal id
+ok 34 - a row deleted by a plugin names the plugin's human grantor, not the raw principal id
+  ---
+  duration_ms: 0.660179
+  type: 'test'
+  ...
+# Subtest: an actor with no matching user account falls back to a readable label, not the raw UUID
+ok 35 - an actor with no matching user account falls back to a readable label, not the raw UUID
+  ---
+  duration_ms: 0.753297
+  type: 'test'
+  ...
+# Subtest: a row trashed by the system actor names it 'system', not the raw principal id
+ok 36 - a row trashed by the system actor names it 'system', not the raw principal id
+  ---
+  duration_ms: 1.723908
+  type: 'test'
+  ...
+# Subtest: rows the caller could not restore are omitted from the list, kind by kind
+ok 37 - rows the caller could not restore are omitted from the list, kind by kind
+  ---
+  duration_ms: 1.142433
+  type: 'test'
+  ...
+# Subtest: an unknown kind is never listed — a phase-2 domain has to opt in, not opt out
+ok 38 - an unknown kind is never listed — a phase-2 domain has to opt in, not opt out
+  ---
+  duration_ms: 0.4451
+  type: 'test'
+  ...
+# Subtest: the permission checked per kind is the one that kind's own delete tool required
+ok 39 - the permission checked per kind is the one that kind's own delete tool required
+  ---
+  duration_ms: 2.020528
+  type: 'test'
+  ...
+# Subtest: a denied restore throws and never reaches the port
+ok 40 - a denied restore throws and never reaches the port
+  ---
+  duration_ms: 0.845725
+  type: 'test'
+  ...
+# Subtest: restoring a kind the Trash does not own is refused by name, not silently attempted
+ok 41 - restoring a kind the Trash does not own is refused by name, not silently attempted
+  ---
+  duration_ms: 1.660972
+  type: 'test'
+  ...
+# Subtest: a non-restored outcome is reported with the reason and a note, not thrown
+ok 42 - a non-restored outcome is reported with the reason and a note, not thrown
+  ---
+  duration_ms: 1.22613
+  type: 'test'
+  ...
+# Subtest: daysRemaining never goes negative, whatever the clock says
+ok 43 - daysRemaining never goes negative, whatever the clock says
+  ---
+  duration_ms: 0.515697
+  type: 'test'
+  ...
+# Subtest: the built tools accept every kind the Trash holds, not just the phase-1 four — REGISTRY carries widget/menu/form
+ok 44 - the built tools accept every kind the Trash holds, not just the phase-1 four — REGISTRY carries widget/menu/form
+  ---
+  duration_ms: 0.537933
+  type: 'test'
+  ...
+# Subtest: both enums are exactly the bespoke permission-map kinds plus every registry kind — no more, no fewer
+ok 45 - both enums are exactly the bespoke permission-map kinds plus every registry kind — no more, no fewer
+  ---
+  duration_ms: 0.300264
+  type: 'test'
+  ...
+# Subtest: restoring each registry kind checks that kind's own registry permission, and is refused without it
+ok 46 - restoring each registry kind checks that kind's own registry permission, and is refused without it
+  ---
+  duration_ms: 1.929958
+  type: 'test'
+  ...
+# Subtest: a restore records the calling principal as the actor, so the Trash list can attribute it
+ok 47 - a restore records the calling principal as the actor, so the Trash list can attribute it
+  ---
+  duration_ms: 0.36794
+  type: 'test'
+  ...
+# Subtest: restoring a kind the Trash does not own throws a ToolInputError, not a plain Error — it must reach the model, not get redacted
+ok 48 - restoring a kind the Trash does not own throws a ToolInputError, not a plain Error — it must reach the model, not get redacted
+  ---
+  duration_ms: 0.652478
+  type: 'test'
+  ...
+# Subtest: a malformed entityTypes filter throws a ToolInputError, not a plain Error
+ok 49 - a malformed entityTypes filter throws a ToolInputError, not a plain Error
+  ---
+  duration_ms: 0.507964
+  type: 'test'
+  ...
+# Subtest: hide: trashes an active user — disabled, sessions revoked, roles kept, priorMarker 'active', one trashed event
+ok 50 - hide: trashes an active user — disabled, sessions revoked, roles kept, priorMarker 'active', one trashed event
+  ---
+  duration_ms: 785.085127
+  type: 'test'
+  ...
+# Subtest: restore: brings an active-before-trash user back active, with roles intact and one restored event carrying the restorer's id
+ok 51 - restore: brings an active-before-trash user back active, with roles intact and one restored event carrying the restorer's id
+  ---
+  duration_ms: 444.941817
+  type: 'test'
+  ...
+# Subtest: restore: a user who was already disabled before being trashed comes back disabled, not active
+ok 52 - restore: a user who was already disabled before being trashed comes back disabled, not active
+  ---
+  duration_ms: 691.042395
+  type: 'test'
+  ...
+# Subtest: purgeSelected: removes the principal's identity rows across every table and records identity.user.deleted with reason 'manual'
+ok 53 - purgeSelected: removes the principal's identity rows across every table and records identity.user.deleted with reason 'manual'
+  ---
+  duration_ms: 918.276642
+  type: 'test'
+  ...
+# Subtest: sweeper: purges a user past its retention window and records identity.user.deleted with reason 'retention' and no actor
+ok 54 - sweeper: purges a user past its retention window and records identity.user.deleted with reason 'retention' and no actor
+  ---
+  duration_ms: 624.95088
+  type: 'test'
+  ...
+# Subtest: purge: an active principal (a forged/stale index row) is refused as version-changed — nothing is deleted
+ok 55 - purge: an active principal (a forged/stale index row) is refused as version-changed — nothing is deleted
+  ---
+  duration_ms: 647.982637
+  type: 'test'
+  ...
+# Subtest: purge: an outbox insert that collides on id throws, rolling back the principal delete and leaving the trash row in place
+ok 56 - purge: an outbox insert that collides on id throws, rolling back the principal delete and leaving the trash row in place
+  ---
+  duration_ms: 909.026145
+  type: 'test'
+  ...
+# Subtest: mayActOnEntityType('user'): a principal holding only 'user.manage' is refused; the owner ('*') is allowed
+ok 57 - mayActOnEntityType('user'): a principal holding only 'user.manage' is refused; the owner ('*') is allowed
+  ---
+  duration_ms: 1034.356181
+  type: 'test'
+  ...
+# Subtest: hide: a status change committed between the read and the write reports version-changed — no stale priorMarker, no event
+ok 58 - hide: a status change committed between the read and the write reports version-changed — no stale priorMarker, no event
+  ---
+  duration_ms: 991.003059
+  type: 'test'
+  ...
+# Subtest: unhide: a re-enable committed between the read and the write is not overwritten — version-changed, no event
+ok 59 - unhide: a re-enable committed between the read and the write is not overwritten — version-changed, no event
+  ---
+  duration_ms: 1307.293563
+  type: 'test'
+  ...
+# Subtest: decideRequest: only http(s) GET/HEAD is fetched; allowlisted origins take the own-site path
+ok 60 - decideRequest: only http(s) GET/HEAD is fetched; allowlisted origins take the own-site path
+  ---
+  duration_ms: 7.940281
+  type: 'test'
+  ...
+# Subtest: a public subresource is fetched through the guard (pinned to its vetted address) and fulfilled
+ok 61 - a public subresource is fetched through the guard (pinned to its vetted address) and fulfilled
+  ---
+  duration_ms: 16.090922
+  type: 'test'
+  ...
+# Subtest: SSRF: subresources aimed at private, loopback, metadata or rebinding hosts are blocked and never reach the transport
+ok 62 - SSRF: subresources aimed at private, loopback, metadata or rebinding hosts are blocked and never reach the transport
+  ---
+  duration_ms: 45.106857
+  type: 'test'
+  ...
+# Subtest: SSRF: the page's redirect is never fulfilled; its target is recorded, and that next hop is refused as the page's navigation
+ok 63 - SSRF: the page's redirect is never fulfilled; its target is recorded, and that next hop is refused as the page's navigation
+  ---
+  duration_ms: 4.859566
+  type: 'test'
+  ...
+# Subtest: a subresource redirect is followed here, hop by hop through the guard, and only the final answer is fulfilled
+ok 64 - a subresource redirect is followed here, hop by hop through the guard, and only the final answer is fulfilled
+  ---
+  duration_ms: 0.859967
+  type: 'test'
+  ...
+# Subtest: SSRF: a subresource redirect to a private address is refused at that hop; a redirect loop stops at MAX_REDIRECT_HOPS
+ok 65 - SSRF: a subresource redirect to a private address is refused at that hop; a redirect loop stops at MAX_REDIRECT_HOPS
+  ---
+  duration_ms: 8.862001
+  type: 'test'
+  ...
+# Subtest: a refused navigation inside an iframe blocks that frame but does not mark the page refused
+ok 66 - a refused navigation inside an iframe blocks that frame but does not mark the page refused
+  ---
+  duration_ms: 3.324093
+  type: 'test'
+  ...
+# Subtest: own-site allowlist: the injected origin is fetched through ownSiteFetch only, with the same header hygiene
+ok 67 - own-site allowlist: the injected origin is fetched through ownSiteFetch only, with the same header hygiene
+  ---
+  duration_ms: 0.738667
+  type: 'test'
+  ...
+# Subtest: credentials never travel: Cookie/Authorization are dropped outbound, Set-Cookie and encoding headers stripped inbound
+ok 68 - credentials never travel: Cookie/Authorization are dropped outbound, Set-Cookie and encoding headers stripped inbound
+  ---
+  duration_ms: 8.422102
+  type: 'test'
+  ...
+# Subtest: budgets: requests past maxRequests, bytes past maxTotalBytes, and clipped bodies are aborted, not fulfilled
+ok 69 - budgets: requests past maxRequests, bytes past maxTotalBytes, and clipped bodies are aborted, not fulfilled
+  ---
+  duration_ms: 1.008012
+  type: 'test'
+  ...
+# Subtest: a transport failure aborts the request as 'failed' and does not count as an SSRF refusal
+ok 70 - a transport failure aborts the request as 'failed' and does not count as an SSRF refusal
+  ---
+  duration_ms: 0.421227
+  type: 'test'
+  ...
+# Subtest: at most maxConcurrent fetches are in flight at once
+ok 71 - at most maxConcurrent fetches are in flight at once
+  ---
+  duration_ms: 34.275974
+  type: 'test'
+  ...
+# Subtest: the call stays open after the dialog is shown, and nothing is deleted while it is pending
+ok 72 - the call stays open after the dialog is shown, and nothing is deleted while it is pending
+  ---
+  duration_ms: 33.569298
+  type: 'test'
+  ...
+# Subtest: the dialog names the label, id, topics, and current status (active), and warns there is no un-delete
+ok 73 - the dialog names the label, id, topics, and current status (active), and warns there is no un-delete
+  ---
+  duration_ms: 6.239105
+  type: 'test'
+  ...
+# Subtest: the dialog names the label, id, topics, and current status (paused), and warns there is no un-delete
+ok 74 - the dialog names the label, id, topics, and current status (paused), and warns there is no un-delete
+  ---
+  duration_ms: 2.331961
+  type: 'test'
+  ...
+# Subtest: confirm: the human's click disables the subscription and the SAME call reports it to the agent
+ok 75 - confirm: the human's click disables the subscription and the SAME call reports it to the agent
+  ---
+  duration_ms: 13.161089
+  type: 'test'
+  ...
+# Subtest: cancel: nothing is deleted, and the SAME call reports the cancellation
+ok 76 - cancel: nothing is deleted, and the SAME call reports the cancellation
+  ---
+  duration_ms: 1.9532
+  type: 'test'
+  ...
+# Subtest: an answer with no 'decision' field at all is NOT confirm — nothing is deleted (fail-closed)
+ok 77 - an answer with no 'decision' field at all is NOT confirm — nothing is deleted (fail-closed)
+  ---
+  duration_ms: 9.816678
+  type: 'test'
+  ...
+# Subtest: an unanswered dialog expires and reports 'expired', not a hang or a throw
+ok 78 - an unanswered dialog expires and reports 'expired', not a hang or a throw
+  ---
+  duration_ms: 18.804285
+  type: 'test'
+  ...
+# Subtest: aborting a pending run abandons the dialog and rejects a late confirmation
+ok 79 - aborting a pending run abandons the dialog and rejects a late confirmation
+  ---
+  duration_ms: 13.881828
+  type: 'test'
+  ...
+# Subtest: with no emitSurface, the delete is refused outright — there is no fallback second call
+ok 80 - with no emitSurface, the delete is refused outright — there is no fallback second call
+  ---
+  duration_ms: 1.547058
+  type: 'test'
+  ...
+# Subtest: admin.integrations.manage is checked before any dialog is raised, and a denied principal never sees one
+ok 81 - admin.integrations.manage is checked before any dialog is raised, and a denied principal never sees one
+  ---
+  duration_ms: 4.817861
+  type: 'test'
+  ...
+# Subtest: a nonexistent subscription id is refused before any dialog is raised
+ok 82 - a nonexistent subscription id is refused before any dialog is raised
+  ---
+  duration_ms: 0.478764
+  type: 'test'
+  ...
+# Subtest: changed webhook target refuses a previously confirmed card without exposing URL credentials
+ok 83 - changed webhook target refuses a previously confirmed card without exposing URL credentials
+  ---
+  duration_ms: 6.061929
+  type: 'test'
+  ...
+# Subtest: a run aborted while the confirmed delete re-checks permission is abandoned, and nothing is deleted
+ok 84 - a run aborted while the confirmed delete re-checks permission is abandoned, and nothing is deleted
+  ---
+  duration_ms: 2.011655
+  type: 'test'
+  ...
+# Subtest: findMatching matches exact topic, entity wildcard, and owner wildcard, but not other workspaces or inactive rows
+ok 85 - findMatching matches exact topic, entity wildcard, and owner wildcard, but not other workspaces or inactive rows
+  ---
+  duration_ms: 59.390823
+  type: 'test'
+  ...
+# Subtest: findMatching treats an empty topic list as fail-closed (never matches)
+ok 86 - findMatching treats an empty topic list as fail-closed (never matches)
+  ---
+  duration_ms: 0.297218
+  type: 'test'
+  ...
+# Subtest: claimPending only returns pending rows due at or before nowIso, and increments attempts
+ok 87 - claimPending only returns pending rows due at or before nowIso, and increments attempts
+  ---
+  duration_ms: 0.472395
+  type: 'test'
+  ...
+# Subtest: markFailed with nextStatus 'failed' re-enters pending; 'dead' stays terminal with deadAt set
+ok 88 - markFailed with nextStatus 'failed' re-enters pending; 'dead' stays terminal with deadAt set
+  ---
+  duration_ms: 0.356105
+  type: 'test'
+  ...
+# Subtest: markDelivered clears lastError and stamps deliveredAt
+ok 89 - markDelivered clears lastError and stamps deliveredAt
+  ---
+  duration_ms: 0.262459
+  type: 'test'
+  ...
+# Subtest: InMemoryDeliveryEnvelopeStore round-trips save/find and returns null for unknown ids
+ok 90 - InMemoryDeliveryEnvelopeStore round-trips save/find and returns null for unknown ids
+  ---
+  duration_ms: 0.269365
+  type: 'test'
+  ...
+# Subtest: InMemoryWebhookSubscriptionRepo seeds initial rows and findMatching filters them by workspace and status
+ok 91 - InMemoryWebhookSubscriptionRepo seeds initial rows and findMatching filters them by workspace and status
+  ---
+  duration_ms: 2.969562
+  type: 'test'
+  ...
+# Subtest: InMemoryWebhookSubscriptionRepo seeds initial rows, rejects a duplicate insert, and save overwrites in place
+ok 92 - InMemoryWebhookSubscriptionRepo seeds initial rows, rejects a duplicate insert, and save overwrites in place
+  ---
+  duration_ms: 3.084214
+  type: 'test'
+  ...
+# Subtest: enqueue is idempotent per (workspace, subscription, event) and markDelivered/markFailed ignore unknown ids
+ok 93 - enqueue is idempotent per (workspace, subscription, event) and markDelivered/markFailed ignore unknown ids
+  ---
+  duration_ms: 0.488371
+  type: 'test'
+  ...
+# Subtest: markFailed 'dead' without deadAtIso keeps the row's existing deadAt
+ok 94 - markFailed 'dead' without deadAtIso keeps the row's existing deadAt
+  ---
+  duration_ms: 0.216742
+  type: 'test'
+  ...
+# Subtest: listBySubscription orders newest createdAt first, breaks ties by id descending, and honours limit
+ok 95 - listBySubscription orders newest createdAt first, breaks ties by id descending, and honours limit
+  ---
+  duration_ms: 122.272375
+  type: 'test'
+  ...
+# Subtest: claimPending returns due rows oldest nextAttemptAt first and caps them at batchSize
+ok 96 - claimPending returns due rows oldest nextAttemptAt first and caps them at batchSize
+  ---
+  duration_ms: 32.577334
+  type: 'test'
+  ...
+# Subtest: releaseClaim returns its own delivering claim to pending and undoes the attempt; stale fences, other states and unknown ids are no-ops
+ok 97 - releaseClaim returns its own delivering claim to pending and undoes the attempt; stale fences, other states and unknown ids are no-ops
+  ---
+  duration_ms: 1.108394
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKey with no mode/env reads TOVU_RUNTIME_MODE from process.env (production → no-op)
+ok 98 - pin: ensureSiteKey with no mode/env reads TOVU_RUNTIME_MODE from process.env (production → no-op)
+  ---
+  duration_ms: 100.372561
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKey with no env/mode/home uses process.env and homedir() (local mint)
+ok 99 - pin: ensureSiteKey with no env/mode/home uses process.env and homedir() (local mint)
+  ---
+  duration_ms: 172.764563
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKey given an unsafe siteKeyId throws the per-site-candidate guard and writes nothing
+ok 100 - pin: ensureSiteKey given an unsafe siteKeyId throws the per-site-candidate guard and writes nothing
+  ---
+  duration_ms: 3.279593
+  type: 'test'
+  ...
+# Subtest: pin: refuse returns exactly { action, perSiteFilePath }
+ok 101 - pin: refuse returns exactly { action, perSiteFilePath }
+  ---
+  duration_ms: 6.933897
+  type: 'test'
+  ...
+# Subtest: pin: an invalid per-site file wins over a valid env key and reports the per-site reason
+ok 102 - pin: an invalid per-site file wins over a valid env key and reports the per-site reason
+  ---
+  duration_ms: 141.962809
+  type: 'test'
+  ...
+# Subtest: pin: per-site absent and a too-short legacy file → invalid with the legacy file's reason
+ok 103 - pin: per-site absent and a too-short legacy file → invalid with the legacy file's reason
+  ---
+  duration_ms: 13.531844
+  type: 'test'
+  ...
+# Subtest: pin: the data scan runs only when nothing is present, and at most once per call
+ok 104 - pin: the data scan runs only when nothing is present, and at most once per call
+  ---
+  duration_ms: 29.263761
+  type: 'test'
+  ...
+# Subtest: pin: a valid per-site file never triggers the data scan
+ok 105 - pin: a valid per-site file never triggers the data scan
+  ---
+  duration_ms: 2.15139
+  type: 'test'
+  ...
+# Subtest: pin: adopting a key whose fingerprint matches the stamp never scans and keeps the stamp
+ok 106 - pin: adopting a key whose fingerprint matches the stamp never scans and keeps the stamp
+  ---
+  duration_ms: 9.284198
+  type: 'test'
+  ...
+# Subtest: pin: the stamped key is adopted over an EARLIER valid source, trimmed of surrounding whitespace
+ok 107 - pin: the stamped key is adopted over an EARLIER valid source, trimmed of surrounding whitespace
+  ---
+  duration_ms: 139.327546
+  type: 'test'
+  ...
+# Subtest: pin: replacing an unstamped per-site file writes the stamped key and keeps the stamp unchanged
+ok 108 - pin: replacing an unstamped per-site file writes the stamped key and keeps the stamp unchanged
+  ---
+  duration_ms: 43.482557
+  type: 'test'
+  ...
+# Subtest: pin: the wrong per-site file vanishing before the move (another instance moved it) is not an error
+ok 109 - pin: the wrong per-site file vanishing before the move (another instance moved it) is not an error
+  ---
+  duration_ms: 50.296833
+  type: 'test'
+  ...
+# Subtest: pin: a read failure other than ENOENT during the move propagates and moves nothing
+ok 110 - pin: a read failure other than ENOENT during the move propagates and moves nothing
+  ---
+  duration_ms: 6.707551
+  type: 'test'
+  ...
+# Subtest: pin: a per-site file another instance already fixed is not moved aside; its key is read back
+ok 111 - pin: a per-site file another instance already fixed is not moved aside; its key is read back
+  ---
+  duration_ms: 51.543558
+  type: 'test'
+  ...
+# Subtest: pin: the wrong file vanishing during the rename (ENOENT) is not an error
+ok 112 - pin: the wrong file vanishing during the rename (ENOENT) is not an error
+  ---
+  duration_ms: 4.16783
+  type: 'test'
+  ...
+# Subtest: pin: a rename failure other than ENOENT propagates and leaves the wrong file in place
+ok 113 - pin: a rename failure other than ENOENT propagates and leaves the wrong file in place
+  ---
+  duration_ms: 23.247401
+  type: 'test'
+  ...
+# Subtest: pin: a link failure other than EEXIST propagates and still removes the temp file
+ok 114 - pin: a link failure other than EEXIST propagates and still removes the temp file
+  ---
+  duration_ms: 13.491957
+  type: 'test'
+  ...
+# Subtest: pin: a link failure with no code at all propagates (it is not mistaken for EEXIST)
+ok 115 - pin: a link failure with no code at all propagates (it is not mistaken for EEXIST)
+  ---
+  duration_ms: 12.71585
+  type: 'test'
+  ...
+# Subtest: pin: a thrown non-object or null from link propagates unchanged
+ok 116 - pin: a thrown non-object or null from link propagates unchanged
+  ---
+  duration_ms: 9.096077
+  type: 'test'
+  ...
+# Subtest: pin: a temp-file cleanup failure after a successful link is swallowed
+ok 117 - pin: a temp-file cleanup failure after a successful link is swallowed
+  ---
+  duration_ms: 10.770165
+  type: 'test'
+  ...
+# Subtest: pin: losing the create race reads back the winner's key (adopt converges on the file on disk)
+ok 118 - pin: losing the create race reads back the winner's key (adopt converges on the file on disk)
+  ---
+  duration_ms: 10.034078
+  type: 'test'
+  ...
+# Subtest: pin: replacing an unstamped per-site file and then losing the create race to a different key reports 'mismatch'
+ok 119 - pin: replacing an unstamped per-site file and then losing the create race to a different key reports 'mismatch'
+  ---
+  duration_ms: 6.446385
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKeyForSite with no mode/env reads process.env (production, no meta → undefined, nothing minted)
+ok 120 - pin: ensureSiteKeyForSite with no mode/env reads process.env (production, no meta → undefined, nothing minted)
+  ---
+  duration_ms: 4.712048
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKeyForSite passes home through to ensureSiteKey
+ok 121 - pin: ensureSiteKeyForSite passes home through to ensureSiteKey
+  ---
+  duration_ms: 4.128499
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKeyForSite on a missing siteDir propagates the meta-file write error
+ok 122 - pin: ensureSiteKeyForSite on a missing siteDir propagates the meta-file write error
+  ---
+  duration_ms: 15.6611
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKeyForBoot logs the exact failure line once and returns undefined
+ok 123 - pin: ensureSiteKeyForBoot logs the exact failure line once and returns undefined
+  ---
+  duration_ms: 3.389331
+  type: 'test'
+  ...
+# Subtest: pin: ensureSiteKeyForBoot losing the meta-mint race reads back the winner's siteKeyId
+ok 124 - pin: ensureSiteKeyForBoot losing the meta-mint race reads back the winner's siteKeyId
+  ---
+  duration_ms: 48.539107
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (production) with the env var already holding hex → installed via env, stamp written
+ok 125 - pin: installSiteKey (production) with the env var already holding hex → installed via env, stamp written
+  ---
+  duration_ms: 10.661659
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (production) with a malformed env var → env-key-set, nothing written
+ok 126 - pin: installSiteKey (production) with a malformed env var → env-key-set, nothing written
+  ---
+  duration_ms: 2.284537
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (production) with no meta file installs the volume file and creates no meta
+ok 127 - pin: installSiteKey (production) with no meta file installs the volume file and creates no meta
+  ---
+  duration_ms: 8.459236
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (local) with no meta file mints a key-only meta, installs under its new id and stamps it
+ok 128 - pin: installSiteKey (local) with no meta file mints a key-only meta, installs under its new id and stamps it
+  ---
+  duration_ms: 8.497003
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (local) with a corrupt meta file returns undefined and writes nothing
+ok 129 - pin: installSiteKey (local) with a corrupt meta file returns undefined and writes nothing
+  ---
+  duration_ms: 2.135615
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey with the stamp already naming hex does not rewrite .site-meta.json
+ok 130 - pin: installSiteKey with the stamp already naming hex does not rewrite .site-meta.json
+  ---
+  duration_ms: 28.768393
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (local) over a malformed per-site file backs it up and installs
+ok 131 - pin: installSiteKey (local) over a malformed per-site file backs it up and installs
+  ---
+  duration_ms: 13.153292
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey (local) ignores an env key — the per-site file outranks it
+ok 132 - pin: installSiteKey (local) ignores an env key — the per-site file outranks it
+  ---
+  duration_ms: 6.753573
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey with no mode/env/home/cwd reads process.env (production env key differs → env-key-set)
+ok 133 - pin: installSiteKey with no mode/env/home/cwd reads process.env (production env key differs → env-key-set)
+  ---
+  duration_ms: 10.287819
+  type: 'test'
+  ...
+# Subtest: pin: installSiteKey with no mode/env/home uses homedir() in local mode
+ok 134 - pin: installSiteKey with no mode/env/home uses homedir() in local mode
+  ---
+  duration_ms: 12.854136
+  type: 'test'
+  ...
+# Subtest: rendered HTML forms advertise native tools and preserve human submission and transport
+ok 135 - rendered HTML forms advertise native tools and preserve human submission and transport
+  ---
+  duration_ms: 2.302471
+  type: 'test'
+  ...
+# Subtest: builder contact widgets also advertise native forms while keeping the existing handler
+ok 136 - builder contact widgets also advertise native forms while keeping the existing handler
+  ---
+  duration_ms: 5.510175
+  type: 'test'
+  ...
+# Subtest: HTML menu tools have stable unique names; external and unavailable targets are not exposed
+ok 137 - HTML menu tools have stable unique names; external and unavailable targets are not exposed
+  ---
+  duration_ms: 1.087308
+  type: 'test'
+  ...
+# Subtest: HTML menus retain unavailable parents only while a visible descendant exists
+ok 138 - HTML menus retain unavailable parents only while a visible descendant exists
+  ---
+  duration_ms: 5.696079
+  type: 'test'
+  ...
+# Subtest: HTML menus escape display attributes and secure new tabs while preserving explicit rel tokens
+ok 139 - HTML menus escape display attributes and secure new tabs while preserving explicit rel tokens
+  ---
+  duration_ms: 0.514724
+  type: 'test'
+  ...
+# Subtest: HTML menu tool exposure follows the sanitized URL and refuses schemes, authorities and unsafe characters
+ok 140 - HTML menu tool exposure follows the sanitized URL and refuses schemes, authorities and unsafe characters
+  ---
+  duration_ms: 0.305699
+  type: 'test'
+  ...
+# Subtest: renderHtmlPageBody: two "content" markers referencing the SAME id with DIFFERENT header options must render each occurrence with ITS OWN header setting, not whichever one won the resolve-time Map collapse
+ok 141 - renderHtmlPageBody: two "content" markers referencing the SAME id with DIFFERENT header options must render each occurrence with ITS OWN header setting, not whichever one won the resolve-time Map collapse
+  ---
+  duration_ms: 60.524624
+  type: 'test'
+  ...
+# Subtest: widgets_set_region_placements: a non-array 'placements' is a ToolInputError (400), not a bare Error (redacted 500)
+ok 142 - widgets_set_region_placements: a non-array 'placements' is a ToolInputError (400), not a bare Error (redacted 500)
+  ---
+  duration_ms: 10.844227
+  type: 'test'
+  ...
+# Subtest: widgets_set_region_placements: a non-object placement entry is a ToolInputError (400), not a bare Error (redacted 500)
+ok 143 - widgets_set_region_placements: a non-object placement entry is a ToolInputError (400), not a bare Error (redacted 500)
+  ---
+  duration_ms: 0.684227
+  type: 'test'
+  ...
+# Subtest: widgets_reorder_embeds: a non-array 'orderedWidgetEntryIds' is a ToolInputError (400), not a bare Error (redacted 500) — and IS reachable through the tool's own withSchemaOnRejection wrap
+ok 144 - widgets_reorder_embeds: a non-array 'orderedWidgetEntryIds' is a ToolInputError (400), not a bare Error (redacted 500) — and IS reachable through the tool's own withSchemaOnRejection wrap
+  ---
+  duration_ms: 0.636321
+  type: 'test'
+  ...
+# Subtest: srcset and SVG attributes keep safe URLs and reject invalid, empty and namespaced values
+ok 145 - srcset and SVG attributes keep safe URLs and reject invalid, empty and namespaced values
+  ---
+  duration_ms: 5.82151
+  type: 'test'
+  ...
+# Subtest: raw media caches successful and missing resolutions and keeps authored alt and source tag
+ok 146 - raw media caches successful and missing resolutions and keeps authored alt and source tag
+  ---
+  duration_ms: 15.777316
+  type: 'test'
+  ...
+# Subtest: a library video keeps its poster in Raw HTML, so the player shows a preview frame before playback; an authored poster still wins
+ok 147 - a library video keeps its poster in Raw HTML, so the player shows a preview frame before playback; an authored poster still wins
+  ---
+  duration_ms: 1.377743
+  type: 'test'
+  ...
+# Subtest: raw media rejects mismatches, unsupported markers, inherited slugs and renderer output without media
+ok 148 - raw media rejects mismatches, unsupported markers, inherited slugs and renderer output without media
+  ---
+  duration_ms: 1.314084
+  type: 'test'
+  ...
+# Subtest: raw media drops empty media containers after missing children, preserves src containers and plain text
+ok 149 - raw media drops empty media containers after missing children, preserves src containers and plain text
+  ---
+  duration_ms: 0.896842
+  type: 'test'
+  ...
+# Subtest: raw media kind mismatch warns and tokens without canonical src drop their owners
+ok 150 - raw media kind mismatch warns and tokens without canonical src drop their owners
+  ---
+  duration_ms: 0.637246
+  type: 'test'
+  ...
+# Subtest: insert -> restart-simulated (fresh repo instance against the same file) -> data still there
+ok 151 - insert -> restart-simulated (fresh repo instance against the same file) -> data still there
+  ---
+  duration_ms: 682.824083
+  type: 'test'
+  ...
+# Subtest: findBySlug finds by slug, not by id, and returns null for an unknown slug
+ok 152 - findBySlug finds by slug, not by id, and returns null for an unknown slug
+  ---
+  duration_ms: 294.87395
+  type: 'test'
+  ...
+# Subtest: list() returns every workspace row
+ok 153 - list() returns every workspace row
+  ---
+  duration_ms: 509.768214
+  type: 'test'
+  ...
+# Subtest: update() changes only the targeted row's name/slug, leaving a sibling row untouched
+ok 154 - update() changes only the targeted row's name/slug, leaving a sibling row untouched
+  ---
+  duration_ms: 129.180244
+  type: 'test'
+  ...
+# Subtest: delete() removes only the targeted row from real SQLite, leaving a sibling row untouched
+ok 155 - delete() removes only the targeted row from real SQLite, leaving a sibling row untouched
+  ---
+  duration_ms: 524.459394
+  type: 'test'
+  ...
+# Subtest: the schema's real UNIQUE constraint on slug is enforced by SQLite itself, not just application-level checking
+ok 156 - the schema's real UNIQUE constraint on slug is enforced by SQLite itself, not just application-level checking
+  ---
+  duration_ms: 933.985154
+  type: 'test'
+  ...
+# Subtest: a cursor round-trips its position, including an id that itself contains '::'
+ok 157 - a cursor round-trips its position, including an id that itself contains '::'
+  ---
+  duration_ms: 2.134285
+  type: 'test'
+  ...
+# Subtest: a malformed cursor is refused with ToolInputError 'invalid cursor'
+ok 158 - a malformed cursor is refused with ToolInputError 'invalid cursor'
+  ---
+  duration_ms: 8.962729
+  type: 'test'
+  ...
+# Subtest: vault read parity [postgres]
+    # Subtest: the transcript covers every golden key and nothing else
+    not ok 1 - the transcript covers every golden key and nothing else
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1382'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: site-assistant
+    not ok 2 - site-assistant
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: personal-execution
+    not ok 3 - personal-execution
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: media-provider
+    not ok 4 - media-provider
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: custom
+    not ok 5 - custom
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: publish-peer
+    not ok 6 - publish-peer
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: database-destination
+    not ok 7 - database-destination
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: vendor (with the folded publish_credential_sets)
+    not ok 8 - vendor (with the folded publish_credential_sets)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: source-control
+    not ok 9 - source-control
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp-env (enabled configs)
+    not ok 10 - mcp-env (enabled configs)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp-auth (server views)
+    not ok 11 - mcp-auth (server views)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: isolation: a second and an empty workspace see only their own rows
+    not ok 12 - isolation: a second and an empty workspace see only their own rows
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: isolation: personal keys stay per principal and per workspace
+    not ok 13 - isolation: personal keys stay per principal and per workspace
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: custom-credential and peer lists
+    not ok 14 - order: custom-credential and peer lists
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: vendor and source-control lists, defaults first-class
+    not ok 15 - order: vendor and source-control lists, defaults first-class
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: MCP server views and enabled configs
+    not ok 16 - order: MCP server views and enabled configs
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1788'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..16
+not ok 159 - vault read parity [postgres]
+  ---
+  duration_ms: 1638.114682
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1337'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_vault_parity": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:30:66)
+    async TestHook.run (node:internal/test_runner/test:1409:7)
+  ...
+# Subtest: vault hot paths [postgres]
+    # Subtest: vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan
+    not ok 1 - vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:2538'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: publish compatibility selection: one inventory per kind and one selected row read
+    not ok 2 - publish compatibility selection: one inventory per kind and one selected row read
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:3111'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: MCP server list: statement count does not grow with the number of servers
+    not ok 3 - MCP server list: statement count does not grow with the number of servers
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:2:14'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..3
+not ok 160 - vault hot paths [postgres]
+  ---
+  duration_ms: 0.046422
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:2248'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_vault_parity": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:30:66)
+    async TestHook.run (node:internal/test_runner/test:1409:7)
+  ...
+not ok 161 - /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts
+  ---
+  duration_ms: 189.496268
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1255'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_vault_parity": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:36:3)
+    async TestHook.run (node:internal/test_runner/test:1409:7)
+    async Test.runHook (node:internal/test_runner/test:1289:9)
+    async after (node:internal/test_runner/test:1342:9)
+    async Test.run (node:internal/test_runner/test:1428:7)
+  ...
+# Subtest: the watermark row and the demo seed are the same rows on SQLite and PGlite, and a second prepare changes nothing
+ok 162 - the watermark row and the demo seed are the same rows on SQLite and PGlite, and a second prepare changes nothing
+  ---
+  duration_ms: 16151.06379
+  type: 'test'
+  ...
+# Subtest: prepare preserves a stamped watermark and operator edits after a workspace slug rename [sqlite]
+ok 163 - prepare preserves a stamped watermark and operator edits after a workspace slug rename [sqlite]
+  ---
+  duration_ms: 119.530421
+  type: 'test'
+  ...
+# Subtest: prepare preserves a stamped watermark and operator edits after a workspace slug rename [pglite]
+ok 164 - prepare preserves a stamped watermark and operator edits after a workspace slug rename [pglite]
+  ---
+  duration_ms: 286.519867
+  type: 'test'
+  ...
+# Subtest: NC-3 (REQ-06, EC-02): every workspace row present when the migration runs is recorded as pending
+ok 165 - NC-3 (REQ-06, EC-02): every workspace row present when the migration runs is recorded as pending
+  ---
+  duration_ms: 513.988909
+  type: 'test'
+  ...
+# Subtest: NC-3 (REQ-06): the marker applies once per database, so a workspace created after it is never recorded
+ok 166 - NC-3 (REQ-06): the marker applies once per database, so a workspace created after it is never recorded
+  ---
+  duration_ms: 596.478678
+  type: 'test'
+  ...
+# Subtest: NC-3 (REQ-05): a fresh database, migrated then seeded the way tovu init does it, records no workspace
+ok 167 - NC-3 (REQ-05): a fresh database, migrated then seeded the way tovu init does it, records no workspace
+  ---
+  duration_ms: 352.597265
+  type: 'test'
+  ...
+# Subtest: the marker migration's journal timestamp is later than every earlier entry's, or drizzle skips it on every existing database
+ok 168 - the marker migration's journal timestamp is later than every earlier entry's, or drizzle skips it on every existing database
+  ---
+  duration_ms: 0.798144
+  type: 'test'
+  ...
+# Subtest: kernel shims expose the same shared implementations and error constructors
+ok 169 - kernel shims expose the same shared implementations and error constructors
+  ---
+  duration_ms: 13.938065
+  type: 'test'
+  ...
+# Subtest: same-file locking crosses from a Tovu shim into a direct Jini kernel
+ok 170 - same-file locking crosses from a Tovu shim into a direct Jini kernel
+  ---
+  duration_ms: 72.716101
+  type: 'test'
+  ...
+# Subtest: runner defaults preserve separate content and chat ledgers, no-op reruns and Tovu errors
+ok 171 - runner defaults preserve separate content and chat ledgers, no-op reruns and Tovu errors
+  ---
+  duration_ms: 33.296975
+  type: 'test'
+  ...
+# Subtest: PGlite compaction reads the Tovu ledger and copies drop the Tovu owner lock
+ok 172 - PGlite compaction reads the Tovu ledger and copies drop the Tovu owner lock
+  ---
+  duration_ms: 21369.118335
+  type: 'test'
+  ...
+# Subtest: unsupported Postgres copies retain Tovu operator guidance without a server connection
+ok 173 - unsupported Postgres copies retain Tovu operator guidance without a server connection
+  ---
+  duration_ms: 3.302564
+  type: 'test'
+  ...
+# Subtest: owner shims preserve Tovu socket names, low-memory settings and private directory checks
+ok 174 - owner shims preserve Tovu socket names, low-memory settings and private directory checks
+  ---
+  duration_ms: 24.423449
+  type: 'test'
+  ...
+# Subtest: @electric-sql/pglite is pinned to exactly 0.5.8 (the ReadyForQuery filter is version-specific)
+ok 175 - @electric-sql/pglite is pinned to exactly 0.5.8 (the ReadyForQuery filter is version-specific)
+  ---
+  duration_ms: 12648.816053
+  type: 'test'
+  ...
+# Subtest: owner lock
+    # Subtest: a live owner (this process or another) refuses; a dead pid's lock is taken over
+    ok 1 - a live owner (this process or another) refuses; a dead pid's lock is taken over
+      ---
+      duration_ms: 473.429563
+      type: 'test'
+      ...
+    # Subtest: a fresh lock with no pid yet is contended, not removed; an empty one older than the grace period is taken over
+    ok 2 - a fresh lock with no pid yet is contended, not removed; an empty one older than the grace period is taken over
+      ---
+      duration_ms: 23.100297
+      type: 'test'
+      ...
+    # Subtest: starters racing for one data dir (over a dead pid's lock): exactly one becomes owner
+    ok 3 - starters racing for one data dir (over a dead pid's lock): exactly one becomes owner
+      ---
+      duration_ms: 6780.20324
+      type: 'test'
+      ...
+    # Subtest: release never deletes a lock that another owner has taken since
+    ok 4 - release never deletes a lock that another owner has taken since
+      ---
+      duration_ms: 1.549454
+      type: 'test'
+      ...
+    1..4
+ok 176 - owner lock
+  ---
+  duration_ms: 7279.061954
+  type: 'suite'
+  ...
+# Subtest: socket location
+    # Subtest: socket paths over 103 bytes are refused before the data dir is touched
+    ok 1 - socket paths over 103 bytes are refused before the data dir is touched
+      ---
+      duration_ms: 5.048663
+      type: 'test'
+      ...
+    # Subtest: the default socket dir is under ~/.tovu/run, or /tmp/tovu-<uid> when home is too deep
+    ok 2 - the default socket dir is under ~/.tovu/run, or /tmp/tovu-<uid> when home is too deep
+      ---
+      duration_ms: 0.807768
+      type: 'test'
+      ...
+    # Subtest: a socket dir that is a symlink is refused
+    ok 3 - a socket dir that is a symlink is refused
+      ---
+      duration_ms: 0.946505
+      type: 'test'
+      ...
+    # Subtest: the per-user parent (the /tmp/tovu-<uid> fallback) must be a 0700 non-symlink dir of ours, else refused
+    ok 4 - the per-user parent (the /tmp/tovu-<uid> fallback) must be a 0700 non-symlink dir of ours, else refused
+      ---
+      duration_ms: 1.087905
+      type: 'test'
+      ...
+    1..4
+ok 177 - socket location
+  ---
+  duration_ms: 8.188978
+  type: 'suite'
+  ...
+# Subtest: a running owner
+    # Subtest: the socket is owner-only (0600 in a 0700 dir) and is not a TCP listener
+    ok 1 - the socket is owner-only (0600 in a 0700 dir) and is not a TCP listener
+      ---
+      duration_ms: 17.039582
+      type: 'test'
+      ...
+    # Subtest: the low-memory settings are live
+    ok 2 - the low-memory settings are live
+      ---
+      duration_ms: 13.459041
+      type: 'test'
+      ...
+    # Subtest: a second owner for the same data dir is refused; another data dir runs side by side
+    ok 3 - a second owner for the same data dir is refused; another data dir runs side by side
+      ---
+      duration_ms: 851.052937
+      type: 'test'
+      ...
+    # Subtest: socket kernel: commit, roll back, nested join
+    ok 4 - socket kernel: commit, roll back, nested join
+      ---
+      duration_ms: 113.502765
+      type: 'test'
+      ...
+    # Subtest: socket kernel: a second client's write waits for the first's transaction, and survives its rollback
+    ok 5 - socket kernel: a second client's write waits for the first's transaction, and survives its rollback
+      ---
+      duration_ms: 48.633261
+      type: 'test'
+      ...
+    # Subtest: socket kernel: lockKey, booleans, JSON and an ON CONFLICT upsert
+    ok 6 - socket kernel: lockKey, booleans, JSON and an ON CONFLICT upsert
+      ---
+      duration_ms: 47.800665
+      type: 'test'
+      ...
+    # Subtest: the content schema installs through runExclusive and is visible to socket clients
+    ok 7 - the content schema installs through runExclusive and is visible to socket clients
+      ---
+      duration_ms: 1205.281473
+      type: 'test'
+      ...
+    1..7
+ok 178 - a running owner
+  ---
+  duration_ms: 3526.081119
+  type: 'suite'
+  ...
+# Subtest: kill -9 of the owner mid-write: reopen keeps every acked row, no uncommitted row, and takes over the stale lock and socket
+ok 179 - kill -9 of the owner mid-write: reopen keeps every acked row, no uncommitted row, and takes over the stale lock and socket
+  ---
+  duration_ms: 6464.437303
+  type: 'test'
+  ...
+# Subtest: normal bootstrap, adopted and rollback readers preserve existing schema, all values, ledgers and separate content file through reopen
+ok 180 - normal bootstrap, adopted and rollback readers preserve existing schema, all values, ledgers and separate content file through reopen
+  ---
+  duration_ms: 430.638842
+  type: 'test'
+  ...
+# Subtest: constructing and reading the package adapter alone leaves checkpointed main-file bytes unchanged
+ok 181 - constructing and reading the package adapter alone leaves checkpointed main-file bytes unchanged
+  ---
+  duration_ms: 50.91516
+  type: 'test'
+  ...
+# Subtest: a pre-ledger fixture retains every chat value while adopting only its first existing migration ledger
+ok 182 - a pre-ledger fixture retains every chat value while adopting only its first existing migration ledger
+  ---
+  duration_ms: 259.430706
+  type: 'test'
+  ...
+# Subtest: C3 changes zero bytes in historical SQL, metadata, chat steps or checksum pins
+ok 183 - C3 changes zero bytes in historical SQL, metadata, chat steps or checksum pins
+  ---
+  duration_ms: 209.717906
+  type: 'test'
+  ...
+# Subtest: 0002_drop_empty_legacy_chat_tables
+    # Subtest: SQLite: the three empty legacy chat tables are dropped
+    ok 1 - SQLite: the three empty legacy chat tables are dropped
+      ---
+      duration_ms: 2559.546992
+      type: 'test'
+      ...
+    # Subtest: SQLite: a table with rows is kept untouched and reported; its empty siblings still go
+    ok 2 - SQLite: a table with rows is kept untouched and reported; its empty siblings still go
+      ---
+      duration_ms: 1287.926925
+      type: 'test'
+      ...
+    # Subtest: SQLite: a brand-new database (the runner's own chain) ends without them
+    ok 3 - SQLite: a brand-new database (the runner's own chain) ends without them
+      ---
+      duration_ms: 1829.073311
+      type: 'test'
+      ...
+    # Subtest: PGlite: recorded, nothing in public changes
+    ok 4 - PGlite: recorded, nothing in public changes
+      ---
+      duration_ms: 16871.972202
+      type: 'test'
+      ...
+    1..4
+ok 184 - 0002_drop_empty_legacy_chat_tables
+  ---
+  duration_ms: 22550.951349
+  type: 'suite'
+  ...
+# Subtest: [sqlite] 0025 is registered after 0024 and adds a nullable processed_at once
+ok 185 - [sqlite] 0025 is registered after 0024 and adds a nullable processed_at once
+  ---
+  duration_ms: 353.881479
+  type: 'test'
+  ...
+# Subtest: [pglite] 0025 is registered after 0024 and adds a nullable processed_at once
+ok 186 - [pglite] 0025 is registered after 0024 and adds a nullable processed_at once
+  ---
+  duration_ms: 17546.641797
+  type: 'test'
+  ...
+# Subtest: [sqlite] member credential cutoff migration is nullable, preserves legacy rows, and applies once
+ok 187 - [sqlite] member credential cutoff migration is nullable, preserves legacy rows, and applies once
+  ---
+  duration_ms: 565.766525
+  type: 'test'
+  ...
+# Subtest: [pglite] member credential cutoff migration is nullable, preserves legacy rows, and applies once
+ok 188 - [pglite] member credential cutoff migration is nullable, preserves legacy rows, and applies once
+  ---
+  duration_ms: 16972.06256
+  type: 'test'
+  ...
+# Subtest: [sqlite] posts schedule/featured-image migration leaves legacy rows NULL and applies once
+ok 189 - [sqlite] posts schedule/featured-image migration leaves legacy rows NULL and applies once
+  ---
+  duration_ms: 720.163976
+  type: 'test'
+  ...

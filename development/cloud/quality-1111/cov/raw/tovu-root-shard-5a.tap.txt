@@ -154,3 +154,1240 @@ ok 2 - transcript-storage
       duration_ms: 876.246859
       type: 'test'
       ...
+    # Subtest: vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 2 - vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 75.462678
+      type: 'test'
+      ...
+    # Subtest: loadSiteAssistantState reads through to the real sessionStorage, not a private store
+    ok 3 - loadSiteAssistantState reads through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 44.078999
+      type: 'test'
+      ...
+    # Subtest: saveSiteAssistantState writes through to the real sessionStorage, not a private store
+    ok 4 - saveSiteAssistantState writes through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 42.348798
+      type: 'test'
+      ...
+    # Subtest: clearSiteAssistantState removes the real sessionStorage entry
+    ok 5 - clearSiteAssistantState removes the real sessionStorage entry
+      ---
+      duration_ms: 38.215827
+      type: 'test'
+      ...
+    1..5
+ok 3 - real-sessionStorage-bound wrappers
+  ---
+  duration_ms: 1078.093162
+  type: 'suite'
+  ...
+# Subtest: the storage guard sees aliases and computed accesses, while ignoring comments
+ok 4 - the storage guard sees aliases and computed accesses, while ignoring comments
+  ---
+  duration_ms: 86.076374
+  type: 'test'
+  ...
+# Subtest: storage encapsulation guard
+    # Subtest: only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+    ok 1 - only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+      ---
+      duration_ms: 1152.414968
+      type: 'test'
+      ...
+    1..1
+ok 5 - storage encapsulation guard
+  ---
+  duration_ms: 1152.585382
+  type: 'suite'
+  ...
+# Subtest: real Jini vanilla widget holds the turn until visitor click allow=true
+ok 6 - real Jini vanilla widget holds the turn until visitor click allow=true
+  ---
+  duration_ms: 563.718918
+  type: 'test'
+  ...
+# Subtest: real Jini vanilla widget holds the turn until visitor click allow=false
+ok 7 - real Jini vanilla widget holds the turn until visitor click allow=false
+  ---
+  duration_ms: 135.554486
+  type: 'test'
+  ...
+# Subtest: boot: an already-held port exits cleanly and names the port, instead of throwing an unhandled 'error'
+ok 8 - boot: an already-held port exits cleanly and names the port, instead of throwing an unhandled 'error'
+  ---
+  duration_ms: 32966.148091
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath joins a bare segment under /admin with no query
+ok 9 - buildAdminScreenPath joins a bare segment under /admin with no query
+  ---
+  duration_ms: 3.725534
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath strips a leading slash the caller supplied
+ok 10 - buildAdminScreenPath strips a leading slash the caller supplied
+  ---
+  duration_ms: 0.271528
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded
+ok 11 - buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded
+  ---
+  duration_ms: 2.626488
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects a path that is nothing but slashes
+ok 12 - buildAdminScreenPath rejects a path that is nothing but slashes
+  ---
+  duration_ms: 0.576272
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)
+ok 13 - buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)
+  ---
+  duration_ms: 2.953819
+  type: 'test'
+  ...
+# Subtest: the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset
+ok 14 - the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset
+  ---
+  duration_ms: 16.740668
+  type: 'test'
+  ...
+# Subtest: the tool handler includes an absolute url when TOVU_PUBLIC_URL is configured
+ok 15 - the tool handler includes an absolute url when TOVU_PUBLIC_URL is configured
+  ---
+  duration_ms: 4.655364
+  type: 'test'
+  ...
+# Subtest: the tool handler refuses a call with no path
+ok 16 - the tool handler refuses a call with no path
+  ---
+  duration_ms: 0.738345
+  type: 'test'
+  ...
+# Subtest: the tool handler refuses a non-object input
+ok 17 - the tool handler refuses a non-object input
+  ---
+  duration_ms: 0.907235
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: ../api
+ok 18 - buildAdminScreenPath rejects an unsafe screen path: ../api
+  ---
+  duration_ms: 4.285738
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: media?x=1
+ok 19 - buildAdminScreenPath rejects an unsafe screen path: media?x=1
+  ---
+  duration_ms: 0.209905
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: media\#top
+ok 20 - buildAdminScreenPath rejects an unsafe screen path: media\#top
+  ---
+  duration_ms: 1.095003
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: https://evil.example
+ok 21 - buildAdminScreenPath rejects an unsafe screen path: https://evil.example
+  ---
+  duration_ms: 0.203366
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: %2e%2e/api
+ok 22 - buildAdminScreenPath rejects an unsafe screen path: %2e%2e/api
+  ---
+  duration_ms: 0.876524
+  type: 'test'
+  ...
+# Subtest: the tool normalizes a public origin with a trailing slash
+ok 23 - the tool normalizes a public origin with a trailing slash
+  ---
+  duration_ms: 1.454933
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is absent degrades to the relative path with no url
+ok 24 - an injected TOVU_PUBLIC_URL that is absent degrades to the relative path with no url
+  ---
+  duration_ms: 3.781533
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is blank degrades to the relative path with no url
+ok 25 - an injected TOVU_PUBLIC_URL that is blank degrades to the relative path with no url
+  ---
+  duration_ms: 0.269464
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is not a URL degrades to the relative path with no url
+ok 26 - an injected TOVU_PUBLIC_URL that is not a URL degrades to the relative path with no url
+  ---
+  duration_ms: 0.282571
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is a non-http(s) scheme degrades to the relative path with no url
+ok 27 - an injected TOVU_PUBLIC_URL that is a non-http(s) scheme degrades to the relative path with no url
+  ---
+  duration_ms: 0.238587
+  type: 'test'
+  ...
+# Subtest: an injected http (not only https) origin is accepted and joined with the path
+ok 28 - an injected http (not only https) origin is accepted and joined with the path
+  ---
+  duration_ms: 0.275076
+  type: 'test'
+  ...
+# Subtest: the no-tab fallback resolves the actual Agent Plugins route and validates the tab
+ok 29 - the no-tab fallback resolves the actual Agent Plugins route and validates the tab
+  ---
+  duration_ms: 0.469896
+  type: 'test'
+  ...
+# Subtest: a single-select question round-trips the model's own title and options, not a fixed sample
+ok 30 - a single-select question round-trips the model's own title and options, not a fixed sample
+  ---
+  duration_ms: 91.49753
+  type: 'test'
+  ...
+# Subtest: Tovuize's unchecked static opt-out submits true with empty selections and no choice
+ok 31 - Tovuize's unchecked static opt-out submits true with empty selections and no choice
+  ---
+  duration_ms: 3.003442
+  type: 'test'
+  ...
+# Subtest: a question with both fields returns both the choice and the selections
+ok 32 - a question with both fields returns both the choice and the selections
+  ---
+  duration_ms: 4.109192
+  type: 'test'
+  ...
+# Subtest: Cancel resolves the call immediately instead of stranding it until the TTL
+ok 33 - Cancel resolves the call immediately instead of stranding it until the TTL
+  ---
+  duration_ms: 1.726749
+  type: 'test'
+  ...
+# Subtest: an unanswered form returns an explicit no-answer result, not a hang or a throw
+ok 34 - an unanswered form returns an explicit no-answer result, not a hang or a throw
+  ---
+  duration_ms: 19.566572
+  type: 'test'
+  ...
+# Subtest: a cancelled run closes the exchange rather than holding the handler to the deadline
+ok 35 - a cancelled run closes the exchange rather than holding the handler to the deadline
+  ---
+  duration_ms: 1.487199
+  type: 'test'
+  ...
+# Subtest: with no emit seam the tool falls back to returning the surface, and opens no exchange
+ok 36 - with no emit seam the tool falls back to returning the surface, and opens no exchange
+  ---
+  duration_ms: 1.09858
+  type: 'test'
+  ...
+# Subtest: the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket
+ok 37 - the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket
+  ---
+  duration_ms: 5.111969
+  type: 'test'
+  ...
+# Subtest: a real fallback ticket refuses choices and selections outside its rendered options
+    # Subtest: {"choice":"never-offered"}
+    ok 1 - {"choice":"never-offered"}
+      ---
+      duration_ms: 1.1465
+      type: 'test'
+      ...
+    # Subtest: {"choice":"wait","selections":["never-offered"]}
+    ok 2 - {"choice":"wait","selections":["never-offered"]}
+      ---
+      duration_ms: 0.587328
+      type: 'test'
+      ...
+    # Subtest: {"selections":["never-offered"]}
+    ok 3 - {"selections":["never-offered"]}
+      ---
+      duration_ms: 0.382784
+      type: 'test'
+      ...
+    1..3
+ok 38 - a real fallback ticket refuses choices and selections outside its rendered options
+  ---
+  duration_ms: 3.023199
+  type: 'test'
+  ...
+# Subtest: a fallback ticket accepts only the choices and selections offered by its own form
+ok 39 - a fallback ticket accepts only the choices and selections offered by its own form
+  ---
+  duration_ms: 4.773475
+  type: 'test'
+  ...
+# Subtest: a fabricated second call with no ticket at all is refused, never reported as submitted
+ok 40 - a fabricated second call with no ticket at all is refused, never reported as submitted
+  ---
+  duration_ms: 0.384467
+  type: 'test'
+  ...
+# Subtest: a second call carrying an unknown ticket is refused the same way as no ticket
+ok 41 - a second call carrying an unknown ticket is refused the same way as no ticket
+  ---
+  duration_ms: 0.197031
+  type: 'test'
+  ...
+# Subtest: a ticket already redeemed once cannot be replayed
+ok 42 - a ticket already redeemed once cannot be replayed
+  ---
+  duration_ms: 0.585891
+  type: 'test'
+  ...
+# Subtest: a ticket minted for one administrator cannot be redeemed by another
+ok 43 - a ticket minted for one administrator cannot be redeemed by another
+  ---
+  duration_ms: 0.470767
+  type: 'test'
+  ...
+# Subtest: rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn
+ok 44 - rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn
+  ---
+  duration_ms: 0.527445
+  type: 'test'
+  ...
+# Subtest: rejects a call with neither singleSelect nor multiSelect
+ok 45 - rejects a call with neither singleSelect nor multiSelect
+  ---
+  duration_ms: 0.280746
+  type: 'test'
+  ...
+# Subtest: registers unconditionally, publishing its own catalog schema
+ok 46 - registers unconditionally, publishing its own catalog schema
+  ---
+  duration_ms: 242.759763
+  type: 'test'
+  ...
+# Subtest: normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely
+ok 47 - normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely
+  ---
+  duration_ms: 937.228668
+  type: 'test'
+  ...
+# Subtest: chat-input regression: option id aliases accept descriptions and remain the actual answer values
+ok 48 - chat-input regression: option id aliases accept descriptions and remain the actual answer values
+  ---
+  duration_ms: 15.462676
+  type: 'test'
+  ...
+# Subtest: chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties
+ok 49 - chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties
+  ---
+  duration_ms: 6.474087
+  type: 'test'
+  ...
+# Subtest: normalization: fallback answer tickets survive the closed input schema and still bind answers
+ok 50 - normalization: fallback answer tickets survive the closed input schema and still bind answers
+  ---
+  duration_ms: 2.613415
+  type: 'test'
+  ...
+# Subtest: delegated normalization: human fallback tickets survive transport and remain single use
+ok 51 - delegated normalization: human fallback tickets survive transport and remain single use
+  ---
+  duration_ms: 1366.531639
+  type: 'test'
+  ...
+# Subtest: delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model
+ok 52 - delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model
+  ---
+  duration_ms: 27.021563
+  type: 'test'
+  ...
+# Subtest: canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged
+ok 53 - canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged
+  ---
+  duration_ms: 7.374666
+  type: 'test'
+  ...
+# Subtest: a checklist's hint is rendered with the multi-select field it describes
+ok 54 - a checklist's hint is rendered with the multi-select field it describes
+  ---
+  duration_ms: 36.896894
+  type: 'test'
+  ...
+# Subtest: a single call without items reaches the original handler untouched
+ok 55 - a single call without items reaches the original handler untouched
+  ---
+  duration_ms: 13.993937
+  type: 'test'
+  ...
+# Subtest: a batch runs every item in order with defaults < shared fields < the item's own fields
+ok 56 - a batch runs every item in order with defaults < shared fields < the item's own fields
+  ---
+  duration_ms: 6.414352
+  type: 'test'
+  ...
+# Subtest: a failing item does not stop the rest, and its error drops the appended schema
+ok 57 - a failing item does not stop the rest, and its error drops the appended schema
+  ---
+  duration_ms: 1.368868
+  type: 'test'
+  ...
+# Subtest: malformed items are refused with the exact message before any item runs
+ok 58 - malformed items are refused with the exact message before any item runs
+  ---
+  duration_ms: 10.831561
+  type: 'test'
+  ...
+# Subtest: a cancelled call stops before the next item
+ok 59 - a cancelled call stops before the next item
+  ---
+  duration_ms: 0.982143
+  type: 'test'
+  ...
+# Subtest: the published descriptor adds items and moves the top-level required list into its description
+ok 60 - the published descriptor adds items and moves the top-level required list into its description
+  ---
+  duration_ms: 0.480392
+  type: 'test'
+  ...
+# Subtest: a tool that already takes an 'items' field is refused at composition time
+ok 61 - a tool that already takes an 'items' field is refused at composition time
+  ---
+  duration_ms: 0.323888
+  type: 'test'
+  ...
+# Subtest: applyBatchInputs wraps only the listed tools and returns every other registration as the same object
+ok 62 - applyBatchInputs wraps only the listed tools and returns every other registration as the same object
+  ---
+  duration_ms: 0.409365
+  type: 'test'
+  ...
+# Subtest: a pure read with only optional selectors batches by default; native items stay unshadowed
+ok 63 - a pure read with only optional selectors batches by default; native items stay unshadowed
+  ---
+  duration_ms: 8.374345
+  type: 'test'
+  ...
+# Subtest: guard: every production pure read batches; other tools retain explicit write opt-outs
+ok 64 - guard: every production pure read batches; other tools retain explicit write opt-outs
+  ---
+  duration_ms: 916.765657
+  type: 'test'
+  ...
+# Subtest: the real composition: every default batchable tool publishes items with its cap
+ok 65 - the real composition: every default batchable tool publishes items with its cap
+  ---
+  duration_ms: 728.485232
+  type: 'test'
+  ...
+# Subtest: a theme batch validates every destination before writing, then reads the completed files
+ok 66 - a theme batch validates every destination before writing, then reads the completed files
+  ---
+  duration_ms: 112.755028
+  type: 'test'
+  ...
+# Subtest: approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run
+ok 67 - approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run
+  ---
+  duration_ms: 210.476412
+  type: 'test'
+  ...
+# Subtest: web fetch batches refuse screenshots from shared or item fields before rendering and continue other items
+ok 68 - web fetch batches refuse screenshots from shared or item fields before rendering and continue other items
+  ---
+  duration_ms: 4.548605
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: local theme asset plans retain completed effects, stop on refusal and accept a valid retry
+ok 69 - local theme asset plans retain completed effects, stop on refusal and accept a valid retry
+  ---
+  duration_ms: 674.205708
+  type: 'test'
+  ...
+# Subtest: launch permissions are read per site/owner and freshly on every turn
+ok 70 - launch permissions are read per site/owner and freshly on every turn
+  ---
+  duration_ms: 2.610488
+  type: 'test'
+  ...
+# Subtest: a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all
+ok 71 - a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all
+  ---
+  duration_ms: 0.77297
+  type: 'test'
+  ...
+# Subtest: the real composition publishes exactly the 32 content_read cards
+ok 72 - the real composition publishes exactly the 32 content_read cards
+  ---
+  duration_ms: 1098.916486
+  type: 'test'
+  ...
+# Subtest: content_read.menu publishes optional canonical id and documents its legacy selector
+ok 73 - content_read.menu publishes optional canonical id and documents its legacy selector
+  ---
+  duration_ms: 366.316957
+  type: 'test'
+  ...
+# Subtest: the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading
+ok 74 - the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading
+  ---
+  duration_ms: 336.545188
+  type: 'test'
+  ...
+# Subtest: canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards
+ok 75 - canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards
+  ---
+  duration_ms: 354.276015
+  type: 'test'
+  ...
+# Subtest: not one of the 41 retired Tier-1 read ids survives into the collapsed catalog
+ok 76 - not one of the 41 retired Tier-1 read ids survives into the collapsed catalog
+  ---
+  duration_ms: 899.866421
+  type: 'test'
+  ...
+# Subtest: the collapse is a net -9: 41 member tools become 32 cards, and nothing else changes count
+ok 77 - the collapse is a net -9: 41 member tools become 32 cards, and nothing else changes count
+  ---
+  duration_ms: 1175.497397
+  type: 'test'
+  ...
+# Subtest: includeContentReadCollapse:false reconstructs the true PRE-collapse catalog — the eval's baseline depends on it
+ok 78 - includeContentReadCollapse:false reconstructs the true PRE-collapse catalog — the eval's baseline depends on it
+  ---
+  duration_ms: 285.09712
+  type: 'test'
+  ...
+# Subtest: RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once
+ok 79 - RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once
+  ---
+  duration_ms: 1.029351
+  type: 'test'
+  ...
+# Subtest: every retired member's SEARCH VOCABULARY survives into its card's indexed description
+ok 80 - every retired member's SEARCH VOCABULARY survives into its card's indexed description
+  ---
+  duration_ms: 166.958656
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: complete production catalog classifies every reader and exercises every scoped read on B
+ok 81 - complete production catalog classifies every reader and exercises every scoped read on B
+  ---
+  duration_ms: 28170.000451
+  type: 'test'
+  ...
+# 63 cross-site tools, 91 EXCLUDED tools
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)
+ok 82 - settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)
+  ---
+  duration_ms: 3040.233988
+  type: 'test'
+  ...
+# Subtest: mixed-scope card does not advertise a site supported by only one dispatch branch
+ok 83 - mixed-scope card does not advertise a site supported by only one dispatch branch
+  ---
+  duration_ms: 11.498181
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input
+ok 84 - reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input
+  ---
+  duration_ms: 4572.098399
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: form provider inventory stays available on the active site without opening a peer
+ok 85 - form provider inventory stays available on the active site without opening a peer
+  ---
+  duration_ms: 6997.64454
+  type: 'test'
+  ...
+# Subtest: ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500
+ok 86 - ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500
+  ---
+  duration_ms: 10.474085
+  type: 'test'
+  ...
+# Subtest: ROUTE: a tool that runs past its timeout says it timed out
+ok 87 - ROUTE: a tool that runs past its timeout says it timed out
+  ---
+  duration_ms: 22.294901
+  type: 'test'
+  ...
+# Subtest: ROUTE: a call abandoned before it ran says it was cancelled
+ok 88 - ROUTE: a call abandoned before it ran says it was cancelled
+  ---
+  duration_ms: 3.149508
+  type: 'test'
+  ...
+# Subtest: ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked
+ok 89 - ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked
+  ---
+  duration_ms: 0.855759
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500
+ok 90 - ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500
+  ---
+  duration_ms: 1.242081
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED
+ok 91 - ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED
+  ---
+  duration_ms: 1.183198
+  type: 'test'
+  ...
+# Subtest: describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool
+ok 92 - describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool
+  ---
+  duration_ms: 0.734789
+  type: 'test'
+  ...
+# Subtest: describeDelegatedInternalError: the server-side record correlates to http-kit's own log line
+ok 93 - describeDelegatedInternalError: the server-side record correlates to http-kit's own log line
+  ---
+  duration_ms: 0.829509
+  type: 'test'
+  ...
+# Subtest: no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+ok 94 - no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+  ---
+  duration_ms: 26921.36855
+  type: 'test'
+  ...
+# Subtest: plugin sign-in defaults and token persistence receive assistant effects from the host
+ok 95 - plugin sign-in defaults and token persistence receive assistant effects from the host
+  ---
+  duration_ms: 37.680476
+  type: 'test'
+  ...
+# Subtest: the boundary sees each runtime syntax and exempts only type-only edges
+ok 96 - the boundary sees each runtime syntax and exempts only type-only edges
+  ---
+  duration_ms: 30.354234
+  type: 'test'
+  ...
+# Subtest: plugin production services cross feature boundaries only through injected ports
+ok 97 - plugin production services cross feature boundaries only through injected ports
+  ---
+  duration_ms: 1321.485046
+  type: 'test'
+  ...
+# Subtest: plugin boundary rejects every runtime spelling, including mixed types and re-exports
+ok 98 - plugin boundary rejects every runtime spelling, including mixed types and re-exports
+  ---
+  duration_ms: 1.878565
+  type: 'test'
+  ...
+# Subtest: Agent Plugins reject assistant types while plugin-runtime permits type-only contracts
+ok 99 - Agent Plugins reject assistant types while plugin-runtime permits type-only contracts
+  ---
+  duration_ms: 19.783074
+  type: 'test'
+  ...
+# Subtest: plugin boundary preserves owned modules, shared contracts, pure platform helpers and dependencies
+ok 100 - plugin boundary preserves owned modules, shared contracts, pure platform helpers and dependencies
+  ---
+  duration_ms: 5.331198
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'hosted' registered 1 federated tool(s): mcp__hosted__echo
+# [assistant-byok] mcp-federation: 'hosted' admitted WRITE tool 'echo' (operator-authorized)
+# Subtest: roster change before first chat admits on the server
+ok 101 - roster change before first chat admits on the server
+  ---
+  duration_ms: 1141.196324
+  type: 'test'
+  ...
+# Subtest: reload() before start() never reads the roster and resolves an empty result
+ok 102 - reload() before start() never reads the roster and resolves an empty result
+  ---
+  duration_ms: 5.899428
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [test] mcp-federation: 'x' failed, continuing without its tools — Error: connect timed out after 15000ms
+#     at connect (/home/user/Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:345:13)
+#     at connect (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:199:34)
+#     at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:300:21)
+#     at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:199:28)
+#     at attachFederatedMcpTools (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:24)
+#     at runStart (/home/user/Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:138:30)
+#     at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:349:3)
+#     at async Test.run (node:internal/test_runner/test:1409:7)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+# [test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+# [test] mcp-federation: boot pass failed, continuing without federated tools — installed-extension registration failed
+# [test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+# Subtest: start() called twice calls attach exactly once — single-flight and idempotent
+ok 103 - start() called twice calls attach exactly once — single-flight and idempotent
+  ---
+  duration_ms: 10.798338
+  type: 'test'
+  ...
+# Subtest: start() awaits `after` before calling attach
+ok 104 - start() awaits `after` before calling attach
+  ---
+  duration_ms: 0.555992
+  type: 'test'
+  ...
+# Subtest: a reload that admits a new connection calls onAdmitted once and recomputes refusalPrefix()
+ok 105 - a reload that admits a new connection calls onAdmitted once and recomputes refusalPrefix()
+  ---
+  duration_ms: 0.930686
+  type: 'test'
+  ...
+# Subtest: a no-op reload (nothing new in the roster) never calls onAdmitted
+ok 106 - a no-op reload (nothing new in the roster) never calls onAdmitted
+  ---
+  duration_ms: 0.337416
+  type: 'test'
+  ...
+# Subtest: the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag
+ok 107 - the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag
+  ---
+  duration_ms: 0.991175
+  type: 'test'
+  ...
+# Subtest: a reload merges its reports onto the boot pass's and never re-admits a boot connection
+ok 108 - a reload merges its reports onto the boot pass's and never re-admits a boot connection
+  ---
+  duration_ms: 0.384856
+  type: 'test'
+  ...
+# Subtest: reload() called while start() is in flight waits for the boot pass before settling
+ok 109 - reload() called while start() is in flight waits for the boot pass before settling
+  ---
+  duration_ms: 0.246028
+  type: 'test'
+  ...
+# Subtest: the logger prefixes warnings with the caller's own log tag too
+ok 110 - the logger prefixes warnings with the caller's own log tag too
+  ---
+  duration_ms: 5.215611
+  type: 'test'
+  ...
+# Subtest: a connect failure at boot is reported by connectFailures(), with reports() left untouched
+ok 111 - a connect failure at boot is reported by connectFailures(), with reports() left untouched
+  ---
+  duration_ms: 13.582553
+  type: 'test'
+  ...
+# Subtest: a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted
+ok 112 - a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted
+  ---
+  duration_ms: 2.061183
+  type: 'test'
+  ...
+# Subtest: a connection that failed at boot and then admits on a reload is no longer listed in connectFailures()
+ok 113 - a connection that failed at boot and then admits on a reload is no longer listed in connectFailures()
+  ---
+  duration_ms: 0.576743
+  type: 'test'
+  ...
+# Subtest: a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever
+ok 114 - a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever
+  ---
+  duration_ms: 0.335087
+  type: 'test'
+  ...
+# Subtest: a boot pass whose 'after' rejects also settles rather than leaving started() false forever
+ok 115 - a boot pass whose 'after' rejects also settles rather than leaving started() false forever
+  ---
+  duration_ms: 0.271934
+  type: 'test'
+  ...
+# Subtest: a failed boot pass logs the underlying error instead of swallowing it silently
+ok 116 - a failed boot pass logs the underlying error instead of swallowing it silently
+  ---
+  duration_ms: 0.275636
+  type: 'test'
+  ...
+# Subtest: reload() after a failed boot resolves an empty no-op result rather than hanging or throwing
+ok 117 - reload() after a failed boot resolves an empty no-op result rather than hanging or throwing
+  ---
+  duration_ms: 0.211745
+  type: 'test'
+  ...
+# Subtest: configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known
+ok 118 - configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known
+  ---
+  duration_ms: 2.403674
+  type: 'test'
+  ...
+# Subtest: a connection that fails again on every reload is listed once, with its latest reason
+ok 119 - a connection that fails again on every reload is listed once, with its latest reason
+  ---
+  duration_ms: 2.789397
+  type: 'test'
+  ...
+# Subtest: a boot pass rejecting with a non-Error value logs that raw value and still settles
+ok 120 - a boot pass rejecting with a non-Error value logs that raw value and still settles
+  ---
+  duration_ms: 0.376633
+  type: 'test'
+  ...
+# Subtest: every registered image-returning viewer is excluded from batching
+ok 121 - every registered image-returning viewer is excluded from batching
+  ---
+  duration_ms: 2.091855
+  type: 'test'
+  ...
+# Subtest: G3 admission: a destructiveHint tool on the operator allowlist is admitted behind a destructive confirmation
+ok 122 - G3 admission: a destructiveHint tool on the operator allowlist is admitted behind a destructive confirmation
+  ---
+  duration_ms: 5.717251
+  type: 'test'
+  ...
+# Subtest: G3 admission: a ordinary write remains admitted without a card
+ok 123 - G3 admission: a ordinary write remains admitted without a card
+  ---
+  duration_ms: 0.432587
+  type: 'test'
+  ...
+# Subtest: G3 admission: a tool without hints is admitted without a card but gains no read-only permission
+ok 124 - G3 admission: a tool without hints is admitted without a card but gains no read-only permission
+  ---
+  duration_ms: 12.426747
+  type: 'test'
+  ...
+# Subtest: G3 admission: a server-marked read-only tool runs with no confirmation
+ok 125 - G3 admission: a server-marked read-only tool runs with no confirmation
+  ---
+  duration_ms: 0.31188
+  type: 'test'
+  ...
+# Subtest: G3 admission: readOnlyHint:true cannot cancel destructiveHint:true — hints only add friction
+ok 126 - G3 admission: readOnlyHint:true cannot cancel destructiveHint:true — hints only add friction
+  ---
+  duration_ms: 0.166555
+  type: 'test'
+  ...
+# Subtest: G3 admission: a destructive tool NOT on the operator allowlist stays refused, reason not-in-operator-allowlist
+ok 127 - G3 admission: a destructive tool NOT on the operator allowlist stays refused, reason not-in-operator-allowlist
+  ---
+  duration_ms: 1.146473
+  type: 'test'
+  ...
+# Subtest: G3 per-call grants: an allowlisted destructive tool needs 'may write'; removed from the allowlist it is refused
+ok 128 - G3 per-call grants: an allowlisted destructive tool needs 'may write'; removed from the allowlist it is refused
+  ---
+  duration_ms: 1.623276
+  type: 'test'
+  ...
+# Subtest: G3 card: an unconfirmed call never reaches the remote — nothing is sent while the card waits, one call after Confirm
+ok 129 - G3 card: an unconfirmed call never reaches the remote — nothing is sent while the card waits, one call after Confirm
+  ---
+  duration_ms: 63.262944
+  type: 'test'
+  ...
+# Subtest: G3 card: Cancel sends nothing and tells the model in words
+ok 130 - G3 card: Cancel sends nothing and tells the model in words
+  ---
+  duration_ms: 3.00405
+  type: 'test'
+  ...
+# Subtest: G3 card: an expired card sends nothing and says it expired
+ok 131 - G3 card: an expired card sends nothing and says it expired
+  ---
+  duration_ms: 22.326
+  type: 'test'
+  ...
+# Subtest: G3 card: a run that ends while the card waits sends nothing
+ok 132 - G3 card: a run that ends while the card waits sends nothing
+  ---
+  duration_ms: 11.454277
+  type: 'test'
+  ...
+# Subtest: G3 card: the displayed arguments are exactly what is sent — mutating the input after the card is shown changes nothing
+ok 133 - G3 card: the displayed arguments are exactly what is sent — mutating the input after the card is shown changes nothing
+  ---
+  duration_ms: 1.719241
+  type: 'test'
+  ...
+# Subtest: G3 card: one confirmation authorizes exactly one call — a second call gets its own card, and re-sending the first Confirm is refused
+ok 134 - G3 card: one confirmation authorizes exactly one call — a second call gets its own card, and re-sending the first Confirm is refused
+  ---
+  duration_ms: 2.826188
+  type: 'test'
+  ...
+# Subtest: G3 card: another principal or tool cannot confirm the call
+ok 135 - G3 card: another principal or tool cannot confirm the call
+  ---
+  duration_ms: 13.628518
+  type: 'test'
+  ...
+# Subtest: G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not
+ok 136 - G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not
+  ---
+  duration_ms: 3.976901
+  type: 'test'
+  ...
+# Subtest: G3 card: a server-marked read-only tool runs with no card
+ok 137 - G3 card: a server-marked read-only tool runs with no card
+  ---
+  duration_ms: 0.587806
+  type: 'test'
+  ...
+# Subtest: G3 card: with no way to ask a human (no emitSurface), a confirm-gated tool is refused and nothing is sent
+ok 138 - G3 card: with no way to ask a human (no emitSurface), a confirm-gated tool is refused and nothing is sent
+  ---
+  duration_ms: 1.235138
+  type: 'test'
+  ...
+# Subtest: G3 card: a composition root that wires no confirmer refuses every confirm-gated tool and sends nothing
+ok 139 - G3 card: a composition root that wires no confirmer refuses every confirm-gated tool and sends nothing
+  ---
+  duration_ms: 0.461081
+  type: 'test'
+  ...
+# Subtest: G3 route rule: a federated id is permitted only as an answer to an open card
+ok 140 - G3 route rule: a federated id is permitted only as an answer to an open card
+  ---
+  duration_ms: 0.32725
+  type: 'test'
+  ...
+# Subtest: G3 route: a federated tool call with no exchange is refused 403 and never executed
+ok 141 - G3 route: a federated tool call with no exchange is refused 403 and never executed
+  ---
+  duration_ms: 300.151616
+  type: 'test'
+  ...
+# Subtest: G3 route: Confirm on an open federated card is delivered (202) and the held call runs once
+ok 142 - G3 route: Confirm on an open federated card is delivered (202) and the held call runs once
+  ---
+  duration_ms: 40.784249
+  type: 'test'
+  ...
+# Subtest: under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1
+ok 143 - under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1
+  ---
+  duration_ms: 2.903733
+  type: 'test'
+  ...
+# Subtest: treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron
+ok 144 - treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron
+  ---
+  duration_ms: 0.452521
+  type: 'test'
+  ...
+# Subtest: under plain Node, launches the bridge with node and adds no env
+ok 145 - under plain Node, launches the bridge with node and adds no env
+  ---
+  duration_ms: 0.458092
+  type: 'test'
+  ...
+# Subtest: defaults to this process's own runtime
+ok 146 - defaults to this process's own runtime
+  ---
+  duration_ms: 0.361226
+  type: 'test'
+  ...
+# Subtest: hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token
+ok 147 - hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token
+  ---
+  duration_ms: 0.512149
+  type: 'test'
+  ...
+# Subtest: HTTP preparation receives only run-scoped inputs
+ok 148 - HTTP preparation receives only run-scoped inputs
+  ---
+  duration_ms: 1.181944
+  type: 'test'
+  ...
+# Subtest: unavailable HTTP support preserves stdio delivery
+ok 149 - unavailable HTTP support preserves stdio delivery
+  ---
+  duration_ms: 0.95099
+  type: 'test'
+  ...
+# Subtest: stateless HTTP support is refused before minting a callback credential
+ok 150 - stateless HTTP support is refused before minting a callback credential
+  ---
+  duration_ms: 0.993876
+  type: 'test'
+  ...
+# Subtest: real round trip: a browser confirmation click for webhooks_delete_subscription is accepted by the allowlist
+ok 151 - real round trip: a browser confirmation click for webhooks_delete_subscription is accepted by the allowlist
+  ---
+  duration_ms: 183.582817
+  type: 'test'
+  ...
+# Subtest: SECURITY: a Cancel click for webhooks_delete_subscription also reaches the allowlist and reports the cancellation, not a 403
+ok 152 - SECURITY: a Cancel click for webhooks_delete_subscription also reaches the allowlist and reports the cancellation, not a 403
+  ---
+  duration_ms: 61.21241
+  type: 'test'
+  ...
+# Subtest: comments_trash_comment completes in one call and emits no dialog
+ok 153 - comments_trash_comment completes in one call and emits no dialog
+  ---
+  duration_ms: 2.575611
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run comments_trash_comment — the route refuses it with 403 and never reaches the executor
+ok 154 - SECURITY: a surface callback cannot run comments_trash_comment — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 75.499004
+  type: 'test'
+  ...
+# Subtest: widgets_trash_instance completes in one call and emits no dialog
+ok 155 - widgets_trash_instance completes in one call and emits no dialog
+  ---
+  duration_ms: 81.40913
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run widgets_trash_instance — the route refuses it with 403 and never reaches the executor
+ok 156 - SECURITY: a surface callback cannot run widgets_trash_instance — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 32.155512
+  type: 'test'
+  ...
+# Subtest: theme_trash_file completes in one call and emits no dialog
+ok 157 - theme_trash_file completes in one call and emits no dialog
+  ---
+  duration_ms: 27.288162
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run theme_trash_file — the route refuses it with 403 and never reaches the executor
+ok 158 - SECURITY: a surface callback cannot run theme_trash_file — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 13.753912
+  type: 'test'
+  ...
+# Subtest: redirects_tombstone completes in one call and emits no dialog
+ok 159 - redirects_tombstone completes in one call and emits no dialog
+  ---
+  duration_ms: 10.770678
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run redirects_tombstone — the route refuses it with 403 and never reaches the executor
+ok 160 - SECURITY: a surface callback cannot run redirects_tombstone — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 89.954457
+  type: 'test'
+  ...
+# Subtest: rejects a call with no principal header — 401, and the executor is never invoked
+ok 161 - rejects a call with no principal header — 401, and the executor is never invoked
+  ---
+  duration_ms: 190.703333
+  type: 'test'
+  ...
+# Subtest: rejects a non-string or empty toolName — 400, and the executor is never invoked
+ok 162 - rejects a non-string or empty toolName — 400, and the executor is never invoked
+  ---
+  duration_ms: 55.495466
+  type: 'test'
+  ...
+# Subtest: SECURITY-CRITICAL: rejects a toolName that is not on the allowlist — 403, and the executor is never invoked
+ok 163 - SECURITY-CRITICAL: rejects a toolName that is not on the allowlist — 403, and the executor is never invoked
+  ---
+  duration_ms: 24.606938
+  type: 'test'
+  ...
+# Subtest: executes an allowlisted toolName, passing the header principal, a synthetic run, and the given params through
+ok 164 - executes an allowlisted toolName, passing the header principal, a synthetic run, and the given params through
+  ---
+  duration_ms: 27.321979
+  type: 'test'
+  ...
+# Subtest: surfaces a 'failed' execution result as 400 with the tool's own message
+ok 165 - surfaces a 'failed' execution result as 400 with the tool's own message
+  ---
+  duration_ms: 17.053781
+  type: 'test'
+  ...
+# Subtest: maps a non-object params to an empty object rather than forwarding an unexpected shape
+ok 166 - maps a non-object params to an empty object rather than forwarding an unexpected shape
+  ---
+  duration_ms: 23.23612
+  type: 'test'
+  ...
+# Subtest: a body carrying an exchange id delivers to the held-open call and never invokes the executor
+ok 167 - a body carrying an exchange id delivers to the held-open call and never invokes the executor
+  ---
+  duration_ms: 34.908207
+  type: 'test'
+  ...
+# Subtest: the delivery response carries no tool output — the agent's own call returns that, to the model
+ok 168 - the delivery response carries no tool output — the agent's own call returns that, to the model
+  ---
+  duration_ms: 16.691357
+  type: 'test'
+  ...
+# Subtest: an unknown, expired or already-closed exchange is 409, not 404 or a silent success
+ok 169 - an unknown, expired or already-closed exchange is 409, not 404 or a silent success
+  ---
+  duration_ms: 27.376113
+  type: 'test'
+  ...
+# Subtest: an exchange delivery from the wrong principal is refused and leaves the call still waiting
+ok 170 - an exchange delivery from the wrong principal is refused and leaves the call still waiting
+  ---
+  duration_ms: 15.244756
+  type: 'test'
+  ...
+# Subtest: the allowlist gate still applies to an exchange delivery, before the exchange is even looked up
+ok 171 - the allowlist gate still applies to an exchange delivery, before the exchange is even looked up
+  ---
+  duration_ms: 9.122574
+  type: 'test'
+  ...
+# Subtest: SECURITY: a protected setting callback without an exchange never executes
+ok 172 - SECURITY: a protected setting callback without an exchange never executes
+  ---
+  duration_ms: 14.509654
+  type: 'test'
+  ...
+# Subtest: SECURITY: an empty or non-string exchange id cannot execute a protected setting
+ok 173 - SECURITY: an empty or non-string exchange id cannot execute a protected setting
+  ---
+  duration_ms: 15.776908
+  type: 'test'
+  ...
+# Subtest: a top-level exchangeId works without any tool-call params — the channel-neutral carrier
+ok 174 - a top-level exchangeId works without any tool-call params — the channel-neutral carrier
+  ---
+  duration_ms: 14.249808
+  type: 'test'
+  ...
+# Subtest: a top-level exchangeId wins over a params-borne one, so one body cannot name two exchanges
+ok 175 - a top-level exchangeId wins over a params-borne one, so one body cannot name two exchanges
+  ---
+  duration_ms: 10.671395
+  type: 'test'
+  ...
+# Subtest: a different allowlisted tool cannot answer another tool's exchange
+ok 176 - a different allowlisted tool cannot answer another tool's exchange
+  ---
+  duration_ms: 15.591711
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends completed (no output/error) to HTTP 200
+ok 177 - maps a legacy redemption that ends completed (no output/error) to HTTP 200
+  ---
+  duration_ms: 13.158922
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends denied (no output/error) to HTTP 403
+ok 178 - maps a legacy redemption that ends denied (no output/error) to HTTP 403
+  ---
+  duration_ms: 16.890137
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends confirmation-denied (no output/error) to HTTP 409
+ok 179 - maps a legacy redemption that ends confirmation-denied (no output/error) to HTTP 409
+  ---
+  duration_ms: 3.601926
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends timed-out (no output/error) to HTTP 504
+ok 180 - maps a legacy redemption that ends timed-out (no output/error) to HTTP 504
+  ---
+  duration_ms: 12.644538
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends cancelled (no output/error) to HTTP 500
+ok 181 - maps a legacy redemption that ends cancelled (no output/error) to HTTP 500
+  ---
+  duration_ms: 12.506086
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends failed (no output/error) to HTTP 400
+ok 182 - maps a legacy redemption that ends failed (no output/error) to HTTP 400
+  ---
+  duration_ms: 15.211953
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends completed to HTTP 200
+ok 183 - maps a legacy redemption that ends completed to HTTP 200
+  ---
+  duration_ms: 7.7587
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends failed to HTTP 400
+ok 184 - maps a legacy redemption that ends failed to HTTP 400
+  ---
+  duration_ms: 4.811712
+  type: 'test'
+  ...
+# Subtest: an executor that throws is reported as a 500 with its message, never a crash
+ok 185 - an executor that throws is reported as a 500 with its message, never a crash
+  ---
+  duration_ms: 18.468177
+  type: 'test'
+  ...
+# Subtest: a request with no JSON body is a 400 validation error, and the executor is never invoked
+ok 186 - a request with no JSON body is a 400 validation error, and the executor is never invoked
+  ---
+  duration_ms: 8.917781
+  type: 'test'
+  ...
+# Subtest: agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move
+ok 187 - agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move
+  ---
+  duration_ms: 112.559434
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: live checks, unsaved draft previews and finding text rank in the top three
+ok 188 - live checks, unsaved draft previews and finding text rank in the top three
+  ---
+  duration_ms: 2641.693653
+  type: 'test'
+  ...

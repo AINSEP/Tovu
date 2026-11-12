@@ -207,4 +207,330 @@ XX..................
 ....................
 ....................
 ....................
-.
+....................
+....................
+........X...........
+....................
+....................
+.................
+
+Failed tests:
+
+✖ first copy runs headlessly; replacement waits for Copy; the password never shows (66.726646ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ Cancel writes nothing, and a used planId is gone (2.050788ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ the model never passes a connection string: no tool takes one, and the plan asks for the private form first (0.8562ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ the private form saves a reachable destination, and neither the form, its result nor the log shows the password (0.064842ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted (0.035719ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ database_transfer_status reports the saved destination, this process's last run and the copy found there (0.044585ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ /home/user/Tovu/apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts (69.905948ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async dropDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:33:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ postgres: racing creates of one slug persist one winner and give the loser FormSlugConflictError (0.81927ms)
+  Error: failed to drop fixture database "tovu_forms_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/forms/__tests__/repo.postgres.test.ts:32:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+✖ [postgres] identity round-trip is scoped and independent of email or tokens (0.789564ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] both natural keys reserve ownership, including unlinked rows (0.133251ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] an id cannot move ownership, even during explicit reconnect (0.050635ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] unlink survives stale callbacks and is idempotent and workspace-scoped (0.034553ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] explicit connect reuses the marker row and can change the subject (0.033496ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] conflicting concurrent inserts produce exactly one owner (0.036414ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] listing orders multiple providers and active upserts retain a single row (0.032615ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ [postgres] records cannot mutate storage through input or output references (0.03502ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+✖ /home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts (71.826497ms)
+  Error: failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:20:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ preview tag under the "sticky" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (112.157851ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+✖ preview tag under the "sticky" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (9.597056ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+✖ preview tag under the "fixed" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (3.824867ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+✖ preview tag under the "fixed" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (4.345064ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+✖ preview tag under the "hostile" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it (3.660209ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+✖ preview tag under the "hostile" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it (3.986505ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:58:38) {
+    name: 'Error',
+    log: []
+  }
+✖ preview tag with more choices than fit a phone scrolls from the start instead of clipping the label (6.551222ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts:83:34) {
+    name: 'Error',
+    log: []
+  }
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks) (18289.396052ms)
+  AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+  + actual - expected
+  
+  + [
+  +   'apps/website/src/features/plugin-runtime/host-tool-binding.ts: prepare 0 -> 1',
+  +   'apps/website/src/features/project-keys/attachments.ts: sqlite-json 0 -> 2',
+  +   'apps/website/src/server/runtime/composition/project-store.ts: sqlite-json 0 -> 3'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/website/src/features/plugin-runtime/host-tool-binding.ts: prepare 0 -> 1', 'apps/website/src/features/project-keys/attachments.ts: sqlite-json 0 -> 2', 'apps/website/src/server/runtime/composition/project-store.ts: sqlite-json 0 -> 3' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ plan uploads a selected file's bytes the peer is missing before staging the bundle (2694.723427ms)
+  Error: Express request did not finish
+      at Timeout.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/helpers/in-process-http.ts:29:42)
+      at listOnTimeout (node:internal/timers:685:17)
+      at process.processTimers (node:internal/timers:618:7)
+✖ Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement (6.128016ms)
+  AssertionError [ERR_ASSERTION]: false == true
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/railway/__tests__/credential-card.test.mjs:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

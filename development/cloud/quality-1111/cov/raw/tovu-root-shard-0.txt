@@ -210,4 +210,543 @@ XX..................
 ....................
 ....................
 ....................
-.X.................
+.X..................
+....................
+....................
+...XX
+
+Failed tests:
+
+✖ --storage-env: the site names the variable, keeps no secret, and its database is at head with the template (109.320939ms)
+  Error: failed to drop fixture database "tovu_r1f2_init_env": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts:71:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+✖ sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta (184.878875ms)
+  Error: failed to drop fixture database "tovu_r1f2_init_sealed": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts:86:28)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a database that already holds a Tovu site is refused, before any folder, secret or key is made (33.415598ms)
+  Error: failed to drop fixture database "tovu_r1f2_init_taken": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts:110:28)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ refuses a target other than postgres, and a --storage-env that is not set (0.69519ms)
+  Error: failed to drop fixture database "tovu_storage_move_cli_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:43:9)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:42:1)
+✖ the program routes `storage move` to the command (0.091148ms)
+  Error: failed to drop fixture database "tovu_storage_move_cli_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:43:9)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:42:1)
+✖ --storage-env moves the site and leaves the connection string in that variable (0.064709ms)
+  Error: failed to drop fixture database "tovu_storage_move_cli_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:43:9)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:42:1)
+✖ /home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts (34.680077ms)
+  Error: failed to drop fixture database "tovu_storage_move_cli_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:46:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (25871.723804ms)
+  AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+  + actual - expected
+  
+  + [
+  +   'apps/admin/src/lib/admin-nav-i18n.ts: commerce 22',
+  +   'apps/admin/src/panels.tsx: commerce 4',
+  +   'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,security,settings,skills}/**,hooks/admin-execution-credential-dependencies.hooks.ts,lib/execution-settings.ts}: anthropic 100 -> 121',
+  +   'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,skills}/**,lib/execution-settings.ts}: google 13 -> 159',
+  +   'apps/website/src/assistant/host-contracts.ts: commerce 1',
+  +   'apps/website/src/assistant/tool-registrations.ts: commerce 1',
+  +   'apps/website/src/contracts/core/tool-metadata/index.ts: commerce 4',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: calendly 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: charts-recharts 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: commerce 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: composio 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google 4',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-forms 2',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-login 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-workspace 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: higgsfield-media 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: meilisearch 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: opentelemetry 2',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: posthog 2',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: sentry 2',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: slide-design 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: software-engineering 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: stripe 2',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: supabase 1',
+  +   'apps/website/src/features/agent-plugins/bundled-catalog.ts: wordpress 1',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: cloudflare 11 -> 12',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: fly 4 -> 5',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github 3 -> 5',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github-pages 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: netlify 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: railway 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: s3-compatible 1 -> 2',
+  +   'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: vercel 1 -> 2',
+  +   'apps/website/src/features/forms/agent-tools.ts: cloudflare 1',
+  +   'apps/website/src/features/source-control/provider-module.ts: github 2',
+  +   'apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts: commerce 2',
+  +   'apps/website/src/platform/db/migrations/checksums.ts: commerce 1',
+  +   'apps/website/src/platform/db/migrations/index.ts: commerce 2',
+  +   'apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: commerce 4',
+  +   'apps/website/src/server/inbound/public-http/http/site/render.ts: commerce 1',
+  +   'apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts: commerce 22',
+  +   'apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts: commerce 13',
+  +   'apps/website/src/server/inbound/public-http/routes/site/products.ts: commerce 2',
+  +   'apps/website/src/server/routes/types.ts: commerce 2',
+  +   'apps/website/src/server/runtime/composition/app.ts: charts-recharts 1',
+  +   'apps/website/src/server/runtime/composition/app.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/charts-recharts-source.ts: charts-recharts 2',
+  +   'apps/website/src/server/runtime/composition/commerce-drain.ts: commerce 3',
+  +   'apps/website/src/server/runtime/composition/commerce-http.ts: commerce 12',
+  +   'apps/website/src/server/runtime/composition/commerce-origin.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/commerce-settings.ts: commerce 5',
+  +   'apps/website/src/server/runtime/composition/commerce-worker.ts: commerce 2',
+  +   'apps/website/src/server/runtime/composition/commerce.ts: commerce 28',
+  +   'apps/website/src/server/runtime/composition/deps.ts: charts-recharts 1',
+  +   'apps/website/src/server/runtime/composition/deps.ts: commerce 4',
+  +   'apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts: anthropic 1',
+  +   'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1',
+  +   'apps/website/src/server/runtime/composition/provider-contracts.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/provider-plugins.ts: commerce 1',
+  +   'apps/website/src/server/runtime/composition/tool-catalog-manifest.ts: commerce 6',
+  +   'apps/{admin/src/features/skills/**,website/src/features/skills/**,website/src/server/inbound/admin-http/routes/skills/**,website/src/contracts/headless/assistant-tool-approval-policy.ts}: github 16 -> 77'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:209:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/admin/src/lib/admin-nav-i18n.ts: commerce 22', 'apps/admin/src/panels.tsx: commerce 4', 'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,security,settings,skills}/**,hooks/admin-execution-credential-dependencies.hooks.ts,lib/execution-settings.ts}: anthropic 100 -> 121', 'apps/admin/src/{components/AssistantDock/**,features/{ai-assistant,skills}/**,lib/execution-settings.ts}: google 13 -> 159', 'apps/website/src/assistant/host-contracts.ts: commerce 1', 'apps/website/src/assistant/tool-registrations.ts: commerce 1', 'apps/website/src/contracts/core/tool-metadata/index.ts: commerce 4', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: calendly 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: charts-recharts 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: commerce 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: composio 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google 4', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-forms 2', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-login 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: google-workspace 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: higgsfield-media 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: meilisearch 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: opentelemetry 2', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: posthog 2', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: sentry 2', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: slide-design 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: software-engineering 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: stripe 2', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: supabase 1', 'apps/website/src/features/agent-plugins/bundled-catalog.ts: wordpress 1', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: cloudflare 11 -> 12', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: fly 4 -> 5', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github 3 -> 5', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: github-pages 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: netlify 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: railway 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: s3-compatible 1 -> 2', 'apps/website/src/features/agent-plugins/{bundled-catalog,deploy-split-activation,lifecycle}.ts: vercel 1 -> 2', 'apps/website/src/features/forms/agent-tools.ts: cloudflare 1', 'apps/website/src/features/source-control/provider-module.ts: github 2', 'apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts: commerce 2', 'apps/website/src/platform/db/migrations/checksums.ts: commerce 1', 'apps/website/src/platform/db/migrations/index.ts: commerce 2', 'apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: commerce 4', 'apps/website/src/server/inbound/public-http/http/site/render.ts: commerce 1', 'apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts: commerce 22', 'apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts: commerce 13', 'apps/website/src/server/inbound/public-http/routes/site/products.ts: commerce 2', 'apps/website/src/server/routes/types.ts: commerce 2', 'apps/website/src/server/runtime/composition/app.ts: charts-recharts 1', 'apps/website/src/server/runtime/composition/app.ts: commerce 1', 'apps/website/src/server/runtime/composition/charts-recharts-source.ts: charts-recharts 2', 'apps/website/src/server/runtime/composition/commerce-drain.ts: commerce 3', 'apps/website/src/server/runtime/composition/commerce-http.ts: commerce 12', 'apps/website/src/server/runtime/composition/commerce-origin.ts: commerce 1', 'apps/website/src/server/runtime/composition/commerce-settings.ts: commerce 5', 'apps/website/src/server/runtime/composition/commerce-worker.ts: commerce 2', 'apps/website/src/server/runtime/composition/commerce.ts: commerce 28', 'apps/website/src/server/runtime/composition/deps.ts: charts-recharts 1', 'apps/website/src/server/runtime/composition/deps.ts: commerce 4', 'apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts: anthropic 1', 'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: anthropic 1', 'apps/website/src/server/runtime/composition/provider-contracts.ts: commerce 1', 'apps/website/src/server/runtime/composition/provider-plugins.ts: commerce 1', 'apps/website/src/server/runtime/composition/tool-catalog-manifest.ts: commerce 6', 'apps/{admin/src/features/skills/**,website/src/features/skills/**,website/src/server/inbound/admin-http/routes/skills/**,website/src/contracts/headless/assistant-tool-approval-policy.ts}: github 16 -> 77' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ real PostgreSQL passkey completion has one winner, atomic session rollback, and recovery clears credentials (77.174251ms)
+  Error: failed to drop fixture database "tovu_passkeys_20453": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts:18:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ two connections: a concurrent appendRevision waits for the open one and chains after it (0.575059ms)
+  Error: failed to drop fixture database "tovu_post_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/post/__tests__/repo.postgres.test.ts:28:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+✖ postgres: transactions commit, roll back and nest on a pooled connection (0.877999ms)
+  Error: failed to drop fixture database "tovu_kernel_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:25:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:24:1)
+✖ two connections WITHOUT lockKey: both appends read the same latest row (the hazard is real) (0.079443ms)
+  Error: failed to drop fixture database "tovu_kernel_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:25:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:24:1)
+✖ two connections WITH lockKey: the second append waits and chains after the first (0.128771ms)
+  Error: failed to drop fixture database "tovu_kernel_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:25:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:24:1)
+✖ apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts (5740.128402ms)
+  'test failed'
+✖ postgres: two pulls racing for one receiver admit exactly one; the other is already-running (0.5806ms)
+  Error: failed to drop fixture database "tovu_form_delivery_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:28:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+✖ postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job (0.073282ms)
+  Error: failed to drop fixture database "tovu_form_delivery_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:28:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+✖ /home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts (122.635744ms)
+  Error: failed to drop fixture database "tovu_form_delivery_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:36:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ /api/admin/v1/assistant/byok-turn sends a metadata note then loads guidance through the real delegated tool surface (1702.528216ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   {
+  +     event: 'error',
+  +     payload: {
+  +       code: '500',
+  +       message: 'stub provider respond() threw',
+  +       type: 'error'
+  +     }
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/assistant-byok-routes.test.ts:1427:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { event: 'error', payload: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response (82.100978ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (FormRateLimitExceededError).
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/forms-submit.test.ts:305:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+✖ plugin preflight sends only the live run id and closes after receiving its prepared prefix (2.755641ms)
+  Error [ZodError]: [
+    {
+      "code": "invalid_type",
+      "expected": "array",
+      "received": "undefined",
+      "path": [
+        "pluginIds"
+      ],
+      "message": "Required"
+    }
+  ]
+      at get error (file:///home/user/Tovu/node_modules/zod/v3/types.js:39:31)
+      at ZodObject.parse (file:///home/user/Tovu/node_modules/zod/v3/types.js:114:22)
+      at Object.preflight (/home/user/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts:132:30)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts:143:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    issues: [ { code: 'invalid_type', expected: 'array', received: 'undefined', path: [Array], message: 'Required' } ],
+    [errors]: [ { code: 'invalid_type', expected: 'array', received: 'undefined', path: [Array], message: 'Required' } ]
+  }
+✖ the source directory is the pinned version inside the installed package, not content/plugins (3.627473ms)
+  AssertionError [ERR_ASSERTION]: @jini-ai/provider-plugins must ship plugins/charts-recharts/0.6.24
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+✖ the approval equals the packaged manifest: id, version, browser providers and the FULL integrity map (0.2871ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.24/jini.plugin.json'
+      at readFileSync (node:fs:483:20)
+      at packagedManifest (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:17:21)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:29:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.24/jini.plugin.json'
+  }
+✖ every pinned file is on disk with exactly the pinned bytes (0.285988ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.24/client/provider.js'
+      at Object.openSync (node:fs:621:18)
+      at readFileSync (node:fs:487:35)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:41:58)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.24/client/provider.js'
+  }
+✖ the composed bundled id set is pinned, and no id ships from both content and a package (17.575215ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+  +   'calendly',
+      'charts-recharts',
+      'cloudflare',
+  +   'commerce',
+      'composio',
+      'fly',
+      'github',
+      'github-pages',
+  +   'google-forms',
+      'google-login',
+      'google-workspace',
+      'higgsfield-media',
+      'how-tovu-works',
+      'jev',
+  ...
+      'software-engineering',
+  +   'stripe',
+      'supabase',
+      'tovu-theme',
+      'ui-ux-design',
+      'vercel',
+      'wordpress'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/bundled-agent-plugin-selection.test.ts:40:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'calendly',             'charts-recharts',
+      'cloudflare',           'commerce',
+      'composio',             'fly',
+      'github',               'github-pages',
+      'google-forms',         'google-login',
+      'google-workspace',     'higgsfield-media',
+      'how-tovu-works',       'jev',
+      'meilisearch',          'netlify',
+      'opentelemetry',        'posthog',
+      'railway',              'render',
+      'resend',               's3-compatible',
+      'sentry',               'site-compliance',
+      'site-import',          'slide-design',
+      'software-engineering', 'stripe',
+      'supabase',             'tovu-theme',
+      'ui-ux-design',         'vercel',
+      'wordpress'
+    ],
+    expected: [
+      'charts-recharts',  'cloudflare',
+      'composio',         'fly',
+      'github',           'github-pages',
+      'google-login',     'google-workspace',
+      'higgsfield-media', 'how-tovu-works',
+      'jev',              'meilisearch',
+      'netlify',          'opentelemetry',
+      'posthog',          'railway',
+      'render',           'resend',
+      's3-compatible',    'sentry',
+      'site-compliance',  'site-import',
+      'slide-design',     'software-engineering',
+      'supabase',         'tovu-theme',
+      'ui-ux-design',     'vercel',
+      'wordpress'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ web dev CLI attaches to the selected running site and opens its admin URL (1344.694031ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/resolve:272
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/af-cli-UWstth/development/scripts/compose-bundled-agent-plugins.mjs' imported from /tmp/af-cli-UWstth/development/scripts/dev.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///tmp/af-cli-UWstth/development/scripts/compose-bundled-agent-plugins.mjs'
+  }
+  
+  Node.js v24.22.3
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:288:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ desktop dev CLI builds preload before watching and forwards Electron flags on normal exit (628.334226ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/resolve:272
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/af-cli-JA42jQ/development/scripts/compose-bundled-agent-plugins.mjs' imported from /tmp/af-cli-JA42jQ/development/scripts/dev-desktop.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///tmp/af-cli-JA42jQ/development/scripts/compose-bundled-agent-plugins.mjs'
+  }
+  
+  Node.js v24.22.3
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:319:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
