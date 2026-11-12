@@ -1,0 +1,1511 @@
+{
+ "promises": {
+  "by_repo_rule": {
+   "jini|@typescript-eslint/no-misused-promises": 59,
+   "jini|@typescript-eslint/no-floating-promises": 8,
+   "tovu|@typescript-eslint/no-misused-promises": 90,
+   "tovu|@typescript-eslint/no-floating-promises": 17
+  },
+  "by_unit": {
+   "jini|packages/admin": 18,
+   "jini|packages/analytics": 5,
+   "jini|packages/cms": 1,
+   "jini|packages/commerce": 2,
+   "jini|packages/core": 8,
+   "jini|packages/daemon": 12,
+   "jini|packages/diagnostics": 1,
+   "jini|packages/http-kit": 1,
+   "jini|packages/sidecar": 1,
+   "jini|packages/ui": 5,
+   "jini|packages/user-management": 13,
+   "tovu|apps/admin": 94,
+   "tovu|apps/desktop": 12,
+   "tovu|apps/site-chat": 1
+  },
+  "by_file": {
+   "jini|packages/admin/src/comments/react/components/QueueSection.tsx": 2,
+   "jini|packages/admin/src/comments/react/hooks/use-comment-queue.hooks.ts": 1,
+   "jini|packages/admin/src/forms/react/components/FormSubmissionDetail.tsx": 1,
+   "jini|packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts": 3,
+   "jini|packages/admin/src/forms/react/pages/FormsList.tsx": 1,
+   "jini|packages/admin/src/media/react/components/EditMediaPanel.tsx": 2,
+   "jini|packages/admin/src/redirects/react/components/ImportRedirectsForm.tsx": 1,
+   "jini|packages/admin/src/seo/react/components/SitemapModal.tsx": 1,
+   "jini|packages/admin/src/seo/react/pages/SeoPage.tsx": 2,
+   "jini|packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx": 1,
+   "jini|packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx": 1,
+   "jini|packages/admin/src/widgets/react/pages/WidgetRegions.tsx": 1,
+   "jini|packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx": 1,
+   "jini|packages/analytics/src/product/fanout.ts": 2,
+   "jini|packages/analytics/src/product/index.ts": 3,
+   "jini|packages/cms/src/comments/express/submit-handler.ts": 1,
+   "jini|packages/commerce/src/http/payments-webhook.ts": 2,
+   "jini|packages/core/src/settings/express/http.ts": 8,
+   "jini|packages/daemon/src/http/attachment-lookup-routes.ts": 1,
+   "jini|packages/daemon/src/http/attachments.ts": 2,
+   "jini|packages/daemon/src/http/frontend-request-route.ts": 1,
+   "jini|packages/daemon/src/http/frontend-sessions.ts": 2,
+   "jini|packages/daemon/src/http/model-proxy.ts": 2,
+   "jini|packages/daemon/src/http/run-credentials.ts": 2,
+   "jini|packages/daemon/src/http/runs.ts": 1,
+   "jini|packages/daemon/src/http/tool-execution-routes.ts": 1,
+   "jini|packages/diagnostics/src/observability/tracker.ts": 1,
+   "jini|packages/http-kit/src/adapter.ts": 1,
+   "jini|packages/sidecar/src/json-ipc.ts": 1,
+   "jini|packages/ui/src/features/asset-grid/react/components/AssetGrid.tsx": 1,
+   "jini|packages/ui/src/features/media-providers/react/hooks/useMediaProvidersTab.ts": 1,
+   "jini|packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts": 2,
+   "jini|packages/ui/src/features/project-locations/react/hooks/useProjectLocationsTab.ts": 1,
+   "jini|packages/user-management/src/react/auth/Login.tsx": 1,
+   "jini|packages/user-management/src/react/auth/Passkeys.tsx": 3,
+   "jini|packages/user-management/src/react/auth/TotpSettings.tsx": 3,
+   "jini|packages/user-management/src/react/members/Members.tsx": 1,
+   "jini|packages/user-management/src/react/users/Users.tsx": 5,
+   "tovu|apps/admin/src/App.tsx": 1,
+   "tovu|apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx": 3,
+   "tovu|apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx": 6,
+   "tovu|apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx": 4,
+   "tovu|apps/admin/src/features/auth/Login.tsx": 1,
+   "tovu|apps/admin/src/features/auth/OwnerRecoverySignIn.tsx": 1,
+   "tovu|apps/admin/src/features/collections/CollectionEntryEditor.tsx": 2,
+   "tovu|apps/admin/src/features/collections/hooks/use-edit-fields-dialog.hooks.ts": 1,
+   "tovu|apps/admin/src/features/collections/hooks/use-new-content-type-dialog.hooks.ts": 1,
+   "tovu|apps/admin/src/features/dashboard/Dashboard.tsx": 1,
+   "tovu|apps/admin/src/features/database/Database.tsx": 3,
+   "tovu|apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts": 1,
+   "tovu|apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts": 1,
+   "tovu|apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts": 1,
+   "tovu|apps/admin/src/features/integrations/Integrations.tsx": 3,
+   "tovu|apps/admin/src/features/media/Media.tsx": 8,
+   "tovu|apps/admin/src/features/media/RemoteImageImport.tsx": 1,
+   "tovu|apps/admin/src/features/menus/MenuEditor.tsx": 2,
+   "tovu|apps/admin/src/features/menus/Menus.tsx": 1,
+   "tovu|apps/admin/src/features/observability/recent-errors-panel.tsx": 1,
+   "tovu|apps/admin/src/features/pages/PageEditor.tsx": 3,
+   "tovu|apps/admin/src/features/pages/Pages.tsx": 4,
+   "tovu|apps/admin/src/features/plugins/AddAgentPluginPanel.tsx": 1,
+   "tovu|apps/admin/src/features/plugins/AddPluginPanel.tsx": 3,
+   "tovu|apps/admin/src/features/plugins/AgentPluginMemoryPanel.tsx": 1,
+   "tovu|apps/admin/src/features/plugins/Plugins.tsx": 2,
+   "tovu|apps/admin/src/features/posts/PostEditor.tsx": 2,
+   "tovu|apps/admin/src/features/posts/Posts.tsx": 3,
+   "tovu|apps/admin/src/features/posts/hooks/use-post-editor-ui.hooks.ts": 1,
+   "tovu|apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts": 2,
+   "tovu|apps/admin/src/features/publish-content/hooks/use-publish-section-button.hooks.ts": 1,
+   "tovu|apps/admin/src/features/recovery/Recovery.tsx": 4,
+   "tovu|apps/admin/src/features/roles/Roles.tsx": 8,
+   "tovu|apps/admin/src/features/security/CopyKeysDialog.tsx": 1,
+   "tovu|apps/admin/src/features/security/RecoveryCodesCard.tsx": 2,
+   "tovu|apps/admin/src/features/taxonomy/Taxonomy.tsx": 9,
+   "tovu|apps/admin/src/features/taxonomy/TermPicker.tsx": 1,
+   "tovu|apps/admin/src/features/trash/hooks/use-trash.hooks.ts": 1,
+   "tovu|apps/admin/src/features/workspace/Workspace.tsx": 1,
+   "tovu|apps/admin/src/lib/widget-embed-extension.hooks.ts": 1,
+   "tovu|apps/desktop/src/main/index.ts": 5,
+   "tovu|apps/desktop/src/project-ipc.ts": 2,
+   "tovu|apps/desktop/src/renderer/App.tsx": 4,
+   "tovu|apps/desktop/src/renderer/use-create-website-form.hooks.ts": 1,
+   "tovu|apps/site-chat/src/site-assistant-transport.ts": 1
+  }
+ },
+ "osv": {
+  "by_repo_sev": {
+   "jini|CRITICAL": 5,
+   "tovu|CRITICAL": 6,
+   "jini|HIGH": 66,
+   "tovu|HIGH": 89,
+   "jini|MODERATE": 92,
+   "tovu|MODERATE": 131,
+   "jini|LOW": 21,
+   "tovu|LOW": 22
+  },
+  "unique_by_repo": {
+   "jini": 184,
+   "tovu": 201
+  },
+  "by_repo_lock": {
+   "jini|pnpm-lock.yaml": 184,
+   "tovu|apps/desktop/package-lock.json": 74,
+   "tovu|apps/site-chat/package-lock.json": 48,
+   "tovu|package-lock.json": 88,
+   "tovu|apps/admin/package-lock.json": 38
+  }
+ },
+ "audit": {
+  "tovu": {
+   "info": 0,
+   "low": 0,
+   "moderate": 18,
+   "high": 32,
+   "critical": 3,
+   "total": 53
+  },
+  "tovu_items": [
+   [
+    "@ag-ui/core",
+    "high",
+    1,
+    "False"
+   ],
+   [
+    "@ag-ui/encoder",
+    "high",
+    2,
+    "{'name': '@ag-ui/encoder', 'version': '1.0.4', 'isSemVerMajo"
+   ],
+   [
+    "@ag-ui/proto",
+    "high",
+    1,
+    "{'name': '@ag-ui/encoder', 'version': '1.0.4', 'isSemVerMajo"
+   ],
+   [
+    "@esbuild-kit/core-utils",
+    "moderate",
+    1,
+    "{'name': 'drizzle-kit', 'version': '0.31.11', 'isSemVerMajor"
+   ],
+   [
+    "@esbuild-kit/esm-loader",
+    "moderate",
+    1,
+    "{'name': 'drizzle-kit', 'version': '0.31.11', 'isSemVerMajor"
+   ],
+   [
+    "@eslint/config-array",
+    "moderate",
+    1,
+    "{'name': 'eslint', 'version': '9.39.5', 'isSemVerMajor': Tru"
+   ],
+   [
+    "@jini-ai/agent-plugins",
+    "high",
+    1,
+    "{'name': '@jini-ai/agent-plugins', 'version': '0.6.23', 'isS"
+   ],
+   [
+    "@jini-ai/agent-runtime",
+    "high",
+    1,
+    "{'name': '@jini-ai/analytics', 'version': '0.6.12', 'isSemVe"
+   ],
+   [
+    "@jini-ai/agentic",
+    "high",
+    2,
+    "{'name': '@jini-ai/agent-plugins', 'version': '0.6.23', 'isS"
+   ],
+   [
+    "@jini-ai/analytics",
+    "high",
+    1,
+    "{'name': '@jini-ai/analytics', 'version': '0.6.12', 'isSemVe"
+   ],
+   [
+    "@jini-ai/chat",
+    "high",
+    5,
+    "False"
+   ],
+   [
+    "@jini-ai/cms",
+    "high",
+    1,
+    "{'name': '@jini-ai/cms', 'version': '0.5.2', 'isSemVerMajor'"
+   ],
+   [
+    "@jini-ai/commerce",
+    "high",
+    2,
+    "{'name': '@jini-ai/agent-plugins', 'version': '0.6.23', 'isS"
+   ],
+   [
+    "@jini-ai/daemon",
+    "high",
+    3,
+    "False"
+   ],
+   [
+    "@jini-ai/http-kit",
+    "high",
+    1,
+    "{'name': '@jini-ai/cms', 'version': '0.5.2', 'isSemVerMajor'"
+   ],
+   [
+    "@jini-ai/mcp",
+    "high",
+    1,
+    "{'name': '@jini-ai/mcp', 'version': '0.4.4', 'isSemVerMajor'"
+   ],
+   [
+    "@jini-ai/protocol",
+    "high",
+    1,
+    "{'name': '@jini-ai/cms', 'version': '0.5.2', 'isSemVerMajor'"
+   ],
+   [
+    "@jini-ai/registry",
+    "high",
+    1,
+    "False"
+   ],
+   [
+    "@jini-ai/search",
+    "high",
+    1,
+    "{'name': '@jini-ai/search', 'version': '0.6.19', 'isSemVerMa"
+   ],
+   [
+    "@jini-ai/server",
+    "high",
+    5,
+    "False"
+   ],
+   [
+    "@jini-ai/ui",
+    "high",
+    2,
+    "{'name': '@jini-ai/agent-plugins', 'version': '0.6.23', 'isS"
+   ],
+   [
+    "@jini-ai/user-management",
+    "high",
+    2,
+    "False"
+   ],
+   [
+    "@ts-morph/common",
+    "moderate",
+    1,
+    "{'name': 'ts-morph', 'version': '17.0.1', 'isSemVerMajor': T"
+   ],
+   [
+    "@typescript-eslint/eslint-plugin",
+    "moderate",
+    2,
+    "{'name': 'typescript-eslint', 'version': '8.36.0', 'isSemVer"
+   ],
+   [
+    "@typescript-eslint/parser",
+    "moderate",
+    1,
+    "{'name': 'typescript-eslint', 'version': '8.36.0', 'isSemVer"
+   ],
+   [
+    "@typescript-eslint/type-utils",
+    "moderate",
+    2,
+    "{'name': 'typescript-eslint', 'version': '8.36.0', 'isSemVer"
+   ],
+   [
+    "@typescript-eslint/typescript-estree",
+    "moderate",
+    1,
+    "{'name': 'typescript-eslint', 'version': '8.36.0', 'isSemVer"
+   ],
+   [
+    "@typescript-eslint/utils",
+    "moderate",
+    1,
+    "{'name': 'typescript-eslint', 'version': '8.36.0', 'isSemVer"
+   ],
+   [
+    "astro",
+    "critical",
+    4,
+    "True"
+   ],
+   [
+    "body-parser",
+    "high",
+    3,
+    "True"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    5,
+    "True"
+   ],
+   [
+    "devalue",
+    "high",
+    8,
+    "True"
+   ],
+   [
+    "drizzle-kit",
+    "moderate",
+    2,
+    "{'name': 'drizzle-kit', 'version': '0.31.11', 'isSemVerMajor"
+   ],
+   [
+    "drizzle-orm",
+    "high",
+    1,
+    "{'name': 'drizzle-orm', 'version': '0.45.4', 'isSemVerMajor'"
+   ],
+   [
+    "esbuild",
+    "moderate",
+    1,
+    "{'name': 'drizzle-kit', 'version': '0.31.11', 'isSemVerMajor"
+   ],
+   [
+    "eslint",
+    "moderate",
+    2,
+    "{'name': 'eslint', 'version': '9.39.5', 'isSemVerMajor': Tru"
+   ],
+   [
+    "eslint-plugin-sonarjs",
+    "moderate",
+    1,
+    "{'name': 'eslint-plugin-sonarjs', 'version': '2.0.0', 'isSem"
+   ],
+   [
+    "fast-uri",
+    "moderate",
+    4,
+    "True"
+   ],
+   [
+    "handlebars",
+    "critical",
+    3,
+    "True"
+   ],
+   [
+    "js-yaml",
+    "high",
+    2,
+    "True"
+   ],
+   [
+    "liquidjs",
+    "high",
+    2,
+    "True"
+   ],
+   [
+    "minimatch",
+    "moderate",
+    1,
+    "{'name': 'eslint-plugin-sonarjs', 'version': '2.0.0', 'isSem"
+   ],
+   [
+    "nodemailer",
+    "high",
+    20,
+    "{'name': 'nodemailer', 'version': '10.5.0', 'isSemVerMajor':"
+   ],
+   [
+    "qs",
+    "moderate",
+    3,
+    "True"
+   ],
+   [
+    "sharp",
+    "high",
+    2,
+    "True"
+   ],
+   [
+    "shell-quote",
+    "critical",
+    1,
+    "True"
+   ],
+   [
+    "source-map-js",
+    "high",
+    1,
+    "True"
+   ],
+   [
+    "svgo",
+    "high",
+    2,
+    "True"
+   ],
+   [
+    "ts-morph",
+    "moderate",
+    1,
+    "{'name': 'ts-morph', 'version': '17.0.1', 'isSemVerMajor': T"
+   ],
+   [
+    "typescript-eslint",
+    "moderate",
+    4,
+    "{'name': 'typescript-eslint', 'version': '8.36.0', 'isSemVer"
+   ],
+   [
+    "undici",
+    "high",
+    16,
+    "True"
+   ],
+   [
+    "vite",
+    "high",
+    6,
+    "True"
+   ],
+   [
+    "zod",
+    "high",
+    1,
+    "{'name': '@jini-ai/cms', 'version': '0.5.2', 'isSemVerMajor'"
+   ]
+  ],
+  "jini": {
+   "info": 0,
+   "low": 18,
+   "moderate": 86,
+   "high": 64,
+   "critical": 6
+  },
+  "jini_items": [
+   [
+    "@hono/node-server",
+    "moderate",
+    "GHSA-frvp-7c67-39w9",
+    ">=1.19.15"
+   ],
+   [
+    "@hono/node-server",
+    "moderate",
+    "GHSA-rmxm-3fg6-px4f",
+    ">=2.1.3"
+   ],
+   [
+    "@modelcontextprotocol/sdk",
+    "high",
+    "GHSA-22jm-h49p-29qw",
+    ">=1.32.0"
+   ],
+   [
+    "@modelcontextprotocol/sdk",
+    "high",
+    "GHSA-46jr-4wx8-v453",
+    ">=1.32.0"
+   ],
+   [
+    "@modelcontextprotocol/sdk",
+    "high",
+    "GHSA-6qxp-vccf-f47h",
+    ">=1.31.0"
+   ],
+   [
+    "@modelcontextprotocol/sdk",
+    "high",
+    "GHSA-f897-62hf-6gxq",
+    ">=1.30.1"
+   ],
+   [
+    "@modelcontextprotocol/sdk",
+    "moderate",
+    "GHSA-6prh-2h8m-c8cw",
+    ">=1.32.0"
+   ],
+   [
+    "@modelcontextprotocol/sdk",
+    "moderate",
+    "GHSA-rvq5-wwqv-78pq",
+    ">=1.32.0"
+   ],
+   [
+    "@vitest/mocker",
+    "moderate",
+    "GHSA-82fw-gwwq-j7x9",
+    ">=4.1.11"
+   ],
+   [
+    "@vitest/mocker",
+    "moderate",
+    "GHSA-qxg6-89mg-rqv8",
+    ">=4.1.12"
+   ],
+   [
+    "body-parser",
+    "high",
+    "GHSA-27r3-jxmh-p828",
+    ">=1.20.9"
+   ],
+   [
+    "body-parser",
+    "high",
+    "GHSA-27r3-jxmh-p828",
+    ">=2.4.0"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-6j4f-fj2g-mc7p",
+    ">=2.1.5"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-6j4f-fj2g-mc7p",
+    ">=5.0.10"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-mh99-v99m-4gvg",
+    ">=2.1.3"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-mh99-v99m-4gvg",
+    ">=5.0.8"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-qhr7-859c-m2p7",
+    ">=2.1.6"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-qhr7-859c-m2p7",
+    ">=5.0.11"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-rgw5-rvv9-x895",
+    ">=2.1.4"
+   ],
+   [
+    "brace-expansion",
+    "high",
+    "GHSA-rgw5-rvv9-x895",
+    ">=5.0.9"
+   ],
+   [
+    "brace-expansion",
+    "moderate",
+    "GHSA-q2hr-2g5m-vwhr",
+    ">=2.1.7"
+   ],
+   [
+    "brace-expansion",
+    "moderate",
+    "GHSA-q2hr-2g5m-vwhr",
+    ">=5.0.12"
+   ],
+   [
+    "dompurify",
+    "critical",
+    "GHSA-cg2g-xh64-v4q7",
+    ">=3.4.17"
+   ],
+   [
+    "dompurify",
+    "high",
+    "GHSA-mrv2-3pqr-j5jr",
+    ">=3.4.17"
+   ],
+   [
+    "dompurify",
+    "low",
+    "GHSA-6688-9rhm-gjv2",
+    ">=3.4.16"
+   ],
+   [
+    "dompurify",
+    "low",
+    "GHSA-c6gr-qvv4-5v3f",
+    ">=3.4.17"
+   ],
+   [
+    "dompurify",
+    "moderate",
+    "GHSA-55q2-fjhq-7xh7",
+    ">=3.4.13"
+   ],
+   [
+    "electron",
+    "high",
+    "GHSA-9qh4-3jw8-366w",
+    ">=43.4.1"
+   ],
+   [
+    "electron",
+    "high",
+    "GHSA-gr2m-v5gq-v685",
+    ">=43.4.1"
+   ],
+   [
+    "electron",
+    "high",
+    "GHSA-j84w-jfhq-vhvj",
+    ">=43.4.1"
+   ],
+   [
+    "electron",
+    "high",
+    "GHSA-jr5w-w6x2-84p9",
+    ">=43.8.1"
+   ],
+   [
+    "electron",
+    "high",
+    "GHSA-qmv3-fv6v-rmhq",
+    ">=43.5.0"
+   ],
+   [
+    "electron",
+    "low",
+    "GHSA-3qxv-5xgr-q7w9",
+    ">=43.7.3"
+   ],
+   [
+    "electron",
+    "low",
+    "GHSA-98mx-cjp9-gchm",
+    ">=43.5.1"
+   ],
+   [
+    "electron",
+    "low",
+    "GHSA-h3v5-h239-pg29",
+    ">=43.7.3"
+   ],
+   [
+    "electron",
+    "moderate",
+    "GHSA-2p8c-gr87-2676",
+    ">=43.7.0"
+   ],
+   [
+    "electron",
+    "moderate",
+    "GHSA-997q-gvvc-jwmx",
+    ">=43.7.0"
+   ],
+   [
+    "electron",
+    "moderate",
+    "GHSA-fw47-9c62-h3vw",
+    ">=43.7.0"
+   ],
+   [
+    "electron",
+    "moderate",
+    "GHSA-x562-297c-g43g",
+    ">=43.7.6"
+   ],
+   [
+    "esbuild",
+    "moderate",
+    "GHSA-67mh-4wv8-2f99",
+    ">=0.25.0"
+   ],
+   [
+    "fast-uri",
+    "high",
+    "GHSA-5jgf-p345-68v8",
+    ">=3.1.6"
+   ],
+   [
+    "fast-uri",
+    "high",
+    "GHSA-7p8r-x3mc-p8w7",
+    ">=3.1.5"
+   ],
+   [
+    "fast-uri",
+    "high",
+    "GHSA-f65p-4m7j-42xc",
+    ">=3.1.6"
+   ],
+   [
+    "fast-uri",
+    "high",
+    "GHSA-fph4-wmhf-6fwf",
+    ">=3.1.6"
+   ],
+   [
+    "fast-uri",
+    "high",
+    "GHSA-jqff-g426-hqxp",
+    ">=3.1.6"
+   ],
+   [
+    "fast-uri",
+    "high",
+    "GHSA-qw65-cvwx-89v3",
+    ">=3.1.7"
+   ],
+   [
+    "fast-uri",
+    "low",
+    "GHSA-333x-w4r6-6crp",
+    ">=3.1.9"
+   ],
+   [
+    "fast-uri",
+    "low",
+    "GHSA-xhq7-xmqj-769h",
+    ">=3.1.9"
+   ],
+   [
+    "fast-uri",
+    "moderate",
+    "GHSA-hrr3-gc8f-f4qj",
+    ">=3.1.8"
+   ],
+   [
+    "fast-uri",
+    "moderate",
+    "GHSA-w74x-v6f9-j3xg",
+    ">=3.1.9"
+   ],
+   [
+    "fast-uri",
+    "moderate",
+    "GHSA-wjr9-j795-jxcr",
+    ">=3.1.9"
+   ],
+   [
+    "glob",
+    "moderate",
+    "GHSA-3g3m-2fjr-6pw4",
+    ">=14.0.2"
+   ],
+   [
+    "hono",
+    "low",
+    "GHSA-79qm-7rj5-m7r9",
+    ">=4.12.34"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-54fx-42gc-7vw4",
+    ">=4.12.34"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-5r4p-p66f-jhc7",
+    ">=4.13.11"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-8j4g-w8fx-2239",
+    ">=4.12.34"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-crvj-82cr-hjcx",
+    ">=4.13.5"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-f23p-vx2j-j53r",
+    ">=4.12.34"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-g6gw-c38x-mqfc",
+    ">=4.13.5"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-gqvv-2mrq-wpjv",
+    ">=4.13.5"
+   ],
+   [
+    "hono",
+    "moderate",
+    "GHSA-hxh3-vqpv-xpqv",
+    ">=4.13.7"
+   ],
+   [
+    "ip-address",
+    "high",
+    "GHSA-mwp4-54f8-5fhr",
+    ">=10.3.1"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-22jq-vg5j-6vgg",
+    ">=10.2.1"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-2vr4-cq9g-pvrc",
+    ">=10.5.1"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-4xrf-jv44-h6hh",
+    ">=10.2.2"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-h3mg-xc3c-68pw",
+    ">=10.7.1"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-j6r3-76f7-8jcv",
+    ">=10.7.1"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-rpw4-54j3-4h4q",
+    ">=10.5.1"
+   ],
+   [
+    "ip-address",
+    "moderate",
+    "GHSA-rxp7-6hxx-x8q5",
+    ">=10.7.4"
+   ],
+   [
+    "js-yaml",
+    "high",
+    "GHSA-2883-xcg3-v3hh",
+    ">=3.15.2"
+   ],
+   [
+    "js-yaml",
+    "high",
+    "GHSA-2883-xcg3-v3hh",
+    ">=4.3.2"
+   ],
+   [
+    "js-yaml",
+    "high",
+    "GHSA-5p4m-2wfm-xmqj",
+    ">=3.15.1"
+   ],
+   [
+    "js-yaml",
+    "high",
+    "GHSA-5p4m-2wfm-xmqj",
+    ">=4.3.1"
+   ],
+   [
+    "katex",
+    "low",
+    "GHSA-238p-pmpm-9mq7",
+    ">=0.18.2"
+   ],
+   [
+    "lodash-es",
+    "high",
+    "GHSA-r5fr-rjxr-66jc",
+    ">=4.18.0"
+   ],
+   [
+    "lodash-es",
+    "moderate",
+    "GHSA-xxjr-mmjv-4gpg",
+    ">=4.17.23"
+   ],
+   [
+    "mermaid",
+    "low",
+    "GHSA-c4c3-pg64-4m4v",
+    ">=11.16.1"
+   ],
+   [
+    "mermaid",
+    "moderate",
+    "GHSA-2v8p-3f2j-5mp7",
+    ">=11.16.1"
+   ],
+   [
+    "mermaid",
+    "moderate",
+    "GHSA-3rrr-jr9j-h3q3",
+    ">=11.16.1"
+   ],
+   [
+    "mermaid",
+    "moderate",
+    "GHSA-6x64-9x62-f2gx",
+    ">=11.16.1"
+   ],
+   [
+    "mermaid",
+    "moderate",
+    "GHSA-rhh3-jpg6-66xh",
+    ">=11.16.1"
+   ],
+   [
+    "minimatch",
+    "moderate",
+    "GHSA-g3hv-75wg-m249",
+    ">=11.0.1"
+   ],
+   [
+    "nanoid",
+    "high",
+    "GHSA-28wg-ghj8-5hjv",
+    ">=3.3.16"
+   ],
+   [
+    "nanoid",
+    "high",
+    "GHSA-28wg-ghj8-5hjv",
+    ">=5.1.16"
+   ],
+   [
+    "nanoid",
+    "high",
+    "GHSA-2v37-7h3g-55p8",
+    ">=3.3.18"
+   ],
+   [
+    "nanoid",
+    "high",
+    "GHSA-2v37-7h3g-55p8",
+    ">=5.1.6"
+   ],
+   [
+    "nanoid",
+    "high",
+    "GHSA-xwg4-73v4-xw9w",
+    ">=3.3.12"
+   ],
+   [
+    "nanoid",
+    "high",
+    "GHSA-xwg4-73v4-xw9w",
+    ">=5.1.11"
+   ],
+   [
+    "nanoid",
+    "moderate",
+    "GHSA-mwcw-c2x4-8c55",
+    ">=3.3.8"
+   ],
+   [
+    "nanoid",
+    "moderate",
+    "GHSA-mwcw-c2x4-8c55",
+    ">=5.0.9"
+   ],
+   [
+    "postcss",
+    "moderate",
+    "GHSA-fxqj-rqcc-2cmp",
+    ">=8.5.23"
+   ],
+   [
+    "proxy-addr",
+    "critical",
+    "GHSA-jqcg-44mw-7w3h",
+    ">=2.0.8"
+   ],
+   [
+    "qs",
+    "moderate",
+    "GHSA-4mjr-xmp4-gh2g",
+    ">=6.16.0"
+   ],
+   [
+    "qs",
+    "moderate",
+    "GHSA-6pq8-jhm2-2vcw",
+    ">=6.16.1"
+   ],
+   [
+    "qs",
+    "moderate",
+    "GHSA-x5fp-wj9c-mxmx",
+    ">=6.16.0"
+   ],
+   [
+    "sharp",
+    "high",
+    "GHSA-rgj7-g3m4-5g8c",
+    ">=0.35.4"
+   ],
+   [
+    "sharp",
+    "high",
+    "GHSA-wq5f-xc86-pv6w",
+    ">=0.35.5"
+   ],
+   [
+    "source-map-js",
+    "high",
+    "GHSA-68fv-2mgg-jv7q",
+    ">=1.2.2"
+   ],
+   [
+    "tinypool",
+    "critical",
+    "GHSA-5gmw-xhrv-c9v3",
+    ">=2.1.1"
+   ],
+   [
+    "tinypool",
+    "critical",
+    "GHSA-85c8-ppgw-ccpr",
+    ">=2.1.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-2m5v-pch6-74hx",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-2m5v-pch6-74hx",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-4cwx-7wf7-3272",
+    ">=7.29.0"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-4w7w-5xrc-9h26",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-4w7w-5xrc-9h26",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-qrxm-fqhp-jwvm",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-qrxm-fqhp-jwvm",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-rfgv-xxqx-mfg5",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-rfgv-xxqx-mfg5",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-vp8m-p9jh-q5pm",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-w293-vg96-wgc3",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-w293-vg96-wgc3",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-xjj6-f33q-929c",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "high",
+    "GHSA-xjj6-f33q-929c",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "low",
+    "GHSA-2gqq-gqf2-x968",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "low",
+    "GHSA-2gqq-gqf2-x968",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "low",
+    "GHSA-8436-99hf-9mmv",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "low",
+    "GHSA-8436-99hf-9mmv",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "low",
+    "GHSA-r53p-7pc4-xj5r",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "low",
+    "GHSA-r53p-7pc4-xj5r",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-2jfj-6hjv-fm6j",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-2jfj-6hjv-fm6j",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-3wwx-pv8p-q78v",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-3wwx-pv8p-q78v",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-3xpg-4rpp-hhhm",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-3xpg-4rpp-hhhm",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-4qv8-2p9j-2685",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-4qv8-2p9j-2685",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-55wc-3pg8-jfw6",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-55wc-3pg8-jfw6",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-8xcm-r25x-g524",
+    ">=7.29.0"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-9fm3-97px-rjf6",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-9fm3-97px-rjf6",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-f72v-6w45-q472",
+    ">=7.30.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-f72v-6w45-q472",
+    ">=8.12.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-jr45-8vmc-qm54",
+    ">=7.29.0"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-m8rv-5g2x-5cg5",
+    ">=7.29.0"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-pmjh-fq2x-6v4x",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-pmjh-fq2x-6v4x",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-rx4f-c7p8-82vq",
+    ">=7.29.1"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-rx4f-c7p8-82vq",
+    ">=8.10.2"
+   ],
+   [
+    "undici",
+    "moderate",
+    "GHSA-v3r7-h72x-cjcm",
+    ">=7.29.0"
+   ],
+   [
+    "vite",
+    "high",
+    "GHSA-587h-7wmj-h5pm",
+    ">=6.4.4"
+   ],
+   [
+    "vite",
+    "high",
+    "GHSA-587h-7wmj-h5pm",
+    ">=8.1.6"
+   ],
+   [
+    "vite",
+    "low",
+    "GHSA-9jrq-w75r-8gcw",
+    ">=6.4.4"
+   ],
+   [
+    "vite",
+    "low",
+    "GHSA-9jrq-w75r-8gcw",
+    ">=8.1.6"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-4w7w-66w2-5vf9",
+    ">=6.4.2"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-698v-4r3x-3vcv",
+    ">=6.4.4"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-698v-4r3x-3vcv",
+    ">=8.1.6"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-fx2h-pf6j-xcff",
+    ">=6.4.3"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-r825-w8mm-5pxw",
+    ">=6.4.4"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-r825-w8mm-5pxw",
+    ">=8.1.6"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-rq7h-c2jc-7f22",
+    ">=6.4.4"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-rq7h-c2jc-7f22",
+    ">=8.1.6"
+   ],
+   [
+    "vite",
+    "moderate",
+    "GHSA-v6wh-96g9-6wx3",
+    ">=6.4.3"
+   ],
+   [
+    "vitest",
+    "critical",
+    "GHSA-5xrq-8626-4rwp",
+    ">=3.2.6"
+   ],
+   [
+    "vitest",
+    "moderate",
+    "GHSA-82fw-gwwq-j7x9",
+    ">=4.1.11"
+   ],
+   [
+    "zod",
+    "high",
+    "GHSA-mrhx-c7xc-m3w5",
+    ">=4.6.6"
+   ]
+  ]
+ },
+ "semgrep": {
+  "by_repo_rule": {},
+  "by_repo_sev": {},
+  "meta": {}
+ },
+ "a11y": {
+  "by_repo_rule": {
+   "jini|jsx-a11y/no-autofocus": 7,
+   "jini|jsx-a11y/no-noninteractive-element-interactions": 13,
+   "jini|jsx-a11y/no-redundant-roles": 2,
+   "jini|jsx-a11y/click-events-have-key-events": 16,
+   "jini|jsx-a11y/no-static-element-interactions": 10,
+   "jini|jsx-a11y/label-has-associated-control": 2,
+   "jini|jsx-a11y/interactive-supports-focus": 6,
+   "jini|jsx-a11y/no-noninteractive-element-to-interactive-role": 1,
+   "jini|jsx-a11y/media-has-caption": 4,
+   "jini|jsx-a11y/iframe-has-title": 2,
+   "jini|jsx-a11y/role-supports-aria-props": 2,
+   "tovu|jsx-a11y/click-events-have-key-events": 22,
+   "tovu|jsx-a11y/no-static-element-interactions": 11,
+   "tovu|jsx-a11y/interactive-supports-focus": 13,
+   "tovu|jsx-a11y/no-noninteractive-element-interactions": 11,
+   "tovu|jsx-a11y/no-autofocus": 13,
+   "tovu|jsx-a11y/media-has-caption": 2,
+   "tovu|jsx-a11y/role-supports-aria-props": 1,
+   "tovu|jsx-a11y/no-noninteractive-element-to-interactive-role": 1
+  },
+  "kb_hits_by_repo": {
+   "jini": 32,
+   "tovu": 46
+  },
+  "kb_files_by_repo": {
+   "jini": 22,
+   "tovu": 26
+  },
+  "kb_elements_by_repo": {
+   "tovu": 35,
+   "jini": 26
+  },
+  "kb_files": {
+   "jini|packages/chat/src/react/components/ChatSettingsDialog.tsx": 1,
+   "jini|packages/chat/src/react/components/ComposerDiscovery.tsx": 1,
+   "jini|packages/chat/src/react/components/Markdown.tsx": 1,
+   "jini|packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx": 1,
+   "jini|packages/ui/src/features/admin-widgets/components/Lightbox/Lightbox.tsx": 1,
+   "jini|packages/ui/src/features/admin-widgets/components/Select/Select.tsx": 2,
+   "jini|packages/ui/src/features/asset-grid/react/components/AssetGridBody.tsx": 2,
+   "jini|packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFileRow.tsx": 4,
+   "jini|packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFolderRow.tsx": 2,
+   "jini|packages/ui/src/features/asset-tree-browser/react/components/AssetTreeRowMenu.tsx": 2,
+   "jini|packages/ui/src/features/command-palette/react/components/CommandPalette.tsx": 1,
+   "jini|packages/ui/src/features/command-palette/react/components/CommandPaletteRow.tsx": 2,
+   "jini|packages/ui/src/features/connectors/components/ConnectorDetailDrawer.tsx": 1,
+   "jini|packages/ui/src/features/mention-autocomplete/react/components/MentionAutocomplete.tsx": 1,
+   "jini|packages/ui/src/features/resource-dashboard/react/components/ResourceCardParts.tsx": 1,
+   "jini|packages/ui/src/features/tabbed-dialog/react/components/TabbedDialog.tsx": 2,
+   "jini|packages/ui/src/features/viewer-shell/react/components/MarkdownSplitPane.tsx": 1,
+   "jini|packages/ui/src/react/components/CustomSelect.tsx": 1,
+   "jini|packages/ui/src/react/components/OnboardingDropdown.tsx": 1,
+   "jini|packages/ui/src/react/components/PaletteTweaks.tsx": 2,
+   "jini|packages/ui/src/react/components/WorkingDirPicker.tsx": 1,
+   "jini|packages/ui/src/renderers/preview-modal-shell/react/components/PreviewModalShell.tsx": 1,
+   "tovu|apps/admin/src/App.tsx": 2,
+   "tovu|apps/admin/src/components/AssistantDock/DockSettingsMenu.tsx": 1,
+   "tovu|apps/admin/src/components/AssistantDock/MessageOverflowModal.tsx": 1,
+   "tovu|apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx": 1,
+   "tovu|apps/admin/src/features/ai-assistant/VisitorAssistantTabs.tsx": 1,
+   "tovu|apps/admin/src/features/email/EmailTemplateEditor.tsx": 1,
+   "tovu|apps/admin/src/features/library/Library.tsx": 2,
+   "tovu|apps/admin/src/features/media/Media.tsx": 1,
+   "tovu|apps/admin/src/features/menus/MenuEditor.tsx": 1,
+   "tovu|apps/admin/src/features/pages/PageEditor.tsx": 1,
+   "tovu|apps/admin/src/features/pages/ThemePageDetailsModal.tsx": 1,
+   "tovu|apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx": 3,
+   "tovu|apps/admin/src/features/plugins/AgentPluginRow.tsx": 2,
+   "tovu|apps/admin/src/features/plugins/PackageFilesModal.tsx": 2,
+   "tovu|apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx": 3,
+   "tovu|apps/admin/src/features/posts/PostEditor.tsx": 1,
+   "tovu|apps/admin/src/features/posts/PostSettingsDialog.tsx": 1,
+   "tovu|apps/admin/src/features/redirects/redirects-i18n.tsx": 2,
+   "tovu|apps/admin/src/features/security/AccessTokensTab.tsx": 1,
+   "tovu|apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx": 3,
+   "tovu|apps/admin/src/features/settings/ExternalMcpToolsModal.tsx": 3,
+   "tovu|apps/admin/src/features/skills/SkillInstallConfirmation.tsx": 3,
+   "tovu|apps/admin/src/features/skills/SkillRemoveConfirmDialog.tsx": 3,
+   "tovu|apps/admin/src/features/taxonomy/Taxonomy.tsx": 2,
+   "tovu|apps/admin/src/features/taxonomy/TaxonomyRowMenu.tsx": 1,
+   "tovu|apps/admin/src/features/themes/ThemeExplore.tsx": 3
+  }
+ }
+}

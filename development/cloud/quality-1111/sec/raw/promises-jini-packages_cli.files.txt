@@ -1,0 +1,16 @@
+src/command-registry.ts
+src/daemon-command.ts
+src/daemon-url.ts
+src/errors.ts
+src/flags.ts
+src/http.ts
+src/index.ts
+src/introspection.ts
+src/local-daemon-discovery.ts
+src/main.ts
+src/prompt.ts
+src/redact.ts
+src/run-command.ts
+src/tokens.ts
+src/usage.ts
+src/version-command.ts

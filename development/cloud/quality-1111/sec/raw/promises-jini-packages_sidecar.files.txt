@@ -1,0 +1,13 @@
+src/bootstrap.ts
+src/daemon-registry.ts
+src/index.ts
+src/ipc-path.ts
+src/json-file.ts
+src/json-ipc.ts
+src/net.ts
+src/paths.ts
+src/port.ts
+src/supervision/respawn-policy.ts
+src/supervision/supervisor-node.ts
+src/supervision/supervisor.ts
+src/types.ts

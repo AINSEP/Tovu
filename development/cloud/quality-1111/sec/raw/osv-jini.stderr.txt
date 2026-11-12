@@ -1,0 +1,2 @@
+Scanned /home/user/Jini/pnpm-lock.yaml file and found 1335 packages
+Loaded npm local db from /tmp/claude-0/-home-user/22e759b2-6583-52c2-824f-84209cff904e/scratchpad/osvdb/osv-scanner/npm/all.zip

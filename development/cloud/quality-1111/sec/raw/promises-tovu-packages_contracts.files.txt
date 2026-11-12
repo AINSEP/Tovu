@@ -1,0 +1,6 @@
+src/admin-failure-copy.ts
+src/admin-locales.ts
+src/product-telemetry.ts
+src/secret-redaction.ts
+src/site-scope-key.ts
+src/site-share-limits.ts

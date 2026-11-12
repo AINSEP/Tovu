@@ -1,0 +1,6 @@
+Scanned /home/user/Tovu/package-lock.json file and found 927 packages
+Scanned /home/user/Tovu/apps/admin/package-lock.json file and found 668 packages
+Scanned /home/user/Tovu/apps/desktop/package-lock.json file and found 710 packages
+Scanned /home/user/Tovu/apps/site-chat/package-lock.json file and found 395 packages
+Filtered 4 local/unscannable package/s from the scan.
+Loaded npm local db from /tmp/claude-0/-home-user/22e759b2-6583-52c2-824f-84209cff904e/scratchpad/osvdb/osv-scanner/npm/all.zip

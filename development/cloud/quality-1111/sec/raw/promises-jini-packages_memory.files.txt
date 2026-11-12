@@ -1,0 +1,9 @@
+src/entry-frontmatter.ts
+src/extract-facts.ts
+src/extraction-log.ts
+src/index.ts
+src/llm-provider.ts
+src/note-store.ts
+src/rule-body.ts
+src/text-scan.ts
+src/verify.ts

@@ -1,0 +1,87 @@
+tovu packages/sdk files=3 start=01:56:09
+exit=0 secs=1
+tovu packages/contracts files=6 start=01:56:10
+exit=0 secs=2
+tovu apps/site-chat files=24 start=01:56:12
+exit=123 secs=4
+jini packages/sqlite files=1 start=01:56:16
+exit=0 secs=2
+jini packages/memory files=9 start=01:56:18
+exit=0 secs=3
+jini packages/artifacts files=10 start=01:56:21
+exit=0 secs=3
+jini packages/analytics files=12 start=01:56:24
+exit=123 secs=2
+jini packages/protocol files=12 start=01:56:26
+exit=0 secs=3
+jini packages/sandbox files=12 start=01:56:29
+exit=0 secs=3
+jini packages/infra files=13 start=01:56:32
+exit=0 secs=3
+jini packages/sidecar files=13 start=01:56:35
+exit=123 secs=3
+jini packages/cli files=16 start=01:56:38
+exit=0 secs=2
+jini packages/search files=16 start=01:56:40
+exit=0 secs=3
+jini packages/server files=15 start=01:56:43
+exit=0 secs=3
+jini packages/registry files=17 start=01:56:46
+exit=0 secs=3
+jini packages/cookie-consent files=26 start=01:56:49
+exit=0 secs=3
+jini packages/http-kit files=26 start=01:56:52
+exit=123 secs=3
+jini packages/vibecoding files=27 start=01:56:55
+exit=0 secs=4
+jini packages/capability-providers files=28 start=01:56:59
+exit=0 secs=2
+jini packages/ui-kit files=29 start=01:57:01
+exit=0 secs=4
+jini packages/oauth files=35 start=01:57:05
+exit=0 secs=2
+jini packages/provider-plugins files=42 start=01:57:07
+exit=123 secs=10
+jini packages/diagnostics files=45 start=01:57:17
+exit=123 secs=4
+jini packages/agentic files=53 start=01:57:21
+exit=123 secs=5
+jini packages/plugins files=65 start=01:57:26
+exit=0 secs=6
+jini packages/desktop-host files=67 start=01:57:32
+exit=0 secs=4
+jini packages/mcp files=83 start=01:57:36
+exit=0 secs=7
+jini packages/commerce files=88 start=01:57:43
+exit=123 secs=7
+jini packages/devops files=90 start=01:57:50
+exit=0 secs=6
+jini packages/db files=112 start=01:57:56
+exit=0 secs=6
+jini packages/user-management files=112 start=01:58:02
+exit=123 secs=8
+jini packages/platform files=114 start=01:58:10
+exit=0 secs=7
+jini packages/integrations files=116 start=01:58:17
+exit=0 secs=8
+jini packages/agent-plugins files=119 start=01:58:25
+exit=0 secs=8
+jini packages/core files=132 start=01:58:33
+exit=123 secs=6
+jini packages/daemon files=140 start=01:58:39
+exit=123 secs=11
+jini packages/agent-runtime files=151 start=01:58:50
+exit=123 secs=11
+jini packages/chat files=219 start=01:59:01
+exit=0 secs=15
+jini packages/cms files=286 start=01:59:16
+exit=123 secs=12
+tovu apps/desktop files=262 start=01:59:28
+exit=123 secs=24
+jini packages/admin files=378 start=01:59:52
+exit=123 secs=13
+jini packages/ui files=737 start=02:00:05
+exit=123 secs=22
+tovu apps/admin files=895 start=02:00:27
+exit=123 secs=43
+tovu apps/website files=2165 start=02:01:10
