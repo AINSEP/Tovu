@@ -3071,3 +3071,483 @@ ok 458 - export result and CLI explain path precedence (publicUrl=undefined, bas
   duration_ms: 226.241544
   type: 'test'
   ...
+# Subtest: piped input: only the first line is the connection string and nothing is printed
+ok 459 - piped input: only the first line is the connection string and nothing is printed
+  ---
+  duration_ms: 10.847306
+  type: 'test'
+  ...
+# Subtest: piped input with no newline and empty input both resolve to the whole (possibly empty) text
+ok 460 - piped input with no newline and empty input both resolve to the whole (possibly empty) text
+  ---
+  duration_ms: 9.036081
+  type: 'test'
+  ...
+# Subtest: a terminal is prompted once, the typed value is not echoed, and the prompt line is closed
+ok 461 - a terminal is prompted once, the typed value is not echoed, and the prompt line is closed
+  ---
+  duration_ms: 10.953567
+  type: 'test'
+  ...
+# Subtest: removes a fixture tree containing read-only nested directories
+ok 462 - removes a fixture tree containing read-only nested directories
+  ---
+  duration_ms: 8.631777
+  type: 'test'
+  ...
+# Subtest: a missing fixture tree is a no-op
+ok 463 - a missing fixture tree is a no-op
+  ---
+  duration_ms: 0.323033
+  type: 'test'
+  ...
+# Subtest: passes the theme folder and its basename id, and forwards --dry-run
+ok 464 - passes the theme folder and its basename id, and forwards --dry-run
+  ---
+  duration_ms: 2.460508
+  type: 'test'
+  ...
+# Subtest: successful outcomes print one line and leave the exit code alone
+ok 465 - successful outcomes print one line and leave the exit code alone
+  ---
+  duration_ms: 0.761115
+  type: 'test'
+  ...
+# Subtest: a failure lists its reason, validator and load errors, the staged output, and exits 1
+ok 466 - a failure lists its reason, validator and load errors, the staged output, and exits 1
+  ---
+  duration_ms: 0.434124
+  type: 'test'
+  ...
+# Subtest: a bare failure points at the errors below instead of inventing a reason
+ok 467 - a bare failure points at the errors below instead of inventing a reason
+  ---
+  duration_ms: 0.180396
+  type: 'test'
+  ...
+# Subtest: --json prints the raw result, failures included, and still exits 1 on failure
+ok 468 - --json prints the raw result, failures included, and still exits 1 on failure
+  ---
+  duration_ms: 0.292945
+  type: 'test'
+  ...
+# Subtest: U-001-B1/ORD1 (property): N simultaneous acquireOperationLock attempts for the same site, from simulated Database and Recovery callers, resolve to exactly one winner
+ok 469 - U-001-B1/ORD1 (property): N simultaneous acquireOperationLock attempts for the same site, from simulated Database and Recovery callers, resolve to exactly one winner
+  ---
+  duration_ms: 2.821672
+  type: 'test'
+  ...
+# Subtest: U-001-B1 (property): for 50 independent sites, each site's own 4 concurrent attempts resolve independently to exactly one winner per site
+ok 470 - U-001-B1 (property): for 50 independent sites, each site's own 4 concurrent attempts resolve independently to exactly one winner per site
+  ---
+  duration_ms: 2.501783
+  type: 'test'
+  ...
+# Subtest: U-001-ORD1: after a winning acquire and a subsequent release, a fresh acquire for the same site can win again (no permanent lockout)
+ok 471 - U-001-ORD1: after a winning acquire and a subsequent release, a fresh acquire for the same site can win again (no permanent lockout)
+  ---
+  duration_ms: 0.400143
+  type: 'test'
+  ...
+# Subtest: local owner defaults ON; other principals and the off switch stay locked
+ok 472 - local owner defaults ON; other principals and the off switch stay locked
+  ---
+  duration_ms: 13.925271
+  type: 'test'
+  ...
+# Subtest: hosted signal {"TOVU_RUNTIME_MODE":"production"} overrides owner opt-ins and permission bypass
+ok 473 - hosted signal {"TOVU_RUNTIME_MODE":"production"} overrides owner opt-ins and permission bypass
+  ---
+  duration_ms: 0.232545
+  type: 'test'
+  ...
+# Subtest: hosted signal {"TOVU_HOSTED":"1"} overrides owner opt-ins and permission bypass
+ok 474 - hosted signal {"TOVU_HOSTED":"1"} overrides owner opt-ins and permission bypass
+  ---
+  duration_ms: 0.086434
+  type: 'test'
+  ...
+# Subtest: hosted signal {"TOVU_HOSTED":"true"} overrides owner opt-ins and permission bypass
+ok 475 - hosted signal {"TOVU_HOSTED":"true"} overrides owner opt-ins and permission bypass
+  ---
+  duration_ms: 0.078607
+  type: 'test'
+  ...
+# Subtest: hosted signal {"TOVU_PUBLIC_URL":"https://tovu.dev"} overrides owner opt-ins and permission bypass
+ok 476 - hosted signal {"TOVU_PUBLIC_URL":"https://tovu.dev"} overrides owner opt-ins and permission bypass
+  ---
+  duration_ms: 0.101872
+  type: 'test'
+  ...
+# Subtest: hosted signal {"TOVU_PUBLIC_URL":"https://owner.tovu.dev/"} overrides owner opt-ins and permission bypass
+ok 477 - hosted signal {"TOVU_PUBLIC_URL":"https://owner.tovu.dev/"} overrides owner opt-ins and permission bypass
+  ---
+  duration_ms: 9.225587
+  type: 'test'
+  ...
+# Subtest: Full CLI access is a single owner setting, with a reversible legacy environment alias
+ok 478 - Full CLI access is a single owner setting, with a reversible legacy environment alias
+  ---
+  duration_ms: 0.316843
+  type: 'test'
+  ...
+# Subtest: injected native restrictions override owner grants and granular capability choices
+ok 479 - injected native restrictions override owner grants and granular capability choices
+  ---
+  duration_ms: 0.179103
+  type: 'test'
+  ...
+# Subtest: a listed class without a fixed message publishes its own message
+ok 480 - a listed class without a fixed message publishes its own message
+  ---
+  duration_ms: 1.32982
+  type: 'test'
+  ...
+# Subtest: a listed class with a fixed message publishes the fixed message, never its own text
+ok 481 - a listed class with a fixed message publishes the fixed message, never its own text
+  ---
+  duration_ms: 0.210006
+  type: 'test'
+  ...
+# Subtest: unknown means redacted: an unlisted class, a plain Error, a subclass of nothing listed, and a non-Error throw all get the fallback
+ok 482 - unknown means redacted: an unlisted class, a plain Error, a subclass of nothing listed, and a non-Error throw all get the fallback
+  ---
+  duration_ms: 0.152031
+  type: 'test'
+  ...
+# Subtest: a subclass of a listed class matches that rule
+ok 483 - a subclass of a listed class matches that rule
+  ---
+  duration_ms: 0.143426
+  type: 'test'
+  ...
+# Subtest: describeErrorForLog names the class and a constant-token code, never the message
+ok 484 - describeErrorForLog names the class and a constant-token code, never the message
+  ---
+  duration_ms: 0.294754
+  type: 'test'
+  ...
+# Subtest: describeErrorForLog drops a code that is free text rather than a constant token
+ok 485 - describeErrorForLog drops a code that is free text rather than a constant token
+  ---
+  duration_ms: 2.926482
+  type: 'test'
+  ...
+# Subtest: describeErrorForLog describes a direct cause the same way
+ok 486 - describeErrorForLog describes a direct cause the same way
+  ---
+  duration_ms: 0.221792
+  type: 'test'
+  ...
+# Subtest: describeErrorForLog never stringifies a non-Error throw
+ok 487 - describeErrorForLog never stringifies a non-Error throw
+  ---
+  duration_ms: 0.207106
+  type: 'test'
+  ...
+# Subtest: blanks every secret shape, and the secret substring is absent from the output
+ok 488 - blanks every secret shape, and the secret substring is absent from the output
+  ---
+  duration_ms: 13.532646
+  type: 'test'
+  ...
+# Subtest: a Postgres URL's user:pass is blanked; the host, port, path and IP are kept exactly
+ok 489 - a Postgres URL's user:pass is blanked; the host, port, path and IP are kept exactly
+  ---
+  duration_ms: 0.330919
+  type: 'test'
+  ...
+# Subtest: an Authorization header inside a longer message is blanked without eating the IP or cause that follows it
+ok 490 - an Authorization header inside a longer message is blanked without eating the IP or cause that follows it
+  ---
+  duration_ms: 0.154941
+  type: 'test'
+  ...
+# Subtest: a Tovu API key keeps its key-id prefix and blanks only the secret half
+ok 491 - a Tovu API key keeps its key-id prefix and blanks only the secret half
+  ---
+  duration_ms: 0.164341
+  type: 'test'
+  ...
+# Subtest: UNCHANGED: text with nothing secret-shaped in it is returned byte-for-byte, with redactions === 0
+ok 492 - UNCHANGED: text with nothing secret-shaped in it is returned byte-for-byte, with redactions === 0
+  ---
+  duration_ms: 0.402805
+  type: 'test'
+  ...
+# Subtest: idempotent: redacting an already-redacted text a second time changes nothing further
+ok 493 - idempotent: redacting an already-redacted text a second time changes nothing further
+  ---
+  duration_ms: 0.258984
+  type: 'test'
+  ...
+# Subtest: redactions counts every value blanked, not just whether any were found
+ok 494 - redactions counts every value blanked, not just whether any were found
+  ---
+  duration_ms: 0.154011
+  type: 'test'
+  ...
+# Subtest: an empty string is returned unchanged, with redactions === 0
+ok 495 - an empty string is returned unchanged, with redactions === 0
+  ---
+  duration_ms: 1.180207
+  type: 'test'
+  ...
+# Subtest: a `label: value` colon form is blanked for every secret label, quoted or bare
+ok 496 - a `label: value` colon form is blanked for every secret label, quoted or bare
+  ---
+  duration_ms: 0.560451
+  type: 'test'
+  ...
+# Subtest: a JSON error body embedded inside another JSON string still has its escaped-quote value blanked
+ok 497 - a JSON error body embedded inside another JSON string still has its escaped-quote value blanked
+  ---
+  duration_ms: 0.233461
+  type: 'test'
+  ...
+# Subtest: a DSN password containing an un-encoded @ is blanked WHOLE, not up to its first @
+ok 498 - a DSN password containing an un-encoded @ is blanked WHOLE, not up to its first @
+  ---
+  duration_ms: 0.146171
+  type: 'test'
+  ...
+# Subtest: a truncated Anthropic key — too short for SECRET_PATTERNS' 90-char rule — is still blanked
+ok 499 - a truncated Anthropic key — too short for SECRET_PATTERNS' 90-char rule — is still blanked
+  ---
+  duration_ms: 0.242893
+  type: 'test'
+  ...
+# Subtest: every newly covered shape is still idempotent, including the DSN one
+ok 500 - every newly covered shape is still idempotent, including the DSN one
+  ---
+  duration_ms: 0.38491
+  type: 'test'
+  ...
+# Subtest: the registry routes ('post','delete') and ('post','update') to two distinct reverters
+ok 501 - the registry routes ('post','delete') and ('post','update') to two distinct reverters
+  ---
+  duration_ms: 15.239934
+  type: 'test'
+  ...
+# Subtest: applyInverse clears the trash marker, restoring the row losslessly
+ok 502 - applyInverse clears the trash marker, restoring the row losslessly
+  ---
+  duration_ms: 1.266238
+  type: 'test'
+  ...
+# Subtest: restoring a PUBLISHED row re-emits entry.published — symmetric to the delete's entry.unpublished
+ok 503 - restoring a PUBLISHED row re-emits entry.published — symmetric to the delete's entry.unpublished
+  ---
+  duration_ms: 1.172942
+  type: 'test'
+  ...
+# Subtest: restoring a DRAFT row emits nothing — it never re-entered the public site
+ok 504 - restoring a DRAFT row emits nothing — it never re-entered the public site
+  ---
+  duration_ms: 0.570891
+  type: 'test'
+  ...
+# Subtest: currentVersion reads the trashed row's version — the revert guard must see through the trash
+ok 505 - currentVersion reads the trashed row's version — the revert guard must see through the trash
+  ---
+  duration_ms: 0.887409
+  type: 'test'
+  ...
+# Subtest: applyInverse on a row that no longer exists throws rather than silently succeeding
+ok 506 - applyInverse on a row that no longer exists throws rather than silently succeeding
+  ---
+  duration_ms: 1.13646
+  type: 'test'
+  ...
+# Subtest: AC-21/REQ-30: a widget referenced in one widget_area placement produces exactly one widget-area-placement ref row
+ok 507 - AC-21/REQ-30: a widget referenced in one widget_area placement produces exactly one widget-area-placement ref row
+  ---
+  duration_ms: 1.953277
+  type: 'test'
+  ...
+# Subtest: AC-21/REQ-30: a widget referenced by an inline widgetEmbed node produces a widget-embed ref row
+ok 508 - AC-21/REQ-30: a widget referenced by an inline widgetEmbed node produces a widget-embed ref row
+  ---
+  duration_ms: 0.393748
+  type: 'test'
+  ...
+# Subtest: AC-22/REQ-31: a widget instance's ref-typed config field (formDefinitionId) extracts a config-field ref row
+ok 509 - AC-22/REQ-31: a widget instance's ref-typed config field (formDefinitionId) extracts a config-field ref row
+  ---
+  duration_ms: 0.381185
+  type: 'test'
+  ...
+# Subtest: REQ-32: a taxonomy-term-target config field (recent-entries' categoryTermId) is extracted with targetKind 'term', distinguishable from an entry-target row
+ok 510 - REQ-32: a taxonomy-term-target config field (recent-entries' categoryTermId) is extracted with targetKind 'term', distinguishable from an entry-target row
+  ---
+  duration_ms: 0.264183
+  type: 'test'
+  ...
+# Subtest: INV-06: extraction is idempotent — re-extracting an unchanged entry produces the identical ref set (pure function of its input)
+ok 511 - INV-06: extraction is idempotent — re-extracting an unchanged entry produces the identical ref set (pure function of its input)
+  ---
+  duration_ms: 1.166771
+  type: 'test'
+  ...
+# Subtest: REQ-29: extracting a widget instance with no references produces an empty ref set, not an error
+ok 512 - REQ-29: extracting a widget instance with no references produces an empty ref set, not an error
+  ---
+  duration_ms: 0.212554
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: a widget-type marker produces a page-html-embed ref row targeting the widget entry
+ok 513 - extractHtmlEntryRefs: a widget-type marker produces a page-html-embed ref row targeting the widget entry
+  ---
+  duration_ms: 1.647771
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: a RETIRED form-type marker produces no row at all — `form` was removed as an embed type (2026-08-10), and a stale one in stored content must degrade like any unregistered type rather than fabricating a ref
+ok 514 - extractHtmlEntryRefs: a RETIRED form-type marker produces no row at all — `form` was removed as an embed type (2026-08-10), and a stale one in stored content must degrade like any unregistered type rather than fabricating a ref
+  ---
+  duration_ms: 0.317088
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: a page with both kinds of embed and plain content extracts exactly the embed refs, none for the plain content
+ok 515 - extractHtmlEntryRefs: a page with both kinds of embed and plain content extracts exactly the embed refs, none for the plain content
+  ---
+  duration_ms: 0.482087
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: a page with no embeds produces an empty ref set, not an error (REQ-29's spirit, carried over)
+ok 516 - extractHtmlEntryRefs: a page with no embeds produces an empty ref set, not an error (REQ-29's spirit, carried over)
+  ---
+  duration_ms: 0.15201
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: idempotent — re-extracting unchanged html produces the identical ref set (pure function of its input, matching extractEntryRefs' own INV-06 discipline)
+ok 517 - extractHtmlEntryRefs: idempotent — re-extracting unchanged html produces the identical ref set (pure function of its input, matching extractEntryRefs' own INV-06 discipline)
+  ---
+  duration_ms: 0.254809
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: a placeholder referencing a deleted/nonexistent widget is STILL indexed — indexing depends only on the placeholder's presence in html, never on whether the target currently resolves (this function takes no repo dependency at all, so it structurally cannot filter on resolution status; this is the exact case entry_refs exists to catch: a page whose reference silently stopped working)
+ok 518 - extractHtmlEntryRefs: a placeholder referencing a deleted/nonexistent widget is STILL indexed — indexing depends only on the placeholder's presence in html, never on whether the target currently resolves (this function takes no repo dependency at all, so it structurally cannot filter on resolution status; this is the exact case entry_refs exists to catch: a page whose reference silently stopped working)
+  ---
+  duration_ms: 0.473894
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: a media-type embed is indexed with targetKind "asset" (2026-08-07) — a media asset lives in a different storage domain than the generic entries graph, so it is never tagged targetKind "entry"
+ok 519 - extractHtmlEntryRefs: a media-type embed is indexed with targetKind "asset" (2026-08-07) — a media asset lives in a different storage domain than the generic entries graph, so it is never tagged targetKind "entry"
+  ---
+  duration_ms: 0.208724
+  type: 'test'
+  ...
+# Subtest: extractHtmlEntryRefs: an unregistered/future embed type is scanned but not indexed — HTML_EMBED_TARGET_KINDS has no arm for it, and guessing a targetKind would be wrong data
+ok 520 - extractHtmlEntryRefs: an unregistered/future embed type is scanned but not indexed — HTML_EMBED_TARGET_KINDS has no arm for it, and guessing a targetKind would be wrong data
+  ---
+  duration_ms: 0.393827
+  type: 'test'
+  ...
+# Subtest: a 5000-deep bodyJson extracts every widgetEmbed ref in document order instead of overflowing the call stack (save path; same class as f646ba397's GET-path walkers)
+ok 521 - a 5000-deep bodyJson extracts every widgetEmbed ref in document order instead of overflowing the call stack (save path; same class as f646ba397's GET-path walkers)
+  ---
+  duration_ms: 6.501237
+  type: 'test'
+  ...
+# Subtest: structured extraction ignores malformed nodes, placements and namespace bags without dropping valid siblings
+ok 522 - structured extraction ignores malformed nodes, placements and namespace bags without dropping valid siblings
+  ---
+  duration_ms: 6.870191
+  type: 'test'
+  ...
+# Subtest: gallery config references preserve authored media positions and repeated targets
+ok 523 - gallery config references preserve authored media positions and repeated targets
+  ---
+  duration_ms: 0.423355
+  type: 'test'
+  ...
+# Subtest: media config references preserve authored media positions and repeated targets
+ok 524 - media config references preserve authored media positions and repeated targets
+  ---
+  duration_ms: 0.107629
+  type: 'test'
+  ...
+# Subtest: media content in placements and inline widgets is indexed with each owning field path
+ok 525 - media content in placements and inline widgets is indexed with each owning field path
+  ---
+  duration_ms: 0.138178
+  type: 'test'
+  ...
+# Subtest: HTML galleries keep image locators even with invalid layout and duplicate targets
+ok 526 - HTML galleries keep image locators even with invalid layout and duplicate targets
+  ---
+  duration_ms: 0.263691
+  type: 'test'
+  ...
+# Subtest: HTML single-target references stop at fifty and accept exactly the maximum id length
+ok 527 - HTML single-target references stop at fifty and accept exactly the maximum id length
+  ---
+  duration_ms: 8.710129
+  type: 'test'
+  ...
+# Subtest: gallery markers have a separate fifty-marker budget and cannot consume a later widget reference
+ok 528 - gallery markers have a separate fifty-marker budget and cannot consume a later widget reference
+  ---
+  duration_ms: 1.214024
+  type: 'test'
+  ...
+# Subtest: raw HTML media and media authored inside a non-gallery marker retain separate source paths
+ok 529 - raw HTML media and media authored inside a non-gallery marker retain separate source paths
+  ---
+  duration_ms: 0.480405
+  type: 'test'
+  ...
+# Subtest: subscribeAll delivers events of several different names to one handler
+ok 530 - subscribeAll delivers events of several different names to one handler
+  ---
+  duration_ms: 2.196203
+  type: 'test'
+  ...
+# Subtest: subscribeAll's unsubscriber stops delivery
+ok 531 - subscribeAll's unsubscriber stops delivery
+  ---
+  duration_ms: 0.322252
+  type: 'test'
+  ...
+# Subtest: subscribeAll handlers run alongside per-name subscribe handlers
+ok 532 - subscribeAll handlers run alongside per-name subscribe handlers
+  ---
+  duration_ms: 0.262385
+  type: 'test'
+  ...
+# Subtest: publishBatch delivers every event, in order, to a subscribeAll handler
+ok 533 - publishBatch delivers every event, in order, to a subscribeAll handler
+  ---
+  duration_ms: 0.756152
+  type: 'test'
+  ...
+# Subtest: publishBatch on an empty array delivers nothing
+ok 534 - publishBatch on an empty array delivers nothing
+  ---
+  duration_ms: 0.21291
+  type: 'test'
+  ...
+# Subtest: subscribe's unsubscriber removes only that handler, leaving a second handler on the same event name intact
+ok 535 - subscribe's unsubscriber removes only that handler, leaving a second handler on the same event name intact
+  ---
+  duration_ms: 0.356329
+  type: 'test'
+  ...
+# Subtest: named subscriptions deliver only the matching name
+ok 536 - named subscriptions deliver only the matching name
+  ---
+  duration_ms: 6.526019
+  type: 'test'
+  ...
+# Subtest: a handler failure is reported by publish for the outbox to retry
+ok 537 - a handler failure is reported by publish for the outbox to retry
+  ---
+  duration_ms: 0.66964
+  type: 'test'
+  ...
+# Subtest: unsubscribing repeatedly preserves other wildcard handlers and later named subscriptions
+ok 538 - unsubscribing repeatedly preserves other wildcard handlers and later named subscriptions
+  ---
+  duration_ms: 0.446999
+  type: 'test'
+  ...

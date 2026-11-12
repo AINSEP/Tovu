@@ -66,3 +66,25 @@ If you used to conditionally omit it with placeholder={condition && value}, pass
    ✓ redirects React binding > prefers live host options over the factory defaults 328ms
    ✓ redirects React binding > blocks the screen with the load error when the first list read fails 309ms
  ✓ src/widgets/react/__tests__/use-widget-region-editor.hooks.unit.test.tsx (8 tests) 551ms
+ ✓ src/widgets/react/__tests__/WidgetRegionEditor.unit.test.tsx (19 tests) 765ms
+ ✓ src/react/entities/__tests__/draft-rules.test.ts (26 tests) 13ms
+ ✓ src/media/react/__tests__/qa-fixes.test.tsx (8 tests) 2519ms
+   ✓ shows only an error after failure and recovers through Retry 474ms
+   ✓ places host actions in the header, marks selected sort, and filters Trash with optional Restore pills 651ms
+   ✓ names the permanent deletion and focuses the next card, then the empty grid 957ms
+ ✓ src/comments/react/__tests__/Comments.unit.test.tsx (4 tests) 966ms
+   ✓ offers only Approve/Spam/Trash for a pending comment — no Restore, no Purge 446ms
+   ✓ offers Purge only under the trash filter, and gates it through ConfirmDialog instead of window.confirm 406ms
+ ✓ src/forms/react/__tests__/use-form-submissions.unit.test.tsx (7 tests) 506ms
+ ✓ src/react/entities/__tests__/screens.test.tsx (14 tests) 612ms
+ ✓ src/widgets/react/__tests__/WidgetInstanceEditor.unit.test.tsx (15 tests) 531ms
+   ✓ editor controls > sends the edited title and config to Save, and blocks Back when leaving is declined 306ms
+ ✓ src/agent-plugins/react/__tests__/agent-plugins.test.tsx (7 tests) 4183ms
+   ✓ denies default mounts without reading the backend 378ms
+   ✓ renders both enabled and disabled rows read-only with details and inspection 508ms
+   ✓ preserves all rows across lazy list tabs and shows an honest marketplace 1046ms
+   ✓ uses direct enable, guarded disable and cancel-first focus without optimistic activation 549ms
+   ✓ Downloaded Turn off confirms a disable without deleting or hiding the package 787ms
+   ✓ inspects disabled packages with file omissions, caps, keyboard navigation and per-file wrap reset 495ms
+   ✓ honors host Button overrides for page and confirmation actions 419ms
+ ✓ src/forms/react/__tests__/use-form-editor.unit.test.tsx (9 tests) 547ms

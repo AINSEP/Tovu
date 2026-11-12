@@ -3373,3 +3373,107 @@ ok 444 - a run aborted during the post-confirmation permission re-check removes 
   duration_ms: 191.498606
   type: 'test'
   ...
+# Subtest: R3: Tovu card identity resolves to the exact pre-seam bytes
+ok 445 - R3: Tovu card identity resolves to the exact pre-seam bytes
+  ---
+  duration_ms: 2.423915
+  type: 'test'
+  ...
+# Subtest: R3: an alternate host namespace flows into the URI and app with an opaque resource
+ok 446 - R3: an alternate host namespace flows into the URI and app with an opaque resource
+  ---
+  duration_ms: 0.431179
+  type: 'test'
+  ...
+# Subtest: forms: the token form is built through the host credential forms port into its own form type
+ok 447 - forms: the token form is built through the host credential forms port into its own form type
+  ---
+  duration_ms: 0.522089
+  type: 'test'
+  ...
+# Subtest: destination: host channel and copy are used, with an opaque resource
+ok 448 - destination: host channel and copy are used, with an opaque resource
+  ---
+  duration_ms: 1.026695
+  type: 'test'
+  ...
+# Subtest: boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require
+ok 449 - boundary scanner ignores rationale but sees type imports, import-equals, import types, dynamic imports and require
+  ---
+  duration_ms: 2.614492
+  type: 'test'
+  ...
+# Subtest: no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+ok 450 - no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+  ---
+  duration_ms: 34.194747
+  type: 'test'
+  ...
+# Subtest: D1: the temp file is fsync'd before the rename that publishes it
+ok 451 - D1: the temp file is fsync'd before the rename that publishes it
+  ---
+  duration_ms: 26.071987
+  type: 'test'
+  ...
+# Subtest: D2: the workspace directory is best-effort fsync'd AFTER the rename
+ok 452 - D2: the workspace directory is best-effort fsync'd AFTER the rename
+  ---
+  duration_ms: 36.321713
+  type: 'test'
+  ...
+# Subtest: D2: unsupported directory fsync does not reject a persisted activation
+ok 453 - D2: unsupported directory fsync does not reject a persisted activation
+  ---
+  duration_ms: 15.999203
+  type: 'test'
+  ...
+# Subtest: each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them)
+ok 454 - each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them)
+  ---
+  duration_ms: 1074.554437
+  type: 'test'
+  ...
+# Subtest: github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed
+ok 455 - github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed
+  ---
+  duration_ms: 8.526679
+  type: 'test'
+  ...
+# Subtest: vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed
+ok 456 - vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed
+  ---
+  duration_ms: 3.728278
+  type: 'test'
+  ...
+# Subtest: netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed
+ok 457 - netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed
+  ---
+  duration_ms: 5.277114
+  type: 'test'
+  ...
+# Subtest: cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed
+ok 458 - cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed
+  ---
+  duration_ms: 5.112273
+  type: 'test'
+  ...
+# Subtest: cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed
+ok 459 - cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed
+  ---
+  duration_ms: 5.139516
+  type: 'test'
+  ...
+# Subtest: s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed
+ok 460 - s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed
+  ---
+  duration_ms: 3.768723
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-z6isW2/ws/workspace-local
+# Subtest: existing site: an earlier explicitly ENABLED deploy record is retired at the next boot, and every host is on
+ok 461 - existing site: an earlier explicitly ENABLED deploy record is retired at the next boot, and every host is on
+  ---
+  duration_ms: 4423.358956
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-43FCs1/ws/workspace-local
