@@ -3,7 +3,7 @@
   "limits": {
     "fileLines": 500,
     "functionLines": 100,
-    "_functionLinesNote": "The owner said 80, then 100; 100 is the working number until they confirm."
+    "_functionLinesNote": "Owner confirmed 100 on 2026-11-11. When the gate lands (refactor stage), pathExclusions become ESLint path ignores for max-lines / max-lines-per-function and entries become per-file overrides; this file stays the reasons list. New exception candidates go to the owner; the refactoring agent does not decide them."
   },
   "pathExclusions": [
     { "repo": "tovu", "pattern": "(^|/)[^/]*-i18n\\.tsx?$", "reason": "Locale dictionaries: one entry per string, and the size grows with each language." },
