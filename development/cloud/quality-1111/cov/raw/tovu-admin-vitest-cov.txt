@@ -2066,3 +2066,747 @@ stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > 
      ✓ closes the URL dialog without submitting or clearing its draft  991ms
  ✓ src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx (14 tests) 739ms
    ✓ does not re-render the host on keystrokes that change neither blankness nor the slash query  471ms
+ ✓ src/features/voice-input/__tests__/PushToTalkMicButton.unit.test.tsx (11 tests) 689ms
+ ✓ src/integrations/jini-admin/__tests__/comments-swap.unit.test.tsx (5 tests) 3527ms
+     ✓ mounts both existing sections through Comments(), allowing the owner wildcard  1143ms
+     ✓ changes locale without remounting the queue filter or an edited settings input  551ms
+     ✓ denies the queue/settings reads without their grants  390ms
+     ✓ refreshes only the mounted queue and removes its event subscription on unmount  504ms
+     ✓ keeps cached comments and late cursor responses private after logout/login as another principal  933ms
+ ✓ src/lib/__tests__/api-request-onok-and-null-body.unit.test.ts (12 tests) 164ms
+ ✓ src/features/sites/__tests__/site-transfer-saved-keys.journey.test.tsx (8 tests) 1882ms
+   ✓ exports without a saved-keys option or saved-key request payload  510ms
+   ✓ keeps the saved keys password separate, submits it as a form field, and retains notices after refresh  482ms
+   ✓ allows owner setup without a saved keys password (bundle present: true)  334ms
+   ✓ allows owner setup without a saved keys password (bundle present: false)  312ms
+ ✓ src/features/settings/__tests__/ai-agent-presentation.unit.test.ts (10 tests) 46ms
+ ✓ src/features/themes/__tests__/use-theme-explore-file-groups.hooks.unit.test.ts (22 tests) 53ms
+ ✓ src/components/__tests__/MediaEditDialog.hooks.unit.test.tsx (15 tests) 577ms
+     ✓ native cancel calls onCancel through the rendered dialog  310ms
+stderr | src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > a 401 from an unrelated screen's own api call clears the session, not just that one call
+[admin] settings change feed unavailable ReferenceError: EventSource is not defined
+    at open (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:53:27)
+    at connect (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:73:22)
+    at open (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:84:19)
+    at reconcileTab (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:139:5)
+    at reconcile (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:129:5)
+    at startBrowserStream (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:163:9)
+    at subscribeToSettingsChanges (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:65:10)
+    at /home/user/Tovu/apps/admin/src/App.hooks.ts:200:12
+    at Object.react_stack_bottom_frame (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:28656:20)
+    at runWithFiberInDEV (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13)
+
+stderr | src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > a 403 (authenticated but forbidden) does NOT clear the session — a real permission error must not kick the operator to login
+[admin] settings change feed unavailable ReferenceError: EventSource is not defined
+    at open (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:53:27)
+    at connect (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:73:22)
+    at open (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:84:19)
+    at reconcileTab (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:139:5)
+    at reconcile (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:129:5)
+    at startBrowserStream (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:163:9)
+    at subscribeToSettingsChanges (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:65:10)
+    at /home/user/Tovu/apps/admin/src/App.hooks.ts:200:12
+    at Object.react_stack_bottom_frame (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:28656:20)
+    at runWithFiberInDEV (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13)
+
+stderr | src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed third-party 401) does NOT clear the session
+[admin] settings change feed unavailable ReferenceError: EventSource is not defined
+    at open (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:53:27)
+    at connect (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:73:22)
+    at open (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:84:19)
+    at reconcileTab (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:139:5)
+    at reconcile (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:129:5)
+    at startBrowserStream (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:163:9)
+    at subscribeToSettingsChanges (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:65:10)
+    at /home/user/Tovu/apps/admin/src/App.hooks.ts:200:12
+    at Object.react_stack_bottom_frame (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:28656:20)
+    at runWithFiberInDEV (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13)
+
+stderr | src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > unsubscribes on unmount so a later 401 cannot notify the removed session
+[admin] settings change feed unavailable ReferenceError: EventSource is not defined
+    at open (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:53:27)
+    at connect (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:73:22)
+    at open (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:84:19)
+    at reconcileTab (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:139:5)
+    at reconcile (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:129:5)
+    at startBrowserStream (/home/user/Tovu/apps/admin/src/lib/browser-stream.ts:163:9)
+    at subscribeToSettingsChanges (/home/user/Tovu/apps/admin/src/lib/settings-events.ts:65:10)
+    at /home/user/Tovu/apps/admin/src/App.hooks.ts:200:12
+    at Object.react_stack_bottom_frame (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:28656:20)
+    at runWithFiberInDEV (/home/user/Tovu/apps/admin/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13)
+
+ ✓ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx (6 tests) 998ms
+   ✓ settings 401 after a site switch shows login without boot retries (password sign-in: true)  467ms
+ ✓ src/components/__tests__/ChatFab.unit.test.tsx (12 tests) 511ms
+ ✓ src/components/AssistantDock/__tests__/agent-failure-transport.unit.test.ts (15 tests) 61ms
+ ✓ src/features/plugins/__tests__/use-admin-surface-frame.hooks.unit.test.ts (8 tests) 702ms
+ ✓ src/lib/__tests__/assistant-transport.agent-plugins.unit.test.ts (6 tests) 129ms
+ ✓ src/features/plugins/__tests__/composer-capabilities.unit.test.ts (13 tests) 20ms
+ ✓ src/features/media/__tests__/media-order-by.unit.test.tsx (12 tests) 1037ms
+     ✓ re-orders the grid to alphabetical when the operator picks it from the dropdown  393ms
+     ✓ switches back to Created when re-selected, proving the control is not a one-way/fixed default  361ms
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > renders the assistant dock's open state through a fake useChatDock, with no real ResizeObserver involved
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > renders the assistant dock's open state through a fake useChatDock, with no real ResizeObserver involved
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'en'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'en'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'es'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:644:9)
+    at processTimers (node:internal/timers:618:7)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'es'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:644:9)
+    at processTimers (node:internal/timers:618:7)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'id'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'id'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'de'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'de'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'zh-CN'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'zh-CN'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'zh-TW'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'zh-TW'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/features/observability/__tests__/use-recent-server-errors.hooks.unit.test.ts (11 tests) 527ms
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'pt-BR'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'pt-BR'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ru'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ru'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'fa'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'fa'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ar'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ar'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ja'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ja'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ko'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ko'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'pl'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'pl'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'hu'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'hu'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'fr'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'fr'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'uk'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'uk'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'tr'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'tr'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'th'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processTimers (node:internal/timers:615:9)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'th'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processTimers (node:internal/timers:615:9)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/features/plugins/__tests__/PackageFilesModal.unit.test.tsx (9 tests) 1347ms
+     ✓ shows a listed file's unavailable reason in place of its source, with no wrap toggle  612ms
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'it'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'it'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'hi'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'hi'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ur'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'ur'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/lib/__tests__/ledger-slice.test.ts (22 tests) 19ms
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'bn'
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > points toward the next sheet height and names that action in 'bn'
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capture phase), and AssistantDock publishes its folder-drop handler
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-chat-dock-seam.unit.test.tsx > a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capture phase), and AssistantDock publishes its folder-drop handler
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx (24 tests) 13254ms
+   ✓ renders the assistant dock's open state through a fake useChatDock, with no real ResizeObserver involved  1164ms
+   ✓ points toward the next sheet height and names that action in 'en'  868ms
+   ✓ points toward the next sheet height and names that action in 'es'  502ms
+   ✓ points toward the next sheet height and names that action in 'id'  766ms
+   ✓ points toward the next sheet height and names that action in 'de'  681ms
+   ✓ points toward the next sheet height and names that action in 'zh-CN'  457ms
+   ✓ points toward the next sheet height and names that action in 'zh-TW'  422ms
+   ✓ points toward the next sheet height and names that action in 'pt-BR'  461ms
+   ✓ points toward the next sheet height and names that action in 'ru'  472ms
+   ✓ points toward the next sheet height and names that action in 'fa'  452ms
+   ✓ points toward the next sheet height and names that action in 'ar'  472ms
+   ✓ points toward the next sheet height and names that action in 'ja'  571ms
+   ✓ points toward the next sheet height and names that action in 'ko'  552ms
+   ✓ points toward the next sheet height and names that action in 'pl'  553ms
+   ✓ points toward the next sheet height and names that action in 'hu'  519ms
+   ✓ points toward the next sheet height and names that action in 'fr'  315ms
+   ✓ points toward the next sheet height and names that action in 'uk'  414ms
+   ✓ points toward the next sheet height and names that action in 'tr'  502ms
+   ✓ points toward the next sheet height and names that action in 'hi'  703ms
+   ✓ points toward the next sheet height and names that action in 'ur'  531ms
+   ✓ points toward the next sheet height and names that action in 'bn'  599ms
+   ✓ a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capture phase), and AssistantDock publishes its folder-drop handler  705ms
+ ✓ src/lib/__tests__/api-remaining-endpoints.unit.test.ts (15 tests) 40ms
+stderr | src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx > typing /ui-ux-design in the composer > pins pluginRefIds=["ui-ux-design"] and clears the draft, identically to the + picker chip
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+stderr | src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx > typing /ui-ux-design in the composer > produces the exact same pluginRefIds state as selecting the row from the + picker menu
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+stderr | src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx > typing /ui-ux-design in the composer > produces the exact same pluginRefIds state as selecting the row from the + picker menu
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+stderr | src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx > typing /ui-ux-design in the composer > leaves an unrecognized slash command (e.g. /nonexistent-plugin) as literal text — no match, nothing pinned
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+stderr | src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx > typing /ui-ux-design in the composer > does not pin or clear the draft when Enter commits an IME composition
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+ ✓ src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx (4 tests) 1147ms
+     ✓ pins pluginRefIds=["ui-ux-design"] and clears the draft, identically to the + picker chip  707ms
+ ✓ src/components/__tests__/DevicePreview.hooks.unit.test.ts (20 tests) 92ms
+ ✓ src/features/pages/__tests__/editor-html-jump.unit.test.ts (11 tests) 285ms
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > /admin/widgets/regions reports widget-regions, the id agent-pages.ts publishes
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > /admin/widgets/regions reports widget-regions, the id agent-pages.ts publishes
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > /admin/widgets/regions reports widget-regions, the id agent-pages.ts publishes
+[AssistantDock] failed to load execution config Error: getSettingsEffective response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadExecutionConfig [as loadConfig] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:358:12)
+    at /home/user/Tovu/apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:176:57
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > …while the sidebar still highlights Widgets, which has no regions row of its own
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > …while the sidebar still highlights Widgets, which has no regions row of its own
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > …while the sidebar still highlights Widgets, which has no regions row of its own
+[AssistantDock] failed to load execution config Error: getSettingsEffective response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadExecutionConfig [as loadConfig] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:358:12)
+    at /home/user/Tovu/apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:176:57
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > the region editor reports its list page, the same way /posts/:id reports posts
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > the region editor reports its list page, the same way /posts/:id reports posts
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > the region editor reports its list page, the same way /posts/:id reports posts
+[AssistantDock] failed to load execution config Error: getSettingsEffective response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadExecutionConfig [as loadConfig] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:358:12)
+    at /home/user/Tovu/apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:176:57
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > /admin/widgets is unchanged — the split must not move the ordinary case
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > /admin/widgets is unchanged — the split must not move the ordinary case
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-agent-page-identity.unit.test.tsx > data-agent-page reports the published page id, not the sidebar row > /admin/widgets is unchanged — the split must not move the ordinary case
+[AssistantDock] failed to load execution config Error: getSettingsEffective response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadExecutionConfig [as loadConfig] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:358:12)
+    at /home/user/Tovu/apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:176:57
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/__tests__/unit/app-agent-page-identity.unit.test.tsx (52 tests) 1983ms
+     ✓ /admin/widgets/regions reports widget-regions, the id agent-pages.ts publishes  870ms
+     ✓ …while the sidebar still highlights Widgets, which has no regions row of its own  336ms
+     ✓ the region editor reports its list page, the same way /posts/:id reports posts  392ms
+     ✓ /admin/widgets is unchanged — the split must not move the ordinary case  367ms
+ ✓ src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx (17 tests) 79ms
+ ✓ src/hooks/__tests__/assistant-chats-dependencies.unit.test.ts (17 tests) 28ms
+ ✓ src/features/deployment/__tests__/deployment-i18n.unit.test.ts (84 tests) 120ms
+ ✓ src/features/providers/__tests__/always-allow.unit.test.tsx (11 tests) 629ms
+ ✓ src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx (29 tests) 881ms
+     ✓ gear: one ⓘ after the title, none per option; tapping it changes nothing; choosing writes the mode  441ms
+ ✓ src/features/auth/__tests__/use-login.hooks.unit.test.ts (13 tests) 168ms
+ ✓ src/lib/__tests__/panel-access.unit.test.ts (45 tests) 15ms
+ ✓ src/features/members/__tests__/Members.unit.test.tsx (5 tests) 1021ms
+     ✓ offers both Resend sign-in link and Disable  427ms
+ ✓ src/lib/__tests__/a2ui-action-poster.test.ts (14 tests) 42ms
+ ✓ src/lib/__tests__/api-users.unit.test.ts (16 tests) 34ms
+ ✓ src/features/admin-themes/__tests__/AdminThemes.unit.test.tsx (12 tests) 959ms
+     ✓ renders a card per installed theme from its manifest, with the stored one checked  562ms
+stderr | src/features/pages/__tests__/scriptblocks-roundtrip.unit.test.ts > Landing scriptblocks exact-source round trip > moving a Landing section retains ordinary inline styles, gaps and all raw atoms once
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: move)
+
+ ✓ src/features/sites/__tests__/sites-i18n.unit.test.ts (93 tests) 59ms
+stderr | src/features/pages/__tests__/scriptblocks-roundtrip.unit.test.ts > Landing scriptblocks exact-source round trip > no-op direct/parent/wrapper export retains every slice and authored style/script exactly once
+[useInteractiveHtmlEditor] falling back to full re-serialization: no text edit was recorded for this change
+
+ ✓ src/features/plugins/__tests__/plugin-conflicts-rules.unit.test.ts (34 tests) 25ms
+ ✓ src/styles/__tests__/external-mcp-tool-picker-css.unit.test.ts (13 tests) 21ms
+stderr | src/features/pages/__tests__/scriptblocks-roundtrip.unit.test.ts > Landing scriptblocks exact-source round trip > move of an ordinary neighbour forces structural export without changing retained slices
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: move)
+
+stderr | src/features/pages/__tests__/scriptblocks-roundtrip.unit.test.ts > Landing scriptblocks exact-source round trip > delete of an ordinary neighbour forces structural export without changing retained slices
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: delete)
+
+ ✓ src/features/pages/__tests__/scriptblocks-roundtrip.unit.test.ts (6 tests) 6496ms
+     ✓ moving a Landing section retains ordinary inline styles, gaps and all raw atoms once  1689ms
+     ✓ selects #adm-ring exactly once and retains all 19 cards as one opaque model  1046ms
+     ✓ no-op direct/parent/wrapper export retains every slice and authored style/script exactly once  720ms
+     ✓ paragraph text splice preserves the original rest of the Landing body byte-for-byte  952ms
+     ✓ move of an ordinary neighbour forces structural export without changing retained slices  889ms
+     ✓ delete of an ordinary neighbour forces structural export without changing retained slices  1196ms
+ ✓ src/lib/__tests__/settings-effective-reads.integration.test.ts (8 tests) 48ms
+ ✓ src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx (9 tests) 109ms
+ ✓ src/hooks/__tests__/tovu-execution-entry-points.integration.test.tsx (5 tests) 1808ms
+   ✓ Settings AI agent hides CLI, renders BYOK and preserves saved mode on provider edits  419ms
+   ✓ deployed composer hides the portaled Local CLI row and code-agent list, even for a saved CLI  1057ms
+ ✓ src/hooks/__tests__/use-assistant-chats.resume-last.unit.test.ts (8 tests) 514ms
+ ✓ src/features/menus/__tests__/Menus.unit.test.tsx (8 tests) 996ms
+     ✓ opens ConfirmDialog on click (not window.confirm), calls nothing until confirmed, then moves the menu to the Trash  515ms
+ ✓ src/__tests__/unit/selection-ring-css.unit.test.ts (22 tests) 1017ms
+ ✓ src/features/posts/__tests__/posts-agent-drive.unit.test.tsx (3 tests) 1058ms
+     ✓ publishes a distinct, clickable handle per row; the dropdown item stays outside the production-scoped root  522ms
+     ✓ opens each post's editor through its scoped title-link handle  309ms
+ ✓ src/features/collections/__tests__/CollectionEntries.unit.test.tsx (8 tests) 568ms
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — Interactive flush ref wiring > attaches usePageEditor's interactiveEditorRef onto the real InteractiveHtmlEditor
+[page-editor] interactive { phase: 'surface:interactive', ms: 3069 }
+
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — scroll event routing > passes the rendered HTML textarea's scroll position to its controller
+[page-editor] interactive { phase: 'surface:html', ms: 3099 }
+
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — scroll event routing > passes the draft preview iframe's load to its controller
+[page-editor] interactive { phase: 'surface:preview', ms: 3625 }
+
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — scroll event routing > passes the published preview iframe's load to its controller
+[page-editor] interactive { phase: 'surface:preview', ms: 3746 }
+
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — recovered content remount > remounts the Interactive canvas with recovered HTML using the real editor hook
+[page-editor] interactive { phase: 'surface:preview', ms: 3837 }
+
+Not implemented: Window's scrollTo() method
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — recovered content remount > remounts the Interactive canvas with recovered HTML using the real editor hook
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 3946 }
+
+stdout | src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx > PageEditor — recovered content remount > remounts the Interactive canvas with recovered HTML using the real editor hook
+[page-editor] interactive { phase: 'surface:interactive', ms: 4091 }
+
+ ✓ src/integrations/jini-admin/__tests__/seo-ports.unit.test.ts (11 tests) 22ms
+ ✓ src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx (5 tests) 1128ms
+     ✓ passes the rendered HTML textarea's scroll position to its controller  357ms
+     ✓ remounts the Interactive canvas with recovered HTML using the real editor hook  388ms
+ ✓ src/features/publish-content/__tests__/publish-content-port.scope.unit.test.ts (10 tests) 28ms
+ ✓ src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts (6 tests) 94ms
+ ✓ src/hooks/__tests__/use-dock-auto-rail.hooks.test.tsx (12 tests) 420ms
+     ✓ restores the real Sidebar's stored choice without storage events, including after a manual toggle  369ms
+ ✓ src/features/sites/__tests__/sites-config.unit.test.tsx (10 tests) 418ms
+ ✓ src/features/ai-assistant/__tests__/use-assistant-daemon-restart.unit.test.ts (11 tests) 592ms
+ ✓ src/features/plugins/__tests__/package-file-tree.unit.test.ts (31 tests) 14ms
+ ✓ src/integrations/jini-admin/__tests__/redirects-swap.unit.test.tsx (9 tests) 2700ms
+     ✓ mounts the existing route, publish contribution and lazy zero-hit cell  785ms
+     ✓ changes locale without remounting edited create/import fields or loaded hits  523ms
+     ✓ Bug B: deleting a switched-off rule moves it to the Trash, so it leaves the list  624ms
+     ✓ renders partial import results through the original helper copy  414ms
+     ✓ refreshes the mounted list for redirects and disposes its subscription  342ms
+ ✓ src/components/__tests__/SitesSidebarNav.unit.test.tsx (8 tests) 662ms
+ ✓ src/features/ai-assistant/__tests__/rules.unit.test.ts (29 tests) 11ms
+stderr | src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx > persists the desktop rail collapse under Tovu's pre-existing localStorage key
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx > persists the desktop rail collapse under Tovu's pre-existing localStorage key
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+

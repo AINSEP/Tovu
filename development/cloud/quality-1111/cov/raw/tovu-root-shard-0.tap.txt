@@ -7660,3 +7660,2087 @@ ok 1062 - ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_re
   duration_ms: 227.002086
   type: 'test'
   ...
+# Subtest: real tiny MP4 reaches the tool as N decodable bounded JPEGs with source metadata
+ok 1063 - real tiny MP4 reaches the tool as N decodable bounded JPEGs with source metadata
+  ---
+  duration_ms: 20106.532667
+  type: 'test'
+  ...
+# Subtest: an admitted provider without a client card is not ready; saving one makes it ready on the next call
+ok 1064 - an admitted provider without a client card is not ready; saving one makes it ready on the next call
+  ---
+  duration_ms: 199.071519
+  type: 'test'
+  ...
+# Subtest: a client card in another workspace does not make this workspace's provider ready
+ok 1065 - a client card in another workspace does not make this workspace's provider ready
+  ---
+  duration_ms: 38.635199
+  type: 'test'
+  ...
+# Subtest: a client card bound to a foreign token URL is not ready
+ok 1066 - a client card bound to a foreign token URL is not ready
+  ---
+  duration_ms: 18.002516
+  type: 'test'
+  ...
+# Subtest: a configured card cannot ready a provider shipped by a non-bundled plugin
+ok 1067 - a configured card cannot ready a provider shipped by a non-bundled plugin
+  ---
+  duration_ms: 7.209733
+  type: 'test'
+  ...
+# Subtest: [sqlite] D2: bulk revocation excludes only the current session within the member/workspace
+ok 1068 - [sqlite] D2: bulk revocation excludes only the current session within the member/workspace
+  ---
+  duration_ms: 215.429571
+  type: 'test'
+  ...
+# Subtest: [sqlite] password reads/writes are scoped and profile saves cannot erase or expose the hash
+ok 1069 - [sqlite] password reads/writes are scoped and profile saves cannot erase or expose the hash
+  ---
+  duration_ms: 189.167347
+  type: 'test'
+  ...
+# Subtest: [sqlite] challenge fields, reset purpose and id lookup round-trip within the member realm
+ok 1070 - [sqlite] challenge fields, reset purpose and id lookup round-trip within the member realm
+  ---
+  duration_ms: 249.688243
+  type: 'test'
+  ...
+# Subtest: [sqlite] concurrent code attempts reserve at most the limit, only on live challenges
+ok 1071 - [sqlite] concurrent code attempts reserve at most the limit, only on live challenges
+  ---
+  duration_ms: 238.953053
+  type: 'test'
+  ...
+# Subtest: [sqlite] link and code share exactly one successful consume; consumed rows cannot accrue attempts
+ok 1072 - [sqlite] link and code share exactly one successful consume; consumed rows cannot accrue attempts
+  ---
+  duration_ms: 117.015952
+  type: 'test'
+  ...
+# Subtest: [pglite] D2: bulk revocation excludes only the current session within the member/workspace
+ok 1073 - [pglite] D2: bulk revocation excludes only the current session within the member/workspace
+  ---
+  duration_ms: 10005.484187
+  type: 'test'
+  ...
+# Subtest: [pglite] password reads/writes are scoped and profile saves cannot erase or expose the hash
+ok 1074 - [pglite] password reads/writes are scoped and profile saves cannot erase or expose the hash
+  ---
+  duration_ms: 41.371509
+  type: 'test'
+  ...
+# Subtest: [pglite] challenge fields, reset purpose and id lookup round-trip within the member realm
+ok 1075 - [pglite] challenge fields, reset purpose and id lookup round-trip within the member realm
+  ---
+  duration_ms: 59.163677
+  type: 'test'
+  ...
+# Subtest: [pglite] concurrent code attempts reserve at most the limit, only on live challenges
+ok 1076 - [pglite] concurrent code attempts reserve at most the limit, only on live challenges
+  ---
+  duration_ms: 33.428186
+  type: 'test'
+  ...
+# Subtest: [pglite] link and code share exactly one successful consume; consumed rows cannot accrue attempts
+ok 1077 - [pglite] link and code share exactly one successful consume; consumed rows cannot accrue attempts
+  ---
+  duration_ms: 24.89032
+  type: 'test'
+  ...
+# Subtest: [memory] D2: bulk revocation excludes only the current session within the member/workspace
+ok 1078 - [memory] D2: bulk revocation excludes only the current session within the member/workspace
+  ---
+  duration_ms: 0.937062
+  type: 'test'
+  ...
+# Subtest: [memory] password reads/writes are scoped and profile saves cannot erase or expose the hash
+ok 1079 - [memory] password reads/writes are scoped and profile saves cannot erase or expose the hash
+  ---
+  duration_ms: 1.27615
+  type: 'test'
+  ...
+# Subtest: [memory] challenge fields, reset purpose and id lookup round-trip within the member realm
+ok 1080 - [memory] challenge fields, reset purpose and id lookup round-trip within the member realm
+  ---
+  duration_ms: 0.7169
+  type: 'test'
+  ...
+# Subtest: [memory] concurrent code attempts reserve at most the limit, only on live challenges
+ok 1081 - [memory] concurrent code attempts reserve at most the limit, only on live challenges
+  ---
+  duration_ms: 0.485909
+  type: 'test'
+  ...
+# Subtest: [memory] link and code share exactly one successful consume; consumed rows cannot accrue attempts
+ok 1082 - [memory] link and code share exactly one successful consume; consumed rows cannot accrue attempts
+  ---
+  duration_ms: 0.306585
+  type: 'test'
+  ...
+# Subtest: zero monthly and yearly prices survive both mappings, independently of portal visibility
+ok 1083 - zero monthly and yearly prices survive both mappings, independently of portal visibility
+  ---
+  duration_ms: 2.294004
+  type: 'test'
+  ...
+# Subtest: legacy consent revisions keep null snapshots and normalize absent purpose and origin
+ok 1084 - legacy consent revisions keep null snapshots and normalize absent purpose and origin
+  ---
+  duration_ms: 0.330452
+  type: 'test'
+  ...
+# Subtest: import removes a dropped location even when its binding was already absent
+ok 1085 - import removes a dropped location even when its binding was already absent
+  ---
+  duration_ms: 4.731286
+  type: 'test'
+  ...
+# Subtest: import still enforces insert-if-absent when its own identity appears during the slug lookup
+ok 1086 - import still enforces insert-if-absent when its own identity appears during the slug lookup
+  ---
+  duration_ms: 4.823306
+  type: 'test'
+  ...
+# Subtest: import refuses create-existing before any row, binding or event changes
+ok 1087 - import refuses create-existing before any row, binding or event changes
+  ---
+  duration_ms: 0.676844
+  type: 'test'
+  ...
+# Subtest: import refuses update-missing before any row, binding or event changes
+ok 1088 - import refuses update-missing before any row, binding or event changes
+  ---
+  duration_ms: 1.245092
+  type: 'test'
+  ...
+# Subtest: import refuses stale-update before any row, binding or event changes
+ok 1089 - import refuses stale-update before any row, binding or event changes
+  ---
+  duration_ms: 0.375067
+  type: 'test'
+  ...
+# Subtest: import refuses slug-collision before any row, binding or event changes
+ok 1090 - import refuses slug-collision before any row, binding or event changes
+  ---
+  duration_ms: 0.575348
+  type: 'test'
+  ...
+# Subtest: an update that keeps its slug never looks the slug up
+ok 1091 - an update that keeps its slug never looks the slug up
+  ---
+  duration_ms: 7.945794
+  type: 'test'
+  ...
+# Subtest: an update that changes its slug looks the new slug up once and keeps the row's id
+ok 1092 - an update that changes its slug looks the new slug up once and keeps the row's id
+  ---
+  duration_ms: 1.303404
+  type: 'test'
+  ...
+# Subtest: import drops only its own old bindings, retaining another menu's reassigned location
+ok 1093 - import drops only its own old bindings, retaining another menu's reassigned location
+  ---
+  duration_ms: 1.325481
+  type: 'test'
+  ...
+# Subtest: import repairs an orphan binding and clones the incoming tree before saving
+ok 1094 - import repairs an orphan binding and clones the incoming tree before saving
+  ---
+  duration_ms: 1.08621
+  type: 'test'
+  ...
+# Subtest: import rejects an invalid tree before saving rows or changing bindings and events
+ok 1095 - import rejects an invalid tree before saving rows or changing bindings and events
+  ---
+  duration_ms: 0.715528
+  type: 'test'
+  ...
+# Subtest: import returns every displaced menu with its new version and retained locations
+ok 1096 - import returns every displaced menu with its new version and retained locations
+  ---
+  duration_ms: 0.829966
+  type: 'test'
+  ...
+# Subtest: an import-as-update loses to a writer that lands between its read and its save: no overwrite, binding or event
+ok 1097 - an import-as-update loses to a writer that lands between its read and its save: no overwrite, binding or event
+  ---
+  duration_ms: 0.472953
+  type: 'test'
+  ...
+# Subtest: two concurrent import-as-creates of one id: exactly one lands, with one created event
+ok 1098 - two concurrent import-as-creates of one id: exactly one lands, with one created event
+  ---
+  duration_ms: 1.193294
+  type: 'test'
+  ...
+# Subtest: a displaced menu's save loses to a writer that lands between its read and its save instead of overwriting it
+ok 1099 - a displaced menu's save loses to a writer that lands between its read and its save instead of overwriting it
+  ---
+  duration_ms: 1.425384
+  type: 'test'
+  ...
+# Subtest: revertChangeSet undoes a repoint change set, restoring the prior entryRef
+ok 1100 - revertChangeSet undoes a repoint change set, restoring the prior entryRef
+  ---
+  duration_ms: 23.071356
+  type: 'test'
+  ...
+# Subtest: revertChangeSet refuses a repoint change set whose menu changed since — the standard conflict
+ok 1101 - revertChangeSet refuses a repoint change set whose menu changed since — the standard conflict
+  ---
+  duration_ms: 1.477687
+  type: 'test'
+  ...
+# Subtest: menu reverter reports a deleted menu and refuses missing inverse payloads
+ok 1102 - menu reverter reports a deleted menu and refuses missing inverse payloads
+  ---
+  duration_ms: 0.433566
+  type: 'test'
+  ...
+# [newsletter] delivery fan-out failed after launch; inspect the send log before retrying
+# [newsletter] pending delivery requeue failed after resume; inspect the send log before retrying
+# [newsletter] confirmation request could not be processed; inspect mail configuration
+# [newsletter] confirmation request could not be processed; inspect mail configuration
+# Subtest: delivery tools are registered as durable writes with independently derived risk
+ok 1103 - delivery tools are registered as durable writes with independently derived risk
+  ---
+  duration_ms: 9.730368
+  type: 'test'
+  ...
+# Subtest: the browser callback policy admits newsletter confirmation cards
+ok 1104 - the browser callback policy admits newsletter confirmation cards
+  ---
+  duration_ms: 0.24131
+  type: 'test'
+  ...
+# Subtest: test send goes to the stored owner only without a confirmation card
+ok 1105 - test send goes to the stored owner only without a confirmation card
+  ---
+  duration_ms: 1.656692
+  type: 'test'
+  ...
+# Subtest: test send refuses caller-supplied addresses and a missing owner email
+ok 1106 - test send refuses caller-supplied addresses and a missing owner email
+  ---
+  duration_ms: 11.493941
+  type: 'test'
+  ...
+# Subtest: test send refuses an owner whose stored email is unset
+ok 1107 - test send refuses an owner whose stored email is unset
+  ---
+  duration_ms: 0.513577
+  type: 'test'
+  ...
+# Subtest: test send refuses an owner whose stored email is blank
+ok 1108 - test send refuses an owner whose stored email is blank
+  ---
+  duration_ms: 1.508224
+  type: 'test'
+  ...
+# Subtest: the delivery contributor builds working owner-test tools with its default surface store
+ok 1109 - the delivery contributor builds working owner-test tools with its default surface store
+  ---
+  duration_ms: 0.60282
+  type: 'test'
+  ...
+# Subtest: abandoning during post-confirmation authorization prevents a campaign transition
+ok 1110 - abandoning during post-confirmation authorization prevents a campaign transition
+  ---
+  duration_ms: 15.83879
+  type: 'test'
+  ...
+# Subtest: abandoning while the transaction reads the campaign prevents scheduling
+ok 1111 - abandoning while the transaction reads the campaign prevents scheduling
+  ---
+  duration_ms: 5.443962
+  type: 'test'
+  ...
+# Subtest: abandoning while resume readiness is checked leaves the issue paused
+ok 1112 - abandoning while resume readiness is checked leaves the issue paused
+  ---
+  duration_ms: 5.050933
+  type: 'test'
+  ...
+# Subtest: an audience failure after launch reports the committed start without exposing directory errors
+ok 1113 - an audience failure after launch reports the committed start without exposing directory errors
+  ---
+  duration_ms: 16.710822
+  type: 'test'
+  ...
+# Subtest: mail-off refuses every delivery action before a card or durable mutation
+ok 1114 - mail-off refuses every delivery action before a card or durable mutation
+  ---
+  duration_ms: 1.084613
+  type: 'test'
+  ...
+# Subtest: delivery tools check permission before reading campaign or sending
+ok 1115 - delivery tools check permission before reading campaign or sending
+  ---
+  duration_ms: 2.820968
+  type: 'test'
+  ...
+# Subtest: mass actions cannot self-confirm through tool input or run without a browser channel
+ok 1116 - mass actions cannot self-confirm through tool input or run without a browser channel
+  ---
+  duration_ms: 1.270518
+  type: 'test'
+  ...
+# Subtest: schedule card is bound to its human and tool; cancellation makes no changes
+ok 1117 - schedule card is bound to its human and tool; cancellation makes no changes
+  ---
+  duration_ms: 1.223979
+  type: 'test'
+  ...
+# Subtest: confirmed schedule wraps the existing service and discloses lack of an automatic scheduler
+ok 1118 - confirmed schedule wraps the existing service and discloses lack of an automatic scheduler
+  ---
+  duration_ms: 5.332924
+  type: 'test'
+  ...
+# Subtest: a campaign changed while the card is open is refused even when version stayed the same
+ok 1119 - a campaign changed while the card is open is refused even when version stayed the same
+  ---
+  duration_ms: 1.265288
+  type: 'test'
+  ...
+# Subtest: real send still respects the existing launch gate after human approval
+ok 1120 - real send still respects the existing launch gate after human approval
+  ---
+  duration_ms: 1.022277
+  type: 'test'
+  ...
+# Subtest: confirmed send freezes an audience and uses the existing outbox pipeline once
+ok 1121 - confirmed send freezes an audience and uses the existing outbox pipeline once
+  ---
+  duration_ms: 8.263333
+  type: 'test'
+  ...
+# Subtest: resuming a paused issue requires a card and the existing launch gate
+ok 1122 - resuming a paused issue requires a card and the existing launch gate
+  ---
+  duration_ms: 5.122325
+  type: 'test'
+  ...
+# Subtest: a confirmed issue with an empty audience finishes without dispatching mail
+ok 1123 - a confirmed issue with an empty audience finishes without dispatching mail
+  ---
+  duration_ms: 1.101591
+  type: 'test'
+  ...
+# Subtest: confirmed resume dispatches only pending rows from the frozen audience
+ok 1124 - confirmed resume dispatches only pending rows from the frozen audience
+  ---
+  duration_ms: 17.837836
+  type: 'test'
+  ...
+# Subtest: resume reports a committed start honestly when requeueing later fails
+ok 1125 - resume reports a committed start honestly when requeueing later fails
+  ---
+  duration_ms: 5.413512
+  type: 'test'
+  ...
+# Subtest: owner test reports provider rejection without exposing its message
+ok 1126 - owner test reports provider rejection without exposing its message
+  ---
+  duration_ms: 0.520451
+  type: 'test'
+  ...
+# Subtest: missing campaigns and invalid schedule dates refuse with actionable errors
+ok 1127 - missing campaigns and invalid schedule dates refuse with actionable errors
+  ---
+  duration_ms: 0.89727
+  type: 'test'
+  ...
+# Subtest: mail configuration changes during confirmation refuse the approved send
+ok 1128 - mail configuration changes during confirmation refuse the approved send
+  ---
+  duration_ms: 20.082149
+  type: 'test'
+  ...
+# Subtest: abort closes a waiting confirmation without scheduling
+ok 1129 - abort closes a waiting confirmation without scheduling
+  ---
+  duration_ms: 1.085574
+  type: 'test'
+  ...
+# Subtest: approval does not survive permission revocation while the card is open
+ok 1130 - approval does not survive permission revocation while the card is open
+  ---
+  duration_ms: 2.157954
+  type: 'test'
+  ...
+# Subtest: an aborted resend refuses before looking up a subscriber
+ok 1131 - an aborted resend refuses before looking up a subscriber
+  ---
+  duration_ms: 1.018209
+  type: 'test'
+  ...
+# Subtest: resend mail-off is constant for existing and missing subscriptions without minting tokens
+ok 1132 - resend mail-off is constant for existing and missing subscriptions without minting tokens
+  ---
+  duration_ms: 0.689704
+  type: 'test'
+  ...
+# Subtest: resend runs directly and hides missing contacts and subscription status
+ok 1133 - resend runs directly and hides missing contacts and subscription status
+  ---
+  duration_ms: 2.094038
+  type: 'test'
+  ...
+# Subtest: resend acknowledgement does not expose contact or provider failures
+ok 1134 - resend acknowledgement does not expose contact or provider failures
+  ---
+  duration_ms: 1.15866
+  type: 'test'
+  ...
+# Subtest: resend stops when mail switches off at the final capability check: console
+ok 1135 - resend stops when mail switches off at the final capability check: console
+  ---
+  duration_ms: 0.687037
+  type: 'test'
+  ...
+# Subtest: resend stops when mail switches off at the final capability check: memory
+ok 1136 - resend stops when mail switches off at the final capability check: memory
+  ---
+  duration_ms: 0.282305
+  type: 'test'
+  ...
+# Subtest: resend with an in-memory mail driver refuses before subscriber lookup
+ok 1137 - resend with an in-memory mail driver refuses before subscriber lookup
+  ---
+  duration_ms: 0.522301
+  type: 'test'
+  ...
+# Subtest: resend abandoned during contact lookup creates no token or mail
+ok 1138 - resend abandoned during contact lookup creates no token or mail
+  ---
+  duration_ms: 0.515917
+  type: 'test'
+  ...
+# Subtest: L299 resend preserves acknowledgement and side effects: pending
+ok 1139 - L299 resend preserves acknowledgement and side effects: pending
+  ---
+  duration_ms: 0.721507
+  type: 'test'
+  ...
+# Subtest: L299 resend preserves acknowledgement and side effects: missing
+ok 1140 - L299 resend preserves acknowledgement and side effects: missing
+  ---
+  duration_ms: 0.27794
+  type: 'test'
+  ...
+# Subtest: L299 resend preserves acknowledgement and side effects: subscribed
+ok 1141 - L299 resend preserves acknowledgement and side effects: subscribed
+  ---
+  duration_ms: 0.379162
+  type: 'test'
+  ...
+# Subtest: L299 resend preserves acknowledgement and side effects: no-contact
+ok 1142 - L299 resend preserves acknowledgement and side effects: no-contact
+  ---
+  duration_ms: 0.239602
+  type: 'test'
+  ...
+# Subtest: L299 resend preserves acknowledgement and side effects: aborted-contact
+ok 1143 - L299 resend preserves acknowledgement and side effects: aborted-contact
+  ---
+  duration_ms: 0.200417
+  type: 'test'
+  ...
+# Subtest: L299 resend hides subscription failures and logs only its fixed diagnostic
+ok 1144 - L299 resend hides subscription failures and logs only its fixed diagnostic
+  ---
+  duration_ms: 1.242978
+  type: 'test'
+  ...
+# Subtest: L299 resend hides contact failures and logs only its fixed diagnostic
+ok 1145 - L299 resend hides contact failures and logs only its fixed diagnostic
+  ---
+  duration_ms: 0.501041
+  type: 'test'
+  ...
+# Subtest: L299 resend hides send failures and logs only its fixed diagnostic
+ok 1146 - L299 resend hides send failures and logs only its fixed diagnostic
+  ---
+  duration_ms: 0.46331
+  type: 'test'
+  ...
+# Subtest: L299 resend checks console before abandonment and checks driver again before lookup
+ok 1147 - L299 resend checks console before abandonment and checks driver again before lookup
+  ---
+  duration_ms: 0.52652
+  type: 'test'
+  ...
+# Subtest: L299 resend checks memory before abandonment and checks driver again before lookup
+ok 1148 - L299 resend checks memory before abandonment and checks driver again before lookup
+  ---
+  duration_ms: 0.297617
+  type: 'test'
+  ...
+# [newsletter] pending delivery requeue failed after resume; inspect the send log before retrying
+# Subtest: freezeAudience: a dangling snapshot reference is replaced with a persisted fresh audience
+ok 1149 - freezeAudience: a dangling snapshot reference is replaced with a persisted fresh audience
+  ---
+  duration_ms: 8.890562
+  type: 'test'
+  ...
+# Subtest: dispatchRow: an already sent row preserves its provider receipt without resending
+ok 1150 - dispatchRow: an already sent row preserves its provider receipt without resending
+  ---
+  duration_ms: 0.622819
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: a configured preheader reaches the test email as text
+ok 1151 - sendTestCampaign: a configured preheader reaches the test email as text
+  ---
+  duration_ms: 5.580416
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a configured preheader reaches the subscriber email as text
+ok 1152 - handleSendBatchClaimed: a configured preheader reaches the subscriber email as text
+  ---
+  duration_ms: 2.681147
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: campaign mail is bulk with per-recipient one-click unsubscribe headers that processUnsubscribe accepts
+ok 1153 - handleSendBatchClaimed: campaign mail is bulk with per-recipient one-click unsubscribe headers that processUnsubscribe accepts
+  ---
+  duration_ms: 5.736808
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a rate-limited send leaves the rows pending and reschedules them in a fresh batch after the hint, without failing this one
+ok 1154 - handleSendBatchClaimed: a rate-limited send leaves the rows pending and reschedules them in a fresh batch after the hint, without failing this one
+  ---
+  duration_ms: 1.229326
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: normalized provider throttling is deferred with the provider's delay, not failed
+ok 1155 - handleSendBatchClaimed: normalized provider throttling is deferred with the provider's delay, not failed
+  ---
+  duration_ms: 6.751855
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a quota hint longer than the row lease schedules the continuation at the hint
+ok 1156 - handleSendBatchClaimed: a quota hint longer than the row lease schedules the continuation at the hint
+  ---
+  duration_ms: 0.511751
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a hintless rate limit waits the default second inline, then sends
+ok 1157 - handleSendBatchClaimed: a hintless rate limit waits the default second inline, then sends
+  ---
+  duration_ms: 0.448637
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a pause that lands during an inline quota wait stops the batch with the row pending
+ok 1158 - handleSendBatchClaimed: a pause that lands during an inline quota wait stops the batch with the row pending
+  ---
+  duration_ms: 0.625257
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a leased row reported without a lease time is rescheduled at the hint
+ok 1159 - handleSendBatchClaimed: a leased row reported without a lease time is rescheduled at the hint
+  ---
+  duration_ms: 4.599693
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a full 20-recipient batch at Resend's limits is delivered through quota waits without spending the outbox failure budget (inline sleep: true)
+ok 1160 - handleSendBatchClaimed: a full 20-recipient batch at Resend's limits is delivered through quota waits without spending the outbox failure budget (inline sleep: true)
+  ---
+  duration_ms: 19.539792
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a full 20-recipient batch at Resend's limits is delivered through quota waits without spending the outbox failure budget (inline sleep: false)
+ok 1161 - handleSendBatchClaimed: a full 20-recipient batch at Resend's limits is delivered through quota waits without spending the outbox failure budget (inline sleep: false)
+  ---
+  duration_ms: 19.795322
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a terminal row in a still-sending campaign is skipped without recounting
+ok 1162 - handleSendBatchClaimed: a terminal row in a still-sending campaign is skipped without recounting
+  ---
+  duration_ms: 2.099314
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a campaign disappearing before the recipient check leaves the row pending
+ok 1163 - handleSendBatchClaimed: a campaign disappearing before the recipient check leaves the row pending
+  ---
+  duration_ms: 0.412273
+  type: 'test'
+  ...
+# Subtest: authorizeSend: happy path -- scheduled campaign moves to sending, revision appended at seq 1
+ok 1164 - authorizeSend: happy path -- scheduled campaign moves to sending, revision appended at seq 1
+  ---
+  duration_ms: 0.526258
+  type: 'test'
+  ...
+# Subtest: authorizeSend: revision seq increments past existing revisions
+ok 1165 - authorizeSend: revision seq increments past existing revisions
+  ---
+  duration_ms: 0.678979
+  type: 'test'
+  ...
+# Subtest: authorizeSend: campaign not found
+ok 1166 - authorizeSend: campaign not found
+  ---
+  duration_ms: 2.023304
+  type: 'test'
+  ...
+# Subtest: authorizeSend: launch gate blocked -- rejects with the full unmet set, campaign left untouched
+ok 1167 - authorizeSend: launch gate blocked -- rejects with the full unmet set, campaign left untouched
+  ---
+  duration_ms: 1.437272
+  type: 'test'
+  ...
+# Subtest: authorizeSend: campaign not in 'scheduled' status -- not-editable error, exact reason text
+ok 1168 - authorizeSend: campaign not in 'scheduled' status -- not-editable error, exact reason text
+  ---
+  duration_ms: 0.321203
+  type: 'test'
+  ...
+# Subtest: freezeAudience: materializes 1 snapshot + N send rows, unresolvable subscribers silently excluded (EC-07)
+ok 1169 - freezeAudience: materializes 1 snapshot + N send rows, unresolvable subscribers silently excluded (EC-07)
+  ---
+  duration_ms: 0.502131
+  type: 'test'
+  ...
+# Subtest: freezeAudience: includes only subscribed contacts in the requested list and workspace
+ok 1170 - freezeAudience: includes only subscribed contacts in the requested list and workspace
+  ---
+  duration_ms: 0.442434
+  type: 'test'
+  ...
+# Subtest: freezeAudience: excludes contacts flagged undeliverable
+ok 1171 - freezeAudience: excludes contacts flagged undeliverable
+  ---
+  duration_ms: 0.179758
+  type: 'test'
+  ...
+# Subtest: freezeAudience: zero subscribed subscribers -- empty snapshot, no send-row batch write, no outbox events
+ok 1172 - freezeAudience: zero subscribed subscribers -- empty snapshot, no send-row batch write, no outbox events
+  ---
+  duration_ms: 0.160853
+  type: 'test'
+  ...
+# Subtest: freezeAudience: idempotent retry -- a campaign that already has audienceSnapshotId is a no-op, never a second snapshot (INV-06)
+ok 1173 - freezeAudience: idempotent retry -- a campaign that already has audienceSnapshotId is a no-op, never a second snapshot (INV-06)
+  ---
+  duration_ms: 0.256369
+  type: 'test'
+  ...
+# Subtest: freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 2 events (20 + 5)
+ok 1174 - freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 2 events (20 + 5)
+  ---
+  duration_ms: 8.13853
+  type: 'test'
+  ...
+# Subtest: freezeAudience: campaign not found
+ok 1175 - freezeAudience: campaign not found
+  ---
+  duration_ms: 0.190806
+  type: 'test'
+  ...
+# Subtest: claimBatch: delegates to processOutbox with the default batchSize=20
+ok 1176 - claimBatch: delegates to processOutbox with the default batchSize=20
+  ---
+  duration_ms: 5.140946
+  type: 'test'
+  ...
+# Subtest: claimBatch: honors an explicit batchSize override
+ok 1177 - claimBatch: honors an explicit batchSize override
+  ---
+  duration_ms: 0.477696
+  type: 'test'
+  ...
+# Subtest: dispatchRow: happy path -- sends via the mailer, outcome 'sent'
+ok 1178 - dispatchRow: happy path -- sends via the mailer, outcome 'sent'
+  ---
+  duration_ms: 0.30833
+  type: 'test'
+  ...
+# Subtest: dispatchRow: each row supplies its own provider idempotency key and source identity
+ok 1179 - dispatchRow: each row supplies its own provider idempotency key and source identity
+  ---
+  duration_ms: 4.756495
+  type: 'test'
+  ...
+# Subtest: dispatchRow: beforeSend transformations reach the mailer
+ok 1180 - dispatchRow: beforeSend transformations reach the mailer
+  ---
+  duration_ms: 0.485252
+  type: 'test'
+  ...
+# Subtest: dispatchRow: mailer failure -- outcome 'failed', error passed through
+ok 1181 - dispatchRow: mailer failure -- outcome 'failed', error passed through
+  ---
+  duration_ms: 0.247797
+  type: 'test'
+  ...
+# Subtest: dispatchRow: recipient.filter hook suppresses -- outcome 'suppressed', mailer never invoked
+ok 1182 - dispatchRow: recipient.filter hook suppresses -- outcome 'suppressed', mailer never invoked
+  ---
+  duration_ms: 1.216897
+  type: 'test'
+  ...
+# Subtest: dispatchRow: idempotency -- a row already 'delivered' is re-reported as 'sent' WITHOUT re-invoking the mailer (INV-10/EC-04)
+ok 1183 - dispatchRow: idempotency -- a row already 'delivered' is re-reported as 'sent' WITHOUT re-invoking the mailer (INV-10/EC-04)
+  ---
+  duration_ms: 0.269515
+  type: 'test'
+  ...
+# Subtest: dispatchRow: idempotency -- a row already 'bounced' is re-reported as 'failed', passing through the stored lastError
+ok 1184 - dispatchRow: idempotency -- a row already 'bounced' is re-reported as 'failed', passing through the stored lastError
+  ---
+  duration_ms: 0.239243
+  type: 'test'
+  ...
+# Subtest: recordResult: outcome 'sent' -- row -> delivered, attempts++, campaign.counters.delivered++
+ok 1185 - recordResult: outcome 'sent' -- row -> delivered, attempts++, campaign.counters.delivered++
+  ---
+  duration_ms: 0.350197
+  type: 'test'
+  ...
+# Subtest: recordResult: outcome 'failed' -- row -> failed, campaign.counters.failed++, lastError recorded
+ok 1186 - recordResult: outcome 'failed' -- row -> failed, campaign.counters.failed++, lastError recorded
+  ---
+  duration_ms: 0.543202
+  type: 'test'
+  ...
+# Subtest: recordResult: providerMessageId falls back to the ROW's existing value when the input omits it (?? branch)
+ok 1187 - recordResult: providerMessageId falls back to the ROW's existing value when the input omits it (?? branch)
+  ---
+  duration_ms: 0.237862
+  type: 'test'
+  ...
+# Subtest: recordResult: send row not found -- throws exact message
+ok 1188 - recordResult: send row not found -- throws exact message
+  ---
+  duration_ms: 0.247824
+  type: 'test'
+  ...
+# Subtest: recordResult: campaign not found -- send row still updates, no throw, no counters to touch
+ok 1189 - recordResult: campaign not found -- send row still updates, no throw, no counters to touch
+  ---
+  duration_ms: 0.152284
+  type: 'test'
+  ...
+# Subtest: recordResult: a row another run already recorded is returned unchanged and not counted again (2026-09-16)
+ok 1190 - recordResult: a row another run already recorded is returned unchanged and not counted again (2026-09-16)
+  ---
+  duration_ms: 0.23498
+  type: 'test'
+  ...
+# Subtest: [memory] recordResult: concurrent results for different rows of one campaign are all counted (B-2)
+ok 1191 - [memory] recordResult: concurrent results for different rows of one campaign are all counted (B-2)
+  ---
+  duration_ms: 0.360701
+  type: 'test'
+  ...
+# Subtest: [memory] recordResult: a pause that commits while a result is being recorded is kept, and the result is counted (B-2)
+ok 1192 - [memory] recordResult: a pause that commits while a result is being recorded is kept, and the result is counted (B-2)
+  ---
+  duration_ms: 1.752785
+  type: 'test'
+  ...
+# Subtest: [memory] pauseCampaign: a result recorded while the pause is being written is still counted (B-2)
+ok 1193 - [memory] pauseCampaign: a result recorded while the pause is being written is still counted (B-2)
+  ---
+  duration_ms: 0.431556
+  type: 'test'
+  ...
+# Subtest: [memory] recordResult: two concurrent results for the SAME row count it once and keep the first outcome (H4)
+ok 1194 - [memory] recordResult: two concurrent results for the SAME row count it once and keep the first outcome (H4)
+  ---
+  duration_ms: 0.30354
+  type: 'test'
+  ...
+# Subtest: [sqlite] recordResult: concurrent results for different rows of one campaign are all counted (B-2)
+ok 1195 - [sqlite] recordResult: concurrent results for different rows of one campaign are all counted (B-2)
+  ---
+  duration_ms: 288.604099
+  type: 'test'
+  ...
+# Subtest: [sqlite] recordResult: a pause that commits while a result is being recorded is kept, and the result is counted (B-2)
+ok 1196 - [sqlite] recordResult: a pause that commits while a result is being recorded is kept, and the result is counted (B-2)
+  ---
+  duration_ms: 224.491656
+  type: 'test'
+  ...
+# Subtest: [sqlite] pauseCampaign: a result recorded while the pause is being written is still counted (B-2)
+ok 1197 - [sqlite] pauseCampaign: a result recorded while the pause is being written is still counted (B-2)
+  ---
+  duration_ms: 165.991208
+  type: 'test'
+  ...
+# Subtest: [sqlite] recordResult: two concurrent results for the SAME row count it once and keep the first outcome (H4)
+ok 1198 - [sqlite] recordResult: two concurrent results for the SAME row count it once and keep the first outcome (H4)
+  ---
+  duration_ms: 110.831689
+  type: 'test'
+  ...
+# Subtest: completeIfDrained: campaign not in 'sending' status -- null, no write
+ok 1199 - completeIfDrained: campaign not in 'sending' status -- null, no write
+  ---
+  duration_ms: 0.281904
+  type: 'test'
+  ...
+# Subtest: completeIfDrained: pending rows remain -- null, campaign left at 'sending'
+ok 1200 - completeIfDrained: pending rows remain -- null, campaign left at 'sending'
+  ---
+  duration_ms: 0.276424
+  type: 'test'
+  ...
+# Subtest: completeIfDrained: zero pending -- flips to 'sent'
+ok 1201 - completeIfDrained: zero pending -- flips to 'sent'
+  ---
+  duration_ms: 0.181629
+  type: 'test'
+  ...
+# Subtest: completeIfDrained: campaign not found -- null
+ok 1202 - completeIfDrained: campaign not found -- null
+  ---
+  duration_ms: 0.09403
+  type: 'test'
+  ...
+# Subtest: completeIfDrained: naturally idempotent -- calling again after 'sent' is a safe no-op (still returns null, not a re-transition)
+ok 1203 - completeIfDrained: naturally idempotent -- calling again after 'sent' is a safe no-op (still returns null, not a re-transition)
+  ---
+  duration_ms: 0.253804
+  type: 'test'
+  ...
+# Subtest: pauseCampaign: sending -> paused
+ok 1204 - pauseCampaign: sending -> paused
+  ---
+  duration_ms: 0.42751
+  type: 'test'
+  ...
+# Subtest: resumeCampaign: paused -> sending
+ok 1205 - resumeCampaign: paused -> sending
+  ---
+  duration_ms: 0.291464
+  type: 'test'
+  ...
+# Subtest: pauseCampaign: campaign not found
+ok 1206 - pauseCampaign: campaign not found
+  ---
+  duration_ms: 0.188546
+  type: 'test'
+  ...
+# Subtest: pauseCampaign: a draft campaign cannot be paused -- not-editable, exact reason text for the 'no rule matches' fallback
+ok 1207 - pauseCampaign: a draft campaign cannot be paused -- not-editable, exact reason text for the 'no rule matches' fallback
+  ---
+  duration_ms: 0.257918
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: 0 addresses rejected, exact validation error
+ok 1208 - sendTestCampaign: 0 addresses rejected, exact validation error
+  ---
+  duration_ms: 0.211649
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: 11 addresses rejected (upper bound)
+ok 1209 - sendTestCampaign: 11 addresses rejected (upper bound)
+  ---
+  duration_ms: 0.195059
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: 1 and 10 addresses are both accepted (boundary)
+ok 1210 - sendTestCampaign: 1 and 10 addresses are both accepted (boundary)
+  ---
+  duration_ms: 2.772562
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: campaign not found
+ok 1211 - sendTestCampaign: campaign not found
+  ---
+  duration_ms: 0.332902
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: launch gate blocked -- distinct message from the real-send path (AC-31)
+ok 1212 - sendTestCampaign: launch gate blocked -- distinct message from the real-send path (AC-31)
+  ---
+  duration_ms: 0.583107
+  type: 'test'
+  ...
+# Subtest: sendTestCampaign: per-address mixed success/failure results, AND no snapshot/send-ledger rows created (AC-26)
+ok 1213 - sendTestCampaign: per-address mixed success/failure results, AND no snapshot/send-ledger rows created (AC-26)
+  ---
+  duration_ms: 0.447892
+  type: 'test'
+  ...
+# Subtest: resume preserves its transition and reports a failed requeue without claiming delivery
+ok 1214 - resume preserves its transition and reports a failed requeue without claiming delivery
+  ---
+  duration_ms: 2.247459
+  type: 'test'
+  ...
+# Subtest: resume requeues every pending row of the frozen snapshot across ledger pages of 1000, each exactly once
+ok 1215 - resume requeues every pending row of the frozen snapshot across ledger pages of 1000, each exactly once
+  ---
+  duration_ms: 128.420283
+  type: 'test'
+  ...
+# Subtest: freezeAudience: a campaign deleted during contact lookup fails not-found and enqueues no batch
+ok 1216 - freezeAudience: a campaign deleted during contact lookup fails not-found and enqueues no batch
+  ---
+  duration_ms: 0.558119
+  type: 'test'
+  ...
+# Subtest: completeIfDrained: a paused campaign returns null without reading the ledger or writing
+ok 1217 - completeIfDrained: a paused campaign returns null without reading the ledger or writing
+  ---
+  duration_ms: 0.357828
+  type: 'test'
+  ...
+# Subtest: audience freezing preserves a pause committed during contact lookup
+ok 1218 - audience freezing preserves a pause committed during contact lookup
+  ---
+  duration_ms: 0.364654
+  type: 'test'
+  ...
+# Subtest: pause stops remaining recipients in an in-flight batch; resume requeues pending rows
+ok 1219 - pause stops remaining recipients in an in-flight batch; resume requeues pending rows
+  ---
+  duration_ms: 1.100101
+  type: 'test'
+  ...
+# Subtest: a paused campaign dispatches no rows and leaves them available for resume
+ok 1220 - a paused campaign dispatches no rows and leaves them available for resume
+  ---
+  duration_ms: 0.189468
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: campaign not found -- no-op
+ok 1221 - handleSendBatchClaimed: campaign not found -- no-op
+  ---
+  duration_ms: 0.11066
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a send row that no longer exists is skipped, not fatal
+ok 1222 - handleSendBatchClaimed: a send row that no longer exists is skipped, not fatal
+  ---
+  duration_ms: 0.192455
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: happy path -- dispatches, records the result, and auto-drains the campaign to 'sent'
+ok 1223 - handleSendBatchClaimed: happy path -- dispatches, records the result, and auto-drains the campaign to 'sent'
+  ---
+  duration_ms: 0.419771
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: no matching subscription row -- status passed to hooks defaults to 'unsubscribed'
+ok 1224 - handleSendBatchClaimed: no matching subscription row -- status passed to hooks defaults to 'unsubscribed'
+  ---
+  duration_ms: 0.254104
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: default registry suppresses an unsubscribe after audience freeze
+ok 1225 - handleSendBatchClaimed: default registry suppresses an unsubscribe after audience freeze
+  ---
+  duration_ms: 0.407662
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: one row's mailer failure never aborts sibling rows in the same batch
+ok 1226 - handleSendBatchClaimed: one row's mailer failure never aborts sibling rows in the same batch
+  ---
+  duration_ms: 0.446725
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: BUG REGRESSION -- a suppressed row must still reach a terminal status so the campaign can drain
+ok 1227 - handleSendBatchClaimed: BUG REGRESSION -- a suppressed row must still reach a terminal status so the campaign can drain
+  ---
+  duration_ms: 0.77929
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: two overlapping runs of the same batch send each row exactly once and count it once
+ok 1228 - handleSendBatchClaimed: two overlapping runs of the same batch send each row exactly once and count it once
+  ---
+  duration_ms: 93.207925
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: redelivering a batch that already finished sends nothing and does not count again
+ok 1229 - handleSendBatchClaimed: redelivering a batch that already finished sends nothing and does not count again
+  ---
+  duration_ms: 2.957039
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a row leased by another live run is skipped and the batch is failed for retry
+ok 1230 - handleSendBatchClaimed: a row leased by another live run is skipped and the batch is failed for retry
+  ---
+  duration_ms: 1.648384
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a row whose lease expired is claimed, sent, and released
+ok 1231 - handleSendBatchClaimed: a row whose lease expired is claimed, sent, and released
+  ---
+  duration_ms: 1.504551
+  type: 'test'
+  ...
+# Subtest: handleSendBatchClaimed: a row leased by a run that threw is claimable again by the batch event's earliest last retry
+ok 1232 - handleSendBatchClaimed: a row leased by a run that threw is claimable again by the batch event's earliest last retry
+  ---
+  duration_ms: 3.716775
+  type: 'test'
+  ...
+# Subtest: NEWSLETTER_SEND_ROW_LEASE_MS outlasts one dispatch but expires before the batch event's last attempt, whichever attempt took it
+ok 1233 - NEWSLETTER_SEND_ROW_LEASE_MS outlasts one dispatch but expires before the batch event's last attempt, whichever attempt took it
+  ---
+  duration_ms: 0.505897
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: no override is 'unset'
+ok 1234 - readMediaStoreEnv: no override is 'unset'
+  ---
+  duration_ms: 3.587794
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: 'local' is the local choice, regardless of stray EXAMPLE vars
+ok 1235 - readMediaStoreEnv: 'local' is the local choice, regardless of stray EXAMPLE vars
+  ---
+  duration_ms: 0.273244
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: a complete example config maps vars to settings and credential, endpoint and key prefix included
+ok 1236 - readMediaStoreEnv: a complete example config maps vars to settings and credential, endpoint and key prefix included
+  ---
+  duration_ms: 0.359431
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: optional endpoint and key prefix stay undefined when unset
+ok 1237 - readMediaStoreEnv: optional endpoint and key prefix stay undefined when unset
+  ---
+  duration_ms: 0.565021
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: an unknown backend throws the operator-facing message (case-sensitive)
+ok 1238 - readMediaStoreEnv: an unknown backend throws the operator-facing message (case-sensitive)
+  ---
+  duration_ms: 3.44058
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: example with no variables names every missing one
+ok 1239 - readMediaStoreEnv: example with no variables names every missing one
+  ---
+  duration_ms: 0.312876
+  type: 'test'
+  ...
+# Subtest: readMediaStoreEnv: an empty-string variable counts as missing, and only the missing ones are named
+ok 1240 - readMediaStoreEnv: an empty-string variable counts as missing, and only the missing ones are named
+  ---
+  duration_ms: 0.17596
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: an invalid env throws synchronously at boot without touching ports
+ok 1241 - createMediaBlobStore: an invalid env throws synchronously at boot without touching ports
+  ---
+  duration_ms: 0.350097
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: env local writes ws/{ws}/blobs/{sh}/{sha} under uploadsDir, byte-identical to LocalFsBlobStore both ways
+ok 1242 - createMediaBlobStore: env local writes ws/{ws}/blobs/{sh}/{sha} under uploadsDir, byte-identical to LocalFsBlobStore both ways
+  ---
+  duration_ms: 217.726972
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: env example resolves example_store from the bundled registry with the env credential, never the site ports
+ok 1243 - createMediaBlobStore: env example resolves example_store from the bundled registry with the env credential, never the site ports
+  ---
+  duration_ms: 3.90118
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: env example without example_store in the bundled registry rejects, listing the registry's refusals
+ok 1244 - createMediaBlobStore: env example without example_store in the bundled registry rejects, listing the registry's refusals
+  ---
+  duration_ms: 7.967678
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: an unavailable provider with no refusals says so without an empty parenthesis
+ok 1245 - createMediaBlobStore: an unavailable provider with no refusals says so without an empty parenthesis
+  ---
+  duration_ms: 0.643279
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: ports() is not called at boot, only on first media use, and a good load is reused
+ok 1246 - createMediaBlobStore: ports() is not called at boot, only on first media use, and a good load is reused
+  ---
+  duration_ms: 12.316201
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: an unset setting stores locally without loading any registry or credential
+ok 1247 - createMediaBlobStore: an unset setting stores locally without loading any registry or credential
+  ---
+  duration_ms: 13.179382
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: an explicit 'local' setting is the same local store
+ok 1248 - createMediaBlobStore: an explicit 'local' setting is the same local store
+  ---
+  duration_ms: 28.024785
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a remote setting with no saved connection rejects every call and never falls back to local
+ok 1249 - createMediaBlobStore: a remote setting with no saved connection rejects every call and never falls back to local
+  ---
+  duration_ms: 16.524515
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a connection without mediaBucket is refused — the public publish bucket is never used
+ok 1250 - createMediaBlobStore: a connection without mediaBucket is refused — the public publish bucket is never used
+  ---
+  duration_ms: 7.405231
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a mediaBucket naming the public publish bucket (after trim and case-folding) is refused
+ok 1251 - createMediaBlobStore: a mediaBucket naming the public publish bucket (after trim and case-folding) is refused
+  ---
+  duration_ms: 10.288699
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a whitespace-only mediaBucket counts as absent
+ok 1252 - createMediaBlobStore: a whitespace-only mediaBucket counts as absent
+  ---
+  duration_ms: 9.029094
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a setting naming a provider the site does not have rejects with the registry's refusals
+ok 1253 - createMediaBlobStore: a setting naming a provider the site does not have rejects with the registry's refusals
+  ---
+  duration_ms: 3.37638
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a provider refusing its configuration rejects every call with the provider's reason
+ok 1254 - createMediaBlobStore: a provider refusing its configuration rejects every call with the provider's reason
+  ---
+  duration_ms: 15.26193
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket (trimmed), keyPrefix: mediaKeyPrefix} plus the whole credential
+ok 1255 - createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket (trimmed), keyPrefix: mediaKeyPrefix} plus the whole credential
+  ---
+  duration_ms: 18.58294
+  type: 'test'
+  ...
+# Subtest: createMediaBlobStore: isMediaRemote is the EFFECTIVE provider — env override first, else the site setting read when asked
+ok 1256 - createMediaBlobStore: isMediaRemote is the EFFECTIVE provider — env override first, else the site setting read when asked
+  ---
+  duration_ms: 0.910551
+  type: 'test'
+  ...
+# Subtest: neutral env declarations use their own provider id and preserve declared missing-variable order
+ok 1257 - neutral env declarations use their own provider id and preserve declared missing-variable order
+  ---
+  duration_ms: 19.484917
+  type: 'test'
+  ...
+# Subtest: a missing env declaration refuses an opt-in rather than selecting local storage
+ok 1258 - a missing env declaration refuses an opt-in rather than selecting local storage
+  ---
+  duration_ms: 0.30952
+  type: 'test'
+  ...
+# Subtest: without injected declarations an unknown env selector is refused without reading product sources
+ok 1259 - without injected declarations an unknown env selector is refused without reading product sources
+  ---
+  duration_ms: 0.159755
+  type: 'test'
+  ...
+# Subtest: every registered embed marker type except collection reaches the page writers' contract
+ok 1260 - every registered embed marker type except collection reaches the page writers' contract
+  ---
+  duration_ms: 1.351799
+  type: 'test'
+  ...
+# Subtest: a type registered without a placeholder or a note is still listed, with a generic <key> target and no note
+ok 1261 - a type registered without a placeholder or a note is still listed, with a generic <key> target and no note
+  ---
+  duration_ms: 3.396391
+  type: 'test'
+  ...
+# Subtest: a type with no target key is listed with its type alone
+ok 1262 - a type with no target key is listed with its type alone
+  ---
+  duration_ms: 0.265914
+  type: 'test'
+  ...
+# Subtest: SqlPagesHtmlDocumentStore revisions [sqlite]
+    # Subtest: ensureHtmlFormat() + write() append pre-conversion, post-conversion, and post-write snapshots to post_revisions
+    ok 1 - ensureHtmlFormat() + write() append pre-conversion, post-conversion, and post-write snapshots to post_revisions
+      ---
+      duration_ms: 627.198777
+      type: 'test'
+      ...
+    # Subtest: ensureHtmlFormat() on an already-html page appends no pre-conversion snapshot — it never converts anything
+    ok 2 - ensureHtmlFormat() on an already-html page appends no pre-conversion snapshot — it never converts anything
+      ---
+      duration_ms: 102.209189
+      type: 'test'
+      ...
+    # Subtest: without deps.revisions, write() and ensureHtmlFormat() behave exactly as before — no ledger, no error
+    ok 3 - without deps.revisions, write() and ensureHtmlFormat() behave exactly as before — no ledger, no error
+      ---
+      duration_ms: 574.738087
+      type: 'test'
+      ...
+    # Subtest: a failed revision append rolls back the page update and ledger for writes and conversions
+    ok 4 - a failed revision append rolls back the page update and ledger for writes and conversions
+      ---
+      duration_ms: 344.122647
+      type: 'test'
+      ...
+    # Subtest: a rejected stale write leaves the winning page and revision ledger unchanged
+    ok 5 - a rejected stale write leaves the winning page and revision ledger unchanged
+      ---
+      duration_ms: 334.897458
+      type: 'test'
+      ...
+    # Subtest: a conversion CAS failure rolls back its pre-conversion snapshot and preserves the winning edit
+    ok 6 - a conversion CAS failure rolls back its pre-conversion snapshot and preserves the winning edit
+      ---
+      duration_ms: 393.496906
+      type: 'test'
+      ...
+    # Subtest: conversion retains an existing pre-conversion revision and uses the system actor when none is supplied
+    ok 7 - conversion retains an existing pre-conversion revision and uses the system actor when none is supplied
+      ---
+      duration_ms: 214.961112
+      type: 'test'
+      ...
+    # Subtest: a page deleted before the conversion transaction leaves no phantom revision
+    ok 8 - a page deleted before the conversion transaction leaves no phantom revision
+      ---
+      duration_ms: 219.694009
+      type: 'test'
+      ...
+    1..8
+ok 1263 - SqlPagesHtmlDocumentStore revisions [sqlite]
+  ---
+  duration_ms: 2814.279313
+  type: 'suite'
+  ...
+# Subtest: SqlPagesHtmlDocumentStore revisions [pglite]
+    # Subtest: ensureHtmlFormat() + write() append pre-conversion, post-conversion, and post-write snapshots to post_revisions
+    ok 1 - ensureHtmlFormat() + write() append pre-conversion, post-conversion, and post-write snapshots to post_revisions
+      ---
+      duration_ms: 10132.523904
+      type: 'test'
+      ...
+    # Subtest: ensureHtmlFormat() on an already-html page appends no pre-conversion snapshot — it never converts anything
+    ok 2 - ensureHtmlFormat() on an already-html page appends no pre-conversion snapshot — it never converts anything
+      ---
+      duration_ms: 47.856504
+      type: 'test'
+      ...
+    # Subtest: without deps.revisions, write() and ensureHtmlFormat() behave exactly as before — no ledger, no error
+    ok 3 - without deps.revisions, write() and ensureHtmlFormat() behave exactly as before — no ledger, no error
+      ---
+      duration_ms: 14.36607
+      type: 'test'
+      ...
+    # Subtest: a failed revision append rolls back the page update and ledger for writes and conversions
+    ok 4 - a failed revision append rolls back the page update and ledger for writes and conversions
+      ---
+      duration_ms: 47.818679
+      type: 'test'
+      ...
+    # Subtest: a rejected stale write leaves the winning page and revision ledger unchanged
+    ok 5 - a rejected stale write leaves the winning page and revision ledger unchanged
+      ---
+      duration_ms: 58.69119
+      type: 'test'
+      ...
+    # Subtest: a conversion CAS failure rolls back its pre-conversion snapshot and preserves the winning edit
+    ok 6 - a conversion CAS failure rolls back its pre-conversion snapshot and preserves the winning edit
+      ---
+      duration_ms: 38.298301
+      type: 'test'
+      ...
+    # Subtest: conversion retains an existing pre-conversion revision and uses the system actor when none is supplied
+    ok 7 - conversion retains an existing pre-conversion revision and uses the system actor when none is supplied
+      ---
+      duration_ms: 47.534834
+      type: 'test'
+      ...
+    # Subtest: a page deleted before the conversion transaction leaves no phantom revision
+    ok 8 - a page deleted before the conversion transaction leaves no phantom revision
+      ---
+      duration_ms: 37.454364
+      type: 'test'
+      ...
+    1..8
+ok 1264 - SqlPagesHtmlDocumentStore revisions [pglite]
+  ---
+  duration_ms: 10425.415155
+  type: 'suite'
+  ...
+# Subtest: pages_read_html reads one nested region through regionId, preserving page metadata
+ok 1265 - pages_read_html reads one nested region through regionId, preserving page metadata
+  ---
+  duration_ms: 39.292987
+  type: 'test'
+  ...
+# Subtest: pages_read_html reads one nested region through region, preserving page metadata
+ok 1266 - pages_read_html reads one nested region through region, preserving page metadata
+  ---
+  duration_ms: 11.969774
+  type: 'test'
+  ...
+# Subtest: pages_read_html reads one nested region through handle, preserving page metadata
+ok 1267 - pages_read_html reads one nested region through handle, preserving page metadata
+  ---
+  duration_ms: 8.071267
+  type: 'test'
+  ...
+# Subtest: pages_read_html without a region selector keeps the full-page response
+ok 1268 - pages_read_html without a region selector keeps the full-page response
+  ---
+  duration_ms: 6.058843
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses competing region selectors regionId,region
+ok 1269 - pages_read_html refuses competing region selectors regionId,region
+  ---
+  duration_ms: 6.235514
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses competing region selectors regionId,handle
+ok 1270 - pages_read_html refuses competing region selectors regionId,handle
+  ---
+  duration_ms: 0.66126
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses competing region selectors region,handle
+ok 1271 - pages_read_html refuses competing region selectors region,handle
+  ---
+  duration_ms: 0.439129
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses a missing region without a full-page fallback
+ok 1272 - pages_read_html refuses a missing region without a full-page fallback
+  ---
+  duration_ms: 1.677144
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses a ambiguous region without a full-page fallback
+ok 1273 - pages_read_html refuses a ambiguous region without a full-page fallback
+  ---
+  duration_ms: 6.969793
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses a unclosed region without a full-page fallback
+ok 1274 - pages_read_html refuses a unclosed region without a full-page fallback
+  ---
+  duration_ms: 4.330522
+  type: 'test'
+  ...
+# Subtest: pages_read_html does not turn a missing region on a doc page into an empty-page success
+ok 1275 - pages_read_html does not turn a missing region on a doc page into an empty-page success
+  ---
+  duration_ms: 3.436444
+  type: 'test'
+  ...
+# Subtest: pages_read_html gives a doc page's own text and widget back as editable HTML, leaving the row alone
+ok 1276 - pages_read_html gives a doc page's own text and widget back as editable HTML, leaving the row alone
+  ---
+  duration_ms: 14.949726
+  type: 'test'
+  ...
+# Subtest: renderDocBodyAsPageHtml keeps managed media and widget styling as markers instead of placeholders
+ok 1277 - renderDocBodyAsPageHtml keeps managed media and widget styling as markers instead of placeholders
+  ---
+  duration_ms: 1.016713
+  type: 'test'
+  ...
+# Subtest: pages_read_html resolves root and normalized ordinary slugs to page ids
+ok 1278 - pages_read_html resolves root and normalized ordinary slugs to page ids
+  ---
+  duration_ms: 6.344858
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses a missing slug target
+ok 1279 - pages_read_html refuses a missing slug target
+  ---
+  duration_ms: 0.760846
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses a trashed slug target
+ok 1280 - pages_read_html refuses a trashed slug target
+  ---
+  duration_ms: 0.799606
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses a post slug target
+ok 1281 - pages_read_html refuses a post slug target
+  ---
+  duration_ms: 0.628245
+  type: 'test'
+  ...
+# Subtest: pages_read_html requires exactly one page selector: {}
+ok 1282 - pages_read_html requires exactly one page selector: {}
+  ---
+  duration_ms: 0.582497
+  type: 'test'
+  ...
+# Subtest: pages_read_html requires exactly one page selector: {"id":"page","slug":"/"}
+ok 1283 - pages_read_html requires exactly one page selector: {"id":"page","slug":"/"}
+  ---
+  duration_ms: 0.364668
+  type: 'test'
+  ...
+# Subtest: pages_read_html checks permission before slug lookup
+ok 1284 - pages_read_html checks permission before slug lookup
+  ---
+  duration_ms: 4.814488
+  type: 'test'
+  ...
+# Subtest: pages_read_html batches id and slug targets, normalizes region aliases, and continues after failures
+ok 1285 - pages_read_html batches id and slug targets, normalizes region aliases, and continues after failures
+  ---
+  duration_ms: 7.282448
+  type: 'test'
+  ...
+# Subtest: a site plugin disabled through setPluginEnabled — the composition both the admin route and plugins_set_enabled use — is refused in the already-running daemon, with no restart
+ok 1286 - a site plugin disabled through setPluginEnabled — the composition both the admin route and plugins_set_enabled use — is refused in the already-running daemon, with no restart
+  ---
+  duration_ms: 7.142782
+  type: 'test'
+  ...
+# Subtest: any writer of the activation row revokes the tool, and re-enabling restores the already-registered tool
+ok 1287 - any writer of the activation row revokes the tool, and re-enabling restores the already-registered tool
+  ---
+  duration_ms: 1.093669
+  type: 'test'
+  ...
+# Subtest: moving a plugin to Trash retains its disabled activation and leaves the tool refused
+ok 1288 - moving a plugin to Trash retains its disabled activation and leaves the tool refused
+  ---
+  duration_ms: 0.841832
+  type: 'test'
+  ...
+# Subtest: an activation read that throws DENIES and says why in the server log — it never completes
+ok 1289 - an activation read that throws DENIES and says why in the server log — it never completes
+  ---
+  duration_ms: 119.506016
+  type: 'test'
+  ...
+# [plugin-runtime] 'newer' quarantined at boot: Turned off at startup because it claims things already in use: setting 'shop.currency' is provided by plugin 'older' (Plugin older). Turn off the other plugin, then turn this one back on.
+# Subtest: enable time: turning on a plugin whose widget is already provided by an enabled plugin is refused, and its row is restored
+ok 1290 - enable time: turning on a plugin whose widget is already provided by an enabled plugin is refused, and its row is restored
+  ---
+  duration_ms: 70.750481
+  type: 'test'
+  ...
+# Subtest: enable time: a plugin claiming a core-reserved namespace is refused
+ok 1291 - enable time: a plugin claiming a core-reserved namespace is refused
+  ---
+  duration_ms: 9.77321
+  type: 'test'
+  ...
+# Subtest: boot: of two already-enabled plugins claiming the same setting, the newer is quarantined with a reason and the older still runs
+ok 1292 - boot: of two already-enabled plugins claiming the same setting, the newer is quarantined with a reason and the older still runs
+  ---
+  duration_ms: 5.723365
+  type: 'test'
+  ...
+# Subtest: listPluginConflicts: a plugin that is off is reported with the clash it would hit if turned on
+ok 1293 - listPluginConflicts: a plugin that is off is reported with the clash it would hit if turned on
+  ---
+  duration_ms: 1.886875
+  type: 'test'
+  ...
+# Subtest: install preview: names what the staged package would clash with in THIS workspace
+ok 1294 - install preview: names what the staged package would clash with in THIS workspace
+  ---
+  duration_ms: 134.482711
+  type: 'test'
+  ...
+# Subtest: install preview: a holder enabled only in another workspace is not a conflict here
+ok 1295 - install preview: a holder enabled only in another workspace is not a conflict here
+  ---
+  duration_ms: 19.772428
+  type: 'test'
+  ...
+# Subtest: install preview: an upgrade is judged by the staged manifest, not the installed version's
+ok 1296 - install preview: an upgrade is judged by the staged manifest, not the installed version's
+  ---
+  duration_ms: 42.132628
+  type: 'test'
+  ...
+# Subtest: absent or null contentTypes declare nothing
+ok 1297 - absent or null contentTypes declare nothing
+  ---
+  duration_ms: 2.577367
+  type: 'test'
+  ...
+# Subtest: a valid declaration fills required/queryable defaults
+ok 1298 - a valid declaration fills required/queryable defaults
+  ---
+  duration_ms: 0.490215
+  type: 'test'
+  ...
+# Subtest: every error carries the CONTENT_TYPE_DECL_INVALID code and no file
+ok 1299 - every error carries the CONTENT_TYPE_DECL_INVALID code and no file
+  ---
+  duration_ms: 1.597783
+  type: 'test'
+  ...
+# Subtest: the list is bounded
+ok 1300 - the list is bounded
+  ---
+  duration_ms: 0.31606
+  type: 'test'
+  ...
+# Subtest: entry shape errors are collected, not first-failure
+ok 1301 - entry shape errors are collected, not first-failure
+  ---
+  duration_ms: 0.195481
+  type: 'test'
+  ...
+# Subtest: key: must be a string, pass the identifier grammar and not be reserved
+ok 1302 - key: must be a string, pass the identifier grammar and not be reserved
+  ---
+  duration_ms: 0.432418
+  type: 'test'
+  ...
+# Subtest: label: a non-empty string of at most 100 characters
+ok 1303 - label: a non-empty string of at most 100 characters
+  ---
+  duration_ms: 8.458045
+  type: 'test'
+  ...
+# Subtest: fields: an array of 1..MAX entries
+ok 1304 - fields: an array of 1..MAX entries
+  ---
+  duration_ms: 0.667325
+  type: 'test'
+  ...
+# Subtest: queryable fields: at most core's per-type cap, so registration cannot refuse it after the code loaded
+ok 1305 - queryable fields: at most core's per-type cap, so registration cannot refuse it after the code loaded
+  ---
+  duration_ms: 0.58391
+  type: 'test'
+  ...
+# Subtest: field errors: shape, unknown key, name, kind, flags, storage-only queryable
+ok 1306 - field errors: shape, unknown key, name, kind, flags, storage-only queryable
+  ---
+  duration_ms: 0.299251
+  type: 'test'
+  ...
+# Subtest: duplicate keys and duplicate field names are refused
+ok 1307 - duplicate keys and duplicate field names are refused
+  ---
+  duration_ms: 0.267882
+  type: 'test'
+  ...
+# Subtest: an indexable queryable field is accepted
+ok 1308 - an indexable queryable field is accepted
+  ---
+  duration_ms: 0.278496
+  type: 'test'
+  ...
+# Subtest: validateDeclarativeManifest: a tier-1 manifest with content types only is valid
+ok 1309 - validateDeclarativeManifest: a tier-1 manifest with content types only is valid
+  ---
+  duration_ms: 8.364375
+  type: 'test'
+  ...
+# Subtest: validateDeclarativeManifest: tier-1 cannot declare code surfaces (capabilities, hooks, fields)
+ok 1310 - validateDeclarativeManifest: tier-1 cannot declare code surfaces (capabilities, hooks, fields)
+  ---
+  duration_ms: 0.313627
+  type: 'test'
+  ...
+# Subtest: validateDeclarativeManifest: a tier-3 manifest may combine code surfaces and content types
+ok 1311 - validateDeclarativeManifest: a tier-3 manifest may combine code surfaces and content types
+  ---
+  duration_ms: 0.210395
+  type: 'test'
+  ...
+# Subtest: plan: a missing type is created
+ok 1312 - plan: a missing type is created
+  ---
+  duration_ms: 0.355594
+  type: 'test'
+  ...
+# Subtest: plan: an existing type holding every declared field with the same kind is kept (extra owner fields allowed)
+ok 1313 - plan: an existing type holding every declared field with the same kind is kept (extra owner fields allowed)
+  ---
+  duration_ms: 0.314297
+  type: 'test'
+  ...
+# Subtest: plan: a tombstoned type is skipped — the owner deleted it and its key cannot be reused
+ok 1314 - plan: a tombstoned type is skipped — the owner deleted it and its key cannot be reused
+  ---
+  duration_ms: 0.213882
+  type: 'test'
+  ...
+# Subtest: plan: an existing type that lacks a field or types it differently is a conflict
+ok 1315 - plan: an existing type that lacks a field or types it differently is a conflict
+  ---
+  duration_ms: 0.156096
+  type: 'test'
+  ...
+# Subtest: apply: creates planned types as the plugin's system actor and reports each outcome
+ok 1316 - apply: creates planned types as the plugin's system actor and reports each outcome
+  ---
+  duration_ms: 0.494846
+  type: 'test'
+  ...
+# Subtest: apply: losing a concurrent create race to a compatible type counts as kept
+ok 1317 - apply: losing a concurrent create race to a compatible type counts as kept
+  ---
+  duration_ms: 0.645544
+  type: 'test'
+  ...
+# Subtest: apply: losing the race to an incompatible type refuses the enable, as planning would have
+ok 1318 - apply: losing the race to an incompatible type refuses the enable, as planning would have
+  ---
+  duration_ms: 5.085723
+  type: 'test'
+  ...
+# Subtest: apply: losing the race to a type that was then tombstoned counts as skipped
+ok 1319 - apply: losing the race to a type that was then tombstoned counts as skipped
+  ---
+  duration_ms: 0.234633
+  type: 'test'
+  ...
+# Subtest: apply: any other register failure is thrown unchanged
+ok 1320 - apply: any other register failure is thrown unchanged
+  ---
+  duration_ms: 0.369423
+  type: 'test'
+  ...
+# Subtest: apply: a race whose winner cannot be read back rethrows the original duplicate error
+ok 1321 - apply: a race whose winner cannot be read back rethrows the original duplicate error
+  ---
+  duration_ms: 0.207487
+  type: 'test'
+  ...
+# Subtest: installs with no confirmation card, through the same installer with the previewed digest, and leaves the plugin off
+ok 1322 - installs with no confirmation card, through the same installer with the previewed digest, and leaves the plugin off
+  ---
+  duration_ms: 14.815162
+  type: 'test'
+  ...
+# Subtest: installs with no dialog channel at all — nothing to approve, so nothing fails closed
+ok 1323 - installs with no dialog channel at all — nothing to approve, so nothing fails closed
+  ---
+  duration_ms: 0.868755
+  type: 'test'
+  ...
+# Subtest: desktop/dev installs need no environment opt-in, and an injected hosted policy still refuses first
+ok 1324 - desktop/dev installs need no environment opt-in, and an injected hosted policy still refuses first
+  ---
+  duration_ms: 1.65659
+  type: 'test'
+  ...
+# Subtest: hosted TOVU_PLUGIN_LOCAL_INSTALL opt-in gates it exactly like the admin route; nothing is inspected
+ok 1325 - hosted TOVU_PLUGIN_LOCAL_INSTALL opt-in gates it exactly like the admin route; nothing is inspected
+  ---
+  duration_ms: 0.463434
+  type: 'test'
+  ...
+# Subtest: a missing permission refuses before any package is inspected
+ok 1326 - a missing permission refuses before any package is inspected
+  ---
+  duration_ms: 5.271843
+  type: 'test'
+  ...
+# Subtest: the permission check asks for admin.plugins.enable on a plugin entity in this workspace for the caller
+ok 1327 - the permission check asks for admin.plugins.enable on a plugin entity in this workspace for the caller
+  ---
+  duration_ms: 0.608273
+  type: 'test'
+  ...
+# Subtest: a missing permission refuses before the input is parsed
+ok 1328 - a missing permission refuses before the input is parsed
+  ---
+  duration_ms: 0.56166
+  type: 'test'
+  ...
+# Subtest: an enabled site with no installer bound reports installs as off
+ok 1329 - an enabled site with no installer bound reports installs as off
+  ---
+  duration_ms: 2.173999
+  type: 'test'
+  ...
+# Subtest: an injected policy that allows installs wins over a hosted environment
+ok 1330 - an injected policy that allows installs wins over a hosted environment
+  ---
+  duration_ms: 0.742896
+  type: 'test'
+  ...
+# Subtest: a relative path is refused as caller input
+ok 1331 - a relative path is refused as caller input
+  ---
+  duration_ms: 0.561252
+  type: 'test'
+  ...
+# Subtest: an invalid package is refused at preview, before anything is written
+ok 1332 - an invalid package is refused at preview, before anything is written
+  ---
+  duration_ms: 0.737458
+  type: 'test'
+  ...
+# Subtest: a preview failure that is not an installer refusal propagates unchanged
+ok 1333 - a preview failure that is not an installer refusal propagates unchanged
+  ---
+  duration_ms: 0.533673
+  type: 'test'
+  ...
+# Subtest: an install failure that is not an installer refusal propagates unchanged
+ok 1334 - an install failure that is not an installer refusal propagates unchanged
+  ---
+  duration_ms: 0.550868
+  type: 'test'
+  ...
+# Subtest: an installer refusal other than a changed package has no retry advice
+ok 1335 - an installer refusal other than a changed package has no retry advice
+  ---
+  duration_ms: 1.009347
+  type: 'test'
+  ...
+# Subtest: an upgrade names the version it replaced
+ok 1336 - an upgrade names the version it replaced
+  ---
+  duration_ms: 0.511532
+  type: 'test'
+  ...
+# Subtest: an installer refusal after the preview (package changed in between, busy lock) is a relayable result
+ok 1337 - an installer refusal after the preview (package changed in between, busy lock) is a relayable result
+  ---
+  duration_ms: 0.562126
+  type: 'test'
+  ...
+# Subtest: a zip source passes the file's bytes as the archive, the admin ZIP route's input shape
+ok 1338 - a zip source passes the file's bytes as the archive, the admin ZIP route's input shape
+  ---
+  duration_ms: 125.101605
+  type: 'test'
+  ...
+# Subtest: description matches the schema: folder and zip sources, replace flag, required source
+ok 1339 - description matches the schema: folder and zip sources, replace flag, required source
+  ---
+  duration_ms: 0.533885
+  type: 'test'
+  ...
+# Subtest: attachmentRef says to get it from chat_list_pending_attachments, never from a path
+ok 1340 - attachmentRef says to get it from chat_list_pending_attachments, never from a path
+  ---
+  duration_ms: 0.316259
+  type: 'test'
+  ...
+# Subtest: attachment ZIP uses the owner-scoped read port and preview digest
+ok 1341 - attachment ZIP uses the owner-scoped read port and preview digest
+  ---
+  duration_ms: 0.868695
+  type: 'test'
+  ...
+# Subtest: attachment input refuses neither path nor attachmentRef before preview
+ok 1342 - attachment input refuses neither path nor attachmentRef before preview
+  ---
+  duration_ms: 0.504144
+  type: 'test'
+  ...
+# Subtest: attachment input refuses both path and attachmentRef before preview
+ok 1343 - attachment input refuses both path and attachmentRef before preview
+  ---
+  duration_ms: 0.282275
+  type: 'test'
+  ...
+# Subtest: attachment input refuses a folder attachmentRef before preview
+ok 1344 - attachment input refuses a folder attachmentRef before preview
+  ---
+  duration_ms: 0.372853
+  type: 'test'
+  ...
+# Subtest: attachment input refuses a malformed attachmentRef before preview
+ok 1345 - attachment input refuses a malformed attachmentRef before preview
+  ---
+  duration_ms: 0.312076
+  type: 'test'
+  ...
+# Subtest: attachment input refuses an inaccessible attachment before preview
+ok 1346 - attachment input refuses an inaccessible attachment before preview
+  ---
+  duration_ms: 0.624554
+  type: 'test'
+  ...
+# Subtest: attachment reading follows permission and site opt-in gates
+ok 1347 - attachment reading follows permission and site opt-in gates
+  ---
+  duration_ms: 1.071802
+  type: 'test'
+  ...
+# Subtest: empty content types do not produce an empty warning clause
+ok 1348 - empty content types do not produce an empty warning clause
+  ---
+  duration_ms: 0.608549
+  type: 'test'
+  ...
+# Subtest: the contributor registers plugins_install in its own domain with its risk map
+ok 1349 - the contributor registers plugins_install in its own domain with its risk map
+  ---
+  duration_ms: 0.182772
+  type: 'test'
+  ...
+# Subtest: plugins_list reports agentPlugins: [] with an empty Agent Plugins dir, and still reports plugins
+ok 1350 - plugins_list reports agentPlugins: [] with an empty Agent Plugins dir, and still reports plugins
+  ---
+  duration_ms: 21.681849
+  type: 'test'
+  ...
+# Subtest: manifest: tier-2, fixed identity, one beforeSave hook, passes the one shared validator
+ok 1351 - manifest: tier-2, fixed identity, one beforeSave hook, passes the one shared validator
+  ---
+  duration_ms: 7.65869
+  type: 'test'
+  ...
+# Subtest: manifest fields: the 6 ext paths, all non-queryable, typed, with search-friendly descriptions
+ok 1352 - manifest fields: the 6 ext paths, all non-queryable, typed, with search-friendly descriptions
+  ---
+  duration_ms: 0.427697
+  type: 'test'
+  ...
+# Subtest: runtime source: built-in, entryPath is the existing worker entry module in this folder, sourceDir is this folder
+ok 1353 - runtime source: built-in, entryPath is the existing worker entry module in this folder, sourceDir is this folder
+  ---
+  duration_ms: 0.15849
+  type: 'test'
+  ...
+# Subtest: runtime source: importModule never runs tier-2 plugin code in the server process
+ok 1354 - runtime source: importModule never runs tier-2 plugin code in the server process
+  ---
+  duration_ms: 6.693641
+  type: 'test'
+  ...
+# Subtest: dataModule: declares a namespaced table and records a migration-journal entry
+ok 1355 - dataModule: declares a namespaced table and records a migration-journal entry
+  ---
+  duration_ms: 151.96856
+  type: 'test'
+  ...
+# Subtest: dataModule: a dbPath naming a different real file warns, still installs, and snapshots the open database
+ok 1356 - dataModule: a dbPath naming a different real file warns, still installs, and snapshots the open database
+  ---
+  duration_ms: 36.648539
+  type: 'test'
+  ...
+# Subtest: dataModule: a different path to the same database file (a second mount, a hard link) installs without a warning
+ok 1357 - dataModule: a different path to the same database file (a second mount, a hard link) installs without a warning
+  ---
+  duration_ms: 29.814275
+  type: 'test'
+  ...
+# Subtest: dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof)
+ok 1358 - dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof)
+  ---
+  duration_ms: 30.465437
+  type: 'test'
+  ...
+# Subtest: dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL)
+ok 1359 - dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL)
+  ---
+  duration_ms: 13.517096
+  type: 'test'
+  ...
+# Subtest: dataModule: a failing DDL rolls back to a working state (never-brick), snapshot kept as recovery point
+ok 1360 - dataModule: a failing DDL rolls back to a working state (never-brick), snapshot kept as recovery point
+  ---
+  duration_ms: 42.918202
+  type: 'test'
+  ...
+# Subtest: dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK
+ok 1361 - dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK
+  ---
+  duration_ms: 17.072253
+  type: 'test'
+  ...
+# Subtest: dataModule: FAULT INJECTION — a verification failure now rolls back the DDL atomically, so the journal is truthfully ROLLED_BACK and no drift survives
+ok 1362 - dataModule: FAULT INJECTION — a verification failure now rolls back the DDL atomically, so the journal is truthfully ROLLED_BACK and no drift survives
+  ---
+  duration_ms: 58.485879
+  type: 'test'
+  ...
+# Subtest: dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit verification failure survive a later (non-crash) boot recovery pass
+ok 1363 - dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit verification failure survive a later (non-crash) boot recovery pass
+  ---
+  duration_ms: 109.41008
+  type: 'test'
+  ...
+# Subtest: dataModule: declaring the same table twice is idempotent (no error, no double-create)
+ok 1364 - dataModule: declaring the same table twice is idempotent (no error, no double-create)
+  ---
+  duration_ms: 70.72832
+  type: 'test'
+  ...
+# Subtest: dataModule: against an in-memory db, snapshotPath is null and NO `:memory:.snapshot-*` file is ever created
+ok 1365 - dataModule: against an in-memory db, snapshotPath is null and NO `:memory:.snapshot-*` file is ever created
+  ---
+  duration_ms: 7.235928
+  type: 'test'
+  ...
+# Subtest: dataModule: an in-memory db's failing DDL still rolls back to a working state, with no journal entry involved
+ok 1366 - dataModule: an in-memory db's failing DDL still rolls back to a working state, with no journal entry involved
+  ---
+  duration_ms: 2.721602
+  type: 'test'
+  ...
+# Subtest: dataModule: FAULT INJECTION, :memory: — a post-commit verification failure rolls the ALTER back too, not just the reported result
+ok 1367 - dataModule: FAULT INJECTION, :memory: — a post-commit verification failure rolls the ALTER back too, not just the reported result
+  ---
+  duration_ms: 12.34742
+  type: 'test'
+  ...
+# Subtest: dataModule: rejects a table whose namespaced name would exceed PostgreSQL's 63-byte identifier limit
+ok 1368 - dataModule: rejects a table whose namespaced name would exceed PostgreSQL's 63-byte identifier limit
+  ---
+  duration_ms: 15.041381
+  type: 'test'
+  ...
+# Subtest: dataModule: rejects an index whose generated name would exceed the identifier limit, even when the table fits
+ok 1369 - dataModule: rejects an index whose generated name would exceed the identifier limit, even when the table fits
+  ---
+  duration_ms: 13.071961
+  type: 'test'
+  ...
+# Subtest: dataModule: accepts an identifier of exactly 63 bytes — the limit is inclusive
+ok 1370 - dataModule: accepts an identifier of exactly 63 bytes — the limit is inclusive
+  ---
+  duration_ms: 48.826776
+  type: 'test'
+  ...
+# Subtest: dataModule refuses an otherwise valid Tier-1 declaration before schema, snapshot or bookkeeping writes
+ok 1371 - dataModule refuses an otherwise valid Tier-1 declaration before schema, snapshot or bookkeeping writes
+  ---
+  duration_ms: 22.620081
+  type: 'test'
+  ...
+# Subtest: dataModule reports a committed migration as successful despite a post-commit checkpoint failure
+ok 1372 - dataModule reports a committed migration as successful despite a post-commit checkpoint failure
+  ---
+  duration_ms: 40.587745
+  type: 'test'
+  ...
+# Subtest: dataModule rejects an invalid table identifier before any database writes
+ok 1373 - dataModule rejects an invalid table identifier before any database writes
+  ---
+  duration_ms: 1.44668
+  type: 'test'
+  ...
+# Subtest: dataModule rejects an empty table list before any database writes
+ok 1374 - dataModule rejects an empty table list before any database writes
+  ---
+  duration_ms: 0.4968
+  type: 'test'
+  ...
+# Subtest: dataModule rejects a table with no columns before any database writes
+ok 1375 - dataModule rejects a table with no columns before any database writes
+  ---
+  duration_ms: 0.426332
+  type: 'test'
+  ...
+# Subtest: dataModule rejects an invalid column identifier before any database writes
+ok 1376 - dataModule rejects an invalid column identifier before any database writes
+  ---
+  duration_ms: 0.332093
+  type: 'test'
+  ...
+# Subtest: dataModule rejects an invalid index identifier before any database writes
+ok 1377 - dataModule rejects an invalid index identifier before any database writes
+  ---
+  duration_ms: 0.464075
+  type: 'test'
+  ...
+# Subtest: dataModule rejects an index without columns before any database writes
+ok 1378 - dataModule rejects an index without columns before any database writes
+  ---
+  duration_ms: 0.639356
+  type: 'test'
+  ...
+# Subtest: dataModule refuses insufficient disk headroom (12 free bytes) before snapshots or DDL
+ok 1379 - dataModule refuses insufficient disk headroom (12 free bytes) before snapshots or DDL
+  ---
+  duration_ms: 9.074283
+  type: 'test'
+  ...
+# Subtest: dataModule refuses insufficient disk headroom (unknown free bytes) before snapshots or DDL
+ok 1380 - dataModule refuses insufficient disk headroom (unknown free bytes) before snapshots or DDL
+  ---
+  duration_ms: 7.608636
+  type: 'test'
+  ...
+# Subtest: dataModule skips disk measurement for in-memory declarations and fully reconciled repeats
+ok 1381 - dataModule skips disk measurement for in-memory declarations and fully reconciled repeats
+  ---
+  duration_ms: 6.679227
+  type: 'test'
+  ...
+# Subtest: dataModule accepts Tier-3 declarations with explicitly false nullable, key and index flags
+ok 1382 - dataModule accepts Tier-3 declarations with explicitly false nullable, key and index flags
+  ---
+  duration_ms: 4.840149
+  type: 'test'
+  ...
+# Subtest: dataModule rolls back migration bookkeeping when a created table cannot be verified
+ok 1383 - dataModule rolls back migration bookkeeping when a created table cannot be verified
+  ---
+  duration_ms: 2.84233
+  type: 'test'
+  ...
+# Subtest: dataModule housekeeping checkpoints before discarding the snapshot
+ok 1384 - dataModule housekeeping checkpoints before discarding the snapshot
+  ---
+  duration_ms: 72.726745
+  type: 'test'
+  ...
+# Subtest: dataModule housekeeping retains the snapshot on checkpoint failure
+ok 1385 - dataModule housekeeping retains the snapshot on checkpoint failure
+  ---
+  duration_ms: 51.747821
+  type: 'test'
+  ...
+# Subtest: dataModule housekeeping skips checkpoints and backups without a file-backed snapshot
+ok 1386 - dataModule housekeeping skips checkpoints and backups without a file-backed snapshot
+  ---
+  duration_ms: 2.60383
+  type: 'test'
+  ...
+# Subtest: L156 duplicate clones all leaves and malformed embeds, minting only string placements in preorder
+ok 1387 - L156 duplicate clones all leaves and malformed embeds, minting only string placements in preorder
+  ---
+  duration_ms: 2.68913
+  type: 'test'
+  ...
+# Subtest: L156 row mappings preserve null defaults, body exclusivity, tri-state and omitted schedule/ext
+ok 1388 - L156 row mappings preserve null defaults, body exclusivity, tri-state and omitted schedule/ext
+  ---
+  duration_ms: 1.173921
+  type: 'test'
+  ...
+# Subtest: L156 update inverse preserves legacy fields, restores explicit values, and replaces ext verbatim
+ok 1389 - L156 update inverse preserves legacy fields, restores explicit values, and replaces ext verbatim
+  ---
+  duration_ms: 3.203815
+  type: 'test'
+  ...
+# Subtest: L156 publish import uses source provenance only on create and keeps destination ext on update
+ok 1390 - L156 publish import uses source provenance only on create and keeps destination ext on update
+  ---
+  duration_ms: 26.756928
+  type: 'test'
+  ...
+# Subtest: L156 duplicate treats an own __proto__ field as the clone prototype (reported, not fixed)
+ok 1391 - L156 duplicate treats an own __proto__ field as the clone prototype (reported, not fixed)
+  ---
+  duration_ms: 1.409827
+  type: 'test'
+  ...
+# Subtest: post creation and editing teach cover-only requests without a second copy in the body
+ok 1392 - post creation and editing teach cover-only requests without a second copy in the body
+  ---
+  duration_ms: 3.051664
+  type: 'test'
+  ...

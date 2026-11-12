@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agentic
+      Coverage enabled with v8
+
+stderr | src/core/dom/__tests__/dom-page-driver.test.ts > duplicate data-agent-element handles > refuses to click a handle published on more than one element, rather than silently acting on the first
+"dup" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+
+stderr | src/core/dom/__tests__/dom-page-driver.test.ts > duplicate data-agent-element handles > refuses describeState on an ambiguous handle too, instead of quietly reading the first
+"dup" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+
+stderr | src/core/dom/__tests__/dom-page-driver.test.ts > duplicate data-agent-element handles > refuses fill on an ambiguous handle too
+"dup" is published on 2 elements on this page, so which one it addresses is ambiguous — this is a page-authoring bug (duplicate data-agent-element), not something a caller can resolve; publish a unique handle per element
+

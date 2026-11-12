@@ -9970,3 +9970,1307 @@ ok 1541 - install policy uses injected host facts even when the env has no hoste
   duration_ms: 0.169344
   type: 'test'
   ...
+# [plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (activation store offline)
+# [plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (activation store offline)
+# Subtest: G-plug fixture: the frozen file is the recorded one (never regenerated)
+ok 1542 - G-plug fixture: the frozen file is the recorded one (never regenerated)
+  ---
+  duration_ms: 1.813203
+  type: 'test'
+  ...
+# Subtest: G-plug 1: plugins_* catalog, descriptors, approval copy, results and refusals are unchanged
+ok 1543 - G-plug 1: plugins_* catalog, descriptors, approval copy, results and refusals are unchanged
+  ---
+  duration_ms: 27.002898
+  type: 'test'
+  ...
+# Subtest: G-plug 2: capability tool ids, descriptions, schema, gate and call results are unchanged
+ok 1544 - G-plug 2: capability tool ids, descriptions, schema, gate and call results are unchanged
+  ---
+  duration_ms: 17.739017
+  type: 'test'
+  ...
+# Subtest: G-plug 3: declarative enable create/keep/conflict/tombstone and lost-race winners are unchanged
+ok 1545 - G-plug 3: declarative enable create/keep/conflict/tombstone and lost-race winners are unchanged
+  ---
+  duration_ms: 53.089584
+  type: 'test'
+  ...
+# Subtest: G-plug 5: the admin plugin DTO envelope is unchanged
+ok 1546 - G-plug 5: the admin plugin DTO envelope is unchanged
+  ---
+  duration_ms: 0.644667
+  type: 'test'
+  ...
+# Subtest: G-plug fixture: the whole file is exactly the serialization of every observer
+ok 1547 - G-plug fixture: the whole file is exactly the serialization of every observer
+  ---
+  duration_ms: 33.789068
+  type: 'test'
+  ...
+# Subtest: a provider OFF stops answers admitted to its assistant face as well as its own tools
+ok 1548 - a provider OFF stops answers admitted to its assistant face as well as its own tools
+  ---
+  duration_ms: 2.784661
+  type: 'test'
+  ...
+# Subtest: plugins_list attaches each plugin's own conflicts and an empty list to plugins without one
+ok 1549 - plugins_list attaches each plugin's own conflicts and an empty list to plugins without one
+  ---
+  duration_ms: 25.809644
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a run cancelled during the post-approval re-check returns abandoned and removes nothing
+ok 1550 - plugins_uninstall: a run cancelled during the post-approval re-check returns abandoned and removes nothing
+  ---
+  duration_ms: 14.341807
+  type: 'test'
+  ...
+# Subtest: an Agent Plugin's approval identity covers every installed digest, independent of listing order
+ok 1551 - an Agent Plugin's approval identity covers every installed digest, independent of listing order
+  ---
+  duration_ms: 2.147635
+  type: 'test'
+  ...
+# Subtest: an unversioned Agent Plugin digest still changes the identity but is left out of the shown version
+ok 1552 - an unversioned Agent Plugin digest still changes the identity but is left out of the shown version
+  ---
+  duration_ms: 1.36228
+  type: 'test'
+  ...
+# Subtest: approval identity refuses an Agent Plugin that is not installed and a site plugin missing from discovery, by name
+ok 1553 - approval identity refuses an Agent Plugin that is not installed and a site plugin missing from discovery, by name
+  ---
+  duration_ms: 23.056233
+  type: 'test'
+  ...
+# Subtest: the contributor builds through the injected host factory only when the deps carry no host
+ok 1554 - the contributor builds through the injected host factory only when the deps carry no host
+  ---
+  duration_ms: 444.343788
+  type: 'test'
+  ...
+# Subtest: with no host bound and no factory, an Agent Plugin operation is an explicit refusal
+ok 1555 - with no host bound and no factory, an Agent Plugin operation is an explicit refusal
+  ---
+  duration_ms: 203.877137
+  type: 'test'
+  ...
+# Subtest: injected Agent Plugin owners are used in place of the host capability, scoped to this workspace's root and layout
+ok 1556 - injected Agent Plugin owners are used in place of the host capability, scoped to this workspace's root and layout
+  ---
+  duration_ms: 120.357232
+  type: 'test'
+  ...
+# Subtest: an unreadable activation record found by the injected pre-flight is a not-changed result naming the reason
+ok 1557 - an unreadable activation record found by the injected pre-flight is a not-changed result naming the reason
+  ---
+  duration_ms: 5.266046
+  type: 'test'
+  ...
+# Subtest: any other pre-flight failure propagates unchanged, before identity or card
+ok 1558 - any other pre-flight failure propagates unchanged, before identity or card
+  ---
+  duration_ms: 0.651044
+  type: 'test'
+  ...
+# Subtest: an Agent Plugin missing at the write is a ToolInputError carrying the lifecycle's message
+ok 1559 - an Agent Plugin missing at the write is a ToolInputError carrying the lifecycle's message
+  ---
+  duration_ms: 29.846024
+  type: 'test'
+  ...
+# Subtest: any other Agent Plugin write failure propagates unchanged and provisions nothing
+ok 1560 - any other Agent Plugin write failure propagates unchanged and provisions nothing
+  ---
+  duration_ms: 3.627868
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a confirmed uninstall of an unchanged site plugin removes it and reports what was trashed
+ok 1561 - plugins_uninstall: a confirmed uninstall of an unchanged site plugin removes it and reports what was trashed
+  ---
+  duration_ms: 8.025113
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a plugin that changed after the user confirmed is not removed, and says so
+ok 1562 - plugins_uninstall: a plugin that changed after the user confirmed is not removed, and says so
+  ---
+  duration_ms: 2.882933
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a declined confirmation removes nothing
+ok 1563 - plugins_uninstall: a declined confirmation removes nothing
+  ---
+  duration_ms: 1.515467
+  type: 'test'
+  ...
+# Subtest: a plugin family outside the two systems is an input error naming both
+ok 1564 - a plugin family outside the two systems is an input error naming both
+  ---
+  duration_ms: 0.481825
+  type: 'test'
+  ...
+# Subtest: plugins_list degrades its Agent Plugin half to empty on a read failure, and shows a missing version as null
+ok 1565 - plugins_list degrades its Agent Plugin half to empty on a read failure, and shows a missing version as null
+  ---
+  duration_ms: 5.690531
+  type: 'test'
+  ...
+# Subtest: plugins_uninstall: a removal failure other than a changed plugin propagates unchanged
+ok 1566 - plugins_uninstall: a removal failure other than a changed plugin propagates unchanged
+  ---
+  duration_ms: 52.970876
+  type: 'test'
+  ...
+# Subtest: an unreadable activation record on a disable says the plugin was NOT disabled
+ok 1567 - an unreadable activation record on a disable says the plugin was NOT disabled
+  ---
+  duration_ms: 2.182212
+  type: 'test'
+  ...
+# Subtest: the injected provider link refuses a face before identity, confirmation or write
+ok 1568 - the injected provider link refuses a face before identity, confirmation or write
+  ---
+  duration_ms: 5.966769
+  type: 'test'
+  ...
+# Subtest: a Soon plugin is refused in plain words before confirmation or write; a linked Soon face says not-ready, not linked
+ok 1569 - a Soon plugin is refused in plain words before confirmation or write; a linked Soon face says not-ready, not linked
+  ---
+  duration_ms: 1.509582
+  type: 'test'
+  ...
+# Subtest: turning a Soon plugin off is never refused, and a ready plugin is not refused as not-ready
+ok 1570 - turning a Soon plugin off is never refused, and a ready plugin is not refused as not-ready
+  ---
+  duration_ms: 4.187628
+  type: 'test'
+  ...
+# Subtest: the injected classifier keeps the owner's linked-switch refusal at write time
+ok 1571 - the injected classifier keeps the owner's linked-switch refusal at write time
+  ---
+  duration_ms: 1.352021
+  type: 'test'
+  ...
+# Subtest: an unreadable provider link is left to the existing write and provisioning path
+ok 1572 - an unreadable provider link is left to the existing write and provisioning path
+  ---
+  duration_ms: 1.252866
+  type: 'test'
+  ...
+# Subtest: a lookalike linked error is not classified as the owner's safe refusal
+ok 1573 - a lookalike linked error is not classified as the owner's safe refusal
+  ---
+  duration_ms: 0.624415
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a clean report: score, words, reading time, readability band + grade, TOC count, all checks pass
+ok 1574 - a clean report: score, words, reading time, readability band + grade, TOC count, all checks pass
+  ---
+  duration_ms: 3.781594
+  type: 'test'
+  ...
+# Subtest: every non-pass check becomes one short actionable sentence, in check order
+ok 1575 - every non-pass check becomes one short actionable sentence, in check order
+  ---
+  duration_ms: 0.504621
+  type: 'test'
+  ...
+# Subtest: zero-word, untitled, unmeta'd report: readability is 'not measured', no-title and no-text sentences, meta skip noted, no headings
+ok 1576 - zero-word, untitled, unmeta'd report: readability is 'not measured', no-title and no-text sentences, meta skip noted, no headings
+  ---
+  duration_ms: 0.284748
+  type: 'test'
+  ...
+# Subtest: plurals and the remaining check sentences: several body H1s, several missing alts, long text without subheadings
+ok 1577 - plurals and the remaining check sentences: several body H1s, several missing alts, long text without subheadings
+  ---
+  duration_ms: 4.790598
+  type: 'test'
+  ...
+# Subtest: multi-word bands render every hyphen as a space
+ok 1578 - multi-word bands render every hyphen as a space
+  ---
+  duration_ms: 0.281717
+  type: 'test'
+  ...
+# Subtest: beginJournalEntry starts at PREPARED_SNAPSHOT; findIncompleteJournalEntries surfaces it
+ok 1579 - beginJournalEntry starts at PREPARED_SNAPSHOT; findIncompleteJournalEntries surfaces it
+  ---
+  duration_ms: 97.759228
+  type: 'test'
+  ...
+# Subtest: advanceJournalPhase moves the phase forward; COMMITTED/ROLLED_BACK are terminal (not surfaced as incomplete)
+ok 1580 - advanceJournalPhase moves the phase forward; COMMITTED/ROLLED_BACK are terminal (not surfaced as incomplete)
+  ---
+  duration_ms: 56.831808
+  type: 'test'
+  ...
+# Subtest: a ROLLED_BACK entry is also terminal
+ok 1581 - a ROLLED_BACK entry is also terminal
+  ---
+  duration_ms: 54.283075
+  type: 'test'
+  ...
+# Subtest: multiple entries: only the non-terminal ones are surfaced
+ok 1582 - multiple entries: only the non-terminal ones are surfaced
+  ---
+  duration_ms: 37.173851
+  type: 'test'
+  ...
+# Subtest: schema structure: blockNode.oneOf's type consts are exactly the documented block-level vocabulary
+ok 1583 - schema structure: blockNode.oneOf's type consts are exactly the documented block-level vocabulary
+  ---
+  duration_ms: 6.929943
+  type: 'test'
+  ...
+# Subtest: schema structure: inlineContent.items.oneOf covers text, hardBreak, and mention — no other inline type
+ok 1584 - schema structure: inlineContent.items.oneOf covers text, hardBreak, and mention — no other inline type
+  ---
+  duration_ms: 0.554089
+  type: 'test'
+  ...
+# Subtest: schema structure: content_post_create's published bodyJson schema is the same TIPTAP_DOC_SCHEMA object (no second, drifting copy)
+ok 1585 - schema structure: content_post_create's published bodyJson schema is the same TIPTAP_DOC_SCHEMA object (no second, drifting copy)
+  ---
+  duration_ms: 7.413678
+  type: 'test'
+  ...
+# Subtest: hardBreak: minimal required-only node ({type}) inside a paragraph's inline content renders a real <br/>, not an empty/dropped node
+ok 1586 - hardBreak: minimal required-only node ({type}) inside a paragraph's inline content renders a real <br/>, not an empty/dropped node
+  ---
+  duration_ms: 8.311065
+  type: 'test'
+  ...
+# Subtest: taskList/taskItem: minimal required-only nodes ({type, content}, attrs omitted) render an unchecked, disabled checkbox — not the default children-only fallback
+ok 1587 - taskList/taskItem: minimal required-only nodes ({type, content}, attrs omitted) render an unchecked, disabled checkbox — not the default children-only fallback
+  ---
+  duration_ms: 0.692942
+  type: 'test'
+  ...
+# Subtest: taskItem attrs.checked: true renders the checked attribute (documented optional attr actually wired)
+ok 1588 - taskItem attrs.checked: true renders the checked attribute (documented optional attr actually wired)
+  ---
+  duration_ms: 0.214251
+  type: 'test'
+  ...
+# Subtest: table family: minimal required-only table>tableRow>tableCell/tableHeader (no attrs) renders a real <table>, not the default fallback
+ok 1589 - table family: minimal required-only table>tableRow>tableCell/tableHeader (no attrs) renders a real <table>, not the default fallback
+  ---
+  duration_ms: 1.345699
+  type: 'test'
+  ...
+# Subtest: tableCell documented attrs (colspan/rowspan/align) are the ones the renderer actually reads
+ok 1590 - tableCell documented attrs (colspan/rowspan/align) are the ones the renderer actually reads
+  ---
+  duration_ms: 0.268249
+  type: 'test'
+  ...
+# Subtest: tableCell attrs.align "justify" is NOT in the schema's enum, and a value outside {left,center,right} the renderer ignores rather than emits
+ok 1591 - tableCell attrs.align "justify" is NOT in the schema's enum, and a value outside {left,center,right} the renderer ignores rather than emits
+  ---
+  duration_ms: 0.252638
+  type: 'test'
+  ...
+# Subtest: media, schema-required assetId+transformName only, resolved asset is a VIDEO: renders a real <video>, not a broken <img>
+ok 1592 - media, schema-required assetId+transformName only, resolved asset is a VIDEO: renders a real <video>, not a broken <img>
+  ---
+  duration_ms: 9.513218
+  type: 'test'
+  ...
+# Subtest: media, schema-required assetId+transformName only, resolved asset is an IMAGE: renders a real <img> through the shared tryRenderRefImage resolution (the same path the now-retired 'image' node used)
+ok 1593 - media, schema-required assetId+transformName only, resolved asset is an IMAGE: renders a real <img> through the shared tryRenderRefImage resolution (the same path the now-retired 'image' node used)
+  ---
+  duration_ms: 1.006011
+  type: 'test'
+  ...
+# Subtest: media with a transformName OTHER than the schema's documented "public" const degrades to the placeholder for a non-video asset, proving the const lock is load-bearing, not decorative
+ok 1594 - media with a transformName OTHER than the schema's documented "public" const degrades to the placeholder for a non-video asset, proving the const lock is load-bearing, not decorative
+  ---
+  duration_ms: 3.910686
+  type: 'test'
+  ...
+# Subtest: schema structure: media's attrs publish cssClass/htmlAttributes as OPTIONAL string properties (2026-09-11 per-post styling) — not in required, so the minimal assetId+transformName rows above stay valid
+ok 1595 - schema structure: media's attrs publish cssClass/htmlAttributes as OPTIONAL string properties (2026-09-11 per-post styling) — not in required, so the minimal assetId+transformName rows above stay valid
+  ---
+  duration_ms: 0.539762
+  type: 'test'
+  ...
+# Subtest: media, schema-optional cssClass+htmlAttributes: a per-post node style round-trips through the REAL renderer, winning over the asset's own same-named fields
+ok 1596 - media, schema-optional cssClass+htmlAttributes: a per-post node style round-trips through the REAL renderer, winning over the asset's own same-named fields
+  ---
+  duration_ms: 0.851409
+  type: 'test'
+  ...
+# Subtest: youtube: minimal required-only node (attrs.src only, start omitted) renders a real nocookie <iframe>, not a placeholder
+ok 1597 - youtube: minimal required-only node (attrs.src only, start omitted) renders a real nocookie <iframe>, not a placeholder
+  ---
+  duration_ms: 0.424167
+  type: 'test'
+  ...
+# Subtest: mention: minimal required-only node (attrs.id+label) renders a real link, not a dropped node
+ok 1598 - mention: minimal required-only node (attrs.id+label) renders a real link, not a dropped node
+  ---
+  duration_ms: 0.289737
+  type: 'test'
+  ...
+# Subtest: mark strike: boolean-style ({type} only, no attrs) renders <s>
+ok 1599 - mark strike: boolean-style ({type} only, no attrs) renders <s>
+  ---
+  duration_ms: 0.27797
+  type: 'test'
+  ...
+# Subtest: mark underline: boolean-style ({type} only, no attrs) renders <u>
+ok 1600 - mark underline: boolean-style ({type} only, no attrs) renders <u>
+  ---
+  duration_ms: 0.142822
+  type: 'test'
+  ...
+# Subtest: mark subscript: boolean-style ({type} only, no attrs) renders <sub>
+ok 1601 - mark subscript: boolean-style ({type} only, no attrs) renders <sub>
+  ---
+  duration_ms: 0.13044
+  type: 'test'
+  ...
+# Subtest: mark superscript: boolean-style ({type} only, no attrs) renders <sup>
+ok 1602 - mark superscript: boolean-style ({type} only, no attrs) renders <sup>
+  ---
+  duration_ms: 0.094248
+  type: 'test'
+  ...
+# Subtest: mark textStyle: documented attrs.color alone renders a real <span style>, not a dropped mark
+ok 1603 - mark textStyle: documented attrs.color alone renders a real <span style>, not a dropped mark
+  ---
+  duration_ms: 0.484165
+  type: 'test'
+  ...
+# Subtest: mark highlight: no attrs (documented as optional) renders a bare <mark>
+ok 1604 - mark highlight: no attrs (documented as optional) renders a bare <mark>
+  ---
+  duration_ms: 0.177807
+  type: 'test'
+  ...
+# Subtest: mark highlight: documented attrs.color renders <mark style="background-color:...">, proving 'color' means the highlight's OWN background here, not text color
+ok 1605 - mark highlight: documented attrs.color renders <mark style="background-color:...">, proving 'color' means the highlight's OWN background here, not text color
+  ---
+  duration_ms: 0.276157
+  type: 'test'
+  ...
+# Subtest: paragraph attrs.textAlign: documented value renders a real style attr
+ok 1606 - paragraph attrs.textAlign: documented value renders a real style attr
+  ---
+  duration_ms: 0.219402
+  type: 'test'
+  ...
+# Subtest: paragraph attrs.textAlign: "left" (the schema's own documented default) is a no-op, not an explicit style — proves the "omit rather than send" guidance is accurate, not just a suggestion
+ok 1607 - paragraph attrs.textAlign: "left" (the schema's own documented default) is a no-op, not an explicit style — proves the "omit rather than send" guidance is accurate, not just a suggestion
+  ---
+  duration_ms: 0.177014
+  type: 'test'
+  ...
+# Subtest: heading attrs.textAlign alongside attrs.level: both documented attrs render together
+ok 1608 - heading attrs.textAlign alongside attrs.level: both documented attrs render together
+  ---
+  duration_ms: 5.083216
+  type: 'test'
+  ...
+# Subtest: codeBlock attrs.language: documented value renders a real language-* class, not a bare <code>
+ok 1609 - codeBlock attrs.language: documented value renders a real language-* class, not a bare <code>
+  ---
+  duration_ms: 0.429884
+  type: 'test'
+  ...
+# Subtest: drift guard: every DOC_NODE_HANDLERS key is documented in TIPTAP_DOC_SCHEMA or explicitly, namedly opted out
+ok 1610 - drift guard: every DOC_NODE_HANDLERS key is documented in TIPTAP_DOC_SCHEMA or explicitly, namedly opted out
+  ---
+  duration_ms: 3.926475
+  type: 'test'
+  ...
+# Subtest: drift guard: every MARK_RENDERERS key is documented in TIPTAP_MARK_SCHEMA's type enum
+ok 1611 - drift guard: every MARK_RENDERERS key is documented in TIPTAP_MARK_SCHEMA's type enum
+  ---
+  duration_ms: 0.49972
+  type: 'test'
+  ...
+# Subtest: schema structure: content_post_create's slug pattern accepts '/' for the homepage, and still rejects a multi-segment path
+ok 1612 - schema structure: content_post_create's slug pattern accepts '/' for the homepage, and still rejects a multi-segment path
+  ---
+  duration_ms: 0.324875
+  type: 'test'
+  ...
+# Subtest: schema structure: content_post_update's slug pattern accepts '/' for the homepage, and still rejects a multi-segment path
+ok 1613 - schema structure: content_post_update's slug pattern accepts '/' for the homepage, and still rejects a multi-segment path
+  ---
+  duration_ms: 0.232819
+  type: 'test'
+  ...
+# Subtest: schema-required YouTube fields and table/media constraints match the renderer fixtures
+ok 1614 - schema-required YouTube fields and table/media constraints match the renderer fixtures
+  ---
+  duration_ms: 0.196678
+  type: 'test'
+  ...
+# Subtest: version parsing preserves zero and positive integers while omission remains opt-in
+ok 1615 - version parsing preserves zero and positive integers while omission remains opt-in
+  ---
+  duration_ms: 10.372692
+  type: 'test'
+  ...
+# Subtest: version parsing rejects NaN with the validation contract
+ok 1616 - version parsing rejects NaN with the validation contract
+  ---
+  duration_ms: 3.643998
+  type: 'test'
+  ...
+# Subtest: version parsing rejects Infinity with the validation contract
+ok 1617 - version parsing rejects Infinity with the validation contract
+  ---
+  duration_ms: 0.188359
+  type: 'test'
+  ...
+# Subtest: version parsing rejects -Infinity with the validation contract
+ok 1618 - version parsing rejects -Infinity with the validation contract
+  ---
+  duration_ms: 0.136027
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: listPublishedPreviews returns only published, non-trashed kind:"post" rows
+ok 1619 - InMemoryPostRepo: listPublishedPreviews returns only published, non-trashed kind:"post" rows
+  ---
+  duration_ms: 2.724828
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: listPublishedPreviews orders newest updatedAt first
+ok 1620 - InMemoryPostRepo: listPublishedPreviews orders newest updatedAt first
+  ---
+  duration_ms: 0.40922
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: listPublishedPreviews is bounded by limit even when more rows exist
+ok 1621 - InMemoryPostRepo: listPublishedPreviews is bounded by limit even when more rows exist
+  ---
+  duration_ms: 0.700396
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips
+ok 1622 - InMemoryPostRepo: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips
+  ---
+  duration_ms: 0.336774
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: listPublishedPreviews is workspace-scoped
+ok 1623 - InMemoryPostRepo: listPublishedPreviews is workspace-scoped
+  ---
+  duration_ms: 0.210773
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: listPublishedPreviews returns only published, non-trashed kind:"post" rows
+ok 1624 - SqlitePostRepo: listPublishedPreviews returns only published, non-trashed kind:"post" rows
+  ---
+  duration_ms: 221.331474
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: listPublishedPreviews orders newest updatedAt first
+ok 1625 - SqlitePostRepo: listPublishedPreviews orders newest updatedAt first
+  ---
+  duration_ms: 220.394236
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: listPublishedPreviews is bounded by limit even when more rows exist
+ok 1626 - SqlitePostRepo: listPublishedPreviews is bounded by limit even when more rows exist
+  ---
+  duration_ms: 161.242991
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips
+ok 1627 - SqlitePostRepo: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips
+  ---
+  duration_ms: 207.069726
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: listPublishedPreviews is workspace-scoped
+ok 1628 - SqlitePostRepo: listPublishedPreviews is workspace-scoped
+  ---
+  duration_ms: 223.950133
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: listPublishedPreviews returns only published, non-trashed kind:"post" rows
+ok 1629 - PglitePostRepo: listPublishedPreviews returns only published, non-trashed kind:"post" rows
+  ---
+  duration_ms: 10342.061503
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: listPublishedPreviews orders newest updatedAt first
+ok 1630 - PglitePostRepo: listPublishedPreviews orders newest updatedAt first
+  ---
+  duration_ms: 33.604147
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: listPublishedPreviews is bounded by limit even when more rows exist
+ok 1631 - PglitePostRepo: listPublishedPreviews is bounded by limit even when more rows exist
+  ---
+  duration_ms: 58.607788
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips
+ok 1632 - PglitePostRepo: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips
+  ---
+  duration_ms: 43.336806
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: listPublishedPreviews is workspace-scoped
+ok 1633 - PglitePostRepo: listPublishedPreviews is workspace-scoped
+  ---
+  duration_ms: 20.860078
+  type: 'test'
+  ...
+# Subtest: listPublishedPostPreviews: wraps the bounded repo call, returning only what the repo already filtered
+ok 1634 - listPublishedPostPreviews: wraps the bounded repo call, returning only what the repo already filtered
+  ---
+  duration_ms: 0.716674
+  type: 'test'
+  ...
+# Subtest: no-op saves: memory
+    # Subtest: post: unchanged saves preserve the record and ledger, including normalized optional fields
+    ok 1 - post: unchanged saves preserve the record and ledger, including normalized optional fields
+      ---
+      duration_ms: 17.922547
+      type: 'test'
+      ...
+    # Subtest: post: each meaningful field change writes once; repeating it does not write again
+    ok 2 - post: each meaningful field change writes once; repeating it does not write again
+      ---
+      duration_ms: 13.22186
+      type: 'test'
+      ...
+    # Subtest: post: an unchanged save still rejects a stale expectedVersion
+    ok 3 - post: an unchanged save still rejects a stale expectedVersion
+      ---
+      duration_ms: 1.172917
+      type: 'test'
+      ...
+    # Subtest: page: unchanged saves preserve the record and ledger, including normalized optional fields
+    ok 4 - page: unchanged saves preserve the record and ledger, including normalized optional fields
+      ---
+      duration_ms: 1.022105
+      type: 'test'
+      ...
+    # Subtest: page: each meaningful field change writes once; repeating it does not write again
+    ok 5 - page: each meaningful field change writes once; repeating it does not write again
+      ---
+      duration_ms: 4.187867
+      type: 'test'
+      ...
+    # Subtest: page: an unchanged save still rejects a stale expectedVersion
+    ok 6 - page: an unchanged save still rejects a stale expectedVersion
+      ---
+      duration_ms: 0.361508
+      type: 'test'
+      ...
+    # Subtest: plugin ext is compared after the hook, ignoring JSON key order
+    ok 7 - plugin ext is compared after the hook, ignoring JSON key order
+      ---
+      duration_ms: 0.75005
+      type: 'test'
+      ...
+    1..7
+ok 1635 - no-op saves: memory
+  ---
+  duration_ms: 40.559312
+  type: 'suite'
+  ...
+# Subtest: no-op saves: SQL [sqlite]
+    # Subtest: post: unchanged saves preserve the record and ledger, including normalized optional fields
+    ok 1 - post: unchanged saves preserve the record and ledger, including normalized optional fields
+      ---
+      duration_ms: 426.667666
+      type: 'test'
+      ...
+    # Subtest: post: each meaningful field change writes once; repeating it does not write again
+    ok 2 - post: each meaningful field change writes once; repeating it does not write again
+      ---
+      duration_ms: 286.045279
+      type: 'test'
+      ...
+    # Subtest: post: an unchanged save still rejects a stale expectedVersion
+    ok 3 - post: an unchanged save still rejects a stale expectedVersion
+      ---
+      duration_ms: 169.205559
+      type: 'test'
+      ...
+    # Subtest: page: unchanged saves preserve the record and ledger, including normalized optional fields
+    ok 4 - page: unchanged saves preserve the record and ledger, including normalized optional fields
+      ---
+      duration_ms: 183.532185
+      type: 'test'
+      ...
+    # Subtest: page: each meaningful field change writes once; repeating it does not write again
+    ok 5 - page: each meaningful field change writes once; repeating it does not write again
+      ---
+      duration_ms: 518.051035
+      type: 'test'
+      ...
+    # Subtest: page: an unchanged save still rejects a stale expectedVersion
+    ok 6 - page: an unchanged save still rejects a stale expectedVersion
+      ---
+      duration_ms: 97.360702
+      type: 'test'
+      ...
+    # Subtest: plugin ext is compared after the hook, ignoring JSON key order
+    ok 7 - plugin ext is compared after the hook, ignoring JSON key order
+      ---
+      duration_ms: 209.489332
+      type: 'test'
+      ...
+    1..7
+ok 1636 - no-op saves: SQL [sqlite]
+  ---
+  duration_ms: 1891.099632
+  type: 'suite'
+  ...
+# Subtest: no-op saves: SQL [pglite]
+    # Subtest: post: unchanged saves preserve the record and ledger, including normalized optional fields
+    ok 1 - post: unchanged saves preserve the record and ledger, including normalized optional fields
+      ---
+      duration_ms: 10974.884514
+      type: 'test'
+      ...
+    # Subtest: post: each meaningful field change writes once; repeating it does not write again
+    ok 2 - post: each meaningful field change writes once; repeating it does not write again
+      ---
+      duration_ms: 1099.331768
+      type: 'test'
+      ...
+    # Subtest: post: an unchanged save still rejects a stale expectedVersion
+    ok 3 - post: an unchanged save still rejects a stale expectedVersion
+      ---
+      duration_ms: 119.409171
+      type: 'test'
+      ...
+    # Subtest: page: unchanged saves preserve the record and ledger, including normalized optional fields
+    ok 4 - page: unchanged saves preserve the record and ledger, including normalized optional fields
+      ---
+      duration_ms: 130.212721
+      type: 'test'
+      ...
+    # Subtest: page: each meaningful field change writes once; repeating it does not write again
+    ok 5 - page: each meaningful field change writes once; repeating it does not write again
+      ---
+      duration_ms: 592.657426
+      type: 'test'
+      ...
+    # Subtest: page: an unchanged save still rejects a stale expectedVersion
+    ok 6 - page: an unchanged save still rejects a stale expectedVersion
+      ---
+      duration_ms: 28.92455
+      type: 'test'
+      ...
+    # Subtest: plugin ext is compared after the hook, ignoring JSON key order
+    ok 7 - plugin ext is compared after the hook, ignoring JSON key order
+      ---
+      duration_ms: 56.143686
+      type: 'test'
+      ...
+    1..7
+ok 1637 - no-op saves: SQL [pglite]
+  ---
+  duration_ms: 13002.472133
+  type: 'suite'
+  ...
+# Subtest: no-op saves skip both write ports and revision append, with or without expectedVersion
+ok 1638 - no-op saves skip both write ports and revision append, with or without expectedVersion
+  ---
+  duration_ms: 1.113078
+  type: 'test'
+  ...
+# Subtest: an unchanged request rechecks its version after an awaited plugin hook
+ok 1639 - an unchanged request rechecks its version after an awaited plugin hook
+  ---
+  duration_ms: 0.946411
+  type: 'test'
+  ...
+# Subtest: a published entry's slug change hands the capture its old and new public paths
+ok 1640 - a published entry's slug change hands the capture its old and new public paths
+  ---
+  duration_ms: 5.745057
+  type: 'test'
+  ...
+# Subtest: an unattributed slug change is captured as the system actor
+ok 1641 - an unattributed slug change is captured as the system actor
+  ---
+  duration_ms: 0.867838
+  type: 'test'
+  ...
+# Subtest: a published entry moving ONTO the root slug is captured with '/' as its new path
+ok 1642 - a published entry moving ONTO the root slug is captured with '/' as its new path
+  ---
+  duration_ms: 0.60975
+  type: 'test'
+  ...
+# Subtest: a draft's slug change captures nothing: its old URL was never public
+ok 1643 - a draft's slug change captures nothing: its old URL was never public
+  ---
+  duration_ms: 0.338342
+  type: 'test'
+  ...
+# Subtest: publishing a draft under a new slug captures nothing: the old URL was a draft's
+ok 1644 - publishing a draft under a new slug captures nothing: the old URL was a draft's
+  ---
+  duration_ms: 0.68991
+  type: 'test'
+  ...
+# Subtest: unpublishing under a new slug still captures: the old URL was public until this write
+ok 1645 - unpublishing under a new slug still captures: the old URL was public until this write
+  ---
+  duration_ms: 1.195218
+  type: 'test'
+  ...
+# Subtest: a published save that keeps its slug captures nothing
+ok 1646 - a published save that keeps its slug captures nothing
+  ---
+  duration_ms: 0.483155
+  type: 'test'
+  ...
+# Subtest: the homepage page leaving the root slug captures nothing: '/' must not redirect away
+ok 1647 - the homepage page leaving the root slug captures nothing: '/' must not redirect away
+  ---
+  duration_ms: 0.46158
+  type: 'test'
+  ...
+# Subtest: no bound capture (lookup returns undefined) still saves the rename
+ok 1648 - no bound capture (lookup returns undefined) still saves the rename
+  ---
+  duration_ms: 1.166631
+  type: 'test'
+  ...
+# Subtest: no lookup injected at all (a caller predating the slot) still saves the rename
+ok 1649 - no lookup injected at all (a caller predating the slot) still saves the rename
+  ---
+  duration_ms: 0.394719
+  type: 'test'
+  ...
+# Subtest: a capture that throws rolls the rename back: no moved entry without its redirect (INV-02)
+ok 1650 - a capture that throws rolls the rename back: no moved entry without its redirect (INV-02)
+  ---
+  duration_ms: 0.968281
+  type: 'test'
+  ...
+# Subtest: updatePost refuses a rename onto the reserved slug 'admin' with create's message, writing nothing
+ok 1651 - updatePost refuses a rename onto the reserved slug 'admin' with create's message, writing nothing
+  ---
+  duration_ms: 0.461138
+  type: 'test'
+  ...
+# Subtest: updatePost refuses a rename onto the reserved slug 'api' with create's message, writing nothing
+ok 1652 - updatePost refuses a rename onto the reserved slug 'api' with create's message, writing nothing
+  ---
+  duration_ms: 0.390958
+  type: 'test'
+  ...
+# Subtest: updatePost refuses a 121-character slug with create's message, writing nothing
+ok 1653 - updatePost refuses a 121-character slug with create's message, writing nothing
+  ---
+  duration_ms: 0.263511
+  type: 'test'
+  ...
+# Subtest: updatePost accepts a slug of exactly 120 characters
+ok 1654 - updatePost accepts a slug of exactly 120 characters
+  ---
+  duration_ms: 0.488147
+  type: 'test'
+  ...
+# Subtest: post: a fully populated entity survives pack -> apply -> pack onto an EMPTY destination
+ok 1655 - post: a fully populated entity survives pack -> apply -> pack onto an EMPTY destination
+  ---
+  duration_ms: 6.725776
+  type: 'test'
+  ...
+# Subtest: post: a fully populated entity survives pack -> apply -> pack onto an EXISTING destination row
+ok 1656 - post: a fully populated entity survives pack -> apply -> pack onto an EXISTING destination row
+  ---
+  duration_ms: 1.982676
+  type: 'test'
+  ...
+# Subtest: page: a fully populated entity survives pack -> apply -> pack onto an EMPTY destination
+ok 1657 - page: a fully populated entity survives pack -> apply -> pack onto an EMPTY destination
+  ---
+  duration_ms: 1.758827
+  type: 'test'
+  ...
+# Subtest: page: a fully populated entity survives pack -> apply -> pack onto an EXISTING destination row
+ok 1658 - page: a fully populated entity survives pack -> apply -> pack onto an EXISTING destination row
+  ---
+  duration_ms: 0.803299
+  type: 'test'
+  ...
+# Subtest: a members-only post does NOT publish to the destination as publicly readable
+ok 1659 - a members-only post does NOT publish to the destination as publicly readable
+  ---
+  duration_ms: 1.57201
+  type: 'test'
+  ...
+# Subtest: publishing over an existing PUBLIC destination row still applies the source's member gating
+ok 1660 - publishing over an existing PUBLIC destination row still applies the source's member gating
+  ---
+  duration_ms: 0.652553
+  type: 'test'
+  ...
+# Subtest: seoExtJson survives publish onto an empty destination
+ok 1661 - seoExtJson survives publish onto an empty destination
+  ---
+  duration_ms: 1.807776
+  type: 'test'
+  ...
+# Subtest: templateChoice and overridesThemePage survive publish onto an empty destination
+ok 1662 - templateChoice and overridesThemePage survive publish onto an empty destination
+  ---
+  duration_ms: 0.705025
+  type: 'test'
+  ...
+# Subtest: an html-format Page keeps its bodyHtml and its format through a publish
+ok 1663 - an html-format Page keeps its bodyHtml and its format through a publish
+  ---
+  duration_ms: 1.332498
+  type: 'test'
+  ...
+# Subtest: D2: publishing replaces an existing doc-format destination row with the source's html format
+ok 1664 - D2: publishing replaces an existing doc-format destination row with the source's html format
+  ---
+  duration_ms: 0.675389
+  type: 'test'
+  ...
+# Subtest: D2: publishing replaces an existing html-format destination row with the source's doc format
+ok 1665 - D2: publishing replaces an existing html-format destination row with the source's doc format
+  ---
+  duration_ms: 2.532586
+  type: 'test'
+  ...
+# Subtest: create preserves the SOURCE author and never re-stamps it with the importing operator
+ok 1666 - create preserves the SOURCE author and never re-stamps it with the importing operator
+  ---
+  duration_ms: 0.870121
+  type: 'test'
+  ...
+# Subtest: update never overwrites the destination row's write-once authorship
+ok 1667 - update never overwrites the destination row's write-once authorship
+  ---
+  duration_ms: 0.764921
+  type: 'test'
+  ...
+# Subtest: a trashed source row is not packed at all, so publish can never resurrect it as live content
+ok 1668 - a trashed source row is not packed at all, so publish can never resurrect it as live content
+  ---
+  duration_ms: 1.010686
+  type: 'test'
+  ...
+# Subtest: publishing over a TRASHED destination row is refused rather than silently resurrecting it
+ok 1669 - publishing over a TRASHED destination row is refused rather than silently resurrecting it
+  ---
+  duration_ms: 1.439435
+  type: 'test'
+  ...
+# Subtest: post: plugin extension data is excluded from transport and preserves destination-local namespaces
+ok 1670 - post: plugin extension data is excluded from transport and preserves destination-local namespaces
+  ---
+  duration_ms: 1.370632
+  type: 'test'
+  ...
+# Subtest: page: plugin extension data is excluded from transport and preserves destination-local namespaces
+ok 1671 - page: plugin extension data is excluded from transport and preserves destination-local namespaces
+  ---
+  duration_ms: 1.03389
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: applies when the row is still at ifVersion
+ok 1672 - InMemoryPostRepo: applies when the row is still at ifVersion
+  ---
+  duration_ms: 2.601081
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: a superseded basis writes NOTHING — no body, no title, no version bump
+ok 1673 - InMemoryPostRepo: a superseded basis writes NOTHING — no body, no title, no version bump
+  ---
+  duration_ms: 0.396602
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: an absent row reports applied:false and is NOT inserted — this is never an upsert
+ok 1674 - InMemoryPostRepo: an absent row reports applied:false and is NOT inserted — this is never an upsert
+  ---
+  duration_ms: 0.286763
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: the workspace is part of the match — a right id and version in the wrong workspace writes nothing
+ok 1675 - InMemoryPostRepo: the workspace is part of the match — a right id and version in the wrong workspace writes nothing
+  ---
+  duration_ms: 0.201412
+  type: 'test'
+  ...
+# Subtest: InMemoryPostRepo: a parked autosave snapshot survives an applied saveIfVersion — same columns save() writes, no more
+ok 1676 - InMemoryPostRepo: a parked autosave snapshot survives an applied saveIfVersion — same columns save() writes, no more
+  ---
+  duration_ms: 0.329314
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: applies when the row is still at ifVersion
+ok 1677 - SqlitePostRepo: applies when the row is still at ifVersion
+  ---
+  duration_ms: 276.15204
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: a superseded basis writes NOTHING — no body, no title, no version bump
+ok 1678 - SqlitePostRepo: a superseded basis writes NOTHING — no body, no title, no version bump
+  ---
+  duration_ms: 278.120094
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: an absent row reports applied:false and is NOT inserted — this is never an upsert
+ok 1679 - SqlitePostRepo: an absent row reports applied:false and is NOT inserted — this is never an upsert
+  ---
+  duration_ms: 271.622386
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: the workspace is part of the match — a right id and version in the wrong workspace writes nothing
+ok 1680 - SqlitePostRepo: the workspace is part of the match — a right id and version in the wrong workspace writes nothing
+  ---
+  duration_ms: 264.466456
+  type: 'test'
+  ...
+# Subtest: SqlitePostRepo: a parked autosave snapshot survives an applied saveIfVersion — same columns save() writes, no more
+ok 1681 - SqlitePostRepo: a parked autosave snapshot survives an applied saveIfVersion — same columns save() writes, no more
+  ---
+  duration_ms: 264.878243
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: applies when the row is still at ifVersion
+ok 1682 - PglitePostRepo: applies when the row is still at ifVersion
+  ---
+  duration_ms: 9122.4322
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: a superseded basis writes NOTHING — no body, no title, no version bump
+ok 1683 - PglitePostRepo: a superseded basis writes NOTHING — no body, no title, no version bump
+  ---
+  duration_ms: 32.217876
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: an absent row reports applied:false and is NOT inserted — this is never an upsert
+ok 1684 - PglitePostRepo: an absent row reports applied:false and is NOT inserted — this is never an upsert
+  ---
+  duration_ms: 60.11741
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: the workspace is part of the match — a right id and version in the wrong workspace writes nothing
+ok 1685 - PglitePostRepo: the workspace is part of the match — a right id and version in the wrong workspace writes nothing
+  ---
+  duration_ms: 35.406644
+  type: 'test'
+  ...
+# Subtest: PglitePostRepo: a parked autosave snapshot survives an applied saveIfVersion — same columns save() writes, no more
+ok 1686 - PglitePostRepo: a parked autosave snapshot survives an applied saveIfVersion — same columns save() writes, no more
+  ---
+  duration_ms: 36.08235
+  type: 'test'
+  ...
+# Subtest: a successful SQLite guarded save replaces the real searchable title and body
+ok 1687 - a successful SQLite guarded save replaces the real searchable title and body
+  ---
+  duration_ms: 281.71005
+  type: 'test'
+  ...
+# Subtest: accented and non-Latin title queries reach the real search index
+ok 1688 - accented and non-Latin title queries reach the real search index
+  ---
+  duration_ms: 289.047691
+  type: 'test'
+  ...
+# Subtest: a title match outranks a slug-only match, which outranks a body-only mention
+ok 1689 - a title match outranks a slug-only match, which outranks a body-only mention
+  ---
+  duration_ms: 188.914549
+  type: 'test'
+  ...
+# Subtest: scores are reported highest-is-best, inverting bm25()'s cost convention
+ok 1690 - scores are reported highest-is-best, inverting bm25()'s cost convention
+  ---
+  duration_ms: 282.643788
+  type: 'test'
+  ...
+# Subtest: multi-word queries are OR'd — a post matching only one term still surfaces
+ok 1691 - multi-word queries are OR'd — a post matching only one term still surfaces
+  ---
+  duration_ms: 180.922388
+  type: 'test'
+  ...
+# Subtest: the Porter stemmer makes a word form findable by its stem
+ok 1692 - the Porter stemmer makes a word form findable by its stem
+  ---
+  duration_ms: 159.719861
+  type: 'test'
+  ...
+# Subtest: a query with no match returns nothing rather than everything
+ok 1693 - a query with no match returns nothing rather than everything
+  ---
+  duration_ms: 195.137495
+  type: 'test'
+  ...
+# Subtest: hits carry a body snippet and never the body document itself
+ok 1694 - hits carry a body snippet and never the body document itself
+  ---
+  duration_ms: 311.174301
+  type: 'test'
+  ...
+# Subtest: kind narrows to posts or pages
+ok 1695 - kind narrows to posts or pages
+  ---
+  duration_ms: 101.04028
+  type: 'test'
+  ...
+# Subtest: status narrows to drafts or published, and drafts are included by default
+ok 1696 - status narrows to drafts or published, and drafts are included by default
+  ---
+  duration_ms: 138.286225
+  type: 'test'
+  ...
+# Subtest: publishing a draft changes what a status-filtered search returns, with no index write
+ok 1697 - publishing a draft changes what a status-filtered search returns, with no index write
+  ---
+  duration_ms: 299.092997
+  type: 'test'
+  ...
+# Subtest: limit caps the page, and the cap is applied AFTER the visibility filters
+ok 1698 - limit caps the page, and the cap is applied AFTER the visibility filters
+  ---
+  duration_ms: 225.432972
+  type: 'test'
+  ...
+# Subtest: a search never crosses a workspace boundary, even for an identical title
+ok 1699 - a search never crosses a workspace boundary, even for an identical title
+  ---
+  duration_ms: 245.599971
+  type: 'test'
+  ...
+# Subtest: a newly created post is findable immediately — no reindex step
+ok 1700 - a newly created post is findable immediately — no reindex step
+  ---
+  duration_ms: 430.675084
+  type: 'test'
+  ...
+# Subtest: an update replaces the indexed text — the old wording stops matching
+ok 1701 - an update replaces the indexed text — the old wording stops matching
+  ---
+  duration_ms: 356.77679
+  type: 'test'
+  ...
+# Subtest: a soft-deleted post disappears from search, and a restore brings it back
+ok 1702 - a soft-deleted post disappears from search, and a restore brings it back
+  ---
+  duration_ms: 209.180471
+  type: 'test'
+  ...
+# Subtest: a trashed post is excluded without its index row being removed — the filter is on the live row
+ok 1703 - a trashed post is excluded without its index row being removed — the filter is on the live row
+  ---
+  duration_ms: 172.158888
+  type: 'test'
+  ...
+# Subtest: a HARD-deleted post takes its projection with it — nothing is left pointing at a row that is gone
+ok 1704 - a HARD-deleted post takes its projection with it — nothing is left pointing at a row that is gone
+  ---
+  duration_ms: 346.506264
+  type: 'test'
+  ...
+# Subtest: re-saving the same post does not duplicate it in the results
+ok 1705 - re-saving the same post does not duplicate it in the results
+  ---
+  duration_ms: 217.960154
+  type: 'test'
+  ...
+# Subtest: backfill indexes posts written without going through the repo
+ok 1706 - backfill indexes posts written without going through the repo
+  ---
+  duration_ms: 155.310947
+  type: 'test'
+  ...
+# Subtest: backfill is a no-op on a warm database and is safe to run repeatedly
+ok 1707 - backfill is a no-op on a warm database and is safe to run repeatedly
+  ---
+  duration_ms: 304.00743
+  type: 'test'
+  ...
+# Subtest: backfill survives an unparseable legacy body — title and slug are still indexed
+ok 1708 - backfill survives an unparseable legacy body — title and slug are still indexed
+  ---
+  duration_ms: 364.93479
+  type: 'test'
+  ...
+# Subtest: backfill indexes a whole legacy corpus in one pass
+ok 1709 - backfill indexes a whole legacy corpus in one pass
+  ---
+  duration_ms: 114.249076
+  type: 'test'
+  ...
+# Subtest: a long post returns a bounded contextual snippet rather than the entire extracted body
+ok 1710 - a long post returns a bounded contextual snippet rather than the entire extracted body
+  ---
+  duration_ms: 342.633034
+  type: 'test'
+  ...
+# Subtest: the production search factory waits for legacy backfill readiness before querying
+ok 1711 - the production search factory waits for legacy backfill readiness before querying
+  ---
+  duration_ms: 205.582425
+  type: 'test'
+  ...
+# Subtest: the production search factory propagates a deferred readiness failure
+ok 1712 - the production search factory propagates a deferred readiness failure
+  ---
+  duration_ms: 192.469095
+  type: 'test'
+  ...
+# (node:29402) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:29402) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: content_post_create: a not-image refusal with no recorded content type says 'not an image' and writes nothing
+ok 1713 - content_post_create: a not-image refusal with no recorded content type says 'not an image' and writes nothing
+  ---
+  duration_ms: 4.700764
+  type: 'test'
+  ...
+# Subtest: content_post_update: a second agent save built on a superseded version is REJECTED and does not land
+ok 1714 - content_post_update: a second agent save built on a superseded version is REJECTED and does not land
+  ---
+  duration_ms: 10.706343
+  type: 'test'
+  ...
+# Subtest: content_post_update: a matching expectedVersion succeeds, and replaying it then conflicts — the value went THROUGH the guard, not around it
+ok 1715 - content_post_update: a matching expectedVersion succeeds, and replaying it then conflicts — the value went THROUGH the guard, not around it
+  ---
+  duration_ms: 1.26221
+  type: 'test'
+  ...
+# Subtest: content_post_update: omitting expectedVersion is still last-write-wins — the guard stays opt-in for the agent too
+ok 1716 - content_post_update: omitting expectedVersion is still last-write-wins — the guard stays opt-in for the agent too
+  ---
+  duration_ms: 1.705185
+  type: 'test'
+  ...
+# Subtest: content_post_update: expectedVersion as a numeric string is REJECTED — never silently downgraded to an unguarded save
+ok 1717 - content_post_update: expectedVersion as a numeric string is REJECTED — never silently downgraded to an unguarded save
+  ---
+  duration_ms: 0.675932
+  type: 'test'
+  ...
+# Subtest: content_post_update: expectedVersion as a fractional number is REJECTED — never silently downgraded to an unguarded save
+ok 1718 - content_post_update: expectedVersion as a fractional number is REJECTED — never silently downgraded to an unguarded save
+  ---
+  duration_ms: 0.58327
+  type: 'test'
+  ...
+# Subtest: content_post_update: expectedVersion as a negative integer is REJECTED — never silently downgraded to an unguarded save
+ok 1719 - content_post_update: expectedVersion as a negative integer is REJECTED — never silently downgraded to an unguarded save
+  ---
+  duration_ms: 0.381681
+  type: 'test'
+  ...
+# Subtest: content_post_update: expectedVersion as an explicit null is REJECTED — never silently downgraded to an unguarded save
+ok 1720 - content_post_update: expectedVersion as an explicit null is REJECTED — never silently downgraded to an unguarded save
+  ---
+  duration_ms: 0.374366
+  type: 'test'
+  ...
+# Subtest: content_post_update: expectedVersion as a boolean is REJECTED — never silently downgraded to an unguarded save
+ok 1721 - content_post_update: expectedVersion as a boolean is REJECTED — never silently downgraded to an unguarded save
+  ---
+  duration_ms: 0.398025
+  type: 'test'
+  ...
+# Subtest: a post deleted during its hook reaches the model as not-found with no losing revision
+ok 1722 - a post deleted during its hook reaches the model as not-found with no losing revision
+  ---
+  duration_ms: 7.017759
+  type: 'test'
+  ...
+# Subtest: a post trashed during its hook reaches the model as not-found with no losing revision
+ok 1723 - a post trashed during its hook reaches the model as not-found with no losing revision
+  ---
+  duration_ms: 1.442923
+  type: 'test'
+  ...
+# Subtest: a version conflict reaches the model as an actionable BAD_REQUEST, NOT a redacted INTERNAL_ERROR
+ok 1724 - a version conflict reaches the model as an actionable BAD_REQUEST, NOT a redacted INTERNAL_ERROR
+  ---
+  duration_ms: 2.445089
+  type: 'test'
+  ...
+# Subtest: a numeric-string expectedVersion is normalized without bypassing the concurrency guard
+ok 1725 - a numeric-string expectedVersion is normalized without bypassing the concurrency guard
+  ---
+  duration_ms: 1.892261
+  type: 'test'
+  ...
+# Subtest: a malformed expectedVersion reaches the model as a DIFFERENT, shape-flavoured BAD_REQUEST — the two are tellable apart
+ok 1726 - a malformed expectedVersion reaches the model as a DIFFERENT, shape-flavoured BAD_REQUEST — the two are tellable apart
+  ---
+  duration_ms: 1.79498
+  type: 'test'
+  ...
+# Subtest: content_post_update publishes expectedVersion as an OPTIONAL non-negative integer — a model cannot use what the schema never mentions
+ok 1727 - content_post_update publishes expectedVersion as an OPTIONAL non-negative integer — a model cannot use what the schema never mentions
+  ---
+  duration_ms: 0.157812
+  type: 'test'
+  ...
+# Subtest: save (insert) -> restart-simulated (fresh repo instance against the same file) -> data still there
+ok 1728 - save (insert) -> restart-simulated (fresh repo instance against the same file) -> data still there
+  ---
+  duration_ms: 274.786293
+  type: 'test'
+  ...
+# Subtest: findByWorkspaceId returns null for a workspace with no presentation-settings row
+ok 1729 - findByWorkspaceId returns null for a workspace with no presentation-settings row
+  ---
+  duration_ms: 156.155765
+  type: 'test'
+  ...
+# Subtest: save() on an existing workspaceId upserts in place — one real UPDATE, not a duplicate row
+ok 1730 - save() on an existing workspaceId upserts in place — one real UPDATE, not a duplicate row
+  ---
+  duration_ms: 268.938959
+  type: 'test'
+  ...
+# Subtest: workspace-scoping: findByWorkspaceId for ws-2 does not see ws-1's row, and listAll reports both
+ok 1731 - workspace-scoping: findByWorkspaceId for ws-2 does not see ws-1's row, and listAll reports both
+  ---
+  duration_ms: 279.342134
+  type: 'test'
+  ...
+# Subtest: retaining a sealed owner row cannot bypass a later site revocation
+ok 1732 - retaining a sealed owner row cannot bypass a later site revocation
+  ---
+  duration_ms: 15.558524
+  type: 'test'
+  ...
+# Subtest: a site receives only an active owner key handle and cannot derive owner key bytes
+ok 1733 - a site receives only an active owner key handle and cannot derive owner key bytes
+  ---
+  duration_ms: 1.954105
+  type: 'test'
+  ...
+# Subtest: a revoke committed during asynchronous crypto prevents returning plaintext
+ok 1734 - a revoke committed during asynchronous crypto prevents returning plaintext
+  ---
+  duration_ms: 0.552904
+  type: 'test'
+  ...
+# Subtest: human saves forward plaintext, key handle and exact row AAD unchanged
+ok 1735 - human saves forward plaintext, key handle and exact row AAD unchanged
+  ---
+  duration_ms: 0.266512
+  type: 'test'
+  ...

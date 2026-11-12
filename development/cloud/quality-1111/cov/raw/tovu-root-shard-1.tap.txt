@@ -5178,3 +5178,1324 @@ ok 737 - status and stored-credential reads use the host pure projections
   duration_ms: 1.065152
   type: 'test'
   ...
+# Subtest: normalizePackageEntryPath: rejects a lexical '..' segment
+ok 738 - normalizePackageEntryPath: rejects a lexical '..' segment
+  ---
+  duration_ms: 3.303177
+  type: 'test'
+  ...
+# Subtest: normalizePackageEntryPath: rejects an absolute POSIX path
+ok 739 - normalizePackageEntryPath: rejects an absolute POSIX path
+  ---
+  duration_ms: 0.203217
+  type: 'test'
+  ...
+# Subtest: normalizePackageEntryPath: rejects a Windows drive-absolute path
+ok 740 - normalizePackageEntryPath: rejects a Windows drive-absolute path
+  ---
+  duration_ms: 0.116331
+  type: 'test'
+  ...
+# Subtest: normalizePackageEntryPath: rejects a NUL byte
+ok 741 - normalizePackageEntryPath: rejects a NUL byte
+  ---
+  duration_ms: 0.137859
+  type: 'test'
+  ...
+# Subtest: normalizePackageEntryPath: accepts a normal relative path unchanged
+ok 742 - normalizePackageEntryPath: accepts a normal relative path unchanged
+  ---
+  duration_ms: 0.183231
+  type: 'test'
+  ...
+# Subtest: normalizePackageEntryPath: normalizes backslashes to forward slashes
+ok 743 - normalizePackageEntryPath: normalizes backslashes to forward slashes
+  ---
+  duration_ms: 0.129182
+  type: 'test'
+  ...
+# Subtest: assertContainedOnDisk: accepts a path that resolves inside the root
+ok 744 - assertContainedOnDisk: accepts a path that resolves inside the root
+  ---
+  duration_ms: 34.845417
+  type: 'test'
+  ...
+# Subtest: assertContainedOnDisk: rejects a path whose PARENT is a symlink escaping the root
+ok 745 - assertContainedOnDisk: rejects a path whose PARENT is a symlink escaping the root
+  ---
+  duration_ms: 14.307098
+  type: 'test'
+  ...
+# Subtest: assertContainedOnDisk: rejects when the target ITSELF is a symlink escaping the root
+ok 746 - assertContainedOnDisk: rejects when the target ITSELF is a symlink escaping the root
+  ---
+  duration_ms: 31.286186
+  type: 'test'
+  ...
+# Subtest: assertContainedOnDisk: re-resolves the root fresh on every call (no cached-root TOCTOU)
+ok 747 - assertContainedOnDisk: re-resolves the root fresh on every call (no cached-root TOCTOU)
+  ---
+  duration_ms: 75.721549
+  type: 'test'
+  ...
+# Subtest: enabling a guidance-only plugin announces a reload even when it has no MCP servers to provision
+ok 748 - enabling a guidance-only plugin announces a reload even when it has no MCP servers to provision
+  ---
+  duration_ms: 3.865999
+  type: 'test'
+  ...
+# Subtest: limit truncates the result set to the requested size
+ok 749 - limit truncates the result set to the requested size
+  ---
+  duration_ms: 2.43622
+  type: 'test'
+  ...
+# Subtest: every field of the source candidate is carried through onto the match, plus a score
+ok 750 - every field of the source candidate is carried through onto the match, plus a score
+  ---
+  duration_ms: 0.413099
+  type: 'test'
+  ...
+# Plugin 'zeta-seam' has no publisher-qualified id; using 'unknown/zeta-seam'.
+# Plugin 'alpha-seam' has no publisher-qualified id; using 'unknown/alpha-seam'.
+# Plugin 'mid-seam' has no publisher-qualified id; using 'unknown/mid-seam'.
+# Subtest: orderByPluginId returns trusted packages sorted by plugin id
+ok 751 - orderByPluginId returns trusted packages sorted by plugin id
+  ---
+  duration_ms: 287.368513
+  type: 'test'
+  ...
+# Plugin 'on-seam' has no publisher-qualified id; using 'unknown/on-seam'.
+# Plugin 'off-seam' has no publisher-qualified id; using 'unknown/off-seam'.
+# Subtest: onInactive hears a switched-off plugin, which is neither trusted nor refused
+ok 752 - onInactive hears a switched-off plugin, which is neither trusted nor refused
+  ---
+  duration_ms: 172.06263
+  type: 'test'
+  ...
+# Subtest: without requireActive a switched-off plugin is trusted and onInactive is never called
+ok 753 - without requireActive a switched-off plugin is trusted and onInactive is never called
+  ---
+  duration_ms: 124.555616
+  type: 'test'
+  ...
+# Plugin 'blocked-mail' has no publisher-qualified id; using 'unknown/blocked-mail'.
+# Subtest: unreadable activation refuses a bundled executable contribution before its module runs
+ok 754 - unreadable activation refuses a bundled executable contribution before its module runs
+  ---
+  duration_ms: 93.385372
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: ordinary note save runs directly, preserves bytes and opens no exchange
+ok 755 - ordinary note save runs directly, preserves bytes and opens no exchange
+  ---
+  duration_ms: 247.632285
+  type: 'test'
+  ...
+# Subtest: the handler uses the instance layout supplied at construction
+ok 756 - the handler uses the instance layout supplied at construction
+  ---
+  duration_ms: 52.275648
+  type: 'test'
+  ...
+# Subtest: an aborted note saves nothing
+ok 757 - an aborted note saves nothing
+  ---
+  duration_ms: 38.689556
+  type: 'test'
+  ...
+# Subtest: input refusals happen before any dialog
+ok 758 - input refusals happen before any dialog
+  ---
+  duration_ms: 229.463518
+  type: 'test'
+  ...
+# Subtest: an operator without admin.plugins.enable is refused before the install check
+ok 759 - an operator without admin.plugins.enable is refused before the install check
+  ---
+  duration_ms: 22.553241
+  type: 'test'
+  ...
+# Subtest: security: capabilities an assistant-run admin action kept cannot reach its confirmed account from a later read
+ok 760 - security: capabilities an assistant-run admin action kept cannot reach its confirmed account from a later read
+  ---
+  duration_ms: 35.012054
+  type: 'test'
+  ...
+# Subtest: security: capabilities a bootstrap call kept are dead once bootstrap ends, so a later read gets no token
+ok 761 - security: capabilities a bootstrap call kept are dead once bootstrap ends, so a later read gets no token
+  ---
+  duration_ms: 2.824422
+  type: 'test'
+  ...
+# Subtest: another host authorizes plugin tools with its own RBAC permission name
+ok 762 - another host authorizes plugin tools with its own RBAC permission name
+  ---
+  duration_ms: 5.980243
+  type: 'test'
+  ...
+# Subtest: the host permission still denies a principal who lacks it
+ok 763 - the host permission still denies a principal who lacks it
+  ---
+  duration_ms: 1.27606
+  type: 'test'
+  ...
+# Subtest: Tovu binds exactly admin.assistant.use as the tool permission
+ok 764 - Tovu binds exactly admin.assistant.use as the tool permission
+  ---
+  duration_ms: 0.315131
+  type: 'test'
+  ...
+# Subtest: deriveDailySalt is deterministic for a fixed (analyticsSeed, workspaceId, utcDate) triple
+ok 765 - deriveDailySalt is deterministic for a fixed (analyticsSeed, workspaceId, utcDate) triple
+  ---
+  duration_ms: 3.040673
+  type: 'test'
+  ...
+# Subtest: deriveDailySalt rotates across UTC days (salt rotation)
+ok 766 - deriveDailySalt rotates across UTC days (salt rotation)
+  ---
+  duration_ms: 0.347865
+  type: 'test'
+  ...
+# Subtest: deriveDailySalt is workspace-scoped (no cross-workspace salt reuse)
+ok 767 - deriveDailySalt is workspace-scoped (no cross-workspace salt reuse)
+  ---
+  duration_ms: 0.302309
+  type: 'test'
+  ...
+# Subtest: deriveDailySalt changes when the analytics seed changes
+ok 768 - deriveDailySalt changes when the analytics seed changes
+  ---
+  duration_ms: 0.237304
+  type: 'test'
+  ...
+# Subtest: deriveDailySalt rejects an empty workspaceId
+ok 769 - deriveDailySalt rejects an empty workspaceId
+  ---
+  duration_ms: 0.644334
+  type: 'test'
+  ...
+# Subtest: deriveDailySalt rejects an empty utcDate
+ok 770 - deriveDailySalt rejects an empty utcDate
+  ---
+  duration_ms: 0.192492
+  type: 'test'
+  ...
+# Subtest: parse: text that is not JSON is refused as such
+ok 771 - parse: text that is not JSON is refused as such
+  ---
+  duration_ms: 14.925663
+  type: 'test'
+  ...
+# Subtest: parse: a top level that is not an object, or another schemaVersion, is refused
+ok 772 - parse: a top level that is not an object, or another schemaVersion, is refused
+  ---
+  duration_ms: 0.344647
+  type: 'test'
+  ...
+# Subtest: parse: connections must be an array of at most 8
+ok 773 - parse: connections must be an array of at most 8
+  ---
+  duration_ms: 0.288258
+  type: 'test'
+  ...
+# Subtest: parse: an entry that is not an object is refused by its index
+ok 774 - parse: an entry that is not an object is refused by its index
+  ---
+  duration_ms: 10.945382
+  type: 'test'
+  ...
+# Subtest: parse: an id that is not a short lowercase hyphenated string is refused
+ok 775 - parse: an id that is not a short lowercase hyphenated string is refused
+  ---
+  duration_ms: 3.451992
+  type: 'test'
+  ...
+# Subtest: parse: a module that is not a relative .mjs path is refused
+ok 776 - parse: a module that is not a relative .mjs path is refused
+  ---
+  duration_ms: 0.301889
+  type: 'test'
+  ...
+# Subtest: parse: clients that are not an object are refused
+ok 777 - parse: clients that are not an object are refused
+  ---
+  duration_ms: 0.237208
+  type: 'test'
+  ...
+# Subtest: parse: a client config that is not an object is refused with its runtime
+ok 778 - parse: a client config that is not an object is refused with its runtime
+  ---
+  duration_ms: 0.133986
+  type: 'test'
+  ...
+# Subtest: parse: a secret setting name outside TOVU_…_CLIENT_SECRET is refused (a plugin never names another host secret)
+ok 779 - parse: a secret setting name outside TOVU_…_CLIENT_SECRET is refused (a plugin never names another host secret)
+  ---
+  duration_ms: 0.25338
+  type: 'test'
+  ...
+# Subtest: parse: redirectOrigins must be a list of at most 32 bare origins
+ok 780 - parse: redirectOrigins must be a list of at most 32 bare origins
+  ---
+  duration_ms: 0.418549
+  type: 'test'
+  ...
+# Subtest: parse: a client with redirect origins and no secret keeps exactly the fields it declared
+ok 781 - parse: a client with redirect origins and no secret keeps exactly the fields it declared
+  ---
+  duration_ms: 4.630709
+  type: 'test'
+  ...
+# Subtest: parse: scopeSets must be at most 16 short ids
+ok 782 - parse: scopeSets must be at most 16 short ids
+  ---
+  duration_ms: 0.521322
+  type: 'test'
+  ...
+# Subtest: parse: apiOrigins must be at most 8 https origins
+ok 783 - parse: apiOrigins must be at most 8 https origins
+  ---
+  duration_ms: 0.376795
+  type: 'test'
+  ...
+# Subtest: parse: absent host-read fields default to empty lists and no BYO client, and stay out of the descriptor
+ok 784 - parse: absent host-read fields default to empty lists and no BYO client, and stay out of the descriptor
+  ---
+  duration_ms: 3.159621
+  type: 'test'
+  ...
+# Subtest: parse: the same connection id declared twice is refused
+ok 785 - parse: the same connection id declared twice is refused
+  ---
+  duration_ms: 3.793157
+  type: 'test'
+  ...
+# Subtest: load: a plugin with no connections file declares none and is not refused
+ok 786 - load: a plugin with no connections file declares none and is not refused
+  ---
+  duration_ms: 48.596719
+  type: 'test'
+  ...
+# Subtest: load: a connections file that cannot be read (not missing) fails loudly instead of reading as none
+ok 787 - load: a connections file that cannot be read (not missing) fails loudly instead of reading as none
+  ---
+  duration_ms: 18.398887
+  type: 'test'
+  ...
+# Subtest: load: a hooks module with no createHooks() is refused with the connection and plugin it names
+ok 788 - load: a hooks module with no createHooks() is refused with the connection and plugin it names
+  ---
+  duration_ms: 21.556781
+  type: 'test'
+  ...
+# Subtest: load: a hooks module whose default export is not an object is refused the same way
+ok 789 - load: a hooks module whose default export is not an object is refused the same way
+  ---
+  duration_ms: 34.90193
+  type: 'test'
+  ...
+# Subtest: load: a descriptor Jini refuses drops only that connection, with Jini's reason
+ok 790 - load: a descriptor Jini refuses drops only that connection, with Jini's reason
+  ---
+  duration_ms: 30.346439
+  type: 'test'
+  ...
+# Subtest: load: earlier refusals from the loader are kept alongside loaded connections
+ok 791 - load: earlier refusals from the loader are kept alongside loaded connections
+  ---
+  duration_ms: 14.154639
+  type: 'test'
+  ...
+# Subtest: security (T5): web refuses a foreign or undeclared client secret setting TOVU_OTHER_OAUTH_WEB_CLIENT_SECRET
+ok 792 - security (T5): web refuses a foreign or undeclared client secret setting TOVU_OTHER_OAUTH_WEB_CLIENT_SECRET
+  ---
+  duration_ms: 23.827814
+  type: 'test'
+  ...
+# Subtest: security (T5): web refuses a foreign or undeclared client secret setting TOVU_ACME_OFFICE_EXTRA_OAUTH_WEB_CLIENT_SECRET
+ok 793 - security (T5): web refuses a foreign or undeclared client secret setting TOVU_ACME_OFFICE_EXTRA_OAUTH_WEB_CLIENT_SECRET
+  ---
+  duration_ms: 20.491508
+  type: 'test'
+  ...
+# Subtest: security (T5): web refuses a foreign or undeclared client secret setting TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET
+ok 794 - security (T5): web refuses a foreign or undeclared client secret setting TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET
+  ---
+  duration_ms: 25.395316
+  type: 'test'
+  ...
+# Subtest: security (T5): desktop refuses a foreign or undeclared client secret setting TOVU_OTHER_OAUTH_WEB_CLIENT_SECRET
+ok 795 - security (T5): desktop refuses a foreign or undeclared client secret setting TOVU_OTHER_OAUTH_WEB_CLIENT_SECRET
+  ---
+  duration_ms: 58.954653
+  type: 'test'
+  ...
+# Subtest: security (T5): desktop refuses a foreign or undeclared client secret setting TOVU_ACME_OFFICE_EXTRA_OAUTH_WEB_CLIENT_SECRET
+ok 796 - security (T5): desktop refuses a foreign or undeclared client secret setting TOVU_ACME_OFFICE_EXTRA_OAUTH_WEB_CLIENT_SECRET
+  ---
+  duration_ms: 21.844546
+  type: 'test'
+  ...
+# Subtest: security (T5): own exact runtime client names are admitted; a foreign client id is refused
+ok 797 - security (T5): own exact runtime client names are admitted; a foreign client id is refused
+  ---
+  duration_ms: 17.130215
+  type: 'test'
+  ...
+# Subtest: connections: an undeclared id, another plugin, another workspace and a call without an admin all get the same refusal
+ok 798 - connections: an undeclared id, another plugin, another workspace and a call without an admin all get the same refusal
+  ---
+  duration_ms: 283.724135
+  type: 'test'
+  ...
+# Subtest: connections: a start parameter the connection does not declare is refused before any sign-in starts
+ok 799 - connections: a start parameter the connection does not declare is refused before any sign-in starts
+  ---
+  duration_ms: 5.380909
+  type: 'test'
+  ...
+# Subtest: callback fields: only the declared ones are kept, only the owner plugin can take them, and only once
+ok 800 - callback fields: only the declared ones are kept, only the owner plugin can take them, and only once
+  ---
+  duration_ms: 79.766875
+  type: 'test'
+  ...
+# Subtest: desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only
+ok 801 - desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only
+  ---
+  duration_ms: 24.985962
+  type: 'test'
+  ...
+# Subtest: disconnect: revocation is reported verbatim, never 'confirmed' unless the provider confirmed
+ok 802 - disconnect: revocation is reported verbatim, never 'confirmed' unless the provider confirmed
+  ---
+  duration_ms: 42.913428
+  type: 'test'
+  ...
+# Subtest: issued sign-ins: only links recorded inside a collection, only https, and concurrent collections never mix
+ok 803 - issued sign-ins: only links recorded inside a collection, only https, and concurrent collections never mix
+  ---
+  duration_ms: 1.619718
+  type: 'test'
+  ...
+# Subtest: issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not
+ok 804 - issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not
+  ---
+  duration_ms: 0.589842
+  type: 'test'
+  ...
+# Subtest: plugin state: another plugin or workspace never sees a value; malformed keys and oversized values are refused
+ok 805 - plugin state: another plugin or workspace never sees a value; malformed keys and oversized values are refused
+  ---
+  duration_ms: 3.139382
+  type: 'test'
+  ...
+# Subtest: plugin state: a plugin's key count is capped; existing keys still update at the cap
+ok 806 - plugin state: a plugin's key count is capped; existing keys still update at the cap
+  ---
+  duration_ms: 415.970796
+  type: 'test'
+  ...
+# Subtest: tools: plugin state is read-only and scoped to the calling plugin and workspace, whatever the store exposes
+ok 807 - tools: plugin state is read-only and scoped to the calling plugin and workspace, whatever the store exposes
+  ---
+  duration_ms: 0.668474
+  type: 'test'
+  ...
+# Subtest: security: a surface handler's HTTP reaches only the https origins its plugin's connections declare
+ok 808 - security: a surface handler's HTTP reaches only the https origins its plugin's connections declare
+  ---
+  duration_ms: 83.239783
+  type: 'test'
+  ...
+# Subtest: public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null
+ok 809 - public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null
+  ---
+  duration_ms: 0.86443
+  type: 'test'
+  ...
+# Subtest: form delivery: the credential allows only the connection's declared https API origins; an http origin refuses the declaration
+ok 810 - form delivery: the credential allows only the connection's declared https API origins; an http origin refuses the declaration
+  ---
+  duration_ms: 15.06832
+  type: 'test'
+  ...
+# Subtest: attempt id (hosted): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+ok 811 - attempt id (hosted): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+  ---
+  duration_ms: 19.987917
+  type: 'test'
+  ...
+# Subtest: attempt id (desktop): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+ok 812 - attempt id (desktop): the plugin gets the service's random attempt id, never the OAuth state or a digest of it
+  ---
+  duration_ms: 25.705481
+  type: 'test'
+  ...
+# Subtest: workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect)
+not ok 813 - workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect)
+  ---
+  duration_ms: 16.962695
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:1:19616'
+  failureType: 'testCodeFailure'
+  error: 'Invalid URL'
+  code: 'ERR_INVALID_URL'
+  name: 'TypeError'
+  stack: |-
+    new URL (node:internal/url:895:25)
+    Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+    providerUrlOf (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:115:63)
+    consent (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:119:15)
+    Object.showSignIn (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:351:63)
+    connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+    async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:349:21)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes
+ok 814 - desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes
+  ---
+  duration_ms: 77.997183
+  type: 'test'
+  ...
+# Subtest: status: a staged switch's account label disappears once the switch expired, in status and in action results
+ok 815 - status: a staged switch's account label disappears once the switch expired, in status and in action results
+  ---
+  duration_ms: 114.972337
+  type: 'test'
+  ...
+# [admin-surfaces] desktop sign-in for 'acme-office' did not complete: authorization-failed
+# Subtest: desktop: a sign-in that fails after the browser opened shows a safe code and next action in status; a later success clears it
+ok 816 - desktop: a sign-in that fails after the browser opened shows a safe code and next action in status; a later success clears it
+  ---
+  duration_ms: 44.363541
+  type: 'test'
+  ...
+# Subtest: hosted: status carries no sign-in attempt (the public callback page reports hosted failures)
+ok 817 - hosted: status carries no sign-in attempt (the public callback page reports hosted failures)
+  ---
+  duration_ms: 13.441968
+  type: 'test'
+  ...
+# Subtest: an entry wins, a post is the fallback (no publish time), and an unknown id stays not-found
+ok 818 - an entry wins, a post is the fallback (no publish time), and an unknown id stays not-found
+  ---
+  duration_ms: 5.972338
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: the boolean rules report their own field name
+ok 819 - setCommentsSettings: the boolean rules report their own field name
+  ---
+  duration_ms: 34.387784
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: maxDepth rejects non-numbers, non-integers and negatives with one shared message
+ok 820 - setCommentsSettings: maxDepth rejects non-numbers, non-integers and negatives with one shared message
+  ---
+  duration_ms: 1.860784
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: maxDepth over the ceiling reports the ceiling, not the shape rule
+ok 821 - setCommentsSettings: maxDepth over the ceiling reports the ceiling, not the shape rule
+  ---
+  duration_ms: 14.904657
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: closeAfterDays keeps its 'or null' wording and has NO ceiling
+ok 822 - setCommentsSettings: closeAfterDays keeps its 'or null' wording and has NO ceiling
+  ---
+  duration_ms: 10.324807
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: spamAutoRejectScore rejects both ends of the [0,1] range with one message
+ok 823 - setCommentsSettings: spamAutoRejectScore rejects both ends of the [0,1] range with one message
+  ---
+  duration_ms: 1.185539
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: spamAutoRejectScore accepts fractions — it is the one field that is not an integer rule
+ok 824 - setCommentsSettings: spamAutoRejectScore accepts fractions — it is the one field that is not an integer rule
+  ---
+  duration_ms: 1.10275
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: maxPerIpPerHour is POSITIVE, so zero is rejected by the shape rule
+ok 825 - setCommentsSettings: maxPerIpPerHour is POSITIVE, so zero is rejected by the shape rule
+  ---
+  duration_ms: 0.897969
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: maxPerIpPerHour over the ceiling reports the ceiling
+ok 826 - setCommentsSettings: maxPerIpPerHour over the ceiling reports the ceiling
+  ---
+  duration_ms: 0.318353
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: validation throws on the FIRST invalid field in declaration order
+ok 827 - setCommentsSettings: validation throws on the FIRST invalid field in declaration order
+  ---
+  duration_ms: 18.019925
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: the shape rule is checked before the ceiling rule on the same field
+ok 828 - setCommentsSettings: the shape rule is checked before the ceiling rule on the same field
+  ---
+  duration_ms: 0.620123
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: every range boundary is accepted, not rejected
+ok 829 - setCommentsSettings: every range boundary is accepted, not rejected
+  ---
+  duration_ms: 4.521173
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: an explicit null closeAfterDays skips the number rules entirely and round-trips as null
+ok 830 - setCommentsSettings: an explicit null closeAfterDays skips the number rules entirely and round-trips as null
+  ---
+  duration_ms: 0.435847
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: an empty patch is accepted and changes nothing
+ok 831 - setCommentsSettings: an empty patch is accepted and changes nothing
+  ---
+  duration_ms: 1.359748
+  type: 'test'
+  ...
+# Subtest: setCommentsSettings: a rejected patch persists none of its VALID fields either
+ok 832 - setCommentsSettings: a rejected patch persists none of its VALID fields either
+  ---
+  duration_ms: 5.090721
+  type: 'test'
+  ...
+# Subtest: readiness and preview select proposed, draft, published and legacy settings in order
+ok 833 - readiness and preview select proposed, draft, published and legacy settings in order
+  ---
+  duration_ms: 308.362689
+  type: 'test'
+  ...
+# Subtest: readiness preserves receipt failure evidence, page status, metadata and render failure redaction
+ok 834 - readiness preserves receipt failure evidence, page status, metadata and render failure redaction
+  ---
+  duration_ms: 186.655551
+  type: 'test'
+  ...
+# Subtest: schema 2 parses; region entries are kept and unknown kinds are skipped, not refused
+ok 835 - schema 2 parses; region entries are kept and unknown kinds are skipped, not refused
+  ---
+  duration_ms: 3.559642
+  type: 'test'
+  ...
+# Subtest: the bundled host plugins ship one valid reader each
+ok 836 - the bundled host plugins ship one valid reader each
+  ---
+  duration_ms: 3.485046
+  type: 'test'
+  ...
+# Subtest: an entry the region slot refuses is dropped; the legacy header setting is one more reader
+ok 837 - an entry the region slot refuses is dropped; the legacy header setting is one more reader
+  ---
+  duration_ms: 1.022831
+  type: 'test'
+  ...
+# Subtest: only the configured ingress plugin is trusted, from active plugins only
+ok 838 - only the configured ingress plugin is trusted, from active plugins only
+  ---
+  duration_ms: 0.719763
+  type: 'test'
+  ...
+# Subtest: no ingress (Fly, Electron) loads nothing and stays strict; a loader fault stays strict too
+ok 839 - no ingress (Fly, Electron) loads nothing and stays strict; a loader fault stays strict too
+  ---
+  duration_ms: 0.480617
+  type: 'test'
+  ...
+# Subtest: bridge declarations keep safe served URLs and reject executable URL schemes
+ok 840 - bridge declarations keep safe served URLs and reject executable URL schemes
+  ---
+  duration_ms: 0.757082
+  type: 'test'
+  ...
+# Subtest: active browser bridges are loaded without trusting their region readers
+ok 841 - active browser bridges are loaded without trusting their region readers
+  ---
+  duration_ms: 0.742263
+  type: 'test'
+  ...
+# Subtest: active plugin declarations preserve all consent purposes and return refusals for malformed scripts
+ok 842 - active plugin declarations preserve all consent purposes and return refusals for malformed scripts
+  ---
+  duration_ms: 1.317562
+  type: 'test'
+  ...
+# Subtest: a failed declaration load rejects, so its owner can keep the last good scripts
+ok 843 - a failed declaration load rejects, so its owner can keep the last good scripts
+  ---
+  duration_ms: 0.669074
+  type: 'test'
+  ...
+# Subtest: content-type admin is refused by direct and assistant writes without persistence
+ok 844 - content-type admin is refused by direct and assistant writes without persistence
+  ---
+  duration_ms: 5.198113
+  type: 'test'
+  ...
+# Subtest: content-type api is refused by direct and assistant writes without persistence
+ok 845 - content-type api is refused by direct and assistant writes without persistence
+  ---
+  duration_ms: 0.373756
+  type: 'test'
+  ...
+# Subtest: a content-type key sharing only the reserved prefix remains available
+ok 846 - a content-type key sharing only the reserved prefix remains available
+  ---
+  duration_ms: 0.993229
+  type: 'test'
+  ...
+# Subtest: a successful call's output is returned untouched
+ok 847 - a successful call's output is returned untouched
+  ---
+  duration_ms: 1.300474
+  type: 'test'
+  ...
+# Subtest: a missing credential becomes a setup card prefilled with the label and the URL's origin
+ok 848 - a missing credential becomes a setup card prefilled with the label and the URL's origin
+  ---
+  duration_ms: 4.702306
+  type: 'test'
+  ...
+# Subtest: a missing credential with no URL or an unparseable URL omits the base URL prefill
+ok 849 - a missing credential with no URL or an unparseable URL omits the base URL prefill
+  ---
+  duration_ms: 1.517888
+  type: 'test'
+  ...
+# Subtest: any other failure propagates unchanged
+ok 850 - any other failure propagates unchanged
+  ---
+  duration_ms: 0.597186
+  type: 'test'
+  ...
+# Subtest: request-level authentication or permission refusals never offer to replace a saved key
+ok 851 - request-level authentication or permission refusals never offer to replace a saved key
+  ---
+  duration_ms: 0.586436
+  type: 'test'
+  ...
+# Subtest: an 'invalid' verification status means rotation only for verification calls
+ok 852 - an 'invalid' verification status means rotation only for verification calls
+  ---
+  duration_ms: 0.502546
+  type: 'test'
+  ...
+# Subtest: classifyError: egress refusal keeps identity, exposes only the caller-safe form, and keeps the address in the audit
+ok 853 - classifyError: egress refusal keeps identity, exposes only the caller-safe form, and keeps the address in the audit
+  ---
+  duration_ms: 32.728042
+  type: 'test'
+  ...
+# Subtest: classifyError: validation, not-found, transport and unknown keep identity and expose only safe fields
+ok 854 - classifyError: validation, not-found, transport and unknown keep identity and expose only safe fields
+  ---
+  duration_ms: 5.406895
+  type: 'test'
+  ...
+# Subtest: request forwards headers/body and the adapter's bounds exactly like the direct adapter call
+ok 855 - request forwards headers/body and the adapter's bounds exactly like the direct adapter call
+  ---
+  duration_ms: 13.405286
+  type: 'test'
+  ...
+# Subtest: verify and probe keep their tri-state results and diagnostics
+ok 856 - verify and probe keep their tri-state results and diagnostics
+  ---
+  duration_ms: 18.907101
+  type: 'test'
+  ...
+# Subtest: resolveTarget validates the target without decrypting; request decrypts exactly once
+ok 857 - resolveTarget validates the target without decrypting; request decrypts exactly once
+  ---
+  duration_ms: 6.656038
+  type: 'test'
+  ...
+# Subtest: SourceControlWritePort: one build, target rules before planning, same provider and exact plan to commit
+ok 858 - SourceControlWritePort: one build, target rules before planning, same provider and exact plan to commit
+  ---
+  duration_ms: 6.928642
+  type: 'test'
+  ...
+# Subtest: SourceControlWritePort.build reports the host's no-provider message without throwing
+ok 859 - SourceControlWritePort.build reports the host's no-provider message without throwing
+  ---
+  duration_ms: 0.404705
+  type: 'test'
+  ...
+# Subtest: the call stays open after the dialog is shown, and nothing is decrypted or sent while it is pending
+ok 860 - the call stays open after the dialog is shown, and nothing is decrypted or sent while it is pending
+  ---
+  duration_ms: 33.986774
+  type: 'test'
+  ...
+# Subtest: the dialog names exactly what is about to be sent — label, resolved host, method, and path
+ok 861 - the dialog names exactly what is about to be sent — label, resolved host, method, and path
+  ---
+  duration_ms: 11.97032
+  type: 'test'
+  ...
+# Subtest: the dialog names a url resolved through additionalHosts exactly the same way as its base host
+ok 862 - the dialog names a url resolved through additionalHosts exactly the same way as its base host
+  ---
+  duration_ms: 3.496497
+  type: 'test'
+  ...
+# Subtest: the model's own schema publishes only label/method/url/headers/body — no decision or exchange-id field
+ok 863 - the model's own schema publishes only label/method/url/headers/body — no decision or exchange-id field
+  ---
+  duration_ms: 2.29038
+  type: 'test'
+  ...
+# Subtest: confirm: the human's click performs the real DELETE (decrypting exactly once) and the SAME call reports it to the agent
+ok 864 - confirm: the human's click performs the real DELETE (decrypting exactly once) and the SAME call reports it to the agent
+  ---
+  duration_ms: 4.306938
+  type: 'test'
+  ...
+# Subtest: cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTTP client — the SAME call reports the cancellation
+ok 865 - cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTTP client — the SAME call reports the cancellation
+  ---
+  duration_ms: 2.941588
+  type: 'test'
+  ...
+# Subtest: an answer with no 'decision' field at all is NOT confirm — never decrypts, never sends
+ok 866 - an answer with no 'decision' field at all is NOT confirm — never decrypts, never sends
+  ---
+  duration_ms: 2.27985
+  type: 'test'
+  ...
+# Subtest: an answer with a non-string 'decision' is NOT confirm — never decrypts, never sends
+ok 867 - an answer with a non-string 'decision' is NOT confirm — never decrypts, never sends
+  ---
+  duration_ms: 2.847349
+  type: 'test'
+  ...
+# Subtest: an answer with an empty-string 'decision' is NOT confirm — never decrypts, never sends
+ok 868 - an answer with an empty-string 'decision' is NOT confirm — never decrypts, never sends
+  ---
+  duration_ms: 3.60653
+  type: 'test'
+  ...
+# Subtest: an answer with an unrecognised 'decision' string is NOT confirm — never decrypts, never sends
+ok 869 - an answer with an unrecognised 'decision' string is NOT confirm — never decrypts, never sends
+  ---
+  duration_ms: 3.199409
+  type: 'test'
+  ...
+# Subtest: an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends
+ok 870 - an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends
+  ---
+  duration_ms: 2.52749
+  type: 'test'
+  ...
+# Subtest: a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — never decrypts, never sends
+ok 871 - a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — never decrypts, never sends
+  ---
+  duration_ms: 2.192448
+  type: 'test'
+  ...
+# Subtest: a run cancelled before the DELETE dialog opens returns {executed:false, cancelled:false, reason:'abandoned'} at once — no dialog, no decrypt, no send
+ok 872 - a run cancelled before the DELETE dialog opens returns {executed:false, cancelled:false, reason:'abandoned'} at once — no dialog, no decrypt, no send
+  ---
+  duration_ms: 2.741634
+  type: 'test'
+  ...
+# Subtest: with no emitSurface, a DELETE is refused outright with the exact fail-closed message — no exchange, no decrypt, no send
+ok 873 - with no emitSurface, a DELETE is refused outright with the exact fail-closed message — no exchange, no decrypt, no send
+  ---
+  duration_ms: 1.85608
+  type: 'test'
+  ...
+# Subtest: a denied principal never even sees a dialog, and the credential is never decrypted
+ok 874 - a denied principal never even sees a dialog, and the credential is never decrypted
+  ---
+  duration_ms: 1.665211
+  type: 'test'
+  ...
+# Subtest: an unknown label is refused as not-found before any dialog is raised
+ok 875 - an unknown label is refused as not-found before any dialog is raised
+  ---
+  duration_ms: 3.442771
+  type: 'test'
+  ...
+# Subtest: an off-allowlist url is refused with the exact validation message before any dialog is raised, and never decrypts
+ok 876 - an off-allowlist url is refused with the exact validation message before any dialog is raised, and never decrypts
+  ---
+  duration_ms: 1.651935
+  type: 'test'
+  ...
+# Subtest: GET runs immediately with no confirmation, no emitSurface required, and the credential decrypts exactly once
+ok 877 - GET runs immediately with no confirmation, no emitSurface required, and the credential decrypts exactly once
+  ---
+  duration_ms: 1.621335
+  type: 'test'
+  ...
+# Subtest: the tool reads its token scheme rules through the injected loadAuthSchemes, for this workspace
+ok 878 - the tool reads its token scheme rules through the injected loadAuthSchemes, for this workspace
+  ---
+  duration_ms: 3.698466
+  type: 'test'
+  ...
+# Subtest: POST runs immediately with no confirmation and sends the given body
+ok 879 - POST runs immediately with no confirmation and sends the given body
+  ---
+  duration_ms: 1.917866
+  type: 'test'
+  ...
+# Subtest: PUT and PATCH also run immediately with no confirmation
+ok 880 - PUT and PATCH also run immediately with no confirmation
+  ---
+  duration_ms: 3.232741
+  type: 'test'
+  ...
+# Subtest: a grant revoked while DELETE approval is open refuses the approved request without decrypting
+ok 881 - a grant revoked while DELETE approval is open refuses the approved request without decrypting
+  ---
+  duration_ms: 8.426688
+  type: 'test'
+  ...
+# Subtest: an abort during approved DELETE reauthorization prevents decryption and sending
+ok 882 - an abort during approved DELETE reauthorization prevents decryption and sending
+  ---
+  duration_ms: 6.275849
+  type: 'test'
+  ...
+# Subtest: the model's own schema publishes only label/owner/repo/branch/commitMessage/files — no decision or exchange-id field
+ok 883 - the model's own schema publishes only label/owner/repo/branch/commitMessage/files — no decision or exchange-id field
+  ---
+  duration_ms: 29.69854
+  type: 'test'
+  ...
+# Subtest: the direct call performs the real write (blob, tree, commit, ref) and reports it
+ok 884 - the direct call performs the real write (blob, tree, commit, ref) and reports it
+  ---
+  duration_ms: 166.722461
+  type: 'test'
+  ...
+# Subtest: an invalid input (bad owner) is refused before any decrypt or network call, and no dialog is raised
+ok 885 - an invalid input (bad owner) is refused before any decrypt or network call, and no dialog is raised
+  ---
+  duration_ms: 23.703028
+  type: 'test'
+  ...
+# Subtest: a caller-fixable validation refusal arrives as a ToolInputError carrying this tool's schema, not as a bare Error the daemon redacts to INTERNAL_ERROR
+ok 886 - a caller-fixable validation refusal arrives as a ToolInputError carrying this tool's schema, not as a bare Error the daemon redacts to INTERNAL_ERROR
+  ---
+  duration_ms: 1.877047
+  type: 'test'
+  ...
+# Subtest: a branch that does not exist is refused before any dialog
+ok 887 - a branch that does not exist is refused before any dialog
+  ---
+  duration_ms: 7.604125
+  type: 'test'
+  ...
+# Subtest: insufficient permission is refused before any decrypt or network call
+ok 888 - insufficient permission is refused before any decrypt or network call
+  ---
+  duration_ms: 9.852738
+  type: 'test'
+  ...
+# Subtest: n06: repository write runs without a confirmation channel
+ok 889 - n06: repository write runs without a confirmation channel
+  ---
+  duration_ms: 6.913239
+  type: 'test'
+  ...
+# Subtest: write_files refuses an unknown label before decrypting or contacting a provider
+ok 890 - write_files refuses an unknown label before decrypting or contacting a provider
+  ---
+  duration_ms: 4.891086
+  type: 'test'
+  ...
+# Subtest: write_files reports a missing provider without decrypting the saved credential
+ok 891 - write_files reports a missing provider without decrypting the saved credential
+  ---
+  duration_ms: 1.635469
+  type: 'test'
+  ...
+# Subtest: write_files refuses a credential deleted between the summary lookup and decrypting resolution
+ok 892 - write_files refuses a credential deleted between the summary lookup and decrypting resolution
+  ---
+  duration_ms: 6.735974
+  type: 'test'
+  ...
+# Subtest: write_files stops after planning when its run was aborted during reconnaissance
+ok 893 - write_files stops after planning when its run was aborted during reconnaissance
+  ---
+  duration_ms: 3.112641
+  type: 'test'
+  ...
+# Subtest: the site-wide Tovu database-destination context is allowed
+ok 894 - the site-wide Tovu database-destination context is allowed
+  ---
+  duration_ms: 1.255797
+  type: 'test'
+  ...
+# Subtest: another vault kind is refused with the vault 'context' code
+ok 895 - another vault kind is refused with the vault 'context' code
+  ---
+  duration_ms: 0.759551
+  type: 'test'
+  ...
+# Subtest: another owner key is refused with the vault 'context' code
+ok 896 - another owner key is refused with the vault 'context' code
+  ---
+  duration_ms: 0.141988
+  type: 'test'
+  ...
+# Subtest: a per-principal context is refused with the vault 'context' code
+ok 897 - a per-principal context is refused with the vault 'context' code
+  ---
+  duration_ms: 0.087568
+  type: 'test'
+  ...
+# Subtest: an empty-string principal (not null) is refused with the vault 'context' code
+ok 898 - an empty-string principal (not null) is refused with the vault 'context' code
+  ---
+  duration_ms: 0.106572
+  type: 'test'
+  ...
+# Subtest: every registration refuses denied permission before snapshots, forms, plan consumption or destination access
+ok 899 - every registration refuses denied permission before snapshots, forms, plan consumption or destination access
+  ---
+  duration_ms: 28.237013
+  type: 'test'
+  ...
+# Subtest: database_transfer_run's confirmation card carries its exchange deadline, like every requireHumanConfirm card
+ok 900 - database_transfer_run's confirmation card carries its exchange deadline, like every requireHumanConfirm card
+  ---
+  duration_ms: 88.689074
+  type: 'test'
+  ...
+# Subtest: database_transfer_run: an already-aborted execution emits nothing and abandons without a write
+ok 901 - database_transfer_run: an already-aborted execution emits nothing and abandons without a write
+  ---
+  duration_ms: 1.697176
+  type: 'test'
+  ...
+# Subtest: database_transfer_run: abort after opening abandons the exchange without a write
+ok 902 - database_transfer_run: abort after opening abandons the exchange without a write
+  ---
+  duration_ms: 12.666608
+  type: 'test'
+  ...
+# Subtest: database_transfer_run: an unanswered exchange expires without a write
+ok 903 - database_transfer_run: an unanswered exchange expires without a write
+  ---
+  duration_ms: 42.312798
+  type: 'test'
+  ...
+# Subtest: database_transfer_set_destination: an already-aborted execution emits nothing and abandons without a write
+ok 904 - database_transfer_set_destination: an already-aborted execution emits nothing and abandons without a write
+  ---
+  duration_ms: 10.047828
+  type: 'test'
+  ...
+# Subtest: database_transfer_set_destination: abort after opening abandons the exchange without a write
+ok 905 - database_transfer_set_destination: abort after opening abandons the exchange without a write
+  ---
+  duration_ms: 2.911469
+  type: 'test'
+  ...
+# Subtest: database_transfer_set_destination: an unanswered exchange expires without a write
+ok 906 - database_transfer_set_destination: an unanswered exchange expires without a write
+  ---
+  duration_ms: 25.471704
+  type: 'test'
+  ...
+# Subtest: an expired plan is refused before emitting a card
+ok 907 - an expired plan is refused before emitting a card
+  ---
+  duration_ms: 1.332074
+  type: 'test'
+  ...
+# Subtest: plan refuses SERVER_TOO_OLD without saving a plan or writing
+ok 908 - plan refuses SERVER_TOO_OLD without saving a plan or writing
+  ---
+  duration_ms: 105.247479
+  type: 'test'
+  ...
+# Subtest: plan refuses NO_CREATE_PERMISSION without saving a plan or writing
+ok 909 - plan refuses NO_CREATE_PERMISSION without saving a plan or writing
+  ---
+  duration_ms: 4.908305
+  type: 'test'
+  ...
+# Subtest: plan refuses DATABASE_SNAPSHOT_FAILED without saving a plan or writing
+ok 910 - plan refuses DATABASE_SNAPSHOT_FAILED without saving a plan or writing
+  ---
+  duration_ms: 2.434401
+  type: 'test'
+  ...
+# Subtest: the contributor binds the supplied snapshot adapters and declared risks
+ok 911 - the contributor binds the supplied snapshot adapters and declared risks
+  ---
+  duration_ms: 515.62018
+  type: 'test'
+  ...
+# Subtest: planning combines the real content catalog with the injected chat snapshot
+ok 912 - planning combines the real content catalog with the injected chat snapshot
+  ---
+  duration_ms: 335.544645
+  type: 'test'
+  ...
+# Subtest: a missing chat source is refused before a plan is stored
+ok 913 - a missing chat source is refused before a plan is stored
+  ---
+  duration_ms: 357.997171
+  type: 'test'
+  ...
+# Subtest: an in-memory content kernel cannot imply a sibling chat file
+ok 914 - an in-memory content kernel cannot imply a sibling chat file
+  ---
+  duration_ms: 510.040496
+  type: 'test'
+  ...
+# Subtest: the default chat backup uses the sibling file without creating a missing source
+ok 915 - the default chat backup uses the sibling file without creating a missing source
+  ---
+  duration_ms: 705.59845
+  type: 'test'
+  ...
+# Subtest: the default chat backup uses the override file without creating a missing source
+ok 916 - the default chat backup uses the override file without creating a missing source
+  ---
+  duration_ms: 965.617249
+  type: 'test'
+  ...
+# Subtest: the default chat backup uses the missing file without creating a missing source
+ok 917 - the default chat backup uses the missing file without creating a missing source
+  ---
+  duration_ms: 311.71257
+  type: 'test'
+  ...
+# Subtest: the default chat backup uses the corrupt file without creating a missing source
+ok 918 - the default chat backup uses the corrupt file without creating a missing source
+  ---
+  duration_ms: 271.377057
+  type: 'test'
+  ...
+# Subtest: invalid credential controls are translated before reaching the destination adapter
+ok 919 - invalid credential controls are translated before reaching the destination adapter
+  ---
+  duration_ms: 7.34757
+  type: 'test'
+  ...
+# Subtest: the default target rejects a non-Postgres URI without launching a connection
+ok 920 - the default target rejects a non-Postgres URI without launching a connection
+  ---
+  duration_ms: 8.471821
+  type: 'test'
+  ...
+# Subtest: the default failure logger reports snapshot failures through console without leaking addresses
+ok 921 - the default failure logger reports snapshot failures through console without leaking addresses
+  ---
+  duration_ms: 1.966879
+  type: 'test'
+  ...
+# Subtest: compositions without explicit plan or destination stores can read their empty default inventory
+ok 922 - compositions without explicit plan or destination stores can read their empty default inventory
+  ---
+  duration_ms: 20.463053
+  type: 'test'
+  ...
+# Subtest: REQ-08 / AC-09: executeMigrateForward refuses with RESTORE_POINT_UNAVAILABLE-class rejection when costClass='unavailable', with no bypass, before ever consulting the lock
+ok 923 - REQ-08 / AC-09: executeMigrateForward refuses with RESTORE_POINT_UNAVAILABLE-class rejection when costClass='unavailable', with no bypass, before ever consulting the lock
+  ---
+  duration_ms: 6.897937
+  type: 'test'
+  ...
+# Subtest: U-003-ORD1 (binding on this domain, per SPEC-019 CIC U-001-ORD1): the shared operation lock is acquired before the state machine/gateway proceeds
+ok 924 - U-003-ORD1 (binding on this domain, per SPEC-019 CIC U-001-ORD1): the shared operation lock is acquired before the state machine/gateway proceeds
+  ---
+  duration_ms: 0.595879
+  type: 'test'
+  ...
+# Subtest: errors.spec.md MIGRATION_ALREADY_IN_FLIGHT: a rejected lock acquire (OPERATION_IN_FLIGHT) maps to this domain's own MIGRATION_ALREADY_IN_FLIGHT error, and the gateway never runs
+ok 925 - errors.spec.md MIGRATION_ALREADY_IN_FLIGHT: a rejected lock acquire (OPERATION_IN_FLIGHT) maps to this domain's own MIGRATION_ALREADY_IN_FLIGHT error, and the gateway never runs
+  ---
+  duration_ms: 0.244141
+  type: 'test'
+  ...
+# Subtest: AC-41 delegation: executeMigrateForward calls the injected gateway exactly once
+ok 926 - AC-41 delegation: executeMigrateForward calls the injected gateway exactly once
+  ---
+  duration_ms: 0.161116
+  type: 'test'
+  ...
+# Subtest: a gateway failure propagates and releases the acquired operation handle exactly once
+ok 927 - a gateway failure propagates and releases the acquired operation handle exactly once
+  ---
+  duration_ms: 0.385827
+  type: 'test'
+  ...
+# Subtest: the bundled plugin union declares fly, railway, render in plugin-id order, each with a render()
+ok 928 - the bundled plugin union declares fly, railway, render in plugin-id order, each with a render()
+  ---
+  duration_ms: 1021.705763
+  type: 'test'
+  ...
+# Subtest: a module without render() is refused and its siblings still load
+ok 929 - a module without render() is refused and its siblings still load
+  ---
+  duration_ms: 9.56218
+  type: 'test'
+  ...
+# Subtest: a module path that escapes the plugin root is refused
+ok 930 - a module path that escapes the plugin root is refused
+  ---
+  duration_ms: 11.545406
+  type: 'test'
+  ...
+# Subtest: a malformed manifest drops the plugin with the parse reason
+ok 931 - a malformed manifest drops the plugin with the parse reason
+  ---
+  duration_ms: 13.298263
+  type: 'test'
+  ...
+# Subtest: a directory without the manifest contributes nothing and is not an error
+ok 932 - a directory without the manifest contributes nothing and is not an error
+  ---
+  duration_ms: 12.942086
+  type: 'test'
+  ...
+# Subtest: parseDeployConfigsFile: rejects each malformed shape with its exact reason
+ok 933 - parseDeployConfigsFile: rejects each malformed shape with its exact reason
+  ---
+  duration_ms: 1.460111
+  type: 'test'
+  ...
+# Subtest: readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules
+ok 934 - readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules
+  ---
+  duration_ms: 1.196475
+  type: 'test'
+  ...
+# Subtest: readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids
+ok 935 - readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids
+  ---
+  duration_ms: 11.204409
+  type: 'test'
+  ...
+# Subtest: bundled config discovery skips missing categories, non-packages and retired ids; refuses cross-package duplicates
+ok 936 - bundled config discovery skips missing categories, non-packages and retired ids; refuses cross-package duplicates
+  ---
+  duration_ms: 189.645004
+  type: 'test'
+  ...
+# Subtest: L210 descriptor validation preserves boundaries, error precedence and original strings
+ok 937 - L210 descriptor validation preserves boundaries, error precedence and original strings
+  ---
+  duration_ms: 0.663976
+  type: 'test'
+  ...
+# Subtest: workflow declarations use the installed active contribution gate and preserve all choices
+ok 938 - workflow declarations use the installed active contribution gate and preserve all choices
+  ---
+  duration_ms: 0.65674
+  type: 'test'
+  ...
+# Subtest: all 5 deployments tools are registered with input schemas the model needs
+ok 939 - all 5 deployments tools are registered with input schemas the model needs
+  ---
+  duration_ms: 501.037716
+  type: 'test'
+  ...
+# Subtest: deployment_set_dockerfile refuses when the caller lacks system.write, and never touches the file
+ok 940 - deployment_set_dockerfile refuses when the caller lacks system.write, and never touches the file
+  ---
+  duration_ms: 176.138504
+  type: 'test'
+  ...
+# Subtest: deployment_set_dockerfile refuses when 'ifMatch' is missing from input, even for an otherwise-authorized caller, and never touches the file
+ok 941 - deployment_set_dockerfile refuses when 'ifMatch' is missing from input, even for an otherwise-authorized caller, and never touches the file
+  ---
+  duration_ms: 198.981772
+  type: 'test'
+  ...
+# Subtest: deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-root Dockerfile with a real etag
+ok 942 - deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-root Dockerfile with a real etag
+  ---
+  duration_ms: 199.440095
+  type: 'test'
+  ...
+# Subtest: deployment_set_dockerfile refuses a stale ifMatch with a message the assistant can act on, and never touches the file — the actual lost-update reproduction
+ok 943 - deployment_set_dockerfile refuses a stale ifMatch with a message the assistant can act on, and never touches the file — the actual lost-update reproduction
+  ---
+  duration_ms: 261.723298
+  type: 'test'
+  ...
+# Subtest: deployment_get_export_status reports idle before any trigger in this process
+ok 944 - deployment_get_export_status reports idle before any trigger in this process
+  ---
+  duration_ms: 149.507314
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: RouteDeps.exportSiteBound ignores a caller-forwarded 'routeDeps' key and always exports with its own closed-over RouteDeps — regression for the composition-root spread-ordering bug
+ok 945 - RouteDeps.exportSiteBound ignores a caller-forwarded 'routeDeps' key and always exports with its own closed-over RouteDeps — regression for the composition-root spread-ordering bug
+  ---
+  duration_ms: 3309.550697
+  type: 'test'
+  ...
+# Subtest: deployment_trigger_export: a non-object input is a ToolInputError (400), not a bare Error (redacted 500)
+ok 946 - deployment_trigger_export: a non-object input is a ToolInputError (400), not a bare Error (redacted 500)
+  ---
+  duration_ms: 409.711242
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: deployment_trigger_export starts a real run, a concurrent second call is refused, and status settles to completed
+ok 947 - deployment_trigger_export starts a real run, a concurrent second call is refused, and status settles to completed
+  ---
+  duration_ms: 1805.527576
+  type: 'test'
+  ...
+# Subtest: two triggers held in authorization start exactly one export when both grants settle
+ok 948 - two triggers held in authorization start exactly one export when both grants settle
+  ---
+  duration_ms: 384.187999
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-kSefZB/ws/workspace-local
