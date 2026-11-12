@@ -1,0 +1,12 @@
+# Tovu: functions 21124 — ok 12113, unsure 2293, VIOLATION 6718 (31.8%)
+  exported: 6053 — ok 3897, unsure 773, VIOLATION 1383 (22.8%)
+  >2 params: 968
+  apps/website                        4063 violations / 13276 fns (exported 725)
+  apps/admin                          1861 violations / 5434 fns (exported 549)
+  apps/desktop                         713 violations / 2202 fns (exported 105)
+  content                               48 violations / 68 fns (exported 0)
+  apps/site-chat                        33 violations / 138 fns (exported 4)
+  packages/contracts                     0 violations / 2 fns (exported 0)
+  packages/sdk                           0 violations / 1 fns (exported 0)
+  scripts                                0 violations / 3 fns (exported 0)
+exit 0

@@ -1,0 +1,54 @@
+apps/admin/src/features/ai-assistant/hooks/use-assistant-daemon-restart.hooks.ts:92 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:93 '// eslint-disable-line react-hooks/exhaustive-deps -- t/delay/timers are fixed per mount' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:158 '// eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/consent/use-consent-page.hooks.ts:189 '// eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts:87 '// eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the id on purpose (see above).' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/plugins/hooks/use-agent-plugin-disable-confirm.hooks.ts:49 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/plugins/hooks/use-plugin-remove-confirm.hooks.ts:46 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:917 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:613 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:1000 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:1015 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/settings/ExternalMcpToolsModal.hooks.ts:68 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts:48 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/features/settings/hooks/use-settings-ui.hooks.ts:163 '// eslint-disable-next-line react-hooks/exhaustive-deps' has no effect because you have 'noInlineConfig' setting in your config.
+apps/admin/src/lib/widget-embed-extension.hooks.ts:219 '// eslint-disable-next-line no-alert' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/cli/commands/serve.ts:430 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/cli/commands/serve.ts:434 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/email-templates/render.ts:182 '// eslint-disable-next-line no-control-regex' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts:10 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/settings/site-timezone.ts:83 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/settings/site-title.ts:170 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/settings/site-title.ts:207 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/settings/site-title.ts:268 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/theme/duplicate-theme.ts:122 '// eslint-disable-next-line no-control-regex' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/features/theme/liquid-allowlist.ts:155 '// eslint-disable-next-line @typescript-eslint/no-explicit-any' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/platform/routing/adapter.ts:9 '// eslint-disable-next-line no-console -- preserve routing's existing operator-facing fault channel.' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/platform/site-dir/boot-site-dir.ts:178 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/platform/site-dir/boot-site-dir.ts:215 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/platform/site-dir/resolve-workspace.ts:76 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:37 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/admin-http/routes/newsletter/send-campaign.ts:74 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/admin-http/sea-runtime.ts:26 '// eslint-disable-next-line @typescript-eslint/no-require-imports' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/public-http/http/site/liquid-render.ts:56 '// eslint-disable-next-line @typescript-eslint/no-explicit-any' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/public-http/http/site/liquid-render.ts:60 '// eslint-disable-next-line @typescript-eslint/no-explicit-any' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/public-http/routes/api-connections/oauth-callback.ts:97 '// eslint-disable-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/inbound/public-http/routes/external-mcp/oauth-callback.ts:168 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:35 '/* eslint-disable no-console */' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:38 '/* eslint-enable no-console */' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:50 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:127 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:131 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:137 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:308 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:337 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/bootstrap.ts:346 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/boot/process-error-guards.ts:76 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:1150 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:1297 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:1316 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:1333 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:1357 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:1381 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:2826 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.
+apps/website/src/server/runtime/composition/deps.ts:2831 '// eslint-disable-next-line no-console' has no effect because you have 'noInlineConfig' setting in your config.

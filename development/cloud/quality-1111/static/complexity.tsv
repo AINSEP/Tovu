@@ -1,0 +1,83 @@
+repo	file	function	line	complexity	in_tovu_complexity_strict
+tovu	apps/website/src/platform/db/migrations/0012_secrets_vault.ts	Async function 'up'	260	29	no
+jini	packages/db/src/data-modules/data-module.ts	Async function 'declareDataModule'	917	22	n/a
+jini	packages/daemon/src/agent-executor/launch.ts	Async function 'run'	1391	20	n/a
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts	Async function 'prepare'	192	19	n/a
+tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts	Function 'createLocalSiteSupervisor'	61	17	yes
+tovu	apps/website/src/features/site-backup/import-keep-off.ts	Async function 'keepImportedCodeOff'	127	16	yes
+tovu	apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	Async function 'up'	180	16	no
+tovu	apps/website/src/platform/db/migrations/0012_secrets_vault.ts	Async function 'insertMapped'	149	15	no
+jini	packages/chat/src/react/components/McpUiSurfaceCard.tsx	Function 'McpUiSurfaceCard'	215	15	n/a
+jini	packages/cookie-consent/src/contracts/policy.ts	Function 'effective'	42	14	n/a
+tovu	apps/website/src/features/agent-plugins/exports/runtime.ts	Async function 'resolveExport'	92	13	yes
+tovu	apps/website/src/features/site-backup/static-download-layout.ts	Function 'staticDownloadLayout'	242	13	yes
+tovu	apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	Async function 'up'	41	13	no
+tovu	apps/website/src/platform/site-dir/local-site-intent.ts	Function 'validIntent'	28	13	yes
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts	Async function 'start'	203	13	yes
+jini	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	Function 'ChatPaneComposerArea'	504	13	n/a
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Async arrow function	751	13	n/a
+tovu	apps/website/src/assistant/ask-choice-custom-answer.ts	Function 'splitCustomAnswer'	86	12	yes
+tovu	apps/website/src/assistant/byok-tool-surface.ts	Function 'createByokToolSurface'	621	12	yes
+tovu	apps/website/src/cli/commands/import-local.ts	Function 'parseRequest'	128	12	yes
+tovu	apps/website/src/features/deployments/static-publish/adapter.ts	Async function 'publishStaticSiteSteps'	519	12	yes
+tovu	apps/website/src/features/site-backup/import-database.ts	Async function 'tidyImportDatabases'	116	12	yes
+tovu	apps/website/src/platform/db/migrations/0012_secrets_vault.ts	Function 'metadata'	121	12	no
+tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts	Function 'listingManagement'	263	12	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts	Function 'registerAdminSitesRoutes'	305	12	yes
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts	Async function 'start'	82	12	yes
+tovu	apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts	Async function 'createAgentDaemonCoreDeps'	65	12	yes
+tovu	apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts	Function 'startAssistantDaemon'	617	12	yes
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts	Async function 'discoverDaemon'	200	12	yes
+jini	packages/cms/src/core/commands/revert.ts	Async function 'revertChangeSet'	105	12	n/a
+jini	packages/cms/src/widgets/html/plugin-export.ts	Function 'fillSlotText'	83	12	n/a
+jini	packages/daemon/src/agent-executor/events.ts	Function 'wireChildLifecycle'	467	12	n/a
+jini	packages/daemon/src/agent-executor/launch.ts	Async function 'buildRunArgs'	732	12	n/a
+jini	packages/daemon/src/surface-exchanges.ts	Method 'open'	137	12	n/a
+jini	packages/daemon/src/surface-restoration.ts	Async arrow function	149	12	n/a
+jini	packages/sidecar/src/supervision/supervisor.ts	Function 'ensureReady'	162	12	n/a
+tovu	apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts	Async function 'startAndWait'	55	11	yes
+tovu	apps/admin/src/lib/admin-failure-channel.ts	Function 'publishAdminFailure'	52	11	yes
+tovu	apps/website/src/assistant/ask-choice-tool.ts	Function 'buildAskChoiceFormSurface'	199	11	yes
+tovu	apps/website/src/assistant/mcp-ui-tool-calls-route.ts	Function 'parseMcpUiToolCallRequest'	184	11	yes
+tovu	apps/website/src/cli/commands/export.ts	Async function 'runExportCommand'	117	11	yes
+tovu	apps/website/src/contracts/core/human-confirm.ts	Function 'renderHumanConfirmation'	270	11	yes
+tovu	apps/website/src/features/pages/tool-registrations.ts	Async function 'readDocPageFallback'	443	11	yes
+tovu	apps/website/src/features/site-backup/credential-warnings.ts	Function 'warnCredentialContent'	16	11	yes
+tovu	apps/website/src/features/site-backup/share-registry.ts	Async method 'findToken'	102	11	yes
+tovu	apps/website/src/features/site-backup/share-service.ts	Async function 'acknowledgeSiteShare'	132	11	yes
+tovu	apps/website/src/features/site-export/site-exporter.ts	Async function 'exportSite'	560	11	yes
+tovu	apps/website/src/features/sites/warm-switch.ts	Async function 'activateSiteWithWarmServer'	14	11	yes
+tovu	apps/website/src/features/theme/theme.ts	Function 'readBundledTemplateFallback'	501	11	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts	Async arrow function	131	11	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts	Async arrow function	250	11	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts	Async arrow function	27	11	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts	Async arrow function	124	11	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts	Async arrow function	28	11	yes
+tovu	apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts	Async arrow function	201	11	yes
+tovu	apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts	Async function 'resolveFile'	25	11	yes
+tovu	apps/website/src/server/inbound/public-http/routes/site/pages.ts	Async function 'finalizePublicPageHtml'	2642	11	yes
+tovu	apps/website/src/server/runtime/lifecycle/daemon-demand-fetch.ts	Async function 'fetchWithDaemonParkRecovery'	9	11	yes
+tovu	apps/website/src/server/runtime/lifecycle/local-site-host.ts	Function 'localSiteSupervisorForHost'	42	11	yes
+jini	packages/agent-plugins/src/core/identity-namespace.ts	Function 'resolveAgentPluginIdentityNamespace'	14	11	n/a
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts	Function 'readChatAgentPluginState'	80	11	n/a
+jini	packages/agent-plugins/src/lifecycle/exports.ts	Function 'checkExternal'	107	11	n/a
+jini	packages/chat/src/core/user-text-redaction.ts	Arrow function	93	11	n/a
+jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	Arrow function	373	11	n/a
+jini	packages/chat/src/react/components/Composer.tsx	Function 'Composer'	166	11	n/a
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Function 'useChatPane'	403	11	n/a
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Arrow function	813	11	n/a
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Async arrow function	932	11	n/a
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Async arrow function	973	11	n/a
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Arrow function	1055	11	n/a
+jini	packages/cms/src/media/document-read.ts	Async function 'readDocumentTextPage'	175	11	n/a
+jini	packages/commerce/src/catalog/settle-order-payment.ts	Async function 'settleOrderPayment'	55	11	n/a
+jini	packages/core/src/tool-input-envelope.ts	Function 'unwrapToolInputEnvelope'	26	11	n/a
+jini	packages/daemon/src/agent-executor/claude/subagent-start.ts	Async function 'prepareClaudeSubagentStartSettings'	5	11	n/a
+jini	packages/daemon/src/tool-executor.ts	Async arrow function	558	11	n/a
+jini	packages/integrations/src/credentialed-http/sets/vault-repo.ts	Function 'compatibilityVaultRow'	120	11	n/a
+jini	packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts	Async method	93	11	n/a
+jini	packages/mcp/src/agent-install/install.ts	Function 'installedLaunchMatches'	460	11	n/a
+jini	packages/mcp/src/server/tool-protocol.ts	Function 'okResult'	169	11	n/a
+jini	packages/provider-plugins/src/charts-recharts/descriptor.ts	Function 'supportsRechartsSpec'	9	11	n/a
+jini	packages/provider-plugins/src/payments-stripe/checkout-session.ts	Async function 'createCheckoutSession'	32	11	n/a
+jini	packages/provider-plugins/src/payments-stripe/session-reading.ts	Function 'sessionStatus'	19	11	n/a

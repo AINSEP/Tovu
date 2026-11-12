@@ -1,0 +1,1 @@
+{"label":"jini","filesLinted":3479,"cyclomatic_gt10":37,"gt15":3,"gt25":0,"max":22,"cognitive_gt10":15,"cog_gt25":0,"parseErrors":96,"otherRules":{}}

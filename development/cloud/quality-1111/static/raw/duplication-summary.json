@@ -1,0 +1,40 @@
+{
+ "overall": {
+  "lines": 842846,
+  "tokens": 8284290,
+  "sources": 7167,
+  "clones": 925,
+  "duplicatedLines": 11505,
+  "duplicatedTokens": 125422,
+  "percentage": 1.37,
+  "percentageTokens": 1.51,
+  "newDuplicatedLines": 0,
+  "newClones": 0
+ },
+ "byKind": {
+  "tovu-tovu": {
+   "clones": 526,
+   "lines": 7626
+  },
+  "tovu-jini": {
+   "clones": 75,
+   "lines": 1088
+  },
+  "jini-jini": {
+   "clones": 324,
+   "lines": 3716
+  }
+ },
+ "tovu": {
+  "prodLines": 509383,
+  "duplicatedLinesUnion": 13749,
+  "pct": 2.7,
+  "filesWithClones": 464
+ },
+ "jini": {
+  "prodLines": 439537,
+  "duplicatedLinesUnion": 8006,
+  "pct": 1.82,
+  "filesWithClones": 308
+ }
+}

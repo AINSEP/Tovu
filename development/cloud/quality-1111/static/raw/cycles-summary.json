@@ -1,0 +1,61 @@
+{
+ "perRun": {
+  "tovu-website": {
+   "modules": 2191,
+   "noCircularViolations": 15
+  },
+  "tovu-admin": {
+   "modules": 1032,
+   "noCircularViolations": 4
+  },
+  "tovu-desktop": {
+   "modules": 1331,
+   "noCircularViolations": 14
+  },
+  "tovu-site-chat": {
+   "modules": 28,
+   "noCircularViolations": 0
+  },
+  "tovu-packages-content": {
+   "modules": 25,
+   "noCircularViolations": 0
+  },
+  "jini": {
+   "modules": 3732,
+   "noCircularViolations": 77
+  }
+ },
+ "moduleScc": {
+  "tovu": {
+   "sccs": 9,
+   "modulesInSccs": 35,
+   "largest": 15,
+   "runtimeSccs": 0,
+   "runtimeModulesInSccs": 0
+  },
+  "jini": {
+   "sccs": 45,
+   "modulesInSccs": 113,
+   "largest": 8,
+   "runtimeSccs": 2,
+   "runtimeModulesInSccs": 4
+  }
+ },
+ "tovuFeatureSccs": [
+  32,
+  3,
+  2,
+  2
+ ],
+ "tovuFeaturePairs": 21,
+ "tovuFeatureSccsRuntime": [
+  24,
+  3,
+  2
+ ],
+ "jiniPackages": 38,
+ "jiniPackageEdges": 104,
+ "jiniPackageSccs": [],
+ "jiniPackagePairs": 0,
+ "jiniPackageSccsRuntime": []
+}

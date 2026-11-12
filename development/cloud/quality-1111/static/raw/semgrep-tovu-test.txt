@@ -1,0 +1,6 @@
+
+> tovu@0.1.0 quality:semgrep:test
+> node development/scripts/quality-semgrep.mjs --test
+
+Semgrep is not installed. Install: brew install semgrep / pipx install semgrep (free CLI; no account).
+exit 127

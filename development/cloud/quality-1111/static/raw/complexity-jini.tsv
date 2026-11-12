@@ -1,0 +1,38 @@
+repo	file	function	line	complexity
+jini	packages/db/src/data-modules/data-module.ts	Async function 'declareDataModule'	917	22
+jini	packages/daemon/src/agent-executor/launch.ts	Async function 'run'	1391	20
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts	Async function 'prepare'	192	19
+jini	packages/chat/src/react/components/McpUiSurfaceCard.tsx	Function 'McpUiSurfaceCard'	215	15
+jini	packages/cookie-consent/src/contracts/policy.ts	Function 'effective'	42	14
+jini	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	Function 'ChatPaneComposerArea'	504	13
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Async arrow function	751	13
+jini	packages/cms/src/core/commands/revert.ts	Async function 'revertChangeSet'	105	12
+jini	packages/cms/src/widgets/html/plugin-export.ts	Function 'fillSlotText'	83	12
+jini	packages/daemon/src/agent-executor/events.ts	Function 'wireChildLifecycle'	467	12
+jini	packages/daemon/src/agent-executor/launch.ts	Async function 'buildRunArgs'	732	12
+jini	packages/daemon/src/surface-exchanges.ts	Method 'open'	137	12
+jini	packages/daemon/src/surface-restoration.ts	Async arrow function	149	12
+jini	packages/sidecar/src/supervision/supervisor.ts	Function 'ensureReady'	162	12
+jini	packages/agent-plugins/src/core/identity-namespace.ts	Function 'resolveAgentPluginIdentityNamespace'	14	11
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts	Function 'readChatAgentPluginState'	80	11
+jini	packages/agent-plugins/src/lifecycle/exports.ts	Function 'checkExternal'	107	11
+jini	packages/chat/src/core/user-text-redaction.ts	Arrow function	93	11
+jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	Arrow function	373	11
+jini	packages/chat/src/react/components/Composer.tsx	Function 'Composer'	166	11
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Function 'useChatPane'	403	11
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Arrow function	813	11
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Async arrow function	932	11
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Async arrow function	973	11
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	Arrow function	1055	11
+jini	packages/cms/src/media/document-read.ts	Async function 'readDocumentTextPage'	175	11
+jini	packages/commerce/src/catalog/settle-order-payment.ts	Async function 'settleOrderPayment'	55	11
+jini	packages/core/src/tool-input-envelope.ts	Function 'unwrapToolInputEnvelope'	26	11
+jini	packages/daemon/src/agent-executor/claude/subagent-start.ts	Async function 'prepareClaudeSubagentStartSettings'	5	11
+jini	packages/daemon/src/tool-executor.ts	Async arrow function	558	11
+jini	packages/integrations/src/credentialed-http/sets/vault-repo.ts	Function 'compatibilityVaultRow'	120	11
+jini	packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts	Async method	93	11
+jini	packages/mcp/src/agent-install/install.ts	Function 'installedLaunchMatches'	460	11
+jini	packages/mcp/src/server/tool-protocol.ts	Function 'okResult'	169	11
+jini	packages/provider-plugins/src/charts-recharts/descriptor.ts	Function 'supportsRechartsSpec'	9	11
+jini	packages/provider-plugins/src/payments-stripe/checkout-session.ts	Async function 'createCheckoutSession'	32	11
+jini	packages/provider-plugins/src/payments-stripe/session-reading.ts	Function 'sessionStatus'	19	11

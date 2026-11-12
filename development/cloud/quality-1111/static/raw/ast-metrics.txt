@@ -1,0 +1,2 @@
+{"label":"tovu","files":3371,"non_null_bang":801,"eslint_disable":26,"dynamic_import_other":54,"await_import":20,"other_any":10,"colon_any":19,"as_any":2,"ts_ignore":8,"functions_gt80":327,"files_gt500":163}
+{"label":"jini","files":3479,"non_null_bang":1212,"dynamic_import_other":42,"await_import":15,"eslint_disable":73,"colon_any":9,"ts_expect_error":3,"other_any":19,"functions_gt80":325,"files_gt500":113}

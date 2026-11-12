@@ -1,0 +1,418 @@
+{
+ "admin>agent-plugins": {
+  "files": 1,
+  "typeOnly": true
+ },
+ "admin>ui-kit": {
+  "files": 29,
+  "typeOnly": false
+ },
+ "admin>cms": {
+  "files": 12,
+  "typeOnly": false
+ },
+ "admin>core": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "admin>agentic": {
+  "files": 33,
+  "typeOnly": false
+ },
+ "admin>ui": {
+  "files": 43,
+  "typeOnly": false
+ },
+ "agent-plugins>core": {
+  "files": 42,
+  "typeOnly": false
+ },
+ "agent-plugins>platform": {
+  "files": 5,
+  "typeOnly": false
+ },
+ "agent-runtime>core": {
+  "files": 20,
+  "typeOnly": false
+ },
+ "agent-runtime>platform": {
+  "files": 8,
+  "typeOnly": false
+ },
+ "agent-runtime>protocol": {
+  "files": 3,
+  "typeOnly": false
+ },
+ "agent-runtime>oauth": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "agent-runtime>integrations": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "agentic>core": {
+  "files": 2,
+  "typeOnly": true
+ },
+ "agentic>protocol": {
+  "files": 1,
+  "typeOnly": true
+ },
+ "analytics>core": {
+  "files": 5,
+  "typeOnly": false
+ },
+ "analytics>agent-runtime": {
+  "files": 1,
+  "typeOnly": true
+ },
+ "artifacts>core": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "capability-providers>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "capability-providers>core": {
+  "files": 4,
+  "typeOnly": false
+ },
+ "chat>agentic": {
+  "files": 15,
+  "typeOnly": false
+ },
+ "chat>core": {
+  "files": 30,
+  "typeOnly": false
+ },
+ "chat>diagnostics": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "chat>ui": {
+  "files": 15,
+  "typeOnly": false
+ },
+ "chat>agent-runtime": {
+  "files": 5,
+  "typeOnly": false
+ },
+ "chat>db": {
+  "files": 10,
+  "typeOnly": false
+ },
+ "cli>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "cli>core": {
+  "files": 5,
+  "typeOnly": false
+ },
+ "cli>sidecar": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "cms>core": {
+  "files": 120,
+  "typeOnly": false
+ },
+ "cms>http-kit": {
+  "files": 8,
+  "typeOnly": false
+ },
+ "cms>db": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "cms>platform": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "commerce>core": {
+  "files": 19,
+  "typeOnly": false
+ },
+ "commerce>db": {
+  "files": 11,
+  "typeOnly": false
+ },
+ "commerce>agentic": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "commerce>ui": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "daemon>platform": {
+  "files": 8,
+  "typeOnly": false
+ },
+ "daemon>agent-runtime": {
+  "files": 19,
+  "typeOnly": false
+ },
+ "daemon>core": {
+  "files": 57,
+  "typeOnly": false
+ },
+ "daemon>protocol": {
+  "files": 42,
+  "typeOnly": false
+ },
+ "daemon>http-kit": {
+  "files": 28,
+  "typeOnly": false
+ },
+ "daemon>db": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "db>core": {
+  "files": 14,
+  "typeOnly": false
+ },
+ "db>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "desktop-host>core": {
+  "files": 4,
+  "typeOnly": false
+ },
+ "devops>core": {
+  "files": 23,
+  "typeOnly": false
+ },
+ "devops>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "diagnostics>core": {
+  "files": 13,
+  "typeOnly": false
+ },
+ "http-kit>core": {
+  "files": 9,
+  "typeOnly": false
+ },
+ "http-kit>protocol": {
+  "files": 7,
+  "typeOnly": false
+ },
+ "http-kit>platform": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "infra>db": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "infra>core": {
+  "files": 3,
+  "typeOnly": false
+ },
+ "integrations>core": {
+  "files": 42,
+  "typeOnly": false
+ },
+ "integrations>platform": {
+  "files": 8,
+  "typeOnly": false
+ },
+ "integrations>db": {
+  "files": 3,
+  "typeOnly": true
+ },
+ "mcp>platform": {
+  "files": 5,
+  "typeOnly": false
+ },
+ "mcp>core": {
+  "files": 29,
+  "typeOnly": false
+ },
+ "mcp>protocol": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "oauth>core": {
+  "files": 17,
+  "typeOnly": false
+ },
+ "platform>core": {
+  "files": 31,
+  "typeOnly": false
+ },
+ "plugins>core": {
+  "files": 21,
+  "typeOnly": false
+ },
+ "plugins>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "plugins>db": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "provider-plugins>plugins": {
+  "files": 8,
+  "typeOnly": false
+ },
+ "provider-plugins>agent-runtime": {
+  "files": 1,
+  "typeOnly": true
+ },
+ "provider-plugins>analytics": {
+  "files": 3,
+  "typeOnly": true
+ },
+ "provider-plugins>cookie-consent": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "provider-plugins>ui": {
+  "files": 5,
+  "typeOnly": false
+ },
+ "provider-plugins>cms": {
+  "files": 2,
+  "typeOnly": true
+ },
+ "provider-plugins>diagnostics": {
+  "files": 4,
+  "typeOnly": false
+ },
+ "provider-plugins>commerce": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "registry>core": {
+  "files": 7,
+  "typeOnly": false
+ },
+ "registry>protocol": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "registry>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "registry>db": {
+  "files": 3,
+  "typeOnly": true
+ },
+ "search>core": {
+  "files": 9,
+  "typeOnly": false
+ },
+ "search>agent-plugins": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "server>core": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "server>agent-runtime": {
+  "files": 3,
+  "typeOnly": false
+ },
+ "server>daemon": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "server>registry": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "server>db": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "server>http-kit": {
+  "files": 3,
+  "typeOnly": false
+ },
+ "server>sidecar": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "server>platform": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "server>chat": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "sidecar>platform": {
+  "files": 2,
+  "typeOnly": false
+ },
+ "sidecar>core": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "sqlite>daemon": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "sqlite>db": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "sqlite>chat": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "sqlite>registry": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "ui>agentic": {
+  "files": 54,
+  "typeOnly": false
+ },
+ "ui>ui-kit": {
+  "files": 6,
+  "typeOnly": false
+ },
+ "ui>core": {
+  "files": 31,
+  "typeOnly": false
+ },
+ "ui>platform": {
+  "files": 1,
+  "typeOnly": false
+ },
+ "user-management>admin": {
+  "files": 18,
+  "typeOnly": false
+ },
+ "user-management>ui-kit": {
+  "files": 23,
+  "typeOnly": false
+ },
+ "user-management>core": {
+  "files": 14,
+  "typeOnly": false
+ },
+ "user-management>ui": {
+  "files": 14,
+  "typeOnly": false
+ },
+ "user-management>agentic": {
+  "files": 4,
+  "typeOnly": false
+ },
+ "vibecoding>core": {
+  "files": 4,
+  "typeOnly": false
+ }
+}

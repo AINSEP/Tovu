@@ -1,0 +1,78 @@
+{
+ "tovu": {
+  "unused-file": {
+   "all": 83,
+   "inScope": 7
+  },
+  "dependencies": {
+   "all": 107,
+   "inScope": 107
+  },
+  "devDependencies": {
+   "all": 16,
+   "inScope": 16
+  },
+  "binaries": {
+   "all": 1,
+   "inScope": 1
+  },
+  "unlisted": {
+   "all": 53,
+   "inScope": 8
+  },
+  "types": {
+   "all": 2714,
+   "inScope": 2611
+  },
+  "exports": {
+   "all": 1047,
+   "inScope": 935
+  },
+  "duplicates": {
+   "all": 2,
+   "inScope": 2
+  }
+ },
+ "jini": {
+  "unused-file": {
+   "all": 43,
+   "inScope": 11
+  },
+  "dependencies": {
+   "all": 9,
+   "inScope": 9
+  },
+  "devDependencies": {
+   "all": 17,
+   "inScope": 17
+  },
+  "optionalPeerDependencies": {
+   "all": 101,
+   "inScope": 101
+  },
+  "binaries": {
+   "all": 1,
+   "inScope": 1
+  },
+  "unlisted": {
+   "all": 19,
+   "inScope": 6
+  },
+  "unresolved": {
+   "all": 15,
+   "inScope": 0
+  },
+  "exports": {
+   "all": 173,
+   "inScope": 124
+  },
+  "types": {
+   "all": 361,
+   "inScope": 266
+  },
+  "duplicates": {
+   "all": 26,
+   "inScope": 25
+  }
+ }
+}

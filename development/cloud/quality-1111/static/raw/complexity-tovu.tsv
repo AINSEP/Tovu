@@ -1,0 +1,41 @@
+repo	file	function	line	complexity
+tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts	Function 'createLocalSiteSupervisor'	61	17
+tovu	apps/website/src/features/site-backup/import-keep-off.ts	Async function 'keepImportedCodeOff'	127	16
+tovu	apps/website/src/features/agent-plugins/exports/runtime.ts	Async function 'resolveExport'	92	13
+tovu	apps/website/src/features/site-backup/static-download-layout.ts	Function 'staticDownloadLayout'	242	13
+tovu	apps/website/src/platform/site-dir/local-site-intent.ts	Function 'validIntent'	28	13
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts	Async function 'start'	203	13
+tovu	apps/website/src/assistant/ask-choice-custom-answer.ts	Function 'splitCustomAnswer'	86	12
+tovu	apps/website/src/assistant/byok-tool-surface.ts	Function 'createByokToolSurface'	621	12
+tovu	apps/website/src/cli/commands/import-local.ts	Function 'parseRequest'	128	12
+tovu	apps/website/src/features/deployments/static-publish/adapter.ts	Async function 'publishStaticSiteSteps'	519	12
+tovu	apps/website/src/features/site-backup/import-database.ts	Async function 'tidyImportDatabases'	116	12
+tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts	Function 'listingManagement'	263	12
+tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts	Function 'registerAdminSitesRoutes'	305	12
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts	Async function 'start'	82	12
+tovu	apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts	Async function 'createAgentDaemonCoreDeps'	65	12
+tovu	apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts	Function 'startAssistantDaemon'	617	12
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts	Async function 'discoverDaemon'	200	12
+tovu	apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts	Async function 'startAndWait'	55	11
+tovu	apps/admin/src/lib/admin-failure-channel.ts	Function 'publishAdminFailure'	52	11
+tovu	apps/website/src/assistant/ask-choice-tool.ts	Function 'buildAskChoiceFormSurface'	199	11
+tovu	apps/website/src/assistant/mcp-ui-tool-calls-route.ts	Function 'parseMcpUiToolCallRequest'	184	11
+tovu	apps/website/src/cli/commands/export.ts	Async function 'runExportCommand'	117	11
+tovu	apps/website/src/contracts/core/human-confirm.ts	Function 'renderHumanConfirmation'	270	11
+tovu	apps/website/src/features/pages/tool-registrations.ts	Async function 'readDocPageFallback'	443	11
+tovu	apps/website/src/features/site-backup/credential-warnings.ts	Function 'warnCredentialContent'	16	11
+tovu	apps/website/src/features/site-backup/share-registry.ts	Async method 'findToken'	102	11
+tovu	apps/website/src/features/site-backup/share-service.ts	Async function 'acknowledgeSiteShare'	132	11
+tovu	apps/website/src/features/site-export/site-exporter.ts	Async function 'exportSite'	560	11
+tovu	apps/website/src/features/sites/warm-switch.ts	Async function 'activateSiteWithWarmServer'	14	11
+tovu	apps/website/src/features/theme/theme.ts	Function 'readBundledTemplateFallback'	501	11
+tovu	apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts	Async arrow function	131	11
+tovu	apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts	Async arrow function	250	11
+tovu	apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts	Async arrow function	27	11
+tovu	apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts	Async arrow function	124	11
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts	Async arrow function	28	11
+tovu	apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts	Async arrow function	201	11
+tovu	apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts	Async function 'resolveFile'	25	11
+tovu	apps/website/src/server/inbound/public-http/routes/site/pages.ts	Async function 'finalizePublicPageHtml'	2642	11
+tovu	apps/website/src/server/runtime/lifecycle/daemon-demand-fetch.ts	Async function 'fetchWithDaemonParkRecovery'	9	11
+tovu	apps/website/src/server/runtime/lifecycle/local-site-host.ts	Function 'localSiteSupervisorForHost'	42	11

@@ -1,0 +1,1 @@
+{"label":"tovu","filesLinted":3371,"cyclomatic_gt10":45,"gt15":4,"gt25":1,"max":29,"cognitive_gt10":18,"cog_gt25":0,"parseErrors":54,"otherRules":{}}
