@@ -1,0 +1,7 @@
+TAP version 13
+# Subtest: restoreFromSnapshot: restores db from snapshot and cleans wal/shm sidecars
+ok 1 - restoreFromSnapshot: restores db from snapshot and cleans wal/shm sidecars
+  ---
+  duration_ms: 3.66404
+  type: 'test'
+  ...

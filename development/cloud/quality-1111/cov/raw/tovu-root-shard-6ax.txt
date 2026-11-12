@@ -7,4 +7,235 @@
 ....................
 ....................
 ....................
+....................
+....................
+......XX......X..X..
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+..XXXXXXXXXXXXXX....
+....................
+....................
+....................
+....................
+....................
+................XX..
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
 ......
+
+Failed tests:
+
+✖ a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only (152.11473ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at onCard (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:69:115)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:71:95)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/9VlvDrll7a9QbOnCOp85difsmRLPArrgo0fzAPOTGZE'
+  }
+✖ API sign-in displays only the declaring plugin oauth card copy (27.218482ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:106:49)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async Object.waitAtSignInCard (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:62:20) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/rppaDMVTye6M6Eqfj4FQA7c_zy9lnCqpMGGl5QldAEQ'
+  }
+✖ a failed connected-card update never turns a real connection into a tool failure (4.337825ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at onCard (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:166:43)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:71:95)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/f39DvlEggJA7A1dLUPxiJ58J3z7hRg05j3v4JQ0nj8Q'
+  }
+✖ with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect (5.888109ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at consentRedirect (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:153:32)
+      at followConsent (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts:169:16)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts:221:79)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async Object.showSignIn (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:71:7)
+      at async connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:3)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async Object.waitAtSignInCard (/home/user/Jini/packages/ui/src/features/mcp-ui/sign-in-card.ts:62:20) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/mBnQUT6FA5ckRDOJeL-_ZINusicXShiZMElTo_2xM0I'
+  }
+✖ the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys (675.876222ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+✖ a re-copy replaces the site's own copy and never appends (40.902687ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction (39.863658ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead (41.834999ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up (35.153273ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a row Postgres rejects rolls the whole copy back and names only the table (31.510538ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a count mismatch or rejected replacement preserves the earlier rows and marker (31.213261ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied (31.177523ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones (31.308494ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result (30.582966ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ T2: every table in the snapshot is copied or left out with a reason; a plugin's tables are copied from the snapshot's own layout (31.680888ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ an unconfirmed first-copy plan cannot overwrite a copy created since planning (30.337215ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a Postgres site copy preserves publish backstop audit rows and their undo inverses (30.197708ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ /home/user/Tovu/apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts (29.656466ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async dropDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:33:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ two processes booting at once: the mismatched rows go exactly once, one marker, readable rows survive (46.818863ms)
+  Error: failed to drop fixture database "tovu_unreadable_owner_entries_repair_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts:43:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ /home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts (43.350991ms)
+  Error: failed to drop fixture database "tovu_unreadable_owner_entries_repair_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts:27:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+shard 6ax exit 1 205s

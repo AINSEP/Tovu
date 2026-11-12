@@ -19102,3 +19102,2813 @@ ok 851 - members get: `req.params.memberId ?? ""` fallback, forced via a direct 
   duration_ms: 137.04432
   type: 'test'
   ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: cancel-campaign: mismatched workspaceId 404s
+ok 852 - cancel-campaign: mismatched workspaceId 404s
+  ---
+  duration_ms: 452.094938
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: forbidden 403s when unauthorized
+ok 853 - cancel-campaign: forbidden 403s when unauthorized
+  ---
+  duration_ms: 248.411031
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: successful cancel transitions draft campaign to canceled
+ok 854 - cancel-campaign: successful cancel transitions draft campaign to canceled
+  ---
+  duration_ms: 217.120539
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: not found campaign returns 404
+ok 855 - cancel-campaign: not found campaign returns 404
+  ---
+  duration_ms: 203.602944
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: invalid state transition returns 409 conflict
+ok 856 - cancel-campaign: invalid state transition returns 409 conflict
+  ---
+  duration_ms: 186.390457
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '20aafc22-7295-411a-b06f-92d504c21ccb',
+#   diagnostic: 'Error: unexpected db explosion\\n' +
+#     '    at InMemoryNewsletterCampaignRepo.deps.newsletterCampaignRepo.transaction (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/cancel-campaign.test.ts:148:11)\\n' +
+#     '    at transitionAndWrite (/home/user/Tovu/apps/website/src/features/newsletter/campaign-write-service.ts:180:28)\\n' +
+#     '    at cancelCampaign (/home/user/Tovu/apps/website/src/features/newsletter/campaign-write-service.ts:200:26)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/cancel-campaign.ts:32:34)'
+# }
+# Subtest: cancel-campaign: generic unexpected error maps to 500
+ok 857 - cancel-campaign: generic unexpected error maps to 500
+  ---
+  duration_ms: 275.625256
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: scheduled can be canceled, with durable state checked
+ok 858 - cancel-campaign: scheduled can be canceled, with durable state checked
+  ---
+  duration_ms: 165.098006
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: sending cannot be canceled, with durable state checked
+ok 859 - cancel-campaign: sending cannot be canceled, with durable state checked
+  ---
+  duration_ms: 249.181932
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: paused cannot be canceled, with durable state checked
+ok 860 - cancel-campaign: paused cannot be canceled, with durable state checked
+  ---
+  duration_ms: 184.484376
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: sent cannot be canceled, with durable state checked
+ok 861 - cancel-campaign: sent cannot be canceled, with durable state checked
+  ---
+  duration_ms: 167.892892
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: canceled cannot be canceled, with durable state checked
+ok 862 - cancel-campaign: canceled cannot be canceled, with durable state checked
+  ---
+  duration_ms: 166.462537
+  type: 'test'
+  ...
+# Subtest: cancel-campaign: undefined workspaceId fallback via direct handler invocation
+ok 863 - cancel-campaign: undefined workspaceId fallback via direct handler invocation
+  ---
+  duration_ms: 187.371216
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: pause-campaign: mismatched workspaceId 404s
+ok 864 - pause-campaign: mismatched workspaceId 404s
+  ---
+  duration_ms: 509.085684
+  type: 'test'
+  ...
+# Subtest: pause-campaign: forbidden 403s when unauthorized
+ok 865 - pause-campaign: forbidden 403s when unauthorized
+  ---
+  duration_ms: 270.403013
+  type: 'test'
+  ...
+# Subtest: pause-campaign: successful pause transitions sending campaign to paused
+ok 866 - pause-campaign: successful pause transitions sending campaign to paused
+  ---
+  duration_ms: 276.199288
+  type: 'test'
+  ...
+# Subtest: pause-campaign: not found campaign returns 404
+ok 867 - pause-campaign: not found campaign returns 404
+  ---
+  duration_ms: 212.401075
+  type: 'test'
+  ...
+# Subtest: pause-campaign: invalid state transition returns 409 conflict
+ok 868 - pause-campaign: invalid state transition returns 409 conflict
+  ---
+  duration_ms: 193.040569
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '8179fcce-fd1f-485b-a9b9-adf9a2f1cfa0',
+#   diagnostic: 'Error: unexpected db explosion\\n' +
+#     '    at InMemoryNewsletterCampaignRepo.deps.newsletterCampaignRepo.transaction (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/pause-campaign.test.ts:148:11)\\n' +
+#     '    at transitionAndSave (/home/user/Tovu/apps/website/src/features/newsletter/send-pipeline.ts:413:28)\\n' +
+#     '    at pauseCampaign (/home/user/Tovu/apps/website/src/features/newsletter/send-pipeline.ts:367:10)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/pause-campaign.ts:27:34)'
+# }
+# Subtest: pause-campaign: generic unexpected error maps to 500
+ok 869 - pause-campaign: generic unexpected error maps to 500
+  ---
+  duration_ms: 235.280449
+  type: 'test'
+  ...
+# Subtest: pause-campaign: undefined workspaceId fallback via direct handler invocation
+ok 870 - pause-campaign: undefined workspaceId fallback via direct handler invocation
+  ---
+  duration_ms: 182.959137
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/pages/delete] {
+#   errorId: 'a0618e81-9e8d-45ca-9908-ae01e5e89186',
+#   diagnostic: 'Error: private audit failure\\n' +
+#     '    at InMemoryChangeSetRepo.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/__tests__/unit/h4-delete.unit.test.ts:29:64)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/delete.ts:47:26)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/__tests__/unit/h4-delete.unit.test.ts:32:3)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: page delete losing its version compare-and-set is 409 and leaves the page intact
+ok 871 - page delete losing its version compare-and-set is 409 and leaves the page intact
+  ---
+  duration_ms: 230.557604
+  type: 'test'
+  ...
+# Subtest: page delete compensates a failed audit write using its captured page
+ok 872 - page delete compensates a failed audit write using its captured page
+  ---
+  duration_ms: 176.710034
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PLUGIN_UNINSTALL authz: a signed-in principal without admin.plugins.enable is 403 and the plugin stays installed; the owner can still remove it
+ok 873 - PLUGIN_UNINSTALL authz: a signed-in principal without admin.plugins.enable is 403 and the plugin stays installed; the owner can still remove it
+  ---
+  duration_ms: 942.97838
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PLUGIN_UNINSTALL: a workspace id that is not this site's is 404 before discovery or removal
+ok 874 - PLUGIN_UNINSTALL: a workspace id that is not this site's is 404 before discovery or removal
+  ---
+  duration_ms: 61.912483
+  type: 'test'
+  ...
+# [routes/plugins/uninstall] {
+#   errorId: '4e96f6a2-5e44-412a-b65b-0c474f373d7d',
+#   diagnostic: 'Error: install dir unreadable: /srv/secret/path\\n' +
+#     '    at Object.discoverPlugins (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/uninstall-and-files-route.unit.test.ts:92:13)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/uninstall.ts:65:36)'
+# }
+# Subtest: PLUGIN_UNINSTALL: an unmapped discovery failure is the opaque 500 INTERNAL_ERROR envelope
+ok 875 - PLUGIN_UNINSTALL: an unmapped discovery failure is the opaque 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 44.621445
+  type: 'test'
+  ...
+# Subtest: PLUGIN_UNINSTALL: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404
+ok 876 - PLUGIN_UNINSTALL: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 1.583421
+  type: 'test'
+  ...
+# Subtest: PLUGIN_UNINSTALL: `req.params.pluginId ?? ""` fallback names no discovered plugin and is 404 PLUGIN_NOT_FOUND without removing anything
+ok 877 - PLUGIN_UNINSTALL: `req.params.pluginId ?? ""` fallback names no discovered plugin and is 404 PLUGIN_NOT_FOUND without removing anything
+  ---
+  duration_ms: 0.958398
+  type: 'test'
+  ...
+# [routes/plugins/files] {
+#   errorId: 'e2e7c227-5212-4881-8ed9-94e41a0ffa2d',
+#   diagnostic: 'Error: EACCES: /srv/secret/plugins/alpha\\n' +
+#     '    at Object.readPluginPackageFiles (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/uninstall-and-files-route.unit.test.ts:120:13)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/files.ts:65:47)'
+# }
+# Subtest: PLUGIN_FILES: an unmapped listing failure is the opaque 500 INTERNAL_ERROR envelope, never the raw message
+ok 878 - PLUGIN_FILES: an unmapped listing failure is the opaque 500 INTERNAL_ERROR envelope, never the raw message
+  ---
+  duration_ms: 12.369028
+  type: 'test'
+  ...
+# Subtest: PLUGIN_FILES: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404
+ok 879 - PLUGIN_FILES: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 2.174559
+  type: 'test'
+  ...
+# Subtest: PLUGIN_FILES: `req.params.pluginId ?? ""` fallback matches no discovered plugin and is 404 PLUGIN_NOT_FOUND without reading files
+ok 880 - PLUGIN_FILES: `req.params.pluginId ?? ""` fallback matches no discovered plugin and is 404 PLUGIN_NOT_FOUND without reading files
+  ---
+  duration_ms: 0.613546
+  type: 'test'
+  ...
+# Subtest: autosave refuses invalid byline {"author":7} before a write
+ok 881 - autosave refuses invalid byline {"author":7} before a write
+  ---
+  duration_ms: 4.347725
+  type: 'test'
+  ...
+# Subtest: autosave refuses invalid byline {"showAuthor":"true"} before a write
+ok 882 - autosave refuses invalid byline {"showAuthor":"true"} before a write
+  ---
+  duration_ms: 0.49138
+  type: 'test'
+  ...
+# Subtest: autosave refuses invalid byline {"author":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"} before a write
+ok 883 - autosave refuses invalid byline {"author":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"} before a write
+  ---
+  duration_ms: 0.353573
+  type: 'test'
+  ...
+# Subtest: autosave parks by raw id after lookup failure, retaining the normalized byline
+ok 884 - autosave parks by raw id after lookup failure, retaining the normalized byline
+  ---
+  duration_ms: 1.952435
+  type: 'test'
+  ...
+# Subtest: manual row planning sends unexpected read failures through the redacted correlated 500 handler
+ok 885 - manual row planning sends unexpected read failures through the redacted correlated 500 handler
+  ---
+  duration_ms: 80.556378
+  type: 'test'
+  ...
+# Subtest: manual row planning sends unexpected columns failures through the redacted correlated 500 handler
+ok 886 - manual row planning sends unexpected columns failures through the redacted correlated 500 handler
+  ---
+  duration_ms: 7.971205
+  type: 'test'
+  ...
+# Subtest: manual row planning keeps expected adapter refusals as public skips without incidents
+ok 887 - manual row planning keeps expected adapter refusals as public skips without incidents
+  ---
+  duration_ms: 6.034478
+  type: 'test'
+  ...
+# Subtest: manual undo keeps typed file-size refusals at 409 without reporting an incident
+ok 888 - manual undo keeps typed file-size refusals at 409 without reporting an incident
+  ---
+  duration_ms: 7.210702
+  type: 'test'
+  ...
+# Subtest: manual planning preserves the aggregate file-size refusal at 409
+ok 889 - manual planning preserves the aggregate file-size refusal at 409
+  ---
+  duration_ms: 100.39652
+  type: 'test'
+  ...
+# Subtest: manual plan sends unexpected file I/O errors through the redacted correlated 500 handler
+ok 890 - manual plan sends unexpected file I/O errors through the redacted correlated 500 handler
+  ---
+  duration_ms: 11.34815
+  type: 'test'
+  ...
+# Subtest: manual undo sends unexpected file I/O errors through the redacted correlated 500 handler
+ok 891 - manual undo sends unexpected file I/O errors through the redacted correlated 500 handler
+  ---
+  duration_ms: 5.606841
+  type: 'test'
+  ...
+# Subtest: destination routes: a workspace id that is not this site's is 404 on all three routes, before authorize runs
+ok 892 - destination routes: a workspace id that is not this site's is 404 on all three routes, before authorize runs
+  ---
+  duration_ms: 64.081514
+  type: 'test'
+  ...
+# Subtest: destination routes: a principal without publish_content.apply is 403 on all three routes and nothing is contacted or written
+ok 893 - destination routes: a principal without publish_content.apply is 403 on all three routes and nothing is contacted or written
+  ---
+  duration_ms: 26.765285
+  type: 'test'
+  ...
+# Subtest: GET destination: with nothing connected and no deployed site, says so in plain words
+ok 894 - GET destination: with nothing connected and no deployed site, says so in plain words
+  ---
+  duration_ms: 13.925286
+  type: 'test'
+  ...
+# Subtest: GET destination: a connected peer is reported as the destination, and the deploy-config candidate is not consulted
+ok 895 - GET destination: a connected peer is reported as the destination, and the deploy-config candidate is not consulted
+  ---
+  duration_ms: 18.813588
+  type: 'test'
+  ...
+# Subtest: POST connect: no siteUrl and no deployed site is 400 NO_DESTINATION and contacts nothing
+ok 896 - POST connect: no siteUrl and no deployed site is 400 NO_DESTINATION and contacts nothing
+  ---
+  duration_ms: 13.787752
+  type: 'test'
+  ...
+# Subtest: POST connect: an address that is not a URL is 400 VALIDATION_ERROR and contacts nothing
+ok 897 - POST connect: an address that is not a URL is 400 VALIDATION_ERROR and contacts nothing
+  ---
+  duration_ms: 15.210238
+  type: 'test'
+  ...
+# Subtest: POST connect: with no publishable content types registered it is 409 NO_PUBLISHABLE_TYPES and writes no grant
+ok 898 - POST connect: with no publishable content types registered it is 409 NO_PUBLISHABLE_TYPES and writes no grant
+  ---
+  duration_ms: 4.528879
+  type: 'test'
+  ...
+# Subtest: POST connect: falls back to the deployed-site candidate, learns the destination's workspace, records the peer, and answers 201
+ok 899 - POST connect: falls back to the deployed-site candidate, learns the destination's workspace, records the peer, and answers 201
+  ---
+  duration_ms: 10.77559
+  type: 'test'
+  ...
+# Subtest: POST connect: a destination that is not a Tovu site is 502 PUBLISH_TRUST_HANDSHAKE_FAILED with the plain sentence, and nothing is saved
+ok 900 - POST connect: a destination that is not a Tovu site is 502 PUBLISH_TRUST_HANDSHAKE_FAILED with the plain sentence, and nothing is saved
+  ---
+  duration_ms: 5.194991
+  type: 'test'
+  ...
+# Subtest: POST connect: a deploy config that cannot be written is 500 PUBLISH_TRUST_NOT_SAVED, and no peer row claims a connection
+ok 901 - POST connect: a deploy config that cannot be written is 500 PUBLISH_TRUST_NOT_SAVED, and no peer row claims a connection
+  ---
+  duration_ms: 7.807843
+  type: 'test'
+  ...
+# Subtest: POST disconnect: forgets the connected peer and reports the address it published to as the next candidate
+ok 902 - POST disconnect: forgets the connected peer and reports the address it published to as the next candidate
+  ---
+  duration_ms: 6.719138
+  type: 'test'
+  ...
+# Subtest: POST disconnect: when nothing was connected and the config did not change, says so and offers no next step
+ok 903 - POST disconnect: when nothing was connected and the config did not change, says so and offers no next step
+  ---
+  duration_ms: 4.495505
+  type: 'test'
+  ...
+# Subtest: POST disconnect: a deploy config that cannot be written is 500 PUBLISH_TRUST_NOT_SAVED and the peer row is put back
+ok 904 - POST disconnect: a deploy config that cannot be written is 500 PUBLISH_TRUST_NOT_SAVED and the peer row is put back
+  ---
+  duration_ms: 6.31694
+  type: 'test'
+  ...
+# Subtest: GET destination: a deployed-site candidate is offered by its host name, and a candidate that is not a URL is offered verbatim
+ok 905 - GET destination: a deployed-site candidate is offered by its host name, and a candidate that is not a URL is offered verbatim
+  ---
+  duration_ms: 6.973968
+  type: 'test'
+  ...
+# [routes/publish-content/destination] {
+#   errorId: 'efd297ab-8a2b-4d6f-9dc5-f623c1d02773',
+#   diagnostic: 'Error: sqlite: no such table publish_content_peers\\n' +
+#     '    at InMemoryPublishContentPeerRepo.h.repo.listByWorkspace (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/destination.routes.test.ts:322:11)\\n' +
+#     '    at connectedSite (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts:93:50)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts:156:26)'
+# }
+# Subtest: GET destination: an unexpected failure reading the peer list is a generic 500 INTERNAL_ERROR
+ok 906 - GET destination: an unexpected failure reading the peer list is a generic 500 INTERNAL_ERROR
+  ---
+  duration_ms: 19.662638
+  type: 'test'
+  ...
+# [routes/publish-content/destination] {
+#   errorId: '72d2755b-dfbd-4239-a8ed-d05059ed4fa0',
+#   diagnostic: 'Error: disk full\\n' +
+#     '    at InMemoryPublishContentPeerRepo.h.repo.insert (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/destination.routes.test.ts:333:11)\\n' +
+#     '    at saveConnectedDestination (/home/user/Tovu/apps/website/src/features/publish-content/peers.ts:561:24)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async connectAndRecordDestination (/home/user/Tovu/apps/website/src/features/publish-content/connect-destination.ts:99:12)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts:224:31)'
+# }
+# Subtest: POST connect: when recording the peer fails after the grant was written, the grant is reversed and the failure is a generic 500
+ok 907 - POST connect: when recording the peer fails after the grant was written, the grant is reversed and the failure is a generic 500
+  ---
+  duration_ms: 13.338465
+  type: 'test'
+  ...
+# Subtest: direct invoke: a missing :workspaceId 404s before authorize; a body-less connect falls back to the (absent) candidate and is 400 NO_DESTINATION
+ok 908 - direct invoke: a missing :workspaceId 404s before authorize; a body-less connect falls back to the (absent) candidate and is 400 NO_DESTINATION
+  ---
+  duration_ms: 1.541712
+  type: 'test'
+  ...
+# Subtest: push/plan with scope.entityTypes:['page'] stages only pages
+ok 909 - push/plan with scope.entityTypes:['page'] stages only pages
+  ---
+  duration_ms: 112.145388
+  type: 'test'
+  ...
+# Subtest: a refused theme-files tree is absent from a page-scoped plan and present under its own scope
+ok 910 - a refused theme-files tree is absent from a page-scoped plan and present under its own scope
+  ---
+  duration_ms: 24.204643
+  type: 'test'
+  ...
+# Subtest: scope intersects with selectedEntityKeys — a key naming a type outside scope stages nothing extra
+ok 911 - scope intersects with selectedEntityKeys — a key naming a type outside scope stages nothing extra
+  ---
+  duration_ms: 11.851498
+  type: 'test'
+  ...
+# Subtest: push/plan 400s on a malformed scope.entityTypes with the exact validation text
+ok 912 - push/plan 400s on a malformed scope.entityTypes with the exact validation text
+  ---
+  duration_ms: 8.34478
+  type: 'test'
+  ...
+# Subtest: push/plan 400s on a malformed scope.entityKeys with the exact validation text
+ok 913 - push/plan 400s on a malformed scope.entityKeys with the exact validation text
+  ---
+  duration_ms: 8.859599
+  type: 'test'
+  ...
+# Subtest: push/plan 400s on a scope array over the 1000-entry cap
+ok 914 - push/plan 400s on a scope array over the 1000-entry cap
+  ---
+  duration_ms: 6.351689
+  type: 'test'
+  ...
+# Subtest: push/plan 400s, staging nothing, on a scope that is not an object or names neither field
+ok 915 - push/plan 400s, staging nothing, on a scope that is not an object or names neither field
+  ---
+  duration_ms: 12.013764
+  type: 'test'
+  ...
+# Subtest: push/plan treats an absent scope as 'everything' — both types are staged
+ok 916 - push/plan treats an absent scope as 'everything' — both types are staged
+  ---
+  duration_ms: 7.728082
+  type: 'test'
+  ...
+# Subtest: a pages-scoped plan carries referenced media along and shows only the media live would change
+ok 917 - a pages-scoped plan carries referenced media along and shows only the media live would change
+  ---
+  duration_ms: 10.65798
+  type: 'test'
+  ...
+# Subtest: a deselected page's media is not staged on the narrowed re-plan
+ok 918 - a deselected page's media is not staged on the narrowed re-plan
+  ---
+  duration_ms: 8.954924
+  type: 'test'
+  ...
+# Subtest: an unscoped plan adds nothing — every media row is an ordinary row
+ok 919 - an unscoped plan adds nothing — every media row is an ordinary row
+  ---
+  duration_ms: 6.167796
+  type: 'test'
+  ...
+# Subtest: push/plan honors valid row scope {"entityKeys":["page:p1"]}
+ok 920 - push/plan honors valid row scope {"entityKeys":["page:p1"]}
+  ---
+  duration_ms: 35.060857
+  type: 'test'
+  ...
+# Subtest: push/plan honors valid row scope {"entityTypes":["page"],"entityKeys":["page:p1","theme-files:static/basic"]}
+ok 921 - push/plan honors valid row scope {"entityTypes":["page"],"entityKeys":["page:p1","theme-files:static/basic"]}
+  ---
+  duration_ms: 8.705353
+  type: 'test'
+  ...
+# Subtest: push/plan: an explicitly empty selection stages no entities or required blobs
+ok 922 - push/plan: an explicitly empty selection stages no entities or required blobs
+  ---
+  duration_ms: 10.541309
+  type: 'test'
+  ...
+# [routes/redirects/shared] {
+#   errorId: 'de638bca-82f3-4b27-9bc0-aee7f0c64d06',
+#   diagnostic: 'Error: unknown database crash\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/__tests__/shared.test.ts:63:15)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectValidationError to 400 REDIRECT_VALIDATION_ERROR
+ok 923 - REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectValidationError to 400 REDIRECT_VALIDATION_ERROR
+  ---
+  duration_ms: 2.410127
+  type: 'test'
+  ...
+# Subtest: REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectTargetNotAllowedError to 400 REDIRECT_TARGET_NOT_ALLOWED
+ok 924 - REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectTargetNotAllowedError to 400 REDIRECT_TARGET_NOT_ALLOWED
+  ---
+  duration_ms: 0.304331
+  type: 'test'
+  ...
+# Subtest: REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectConflictError to 409 REDIRECT_CONFLICT
+ok 925 - REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectConflictError to 409 REDIRECT_CONFLICT
+  ---
+  duration_ms: 0.172539
+  type: 'test'
+  ...
+# Subtest: REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectLoopError to 409 REDIRECT_LOOP_DETECTED
+ok 926 - REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectLoopError to 409 REDIRECT_LOOP_DETECTED
+  ---
+  duration_ms: 0.140696
+  type: 'test'
+  ...
+# Subtest: respondToRedirectError: falls back to 500 when error does not match any mapping
+ok 927 - respondToRedirectError: falls back to 500 when error does not match any mapping
+  ---
+  duration_ms: 14.900526
+  type: 'test'
+  ...
+# Subtest: respondToRedirectError: handles non-Error thrown objects with custom mappings
+ok 928 - respondToRedirectError: handles non-Error thrown objects with custom mappings
+  ---
+  duration_ms: 0.222259
+  type: 'test'
+  ...
+# Subtest: REDIRECT_WRITE_ERROR_MAPPINGS: maps a trashed redirect to 409 ENTITY_IN_TRASH
+ok 929 - REDIRECT_WRITE_ERROR_MAPPINGS: maps a trashed redirect to 409 ENTITY_IN_TRASH
+  ---
+  duration_ms: 0.457555
+  type: 'test'
+  ...
+# Subtest: put-settings: mismatched workspaceId 404s
+ok 930 - put-settings: mismatched workspaceId 404s
+  ---
+  duration_ms: 362.596341
+  type: 'test'
+  ...
+# Subtest: put-settings: forbidden 403s
+ok 931 - put-settings: forbidden 403s
+  ---
+  duration_ms: 277.730202
+  type: 'test'
+  ...
+# Subtest: put-settings: validation error 400s (SEO_SETTINGS_VALIDATION_ERROR)
+ok 932 - put-settings: validation error 400s (SEO_SETTINGS_VALIDATION_ERROR)
+  ---
+  duration_ms: 199.94473
+  type: 'test'
+  ...
+# Subtest: put-settings: valid patch returns updated settings (200)
+ok 933 - put-settings: valid patch returns updated settings (200)
+  ---
+  duration_ms: 509.853938
+  type: 'test'
+  ...
+# [routes/seo/put-settings] {
+#   errorId: 'ac3b82c1-57d8-4879-8d19-2951b0916018',
+#   diagnostic: 'Error: storage failure\\n' +
+#     '    at ThrowingSettingsRepo.findActiveDefinition (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/seo/__tests__/put-settings.test.ts:89:11)\\n' +
+#     '    at findInCallerOrPlatformPartition (/home/user/Jini/packages/core/src/settings/settings.ts:280:26)\\n' +
+#     '    at resolveDefinitionRaw (/home/user/Jini/packages/core/src/settings/settings.ts:250:23)\\n' +
+#     '    at set (/home/user/Tovu/apps/website/src/features/settings/site-title-write.ts:58:28)\\n' +
+#     '    at setSeoSettings (/home/user/Tovu/apps/website/src/features/seo/settings.ts:375:11)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts:33:24)'
+# }
+# Subtest: put-settings: unexpected error returns 500 (INTERNAL_ERROR)
+ok 934 - put-settings: unexpected error returns 500 (INTERNAL_ERROR)
+  ---
+  duration_ms: 175.878595
+  type: 'test'
+  ...
+# Subtest: put-settings: workspaceId undefined and req.body undefined fallbacks via direct handler execution
+ok 935 - put-settings: workspaceId undefined and req.body undefined fallbacks via direct handler execution
+  ---
+  duration_ms: 127.312263
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/settings] {
+#   errorId: 'b89d06fe-baa0-43a3-b2f7-898ef2ba3452',
+#   diagnostic: 'Error: connection to db at postgres://[REDACTED:url_credentials]@host failed\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/settings/__tests__/shared.unit.test.ts:100:31)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: resolveTargetWorkspaceId: a global-scope write targets no workspace, even when the body names this one
+ok 936 - resolveTargetWorkspaceId: a global-scope write targets no workspace, even when the body names this one
+  ---
+  duration_ms: 2.633438
+  type: 'test'
+  ...
+# Subtest: resolveTargetWorkspaceId: a non-global write always targets the route's own workspace
+ok 937 - resolveTargetWorkspaceId: a non-global write always targets the route's own workspace
+  ---
+  duration_ms: 0.196852
+  type: 'test'
+  ...
+# Subtest: resolveTargetWorkspaceId: null and empty-string body workspaceIds count as not named, not as a mismatch
+ok 938 - resolveTargetWorkspaceId: null and empty-string body workspaceIds count as not named, not as a mismatch
+  ---
+  duration_ms: 0.24223
+  type: 'test'
+  ...
+# Subtest: resolveTargetWorkspaceId: any other named workspace is refused, for every scope including global
+ok 939 - resolveTargetWorkspaceId: any other named workspace is refused, for every scope including global
+  ---
+  duration_ms: 0.457618
+  type: 'test'
+  ...
+# Subtest: resolveUserLayerReadTarget: reading your own layer (or none) never asks authorize
+ok 940 - resolveUserLayerReadTarget: reading your own layer (or none) never asks authorize
+  ---
+  duration_ms: 0.487897
+  type: 'test'
+  ...
+# Subtest: resolveUserLayerReadTarget: another principal's layer requires settings.user.read and relays the denial reason
+ok 941 - resolveUserLayerReadTarget: another principal's layer requires settings.user.read and relays the denial reason
+  ---
+  duration_ms: 0.361535
+  type: 'test'
+  ...
+# Subtest: respondToSettingsError: the first matching mapping wins and carries the error's own message
+ok 942 - respondToSettingsError: the first matching mapping wins and carries the error's own message
+  ---
+  duration_ms: 2.032739
+  type: 'test'
+  ...
+# Subtest: respondToSettingsError: an unmapped error is a fixed 500 that never echoes its message
+ok 943 - respondToSettingsError: an unmapped error is a fixed 500 that never echoes its message
+  ---
+  duration_ms: 22.115184
+  type: 'test'
+  ...
+# Subtest: with local management on, the listing returns the service's versions and passes the served site's socket target
+ok 944 - with local management on, the listing returns the service's versions and passes the served site's socket target
+  ---
+  duration_ms: 11.46685
+  type: 'test'
+  ...
+# Subtest: with local management off, no capture is ever requested and the listing carries no versions
+ok 945 - with local management off, no capture is ever requested and the listing carries no versions
+  ---
+  duration_ms: 2.24944
+  type: 'test'
+  ...
+# Subtest: matching validators return an empty 304; changed skills return a private 200 with a new ETag
+ok 946 - matching validators return an empty 304; changed skills return a private 200 with a new ETag
+  ---
+  duration_ms: 159.500919
+  type: 'test'
+  ...
+# Subtest: matching validators cannot bypass workspace or authorization guards or reach enumeration
+ok 947 - matching validators cannot bypass workspace or authorization guards or reach enumeration
+  ---
+  duration_ms: 42.468664
+  type: 'test'
+  ...
+# Subtest: admin inventory keeps an unattached key visible, reports exact site usage, and never grants runtime access by listing
+ok 948 - admin inventory keeps an unattached key visible, reports exact site usage, and never grants runtime access by listing
+  ---
+  duration_ms: 121.483782
+  type: 'test'
+  ...
+# Subtest: the Secrets inventory never opens other sites' databases
+ok 949 - the Secrets inventory never opens other sites' databases
+  ---
+  duration_ms: 30.614544
+  type: 'test'
+  ...
+# Subtest: local admin save preserves a separate shared key
+ok 950 - local admin save preserves a separate shared key
+  ---
+  duration_ms: 22.522481
+  type: 'test'
+  ...
+# Subtest: admin inventory denies unauthorized readers before inspecting project metadata
+ok 951 - admin inventory denies unauthorized readers before inspecting project metadata
+  ---
+  duration_ms: 6.191196
+  type: 'test'
+  ...
+# Subtest: Access Tokens project add attaches only the current site; site-only add never attaches
+ok 952 - Access Tokens project add attaches only the current site; site-only add never attaches
+  ---
+  duration_ms: 38.479813
+  type: 'test'
+  ...
+# Subtest: non-ZIP import failures name the parser's actual limit and cause
+ok 953 - non-ZIP import failures name the parser's actual limit and cause
+  ---
+  duration_ms: 18.761768
+  type: 'test'
+  ...
+# Subtest: an absent body, an empty body and a UUID-shaped jobId are accepted
+ok 954 - an absent body, an empty body and a UUID-shaped jobId are accepted
+  ---
+  duration_ms: 2.421368
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses a leading-junk id as INVALID_INPUT
+ok 955 - the share-job body refuses a leading-junk id as INVALID_INPUT
+  ---
+  duration_ms: 0.638399
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses a trailing-junk id as INVALID_INPUT
+ok 956 - the share-job body refuses a trailing-junk id as INVALID_INPUT
+  ---
+  duration_ms: 0.104436
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses a trailing newline as INVALID_INPUT
+ok 957 - the share-job body refuses a trailing newline as INVALID_INPUT
+  ---
+  duration_ms: 0.063209
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses an upper-case id as INVALID_INPUT
+ok 958 - the share-job body refuses an upper-case id as INVALID_INPUT
+  ---
+  duration_ms: 0.116337
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses a 35-char id as INVALID_INPUT
+ok 959 - the share-job body refuses a 35-char id as INVALID_INPUT
+  ---
+  duration_ms: 0.334996
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses a numeric id as INVALID_INPUT
+ok 960 - the share-job body refuses a numeric id as INVALID_INPUT
+  ---
+  duration_ms: 0.108186
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses an extra key as INVALID_INPUT
+ok 961 - the share-job body refuses an extra key as INVALID_INPUT
+  ---
+  duration_ms: 0.082793
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses an array body as INVALID_INPUT
+ok 962 - the share-job body refuses an array body as INVALID_INPUT
+  ---
+  duration_ms: 0.093375
+  type: 'test'
+  ...
+# Subtest: the share-job body refuses a string body as INVALID_INPUT
+ok 963 - the share-job body refuses a string body as INVALID_INPUT
+  ---
+  duration_ms: 0.959669
+  type: 'test'
+  ...
+# Subtest: site key generation supplies the shared writer a live scan of this site
+ok 964 - site key generation supplies the shared writer a live scan of this site
+  ---
+  duration_ms: 21.824806
+  type: 'test'
+  ...
+# Subtest: start-fresh warning names every affected webhook with its receiver
+ok 965 - start-fresh warning names every affected webhook with its receiver
+  ---
+  duration_ms: 0.468386
+  type: 'test'
+  ...
+# Subtest: start-fresh preview lists every affected webhook without writing or disclosing the key
+ok 966 - start-fresh preview lists every affected webhook without writing or disclosing the key
+  ---
+  duration_ms: 5.433179
+  type: 'test'
+  ...
+# [admin-route] {
+#   errorId: 'e6b63420-a957-4631-99a0-e0fa8cfdc8f0',
+#   diagnostic: 'storage offline'
+# }
+# [admin-route] {
+#   errorId: 'c2f089a8-6984-4204-818c-1e36032c8f7b',
+#   diagnostic: 'Error: db closed\\n' +
+#     '    at Object.findById (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:79:74)\\n' +
+#     '    at requireTaxonomy (/home/user/Jini/packages/cms/src/taxonomy/write-service.ts:263:37)\\n' +
+#     '    at createTerm (/home/user/Jini/packages/cms/src/taxonomy/write-service.ts:307:26)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/create-term.ts:46:20)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:29:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:80:33)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [routes/taxonomy/delete-taxonomy] {
+#   errorId: '368b8073-c1b1-426e-81f9-12fe237b2e8c',
+#   diagnostic: 'Error: private storage detail\\n' +
+#     '    at Object.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:103:36)\\n' +
+#     '    at trashTaxonomy (/home/user/Tovu/apps/website/src/features/taxonomy/trash-term.ts:105:47)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-taxonomy.ts:33:29)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:29:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:106:35)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [routes/taxonomy/delete-term] {
+#   errorId: '2c6a22d9-a98d-4e47-9bbd-6fec8356c5f2',
+#   diagnostic: 'Error: private storage detail\\n' +
+#     '    at Object.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:103:36)\\n' +
+#     '    at trashTerm (/home/user/Tovu/apps/website/src/features/taxonomy/trash-term.ts:81:39)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-term.ts:33:29)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:29:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/term-write-routes.unit.test.ts:106:35)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: create-term rejects an absent or non-string name with 400 before touching the service
+ok 967 - create-term rejects an absent or non-string name with 400 before touching the service
+  ---
+  duration_ms: 4.358072
+  type: 'test'
+  ...
+# Subtest: create-term maps a denied admin.taxonomy.manage to 403 FORBIDDEN
+ok 968 - create-term maps a denied admin.taxonomy.manage to 403 FORBIDDEN
+  ---
+  duration_ms: 1.00503
+  type: 'test'
+  ...
+# Subtest: create-term maps a missing taxonomy to 404 TAXONOMY_NOT_FOUND
+ok 969 - create-term maps a missing taxonomy to 404 TAXONOMY_NOT_FOUND
+  ---
+  duration_ms: 0.667125
+  type: 'test'
+  ...
+# Subtest: create-term maps a parent on a flat taxonomy to 400 VALIDATION_ERROR
+ok 970 - create-term maps a parent on a flat taxonomy to 400 VALIDATION_ERROR
+  ---
+  duration_ms: 0.770087
+  type: 'test'
+  ...
+# Subtest: create-term maps a non-Error throw to a generic 500
+ok 971 - create-term maps a non-Error throw to a generic 500
+  ---
+  duration_ms: 10.732327
+  type: 'test'
+  ...
+# Subtest: create-term keeps an Error's own message private on an unexpected 500
+ok 972 - create-term keeps an Error's own message private on an unexpected 500
+  ---
+  duration_ms: 8.001697
+  type: 'test'
+  ...
+# Subtest: delete-taxonomy and delete-term answer 409 TRASH_VERSION_CHANGED when the Trash write loses its version check
+ok 973 - delete-taxonomy and delete-term answer 409 TRASH_VERSION_CHANGED when the Trash write loses its version check
+  ---
+  duration_ms: 1.237109
+  type: 'test'
+  ...
+# Subtest: delete-taxonomy and delete-term hide storage failures behind a generic 500
+ok 974 - delete-taxonomy and delete-term hide storage failures behind a generic 500
+  ---
+  duration_ms: 4.486683
+  type: 'test'
+  ...
+# Subtest: deleting REQUIRED_THEME_FILES entry 'pages/index.html' is hard-blocked 409 REQUIRED_FILE_LOCKED
+ok 975 - deleting REQUIRED_THEME_FILES entry 'pages/index.html' is hard-blocked 409 REQUIRED_FILE_LOCKED
+  ---
+  duration_ms: 110.854597
+  type: 'test'
+  ...
+# Subtest: deleting REQUIRED_THEME_FILES entry 'theme.json' is hard-blocked 409 REQUIRED_FILE_LOCKED
+ok 976 - deleting REQUIRED_THEME_FILES entry 'theme.json' is hard-blocked 409 REQUIRED_FILE_LOCKED
+  ---
+  duration_ms: 23.221638
+  type: 'test'
+  ...
+# Subtest: deleting REQUIRED_THEME_FILES entry 'tokens.json' is hard-blocked 409 REQUIRED_FILE_LOCKED
+ok 977 - deleting REQUIRED_THEME_FILES entry 'tokens.json' is hard-blocked 409 REQUIRED_FILE_LOCKED
+  ---
+  duration_ms: 13.913723
+  type: 'test'
+  ...
+# Subtest: deleting a script-group (.js) file on an ORDINARY (non-compiled) theme is refused 409 via IDENTITY_LOCKED_GROUPS -- content became editable 2026-08-29, identity did not
+ok 978 - deleting a script-group (.js) file on an ORDINARY (non-compiled) theme is refused 409 via IDENTITY_LOCKED_GROUPS -- content became editable 2026-08-29, identity did not
+  ---
+  duration_ms: 19.505588
+  type: 'test'
+  ...
+# Subtest: deleting an 'other'-group file is refused 409 via IDENTITY_LOCKED_GROUPS the same way
+ok 979 - deleting an 'other'-group file is refused 409 via IDENTITY_LOCKED_GROUPS the same way
+  ---
+  duration_ms: 11.939089
+  type: 'test'
+  ...
+# Subtest: deleting an ordinary page succeeds and removes it from disk
+ok 980 - deleting an ordinary page succeeds and removes it from disk
+  ---
+  duration_ms: 17.571227
+  type: 'test'
+  ...
+# Subtest: deleting an asset (not a read-only-identity group) succeeds
+ok 981 - deleting an asset (not a read-only-identity group) succeeds
+  ---
+  duration_ms: 8.240189
+  type: 'test'
+  ...
+# Subtest: deleting a source file that doesn't exist in the theme 404s FILE_NOT_FOUND
+ok 982 - deleting a source file that doesn't exist in the theme 404s FILE_NOT_FOUND
+  ---
+  duration_ms: 6.848746
+  type: 'test'
+  ...
+# Subtest: delete of a file inside a built theme's generated tree is refused 409 GENERATED_READONLY
+ok 983 - delete of a file inside a built theme's generated tree is refused 409 GENERATED_READONLY
+  ---
+  duration_ms: 8.274325
+  type: 'test'
+  ...
+# Subtest: delete of an allowed-extension file inside a built theme's sourceDir is refused 403 GENERATED_READONLY and keeps its bytes -- no safe trash destination
+ok 984 - delete of an allowed-extension file inside a built theme's sourceDir is refused 403 GENERATED_READONLY and keeps its bytes -- no safe trash destination
+  ---
+  duration_ms: 7.210803
+  type: 'test'
+  ...
+# Subtest: delete of a .js file inside a built theme's sourceDir is STILL refused -- SOURCE_DIR_WRITABLE_EXTENSIONS excludes .js regardless of IDENTITY_LOCKED_GROUPS
+ok 985 - delete of a .js file inside a built theme's sourceDir is STILL refused -- SOURCE_DIR_WRITABLE_EXTENSIONS excludes .js regardless of IDENTITY_LOCKED_GROUPS
+  ---
+  duration_ms: 5.769917
+  type: 'test'
+  ...
+# [routes/themes/explore] {
+#   errorId: '8bb228d5-1fc4-46b9-b956-0ca3ff4c19f0',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-delete-route-branches.test.ts:236:27)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at renameThemeFile (/home/user/Tovu/apps/website/src/features/theme/theme-files.ts:1232:3)\\n' +
+#     '    at trashThemeFile (/home/user/Tovu/apps/website/src/features/theme/asset-operations.ts:242:3)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1212:7)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '{"code":"EIO"}'
+# }
+# Subtest: delete that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch
+ok 986 - delete that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch
+  ---
+  duration_ms: 49.352535
+  type: 'test'
+  ...
+# [routes/themes/explore] {
+#   errorId: '58490aa9-cd7a-4902-a6ab-da3e721b293c',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.start (node:internal/test_runner/test:1262:17)\\n' +
+#     '    at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '0accfeb4-f42a-473f-9d75-98533c85bc12',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '7183ed43-d6a0-4dd4-aa54-641e4e5f77de',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '40cf8611-e47d-4798-bf13-88eba99ae63d',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: 'b5961e13-b126-4bb4-89ca-78a4cea75dea',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '4cbd72a6-ab45-4700-bb15-73fd0821f98c',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '9a8337c2-cda3-43e4-9ca7-e75372deb3a0',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '80a38de5-3ee8-4bd6-b3bc-2e962a158f8b',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: '5738393e-bc29-4511-bea4-d8313da34830',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: 'b6a82c88-bd96-4689-8fea-4add3adc35a1',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# [routes/themes/explore] {
+#   errorId: 'd301b1ce-bcc7-4ed3-9198-41c86719c807',
+#   diagnostic: 'Error: injected I/O failure\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts:69:33)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\\n' +
+#     '{"code":"EIO"}'
+# }
+# Subtest: explore returns 500 for directory listing EIO and leaves theme files unchanged
+ok 987 - explore returns 500 for directory listing EIO and leaves theme files unchanged
+  ---
+  duration_ms: 47.206025
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for file deletion EIO and leaves theme files unchanged
+ok 988 - explore returns 500 for file deletion EIO and leaves theme files unchanged
+  ---
+  duration_ms: 22.382325
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for file rename EIO and leaves theme files unchanged
+ok 989 - explore returns 500 for file rename EIO and leaves theme files unchanged
+  ---
+  duration_ms: 16.732689
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for live-file read stat EIO and leaves theme files unchanged
+ok 990 - explore returns 500 for live-file read stat EIO and leaves theme files unchanged
+  ---
+  duration_ms: 15.746313
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for original-file reset stat EIO and leaves theme files unchanged
+ok 991 - explore returns 500 for original-file reset stat EIO and leaves theme files unchanged
+  ---
+  duration_ms: 22.259192
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for file deletion stat EIO and leaves theme files unchanged
+ok 992 - explore returns 500 for file deletion stat EIO and leaves theme files unchanged
+  ---
+  duration_ms: 21.743327
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for file rename stat EIO and leaves theme files unchanged
+ok 993 - explore returns 500 for file rename stat EIO and leaves theme files unchanged
+  ---
+  duration_ms: 14.355436
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for live-file detail stat EIO and leaves theme files unchanged
+ok 994 - explore returns 500 for live-file detail stat EIO and leaves theme files unchanged
+  ---
+  duration_ms: 9.486608
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for original-file detail stat EIO and leaves theme files unchanged
+ok 995 - explore returns 500 for original-file detail stat EIO and leaves theme files unchanged
+  ---
+  duration_ms: 20.518488
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for live-file detail byte read EIO and leaves theme files unchanged
+ok 996 - explore returns 500 for live-file detail byte read EIO and leaves theme files unchanged
+  ---
+  duration_ms: 12.960271
+  type: 'test'
+  ...
+# Subtest: explore returns 500 for original-file detail byte read EIO and leaves theme files unchanged
+ok 997 - explore returns 500 for original-file detail byte read EIO and leaves theme files unchanged
+  ---
+  duration_ms: 21.257093
+  type: 'test'
+  ...
+# Subtest: View Template and Explore resolve inherited source read-only (layout 1)
+ok 998 - View Template and Explore resolve inherited source read-only (layout 1)
+  ---
+  duration_ms: 58.802114
+  type: 'test'
+  ...
+# Subtest: View Template and Explore resolve inherited source read-only (layout 2)
+ok 999 - View Template and Explore resolve inherited source read-only (layout 2)
+  ---
+  duration_ms: 20.857212
+  type: 'test'
+  ...
+# Subtest: HTTP delete: self is refused with SELF_DELETE, including seeded owner
+ok 1000 - HTTP delete: self is refused with SELF_DELETE, including seeded owner
+  ---
+  duration_ms: 119.726637
+  type: 'test'
+  ...
+# Subtest: HTTP disable: self is refused with SELF_DELETE, including seeded owner
+ok 1001 - HTTP disable: self is refused with SELF_DELETE, including seeded owner
+  ---
+  duration_ms: 83.304712
+  type: 'test'
+  ...
+# Subtest: HTTP delete: non-owner cannot target built-in admin
+ok 1002 - HTTP delete: non-owner cannot target built-in admin
+  ---
+  duration_ms: 136.539557
+  type: 'test'
+  ...
+# Subtest: HTTP delete: non-owner cannot target built-in owner
+ok 1003 - HTTP delete: non-owner cannot target built-in owner
+  ---
+  duration_ms: 111.139183
+  type: 'test'
+  ...
+# Subtest: HTTP delete: owner may target another admin, admin may target ordinary users
+ok 1004 - HTTP delete: owner may target another admin, admin may target ordinary users
+  ---
+  duration_ms: 152.906167
+  type: 'test'
+  ...
+# Subtest: HTTP disable: non-owner cannot target built-in admin
+ok 1005 - HTTP disable: non-owner cannot target built-in admin
+  ---
+  duration_ms: 109.678192
+  type: 'test'
+  ...
+# Subtest: HTTP disable: non-owner cannot target built-in owner
+ok 1006 - HTTP disable: non-owner cannot target built-in owner
+  ---
+  duration_ms: 145.546698
+  type: 'test'
+  ...
+# Subtest: HTTP disable: owner may target another admin, admin may target ordinary users
+ok 1007 - HTTP disable: owner may target another admin, admin may target ordinary users
+  ---
+  duration_ms: 165.394031
+  type: 'test'
+  ...
+# Subtest: HTTP reset-password: non-owner cannot target built-in admin
+ok 1008 - HTTP reset-password: non-owner cannot target built-in admin
+  ---
+  duration_ms: 122.871795
+  type: 'test'
+  ...
+# Subtest: HTTP reset-password: non-owner cannot target built-in owner
+ok 1009 - HTTP reset-password: non-owner cannot target built-in owner
+  ---
+  duration_ms: 105.19858
+  type: 'test'
+  ...
+# Subtest: HTTP reset-password: owner may target another admin, admin may target ordinary users
+ok 1010 - HTTP reset-password: owner may target another admin, admin may target ordinary users
+  ---
+  duration_ms: 261.194422
+  type: 'test'
+  ...
+# Subtest: assistant disable and trash_item use the same self and admin protections
+ok 1011 - assistant disable and trash_item use the same self and admin protections
+  ---
+  duration_ms: 102.133575
+  type: 'test'
+  ...
+# Subtest: all manual purge entry points reject self/seeded owner/admin targets even when base authorize allows
+ok 1012 - all manual purge entry points reject self/seeded owner/admin targets even when base authorize allows
+  ---
+  duration_ms: 177.026065
+  type: 'test'
+  ...
+# Subtest: PATCH ignores status/roleIds; enable cannot mutate status to disabled
+ok 1013 - PATCH ignores status/roleIds; enable cannot mutate status to disabled
+  ---
+  duration_ms: 45.959655
+  type: 'test'
+  ...
+# Subtest: last owner wildcard cannot be removed through policy-permission DELETE; transaction rolls back
+ok 1014 - last owner wildcard cannot be removed through policy-permission DELETE; transaction rolls back
+  ---
+  duration_ms: 69.929668
+  type: 'test'
+  ...
+# Subtest: owner role delete route refuses built-in owner; role removal has no route/tool
+ok 1015 - owner role delete route refuses built-in owner; role removal has no route/tool
+  ---
+  duration_ms: 38.475301
+  type: 'test'
+  ...
+# Subtest: owner role patch route refuses built-in owner; role removal has no route/tool
+ok 1016 - owner role patch route refuses built-in owner; role removal has no route/tool
+  ---
+  duration_ms: 47.613247
+  type: 'test'
+  ...
+# Subtest: roster labels policy owners and builtin owner/admin targets without changing username
+ok 1017 - roster labels policy owners and builtin owner/admin targets without changing username
+  ---
+  duration_ms: 155.190722
+  type: 'test'
+  ...
+# Subtest: assistant status/profile schemas cannot disable through enable/update; no role unassign or password-reset tool exists
+ok 1018 - assistant status/profile schemas cannot disable through enable/update; no role unassign or password-reset tool exists
+  ---
+  duration_ms: 34.412657
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 404 when workspaceId does not match
+ok 1019 - DELETE_USER route: 404 when workspaceId does not match
+  ---
+  duration_ms: 324.917565
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: direct invoke fallback for nullish params.workspaceId
+ok 1020 - DELETE_USER route: direct invoke fallback for nullish params.workspaceId
+  ---
+  duration_ms: 270.649203
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: an omitted principalId reports an empty missing target
+ok 1021 - DELETE_USER route: an omitted principalId reports an empty missing target
+  ---
+  duration_ms: 176.126955
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 204 trashes an existing user
+ok 1022 - DELETE_USER route: 204 trashes an existing user
+  ---
+  duration_ms: 241.967644
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 204 is idempotent when the target is already in the Trash
+ok 1023 - DELETE_USER route: 204 is idempotent when the target is already in the Trash
+  ---
+  duration_ms: 206.343689
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor the built-in admin role
+ok 1024 - DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor the built-in admin role
+  ---
+  duration_ms: 230.750848
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 204 when the caller holds the built-in admin role (not owner) — OWNER DECISION 2026-09-24
+ok 1025 - DELETE_USER route: 204 when the caller holds the built-in admin role (not owner) — OWNER DECISION 2026-09-24
+  ---
+  duration_ms: 271.415169
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.manage trashes another owner
+ok 1026 - DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.manage trashes another owner
+  ---
+  duration_ms: 239.877257
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal
+ok 1027 - DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal
+  ---
+  duration_ms: 153.767093
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 409 OWNER_REQUIRED for the seeded owner
+ok 1028 - DELETE_USER route: 409 OWNER_REQUIRED for the seeded owner
+  ---
+  duration_ms: 249.844267
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 404 RESOURCE_NOT_FOUND for an unknown principalId
+ok 1029 - DELETE_USER route: 404 RESOURCE_NOT_FOUND for an unknown principalId
+  ---
+  duration_ms: 153.287006
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 501 NOT_SUPPORTED when the composition root has no Trash wiring
+ok 1030 - DELETE_USER route: 501 NOT_SUPPORTED when the composition root has no Trash wiring
+  ---
+  duration_ms: 260.255642
+  type: 'test'
+  ...
+# [routes/users/delete] {
+#   errorId: '45e4c3b6-b1d2-4185-8b4f-8f3c6178510d',
+#   diagnostic: 'Error: unexpected db failure\\n' +
+#     '    at Object.findById (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/users/__tests__/delete.test.ts:337:13)\\n' +
+#     '    at run (/home/user/Tovu/apps/website/src/features/identity/delete-user-service.ts:298:52)\\n' +
+#     '    at async Object.begin (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:113:24)\\n' +
+#     '    at async <anonymous> (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:126:16)\\n' +
+#     '    at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:80:12)'
+# }
+# Subtest: DELETE_USER route: 500 internal error when an unexpected error is thrown
+ok 1031 - DELETE_USER route: 500 internal error when an unexpected error is thrown
+  ---
+  duration_ms: 169.691032
+  type: 'test'
+  ...
+# Subtest: DELETE_USER route: 400 VALIDATION_ERROR when the target is a system principal
+ok 1032 - DELETE_USER route: 400 VALIDATION_ERROR when the target is a system principal
+  ---
+  duration_ms: 195.096495
+  type: 'test'
+  ...
+# Subtest: permission removal refuses a different workspace without deleting the permission
+ok 1033 - permission removal refuses a different workspace without deleting the permission
+  ---
+  duration_ms: 344.127482
+  type: 'test'
+  ...
+# [routes/users/remove-policy-permission] {
+#   errorId: 'd1953c9b-d70a-4505-b0e9-40fa988cdd33',
+#   diagnostic: 'Error: secret connection credentials\\n' +
+#     '    at InMemoryPolicyPermissionRepo.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/users/__tests__/remove-policy-permission.test.ts:49:35)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:60:36)\\n' +
+#     '    at exclusive (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:27:44)\\n' +
+#     '    at Proxy.<anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:58:36)\\n' +
+#     '    at execute (/home/user/Jini/packages/user-management/src/server/admin-crud-service.ts:713:48)\\n' +
+#     '    at async <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:50:16)\\n' +
+#     '    at async execute (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/users/remove-policy-permission.ts:72:11)\\n' +
+#     '    at async <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:50:16)\\n' +
+#     '    at async exclusive (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:34:14)'
+# }
+# Subtest: permission removal hides storage failures, retains the row on failure, and allows a subsequent removal
+ok 1034 - permission removal hides storage failures, retains the row on failure, and allows a subsequent removal
+  ---
+  duration_ms: 241.686359
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: preview body rejects non-object, null and array envelopes
+ok 1035 - preview body rejects non-object, null and array envelopes
+  ---
+  duration_ms: 1.36191
+  type: 'test'
+  ...
+# Subtest: preview body rejects unknown keys, invalid widget types and invalid content independently
+ok 1036 - preview body rejects unknown keys, invalid widget types and invalid content independently
+  ---
+  duration_ms: 0.397766
+  type: 'test'
+  ...
+# Subtest: preview body accepts empty and 100-character widget types without trimming and preserves content identity
+ok 1037 - preview body accepts empty and 100-character widget types without trimming and preserves content identity
+  ---
+  duration_ms: 1.199339
+  type: 'test'
+  ...
+# Subtest: preview body accepts class instances and null-prototype records as envelopes and content
+ok 1038 - preview body accepts class instances and null-prototype records as envelopes and content
+  ---
+  duration_ms: 0.368976
+  type: 'test'
+  ...
+# Subtest: preview body accepts exactly 128 KiB and rejects one byte over using UTF-8 bytes
+ok 1039 - preview body accepts exactly 128 KiB and rejects one byte over using UTF-8 bytes
+  ---
+  duration_ms: 0.431002
+  type: 'test'
+  ...
+# Subtest: preview body rejects invalid fields before attempting serialization
+ok 1040 - preview body rejects invalid fields before attempting serialization
+  ---
+  duration_ms: 0.155867
+  type: 'test'
+  ...
+# Subtest: preview body propagates serialization errors for otherwise valid fields
+ok 1041 - preview body propagates serialization errors for otherwise valid fields
+  ---
+  duration_ms: 0.569811
+  type: 'test'
+  ...
+# Subtest: consent RPC accepts only a run-bound target and explicit bounded capability keys
+ok 1042 - consent RPC accepts only a run-bound target and explicit bounded capability keys
+  ---
+  duration_ms: 4.010405
+  type: 'test'
+  ...
+# Subtest: daemon consent client uses the existing authenticated RPC without local writes or caller identities
+ok 1043 - daemon consent client uses the existing authenticated RPC without local writes or caller identities
+  ---
+  duration_ms: 38.680441
+  type: 'test'
+  ...
+# Subtest: resolveAttachmentRunFields
+    # Subtest: a message without attachments contributes no fields and never touches the store
+    ok 1 - a message without attachments contributes no fields and never touches the store
+      ---
+      duration_ms: 99.994838
+      type: 'test'
+      ...
+    # Subtest: a claim before the store is ready fails the run with a plain reason
+    ok 2 - a claim before the store is ready fails the run with a plain reason
+      ---
+      duration_ms: 26.980264
+      type: 'test'
+      ...
+    # Subtest: a claim that yields no batch directory contributes no fields
+    ok 3 - a claim that yields no batch directory contributes no fields
+      ---
+      duration_ms: 15.334959
+      type: 'test'
+      ...
+    # Subtest: a failed claim fails the run and logs the error message
+    ok 4 - a failed claim fails the run and logs the error message
+      ---
+      duration_ms: 13.678031
+      type: 'test'
+      ...
+    # Subtest: a non-Error rejection is logged as its string form
+    ok 5 - a non-Error rejection is logged as its string form
+      ---
+      duration_ms: 16.816742
+      type: 'test'
+      ...
+    # Subtest: a staged batch returns prepared paths, pixels and notice without adding directories
+    ok 6 - a staged batch returns prepared paths, pixels and notice without adding directories
+      ---
+      duration_ms: 14.149621
+      type: 'test'
+      ...
+    # Subtest: the default agent's definition is used when the run names none
+    ok 7 - the default agent's definition is used when the run names none
+      ---
+      duration_ms: 12.020005
+      type: 'test'
+      ...
+    # Subtest: native image delivery receives image access
+    ok 8 - native image delivery receives image access
+      ---
+      duration_ms: 14.167421
+      type: 'test'
+      ...
+    # Subtest: prompt-path image delivery receives image access
+    ok 9 - prompt-path image delivery receives image access
+      ---
+      duration_ms: 15.055216
+      type: 'test'
+      ...
+    # Subtest: a stream-json prompt receives image access
+    ok 10 - a stream-json prompt receives image access
+      ---
+      duration_ms: 11.457926
+      type: 'test'
+      ...
+    # Subtest: unsupported image delivery does not receive image access
+    ok 11 - unsupported image delivery does not receive image access
+      ---
+      duration_ms: 11.079405
+      type: 'test'
+      ...
+    # Subtest: an unknown agent does not receive image access
+    ok 12 - an unknown agent does not receive image access
+      ---
+      duration_ms: 10.431442
+      type: 'test'
+      ...
+    1..12
+ok 1044 - resolveAttachmentRunFields
+  ---
+  duration_ms: 263.47547
+  type: 'suite'
+  ...
+# Subtest: the run prompt renders decoded.pageContext directly after the dispatch marker
+ok 1045 - the run prompt renders decoded.pageContext directly after the dispatch marker
+  ---
+  duration_ms: 1.164401
+  type: 'test'
+  ...
+# Subtest: onStarted forwards page context and the operator's words to the executor
+ok 1046 - onStarted forwards page context and the operator's words to the executor
+  ---
+  duration_ms: 223.812484
+  type: 'test'
+  ...
+# Subtest: Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted
+    # Subtest: imports the shared tool policy resolver from assistant-system-overlay.ts
+    ok 1 - imports the shared tool policy resolver from assistant-system-overlay.ts
+      ---
+      duration_ms: 1.163047
+      type: 'test'
+      ...
+    # Subtest: agentExecutor.run() receives hook settings when the guard exists
+    ok 2 - agentExecutor.run() receives hook settings when the guard exists
+      ---
+      duration_ms: 199.153944
+      type: 'test'
+      ...
+    # Subtest: agentExecutor.run() receives only the assistant setting sources
+    ok 3 - agentExecutor.run() receives only the assistant setting sources
+      ---
+      duration_ms: 145.710119
+      type: 'test'
+      ...
+    1..3
+ok 1047 - Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted
+  ---
+  duration_ms: 347.557122
+  type: 'suite'
+  ...
+# Subtest: onStarted hands the executor the enforced tool restrictions
+ok 1048 - onStarted hands the executor the enforced tool restrictions
+  ---
+  duration_ms: 146.024428
+  type: 'test'
+  ...
+# Subtest: native Windows shell launches emit the required value-free limitation notice
+ok 1049 - native Windows shell launches emit the required value-free limitation notice
+  ---
+  duration_ms: 101.637814
+  type: 'test'
+  ...
+# Subtest: onStarted forwards the exact search hook settings through to Claude launch arguments
+ok 1050 - onStarted forwards the exact search hook settings through to Claude launch arguments
+  ---
+  duration_ms: 126.319364
+  type: 'test'
+  ...
+# Subtest: onStarted disables auto-memory through Claude launch settings even when the hook file is absent
+ok 1051 - onStarted disables auto-memory through Claude launch settings even when the hook file is absent
+  ---
+  duration_ms: 92.885125
+  type: 'test'
+  ...
+# Subtest: a non-owner cannot use a true owner setting to change any provider's grant
+ok 1052 - a non-owner cannot use a true owner setting to change any provider's grant
+  ---
+  duration_ms: 222.156476
+  type: 'test'
+  ...
+# Subtest: real per-launch reads apply enable AND revoke without restarting the daemon
+ok 1053 - real per-launch reads apply enable AND revoke without restarting the daemon
+  ---
+  duration_ms: 700.40382
+  type: 'test'
+  ...
+# Subtest: a failed fresh subagent read still launches Claude with every default tool restriction
+ok 1054 - a failed fresh subagent read still launches Claude with every default tool restriction
+  ---
+  duration_ms: 100.385883
+  type: 'test'
+  ...
+# Subtest: catalog identity survives a parser continuation using the pre-existing request resource
+ok 1055 - catalog identity survives a parser continuation using the pre-existing request resource
+  ---
+  duration_ms: 32.610307
+  type: 'test'
+  ...
+# Subtest: the real prompt augmenter receives the same fresh grant as each concurrent launch
+ok 1056 - the real prompt augmenter receives the same fresh grant as each concurrent launch
+  ---
+  duration_ms: 266.62329
+  type: 'test'
+  ...
+# Subtest: personal MCP opt-in discloses its boundary; personal hooks and permissions are always excluded
+ok 1057 - personal MCP opt-in discloses its boundary; personal hooks and permissions are always excluded
+  ---
+  duration_ms: 1.653253
+  type: 'test'
+  ...
+# Subtest: Windows shell disclosure follows the shell grant and only the Claude sandbox exception
+ok 1058 - Windows shell disclosure follows the shell grant and only the Claude sandbox exception
+  ---
+  duration_ms: 0.288881
+  type: 'test'
+  ...
+# Subtest: resolveCapabilityManifestArm defaults to off with no env var
+ok 1059 - resolveCapabilityManifestArm defaults to off with no env var
+  ---
+  duration_ms: 1.401278
+  type: 'test'
+  ...
+# Subtest: resolveCapabilityManifestArm falls back to off for an unrecognized value
+ok 1060 - resolveCapabilityManifestArm falls back to off for an unrecognized value
+  ---
+  duration_ms: 0.165138
+  type: 'test'
+  ...
+# Subtest: resolveCapabilityManifestArm reads passive, gate and mandate exactly
+ok 1061 - resolveCapabilityManifestArm reads passive, gate and mandate exactly
+  ---
+  duration_ms: 0.16328
+  type: 'test'
+  ...
+# Subtest: buildCapabilityManifestPrefix('off') is empty — matches today's behavior exactly
+ok 1062 - buildCapabilityManifestPrefix('off') is empty — matches today's behavior exactly
+  ---
+  duration_ms: 0.159721
+  type: 'test'
+  ...
+# Subtest: an 'off' prefix leaves the assembled prompt byte-for-byte unchanged
+ok 1063 - an 'off' prefix leaves the assembled prompt byte-for-byte unchanged
+  ---
+  duration_ms: 0.15828
+  type: 'test'
+  ...
+# Subtest: buildCapabilityManifestPrefix('passive') is exactly the manifest text, no gate instruction
+ok 1064 - buildCapabilityManifestPrefix('passive') is exactly the manifest text, no gate instruction
+  ---
+  duration_ms: 0.340574
+  type: 'test'
+  ...
+# Subtest: buildCapabilityManifestPrefix('gate') is the manifest text PLUS the imperative instruction
+ok 1065 - buildCapabilityManifestPrefix('gate') is the manifest text PLUS the imperative instruction
+  ---
+  duration_ms: 0.256759
+  type: 'test'
+  ...
+# Subtest: buildCapabilityManifestPrefix('mandate') is the manifest text PLUS an unconditional first-turn instruction
+ok 1066 - buildCapabilityManifestPrefix('mandate') is the manifest text PLUS an unconditional first-turn instruction
+  ---
+  duration_ms: 0.125555
+  type: 'test'
+  ...
+# Subtest: the mandate instruction carries NO precondition — this is the whole reason it exists
+ok 1067 - the mandate instruction carries NO precondition — this is the whole reason it exists
+  ---
+  duration_ms: 0.233993
+  type: 'test'
+  ...
+# Subtest: the mandate instruction closes the two escape routes real runs actually took
+ok 1068 - the mandate instruction closes the two escape routes real runs actually took
+  ---
+  duration_ms: 0.141395
+  type: 'test'
+  ...
+# Subtest: manifest text names the search surface and the fallback bucket
+ok 1069 - manifest text names the search surface and the fallback bucket
+  ---
+  duration_ms: 0.079383
+  type: 'test'
+  ...
+# Subtest: manifest text never points the agent at the removed capability_search tool
+ok 1070 - manifest text never points the agent at the removed capability_search tool
+  ---
+  duration_ms: 0.122145
+  type: 'test'
+  ...
+# Subtest: manifest text is phrased as a pointer to a search vocabulary, never an existence claim
+ok 1071 - manifest text is phrased as a pointer to a search vocabulary, never an existence claim
+  ---
+  duration_ms: 0.189594
+  type: 'test'
+  ...
+# Subtest: the complete mandate instruction keeps its unconditional scope and both escape-route prohibitions
+ok 1072 - the complete mandate instruction keeps its unconditional scope and both escape-route prohibitions
+  ---
+  duration_ms: 1.291815
+  type: 'test'
+  ...
+# Subtest: rejects a request with no bearer token — 401, same daemon-wide gate as every other route
+ok 1073 - rejects a request with no bearer token — 401, same daemon-wide gate as every other route
+  ---
+  duration_ms: 51.231331
+  type: 'test'
+  ...
+# Subtest: with the correct bearer token, relays a successful reload's newlyAdmittedConnectionIds verbatim
+ok 1074 - with the correct bearer token, relays a successful reload's newlyAdmittedConnectionIds verbatim
+  ---
+  duration_ms: 14.026153
+  type: 'test'
+  ...
+# Subtest: a reload() with nothing new to admit still answers 200 with an empty list, not an error
+ok 1075 - a reload() with nothing new to admit still answers 200 with an empty list, not an error
+  ---
+  duration_ms: 4.971502
+  type: 'test'
+  ...
+# [agent-daemon] mcp-federation: reload failed — simulated roster read failure
+# Subtest: a rejected reload() is reported as a real failure — never a silent 200 — per the feature's visible-failure requirement
+ok 1076 - a rejected reload() is reported as a real failure — never a silent 200 — per the feature's visible-failure requirement
+  ---
+  duration_ms: 4.341828
+  type: 'test'
+  ...
+# Subtest: a reload() that rejects with a non-Error value is still a visible 500 and logs the stringified reason
+ok 1077 - a reload() that rejects with a non-Error value is still a visible 500 and logs the stringified reason
+  ---
+  duration_ms: 4.508369
+  type: 'test'
+  ...
+# Subtest: no AI-trace provider configured: the lifecycle is returned untouched
+ok 1078 - no AI-trace provider configured: the lifecycle is returned untouched
+  ---
+  duration_ms: 1.508458
+  type: 'test'
+  ...
+# Subtest: a configured sink records each run from start to its terminal outcome
+ok 1079 - a configured sink records each run from start to its terminal outcome
+  ---
+  duration_ms: 4.312512
+  type: 'test'
+  ...
+# Subtest: a throwing sink is reported by error class only and never changes the run's result
+ok 1080 - a throwing sink is reported by error class only and never changes the run's result
+  ---
+  duration_ms: 0.934124
+  type: 'test'
+  ...
+# Subtest: dispose releases open traces: a run ending afterwards records nothing more
+ok 1081 - dispose releases open traces: a run ending afterwards records nothing more
+  ---
+  duration_ms: 11.860087
+  type: 'test'
+  ...
+# Subtest: without a warn sink, a non-Error sink failure is reported to the console by its type
+ok 1082 - without a warn sink, a non-Error sink failure is reported to the console by its type
+  ---
+  duration_ms: 1.25938
+  type: 'test'
+  ...
+# Subtest: a sink's explicit full-capture policy records the late-bound daemon prompt on its first generation
+ok 1083 - a sink's explicit full-capture policy records the late-bound daemon prompt on its first generation
+  ---
+  duration_ms: 5.956099
+  type: 'test'
+  ...
+# Subtest: HTML admin DTO carries HTML only and retains plugin data and explicit template choices
+ok 1084 - HTML admin DTO carries HTML only and retains plugin data and explicit template choices
+  ---
+  duration_ms: 2.211114
+  type: 'test'
+  ...
+# Subtest: document DTO preserves content and distinguishes false from an undecided override
+ok 1085 - document DTO preserves content and distinguishes false from an undecided override
+  ---
+  duration_ms: 0.399862
+  type: 'test'
+  ...
+# Subtest: HTML with a null body fails loudly instead of returning an empty body
+ok 1086 - HTML with a null body fails loudly instead of returning an empty body
+  ---
+  duration_ms: 0.622074
+  type: 'test'
+  ...
+# Subtest: content DTO includes document content and excludes admin metadata and extensions
+ok 1087 - content DTO includes document content and excludes admin metadata and extensions
+  ---
+  duration_ms: 0.292244
+  type: 'test'
+  ...
+# Subtest: admin retains editable credit while the public DTO exposes only opted-in display credit
+ok 1088 - admin retains editable credit while the public DTO exposes only opted-in display credit
+  ---
+  duration_ms: 0.206402
+  type: 'test'
+  ...
+# Subtest: scheduling and featured-media fields appear on the admin DTO only when set
+ok 1089 - scheduling and featured-media fields appear on the admin DTO only when set
+  ---
+  duration_ms: 0.15021
+  type: 'test'
+  ...
+# Subtest: both headless DTOs refuse storage-only email templates
+ok 1090 - both headless DTOs refuse storage-only email templates
+  ---
+  duration_ms: 0.177741
+  type: 'test'
+  ...
+# Subtest: public HTML pages include their HTML body without leaking document or admin data
+ok 1091 - public HTML pages include their HTML body without leaking document or admin data
+  ---
+  duration_ms: 0.1119
+  type: 'test'
+  ...
+# Subtest: baseline: both submit-button rules (Builder and HTML mode) use the primary-button colours, never the accent fill
+ok 1092 - baseline: both submit-button rules (Builder and HTML mode) use the primary-button colours, never the accent fill
+  ---
+  duration_ms: 1.125767
+  type: 'test'
+  ...
+# Subtest: baseline: both field rules put inputs on the page background, not the card-coloured --surface
+ok 1093 - baseline: both field rules put inputs on the page background, not the card-coloured --surface
+  ---
+  duration_ms: 0.227971
+  type: 'test'
+  ...
+# Subtest: tovu-theme: the form submit matches the theme's own .btn/.btn-solid, fields sit on --bg, and both shipped copies match the fixture
+ok 1094 - tovu-theme: the form submit matches the theme's own .btn/.btn-solid, fields sit on --bg, and both shipped copies match the fixture
+  ---
+  duration_ms: 1.179549
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'tovu-promo-01' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'take15-cut-v3-cropped' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+#   workspaceId: 'workspace-local',
+#   assetId: 'demo-v1-contact-page-zoom'
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+#   workspaceId: 'workspace-local',
+#   assetId: 'demo-v2-ai-images-article-zoom'
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'demo-v3-sales-chart-zoom' }
+# [theme] static page 'landing-test/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'tovu-promo-01' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'take15-cut-v3-cropped' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+#   workspaceId: 'workspace-local',
+#   assetId: 'demo-v1-contact-page-zoom'
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+#   workspaceId: 'workspace-local',
+#   assetId: 'demo-v2-ai-images-article-zoom'
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'demo-v3-sales-chart-zoom' }
+# [theme] static page 'landing-test/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: fixture carries the page scripts and button icons this file pins
+ok 1095 - fixture carries the page scripts and button icons this file pins
+  ---
+  duration_ms: 1.217523
+  type: 'test'
+  ...
+# Subtest: no-theme public render keeps the landing page scripts and button SVGs
+ok 1096 - no-theme public render keeps the landing page scripts and button SVGs
+  ---
+  duration_ms: 6.765161
+  type: 'test'
+  ...
+# Subtest: static-tier template render keeps the landing page scripts and button SVGs, saved and pending
+ok 1097 - static-tier template render keeps the landing page scripts and button SVGs, saved and pending
+  ---
+  duration_ms: 545.316421
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: block tree: a non-object child renders nothing
+ok 1098 - block tree: a non-object child renders nothing
+  ---
+  duration_ms: 8.433338
+  type: 'test'
+  ...
+# Subtest: block tree: a doc block without a content array renders nothing
+ok 1099 - block tree: a doc block without a content array renders nothing
+  ---
+  duration_ms: 0.462993
+  type: 'test'
+  ...
+# Subtest: block tree: a node with a non-string type falls through to the content-doc renderer
+ok 1100 - block tree: a node with a non-string type falls through to the content-doc renderer
+  ---
+  duration_ms: 0.612476
+  type: 'test'
+  ...
+# Subtest: block tree: a TipTap paragraph inside a template renders as content-doc markup
+ok 1101 - block tree: a TipTap paragraph inside a template renders as content-doc markup
+  ---
+  duration_ms: 0.281908
+  type: 'test'
+  ...
+# Subtest: block tree: a component block with a non-string id renders the unknown-component comment
+ok 1102 - block tree: a component block with a non-string id renders the unknown-component comment
+  ---
+  duration_ms: 0.525541
+  type: 'test'
+  ...
+# Subtest: block tree: an unregistered component id renders the escaped unknown-component comment
+ok 1103 - block tree: an unregistered component id renders the escaped unknown-component comment
+  ---
+  duration_ms: 0.991295
+  type: 'test'
+  ...
+# Subtest: block tree: a component block whose props are not an object renders with empty props
+ok 1104 - block tree: a component block whose props are not an object renders with empty props
+  ---
+  duration_ms: 0.695773
+  type: 'test'
+  ...
+# Subtest: block tree: a slot with a non-string name renders the unknown-slot comment
+ok 1105 - block tree: a slot with a non-string name renders the unknown-slot comment
+  ---
+  duration_ms: 0.544681
+  type: 'test'
+  ...
+# Subtest: block tree: the title slot renders the site title off the post route
+ok 1106 - block tree: the title slot renders the site title off the post route
+  ---
+  duration_ms: 0.460658
+  type: 'test'
+  ...
+# Subtest: block tree: the title slot renders the post title on the post route
+ok 1107 - block tree: the title slot renders the post title on the post route
+  ---
+  duration_ms: 0.760886
+  type: 'test'
+  ...
+# Subtest: block tree: the content slot renders nothing without a post
+ok 1108 - block tree: the content slot renders nothing without a post
+  ---
+  duration_ms: 0.37826
+  type: 'test'
+  ...
+# Subtest: block tree: the entry-list slot renders the post index
+ok 1109 - block tree: the entry-list slot renders the post index
+  ---
+  duration_ms: 0.541707
+  type: 'test'
+  ...
+# Subtest: block tree: a region block with a non-string key renders no declared region
+ok 1110 - block tree: a region block with a non-string key renders no declared region
+  ---
+  duration_ms: 0.498413
+  type: 'test'
+  ...
+# Subtest: renderBlockSeam: a region prop renders that widget region
+ok 1111 - renderBlockSeam: a region prop renders that widget region
+  ---
+  duration_ms: 0.530683
+  type: 'test'
+  ...
+# Subtest: renderSite: a static theme without an index page renders the fallback body inside the page shell
+ok 1112 - renderSite: a static theme without an index page renders the fallback body inside the page shell
+  ---
+  duration_ms: 0.603566
+  type: 'test'
+  ...
+# Subtest: renderSite: a templated theme with no Liquid template for the route renders the fallback body
+ok 1113 - renderSite: a templated theme with no Liquid template for the route renders the fallback body
+  ---
+  duration_ms: 7.204735
+  type: 'test'
+  ...
+# Subtest: renderSite: a product without a slug links by its id in the fallback product list
+ok 1114 - renderSite: a product without a slug links by its id in the fallback product list
+  ---
+  duration_ms: 17.945139
+  type: 'test'
+  ...
+# Subtest: renderSite: the product route without a product renders no product article
+ok 1115 - renderSite: the product route without a product renders no product article
+  ---
+  duration_ms: 0.271405
+  type: 'test'
+  ...
+# Subtest: renderSite: an html-format post with no stored body renders an empty prose block
+ok 1116 - renderSite: an html-format post with no stored body renders an empty prose block
+  ---
+  duration_ms: 8.401781
+  type: 'test'
+  ...
+# Subtest: pageShell: an extraHead carrying its own <title> suppresses the shell's title
+ok 1117 - pageShell: an extraHead carrying its own <title> suppresses the shell's title
+  ---
+  duration_ms: 0.309997
+  type: 'test'
+  ...
+# Subtest: pageShell: an extraHead without a <title> keeps the shell's title
+ok 1118 - pageShell: an extraHead without a <title> keeps the shell's title
+  ---
+  duration_ms: 0.204582
+  type: 'test'
+  ...
+# Subtest: injectExtraHeadIntoStaticPage: a theme <title> with no closing tag is left in place
+ok 1119 - injectExtraHeadIntoStaticPage: a theme <title> with no closing tag is left in place
+  ---
+  duration_ms: 0.589794
+  type: 'test'
+  ...
+# Subtest: injectSiteAssistantIntoStaticPage: a page without </head> or </body> is returned unchanged
+ok 1120 - injectSiteAssistantIntoStaticPage: a page without </head> or </body> is returned unchanged
+  ---
+  duration_ms: 3.938317
+  type: 'test'
+  ...
+# Subtest: injectSiteAssistantIntoStaticPage: without TOVU_SITE_CHAT_DIST, readiness is checked against the product's own site-chat dist
+ok 1121 - injectSiteAssistantIntoStaticPage: without TOVU_SITE_CHAT_DIST, readiness is checked against the product's own site-chat dist
+  ---
+  duration_ms: 1.811451
+  type: 'test'
+  ...
+# Subtest: gallery widget: a URL image renders through the document image renderer
+ok 1122 - gallery widget: a URL image renders through the document image renderer
+  ---
+  duration_ms: 2.122802
+  type: 'test'
+  ...
+# Subtest: gallery widget: a managed image renders the resolved rendition with a 1x srcset
+ok 1123 - gallery widget: a managed image renders the resolved rendition with a 1x srcset
+  ---
+  duration_ms: 1.539429
+  type: 'test'
+  ...
+# Subtest: media widget: raw HTML mode resolves a data-media-slug element to the canonical rendition
+ok 1124 - media widget: raw HTML mode resolves a data-media-slug element to the canonical rendition
+  ---
+  duration_ms: 7.22203
+  type: 'test'
+  ...
+# Subtest: post-content widget: a title without a body renders the widget placeholder
+ok 1125 - post-content widget: a title without a body renders the widget placeholder
+  ---
+  duration_ms: 0.397091
+  type: 'test'
+  ...
+# Subtest: post-content widget: a publishAt date is shown instead of updatedAt
+ok 1126 - post-content widget: a publishAt date is shown instead of updatedAt
+  ---
+  duration_ms: 1.245228
+  type: 'test'
+  ...
+# Subtest: post-content widget: the date label is the calendar day in the IR's site time zone, UTC without one
+ok 1127 - post-content widget: the date label is the calendar day in the IR's site time zone, UTC without one
+  ---
+  duration_ms: 1.396956
+  type: 'test'
+  ...
+# Subtest: post-content widget: a non-object body falls back to the plain title heading
+ok 1128 - post-content widget: a non-object body falls back to the plain title heading
+  ---
+  duration_ms: 0.321558
+  type: 'test'
+  ...
+# Subtest: post-content widget: a body without a content array falls back to the plain title heading
+ok 1129 - post-content widget: a body without a content array falls back to the plain title heading
+  ---
+  duration_ms: 0.305205
+  type: 'test'
+  ...
+# Subtest: post-content widget: a title node without inline content renders an empty heading
+ok 1130 - post-content widget: a title node without inline content renders an empty heading
+  ---
+  duration_ms: 0.335764
+  type: 'test'
+  ...
+# Subtest: post-content widget: serialized media transform versions and asset metadata size a body image; malformed entries are ignored
+ok 1131 - post-content widget: serialized media transform versions and asset metadata size a body image; malformed entries are ignored
+  ---
+  duration_ms: 0.814898
+  type: 'test'
+  ...
+# Subtest: post-content widget: serialized inline widgets render at their placement
+ok 1132 - post-content widget: serialized inline widgets render at their placement
+  ---
+  duration_ms: 0.595198
+  type: 'test'
+  ...
+# Subtest: post-content widget: asset metadata without a contentType still renders the body image
+ok 1133 - post-content widget: asset metadata without a contentType still renders the body image
+  ---
+  duration_ms: 0.47445
+  type: 'test'
+  ...
+# Subtest: managed document media, markers and nested post content emit the current content version
+ok 1134 - managed document media, markers and nested post content emit the current content version
+  ---
+  duration_ms: 5.714128
+  type: 'test'
+  ...
+# Subtest: image src: a non-string src renders the image placeholder
+ok 1135 - image src: a non-string src renders the image placeholder
+  ---
+  duration_ms: 0.513972
+  type: 'test'
+  ...
+# Subtest: image src: a root-relative path is trimmed and kept
+ok 1136 - image src: a root-relative path is trimmed and kept
+  ---
+  duration_ms: 0.564597
+  type: 'test'
+  ...
+# Subtest: image src: a page-relative path is kept
+ok 1137 - image src: a page-relative path is kept
+  ---
+  duration_ms: 0.349874
+  type: 'test'
+  ...
+# Subtest: image src: an empty src renders the placeholder
+ok 1138 - image src: an empty src renders the placeholder
+  ---
+  duration_ms: 0.226593
+  type: 'test'
+  ...
+# Subtest: image src: whitespace inside a relative src renders the placeholder
+ok 1139 - image src: whitespace inside a relative src renders the placeholder
+  ---
+  duration_ms: 0.108996
+  type: 'test'
+  ...
+# Subtest: image src: a backslash in a relative src renders the placeholder
+ok 1140 - image src: a backslash in a relative src renders the placeholder
+  ---
+  duration_ms: 0.165115
+  type: 'test'
+  ...
+# Subtest: image src: a non-http scheme renders the placeholder
+ok 1141 - image src: a non-http scheme renders the placeholder
+  ---
+  duration_ms: 0.109328
+  type: 'test'
+  ...
+# Subtest: image src: a protocol-relative src renders the placeholder
+ok 1142 - image src: a protocol-relative src renders the placeholder
+  ---
+  duration_ms: 0.105547
+  type: 'test'
+  ...
+# Subtest: image src: a relative src the URL parser resolves off-site renders the placeholder
+ok 1143 - image src: a relative src the URL parser resolves off-site renders the placeholder
+  ---
+  duration_ms: 0.124975
+  type: 'test'
+  ...
+# Subtest: image src: an absolute URL the URL parser rejects renders the placeholder
+ok 1144 - image src: an absolute URL the URL parser rejects renders the placeholder
+  ---
+  duration_ms: 0.146938
+  type: 'test'
+  ...
+# Subtest: image src: the admin original-media route renders the placeholder
+ok 1145 - image src: the admin original-media route renders the placeholder
+  ---
+  duration_ms: 0.116649
+  type: 'test'
+  ...
+# Subtest: image src: an absolute URL with a username renders the placeholder
+ok 1146 - image src: an absolute URL with a username renders the placeholder
+  ---
+  duration_ms: 0.105629
+  type: 'test'
+  ...
+# Subtest: image src: an absolute URL with only a password renders the placeholder
+ok 1147 - image src: an absolute URL with only a password renders the placeholder
+  ---
+  duration_ms: 0.143326
+  type: 'test'
+  ...
+# Subtest: image src: a plain https URL is kept
+ok 1148 - image src: a plain https URL is kept
+  ---
+  duration_ms: 0.152194
+  type: 'test'
+  ...
+# Subtest: image node: no attrs renders the default placeholder label
+ok 1149 - image node: no attrs renders the default placeholder label
+  ---
+  duration_ms: 0.106545
+  type: 'test'
+  ...
+# Subtest: image node: an unresolvable managed asset never falls back to its src
+ok 1150 - image node: an unresolvable managed asset never falls back to its src
+  ---
+  duration_ms: 0.101474
+  type: 'test'
+  ...
+# Subtest: image node: string and number title/width/height are emitted, other types are not
+ok 1151 - image node: string and number title/width/height are emitted, other types are not
+  ---
+  duration_ms: 0.204619
+  type: 'test'
+  ...
+# Subtest: image node: a resolvable managed asset renders the ref image
+ok 1152 - image node: a resolvable managed asset renders the ref image
+  ---
+  duration_ms: 0.141455
+  type: 'test'
+  ...
+# Subtest: media node: no attrs renders the media placeholder
+ok 1153 - media node: no attrs renders the media placeholder
+  ---
+  duration_ms: 0.152309
+  type: 'test'
+  ...
+# Subtest: media node: a non-string assetId renders the placeholder with its alt
+ok 1154 - media node: a non-string assetId renders the placeholder with its alt
+  ---
+  duration_ms: 0.177523
+  type: 'test'
+  ...
+# Subtest: media node: an implausible assetId renders the placeholder
+ok 1155 - media node: an implausible assetId renders the placeholder
+  ---
+  duration_ms: 0.164653
+  type: 'test'
+  ...
+# Subtest: media node: a video asset renders a video tag with asset style
+ok 1156 - media node: a video asset renders a video tag with asset style
+  ---
+  duration_ms: 0.770991
+  type: 'test'
+  ...
+# Subtest: media node: node cssClass and htmlAttributes override the asset's on video
+ok 1157 - media node: node cssClass and htmlAttributes override the asset's on video
+  ---
+  duration_ms: 0.299952
+  type: 'test'
+  ...
+# Subtest: media node: an audio asset renders an audio tag without dimensions
+ok 1158 - media node: an audio asset renders an audio tag without dimensions
+  ---
+  duration_ms: 0.162135
+  type: 'test'
+  ...
+# Subtest: media node: node style overrides the asset's on audio
+ok 1159 - media node: node style overrides the asset's on audio
+  ---
+  duration_ms: 0.183754
+  type: 'test'
+  ...
+# Subtest: media node: an image asset renders the ref image with node style
+ok 1160 - media node: an image asset renders the ref image with node style
+  ---
+  duration_ms: 0.207564
+  type: 'test'
+  ...
+# Subtest: media node: an asset missing from metadata still renders as a ref image
+ok 1161 - media node: an asset missing from metadata still renders as a ref image
+  ---
+  duration_ms: 0.095359
+  type: 'test'
+  ...
+# Subtest: media node: an image whose transform cannot resolve renders the placeholder
+ok 1162 - media node: an image whose transform cannot resolve renders the placeholder
+  ---
+  duration_ms: 0.10824
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: no attrs renders the widget placeholder
+ok 1163 - widgetEmbed: no attrs renders the widget placeholder
+  ---
+  duration_ms: 0.309279
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: a non-string placementId renders the widget placeholder
+ok 1164 - widgetEmbed: a non-string placementId renders the widget placeholder
+  ---
+  duration_ms: 0.116187
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: a resolved bare node renders the widget alone
+ok 1165 - widgetEmbed: a resolved bare node renders the widget alone
+  ---
+  duration_ms: 0.131719
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: empty cssClass and htmlAttributes still render the widget alone
+ok 1166 - widgetEmbed: empty cssClass and htmlAttributes still render the widget alone
+  ---
+  duration_ms: 0.064506
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: cssClass alone wraps the widget
+ok 1167 - widgetEmbed: cssClass alone wraps the widget
+  ---
+  duration_ms: 0.176515
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: htmlAttributes alone wraps the widget and folds its class
+ok 1168 - widgetEmbed: htmlAttributes alone wraps the widget and folds its class
+  ---
+  duration_ms: 0.104576
+  type: 'test'
+  ...
+# Subtest: widgetEmbed: cssClass then the htmlAttributes class, with other attributes
+ok 1169 - widgetEmbed: cssClass then the htmlAttributes class, with other attributes
+  ---
+  duration_ms: 0.115435
+  type: 'test'
+  ...
+# Subtest: page body: an unowned marker type is left exactly as authored
+ok 1170 - page body: an unowned marker type is left exactly as authored
+  ---
+  duration_ms: 1.947948
+  type: 'test'
+  ...
+# Subtest: page body: a content marker naming no entity is left as authored
+ok 1171 - page body: a content marker naming no entity is left as authored
+  ---
+  duration_ms: 0.33721
+  type: 'test'
+  ...
+# Subtest: page body: a post marker naming no entity is left as authored
+ok 1172 - page body: a post marker naming no entity is left as authored
+  ---
+  duration_ms: 0.127578
+  type: 'test'
+  ...
+# Subtest: page body: a content marker with an unresolved id renders the placeholder
+ok 1173 - page body: a content marker with an unresolved id renders the placeholder
+  ---
+  duration_ms: 0.391685
+  type: 'test'
+  ...
+# Subtest: page body: an unresolved widget renders nothing
+ok 1174 - page body: an unresolved widget renders nothing
+  ---
+  duration_ms: 0.291763
+  type: 'test'
+  ...
+# Subtest: page body: a widget resolves by id
+ok 1175 - page body: a widget resolves by id
+  ---
+  duration_ms: 0.278061
+  type: 'test'
+  ...
+# Subtest: page body: a widget resolves by slug when it has no id
+ok 1176 - page body: a widget resolves by slug when it has no id
+  ---
+  duration_ms: 0.137901
+  type: 'test'
+  ...
+# Subtest: page body: a widget with inline content resolves by its placement key
+ok 1177 - page body: a widget with inline content resolves by its placement key
+  ---
+  duration_ms: 0.165812
+  type: 'test'
+  ...
+# Subtest: page body: a media marker with nothing resolved renders the placeholder
+ok 1178 - page body: a media marker with nothing resolved renders the placeholder
+  ---
+  duration_ms: 0.672154
+  type: 'test'
+  ...
+# Subtest: page body: a contact form marker in html mode renders the html-mode form
+ok 1179 - page body: a contact form marker in html mode renders the html-mode form
+  ---
+  duration_ms: 3.874278
+  type: 'test'
+  ...
+# Subtest: page body: a contact form marker without html mode keeps the builder form
+ok 1180 - page body: a contact form marker without html mode keeps the builder form
+  ---
+  duration_ms: 0.596378
+  type: 'test'
+  ...
+# Subtest: page body: html mode on a non-form widget changes nothing
+ok 1181 - page body: html mode on a non-form widget changes nothing
+  ---
+  duration_ms: 0.217498
+  type: 'test'
+  ...
+# Subtest: page body: the current post's content marker (by id) carries its byline
+ok 1182 - page body: the current post's content marker (by id) carries its byline
+  ---
+  duration_ms: 0.525864
+  type: 'test'
+  ...
+# Subtest: page body: the current post's content marker (by slug) carries its byline
+ok 1183 - page body: the current post's content marker (by slug) carries its byline
+  ---
+  duration_ms: 0.310948
+  type: 'test'
+  ...
+# Subtest: page body: another post's content marker gets no byline
+ok 1184 - page body: another post's content marker gets no byline
+  ---
+  duration_ms: 0.203468
+  type: 'test'
+  ...
+# Subtest: page body: a post marker for the current post gets no byline
+ok 1185 - page body: a post marker for the current post gets no byline
+  ---
+  duration_ms: 0.180585
+  type: 'test'
+  ...
+# Subtest: page body: a content marker resolving to a non post-content IR gets no byline
+ok 1186 - page body: a content marker resolving to a non post-content IR gets no byline
+  ---
+  duration_ms: 0.131983
+  type: 'test'
+  ...
+# Subtest: page body: the presented post (by id) has its body projected
+ok 1187 - page body: the presented post (by id) has its body projected
+  ---
+  duration_ms: 0.85434
+  type: 'test'
+  ...
+# Subtest: page body: a post marker for the presented post (by slug) has its body projected
+ok 1188 - page body: a post marker for the presented post (by slug) has its body projected
+  ---
+  duration_ms: 0.305044
+  type: 'test'
+  ...
+# Subtest: page body: a marker for a different post is not projected
+ok 1189 - page body: a marker for a different post is not projected
+  ---
+  duration_ms: 0.302383
+  type: 'test'
+  ...
+# Subtest: page body: a different slug is not projected
+ok 1190 - page body: a different slug is not projected
+  ---
+  duration_ms: 0.22638
+  type: 'test'
+  ...
+# Subtest: page body: a presented post's widget marker is not projected
+ok 1191 - page body: a presented post's widget marker is not projected
+  ---
+  duration_ms: 0.156045
+  type: 'test'
+  ...
+# Subtest: page body: a presented post's non post-content IR is not projected
+ok 1192 - page body: a presented post's non post-content IR is not projected
+  ---
+  duration_ms: 0.172181
+  type: 'test'
+  ...
+# Subtest: media-image IR: a missing assetId renders the widget placeholder
+ok 1193 - media-image IR: a missing assetId renders the widget placeholder
+  ---
+  duration_ms: 0.108708
+  type: 'test'
+  ...
+# Subtest: media-image IR: an implausible assetId renders the widget placeholder
+ok 1194 - media-image IR: an implausible assetId renders the widget placeholder
+  ---
+  duration_ms: 0.06513
+  type: 'test'
+  ...
+# Subtest: media-image IR: an audio asset renders an audio tag without dimensions
+ok 1195 - media-image IR: an audio asset renders an audio tag without dimensions
+  ---
+  duration_ms: 0.111354
+  type: 'test'
+  ...
+# Subtest: media-image IR: a video asset renders a sized video tag
+ok 1196 - media-image IR: a video asset renders a sized video tag
+  ---
+  duration_ms: 0.087743
+  type: 'test'
+  ...
+# Subtest: media-image IR: an image needs a string transform name
+ok 1197 - media-image IR: an image needs a string transform name
+  ---
+  duration_ms: 3.387937
+  type: 'test'
+  ...
+# Subtest: media-image IR: an image needs a numeric version
+ok 1198 - media-image IR: an image needs a numeric version
+  ---
+  duration_ms: 0.238565
+  type: 'test'
+  ...
+# Subtest: media-image IR: an image needs a plausible transform name
+ok 1199 - media-image IR: an image needs a plausible transform name
+  ---
+  duration_ms: 0.082627
+  type: 'test'
+  ...
+# Subtest: media-image IR: a non-string content type renders as an image
+ok 1200 - media-image IR: a non-string content type renders as an image
+  ---
+  duration_ms: 3.203061
+  type: 'test'
+  ...
+# Subtest: media-image IR: an image renders a responsive-off img tag
+ok 1201 - media-image IR: an image renders a responsive-off img tag
+  ---
+  duration_ms: 0.21044
+  type: 'test'
+  ...
+# Subtest: media node: an unresolvable image without alt uses the default placeholder label
+ok 1202 - media node: an unresolvable image without alt uses the default placeholder label
+  ---
+  duration_ms: 0.337582
+  type: 'test'
+  ...
+# Subtest: page body: a media marker naming no id or slug renders the placeholder
+ok 1203 - page body: a media marker naming no id or slug renders the placeholder
+  ---
+  duration_ms: 0.240235
+  type: 'test'
+  ...
+# Subtest: page body: a presented post whose cover asset has no metadata keeps that image in its body
+ok 1204 - page body: a presented post whose cover asset has no metadata keeps that image in its body
+  ---
+  duration_ms: 0.285703
+  type: 'test'
+  ...
+# Subtest: Liquid and Handlebars visitors share a two-worker render limit and recover after cleanup
+ok 1205 - Liquid and Handlebars visitors share a two-worker render limit and recover after cleanup
+  ---
+  duration_ms: 5.305091
+  type: 'test'
+  ...
+# Subtest: www pages redirect 308 to the canonical origin with the original path and query
+ok 1206 - www pages redirect 308 to the canonical origin with the original path and query
+  ---
+  duration_ms: 34.277555
+  type: 'test'
+  ...
+# Subtest: apex redirects to www when www is canonical, including the configured origin port
+ok 1207 - apex redirects to www when www is canonical, including the configured origin port
+  ---
+  duration_ms: 3.222386
+  type: 'test'
+  ...
+# Subtest: canonical, local, unrelated, admin, and API requests reach their original handler
+ok 1208 - canonical, local, unrelated, admin, and API requests reach their original handler
+  ---
+  duration_ms: 14.333443
+  type: 'test'
+  ...
+# Subtest: missing configuration, dev seeds, localhost and IP canonical origins never redirect
+ok 1209 - missing configuration, dev seeds, localhost and IP canonical origins never redirect
+  ---
+  duration_ms: 11.357062
+  type: 'test'
+  ...
+# Subtest: public loopback origins are rejected before new settings can enter the registry
+ok 1210 - public loopback origins are rejected before new settings can enter the registry
+  ---
+  duration_ms: 0.955188
+  type: 'test'
+  ...
+# Subtest: the redirect always retains the configured authority for a double-slash path
+ok 1211 - the redirect always retains the configured authority for a double-slash path
+  ---
+  duration_ms: 3.191372
+  type: 'test'
+  ...
+# Subtest: registry errors reach Express while excluded routes skip the lookup
+ok 1212 - registry errors reach Express while excluded routes skip the lookup
+  ---
+  duration_ms: 5.588722
+  type: 'test'
+  ...
+# Subtest: an absolute-form request target is passed through instead of joined onto the canonical origin
+ok 1213 - an absolute-form request target is passed through instead of joined onto the canonical origin
+  ---
+  duration_ms: 2.589651
+  type: 'test'
+  ...
+# Subtest: page paths that only resemble admin/api/health routes still redirect to the canonical origin
+ok 1214 - page paths that only resemble admin/api/health routes still redirect to the canonical origin
+  ---
+  duration_ms: 14.804001
+  type: 'test'
+  ...
+# Subtest: consent origin uses the request's own loopback Host alias when the configured origin is loopback
+ok 1215 - consent origin uses the request's own loopback Host alias when the configured origin is loopback
+  ---
+  duration_ms: 3.562109
+  type: 'test'
+  ...
+# Subtest: the real preview-switcher mounts its shadow UI without a consent page transform
+ok 1216 - the real preview-switcher mounts its shadow UI without a consent page transform
+  ---
+  duration_ms: 164.990783
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'live', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'live', which is whichever theme discovery happened to list first
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: View Template reads the replacement theme roster after a refresh without restarting the app
+ok 1217 - View Template reads the replacement theme roster after a refresh without restarting the app
+  ---
+  duration_ms: 1250.577339
+  type: 'test'
+  ...
+# (node:28759) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:28759) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: plugin admin auth allow is scoped to the owning plugin
+ok 1218 - plugin admin auth allow is scoped to the owning plugin
+  ---
+  duration_ms: 2.922007
+  type: 'test'
+  ...
+# Subtest: plugin admin auth deny is scoped to the owning plugin
+ok 1219 - plugin admin auth deny is scoped to the owning plugin
+  ---
+  duration_ms: 0.377193
+  type: 'test'
+  ...
+# Subtest: plugin admin auth error is scoped to the owning plugin
+ok 1220 - plugin admin auth error is scoped to the owning plugin
+  ---
+  duration_ms: 0.210641
+  type: 'test'
+  ...

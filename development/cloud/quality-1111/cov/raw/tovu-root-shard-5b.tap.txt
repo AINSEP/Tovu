@@ -17778,3 +17778,2454 @@ ok 811 - MEMBER_DISABLE route: 400 VALIDATION_ERROR when disableMember throws Me
   duration_ms: 4.013936
   type: 'test'
   ...
+# Subtest: archive-list: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 812 - archive-list: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 382.464437
+  type: 'test'
+  ...
+# Subtest: archive-list: a denied authorize() is a 403 naming admin.newsletter.list.manage, and the boot promise is never awaited
+ok 813 - archive-list: a denied authorize() is a 403 naming admin.newsletter.list.manage, and the boot promise is never awaited
+  ---
+  duration_ms: 252.983011
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: 'b986b56f-504c-4af4-be57-416686c4ba2f',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: archive-list: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 814 - archive-list: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 298.74079
+  type: 'test'
+  ...
+# Subtest: archive-list: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 815 - archive-list: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 138.928552
+  type: 'test'
+  ...
+# Subtest: create-campaign: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 816 - create-campaign: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 226.607316
+  type: 'test'
+  ...
+# Subtest: create-campaign: a denied authorize() is a 403 naming admin.newsletter.campaign.compose, and the boot promise is never awaited
+ok 817 - create-campaign: a denied authorize() is a 403 naming admin.newsletter.campaign.compose, and the boot promise is never awaited
+  ---
+  duration_ms: 244.326964
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '540d0a5f-d75d-4486-af07-55751d393424',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: create-campaign: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 818 - create-campaign: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 183.713449
+  type: 'test'
+  ...
+# Subtest: create-campaign: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 819 - create-campaign: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 144.914564
+  type: 'test'
+  ...
+# Subtest: create-subscription: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 820 - create-subscription: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 174.212555
+  type: 'test'
+  ...
+# Subtest: create-subscription: a denied authorize() is a 403 naming admin.newsletter.subscriber.manage, and the boot promise is never awaited
+ok 821 - create-subscription: a denied authorize() is a 403 naming admin.newsletter.subscriber.manage, and the boot promise is never awaited
+  ---
+  duration_ms: 250.439765
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '4f5d615f-db4b-4748-8c88-b0b31a91c470',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: create-subscription: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 822 - create-subscription: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 203.128703
+  type: 'test'
+  ...
+# Subtest: create-subscription: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 823 - create-subscription: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 138.933936
+  type: 'test'
+  ...
+# Subtest: get-campaign: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 824 - get-campaign: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 162.84978
+  type: 'test'
+  ...
+# Subtest: get-campaign: a denied authorize() is a 403 naming admin.newsletter.read, and the boot promise is never awaited
+ok 825 - get-campaign: a denied authorize() is a 403 naming admin.newsletter.read, and the boot promise is never awaited
+  ---
+  duration_ms: 152.696327
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: 'e394ef7e-7a38-4a43-ab0e-80703a489a7c',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: get-campaign: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 826 - get-campaign: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 170.154643
+  type: 'test'
+  ...
+# Subtest: get-campaign: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 827 - get-campaign: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 213.538025
+  type: 'test'
+  ...
+# Subtest: list-campaigns: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 828 - list-campaigns: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 238.9731
+  type: 'test'
+  ...
+# Subtest: list-campaigns: a denied authorize() is a 403 naming admin.newsletter.read, and the boot promise is never awaited
+ok 829 - list-campaigns: a denied authorize() is a 403 naming admin.newsletter.read, and the boot promise is never awaited
+  ---
+  duration_ms: 307.541198
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: 'cadbc8bb-0f77-42d8-bb55-0ff4a4400a3a',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: list-campaigns: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 830 - list-campaigns: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 223.843654
+  type: 'test'
+  ...
+# Subtest: list-campaigns: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 831 - list-campaigns: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 151.758773
+  type: 'test'
+  ...
+# Subtest: list-lists: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 832 - list-lists: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 211.009317
+  type: 'test'
+  ...
+# Subtest: list-lists: a denied authorize() is a 403 naming admin.newsletter.read, and the boot promise is never awaited
+ok 833 - list-lists: a denied authorize() is a 403 naming admin.newsletter.read, and the boot promise is never awaited
+  ---
+  duration_ms: 198.282124
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '9c4bb6e6-f639-4480-b8ad-84c41657d699',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: list-lists: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 834 - list-lists: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 161.903683
+  type: 'test'
+  ...
+# Subtest: list-lists: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 835 - list-lists: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 182.519767
+  type: 'test'
+  ...
+# Subtest: list-subscriptions: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 836 - list-subscriptions: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 206.408826
+  type: 'test'
+  ...
+# Subtest: list-subscriptions: a denied authorize() is a 403 naming admin.newsletter.subscriber.read, and the boot promise is never awaited
+ok 837 - list-subscriptions: a denied authorize() is a 403 naming admin.newsletter.subscriber.read, and the boot promise is never awaited
+  ---
+  duration_ms: 223.559242
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '59f4ef85-06e3-4b7b-a0de-4c386720eceb',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: list-subscriptions: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 838 - list-subscriptions: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 209.525098
+  type: 'test'
+  ...
+# Subtest: list-subscriptions: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 839 - list-subscriptions: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 171.594958
+  type: 'test'
+  ...
+# Subtest: remove-subscription: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 840 - remove-subscription: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 246.828885
+  type: 'test'
+  ...
+# Subtest: remove-subscription: a denied authorize() is a 403 naming admin.newsletter.subscriber.manage, and the boot promise is never awaited
+ok 841 - remove-subscription: a denied authorize() is a 403 naming admin.newsletter.subscriber.manage, and the boot promise is never awaited
+  ---
+  duration_ms: 194.427738
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '2da2fe7e-b57a-4055-ab9a-fe3d171693d5',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: remove-subscription: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 842 - remove-subscription: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 242.508922
+  type: 'test'
+  ...
+# Subtest: remove-subscription: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 843 - remove-subscription: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 156.392977
+  type: 'test'
+  ...
+# Subtest: resend-confirmation: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 844 - resend-confirmation: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 193.022004
+  type: 'test'
+  ...
+# Subtest: resend-confirmation: a denied authorize() is a 403 naming admin.newsletter.subscriber.manage, and the boot promise is never awaited
+ok 845 - resend-confirmation: a denied authorize() is a 403 naming admin.newsletter.subscriber.manage, and the boot promise is never awaited
+  ---
+  duration_ms: 238.370897
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '398b103d-01fe-497b-bd40-dd29e3f3e5ce',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: resend-confirmation: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 846 - resend-confirmation: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 167.33119
+  type: 'test'
+  ...
+# Subtest: resend-confirmation: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 847 - resend-confirmation: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 145.208186
+  type: 'test'
+  ...
+# Subtest: send-campaign: a workspace id that is not this site's is 404 before authorize() is consulted
+ok 848 - send-campaign: a workspace id that is not this site's is 404 before authorize() is consulted
+  ---
+  duration_ms: 197.482257
+  type: 'test'
+  ...
+# Subtest: send-campaign: a denied authorize() is a 403 naming admin.newsletter.campaign.send, and the boot promise is never awaited
+ok 849 - send-campaign: a denied authorize() is a 403 naming admin.newsletter.campaign.send, and the boot promise is never awaited
+  ---
+  duration_ms: 237.222625
+  type: 'test'
+  ...
+# [http/newsletter] {
+#   errorId: '7d83772d-c072-4e0e-a7b3-ab1d83ee06f3',
+#   diagnostic: 'Error: newsletter tables failed to migrate\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/admin-route-gates.test.ts:137:37)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: send-campaign: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+ok 850 - send-campaign: a failure after the permission gate is the generic 500 INTERNAL_ERROR envelope
+  ---
+  duration_ms: 172.940147
+  type: 'test'
+  ...
+# Subtest: send-campaign: a hand-built request with no workspaceId param falls back to "" and is 404
+ok 851 - send-campaign: a hand-built request with no workspaceId param falls back to "" and is 404
+  ---
+  duration_ms: 183.616869
+  type: 'test'
+  ...
+# Subtest: create-campaign: with no body parser mounted the missing body is a 400 VALIDATION_ERROR, not a 500
+ok 852 - create-campaign: with no body parser mounted the missing body is a 400 VALIDATION_ERROR, not a 500
+  ---
+  duration_ms: 201.747042
+  type: 'test'
+  ...
+# Subtest: create-subscription: with no body parser mounted the missing body is a 400 naming subscriberId, not a 500
+ok 853 - create-subscription: with no body parser mounted the missing body is a 400 naming subscriberId, not a 500
+  ---
+  duration_ms: 245.206961
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: list-send-log: mismatched workspaceId 404s
+ok 854 - list-send-log: mismatched workspaceId 404s
+  ---
+  duration_ms: 368.649994
+  type: 'test'
+  ...
+# Subtest: list-send-log: direct-invoke fallback for nullish params.workspaceId (unreachable through real HTTP)
+ok 855 - list-send-log: direct-invoke fallback for nullish params.workspaceId (unreachable through real HTTP)
+  ---
+  duration_ms: 154.964389
+  type: 'test'
+  ...
+# Subtest: list-send-log: forbidden 403s when unauthorized
+ok 856 - list-send-log: forbidden 403s when unauthorized
+  ---
+  duration_ms: 287.313707
+  type: 'test'
+  ...
+# Subtest: list-send-log: unknown campaign id 404s with NEWSLETTER_CAMPAIGN_NOT_FOUND
+ok 857 - list-send-log: unknown campaign id 404s with NEWSLETTER_CAMPAIGN_NOT_FOUND
+  ---
+  duration_ms: 331.511698
+  type: 'test'
+  ...
+# Subtest: list-send-log: an existing campaign in the right workspace returns 200 with its send rows
+ok 858 - list-send-log: an existing campaign in the right workspace returns 200 with its send rows
+  ---
+  duration_ms: 186.925867
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: U1: page cards receive only authored export identities and safe host readiness
+ok 859 - U1: page cards receive only authored export identities and safe host readiness
+  ---
+  duration_ms: 563.068874
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: U1: catalog failure degrades page diagnostics to unavailable without failing the page read
+ok 860 - U1: catalog failure degrades page diagnostics to unavailable without failing the page read
+  ---
+  duration_ms: 588.732685
+  type: 'test'
+  ...
+# Subtest: pages list: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+ok 861 - pages list: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 145.787512
+  type: 'test'
+  ...
+# Subtest: pages create: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+ok 862 - pages create: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 151.48815
+  type: 'test'
+  ...
+# Subtest: pages get-by-id: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+ok 863 - pages get-by-id: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 188.345285
+  type: 'test'
+  ...
+# Subtest: pages update: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+ok 864 - pages update: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 153.598901
+  type: 'test'
+  ...
+# Subtest: pages update-html: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+ok 865 - pages update-html: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 143.925738
+  type: 'test'
+  ...
+# Subtest: pages delete: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+ok 866 - pages delete: `req.params.workspaceId ?? ""` fallback, forced via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 139.5775
+  type: 'test'
+  ...
+# Subtest: pages get-by-id: a workspace id that is not this site's is 404 without reading the page
+ok 867 - pages get-by-id: a workspace id that is not this site's is 404 without reading the page
+  ---
+  duration_ms: 466.042941
+  type: 'test'
+  ...
+# Subtest: pages update: a workspace id that is not this site's is 404 and the page is left unchanged
+ok 868 - pages update: a workspace id that is not this site's is 404 and the page is left unchanged
+  ---
+  duration_ms: 181.958447
+  type: 'test'
+  ...
+# [routes/pages/list] {
+#   errorId: '9bb3c815-1077-46c9-98f9-7ed5ac892856',
+#   diagnostic: 'Error: policy store unavailable\\n' +
+#     '    at deps.authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/__tests__/pages-route-gaps.test.ts:174:11)\\n' +
+#     '    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/list.ts:25:17)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# Subtest: pages list: a permission lookup that throws is an opaque 500, not a hung request
+ok 869 - pages list: a permission lookup that throws is an opaque 500, not a hung request
+  ---
+  duration_ms: 156.285506
+  type: 'test'
+  ...
+# Subtest: pages get-by-id / update / delete: `req.params.pageId ?? ""` fallback resolves no page and is the ENTRY_NOT_FOUND 404
+ok 870 - pages get-by-id / update / delete: `req.params.pageId ?? ""` fallback resolves no page and is the ENTRY_NOT_FOUND 404
+  ---
+  duration_ms: 183.791309
+  type: 'test'
+  ...
+# Subtest: pages update-html: `req.params.pageId ?? ""` fallback resolves no page and is a 404, never a write
+ok 871 - pages update-html: `req.params.pageId ?? ""` fallback resolves no page and is a 404, never a write
+  ---
+  duration_ms: 186.835366
+  type: 'test'
+  ...
+# Subtest: pages create: with no JSON body parser mounted, an empty POST still creates an 'Untitled' draft page
+ok 872 - pages create: with no JSON body parser mounted, an empty POST still creates an 'Untitled' draft page
+  ---
+  duration_ms: 153.805028
+  type: 'test'
+  ...
+# [routes/pages/create] {
+#   errorId: '7262d01e-f58b-443d-a579-9003b01a40e0',
+#   diagnostic: 'Error: simulated change-set persistence failure\\n' +
+#     '    at InMemoryChangeSetRepo.deps.changeSets.insert (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/__tests__/pages-route-gaps.test.ts:221:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/create.ts:75:28)'
+# }
+# Subtest: pages create: a change-set persistence failure is reported as an opaque 500
+ok 873 - pages create: a change-set persistence failure is reported as an opaque 500
+  ---
+  duration_ms: 277.300359
+  type: 'test'
+  ...
+# Subtest: pages create: a denied content.write is 403 FORBIDDEN carrying the permission and reason, and no page is stored
+ok 874 - pages create: a denied content.write is 403 FORBIDDEN carrying the permission and reason, and no page is stored
+  ---
+  duration_ms: 162.71112
+  type: 'test'
+  ...
+# Subtest: pages create: an unknown status is 400 VALIDATION_ERROR
+ok 875 - pages create: an unknown status is 400 VALIDATION_ERROR
+  ---
+  duration_ms: 146.651167
+  type: 'test'
+  ...
+# Subtest: pages create: reusing an existing page's slug is 409 SLUG_CONFLICT
+ok 876 - pages create: reusing an existing page's slug is 409 SLUG_CONFLICT
+  ---
+  duration_ms: 188.121378
+  type: 'test'
+  ...
+# Subtest: pages create: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set
+ok 877 - pages create: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set
+  ---
+  duration_ms: 179.500868
+  type: 'test'
+  ...
+# Subtest: pages update: a hand-built request with no body falls back to blank title/slug and is a 400 VALIDATION_ERROR that changes nothing
+ok 878 - pages update: a hand-built request with no body falls back to blank title/slug and is a 400 VALIDATION_ERROR that changes nothing
+  ---
+  duration_ms: 144.948063
+  type: 'test'
+  ...
+# Subtest: pages update: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set
+ok 879 - pages update: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set
+  ---
+  duration_ms: 172.581753
+  type: 'test'
+  ...
+# [routes/pages/update] {
+#   errorId: 'b3b48a9d-3ca2-4e5a-b8b7-d66b89dd19ff',
+#   diagnostic: 'Error: simulated change-set persistence failure\\n' +
+#     '    at InMemoryChangeSetRepo.deps.changeSets.insert (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/__tests__/pages-route-gaps.test.ts:338:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/update.ts:153:28)'
+# }
+# Subtest: pages update: a change-set record failure after the edit applied is rolled back to the exact prior page and surfaces as a 500
+ok 880 - pages update: a change-set record failure after the edit applied is rolled back to the exact prior page and surfaces as a 500
+  ---
+  duration_ms: 198.72907
+  type: 'test'
+  ...
+# Subtest: pages list: a denied content.read is 403 FORBIDDEN naming the permission and reason
+ok 881 - pages list: a denied content.read is 403 FORBIDDEN naming the permission and reason
+  ---
+  duration_ms: 152.473036
+  type: 'test'
+  ...
+# Subtest: pages delete: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set
+ok 882 - pages delete: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set
+  ---
+  duration_ms: 200.272677
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: set-enabled: a workspace id that is not this site's is 404 (checked before auth/discovery)
+ok 883 - set-enabled: a workspace id that is not this site's is 404 (checked before auth/discovery)
+  ---
+  duration_ms: 513.756397
+  type: 'test'
+  ...
+# Subtest: set-enabled: 403s (via executeCommand's own authorize gate) for a caller without admin.plugins.enable, and no activation row is written
+ok 884 - set-enabled: 403s (via executeCommand's own authorize gate) for a caller without admin.plugins.enable, and no activation row is written
+  ---
+  duration_ms: 319.10798
+  type: 'test'
+  ...
+# Subtest: set-enabled: PATCH for an incompatible plugin is 422 PLUGIN_INCOMPATIBLE, and no activation row is written
+ok 885 - set-enabled: PATCH for an incompatible plugin is 422 PLUGIN_INCOMPATIBLE, and no activation row is written
+  ---
+  duration_ms: 254.811236
+  type: 'test'
+  ...
+# Subtest: set-enabled: an enable whose load hook throws PluginLoadError maps to 500 PLUGIN_LOAD_FAILED with pluginId/reason, and the activation row is NOT left enabled (activation.ts's own compensation)
+ok 886 - set-enabled: an enable whose load hook throws PluginLoadError maps to 500 PLUGIN_LOAD_FAILED with pluginId/reason, and the activation row is NOT left enabled (activation.ts's own compensation)
+  ---
+  duration_ms: 213.776078
+  type: 'test'
+  ...
+# Subtest: set-enabled: PATCH {enabled:false} disables a plugin and invokes onPluginDisabled (not onPluginEnabled)
+ok 887 - set-enabled: PATCH {enabled:false} disables a plugin and invokes onPluginDisabled (not onPluginEnabled)
+  ---
+  duration_ms: 261.450455
+  type: 'test'
+  ...
+# Subtest: set-enabled: an omitted request body is 400 VALIDATION_ERROR and the activation row is untouched (api.spec.md: malformed body is 400, never a guess)
+ok 888 - set-enabled: an omitted request body is 400 VALIDATION_ERROR and the activation row is untouched (api.spec.md: malformed body is 400, never a guess)
+  ---
+  duration_ms: 304.34401
+  type: 'test'
+  ...
+# Subtest: set-enabled: a string 'false' is 400 VALIDATION_ERROR and never ENABLES the plugin (Boolean('false') is true)
+ok 889 - set-enabled: a string 'false' is 400 VALIDATION_ERROR and never ENABLES the plugin (Boolean('false') is true)
+  ---
+  duration_ms: 246.898529
+  type: 'test'
+  ...
+# [routes/plugins/set-enabled] {
+#   errorId: '83bdb12e-5a56-4a01-bc8a-38f6da6eb938',
+#   diagnostic: 'Error: change-set store unavailable\\n' +
+#     '    at InMemoryChangeSetRepo.pluginDeps.changeSets.insert (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/set-enabled-gap-fill.test.ts:211:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts:134:39)'
+# }
+# Subtest: set-enabled: a record-persistence failure AFTER a successful first-time enable rolls the activation row back to deleted and re-invokes onPluginDisabled (INV-01: no mutation without a record)
+ok 890 - set-enabled: a record-persistence failure AFTER a successful first-time enable rolls the activation row back to deleted and re-invokes onPluginDisabled (INV-01: no mutation without a record)
+  ---
+  duration_ms: 260.114532
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/plugins/set-enabled] {
+#   errorId: '1c41d3b0-c3da-4362-9609-9c5f896cd794',
+#   diagnostic: 'Error: change-set store unavailable\\n' +
+#     '    at InMemoryChangeSetRepo.pluginDeps.changeSets.insert (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/set-enabled-gap-fill.test.ts:242:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts:134:39)'
+# }
+# Subtest: set-enabled: a record-persistence failure AFTER disabling a previously-enabled plugin restores the PRIOR enabled row and re-invokes onPluginEnabled
+ok 891 - set-enabled: a record-persistence failure AFTER disabling a previously-enabled plugin restores the PRIOR enabled row and re-invokes onPluginEnabled
+  ---
+  duration_ms: 308.397898
+  type: 'test'
+  ...
+# [routes/plugins/set-enabled] {
+#   errorId: '00707565-14e4-4cab-a941-235a1554fc4c',
+#   diagnostic: 'Error: change-set store unavailable\\n' +
+#     '    at InMemoryChangeSetRepo.pluginDeps.changeSets.insert (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/set-enabled-gap-fill.test.ts:268:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts:134:39)'
+# }
+# Subtest: set-enabled: a record-persistence failure AFTER re-enabling a previously-disabled plugin restores the PRIOR disabled row and re-invokes onPluginDisabled
+ok 892 - set-enabled: a record-persistence failure AFTER re-enabling a previously-disabled plugin restores the PRIOR disabled row and re-invokes onPluginDisabled
+  ---
+  duration_ms: 235.985761
+  type: 'test'
+  ...
+# Subtest: set-enabled: the owner's enable records a site plugin's capability set as its approval; a denied caller records nothing
+ok 893 - set-enabled: the owner's enable records a site plugin's capability set as its approval; a denied caller records nothing
+  ---
+  duration_ms: 533.408145
+  type: 'test'
+  ...
+# Subtest: set-enabled: an enable refused by the conflict gate (a name another plugin holds) is 409 PLUGIN_CONFLICT with the structured clash, and no enabled row is left behind
+ok 894 - set-enabled: an enable refused by the conflict gate (a name another plugin holds) is 409 PLUGIN_CONFLICT with the structured clash, and no enabled row is left behind
+  ---
+  duration_ms: 270.476774
+  type: 'test'
+  ...
+# Subtest: set-enabled: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404
+ok 895 - set-enabled: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404
+  ---
+  duration_ms: 181.210899
+  type: 'test'
+  ...
+# Subtest: set-enabled: `req.params.pluginId ?? ""` fallback names no discovered plugin and is 404 PLUGIN_NOT_FOUND, with no row written
+ok 896 - set-enabled: `req.params.pluginId ?? ""` fallback names no discovered plugin and is 404 PLUGIN_NOT_FOUND, with no row written
+  ---
+  duration_ms: 210.545189
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: provider save reports each declared contract once and never sends field values to telemetry
+ok 897 - provider save reports each declared contract once and never sends field values to telemetry
+  ---
+  duration_ms: 89.224249
+  type: 'test'
+  ...
+# [admin-route] {
+#   errorId: '1985c51d-67e5-4b98-935f-aa12a41ef12b',
+#   diagnostic: 'Error: private vault location\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:35:82)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+# }
+# Subtest: project key use reports a typed unknown-key refusal as 400 and keeps opaque failures private
+ok 898 - project key use reports a typed unknown-key refusal as 400 and keeps opaque failures private
+  ---
+  duration_ms: 75.734054
+  type: 'test'
+  ...
+# Subtest: GET lists the declared fields (first declaration of a name wins); nothing saved yet
+ok 899 - GET lists the declared fields (first declaration of a name wins); nothing saved yet
+  ---
+  duration_ms: 7.882787
+  type: 'test'
+  ...
+# Subtest: PUT saves public values and secrets; responses never carry a secret; a blank secret keeps the saved one
+ok 900 - PUT saves public values and secrets; responses never carry a secret; a blank secret keeps the saved one
+  ---
+  duration_ms: 12.134168
+  type: 'test'
+  ...
+# Subtest: a provider settings save attaches to this site and reopening shows the saved fields
+ok 901 - a provider settings save attaches to this site and reopening shows the saved fields
+  ---
+  duration_ms: 8.932491
+  type: 'test'
+  ...
+# Subtest: a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server
+ok 902 - a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server
+  ---
+  duration_ms: 16.92821
+  type: 'test'
+  ...
+# Subtest: a public field's declared default and options reach the card; filling a blank with its default is no change
+ok 903 - a public field's declared default and options reach the card; filling a blank with its default is no change
+  ---
+  duration_ms: 8.195072
+  type: 'test'
+  ...
+# Subtest: PUT refuses undeclared names, non-text values and a malformed body
+ok 904 - PUT refuses undeclared names, non-text values and a malformed body
+  ---
+  duration_ms: 8.949395
+  type: 'test'
+  ...
+# [admin-route] {
+#   errorId: 'a40ed880-d0b5-461b-bc51-99a48293baa1',
+#   diagnostic: 'Error: disk\\n' +
+#     '    at Object.discoverPlugins (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\\n' +
+#     '    at resolveCard (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:105:20)'
+# }
+# [admin-route] {
+#   errorId: '9f640214-842f-4ac5-b964-40e097364c53',
+#   diagnostic: 'Error: disk\\n' +
+#     '    at Object.discoverPlugins (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\\n' +
+#     '    at resolveCard (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:111:20)'
+# }
+# Subtest: refusals: other workspace 404, plugin without declared settings 404, no settings store 503, denied 403, store failure 500
+ok 905 - refusals: other workspace 404, plugin without declared settings 404, no settings store 503, denied 403, store failure 500
+  ---
+  duration_ms: 20.457447
+  type: 'test'
+  ...
+# Subtest: a shared-only store that could not open this run: a save is refused 503 with the cause, never a bare internal error
+ok 906 - a shared-only store that could not open this run: a save is refused 503 with the cause, never a bare internal error
+  ---
+  duration_ms: 5.558812
+  type: 'test'
+  ...
+# Subtest: an unavailable owner store does not block a local provider settings save
+ok 907 - an unavailable owner store does not block a local provider settings save
+  ---
+  duration_ms: 3.855444
+  type: 'test'
+  ...
+# Subtest: a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED)
+ok 908 - a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED)
+  ---
+  duration_ms: 6.424843
+  type: 'test'
+  ...
+# Subtest: the retired-key check failing never breaks the card
+ok 909 - the retired-key check failing never breaks the card
+  ---
+  duration_ms: 3.195034
+  type: 'test'
+  ...
+# Subtest: the route carries requiredUnless to the card and enforces token or explicit local auth on save
+ok 910 - the route carries requiredUnless to the card and enforces token or explicit local auth on save
+  ---
+  duration_ms: 7.557984
+  type: 'test'
+  ...
+# Subtest: the route returns requiredWhen and enforces the declared default before saving
+ok 911 - the route returns requiredWhen and enforces the declared default before saving
+  ---
+  duration_ms: 8.498404
+  type: 'test'
+  ...
+# [admin-route] {
+#   errorId: '88cc1594-ed9d-4455-b373-f3e47226f01a',
+#   diagnostic: 'Error: db down\\n' +
+#     '    at Object.config.read (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:294:37)\\n' +
+#     '    at currentProviderConfig (/home/user/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:69:17)\\n' +
+#     '    at saveProviderSettings (/home/user/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:95:68)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:113:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# Subtest: saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them
+ok 912 - saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them
+  ---
+  duration_ms: 11.892318
+  type: 'test'
+  ...
+# Subtest: admin attaches an encoded provider key with its save permission and returns live apply status
+ok 913 - admin attaches an encoded provider key with its save permission and returns live apply status
+  ---
+  duration_ms: 5.775777
+  type: 'test'
+  ...
+# Subtest: admin save calls live reapply and preserves restart fallback in the response
+ok 914 - admin save calls live reapply and preserves restart fallback in the response
+  ---
+  duration_ms: 3.559534
+  type: 'test'
+  ...
+# Subtest: project key use denies base readers before looking up any existing or missing key
+ok 915 - project key use denies base readers before looking up any existing or missing key
+  ---
+  duration_ms: 4.993993
+  type: 'test'
+  ...
+# Subtest: admin save preserves committed settings but returns the safe plugin startup failure
+ok 916 - admin save preserves committed settings but returns the safe plugin startup failure
+  ---
+  duration_ms: 4.060599
+  type: 'test'
+  ...
+# Subtest: admin rejects non-auth headers before persistence and permits only declared auth alternatives
+ok 917 - admin rejects non-auth headers before persistence and permits only declared auth alternatives
+  ---
+  duration_ms: 11.428618
+  type: 'test'
+  ...
+# [theme] static page 'preview-theme/saved' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'preview-theme/pending' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'uninstalled-theme' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'cover-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'w', entityId: 'draft-1' }
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'pin-theme/article' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [admin-route] {
+#   errorId: 'df8441eb-4eba-4b28-8924-aa784ef92fc3',
+#   diagnostic: 'Error: sqlite: disk I/O error at /private/path\\n' +
+#     '    at InMemoryPostRepo.deps.postRepo.findBySlug (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/posts/__tests__/template-preview-render.test.ts:187:11)\\n' +
+#     '    at getAdminPostByIdOrSlug (/home/user/Tovu/apps/website/src/features/post/post.ts:2411:43)\\n' +
+#     '    at handlePreviewRequest (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts:198:30)\\n' +
+#     '    at async invoke (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/posts/__tests__/template-preview-render.test.ts:162:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/posts/__tests__/template-preview-render.test.ts:190:20)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [theme] static page 'bound-menu/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'bound-menu/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: real extracted renderer serves an unpublished bare page and pending body without changing the row
+ok 918 - real extracted renderer serves an unpublished bare page and pending body without changing the row
+  ---
+  duration_ms: 236.066182
+  type: 'test'
+  ...
+# Subtest: extracted rendering is byte-identical to the old route output for the same input
+ok 919 - extracted rendering is byte-identical to the old route output for the same input
+  ---
+  duration_ms: 228.756574
+  type: 'test'
+  ...
+# Subtest: theme rendering keeps draft content, applies pending edits and never changes the saved template or body
+ok 920 - theme rendering keeps draft content, applies pending edits and never changes the saved template or body
+  ---
+  duration_ms: 188.359898
+  type: 'test'
+  ...
+# Subtest: the extracted renderer preserves the route's actionable no-theme error
+ok 921 - the extracted renderer preserves the route's actionable no-theme error
+  ---
+  duration_ms: 151.22857
+  type: 'test'
+  ...
+# Subtest: a template preview on a site whose stored active theme resolves to nothing installed is a 500 'no themes installed'
+ok 922 - a template preview on a site whose stored active theme resolves to nothing installed is a 500 'no themes installed'
+  ---
+  duration_ms: 138.449338
+  type: 'test'
+  ...
+# Subtest: a bare page preview reports its template choice as the empty string it was selected by
+ok 923 - a bare page preview reports its template choice as the empty string it was selected by
+  ---
+  duration_ms: 184.803923
+  type: 'test'
+  ...
+# Subtest: postpolish: public static render and editor preview share saved cover choice with a pending body
+ok 924 - postpolish: public static render and editor preview share saved cover choice with a pending body
+  ---
+  duration_ms: 244.994424
+  type: 'test'
+  ...
+# Subtest: TW2 themed preview preserves saved and pending bodies across format and publication state
+ok 925 - TW2 themed preview preserves saved and pending bodies across format and publication state
+  ---
+  duration_ms: 1469.364176
+  type: 'test'
+  ...
+# Subtest: route (direct invoke): a missing :workspaceId 404s, a missing :postId is an ordinary post-not-found 404
+ok 926 - route (direct invoke): a missing :workspaceId 404s, a missing :postId is an ordinary post-not-found 404
+  ---
+  duration_ms: 142.952147
+  type: 'test'
+  ...
+# Subtest: route (direct invoke): a request with no body at all renders the saved body (no pending override), never a crash
+ok 927 - route (direct invoke): a request with no body at all renders the saved body (no pending override), never a crash
+  ---
+  duration_ms: 136.060714
+  type: 'test'
+  ...
+# Subtest: route (direct invoke): an unexpected repository failure is a plain 500 'preview render failed' that leaks no internals
+ok 928 - route (direct invoke): an unexpected repository failure is a plain 500 'preview render failed' that leaks no internals
+  ---
+  duration_ms: 171.924396
+  type: 'test'
+  ...
+# Subtest: assigned menu links match in editor preview and the public template pipeline used by export
+ok 929 - assigned menu links match in editor preview and the public template pipeline used by export
+  ---
+  duration_ms: 160.101904
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a ready audit's destination record with a report becomes the reply's report DTO
+ok 930 - a ready audit's destination record with a report becomes the reply's report DTO
+  ---
+  duration_ms: 6.012491
+  type: 'test'
+  ...
+# Subtest: no audit port, or one that is not ready, adds nothing and reads no record
+ok 931 - no audit port, or one that is not ready, adds nothing and reads no record
+  ---
+  duration_ms: 0.388598
+  type: 'test'
+  ...
+# Subtest: a missing record, a source-side record, or one without a report adds nothing
+ok 932 - a missing record, a source-side record, or one without a report adds nothing
+  ---
+  duration_ms: 0.233365
+  type: 'test'
+  ...
+# Subtest: a failing audit read adds nothing instead of failing the already-applied run
+ok 933 - a failing audit read adds nothing instead of failing the already-applied run
+  ---
+  duration_ms: 0.251467
+  type: 'test'
+  ...
+# Subtest: raw capabilities need both backstop trust and an explicit type, including for API-key callers
+ok 934 - raw capabilities need both backstop trust and an explicit type, including for API-key callers
+  ---
+  duration_ms: 74.797161
+  type: 'test'
+  ...
+# Subtest: 404s on a mismatched workspace id before doing anything else
+ok 935 - 404s on a mismatched workspace id before doing anything else
+  ---
+  duration_ms: 23.676828
+  type: 'test'
+  ...
+# Subtest: 403s when the permission is denied, naming publish_content.apply — the same gate bundle-create.ts uses
+ok 936 - 403s when the permission is denied, naming publish_content.apply — the same gate bundle-create.ts uses
+  ---
+  duration_ms: 13.58014
+  type: 'test'
+  ...
+# Subtest: with no publishing grant on the request, answers every registered type — the same reading bundle-create.ts gives that absence
+ok 937 - with no publishing grant on the request, answers every registered type — the same reading bundle-create.ts gives that absence
+  ---
+  duration_ms: 9.001363
+  type: 'test'
+  ...
+# Subtest: with a publishing grant, answers the intersection of registered types and the grant's own entityTypes
+ok 938 - with a publishing grant, answers the intersection of registered types and the grant's own entityTypes
+  ---
+  duration_ms: 8.850063
+  type: 'test'
+  ...
+# Subtest: a grant naming a type nobody registered names nothing this instance does not actually have
+ok 939 - a grant naming a type nobody registered names nothing this instance does not actually have
+  ---
+  duration_ms: 10.886122
+  type: 'test'
+  ...
+# Subtest: publish-overwrite-live-plan §4/S6: answers 'overwrite-live' in features, unconditionally — a code capability, not a per-grant content type
+ok 940 - publish-overwrite-live-plan §4/S6: answers 'overwrite-live' in features, unconditionally — a code capability, not a per-grant content type
+  ---
+  duration_ms: 8.831239
+  type: 'test'
+  ...
+# [routes/publish-content/capabilities] {
+#   errorId: '71369427-6a0a-493d-88be-15656f808d5d',
+#   diagnostic: 'Error: policy store unreachable\\n' +
+#     '    at authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/capabilities.test.ts:70:41)\\n' +
+#     '    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/capabilities.ts:44:17)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\\n' +
+#     '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+# }
+# Subtest: an unexpected failure (a throwing authorizer) is a generic 500 that names no internals
+ok 941 - an unexpected failure (a throwing authorizer) is a generic 500 that names no internals
+  ---
+  duration_ms: 21.994059
+  type: 'test'
+  ...
+# Subtest: direct invoke: a missing :workspaceId param (unreachable through Express routing) falls back to "" and 404s
+ok 942 - direct invoke: a missing :workspaceId param (unreachable through Express routing) falls back to "" and 404s
+  ---
+  duration_ms: 0.93414
+  type: 'test'
+  ...
+# Subtest: canPublishToLive is false only when TOVU_RUNTIME_MODE is production
+ok 943 - canPublishToLive is false only when TOVU_RUNTIME_MODE is production
+  ---
+  duration_ms: 1.348226
+  type: 'test'
+  ...
+# Subtest: push/plan is refused with 403 on the live site
+ok 944 - push/plan is refused with 403 on the live site
+  ---
+  duration_ms: 86.963104
+  type: 'test'
+  ...
+# Subtest: push/confirm is refused with 403 on the live site
+ok 945 - push/confirm is refused with 403 on the live site
+  ---
+  duration_ms: 14.613451
+  type: 'test'
+  ...
+# Subtest: push/execute is refused with 403 on the live site
+ok 946 - push/execute is refused with 403 on the live site
+  ---
+  duration_ms: 6.632216
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route: 404 when workspaceId does not match
+ok 947 - LIST_REDIRECTS route: 404 when workspaceId does not match
+  ---
+  duration_ms: 519.480171
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route: direct invoke fallback for nullish params.workspaceId
+ok 948 - LIST_REDIRECTS route: direct invoke fallback for nullish params.workspaceId
+  ---
+  duration_ms: 177.593054
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route: 403 when principal is not authorized
+ok 949 - LIST_REDIRECTS route: 403 when principal is not authorized
+  ---
+  duration_ms: 219.227453
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route: 200 success without filters
+ok 950 - LIST_REDIRECTS route: 200 success without filters
+  ---
+  duration_ms: 298.545076
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route: 200 success with status, source, and matchType filters
+ok 951 - LIST_REDIRECTS route: 200 success with status, source, and matchType filters
+  ---
+  duration_ms: 182.268282
+  type: 'test'
+  ...
+# [routes/redirects/list] {
+#   errorId: 'bec3a0de-4110-4001-89a0-7413c7350be2',
+#   diagnostic: 'Error: db failure\\n' +
+#     '    at Object.list (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/__tests__/list.test.ts:121:13)\\n' +
+#     '    at listRedirects (/home/user/Jini/packages/cms/src/redirects/redirects.ts:786:38)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/redirects/list.ts:42:27)'
+# }
+# Subtest: LIST_REDIRECTS route: 500 on unexpected repository error
+ok 952 - LIST_REDIRECTS route: 500 on unexpected repository error
+  ---
+  duration_ms: 256.454191
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route (Bug B): a rule in the Trash is not listed; a rule merely toggled off still is
+ok 953 - LIST_REDIRECTS route (Bug B): a rule in the Trash is not listed; a rule merely toggled off still is
+  ---
+  duration_ms: 410.034857
+  type: 'test'
+  ...
+# Subtest: LIST_REDIRECTS route (Bug B): remove -> gone from the list; restore (status active) -> back
+ok 954 - LIST_REDIRECTS route (Bug B): remove -> gone from the list; restore (status active) -> back
+  ---
+  duration_ms: 242.20384
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: put-entry: mismatched workspaceId 404s
+ok 955 - put-entry: mismatched workspaceId 404s
+  ---
+  duration_ms: 384.483645
+  type: 'test'
+  ...
+# Subtest: put-entry: forbidden 403s
+ok 956 - put-entry: forbidden 403s
+  ---
+  duration_ms: 372.949716
+  type: 'test'
+  ...
+# Subtest: put-entry: an unregistered field 400s (SEO_FIELD_VALIDATION_ERROR)
+ok 957 - put-entry: an unregistered field 400s (SEO_FIELD_VALIDATION_ERROR)
+  ---
+  duration_ms: 239.788553
+  type: 'test'
+  ...
+# Subtest: put-entry: an unsafe canonical URL scheme 400s (SEO_INVALID_CANONICAL_URL)
+ok 958 - put-entry: an unsafe canonical URL scheme 400s (SEO_INVALID_CANONICAL_URL)
+  ---
+  duration_ms: 222.727704
+  type: 'test'
+  ...
+# Subtest: put-entry: an unknown entry id 404s (SEO_ENTRY_NOT_FOUND)
+ok 959 - put-entry: an unknown entry id 404s (SEO_ENTRY_NOT_FOUND)
+  ---
+  duration_ms: 239.009842
+  type: 'test'
+  ...
+# Subtest: put-entry: a trashed entry returns 409 ENTITY_IN_TRASH without changing its SEO
+ok 960 - put-entry: a trashed entry returns 409 ENTITY_IN_TRASH without changing its SEO
+  ---
+  duration_ms: 226.621549
+  type: 'test'
+  ...
+# Subtest: put-entry: a valid patch succeeds (200) and the meta reflects it
+ok 961 - put-entry: a valid patch succeeds (200) and the meta reflects it
+  ---
+  duration_ms: 324.879395
+  type: 'test'
+  ...
+# Subtest: put-entry: a title-only patch returns the library content image without saving an image override
+ok 962 - put-entry: a title-only patch returns the library content image without saving an image override
+  ---
+  duration_ms: 370.711341
+  type: 'test'
+  ...
+# Subtest: put-entry: a title-only patch returns the external content image without saving an image override
+ok 963 - put-entry: a title-only patch returns the external content image without saving an image override
+  ---
+  duration_ms: 355.935838
+  type: 'test'
+  ...
+# Subtest: put-entry: a request with no body at all still succeeds as a real empty patch (express.json() itself always defaults req.body to {}, confirmed by direct check -- see the type-bypass test below for the `req.body ?? {}` branch this does NOT reach)
+ok 964 - put-entry: a request with no body at all still succeeds as a real empty patch (express.json() itself always defaults req.body to {}, confirmed by direct check -- see the type-bypass test below for the `req.body ?? {}` branch this does NOT reach)
+  ---
+  duration_ms: 241.60163
+  type: 'test'
+  ...
+# Subtest: put-entry: workspaceId/entryId params, and req.body itself, can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string, and the global `express.json()` in app.ts always defaults req.body to `{}`) -- their `?? ""`/`?? {}` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need
+ok 965 - put-entry: workspaceId/entryId params, and req.body itself, can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string, and the global `express.json()` in app.ts always defaults req.body to `{}`) -- their `?? ""`/`?? {}` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need
+  ---
+  duration_ms: 167.3685
+  type: 'test'
+  ...
+# [routes/seo/put-entry] {
+#   errorId: 'cf61bcf0-5bf7-4354-8ea0-b935694bf5ac',
+#   diagnostic: 'Error: boom\\n' +
+#     '    at InMemoryPostRepo.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/seo/__tests__/put-entry.test.ts:269:11)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at Object.saveIfVersion (/home/user/Tovu/apps/website/src/features/seo/index.ts:49:56)\\n' +
+#     '    at fn (/home/user/Jini/packages/cms/src/seo/write-service.ts:259:52)\\n' +
+#     '    at InMemoryPostRepo.transaction (/home/user/Tovu/apps/website/src/features/post/repo.memory.ts:250:20)\\n' +
+#     '    at Object.transaction (/home/user/Tovu/apps/website/src/features/seo/index.ts:46:39)\\n' +
+#     '    at saveWithRevision (/home/user/Jini/packages/cms/src/seo/write-service.ts:257:19)\\n' +
+#     '    at mergeOverridesOntoCurrentRow (/home/user/Jini/packages/cms/src/seo/write-service.ts:328:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async setEntrySeoOverrides (/home/user/Jini/packages/cms/src/seo/write-service.ts:362:27)'
+# }
+# Subtest: put-entry: an unexpected repo failure 500s
+ok 966 - put-entry: an unexpected repo failure 500s
+  ---
+  duration_ms: 427.312302
+  type: 'test'
+  ...
+# Subtest: put-entry: losing the row to another writer on every merge attempt 409s (SEO_CONCURRENT_WRITE) without writing
+ok 967 - put-entry: losing the row to another writer on every merge attempt 409s (SEO_CONCURRENT_WRITE) without writing
+  ---
+  duration_ms: 324.988267
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: theme editor without settings.read can subscribe to theme notifications only
+ok 968 - theme editor without settings.read can subscribe to theme notifications only
+  ---
+  duration_ms: 2.895993
+  type: 'test'
+  ...
+# Subtest: settings-only subscription does not acquire theme permission or bypass settings denial
+ok 969 - settings-only subscription does not acquire theme permission or bypass settings denial
+  ---
+  duration_ms: 0.445282
+  type: 'test'
+  ...
+# Subtest: existing stream emits exact theme frames across writers, reauthorizes and cleans up its timers
+ok 970 - existing stream emits exact theme frames across writers, reauthorizes and cleans up its timers
+  ---
+  duration_ms: 4485.229341
+  type: 'test'
+  ...
+# Subtest: local routes enforce workspace/auth/capability before process and folder effects
+ok 971 - local routes enforce workspace/auth/capability before process and folder effects
+  ---
+  duration_ms: 6.916552
+  type: 'test'
+  ...
+# Subtest: delete refuses serving, starting/running, unconfirmed and malformed names
+ok 972 - delete refuses serving, starting/running, unconfirmed and malformed names
+  ---
+  duration_ms: 2.840608
+  type: 'test'
+  ...
+# Subtest: Trash permanent removal requires explicit checkbox and confirm even for an authorized caller
+ok 973 - Trash permanent removal requires explicit checkbox and confirm even for an authorized caller
+  ---
+  duration_ms: 2.019994
+  type: 'test'
+  ...
+# Subtest: a request without its :name/:id param reaches the effect as an empty name and is refused, never acted on (direct handler call)
+ok 974 - a request without its :name/:id param reaches the effect as an empty name and is refused, never acted on (direct handler call)
+  ---
+  duration_ms: 1.557113
+  type: 'test'
+  ...
+# Subtest: without an injected siteTrash the routes use the real site-trash module against the bound base
+ok 975 - without an injected siteTrash the routes use the real site-trash module against the bound base
+  ---
+  duration_ms: 11.375117
+  type: 'test'
+  ...
+# Subtest: lists an installed disabled skill's files using the plugin response shape and caps
+ok 976 - lists an installed disabled skill's files using the plugin response shape and caps
+  ---
+  duration_ms: 62.000789
+  type: 'test'
+  ...
+# Subtest: hides the internal install record while retaining skill files and other dotfiles
+ok 977 - hides the internal install record while retaining skill files and other dotfiles
+  ---
+  duration_ms: 34.441151
+  type: 'test'
+  ...
+# Subtest: unknown tool ids use the existing skills 404 response
+ok 978 - unknown tool ids use the existing skills 404 response
+  ---
+  duration_ms: 8.284654
+  type: 'test'
+  ...
+# Subtest: path traversal cannot select files outside the installed skill
+ok 979 - path traversal cannot select files outside the installed skill
+  ---
+  duration_ms: 11.556318
+  type: 'test'
+  ...
+# Subtest: symlink files and directories are listed without reading their targets
+ok 980 - symlink files and directories are listed without reading their targets
+  ---
+  duration_ms: 19.435014
+  type: 'test'
+  ...
+# Subtest: oversized files are omitted and file count is capped
+ok 981 - oversized files are omitted and file count is capped
+  ---
+  duration_ms: 227.703586
+  type: 'test'
+  ...
+# Subtest: permission denial happens before inspecting even an unknown id
+ok 982 - permission denial happens before inspecting even an unknown id
+  ---
+  duration_ms: 7.100513
+  type: 'test'
+  ...
+# Subtest: workspace mismatch returns the same workspace 404 without authorizing
+ok 983 - workspace mismatch returns the same workspace 404 without authorizing
+  ---
+  duration_ms: 5.980659
+  type: 'test'
+  ...
+# [routes/skills/files] {
+#   errorId: '383e59bf-1c67-4294-8212-2324f120e82b',
+#   diagnostic: 'Error: getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route\\n' +
+#     '    at getAuthedPrincipal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:320:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/skills/files.ts:18:25)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/skills/__tests__/unit/files.unit.test.ts:43:13)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/skills/__tests__/unit/files.unit.test.ts:114:21)\\n' +
+#     '    at harness (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/skills/__tests__/unit/files.unit.test.ts:38:11)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: an unexpected failure returns the generic 500 without its internal message
+ok 984 - an unexpected failure returns the generic 500 without its internal message
+  ---
+  duration_ms: 30.363388
+  type: 'test'
+  ...
+# Subtest: custom-credentials: without the optional deploy-target ports every verb still works and nothing is invalidated
+ok 985 - custom-credentials: without the optional deploy-target ports every verb still works and nothing is invalidated
+  ---
+  duration_ms: 468.102462
+  type: 'test'
+  ...
+# Subtest: custom-credentials: with the deploy-target ports wired, each write that changes a credential's publish hosts invalidates them
+ok 986 - custom-credentials: with the deploy-target ports wired, each write that changes a credential's publish hosts invalidates them
+  ---
+  duration_ms: 392.667618
+  type: 'test'
+  ...
+# Subtest: custom-credentials: missing params or body take the documented fallbacks (direct handler calls)
+ok 987 - custom-credentials: missing params or body take the documented fallbacks (direct handler calls)
+  ---
+  duration_ms: 163.071226
+  type: 'test'
+  ...
+# Subtest: custom-credentials: an unexpected store failure on list or delete is a fixed 500 that never echoes the cause
+ok 988 - custom-credentials: an unexpected store failure on list or delete is a fixed 500 that never echoes the cause
+  ---
+  duration_ms: 238.874265
+  type: 'test'
+  ...
+# Subtest: custom-credentials: with a project store, keys save to the project unless scope is site; the unused Share route is removed
+ok 989 - custom-credentials: with a project store, keys save to the project unless scope is site; the unused Share route is removed
+  ---
+  duration_ms: 234.797016
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/system/site-backups] {
+#   errorId: '2a1bd725-087e-4dce-973f-2a7f6af640aa',
+#   diagnostic: 'Error: SECRET internals\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-backups.integration.test.ts:22:57)\\n' +
+#     '    at Object.authorize (/home/user/Jini/packages/core/src/tool-permissions.ts:88:47)\\n' +
+#     '    at requireToolPermission (/home/user/Jini/packages/core/src/tool-permissions.ts:76:33)\\n' +
+#     '    at requireBackupPermissions (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:484:9)\\n' +
+#     '    at planSiteBackup (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:539:9)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-backups.ts:48:65)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\\n' +
+#     '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)'
+# }
+# Subtest: site-backup routes gate, map errors and run the shared plan/push service
+ok 990 - site-backup routes gate, map errors and run the shared plan/push service
+  ---
+  duration_ms: 145.523845
+  type: 'test'
+  ...
+# Subtest: password reveal denies other principals, workspaces, origins, tools and machine credentials
+ok 991 - password reveal denies other principals, workspaces, origins, tools and machine credentials
+  ---
+  duration_ms: 65.589953
+  type: 'test'
+  ...
+# Subtest: publish preview logs registry refusals and redacts credential metadata read failures
+ok 992 - publish preview logs registry refusals and redacts credential metadata read failures
+  ---
+  duration_ms: 30.560578
+  type: 'test'
+  ...
+# Subtest: publish read /publish refuses before registry or credential reads
+ok 993 - publish read /publish refuses before registry or credential reads
+  ---
+  duration_ms: 1.230003
+  type: 'test'
+  ...
+# Subtest: publish read /publish/preview refuses before registry or credential reads
+ok 994 - publish read /publish/preview refuses before registry or credential reads
+  ---
+  duration_ms: 0.435564
+  type: 'test'
+  ...
+# Subtest: publish read /publish/destinations refuses before registry or credential reads
+ok 995 - publish read /publish/destinations refuses before registry or credential reads
+  ---
+  duration_ms: 0.468877
+  type: 'test'
+  ...
+# Subtest: publish read /publish-targets refuses before registry or credential reads
+ok 996 - publish read /publish-targets refuses before registry or credential reads
+  ---
+  duration_ms: 0.884806
+  type: 'test'
+  ...
+# Subtest: list: returns 200 with taxonomies and terms when authorized
+ok 997 - list: returns 200 with taxonomies and terms when authorized
+  ---
+  duration_ms: 535.718429
+  type: 'test'
+  ...
+# Subtest: list: returns 403 when principal is not authorized
+ok 998 - list: returns 403 when principal is not authorized
+  ---
+  duration_ms: 313.117222
+  type: 'test'
+  ...
+# [routes/taxonomy/list] {
+#   errorId: 'e36ec4af-b223-497f-ae9a-17baeb4fe57f',
+#   diagnostic: 'Error: db connection broken\\n' +
+#     '    at Object.list (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/list.test.ts:95:15)\\n' +
+#     '    at listTaxonomiesWithTerms (/home/user/Jini/packages/cms/src/taxonomy/list.ts:42:41)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/list.ts:33:28)'
+# }
+# Subtest: list: an Error is a private, correlated 500 that never leaks its message
+ok 999 - list: an Error is a private, correlated 500 that never leaks its message
+  ---
+  duration_ms: 396.184002
+  type: 'test'
+  ...
+# [routes/taxonomy/list] {
+#   errorId: 'fec0777f-9acc-4999-8377-0a68ca97697e',
+#   diagnostic: 'something unexpected'
+# }
+# Subtest: list: returns 500 when a non-Error is thrown
+ok 1000 - list: returns 500 when a non-Error is thrown
+  ---
+  duration_ms: 381.580719
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: copy of a source file that doesn't exist in the theme 404s FILE_NOT_FOUND
+ok 1001 - copy of a source file that doesn't exist in the theme 404s FILE_NOT_FOUND
+  ---
+  duration_ms: 120.942265
+  type: 'test'
+  ...
+# Subtest: copy when both 'name-1' and the base name already exist lands on 'name-2' -- the collision loop runs more than once
+ok 1002 - copy when both 'name-1' and the base name already exist lands on 'name-2' -- the collision loop runs more than once
+  ---
+  duration_ms: 26.416675
+  type: 'test'
+  ...
+# Subtest: copying an image over 1 MB succeeds byte for byte -- the 1 MB text-read limit does not apply to copy
+ok 1003 - copying an image over 1 MB succeeds byte for byte -- the 1 MB text-read limit does not apply to copy
+  ---
+  duration_ms: 60.486588
+  type: 'test'
+  ...
+# Subtest: copy that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch
+ok 1004 - copy that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch # SKIP running as root: chmod 555 does not deny root a write, so EACCES cannot be forced here
+  ---
+  duration_ms: 15.114189
+  type: 'test'
+  ...
+# [routes/themes/explore] {
+#   errorId: '5279dfca-3cb0-47e0-b31b-a1a40e8a1f65',
+#   diagnostic: 'Error: injected copy failure\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-copy-route-branches.test.ts:164:27)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at copyThemeFile (/home/user/Tovu/apps/website/src/features/theme/theme-files.ts:1167:5)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:980:7)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '{"code":"EIO"}'
+# }
+# Subtest: copy: an injected filesystem failure returns 500 and leaves no destination
+ok 1005 - copy: an injected filesystem failure returns 500 and leaves no destination
+  ---
+  duration_ms: 62.005167
+  type: 'test'
+  ...
+# Subtest: reset on a compiled theme's generated file with NO catalog at all -> 409 NO_ORIGINAL from restoreBuiltThemeGeneratedTree's own ThemePathError
+ok 1006 - reset on a compiled theme's generated file with NO catalog at all -> 409 NO_ORIGINAL from restoreBuiltThemeGeneratedTree's own ThemePathError
+  ---
+  duration_ms: 79.647089
+  type: 'test'
+  ...
+# Subtest: reset on a file present live but absent from an otherwise-real catalog -> 409 NOT_IN_ORIGINAL
+ok 1007 - reset on a file present live but absent from an otherwise-real catalog -> 409 NOT_IN_ORIGINAL
+  ---
+  duration_ms: 15.484306
+  type: 'test'
+  ...
+# [routes/themes/explore] {
+#   errorId: '9e18169b-d0ff-4193-9484-ae57513cb04d',
+#   diagnostic: 'Error: catalog read unavailable\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-reset-route-branches.test.ts:147:27)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at filesHaveSameBytes (/home/user/Tovu/apps/website/src/features/theme/theme-files.ts:490:17)\\n' +
+#     '    at resetThemeFileToOriginal (/home/user/Tovu/apps/website/src/features/theme/theme-files.ts:933:39)\\n' +
+#     '    at resetFileFromOriginal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:768:17)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:886:27)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '{"code":"EIO"}'
+# }
+# Subtest: a catalog read failure OTHER than ThemePathError, during a per-file reset, propagates to the route's outer catch -> 500, not 409
+ok 1008 - a catalog read failure OTHER than ThemePathError, during a per-file reset, propagates to the route's outer catch -> 500, not 409
+  ---
+  duration_ms: 48.911871
+  type: 'test'
+  ...
+# [routes/themes/explore] {
+#   errorId: 'c475672f-af7e-43af-a2e5-8b5789ee88f4',
+#   diagnostic: 'Error: generated file removal unavailable\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-reset-route-branches.test.ts:204:27)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at restoreBuiltThemeGeneratedTree (/home/user/Tovu/apps/website/src/features/theme/theme-files.ts:1338:5)\\n' +
+#     '    at handleGeneratedTreeReset (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:730:31)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:858:9)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '{"code":"EIO"}'
+# }
+# Subtest: a generated-tree restore failure OTHER than ThemePathError propagates to the route's outer catch -> 500, not 409
+ok 1009 - a generated-tree restore failure OTHER than ThemePathError propagates to the route's outer catch -> 500, not 409
+  ---
+  duration_ms: 17.860717
+  type: 'test'
+  ...
+# Subtest: the real v2 'basic' theme classifies render/pages/*.html as 'page', editable
+ok 1010 - the real v2 'basic' theme classifies render/pages/*.html as 'page', editable
+  ---
+  duration_ms: 87.95027
+  type: 'test'
+  ...
+# Subtest: the real v2 'basic' theme classifies render/partials/*.html as 'partial', editable
+ok 1011 - the real v2 'basic' theme classifies render/partials/*.html as 'partial', editable
+  ---
+  duration_ms: 45.146717
+  type: 'test'
+  ...
+# Subtest: rename hard-blocks render/pages/index.html on a real v2 theme -- REQUIRED_THEME_FILES must track apiVersion, not just pages/index.html
+ok 1012 - rename hard-blocks render/pages/index.html on a real v2 theme -- REQUIRED_THEME_FILES must track apiVersion, not just pages/index.html
+  ---
+  duration_ms: 43.653624
+  type: 'test'
+  ...
+# [routes/trash/list] {
+#   errorId: '59616d08-f186-497e-86bf-0b2e832aee5d',
+#   diagnostic: 'Error: private evaluator details\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:171:59)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/list.ts:25:37)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:35:57)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:174:41)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [routes/trash/purge] {
+#   errorId: '220a22a9-0fc5-497a-89dc-d18502eeae72',
+#   diagnostic: 'Error: private evaluator details\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:171:59)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/purge.ts:34:37)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:35:57)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:174:41)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [routes/trash/restore] {
+#   errorId: '858de295-0b41-4408-bc77-33290a93d44d',
+#   diagnostic: 'Error: private evaluator details\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:171:59)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/restore.ts:31:37)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:35:57)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:174:41)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [routes/trash/items] {
+#   errorId: 'd6815854-8283-4dea-be3a-713106fe3c0e',
+#   diagnostic: 'Error: private evaluator details\\n' +
+#     '    at Object.authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:171:59)\\n' +
+#     '    at isAllowed (/home/user/Tovu/apps/website/src/features/trash/move-to-trash.ts:53:31)\\n' +
+#     '    at moveToTrash (/home/user/Tovu/apps/website/src/features/trash/move-to-trash.ts:118:15)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/items.ts:34:29)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:35:57)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts:174:41)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: trash list normalizes filters and cursor and clamps/defaults limits without changing pagination
+ok 1013 - trash list normalizes filters and cursor and clamps/defaults limits without changing pagination
+  ---
+  duration_ms: 6.22978
+  type: 'test'
+  ...
+# Subtest: trash list projects exact snapshot fields, actor lookup, and rounded days remaining
+ok 1014 - trash list projects exact snapshot fields, actor lookup, and rounded days remaining
+  ---
+  duration_ms: 123.80239
+  type: 'test'
+  ...
+# Subtest: purge and restore reject oversized or malformed selections before any mutations
+ok 1015 - purge and restore reject oversized or malformed selections before any mutations
+  ---
+  duration_ms: 1.431689
+  type: 'test'
+  ...
+# Subtest: purge accepts 200 ids, preserves duplicates, and returns every port outcome
+ok 1016 - purge accepts 200 ids, preserves duplicates, and returns every port outcome
+  ---
+  duration_ms: 1.769221
+  type: 'test'
+  ...
+# Subtest: purge returns 200 for referenced media and continues purging later selected rows
+ok 1017 - purge returns 200 for referenced media and continues purging later selected rows
+  ---
+  duration_ms: 114.255247
+  type: 'test'
+  ...
+# Subtest: restore accepts 200 items and counts only restored outcomes while retaining duplicate results
+ok 1018 - restore accepts 200 items and counts only restored outcomes while retaining duplicate results
+  ---
+  duration_ms: 3.005026
+  type: 'test'
+  ...
+# Subtest: move-to-trash rejects malformed type/id and identifies an unknown type
+ok 1019 - move-to-trash rejects malformed type/id and identifies an unknown type
+  ---
+  duration_ms: 0.913734
+  type: 'test'
+  ...
+# Subtest: move-to-trash maps a marker race to 409 TRASH_VERSION_CHANGED, leaving the live row intact
+ok 1020 - move-to-trash maps a marker race to 409 TRASH_VERSION_CHANGED, leaving the live row intact
+  ---
+  duration_ms: 93.764271
+  type: 'test'
+  ...
+# Subtest: unexpected failures on every trash route return generic 500 without details
+ok 1021 - unexpected failures on every trash route return generic 500 without details
+  ---
+  duration_ms: 15.072915
+  type: 'test'
+  ...
+# Subtest: trash list and purge 404 an absent or foreign workspace before authorizing
+ok 1022 - trash list and purge 404 an absent or foreign workspace before authorizing
+  ---
+  duration_ms: 0.52023
+  type: 'test'
+  ...
+# Subtest: trash list and purge answer the standard 403 when content.read is denied
+ok 1023 - trash list and purge answer the standard 403 when content.read is denied
+  ---
+  duration_ms: 0.54246
+  type: 'test'
+  ...
+# Subtest: trash row projection sends a null actorUsername for an unknown actor and flags the system actor
+ok 1024 - trash row projection sends a null actorUsername for an unknown actor and flags the system actor
+  ---
+  duration_ms: 0.184583
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: 404 when workspaceId does not match
+ok 1025 - DELETE_ROLE route: 404 when workspaceId does not match
+  ---
+  duration_ms: 298.579783
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: direct invoke fallback for nullish params.workspaceId
+ok 1026 - DELETE_ROLE route: direct invoke fallback for nullish params.workspaceId
+  ---
+  duration_ms: 183.758505
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: direct invoke fallback for nullish params.roleId
+ok 1027 - DELETE_ROLE route: direct invoke fallback for nullish params.roleId
+  ---
+  duration_ms: 197.242003
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: 204 deletes an unused custom role
+ok 1028 - DELETE_ROLE route: 204 deletes an unused custom role
+  ---
+  duration_ms: 213.551004
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: 403 FORBIDDEN when caller lacks role.manage
+ok 1029 - DELETE_ROLE route: 403 FORBIDDEN when caller lacks role.manage
+  ---
+  duration_ms: 172.768322
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: 400 VALIDATION_ERROR when target is a built-in role
+ok 1030 - DELETE_ROLE route: 400 VALIDATION_ERROR when target is a built-in role
+  ---
+  duration_ms: 188.507648
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: 404 RESOURCE_NOT_FOUND for a nonexistent roleId
+ok 1031 - DELETE_ROLE route: 404 RESOURCE_NOT_FOUND for a nonexistent roleId
+  ---
+  duration_ms: 177.362751
+  type: 'test'
+  ...
+# Subtest: DELETE_ROLE route: 409 RESOURCE_CONFLICT when the role is still assigned to a principal
+ok 1032 - DELETE_ROLE route: 409 RESOURCE_CONFLICT when the role is still assigned to a principal
+  ---
+  duration_ms: 238.870486
+  type: 'test'
+  ...
+# [routes/users/delete-role] {
+#   errorId: '6716b57b-cb96-489e-8bfe-49355ed5bcd9',
+#   diagnostic: 'Error: unexpected db failure\\n' +
+#     '    at Object.findById (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/users/__tests__/delete-role.test.ts:169:13)\\n' +
+#     '    at execute (/home/user/Jini/packages/user-management/src/server/admin-crud-service.ts:514:45)\\n' +
+#     '    at async <anonymous> (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:50:16)\\n' +
+#     '    at async exclusive (/home/user/Jini/packages/user-management/src/server/repo.memory-transactions.ts:34:14)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/users/delete-role.ts:45:7)'
+# }
+# Subtest: DELETE_ROLE route: 500 internal error when an unexpected error is thrown
+ok 1033 - DELETE_ROLE route: 500 internal error when an unexpected error is thrown
+  ---
+  duration_ms: 174.845708
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a caller without role.manage is refused 403 FORBIDDEN and the permission row survives
+ok 1034 - a caller without role.manage is refused 403 FORBIDDEN and the permission row survives
+  ---
+  duration_ms: 306.063617
+  type: 'test'
+  ...
+# Subtest: a non-owner holding role.manage cannot strip the owner wildcard '*' row — 409 OWNER_REQUIRED
+ok 1035 - a non-owner holding role.manage cannot strip the owner wildcard '*' row — 409 OWNER_REQUIRED
+  ---
+  duration_ms: 207.735687
+  type: 'test'
+  ...
+# Subtest: the owner may remove a wildcard row from a policy nobody holds — the owner floor is untouched
+ok 1036 - the owner may remove a wildcard row from a policy nobody holds — the owner floor is untouched
+  ---
+  duration_ms: 243.167042
+  type: 'test'
+  ...
+# Subtest: a non-owner with role.manage removes an ordinary permission row (the wildcard guard is scoped to '*')
+ok 1037 - a non-owner with role.manage removes an ordinary permission row (the wildcard guard is scoped to '*')
+  ---
+  duration_ms: 214.867177
+  type: 'test'
+  ...
+# Subtest: a built-in parent policy is refused 400 VALIDATION_ERROR
+ok 1038 - a built-in parent policy is refused 400 VALIDATION_ERROR
+  ---
+  duration_ms: 179.038952
+  type: 'test'
+  ...
+# Subtest: absent policyId / policyPermissionId params resolve to 404 RESOURCE_NOT_FOUND, never a delete
+ok 1039 - absent policyId / policyPermissionId params resolve to 404 RESOURCE_NOT_FOUND, never a delete
+  ---
+  duration_ms: 231.552967
+  type: 'test'
+  ...
+# Subtest: a SCOPED '*' row (resource type or constraint set) is not the owner wildcard: a non-owner with role.manage may remove it
+ok 1040 - a SCOPED '*' row (resource type or constraint set) is not the owner wildcard: a non-owner with role.manage may remove it
+  ---
+  duration_ms: 166.424697
+  type: 'test'
+  ...
+# Subtest: a hand-built request with no workspaceId param is refused 404 before any lookup
+ok 1041 - a hand-built request with no workspaceId param is refused 404 before any lookup
+  ---
+  duration_ms: 176.881583
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [widgets] listWidgetInstances: skipping malformed widget-instance row { entryId: 'corrupt', workspaceId: 'ws-7' }
+# [widgets] listWidgetInstances: skipping malformed widget-instance row { entryId: 'corrupt', workspaceId: 'ws-7' }
+# [widgets] listWidgetInstances: skipping malformed widget-instance row { entryId: 'corrupt', workspaceId: 'ws-7' }
+# [widgets] listWidgetInstances: skipping malformed widget-instance row { entryId: 'corrupt', workspaceId: 'ws-7' }
+# [widgets] listWidgetInstances: skipping malformed widget-instance row { entryId: 'corrupt', workspaceId: 'ws-7' }
+# [http/widgets] {
+#   errorId: '62860924-93e1-4898-aa3c-abec1fe8fd84',
+#   diagnostic: 'Error: private db detail\\n' +
+#     '    at Object.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:116:36)\\n' +
+#     '    at listWidgetInstances (/home/user/Jini/packages/cms/src/widgets/read-service.ts:109:37)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/list.ts:24:55)\\n' +
+#     '    at async invoke (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:48:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:118:33)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [http/widgets] {
+#   errorId: '05227ca0-e990-4968-b9c6-64bd475d16df',
+#   diagnostic: 'Error: private db detail\\n' +
+#     '    at Object.fail (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:116:36)\\n' +
+#     '    at getWidgetInstance (/home/user/Jini/packages/cms/src/widgets/read-service.ts:69:39)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/get-by-id.ts:21:39)\\n' +
+#     '    at async invoke (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:48:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:119:33)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [http/widgets] {
+#   errorId: 'a9272353-3fb8-4127-9240-e7118f8afc61',
+#   diagnostic: 'Error: private area database detail\\n' +
+#     '    at Object.findById (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:230:81)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/regions-list.ts:26:50)\\n' +
+#     '    at Array.map (<anonymous>)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/regions-list.ts:25:18)\\n' +
+#     '    at async invoke (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:48:5)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts:232:33)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: library filters type, treats only literal true as includeInactive, and emits exact skip diagnostics
+ok 1042 - library filters type, treats only literal true as includeInactive, and emits exact skip diagnostics
+  ---
+  duration_ms: 8.722957
+  type: 'test'
+  ...
+# Subtest: healthy empty library omits optional skipped fields entirely
+ok 1043 - healthy empty library omits optional skipped fields entirely
+  ---
+  duration_ms: 1.433042
+  type: 'test'
+  ...
+# Subtest: slug lookup reports where-used for the resolved id with exact source locations
+ok 1044 - slug lookup reports where-used for the resolved id with exact source locations
+  ---
+  duration_ms: 1.162624
+  type: 'test'
+  ...
+# Subtest: create persists caller slug, title and non-default config
+ok 1045 - create persists caller slug, title and non-default config
+  ---
+  duration_ms: 5.372648
+  type: 'test'
+  ...
+# Subtest: create rejects missing title or type with the validation envelope and no entries
+ok 1046 - create rejects missing title or type with the validation envelope and no entries
+  ---
+  duration_ms: 3.207449
+  type: 'test'
+  ...
+# Subtest: list and get repository failures map to generic 500
+ok 1047 - list and get repository failures map to generic 500
+  ---
+  duration_ms: 27.20339
+  type: 'test'
+  ...
+# Subtest: diagnose returns exact reference locations with the requested instance's status
+ok 1048 - diagnose returns exact reference locations with the requested instance's status
+  ---
+  duration_ms: 1.436621
+  type: 'test'
+  ...
+# Subtest: region resolves active widget type and marks wrong-type and missing targets broken by placement id
+ok 1049 - region resolves active widget type and marks wrong-type and missing targets broken by placement id
+  ---
+  duration_ms: 1.450124
+  type: 'test'
+  ...
+# Subtest: region placement write preserves disabled state and order, strips extra properties, and rejects a stale version
+ok 1050 - region placement write preserves disabled state and order, strips extra properties, and rejects a stale version
+  ---
+  duration_ms: 5.832503
+  type: 'test'
+  ...
+# Subtest: trash response preserves the marker port's exact version, including null
+ok 1051 - trash response preserves the marker port's exact version, including null
+  ---
+  duration_ms: 2.621156
+  type: 'test'
+  ...
+# Subtest: regions list retains binding metadata and counts disabled placements while retaining orphan bindings
+ok 1052 - regions list retains binding metadata and counts disabled placements while retaining orphan bindings
+  ---
+  duration_ms: 21.026946
+  type: 'test'
+  ...
+# Subtest: regions list returns a generic 500 if an area repository read fails
+ok 1053 - regions list returns a generic 500 if an area repository read fails
+  ---
+  duration_ms: 5.356044
+  type: 'test'
+  ...
+# Subtest: remove tool returns WIDGETS_AREA_NOT_FOUND for a binding whose area no longer exists
+ok 1054 - remove tool returns WIDGETS_AREA_NOT_FOUND for a binding whose area no longer exists
+  ---
+  duration_ms: 1.305105
+  type: 'test'
+  ...
+# Subtest: a request with no workspaceId param at all is refused 404 by get, update and delete before authorization
+ok 1055 - a request with no workspaceId param at all is refused 404 by get, update and delete before authorization
+  ---
+  duration_ms: 7.486067
+  type: 'test'
+  ...
+# Subtest: a caller without workspace.manage is refused 403 by create, get, update and delete without touching storage
+ok 1056 - a caller without workspace.manage is refused 403 by create, get, update and delete without touching storage
+  ---
+  duration_ms: 1.507116
+  type: 'test'
+  ...
+# Subtest: create with no JSON body at all is a validation error, not a crash
+ok 1057 - create with no JSON body at all is a validation error, not a crash
+  ---
+  duration_ms: 1.116341
+  type: 'test'
+  ...
+# Subtest: update with no JSON body at all leaves both fields untouched and is refused as an empty update
+ok 1058 - update with no JSON body at all leaves both fields untouched and is refused as an empty update
+  ---
+  duration_ms: 1.017928
+  type: 'test'
+  ...
+# Subtest: deleting the bound workspace over HTTP is refused BOUND_WORKSPACE (INV-05) and the row survives
+ok 1059 - deleting the bound workspace over HTTP is refused BOUND_WORKSPACE (INV-05) and the row survives
+  ---
+  duration_ms: 0.668031
+  type: 'test'
+  ...
+# Subtest: deleteWorkspaceUnlessBound, given a non-bound target, runs the domain delete on deps.workspaceId (the pre-extraction handler's id) and answers 204
+ok 1060 - deleteWorkspaceUnlessBound, given a non-bound target, runs the domain delete on deps.workspaceId (the pre-extraction handler's id) and answers 204
+  ---
+  duration_ms: 0.820494
+  type: 'test'
+  ...
+# Subtest: deleteWorkspaceUnlessBound lets the domain's typed errors through for sendDeleteWorkspaceError to map
+ok 1061 - deleteWorkspaceUnlessBound lets the domain's typed errors through for sendDeleteWorkspaceError to map
+  ---
+  duration_ms: 0.87625
+  type: 'test'
+  ...
+# Subtest: deleteWorkspaceUnlessBound refuses to run without a transaction port
+ok 1062 - deleteWorkspaceUnlessBound refuses to run without a transaction port
+  ---
+  duration_ms: 0.515673
+  type: 'test'
+  ...
+# Subtest: sendDeleteWorkspaceError logs a non-Error throw and an Error without a stack, answering a message-free 500
+ok 1063 - sendDeleteWorkspaceError logs a non-Error throw and an Error without a stack, answering a message-free 500
+  ---
+  duration_ms: 14.136375
+  type: 'test'
+  ...
+# Subtest: an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown
+ok 1064 - an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown
+  ---
+  duration_ms: 2.284944
+  type: 'test'
+  ...
