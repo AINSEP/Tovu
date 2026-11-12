@@ -18476,3 +18476,145 @@ ok 2561 - resolveWorkspace [sqlite]
   duration_ms: 484.956826
   type: 'suite'
   ...
+# Subtest: resolveWorkspace [pglite]
+    # Subtest: zero rows reject with SiteCorruptError
+    ok 1 - zero rows reject with SiteCorruptError
+      ---
+      duration_ms: 16104.351909
+      type: 'test'
+      ...
+    # Subtest: the oldest row wins without a selector; an explicit id wins over it; an unknown id rejects
+    ok 2 - the oldest row wins without a selector; an explicit id wins over it; an unknown id rejects
+      ---
+      duration_ms: 81.397768
+      type: 'test'
+      ...
+    1..2
+ok 2562 - resolveWorkspace [pglite]
+  ---
+  duration_ms: 16186.154439
+  type: 'suite'
+  ...
+# Subtest: findSiteKeyDependentData: SQLite site — content.db with sealed rows is data; no content.db is not
+ok 2563 - findSiteKeyDependentData: SQLite site — content.db with sealed rows is data; no content.db is not
+  ---
+  duration_ms: 223.135961
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: SQLite site — an existing database with no sealed values is clean
+ok 2564 - findSiteKeyDependentData: SQLite site — an existing database with no sealed values is clean
+  ---
+  duration_ms: 138.164671
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: SQLite site — corrupt content.db fails closed
+ok 2565 - findSiteKeyDependentData: SQLite site — corrupt content.db fails closed
+  ---
+  duration_ms: 24.699075
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: a .storage-secret.json is key-dependent data on its own
+ok 2566 - findSiteKeyDependentData: a .storage-secret.json is key-dependent data on its own
+  ---
+  duration_ms: 3.917184
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: an unparseable .site-meta.json fails closed
+ok 2567 - findSiteKeyDependentData: an unparseable .site-meta.json fails closed
+  ---
+  duration_ms: 1.139693
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: PGlite site — no data dir yet is no data, and nothing is created
+ok 2568 - findSiteKeyDependentData: PGlite site — no data dir yet is no data, and nothing is created
+  ---
+  duration_ms: 1.204551
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: PGlite site — sealed rows in pglite/ count; an empty database does not; the owner lock is released
+ok 2569 - findSiteKeyDependentData: PGlite site — sealed rows in pglite/ count; an empty database does not; the owner lock is released
+  ---
+  duration_ms: 30696.863559
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: PGlite site — oauth_sealed_ciphertext alone requires the original key
+ok 2570 - findSiteKeyDependentData: PGlite site — oauth_sealed_ciphertext alone requires the original key
+  ---
+  duration_ms: 17159.50938
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: PGlite site owned by another live process fails closed without opening it
+ok 2571 - findSiteKeyDependentData: PGlite site owned by another live process fails closed without opening it
+  ---
+  duration_ms: 14794.924992
+  type: 'test'
+  ...
+# Subtest: findSiteKeyDependentData: Postgres site — sealed secretRef without its file, or an unset env variable, fails closed
+ok 2572 - findSiteKeyDependentData: Postgres site — sealed secretRef without its file, or an unset env variable, fails closed
+  ---
+  duration_ms: 6.363158
+  type: 'test'
+  ...
+# Subtest: Trash preserves the site, lists it, refuses occupied restore, and recovers its data
+ok 2573 - Trash preserves the site, lists it, refuses occupied restore, and recovers its data
+  ---
+  duration_ms: 484.846662
+  type: 'test'
+  ...
+# Subtest: only confirmed checked Trash entries may be permanently removed; paths and symlinks refuse
+ok 2574 - only confirmed checked Trash entries may be permanently removed; paths and symlinks refuse
+  ---
+  duration_ms: 233.879177
+  type: 'test'
+  ...
+# Subtest: home sites use existing Trash; restore registers the directory in the current home
+ok 2575 - home sites use existing Trash; restore registers the directory in the current home
+  ---
+  duration_ms: 215.454495
+  type: 'test'
+  ...
+# Subtest: restore refuses a sites home replaced by a symlink after canonicalization
+ok 2576 - restore refuses a sites home replaced by a symlink after canonicalization
+  ---
+  duration_ms: 100.787526
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: all 3 routes require a session — an unauthenticated caller never reaches them
+ok 2577 - all 3 routes require a session — an unauthenticated caller never reaches them
+  ---
+  duration_ms: 1588.146906
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a workspace id that is not this site's is 404, on all 3 routes
+ok 2578 - a workspace id that is not this site's is 404, on all 3 routes
+  ---
+  duration_ms: 840.404076
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET for an admin who has never configured a key returns isSet:false with no key material
+ok 2579 - GET for an admin who has never configured a key returns isSet:false with no key material
+  ---
+  duration_ms: 1619.093325
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT with an apiKey sets it and the response never contains the plaintext key
+ok 2580 - PUT with an apiKey sets it and the response never contains the plaintext key
+  ---
+  duration_ms: 2924.952735
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

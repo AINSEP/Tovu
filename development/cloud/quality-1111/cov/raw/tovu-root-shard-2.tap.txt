@@ -19501,3 +19501,147 @@ ok 2735 - reportSitesSyncWarning stays silent without a warning, using the ambie
   duration_ms: 1.436424
   type: 'test'
   ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: wcmp: widget choice persists through the existing settings API without enabling visitors
+ok 2736 - wcmp: widget choice persists through the existing settings API without enabling visitors
+  ---
+  duration_ms: 1330.48045
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET returns the public assistant switch, OFF on a freshly booted site
+ok 2737 - GET returns the public assistant switch, OFF on a freshly booted site
+  ---
+  duration_ms: 883.448107
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of the public switch
+ok 2738 - GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of the public switch
+  ---
+  duration_ms: 1205.442768
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT turns the switch on, and a follow-up GET reads it back — the write is durable, not echoed
+ok 2739 - PUT turns the switch on, and a follow-up GET reads it back — the write is durable, not echoed
+  ---
+  duration_ms: 784.404793
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT turns the switch back off — the incident path an operator actually needs
+ok 2740 - PUT turns the switch back off — the incident path an operator actually needs
+  ---
+  duration_ms: 901.961582
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT with an empty body leaves the setting alone rather than resetting it
+ok 2741 - PUT with an empty body leaves the setting alone rather than resetting it
+  ---
+  duration_ms: 1469.995251
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT rejects a non-boolean publicEnabled with 400 and a typed code
+ok 2742 - PUT rejects a non-boolean publicEnabled with 400 and a typed code
+  ---
+  duration_ms: 1123.282297
+  type: 'test'
+  ...
+# Subtest: both routes require a session — an unauthenticated caller never reaches them
+ok 2743 - both routes require a session — an unauthenticated caller never reaches them
+  ---
+  duration_ms: 1157.312646
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: both routes require admin.assistant.manage — a signed-in principal without it gets 403
+ok 2744 - both routes require admin.assistant.manage — a signed-in principal without it gets 403
+  ---
+  duration_ms: 988.556203
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a principal holding only admin.assistant.manage can both read and flip the switch
+ok 2745 - a principal holding only admin.assistant.manage can both read and flip the switch
+  ---
+  duration_ms: 1627.061223
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a workspace id that is not this site's is 404, on both verbs
+ok 2746 - a workspace id that is not this site's is 404, on both verbs
+  ---
+  duration_ms: 1397.284426
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the list returns this site's Always-allow tools, sorted, without fingerprints
+ok 2747 - the list returns this site's Always-allow tools, sorted, without fingerprints
+  ---
+  duration_ms: 1914.263526
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: revoking removes exactly that tool's Always allow, and a second revoke is 404
+ok 2748 - revoking removes exactly that tool's Always allow, and a second revoke is 404
+  ---
+  duration_ms: 2285.928485
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a tool name with URL-reserved characters round-trips through the revoke path
+ok 2749 - a tool name with URL-reserved characters round-trips through the revoke path
+  ---
+  duration_ms: 2023.78252
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: both routes need a session, this site's workspace id, and the integrations permission
+ok 2750 - both routes need a session, this site's workspace id, and the integrations permission
+  ---
+  duration_ms: 2504.99202
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a composition with no Always-allow store lists nothing and revokes nothing
+ok 2751 - a composition with no Always-allow store lists nothing and revokes nothing
+  ---
+  duration_ms: 1628.976126
+  type: 'test'
+  ...

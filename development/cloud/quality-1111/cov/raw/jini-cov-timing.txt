@@ -6,3 +6,5 @@ analytics exit 0 10s
 artifacts exit 0 9s
 capability-providers exit 0 13s
 chat exit 1 947s
+cli exit 1 21s
+vibecoding exit 0 30s

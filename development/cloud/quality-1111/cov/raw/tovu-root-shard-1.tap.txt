@@ -16140,3 +16140,275 @@ ok 2394 - production sources prefer the new durable file, with legacy file as re
   duration_ms: 32.653236
   type: 'test'
   ...
+# Subtest: widgets.read is checked before any dialog is raised, and a denied principal never sees one
+ok 2395 - widgets.read is checked before any dialog is raised, and a denied principal never sees one
+  ---
+  duration_ms: 11.891385
+  type: 'test'
+  ...
+# Subtest: a nonexistent widget instance id is refused before any dialog is raised
+ok 2396 - a nonexistent widget instance id is refused before any dialog is raised
+  ---
+  duration_ms: 0.976492
+  type: 'test'
+  ...
+# Subtest: n06: reversible removal runs without a confirmation channel
+ok 2397 - n06: reversible removal runs without a confirmation channel
+  ---
+  duration_ms: 2.33802
+  type: 'test'
+  ...
+# Subtest: widgets.delete remains required when widgets.read is granted
+ok 2398 - widgets.delete remains required when widgets.read is granted
+  ---
+  duration_ms: 1.971248
+  type: 'test'
+  ...
+# [media] Raw HTML sanitizer dropped markup { 'div@onclick': 1, script: 1, 'a@href': 1 }
+# [media] unknown slug in raw HTML { slug: 'missing' }
+# [media] media kind does not match Raw HTML element { slug: 'photo', tag: 'video', mediaTag: 'img' }
+# [media] Raw HTML sanitizer dropped markup {
+#   'video@onplay': 1,
+#   'video@poster': 1,
+#   iframe: 1,
+#   'div@style': 1,
+#   style: 1,
+#   foreignObject: 1
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'mediawidget-ws', assetId: 'missing' }
+# [media] Raw HTML sanitizer dropped markup { script: 1 }
+# [media] unknown slug in raw HTML { slug: 'missing' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'mediawidget-ws', assetId: 'missing' }
+# [widgets] unresolved media content { key: 'missing', messages: [ 'unknown media slug: missing' ] }
+# [media] Raw HTML sanitizer dropped markup { div: 1 }
+# [media] Raw HTML sanitizer dropped markup { div: 1 }
+# Subtest: raw media HTML resolves tokens/metadata, drops missing elements, and shares page sanitizer
+ok 2399 - raw media HTML resolves tokens/metadata, drops missing elements, and shares page sanitizer
+  ---
+  duration_ms: 28.803823
+  type: 'test'
+  ...
+# Subtest: sanitizer decodes attributes and rejects foreign namespaces, event handlers, srcdoc and CSS escapes
+ok 2400 - sanitizer decodes attributes and rejects foreign namespaces, event handlers, srcdoc and CSS escapes
+  ---
+  duration_ms: 2.146605
+  type: 'test'
+  ...
+# Subtest: media structured config renders mixed media and keeps safe attributes with no unknown broken image
+ok 2401 - media structured config renders mixed media and keeps safe attributes with no unknown broken image
+  ---
+  duration_ms: 1.295463
+  type: 'test'
+  ...
+# Subtest: publishing and entry refs find raw, saved media config and placement slugs
+ok 2402 - publishing and entry refs find raw, saved media config and placement slugs
+  ---
+  duration_ms: 28.750365
+  type: 'test'
+  ...
+# Subtest: found slugs, missing slugs, audio and two placement overrides resolve through the actual shared media lifecycle
+ok 2403 - found slugs, missing slugs, audio and two placement overrides resolve through the actual shared media lifecycle
+  ---
+  duration_ms: 4957.691738
+  type: 'test'
+  ...
+# phase: imports
+# phase: seed (4939ms)
+# phase: HTML placements (4940ms)
+# phase: TipTap placements (4945ms)
+# phase: region placement (4948ms)
+# phase: inline audio (4948ms)
+# phase: complete (4952ms)
+# Subtest: page and raw HTML serialization bound deeply nested imported markup
+ok 2404 - page and raw HTML serialization bound deeply nested imported markup
+  ---
+  duration_ms: 312.702084
+  type: 'test'
+  ...
+# Subtest: region HTTP placement normalization keeps content and rejects malformed content/duplicate slots
+ok 2405 - region HTTP placement normalization keeps content and rejects malformed content/duplicate slots
+  ---
+  duration_ms: 13468.710805
+  type: 'test'
+  ...
+# Subtest: shared widget reference scanner merges saved content before member gating and fails closed without its read port
+ok 2406 - shared widget reference scanner merges saved content before member gating and fails closed without its read port
+  ---
+  duration_ms: 1.453189
+  type: 'test'
+  ...
+# Subtest: media slug reference scans traverse deeply nested TipTap documents without losing the protecting reference
+ok 2407 - media slug reference scans traverse deeply nested TipTap documents without losing the protecting reference
+  ---
+  duration_ms: 112.578916
+  type: 'test'
+  ...
+# Subtest: assistant contracts advertise both Media modes and allow placement content on existing post widgets
+ok 2408 - assistant contracts advertise both Media modes and allow placement content on existing post widgets
+  ---
+  duration_ms: 87.67467
+  type: 'test'
+  ...
+# Subtest: audio shares player styling and forwarded marker attributes in widgets and TipTap media nodes
+ok 2409 - audio shares player styling and forwarded marker attributes in widgets and TipTap media nodes
+  ---
+  duration_ms: 15.758485
+  type: 'test'
+  ...
+# Subtest: widgets_create_instance: an unregistered widgetType is a shape rejection — the thrown error carries the tool's own published schema, not the bare domain message
+ok 2410 - widgets_create_instance: an unregistered widgetType is a shape rejection — the thrown error carries the tool's own published schema, not the bare domain message
+  ---
+  duration_ms: 28.064116
+  type: 'test'
+  ...
+# Subtest: widgets_create_instance: a config missing a required field is a shape rejection with the same decoration
+ok 2411 - widgets_create_instance: a config missing a required field is a shape rejection with the same decoration
+  ---
+  duration_ms: 1.087526
+  type: 'test'
+  ...
+# Subtest: widgets_list_instances: a trashed instance is left out whether or not includeInactive is set (the Trash hides it from every read)
+ok 2412 - widgets_list_instances: a trashed instance is left out whether or not includeInactive is set (the Trash hides it from every read)
+  ---
+  duration_ms: 143.361174
+  type: 'test'
+  ...
+# [media] Raw HTML sanitizer dropped markup {
+#   'template@onclick': 1,
+#   'p@onmouseover': 1,
+#   script: 1,
+#   'a@href': 1,
+#   iframe: 1
+# }
+# Subtest: sanitizePageHtml keeps an authored <template> and its safe item markup
+ok 2413 - sanitizePageHtml keeps an authored <template> and its safe item markup
+  ---
+  duration_ms: 8.028345
+  type: 'test'
+  ...
+# Subtest: sanitizePageHtml strips scripts, event handlers and unsafe URLs inside a <template>
+ok 2414 - sanitizePageHtml strips scripts, event handlers and unsafe URLs inside a <template>
+  ---
+  duration_ms: 2.972963
+  type: 'test'
+  ...
+# Subtest: workspace card lists only the boot-addressable workspace through its existing read owner
+ok 2415 - workspace card lists only the boot-addressable workspace through its existing read owner
+  ---
+  duration_ms: 434.152575
+  type: 'test'
+  ...
+# Subtest: workspace list reports the missing current workspace with its real safe error
+ok 2416 - workspace list reports the missing current workspace with its real safe error
+  ---
+  duration_ms: 372.789698
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: THE FIX (device grant) — a device authorization begun through one store instance is read through a SECOND, independently-constructed instance sharing the same content.db
+ok 2417 - THE FIX (device grant) — a device authorization begun through one store instance is read through a SECOND, independently-constructed instance sharing the same content.db
+  ---
+  duration_ms: 617.315844
+  type: 'test'
+  ...
+# Subtest: deviceCode is sealed at rest — the raw row never carries the plaintext device code
+ok 2418 - deviceCode is sealed at rest — the raw row never carries the plaintext device code
+  ---
+  duration_ms: 660.290861
+  type: 'test'
+  ...
+# Subtest: device store put() overwrites a connection's own previous attempt, matching the in-memory adapter's Map.set semantics
+ok 2419 - device store put() overwrites a connection's own previous attempt, matching the in-memory adapter's Map.set semantics
+  ---
+  duration_ms: 585.525577
+  type: 'test'
+  ...
+# Subtest: device get/delete isolate the same server id in two workspaces
+ok 2420 - device get/delete isolate the same server id in two workspaces
+  ---
+  duration_ms: 249.236316
+  type: 'test'
+  ...
+# Subtest: device ciphertext transplanted across workspace or server identity fails authentication
+ok 2421 - device ciphertext transplanted across workspace or server identity fails authentication
+  ---
+  duration_ms: 633.510004
+  type: 'test'
+  ...
+# Subtest: pg-fixture is imported only from platform/db/**/__tests__/ (it shells out to psql and must never reach product code)
+ok 2422 - pg-fixture is imported only from platform/db/**/__tests__/ (it shells out to psql and must never reach product code)
+  ---
+  duration_ms: 1103.532616
+  type: 'test'
+  ...
+# Subtest: the boundary scanner detects supported import, require and re-export specifiers
+ok 2423 - the boundary scanner detects supported import, require and re-export specifiers
+  ---
+  duration_ms: 0.352224
+  type: 'test'
+  ...
+# Subtest: the boundary scanner detects the Jini package entry for every supported import form
+ok 2424 - the boundary scanner detects the Jini package entry for every supported import form
+  ---
+  duration_ms: 0.10898
+  type: 'test'
+  ...
+# Subtest: the importer fence admits storage-layer test directories only
+ok 2425 - the importer fence admits storage-layer test directories only
+  ---
+  duration_ms: 0.188027
+  type: 'test'
+  ...
+# Subtest: a partial unique index (.where(...)) is translated, not silently emitted unfiltered
+ok 2426 - a partial unique index (.where(...)) is translated, not silently emitted unfiltered
+  ---
+  duration_ms: 24.005433
+  type: 'test'
+  ...
+# Subtest: a .desc()-ordered index column is translated to an equivalent SQL fragment, not dropped as an unresolved column name
+ok 2427 - a .desc()-ordered index column is translated to an equivalent SQL fragment, not dropped as an unresolved column name
+  ---
+  duration_ms: 3.294514
+  type: 'test'
+  ...
+# Subtest: an expression index (sql`lower(...)`) is translated with the real column substituted in, not lost
+ok 2428 - an expression index (sql`lower(...)`) is translated with the real column substituted in, not lost
+  ---
+  duration_ms: 1.10143
+  type: 'test'
+  ...
+# Subtest: a CHECK containing a bound parameter is rejected, not spliced into emitted SQL as trusted text
+ok 2429 - a CHECK containing a bound parameter is rejected, not spliced into emitted SQL as trusted text
+  ---
+  duration_ms: 3.412636
+  type: 'test'
+  ...
+# Subtest: a CHECK column belonging to a different table is rejected rather than silently cross-referenced
+ok 2430 - a CHECK column belonging to a different table is rejected rather than silently cross-referenced
+  ---
+  duration_ms: 0.597596
+  type: 'test'
+  ...
+# Subtest: expression-index text round-trips backticks, backslashes and interpolation syntax
+ok 2431 - expression-index text round-trips backticks, backslashes and interpolation syntax
+  ---
+  duration_ms: 6.926807
+  type: 'test'
+  ...
+# Subtest: JSON columns cannot become a primary key, unique column or index
+ok 2432 - JSON columns cannot become a primary key, unique column or index
+  ---
+  duration_ms: 0.808343
+  type: 'test'
+  ...
+# Subtest: unsupported column modifiers and SQL defaults fail closed
+ok 2433 - unsupported column modifiers and SQL defaults fail closed
+  ---
+  duration_ms: 3.320242
+  type: 'test'
+  ...

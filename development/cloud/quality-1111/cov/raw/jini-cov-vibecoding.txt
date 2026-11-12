@@ -1,0 +1,25 @@
+ DEPRECATED  "environmentMatchGlobs" is deprecated. Use `test.projects` to define different configurations instead.
+Loaded  vitest@3.2.7  and  @vitest/coverage-v8@2.1.9 .
+Running mixed versions is not supported and may lead into bugs
+Update your dependencies and make sure the versions match.
+
+ RUN  v3.2.7 /home/user/Jini/packages/vibecoding
+      Coverage enabled with v8
+
+···········································································································································································································································································································································································
+
+ Test Files  23 passed (23)
+      Tests  363 passed (363)
+   Start at  00:47:53
+   Duration  27.86s (transform 2.96s, setup 2.11s, collect 6.20s, tests 24.54s, environment 4.40s, prepare 3.56s)
+
+JSON report written to /tmp/claude-0/cov/jini/vibecoding.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.05% ( 1775/1792 )
+Branches     : 97% ( 875/902 )
+Functions    : 97.14% ( 170/175 )
+Lines        : 99.05% ( 1775/1792 )
+================================================================================
+vibecoding exit 0 30s

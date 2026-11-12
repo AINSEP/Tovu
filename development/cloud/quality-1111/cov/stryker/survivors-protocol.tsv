@@ -1,0 +1,7 @@
+file	line	col	mutator	status	replacement
+src/errors.ts	91	23	StringLiteral	NoCoverage	""
+src/delegated-result.ts	13	10	ConditionalExpression	Survived	true
+src/delegated-result.ts	17	52	ConditionalExpression	Survived	false
+src/delegated-result.ts	28	7	ConditionalExpression	Survived	false
+src/delegated-result.ts	36	11	BlockStatement	Survived	{}
+src/run-context.ts	56	11	BlockStatement	Survived	{}

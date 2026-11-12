@@ -2931,3 +2931,24 @@ ok 441 - public execution import graph cannot reach admin composition, registry 
   duration_ms: 740.487007
   type: 'test'
   ...
+# Subtest: CLI init with and without --admin-password ignores the parent env and persists the chosen login
+ok 442 - CLI init with and without --admin-password ignores the parent env and persists the chosen login
+  ---
+  duration_ms: 61376.544466
+  type: 'test'
+  ...
+# created site 'private' at /tmp/tovu-stdin-owner-ZU1yZE/private
+# next: tovu serve /tmp/tovu-stdin-owner-ZU1yZE/private
+# agent-plugin-tokens: saved supabase
+# Subtest: desktop stdin envelope accepts a password and service tokens together without changing either
+ok 443 - desktop stdin envelope accepts a password and service tokens together without changing either
+  ---
+  duration_ms: 2777.490449
+  type: 'test'
+  ...
+# Subtest: CLI refuses malformed credentials and conflicting stdin options before creating a site
+ok 444 - CLI refuses malformed credentials and conflicting stdin options before creating a site
+  ---
+  duration_ms: 17.795746
+  type: 'test'
+  ...

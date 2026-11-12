@@ -9,3 +9,281 @@ cmd: (npx --yes -p @stryker-mutator/core@9.6.1 -p @stryker-mutator/vitest-runner
   You might want to enable "ignoreStatic" to ignore these static mutants for your next run. 
   For more information about static mutants visit: https://stryker-mutator.io/docs/mutation-testing-elements/static-mutants
   (disable "warnings.slow" to ignore this warning)
+Mutation testing 2% (elapsed: <1m, remaining: ~5m) 31/308 tested (2 survived, 0 timed out)
+Mutation testing 4% (elapsed: <1m, remaining: ~7m) 59/308 tested (3 survived, 0 timed out)
+Mutation testing 6% (elapsed: <1m, remaining: ~7m) 90/308 tested (4 survived, 0 timed out)
+Mutation testing 10% (elapsed: <1m, remaining: ~5m) 123/308 tested (4 survived, 0 timed out)
+Mutation testing 15% (elapsed: <1m, remaining: ~4m) 154/308 tested (4 survived, 0 timed out)
+Mutation testing 17% (elapsed: ~1m, remaining: ~4m) 179/308 tested (4 survived, 0 timed out)
+Mutation testing 18% (elapsed: ~1m, remaining: ~5m) 209/308 tested (5 survived, 0 timed out)
+Mutation testing 40% (elapsed: ~1m, remaining: ~1m) 237/308 tested (5 survived, 0 timed out)
+Mutation testing 64% (elapsed: ~1m, remaining: <1m) 266/308 tested (5 survived, 0 timed out)
+Mutation testing 83% (elapsed: ~1m, remaining: <1m) 288/308 tested (5 survived, 0 timed out)
+Mutation testing 99% (elapsed: ~1m, remaining: n/a) 307/308 tested (5 survived, 0 timed out)
+
+All tests
+  api-convention.test.ts
+    ✓ required arguments and optional arguments keeps the exact error payload with optional metadata in the second object (killed 2)
+    ✓ required arguments and optional arguments preserves context bytes and payload field order through the required payload object (killed 2)
+    ✓ required arguments and optional arguments classifies every wire run state using the required state object (killed 2)
+  delegated-result-boundaries.unit.test.ts
+    ~ rejects an invalid leading marker: null (covered 32)
+    ~ rejects an invalid leading marker: [] (covered 33)
+    ~ rejects an invalid leading marker: { type: 'image', text: '{}' } (covered 36)
+    ~ rejects an invalid leading marker: { type: 'text', text: 1 } (covered 39)
+    ~ rejects an invalid leading marker: { type: 'text', …(1) } (covered 77)
+    ~ rejects an invalid leading marker: { type: 'text', text: 'null' } (covered 47)
+    ~ rejects an invalid leading marker: { type: 'text', text: '[]' } (covered 47)
+    ~ rejects an invalid leading marker: { type: 'text', text: '{}' } (covered 49)
+    ~ accepts the maximum marker id, preserving malformed ordinary trailing blocks (covered 92)
+  delegated-result.hostile.test.ts
+    ✓ readDelegatedResult hostile inputs refuses null block (killed 15)
+    ~ readDelegatedResult hostile inputs refuses array block (covered 33)
+    ~ readDelegatedResult hostile inputs refuses string block (covered 30)
+    ✓ readDelegatedResult hostile inputs refuses non-text type carrying valid json (killed 2)
+    ~ readDelegatedResult hostile inputs refuses non-string text (covered 39)
+    ✓ readDelegatedResult hostile inputs refuses text over 1024 chars (killed 2)
+    ~ readDelegatedResult hostile inputs refuses top-level array json (covered 47)
+    ~ readDelegatedResult hostile inputs refuses top-level null json (covered 47)
+    ✓ readDelegatedResult hostile inputs refuses extra top-level key (killed 4)
+    ~ readDelegatedResult hostile inputs refuses marker is null (covered 55)
+    ~ readDelegatedResult hostile inputs refuses marker is array (covered 55)
+    ✓ readDelegatedResult hostile inputs refuses marker missing version (killed 2)
+    ~ readDelegatedResult hostile inputs refuses marker version as string (covered 59)
+    ~ readDelegatedResult hostile inputs refuses marker with one key (covered 57)
+    ✓ readDelegatedResult hostile inputs refuses array toolUseId (killed 6)
+    ~ readDelegatedResult hostile inputs refuses numeric toolUseId (covered 71)
+    ✓ readDelegatedResult hostile inputs refuses toolUseId over 256 chars (killed 2)
+    ✓ readDelegatedResult hostile inputs accepts the boundary sizes: 1024-char text and 256-char toolUseId (killed 25)
+    ✓ readDelegatedResult hostile inputs only a LEADING marker counts, and any later marker anywhere makes it ambiguous (killed 4)
+    ~ readDelegatedResult hostile inputs refuses non-array content undefined (covered 4)
+    ~ readDelegatedResult hostile inputs refuses non-array content null (covered 4)
+    ~ readDelegatedResult hostile inputs refuses non-array content {} (covered 4)
+    ~ readDelegatedResult hostile inputs refuses non-array content "x" (covered 4)
+    ~ readDelegatedResult hostile inputs refuses non-array content 0 (covered 4)
+  delegated-result.test.ts
+    ✓ delegated result marker v1 round trips metadata beside untouched original content (killed 15)
+    ✓ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {} (killed 1)
+    ~ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":"plain"} (covered 4)
+    ✓ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"image","mimeType":"image/png","data":"PIXELS"}]} (killed 1)
+    ~ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"text","text":"{invalid"}]} (covered 44)
+    ✓ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"text","text":"{\"jiniDelegatedResult\":{\"version\":2,\"toolUseId\":\"B\"}}"}]} (killed 1)
+    ✓ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"text","text":"{\"jiniDelegatedResult\":{\"version\":1,\"toolUseId\":\"\"}}"}]} (killed 3)
+    ✓ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"text","text":"{\"jiniDelegatedResult\":{\"version\":1,\"toolUseId\":\"B\",\"extra\":true}}"}]} (killed 3)
+    ✓ delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"text","text":"{\"jiniDelegatedResult\":{\"version\":1,\"toolUseId\":\"B\"}}"},{"type":"text","text":"{\"jiniDelegatedResult\":{\"version\":1,\"toolUseId\":\"C\"}}"},{"type":"image","mimeType":"image/png","data":"PIXELS"}]} (killed 2)
+    ✘ delegated result marker v1 keeps old and new wire payloads readable without migration (covered 0)
+  errors-characterization.test.ts
+    ✓ API error decoding characterization rejects non-record bodies without reading envelope fields: undefined (killed 9)
+    ✓ API error decoding characterization rejects non-record bodies without reading envelope fields: null (killed 2)
+    ~ API error decoding characterization rejects non-record bodies without reading envelope fields: %s (covered 13)
+    ~ API error decoding characterization rejects non-record bodies without reading envelope fields: failure (covered 13)
+    ~ API error decoding characterization rejects non-record bodies without reading envelope fields: 0 (covered 13)
+    ~ API error decoding characterization rejects non-record bodies without reading envelope fields: false (covered 13)
+    ~ API error decoding characterization rejects non-record bodies without reading envelope fields: Symbol(failure) (covered 13)
+    ~ API error decoding characterization rejects non-record bodies without reading envelope fields: () => "failure" (covered 13)
+    ✓ API error decoding characterization uses flat metadata when error is not a nested record: undefined (killed 31)
+    ✓ API error decoding characterization uses flat metadata when error is not a nested record: null (killed 2)
+    ✓ API error decoding characterization uses flat metadata when error is not a nested record: %s (killed 1)
+    ✓ API error decoding characterization uses flat metadata when error is not a nested record: legacy failure (killed 4)
+    ~ API error decoding characterization uses flat metadata when error is not a nested record: 0 (covered 56)
+    ~ API error decoding characterization uses flat metadata when error is not a nested record: false (covered 56)
+    ~ API error decoding characterization uses flat metadata when error is not a nested record: () => "failure" (covered 56)
+    ✓ API error decoding characterization uses nested fields exclusively even when their message is malformed (killed 9)
+    ~ API error decoding characterization retains nested metadata and details identity without coercion or copying (covered 57)
+    ~ API error decoding characterization omits malformed typed metadata: undefined (covered 53)
+    ~ API error decoding characterization omits malformed typed metadata: null (covered 53)
+    ~ API error decoding characterization omits malformed typed metadata: 42 (covered 53)
+    ~ API error decoding characterization omits malformed typed metadata: {} (covered 53)
+    ~ API error decoding characterization omits malformed typed metadata: %j (covered 53)
+    ~ API error decoding characterization retains every defined details value: null (covered 53)
+    ~ API error decoding characterization retains every defined details value: false (covered 53)
+    ~ API error decoding characterization retains every defined details value: 0 (covered 53)
+    ~ API error decoding characterization retains every defined details value: "" (covered 53)
+    ~ API error decoding characterization retains every defined details value: %j (covered 53)
+    ~ API error decoding characterization retains every defined details value: {"reason":"failure"} (covered 53)
+    ~ API error decoding characterization omits undefined details rather than emitting an undefined property (covered 52)
+    ~ API error decoding characterization keeps empty string messages instead of replacing them with the fallback: {"message":""} (covered 51)
+    ~ API error decoding characterization keeps empty string messages instead of replacing them with the fallback: {"error":"","message":"flat failure"} (covered 51)
+    ~ API error decoding characterization keeps empty string messages instead of replacing them with the fallback: {"error":{"message":""}} (covered 52)
+    ~ API error decoding characterization uses defaults or an explicitly empty fallback for missing string messages: {} (covered 52)
+    ~ API error decoding characterization uses defaults or an explicitly empty fallback for missing string messages: {"error":{}} (covered 53)
+    ~ API error decoding characterization uses defaults or an explicitly empty fallback for missing string messages: {"message":false} (covered 52)
+    ~ API error decoding characterization uses defaults or an explicitly empty fallback for missing string messages: {"message":["failure"]} (covered 52)
+    ~ API error decoding characterization preserves legacy error precedence when the nested record is the body itself (covered 54)
+  errors.test.ts
+    ~ compatible API error decoding preserves a canonical message, code and metadata over conflicting legacy fields (covered 57)
+    ~ compatible API error decoding preserves flat code/message refusals without coercing malformed messages (covered 53)
+    ~ compatible API error decoding preserves legacy session-invalidity codes and domain metadata (covered 54)
+    ~ compatible API error decoding uses caller fallback for malformed messages: null (covered 9)
+    ~ compatible API error decoding uses caller fallback for malformed messages: %j (covered 12)
+    ~ compatible API error decoding uses caller fallback for malformed messages: 42 (covered 12)
+    ~ compatible API error decoding uses caller fallback for malformed messages: "bad" (covered 12)
+    ~ compatible API error decoding uses caller fallback for malformed messages: {} (covered 51)
+    ~ compatible API error decoding uses caller fallback for malformed messages: {"error":{}} (covered 52)
+    ~ compatible API error decoding uses caller fallback for malformed messages: {"error":["bad"]} (covered 52)
+    ~ compatible API error decoding uses caller fallback for malformed messages: {"error":{"message":42}} (covered 52)
+  index.test.ts
+    ✘ @jini-ai/protocol constructs a full run event sequence through the transport-neutral envelope (covered 0)
+    ✓ @jini-ai/protocol carries a generic ApiError without any product-specific error code (killed 1)
+    ✓ @jini-ai/protocol wraps an ApiError in the standard { error } response envelope (killed 1)
+    ✓ @jini-ai/protocol tracks a run through queued -> running -> succeeded (killed 3)
+    ✘ @jini-ai/protocol models a cancellation request against a run id, not a transport detail (covered 0)
+  registry.boundaries.test.ts
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time dist.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'passthrough', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 4)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time publisher.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'passthrough', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 5)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time signature.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'passthrough', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 7)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time version.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'passthrough', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 6)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time entry.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'passthrough', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 12)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time manifest.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'passthrough', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 4)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time resolved.ZodEffects{ spa: [AsyncFunction bound safeParseAsync], _def: { schema: ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'strip', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }, typeName: 'ZodEffects', effect: { type: 'refinement', refinement: [Function] } }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }: one char accepted, empty refused at that path (killed 11)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time yank.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'strip', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 4)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time doctor issue.ZodObject{ spa: [AsyncFunction bound safeParseAsync], _def: { shape: [Function shape], unknownKeys: 'strip', catchall: ZodNever{ spa: [AsyncFunction bound safeParseAsync], _def: { typeName: 'ZodNever' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] } }, typeName: 'ZodObject' }, parse: [Function bound parse], safeParse: [Function bound safeParse], parseAsync: [AsyncFunction bound parseAsync], safeParseAsync: [AsyncFunction bound safeParseAsync], refine: [Function bound refine], refinement: [Function bound refinement], superRefine: [Function bound superRefine], optional: [Function bound optional], nullable: [Function bound nullable], nullish: [Function bound nullish], array: [Function bound array], promise: [Function bound promise], or: [Function bound or], and: [Function bound and], transform: [Function bound transform], brand: [Function bound brand], default: [Function bound default], catch: [Function bound catch], describe: [Function bound describe], pipe: [Function bound pipe], readonly: [Function bound readonly], isNullable: [Function bound isNullable], isOptional: [Function bound isOptional], '~standard': { version: 1, vendor: 'zod', validate: [Function validate] }, _cached: null, nonstrict: [Function passthrough], augment: [Function extend] }: one char accepted, empty refused at that path (killed 5)
+    ✘ registry schemas refuse empty identity/integrity strings, one field at a time nested dist/publisher/signature/version issues report their nested path (covered 0)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time dist.type enum: every member accepted, outsider and case variant refused (killed 5)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time signature.kind enum: every member accepted, outsider and case variant refused (killed 3)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time resolved.backendKind enum: every member accepted, outsider and case variant refused (killed 3)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time resolved.trust enum: every member accepted, outsider and case variant refused (killed 2)
+    ✓ registry schemas refuse empty identity/integrity strings, one field at a time doctor.severity enum: every member accepted, outsider and case variant refused (killed 2)
+    ✘ registry entry name grammar accepts "a/b" (covered 0)
+    ✘ registry entry name grammar accepts "vendor/example" (covered 0)
+    ✘ registry entry name grammar accepts "0v/9p" (covered 0)
+    ✘ registry entry name grammar accepts "v.e-n_d/p.l-u_g" (covered 0)
+    ✘ registry entry name grammar accepts "a/b-" (covered 0)
+    ✘ registry entry name grammar refuses "" (covered 0)
+    ✘ registry entry name grammar refuses "example" (covered 0)
+    ✘ registry entry name grammar refuses "/b" (covered 0)
+    ✘ registry entry name grammar refuses "a/" (covered 0)
+    ✓ registry entry name grammar refuses "-a/b" (killed 1)
+    ✘ registry entry name grammar refuses "a/-b" (covered 0)
+    ✘ registry entry name grammar refuses ".a/b" (covered 0)
+    ✘ registry entry name grammar refuses "A/b" (covered 0)
+    ✘ registry entry name grammar refuses "a/B" (covered 0)
+    ✓ registry entry name grammar refuses "a/b/c" (killed 1)
+    ✘ registry entry name grammar refuses "a//b" (covered 0)
+    ✘ registry entry name grammar refuses " a/b" (covered 0)
+    ✘ registry entry name grammar refuses "a/b " (covered 0)
+    ✘ registry entry name grammar refuses "a/b\n" (covered 0)
+    ✘ registry entry name grammar refuses "x a/b" (covered 0)
+    ✘ registry entry name grammar refuses "a/b!" (covered 0)
+    ✘ registry entry name grammar refuses "evil:a/b" (covered 0)
+    ✓ registry numeric bounds metrics.downloads: 0 accepted; -1 and 1.5 refused (killed 1)
+    ✘ registry numeric bounds metrics.installs: 0 accepted; -1 and 1.5 refused (covered 0)
+    ✘ registry numeric bounds metrics.stars: 0 accepted; -1 and 1.5 refused (covered 0)
+    ✓ registry numeric bounds search limit is a positive int up to 500, and query defaults to empty (killed 3)
+    ✓ registry numeric bounds search result score is non-negative; doctor entriesChecked is a non-negative int (killed 3)
+    ✓ resolved entry verification metadata defaults verified to false (killed 1)
+    ✓ resolved entry verification metadata refuses verifiedIssuer without verified:true, with that exact path and message (killed 8)
+    ~ resolved entry verification metadata refuses verifiedSubject without verified:true, with that exact path and message (covered 12)
+    ~ resolved entry verification metadata reports both fields when both are present unverified (covered 12)
+    ✓ registry optional shapes still validate their fields deprecated accepts boolean or message, nothing else (killed 2)
+    ✓ registry optional shapes still validate their fields list filter is optional but its fields are typed (killed 1)
+    ✓ registry optional shapes still validate their fields publish request requires a valid entry and types its options (killed 1)
+    ✓ registry optional shapes still validate their fields publish outcome defaults changedFiles and warnings to EMPTY arrays (killed 3)
+  registry.test.ts
+    ✘ registry protocol requires stable vendor/plugin-name ids (covered 0)
+    ✘ registry protocol accepts optional metrics and marketplace signatures for future hardening (covered 0)
+    ✓ registry protocol keeps all backend implementations behind one async contract (killed 1)
+    ~ registry protocol defaults verified to false without requiring it, and never mutates what trust means (additive verification field) (covered 8)
+    ✘ registry protocol parses a manifest envelope of entries and rejects a missing entries array (covered 0)
+    ✘ registry protocol requires a non-empty reason on a yank outcome (covered 0)
+  run-context.absent-keys.test.ts
+    ✓ decodeRunContextRef omits absent fields history-only payload has no prompt key (killed 4)
+    ✓ decodeRunContextRef omits absent fields prompt-only payload has no history key (killed 1)
+  run-context.test.ts
+    ✓ @jini-ai/protocol — run-context round-trips a prompt-only payload (killed 27)
+    ✓ @jini-ai/protocol — run-context round-trips a prompt with history (killed 1)
+    ✓ @jini-ai/protocol — run-context round-trips an empty payload (killed 2)
+    ✓ @jini-ai/protocol — run-context carries a stable, recognizable prefix (killed 1)
+    ~ @jini-ai/protocol — run-context returns undefined for a contextRef with no jini-run-context prefix (a host's own opaque scheme) (covered 5)
+    ~ @jini-ai/protocol — run-context returns undefined for a prefixed but malformed JSON payload (covered 8)
+    ✓ @jini-ai/protocol — run-context returns undefined when the parsed payload is not a plain object (killed 7)
+    ✓ @jini-ai/protocol — run-context returns undefined when prompt is present but not a string (killed 1)
+    ✓ @jini-ai/protocol — run-context returns undefined when history is present but not an array (killed 1)
+    ~ @jini-ai/protocol — run-context ignores unknown extra fields in the decoded payload rather than rejecting them (covered 43)
+    ✓ @jini-ai/protocol — run-context returns undefined for a prefix carrying a different version (killed 1)
+    ~ @jini-ai/protocol — run-context returns undefined for the bare prefix with no payload at all (covered 8)
+    ~ @jini-ai/protocol — run-context preserves present-but-falsy fields rather than collapsing them to absent (covered 47)
+    ~ @jini-ai/protocol — run-context round-trips unicode, escapes and a prompt containing the prefix itself (covered 45)
+    ~ @jini-ai/protocol — run-context round-trips nested history entries without flattening them (covered 43)
+    ~ @jini-ai/protocol — run-context does not let a __proto__ or constructor key in the payload pollute a prototype (covered 43)
+  verification-contradictions.unit.test.ts
+    ~ rejects verification metadata when verified is false (covered 12)
+    ~ rejects verification metadata when verified is undefined (covered 12)
+    ~ preserves verified identities and the independently configured trust level (covered 6)
+
+[Survived] ConditionalExpression
+src/delegated-result.ts:13:10
+-     return typeof value === 'object' && value !== null && !Array.isArray(value);
++     return true && value !== null && !Array.isArray(value);
+Tests ran:
+    readDelegatedResult hostile inputs refuses null block
+    readDelegatedResult hostile inputs refuses array block
+    readDelegatedResult hostile inputs refuses string block
+  and 32 more tests!
+
+
+[Survived] ConditionalExpression
+src/delegated-result.ts:17:52
+-     if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.text.length > 1024) return undefined;
++     if (!isRecord(block) || block.type !== 'text' || false || block.text.length > 1024) return undefined;
+Tests ran:
+    readDelegatedResult hostile inputs refuses non-string text
+    readDelegatedResult hostile inputs refuses text over 1024 chars
+    readDelegatedResult hostile inputs refuses top-level array json
+  and 24 more tests!
+
+
+[Survived] ConditionalExpression
+src/delegated-result.ts:28:7
+-     if (text === undefined) return undefined;
++     if (false) return undefined;
+Tests ran:
+    readDelegatedResult hostile inputs refuses null block
+    readDelegatedResult hostile inputs refuses array block
+    readDelegatedResult hostile inputs refuses string block
+  and 32 more tests!
+
+
+[Survived] BlockStatement
+src/delegated-result.ts:36:11
+-     } catch {
+-       return undefined;
+-     }
++     } catch {}
+Tests ran:
+    readDelegatedResult hostile inputs only a LEADING marker counts, and any later marker anywhere makes it ambiguous
+    delegated result marker v1 falls back for absent, malformed, future or ambiguous metadata: {"content":[{"type":"text","text":"{invalid"}]}
+    accepts the maximum marker id, preserving malformed ordinary trailing blocks
+
+
+[NoCoverage] StringLiteral
+src/errors.ts:91:23
+-     { fallbackMessage = 'request failed' }: { fallbackMessage?: string } = {},
++     { fallbackMessage = "" }: { fallbackMessage?: string } = {},
+
+[Survived] BlockStatement
+src/run-context.ts:56:11
+-     } catch {
+-       return undefined;
+-     }
++     } catch {}
+Tests ran:
+    @jini-ai/protocol — run-context returns undefined for a prefixed but malformed JSON payload
+    @jini-ai/protocol — run-context returns undefined for the bare prefix with no payload at all
+
+
+Ran 11.68 tests per mutant on average.
+---------------------|------------------|----------|-----------|------------|----------|----------|
+                     | % Mutation score |          |           |            |          |          |
+File                 |  total | covered | # killed | # timeout | # survived | # no cov | # errors |
+---------------------|--------|---------|----------|-----------|------------|----------|----------|
+All files            |  98.05 |   98.37 |      302 |         0 |          5 |        1 |        0 |
+ delegated-result.ts |  95.65 |   95.65 |       88 |         0 |          4 |        0 |        0 |
+ errors.ts           |  98.41 |  100.00 |       62 |         0 |          0 |        1 |        0 |
+ registry.ts         | 100.00 |  100.00 |       99 |         0 |          0 |        0 |        0 |
+ run-context.ts      |  97.96 |   97.96 |       48 |         0 |          1 |        0 |        0 |
+ run.ts              | 100.00 |  100.00 |        5 |         0 |          0 |        0 |        0 |
+---------------------|--------|---------|----------|-----------|------------|----------|----------|
+[32m00:49:18 (22964) INFO JsonReporter[39m Your report can be found at: file:///tmp/claude-0/stryker-protocol/mutation.json
+[32m00:49:18 (22964) INFO MutationTestExecutor[39m Done in 1 minute and 59 seconds.
+exit 0 120s

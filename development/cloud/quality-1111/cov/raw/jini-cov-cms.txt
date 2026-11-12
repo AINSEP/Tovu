@@ -1,0 +1,82 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+      Coverage enabled with v8
+
+ ✓ src/media/__tests__/media-service.test.ts (62 tests) 667ms
+   ✓ SVG upload stores sanitized bytes under their own hash, deduplicates, and refuses SVG fonts 572ms
+ ✓ src/taxonomy/__tests__/write-service.test.ts (37 tests) 66ms
+ ✓ src/media/__tests__/video-frames.ffmpeg.test.ts (44 tests) 1929ms
+   ✓ validates sheet output after bounded tile extraction, removes used tiles before the next sheet 409ms
+   ✓ keeps the full 8 MiB sheet budget across separate JPEG assembly passes 748ms
+ ✓ src/widgets/__tests__/unit/resolver-service.unit.test.ts (87 tests) 92ms
+ ✓ src/redirects/__tests__/redirects.test.ts (48 tests) 66ms
+ ✓ src/navigation/__tests__/menu-service.test.ts (46 tests) 20ms
+ ✓ src/seo/__tests__/seo.test.ts (52 tests) 216ms
+ ✓ src/widgets/__tests__/unit/embed-service.unit.test.ts (58 tests) 115ms
+ ✓ src/widgets/__tests__/unit/html-embeds.unit.test.ts (53 tests) 35ms
+ ✓ src/widgets/__tests__/marker.unit.test.ts (58 tests) 88ms
+ ✓ src/media/import/__tests__/fetch-image.test.ts (54 tests) 209ms
+ ✓ src/media/__tests__/tool-registrations.test.ts (23 tests) 138ms
+ ✓ src/redirects/__tests__/redirects.reserved-target.test.ts (67 tests) 35ms
+ ✓ src/forms/express/__tests__/handler.test.ts (24 tests) 190ms
+ ✓ src/seo/__tests__/write-service.test.ts (30 tests) 18ms
+ ✓ src/media/__tests__/blob-gc.test.ts (20 tests) 143ms
+stderr | src/forms/__tests__/submit-service.host-options.test.ts > submitForm: AC-24/INV-05 — the response resolves before a slow/throwing subscriber settles (fire-and-forget outbox drain)
+form outbox dispatch failed Error: simulated slow/throwing MailerPort.send()
+    at handler (/home/user/Jini/packages/cms/src/forms/__tests__/submit-service.host-options.test.ts:244:11)
+    at InMemoryEventBus.publish (/home/user/Jini/packages/cms/src/forms/__tests__/eventing.fixture.ts:11:58)
+    at dispatch (/home/user/Jini/packages/cms/src/forms/__tests__/support/switch-bindings.fixture.ts:70:7)
+
+ ✓ src/forms/__tests__/submit-service.host-options.test.ts (25 tests) 83ms
+ ✓ src/widgets/__tests__/plugin-export.unit.test.ts (116 tests) 118ms
+ ✓ src/forms/__tests__/write-service.host-options.test.ts (24 tests) 30ms
+ ✓ src/navigation/__tests__/tool-registrations.test.ts (33 tests) 37ms
+ ✓ src/forms/__tests__/submit-service.boundaries.test.ts (22 tests) 68ms
+ ✓ src/forms/__tests__/write-service.test.ts (23 tests) 26ms
+ ✓ src/comments/__tests__/ingress.test.ts (26 tests) 14ms
+ ✓ src/widgets/__tests__/integration/write-service.integration.test.ts (13 tests) 67ms
+ ✓ src/routing/__tests__/routing.test.ts (42 tests) 10ms
+ ✓ src/media/__tests__/rendition-service.test.ts (15 tests) 708ms
+   ✓ SVG transform URLs serve the vector original without invoking the raster transformer or saving renditions 664ms
+ ✓ src/forms/__tests__/html-render.fields.test.ts (29 tests) 8ms
+ ✓ src/taxonomy/__tests__/write-service.import.test.ts (20 tests) 16ms
+ ✓ src/redirects/__tests__/repo.contract.test.ts (47 tests) 10624ms
+   ✓ [pglite] save() then findById() round-trips the record 10069ms
+ ✓ src/widgets/__tests__/integration/write-service.lifecycle.integration.test.ts (16 tests) 31ms
+ ✓ src/seo/__tests__/page-head-contributor.test.ts (16 tests) 23ms
+ ✓ src/entries/__tests__/write-service.update-publish.test.ts (13 tests) 7ms
+ ✓ src/forms/__tests__/field-registry.test.ts (43 tests) 18ms
+ ✓ src/forms/__tests__/repo.contract.test.ts (58 tests) 11180ms
+   ✓ [SqlFormDefinitionRepo [pglite]] create + findById round-trips 10118ms
+   ✓ [SqlFormSubmissionRepo [pglite]] listByDefinition paginates via cursor 386ms
+ ✓ src/content-types/__tests__/write-service.guards-boundary.test.ts (25 tests) 21ms
+ ✓ src/forms/__tests__/email-sender.unit.test.ts (15 tests) 33ms
+ ✓ src/comments/__tests__/repo.contract.test.ts (53 tests) 10804ms
+ ✓ forms/src/__tests__/write-service.test.ts (21 tests) 12ms
+ ✓ src/content-types/__tests__/write-service.register.test.ts (14 tests) 84ms
+ ✓ src/widgets/__tests__/unit/resolvers-contact-form.unit.test.ts (22 tests) 30ms
+ ✓ src/media/__tests__/documents.test.ts (12 tests) 1106ms
+   ✓ Library: 50 MiB is inclusive and host media overrides never relax document ingress 375ms
+   ✓ ordinary blob metadata remains publishable with no owner, after Trash and after purge 652ms
+ ✓ src/redirects/__tests__/phase-handler.read-path-target.test.ts (20 tests) 13ms
+ ✓ src/entries/__tests__/write-service.boundaries.test.ts (20 tests) 14ms
+ ✓ src/entries/__tests__/write-service.import.test.ts (12 tests) 11ms
+ ✓ src/widgets/__tests__/unit/config-validation.unit.test.ts (34 tests) 26ms
+ ✓ src/taxonomy/__tests__/repo.memory.test.ts (19 tests) 12ms
+ ✓ src/navigation/__tests__/resolver.test.ts (10 tests) 7ms
+ ✓ src/trash/__tests__/service.test.ts (18 tests) 13ms
+ ✓ src/widgets/__tests__/integration/resolver-service.integration.test.ts (9 tests) 11ms
+ ✓ src/forms/__tests__/file-fields.test.ts (12 tests) 66ms
+ ✓ src/entries/__tests__/write-service.compare-and-set.test.ts (13 tests) 10ms
+ ✓ src/forms/__tests__/submit-service.test.ts (15 tests) 79ms
+ ✓ src/media/__tests__/image-transformer.sharp.test.ts (12 tests) 114ms
+ ✓ src/navigation/__tests__/menu-service.compare-and-set.test.ts (11 tests) 11ms
+ ✓ src/media/__tests__/replace-media-file.test.ts (15 tests) 653ms
+   ✓ SVG replacement uses the upload sanitizer before hashing and persistence 615ms
+ ✓ src/taxonomy/__tests__/write-service.boundaries.test.ts (20 tests) 17ms
+ ✓ src/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts (10 tests) 35ms
+ ✓ src/redirects/__tests__/repo.dialects.test.ts (28 tests) 8829ms
+   ✓ redirect repo [pglite] > save round-trips every field incl. optionals and booleans; re-save replaces the row 8270ms
+ ✓ src/entries/__tests__/write-service.create.test.ts (9 tests) 7ms
+ ✓ src/redirects/__tests__/matcher.test.ts (29 tests) 10ms
+ ✓ src/redirects/__tests__/phase-handler.oracle.test.ts (13 tests) 11ms

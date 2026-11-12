@@ -2331,3 +2331,147 @@ ok 332 - renamed page grants keep an already consumed legacy budget
   duration_ms: 0.349472
   type: 'test'
   ...
+# Subtest: a .tovu.zip becomes a new registered site with no server and leaves no staged copy
+ok 333 - a .tovu.zip becomes a new registered site with no server and leaves no staged copy
+  ---
+  duration_ms: 16882.006373
+  type: 'test'
+  ...
+# Subtest: with no injected password the command still finishes, and its output carries no password
+ok 334 - with no injected password the command still finishes, and its output carries no password
+  ---
+  duration_ms: 15538.518661
+  type: 'test'
+  ...
+# Subtest: a damaged archive makes no site, keeps no staged copy, and says so
+ok 335 - a damaged archive makes no site, keeps no staged copy, and says so
+  ---
+  duration_ms: 3599.04713
+  type: 'test'
+  ...
+# Subtest: a second import waiting on the first says so in plain words
+ok 336 - a second import waiting on the first says so in plain words
+  ---
+  duration_ms: 3696.613918
+  type: 'test'
+  ...
+# Subtest: a tampered archive is refused in the importer's own words
+ok 337 - a tampered archive is refused in the importer's own words
+  ---
+  duration_ms: 3931.105615
+  type: 'test'
+  ...
+# Subtest: a file over the archive cap is refused before any of it is read
+ok 338 - a file over the archive cap is refused before any of it is read
+  ---
+  duration_ms: 3881.4286
+  type: 'test'
+  ...
+# Subtest: refuses both sources
+ok 339 - refuses both sources
+  ---
+  duration_ms: 0.535234
+  type: 'test'
+  ...
+# Subtest: refuses no source
+ok 340 - refuses no source
+  ---
+  duration_ms: 0.147823
+  type: 'test'
+  ...
+# Subtest: refuses a relative path
+ok 341 - refuses a relative path
+  ---
+  duration_ms: 0.094873
+  type: 'test'
+  ...
+# Subtest: refuses an unknown field
+ok 342 - refuses an unknown field
+  ---
+  duration_ms: 0.073533
+  type: 'test'
+  ...
+# Subtest: a plain-http share link is refused by the existing source check, not fetched
+ok 343 - a plain-http share link is refused by the existing source check, not fetched
+  ---
+  duration_ms: 3424.417281
+  type: 'test'
+  ...
+# Subtest: a loopback https share link is refused by the guarded client, and nothing is created
+ok 344 - a loopback https share link is refused by the guarded client, and nothing is created
+  ---
+  duration_ms: 3398.953712
+  type: 'test'
+  ...
+# Subtest: stopping the import (the app quitting) after the archive is staged creates no site and keeps no staged copy
+ok 345 - stopping the import (the app quitting) after the archive is staged creates no site and keeps no staged copy
+  ---
+  duration_ms: 21394.563565
+  type: 'test'
+  ...
+# Subtest: the request is the first line of stdin, read without waiting for stdin to end
+ok 346 - the request is the first line of stdin, read without waiting for stdin to end
+  ---
+  duration_ms: 0.96281
+  type: 'test'
+  ...
+# Subtest: stdin ending after the request stops the import in plain words, and lets the process exit
+ok 347 - stdin ending after the request stops the import in plain words, and lets the process exit
+  ---
+  duration_ms: 0.774788
+  type: 'test'
+  ...
+# Subtest: stdin that is closed after the request also stops the import
+ok 348 - stdin that is closed after the request also stops the import
+  ---
+  duration_ms: 0.623176
+  type: 'test'
+  ...
+# Subtest: stdin that is broken after the request also stops the import
+ok 349 - stdin that is broken after the request also stops the import
+  ---
+  duration_ms: 0.165638
+  type: 'test'
+  ...
+# Subtest: input that ends with no newline is still the request, with nothing to stop
+ok 350 - input that ends with no newline is still the request, with nothing to stop
+  ---
+  duration_ms: 4.983552
+  type: 'test'
+  ...
+# Subtest: empty stdin is refused in plain words
+ok 351 - empty stdin is refused in plain words
+  ---
+  duration_ms: 0.638923
+  type: 'test'
+  ...
+# Subtest: a request with no newline is refused
+ok 352 - a request with no newline is refused
+  ---
+  duration_ms: 0.492783
+  type: 'test'
+  ...
+# Subtest: a request whose newline comes past the cap is refused
+ok 353 - a request whose newline comes past the cap is refused
+  ---
+  duration_ms: 0.204906
+  type: 'test'
+  ...
+# Subtest: a request exactly at the cap is read
+ok 354 - a request exactly at the cap is read
+  ---
+  duration_ms: 0.300988
+  type: 'test'
+  ...
+# Subtest: displayName is no longer part of the request
+ok 355 - displayName is no longer part of the request
+  ---
+  duration_ms: 0.235621
+  type: 'test'
+  ...
+# Subtest: a tidy request clears what a killed import left, makes no site and prints nothing
+ok 356 - a tidy request clears what a killed import left, makes no site and prints nothing
+  ---
+  duration_ms: 2920.349291
+  type: 'test'
+  ...
