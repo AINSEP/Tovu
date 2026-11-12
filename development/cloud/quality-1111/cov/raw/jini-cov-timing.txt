@@ -5,3 +5,4 @@ agentic exit 0 52s
 analytics exit 0 10s
 artifacts exit 0 9s
 capability-providers exit 0 13s
+chat exit 1 947s

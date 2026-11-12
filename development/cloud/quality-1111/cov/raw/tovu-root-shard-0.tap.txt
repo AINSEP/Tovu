@@ -16566,3 +16566,1913 @@ ok 2308 - watermark on the content kernel [sqlite]
   duration_ms: 2442.140878
   type: 'suite'
   ...
+# Subtest: watermark on the content kernel [pglite]
+    # Subtest: AC-01 / U-002-B1: a stamp inside a transaction commits with its sibling write, +1 exactly
+    ok 1 - AC-01 / U-002-B1: a stamp inside a transaction commits with its sibling write, +1 exactly
+      ---
+      duration_ms: 14844.992856
+      type: 'test'
+      ...
+    # Subtest: an ordinary stamp records the current timestamp
+    ok 2 - an ordinary stamp records the current timestamp
+      ---
+      duration_ms: 5.733079
+      type: 'test'
+      ...
+    # Subtest: INV-01: a transaction that fails rolls its stamp back
+    ok 3 - INV-01: a transaction that fails rolls its stamp back
+      ---
+      duration_ms: 6.653033
+      type: 'test'
+      ...
+    # Subtest: INV-01: N stamps leave initial + N, never decreasing
+    ok 4 - INV-01: N stamps leave initial + N, never decreasing
+      ---
+      duration_ms: 52.54765
+      type: 'test'
+      ...
+    # Subtest: U-004-B1 / REQ-04: reconcileMirror overwrites the mirror from the authoritative value
+    ok 5 - U-004-B1 / REQ-04: reconcileMirror overwrites the mirror from the authoritative value
+      ---
+      duration_ms: 4.5306
+      type: 'test'
+      ...
+    1..5
+ok 2309 - watermark on the content kernel [pglite]
+  ---
+  duration_ms: 14915.27342
+  type: 'suite'
+  ...
+# Subtest: watermark: dialect-free cases
+    # Subtest: U-004-B2 / REQ-05: no content database leaves the mirror's value and marks it 'unrefreshable'
+    ok 1 - U-004-B2 / REQ-05: no content database leaves the mirror's value and marks it 'unrefreshable'
+      ---
+      duration_ms: 0.331021
+      type: 'test'
+      ...
+    # Subtest: a store without the singleton row reads 0
+    ok 2 - a store without the singleton row reads 0
+      ---
+      duration_ms: 365.685154
+      type: 'test'
+      ...
+    # Subtest: EC-01 (SQLite): a second connection cannot open a write transaction while a stamping one is open
+    ok 3 - EC-01 (SQLite): a second connection cannot open a write transaction while a stamping one is open
+      ---
+      duration_ms: 698.210225
+      type: 'test'
+      ...
+    1..3
+ok 2310 - watermark: dialect-free cases
+  ---
+  duration_ms: 1064.499998
+  type: 'suite'
+  ...
+# Subtest: postgres: transactions commit, roll back and nest on a pooled connection
+not ok 2311 - postgres: transactions commit, roll back and nest on a pooled connection
+  ---
+  duration_ms: 0.877999
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:1:1385'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_kernel_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:25:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:24:1)
+  ...
+# Subtest: two connections WITHOUT lockKey: both appends read the same latest row (the hazard is real)
+not ok 2312 - two connections WITHOUT lockKey: both appends read the same latest row (the hazard is real)
+  ---
+  duration_ms: 0.079443
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:1:1998'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_kernel_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:25:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:24:1)
+  ...
+# Subtest: two connections WITH lockKey: the second append waits and chains after the first
+not ok 2313 - two connections WITH lockKey: the second append waits and chains after the first
+  ---
+  duration_ms: 0.128771
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:1:2497'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_kernel_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:25:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts:24:1)
+  ...
+# /home/user/Jini/packages/db/src/pg-fixture.ts:92
+#     if (!drop.ok) throw new Error(`failed to drop fixture database "${database}": ${drop.stderr}`);
+#                         ^
+# Error: failed to drop fixture database "tovu_kernel_pg_pool_error_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+# \\tIs the server running locally and accepting connections on that socket?
+#     at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+#     at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+#     at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts:18:16)
+#     at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+#     at async node:internal/modules/esm/loader:647:26
+#     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+# Node.js v24.22.3
+# Subtest: apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts
+not ok 218 - apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts
+  ---
+  duration_ms: 5740.128402
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: 0003_coercion_json_as_json
+    # Subtest: SQLite: a bare tag becomes a JSON string; JSON and NULL rows are untouched
+    ok 1 - SQLite: a bare tag becomes a JSON string; JSON and NULL rows are untouched
+      ---
+      duration_ms: 1387.23068
+      type: 'test'
+      ...
+    # Subtest: PGlite: recorded
+    ok 2 - PGlite: recorded
+      ---
+      duration_ms: 16990.224523
+      type: 'test'
+      ...
+    1..2
+ok 2315 - 0003_coercion_json_as_json
+  ---
+  duration_ms: 18384.721779
+  type: 'suite'
+  ...
+# Subtest: [sqlite] 0019 is registered with its pinned checksum and creates its tables once
+ok 2316 - [sqlite] 0019 is registered with its pinned checksum and creates its tables once
+  ---
+  duration_ms: 574.866422
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0019 keeps one plan per (workspace, submission)
+ok 2317 - [sqlite] 0019 keeps one plan per (workspace, submission)
+  ---
+  duration_ms: 553.947958
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0019 keeps one delivery job per binding per submission
+ok 2318 - [sqlite] 0019 keeps one delivery job per binding per submission
+  ---
+  duration_ms: 477.510055
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0019 keeps one pull row per (workspace, receiver), with a required last start and an optional lease
+ok 2319 - [sqlite] 0019 keeps one pull row per (workspace, receiver), with a required last start and an optional lease
+  ---
+  duration_ms: 296.983853
+  type: 'test'
+  ...
+# Subtest: [pglite] 0019 is registered with its pinned checksum and creates its tables once
+ok 2320 - [pglite] 0019 is registered with its pinned checksum and creates its tables once
+  ---
+  duration_ms: 16183.603635
+  type: 'test'
+  ...
+# Subtest: [pglite] 0019 keeps one plan per (workspace, submission)
+ok 2321 - [pglite] 0019 keeps one plan per (workspace, submission)
+  ---
+  duration_ms: 62.436404
+  type: 'test'
+  ...
+# Subtest: [pglite] 0019 keeps one delivery job per binding per submission
+ok 2322 - [pglite] 0019 keeps one delivery job per binding per submission
+  ---
+  duration_ms: 37.109872
+  type: 'test'
+  ...
+# Subtest: [pglite] 0019 keeps one pull row per (workspace, receiver), with a required last start and an optional lease
+ok 2323 - [pglite] 0019 keeps one pull row per (workspace, receiver), with a required last start and an optional lease
+  ---
+  duration_ms: 16.380828
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0030 follows 0029, adds the removal audit once, and leaves suppressions intact
+ok 2324 - [sqlite] 0030 follows 0029, adds the removal audit once, and leaves suppressions intact
+  ---
+  duration_ms: 388.366449
+  type: 'test'
+  ...
+# Subtest: [pglite] 0030 follows 0029, adds the removal audit once, and leaves suppressions intact
+ok 2325 - [pglite] 0030 follows 0029, adds the removal audit once, and leaves suppressions intact
+  ---
+  duration_ms: 18338.180843
+  type: 'test'
+  ...
+# Subtest: [sqlite] MFA migration preserves recovery kits, adds bounded proofs and applies once
+ok 2326 - [sqlite] MFA migration preserves recovery kits, adds bounded proofs and applies once
+  ---
+  duration_ms: 263.462886
+  type: 'test'
+  ...
+# Subtest: [pglite] MFA migration preserves recovery kits, adds bounded proofs and applies once
+ok 2327 - [pglite] MFA migration preserves recovery kits, adds bounded proofs and applies once
+  ---
+  duration_ms: 15112.329899
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0036 preserves destination JSON and SQL NULL and applies once
+ok 2328 - [sqlite] 0036 preserves destination JSON and SQL NULL and applies once
+  ---
+  duration_ms: 442.742677
+  type: 'test'
+  ...
+# Subtest: [pglite] 0036 preserves destination JSON and SQL NULL and applies once
+ok 2329 - [pglite] 0036 preserves destination JSON and SQL NULL and applies once
+  ---
+  duration_ms: 14137.217677
+  type: 'test'
+  ...
+# Subtest: sqlite: 0022 preserves 0021 rows, retains vault restrictions, and permits an isolated workspace cascade
+ok 2330 - sqlite: 0022 preserves 0021 rows, retains vault restrictions, and permits an isolated workspace cascade
+  ---
+  duration_ms: 1431.062308
+  type: 'test'
+  ...
+# Subtest: pglite: 0022 preserves 0021 rows, retains vault restrictions, and permits an isolated workspace cascade
+ok 2331 - pglite: 0022 preserves 0021 rows, retains vault restrictions, and permits an isolated workspace cascade
+  ---
+  duration_ms: 16112.913395
+  type: 'test'
+  ...
+# Subtest: sqlite: fresh databases install the same ordering trigger and can delete linked MCP secrets
+ok 2332 - sqlite: fresh databases install the same ordering trigger and can delete linked MCP secrets
+  ---
+  duration_ms: 356.319964
+  type: 'test'
+  ...
+# Subtest: postgres: two pulls racing for one receiver admit exactly one; the other is already-running
+not ok 2333 - postgres: two pulls racing for one receiver admit exactly one; the other is already-running
+  ---
+  duration_ms: 0.5806
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:1:1131'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_form_delivery_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:28:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+  ...
+# Subtest: postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job
+not ok 2334 - postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job
+  ---
+  duration_ms: 0.073282
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:1:2348'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_form_delivery_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:28:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+  ...
+not ok 2335 - /home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts
+  ---
+  duration_ms: 122.635744
+  location: '/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:1:806'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_form_delivery_repo_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts:36:3)
+    async TestHook.run (node:internal/test_runner/test:1409:7)
+    async Test.runHook (node:internal/test_runner/test:1289:9)
+    async after (node:internal/test_runner/test:1342:9)
+    async Test.run (node:internal/test_runner/test:1428:7)
+  ...
+# Subtest: SqlPublishHistoryStore [sqlite]
+    # Subtest: a non-static entry with every optional field round-trips exactly
+    ok 1 - a non-static entry with every optional field round-trips exactly
+      ---
+      duration_ms: 336.573898
+      type: 'test'
+      ...
+    # Subtest: an entry with no optional field round-trips with those keys absent
+    ok 2 - an entry with no optional field round-trips with those keys absent
+      ---
+      duration_ms: 163.549881
+      type: 'test'
+      ...
+    # Subtest: an entry without a kind is stored as kind 'static'
+    ok 3 - an entry without a kind is stored as kind 'static'
+      ---
+      duration_ms: 157.48324
+      type: 'test'
+      ...
+    # Subtest: an explicit 'static' kind reads back with the kind key absent
+    ok 4 - an explicit 'static' kind reads back with the kind key absent
+      ---
+      duration_ms: 101.407618
+      type: 'test'
+      ...
+    # Subtest: a legacy NULL kind reads back with the kind key absent
+    ok 5 - a legacy NULL kind reads back with the kind key absent
+      ---
+      duration_ms: 258.061451
+      type: 'test'
+      ...
+    # Subtest: getLast ignores non-static kinds but treats a legacy NULL kind as static
+    ok 6 - getLast ignores non-static kinds but treats a legacy NULL kind as static
+      ---
+      duration_ms: 254.455798
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory keeps only the newest row per (kind, target, project), newest first
+    ok 7 - listDestinationHistory keeps only the newest row per (kind, target, project), newest first
+      ---
+      duration_ms: 138.234931
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory groups a legacy NULL kind with 'static'
+    ok 8 - listDestinationHistory groups a legacy NULL kind with 'static'
+      ---
+      duration_ms: 180.38908
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory skips unreachable rows unless they are a started deploy
+    ok 9 - listDestinationHistory skips unreachable rows unless they are a started deploy
+      ---
+      duration_ms: 291.501929
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory skips static rows with no replayable config fields, but keeps peer and deploy rows without them
+    ok 10 - listDestinationHistory skips static rows with no replayable config fields, but keeps peer and deploy rows without them
+      ---
+      duration_ms: 222.527305
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory never reads another workspace's rows
+    ok 11 - listDestinationHistory never reads another workspace's rows
+      ---
+      duration_ms: 231.125052
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory returns at most 201 destinations, the newest ones
+    ok 12 - listDestinationHistory returns at most 201 destinations, the newest ones
+      ---
+      duration_ms: 252.029137
+      type: 'test'
+      ...
+    # Subtest: listLiveUrls returns each of the workspace's URLs once, sorted
+    ok 13 - listLiveUrls returns each of the workspace's URLs once, sorted
+      ---
+      duration_ms: 129.08791
+      type: 'test'
+      ...
+    # Subtest: listLiveUrls returns at most 201 URLs
+    ok 14 - listLiveUrls returns at most 201 URLs
+      ---
+      duration_ms: 206.979875
+      type: 'test'
+      ...
+    1..14
+ok 2336 - SqlPublishHistoryStore [sqlite]
+  ---
+  duration_ms: 2926.024736
+  type: 'suite'
+  ...
+# Subtest: SqlPublishHistoryStore [pglite]
+    # Subtest: a non-static entry with every optional field round-trips exactly
+    ok 1 - a non-static entry with every optional field round-trips exactly
+      ---
+      duration_ms: 15425.28384
+      type: 'test'
+      ...
+    # Subtest: an entry with no optional field round-trips with those keys absent
+    ok 2 - an entry with no optional field round-trips with those keys absent
+      ---
+      duration_ms: 32.991052
+      type: 'test'
+      ...
+    # Subtest: an entry without a kind is stored as kind 'static'
+    ok 3 - an entry without a kind is stored as kind 'static'
+      ---
+      duration_ms: 31.18222
+      type: 'test'
+      ...
+    # Subtest: an explicit 'static' kind reads back with the kind key absent
+    ok 4 - an explicit 'static' kind reads back with the kind key absent
+      ---
+      duration_ms: 42.581624
+      type: 'test'
+      ...
+    # Subtest: a legacy NULL kind reads back with the kind key absent
+    ok 5 - a legacy NULL kind reads back with the kind key absent
+      ---
+      duration_ms: 38.0018
+      type: 'test'
+      ...
+    # Subtest: getLast ignores non-static kinds but treats a legacy NULL kind as static
+    ok 6 - getLast ignores non-static kinds but treats a legacy NULL kind as static
+      ---
+      duration_ms: 83.963066
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory keeps only the newest row per (kind, target, project), newest first
+    ok 7 - listDestinationHistory keeps only the newest row per (kind, target, project), newest first
+      ---
+      duration_ms: 118.387191
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory groups a legacy NULL kind with 'static'
+    ok 8 - listDestinationHistory groups a legacy NULL kind with 'static'
+      ---
+      duration_ms: 95.319729
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory skips unreachable rows unless they are a started deploy
+    ok 9 - listDestinationHistory skips unreachable rows unless they are a started deploy
+      ---
+      duration_ms: 131.938916
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory skips static rows with no replayable config fields, but keeps peer and deploy rows without them
+    ok 10 - listDestinationHistory skips static rows with no replayable config fields, but keeps peer and deploy rows without them
+      ---
+      duration_ms: 97.433173
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory never reads another workspace's rows
+    ok 11 - listDestinationHistory never reads another workspace's rows
+      ---
+      duration_ms: 93.296253
+      type: 'test'
+      ...
+    # Subtest: listDestinationHistory returns at most 201 destinations, the newest ones
+    ok 12 - listDestinationHistory returns at most 201 destinations, the newest ones
+      ---
+      duration_ms: 1081.63061
+      type: 'test'
+      ...
+    # Subtest: listLiveUrls returns each of the workspace's URLs once, sorted
+    ok 13 - listLiveUrls returns each of the workspace's URLs once, sorted
+      ---
+      duration_ms: 221.155283
+      type: 'test'
+      ...
+    # Subtest: listLiveUrls returns at most 201 URLs
+    ok 14 - listLiveUrls returns at most 201 URLs
+      ---
+      duration_ms: 948.33833
+      type: 'test'
+      ...
+    1..14
+ok 2337 - SqlPublishHistoryStore [pglite]
+  ---
+  duration_ms: 18442.961192
+  type: 'suite'
+  ...
+# Subtest: checkForOrphanedChatRows [sqlite]
+    # Subtest: absent chat tables count as zero
+    ok 1 - absent chat tables count as zero
+      ---
+      duration_ms: 274.036925
+      type: 'test'
+      ...
+    # Subtest: counts the rows in each chat table that exists
+    ok 2 - counts the rows in each chat table that exists
+      ---
+      duration_ms: 199.777713
+      type: 'test'
+      ...
+    1..2
+ok 2338 - checkForOrphanedChatRows [sqlite]
+  ---
+  duration_ms: 475.627663
+  type: 'suite'
+  ...
+# Subtest: checkForOrphanedChatRows [pglite]
+    # Subtest: absent chat tables count as zero
+    ok 1 - absent chat tables count as zero
+      ---
+      duration_ms: 12415.347357
+      type: 'test'
+      ...
+    # Subtest: counts the rows in each chat table that exists
+    ok 2 - counts the rows in each chat table that exists
+      ---
+      duration_ms: 20.031451
+      type: 'test'
+      ...
+    1..2
+ok 2339 - checkForOrphanedChatRows [pglite]
+  ---
+  duration_ms: 12435.79374
+  type: 'suite'
+  ...
+# Subtest: migration runs clean: all 3 tables exist after openDatabaseJournalDb
+ok 2340 - migration runs clean: all 3 tables exist after openDatabaseJournalDb
+  ---
+  duration_ms: 107.151598
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo: append + query round-trips a row and filters by kind/outcome
+ok 2341 - SqliteDatabaseLedgerRepo: append + query round-trips a row and filters by kind/outcome
+  ---
+  duration_ms: 140.409608
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo: query() paginates via a stable cursor, never a raw offset
+ok 2342 - SqliteDatabaseLedgerRepo: query() paginates via a stable cursor, never a raw offset
+  ---
+  duration_ms: 180.39393
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo: a date-only toDate includes that whole day; an undecodable cursor is refused
+ok 2343 - SqliteDatabaseLedgerRepo: a date-only toDate includes that whole day; an undecodable cursor is refused
+  ---
+  duration_ms: 136.154572
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo.appendInterruptedRow: writes a migration.interrupted row (ADR-041 §3 boot reconciliation)
+ok 2344 - SqliteDatabaseLedgerRepo.appendInterruptedRow: writes a migration.interrupted row (ADR-041 §3 boot reconciliation)
+  ---
+  duration_ms: 87.871423
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo: rows are strictly site-scoped — a different siteId never sees another site's rows
+ok 2345 - SqliteDatabaseLedgerRepo: rows are strictly site-scoped — a different siteId never sees another site's rows
+  ---
+  duration_ms: 58.827558
+  type: 'test'
+  ...
+# Subtest: SqliteMigrationRunsRepo: findNonTerminalForSite finds an in-flight run and stops finding it once it reaches a terminal status
+ok 2346 - SqliteMigrationRunsRepo: findNonTerminalForSite finds an in-flight run and stops finding it once it reaches a terminal status
+  ---
+  duration_ms: 86.503406
+  type: 'test'
+  ...
+# Subtest: SqliteMigrationRunsRepo: findNonTerminalForSite is site-scoped
+ok 2347 - SqliteMigrationRunsRepo: findNonTerminalForSite is site-scoped
+  ---
+  duration_ms: 89.548536
+  type: 'test'
+  ...
+# Subtest: SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the recovery ceremony's only caller (gated-hooks.ts)
+ok 2348 - SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the recovery ceremony's only caller (gated-hooks.ts)
+  ---
+  duration_ms: 42.805832
+  type: 'test'
+  ...
+# Subtest: SqliteMigrationRunsRepo: markResolved targets only the given run id, leaving a sibling run untouched
+ok 2349 - SqliteMigrationRunsRepo: markResolved targets only the given run id, leaving a sibling run untouched
+  ---
+  duration_ms: 43.415868
+  type: 'test'
+  ...
+# Subtest: SqliteRestorePointsRepo: save + findByIdempotencyKey round-trips, and a second save under the same key is not required to be re-found under a different key
+ok 2350 - SqliteRestorePointsRepo: save + findByIdempotencyKey round-trips, and a second save under the same key is not required to be re-found under a different key
+  ---
+  duration_ms: 175.370263
+  type: 'test'
+  ...
+# Subtest: SqliteRestorePointsRepo: list() renders newest-first and is strictly site-scoped
+ok 2351 - SqliteRestorePointsRepo: list() renders newest-first and is strictly site-scoped
+  ---
+  duration_ms: 27.653095
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo.append: a fully populated row lands in every database_ledger column, site-scoped
+ok 2352 - SqliteDatabaseLedgerRepo.append: a fully populated row lands in every database_ledger column, site-scoped
+  ---
+  duration_ms: 17.84474
+  type: 'test'
+  ...
+# Subtest: SqliteDatabaseLedgerRepo.append: omitted and explicit-null optional fields are both stored as NULL
+ok 2353 - SqliteDatabaseLedgerRepo.append: omitted and explicit-null optional fields are both stored as NULL
+  ---
+  duration_ms: 36.874279
+  type: 'test'
+  ...
+# Subtest: the port refuses a non-SQLite content database
+ok 2354 - the port refuses a non-SQLite content database
+  ---
+  duration_ms: 19.330159
+  type: 'test'
+  ...
+# Subtest: columns() reports a missing table as null and refuses private tables and secret-shaped columns
+ok 2355 - columns() reports a missing table as null and refuses private tables and secret-shaped columns
+  ---
+  duration_ms: 14.945483
+  type: 'test'
+  ...
+# Subtest: read and removal require an existing table and its complete, scalar primary key
+ok 2356 - read and removal require an existing table and its complete, scalar primary key
+  ---
+  duration_ms: 6.472053
+  type: 'test'
+  ...
+# Subtest: upsert refuses a row missing a column or disagreeing with its primary key, writing nothing
+ok 2357 - upsert refuses a row missing a column or disagreeing with its primary key, writing nothing
+  ---
+  duration_ms: 7.836623
+  type: 'test'
+  ...
+# Subtest: BLOB values travel as base64 both ways, and a second upsert replaces the non-key columns
+ok 2358 - BLOB values travel as base64 both ways, and a second upsert replaces the non-key columns
+  ---
+  duration_ms: 6.393257
+  type: 'test'
+  ...
+# Subtest: a key-only table upserts idempotently and removeCreated deletes exactly that row
+ok 2359 - a key-only table upserts idempotently and removeCreated deletes exactly that row
+  ---
+  duration_ms: 2.786012
+  type: 'test'
+  ...
+# Subtest: read refuses a stored integer that JSON would round
+ok 2360 - read refuses a stored integer that JSON would round
+  ---
+  duration_ms: 2.855553
+  type: 'test'
+  ...
+# Subtest: transaction() checks foreign keys once at the outermost send and joins an enclosing transaction
+ok 2361 - transaction() checks foreign keys once at the outermost send and joins an enclosing transaction
+  ---
+  duration_ms: 5.3367
+  type: 'test'
+  ...
+# Subtest: [InMemory] enqueue + findById round-trips
+ok 2362 - [InMemory] enqueue + findById round-trips
+  ---
+  duration_ms: 2.953626
+  type: 'test'
+  ...
+# Subtest: [InMemory] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+ok 2363 - [InMemory] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+  ---
+  duration_ms: 0.444914
+  type: 'test'
+  ...
+# Subtest: [InMemory] claimPending claims due rows, sets delivering, and increments attempts
+ok 2364 - [InMemory] claimPending claims due rows, sets delivering, and increments attempts
+  ---
+  duration_ms: 0.543906
+  type: 'test'
+  ...
+# Subtest: [InMemory] claimPending orders multiple due rows oldest-nextAttemptAt-first
+ok 2365 - [InMemory] claimPending orders multiple due rows oldest-nextAttemptAt-first
+  ---
+  duration_ms: 7.415647
+  type: 'test'
+  ...
+# Subtest: [InMemory] claimPending respects batchSize and leaves the rest claimable
+ok 2366 - [InMemory] claimPending respects batchSize and leaves the rest claimable
+  ---
+  duration_ms: 0.326923
+  type: 'test'
+  ...
+# Subtest: [InMemory] markDelivered and markFailed refuse another workspace's row
+ok 2367 - [InMemory] markDelivered and markFailed refuse another workspace's row
+  ---
+  duration_ms: 0.296328
+  type: 'test'
+  ...
+# Subtest: [InMemory] markDelivered clears lastError and stamps deliveredAt
+ok 2368 - [InMemory] markDelivered clears lastError and stamps deliveredAt
+  ---
+  duration_ms: 0.222497
+  type: 'test'
+  ...
+# Subtest: [InMemory] markFailed re-enters pending, or dead when nextStatus is dead
+ok 2369 - [InMemory] markFailed re-enters pending, or dead when nextStatus is dead
+  ---
+  duration_ms: 0.313644
+  type: 'test'
+  ...
+# Subtest: [InMemory] markFailed on a non-existent row is a silent no-op
+ok 2370 - [InMemory] markFailed on a non-existent row is a silent no-op
+  ---
+  duration_ms: 0.159427
+  type: 'test'
+  ...
+# Subtest: [InMemory] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+ok 2371 - [InMemory] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+  ---
+  duration_ms: 0.181817
+  type: 'test'
+  ...
+# Subtest: [InMemory] listBySubscription scopes by workspace + subscription and respects limit
+ok 2372 - [InMemory] listBySubscription scopes by workspace + subscription and respects limit
+  ---
+  duration_ms: 0.352138
+  type: 'test'
+  ...
+# Subtest: [InMemory] listBySubscription orders newest-first with descending id ties before limiting
+ok 2373 - [InMemory] listBySubscription orders newest-first with descending id ties before limiting
+  ---
+  duration_ms: 0.296832
+  type: 'test'
+  ...
+# Subtest: [InMemory] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+ok 2374 - [InMemory] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+  ---
+  duration_ms: 1.143126
+  type: 'test'
+  ...
+# Subtest: [InMemory] find returns null when no envelope was ever saved
+ok 2375 - [InMemory] find returns null when no envelope was ever saved
+  ---
+  duration_ms: 0.226591
+  type: 'test'
+  ...
+# Subtest: [InMemory] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+ok 2376 - [InMemory] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+  ---
+  duration_ms: 0.583026
+  type: 'test'
+  ...
+# Subtest: [InMemory] outcomes fenced on claimedAttempts leave a newer claim alone
+ok 2377 - [InMemory] outcomes fenced on claimedAttempts leave a newer claim alone
+  ---
+  duration_ms: 0.321128
+  type: 'test'
+  ...
+# Subtest: [InMemory] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+ok 2378 - [InMemory] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+  ---
+  duration_ms: 2.753169
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] enqueue + findById round-trips
+ok 2379 - [SqliteWebhookDeliveryRepo] enqueue + findById round-trips
+  ---
+  duration_ms: 326.855906
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+ok 2380 - [SqliteWebhookDeliveryRepo] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+  ---
+  duration_ms: 137.613936
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] claimPending claims due rows, sets delivering, and increments attempts
+ok 2381 - [SqliteWebhookDeliveryRepo] claimPending claims due rows, sets delivering, and increments attempts
+  ---
+  duration_ms: 400.694939
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] claimPending orders multiple due rows oldest-nextAttemptAt-first
+ok 2382 - [SqliteWebhookDeliveryRepo] claimPending orders multiple due rows oldest-nextAttemptAt-first
+  ---
+  duration_ms: 139.284246
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] claimPending respects batchSize and leaves the rest claimable
+ok 2383 - [SqliteWebhookDeliveryRepo] claimPending respects batchSize and leaves the rest claimable
+  ---
+  duration_ms: 368.488893
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] markDelivered and markFailed refuse another workspace's row
+ok 2384 - [SqliteWebhookDeliveryRepo] markDelivered and markFailed refuse another workspace's row
+  ---
+  duration_ms: 206.187187
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] markDelivered clears lastError and stamps deliveredAt
+ok 2385 - [SqliteWebhookDeliveryRepo] markDelivered clears lastError and stamps deliveredAt
+  ---
+  duration_ms: 586.256833
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] markFailed re-enters pending, or dead when nextStatus is dead
+ok 2386 - [SqliteWebhookDeliveryRepo] markFailed re-enters pending, or dead when nextStatus is dead
+  ---
+  duration_ms: 442.319427
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] markFailed on a non-existent row is a silent no-op
+ok 2387 - [SqliteWebhookDeliveryRepo] markFailed on a non-existent row is a silent no-op
+  ---
+  duration_ms: 95.7122
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+ok 2388 - [SqliteWebhookDeliveryRepo] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+  ---
+  duration_ms: 429.229417
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] listBySubscription scopes by workspace + subscription and respects limit
+ok 2389 - [SqliteWebhookDeliveryRepo] listBySubscription scopes by workspace + subscription and respects limit
+  ---
+  duration_ms: 370.783648
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] listBySubscription orders newest-first with descending id ties before limiting
+ok 2390 - [SqliteWebhookDeliveryRepo] listBySubscription orders newest-first with descending id ties before limiting
+  ---
+  duration_ms: 336.416884
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+ok 2391 - [SqliteWebhookDeliveryRepo] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+  ---
+  duration_ms: 371.084974
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] find returns null when no envelope was ever saved
+ok 2392 - [SqliteWebhookDeliveryRepo] find returns null when no envelope was ever saved
+  ---
+  duration_ms: 298.310084
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+ok 2393 - [SqliteWebhookDeliveryRepo] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+  ---
+  duration_ms: 272.969796
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] outcomes fenced on claimedAttempts leave a newer claim alone
+ok 2394 - [SqliteWebhookDeliveryRepo] outcomes fenced on claimedAttempts leave a newer claim alone
+  ---
+  duration_ms: 97.407466
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookDeliveryRepo] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+ok 2395 - [SqliteWebhookDeliveryRepo] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+  ---
+  duration_ms: 351.423897
+  type: 'test'
+  ...
+# Subtest: ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue()'s optional envelope argument is durably readable BEFORE any separate save() call ever runs
+ok 2396 - ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue()'s optional envelope argument is durably readable BEFORE any separate save() call ever runs
+  ---
+  duration_ms: 145.167571
+  type: 'test'
+  ...
+# Subtest: SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlying db reads persisted rows (restart simulation)
+ok 2397 - SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlying db reads persisted rows (restart simulation)
+  ---
+  duration_ms: 316.916473
+  type: 'test'
+  ...
+# Subtest: SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also a silent no-op
+ok 2398 - SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also a silent no-op
+  ---
+  duration_ms: 195.502291
+  type: 'test'
+  ...
+# Subtest: SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (NOT NULL) is rethrown, not swallowed
+ok 2399 - SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (NOT NULL) is rethrown, not swallowed
+  ---
+  duration_ms: 246.871748
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] enqueue + findById round-trips
+ok 2400 - [kysely/sqlite] enqueue + findById round-trips
+  ---
+  duration_ms: 273.748956
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+ok 2401 - [kysely/sqlite] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+  ---
+  duration_ms: 209.826535
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] claimPending claims due rows, sets delivering, and increments attempts
+ok 2402 - [kysely/sqlite] claimPending claims due rows, sets delivering, and increments attempts
+  ---
+  duration_ms: 131.190484
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] claimPending orders multiple due rows oldest-nextAttemptAt-first
+ok 2403 - [kysely/sqlite] claimPending orders multiple due rows oldest-nextAttemptAt-first
+  ---
+  duration_ms: 248.555558
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] claimPending respects batchSize and leaves the rest claimable
+ok 2404 - [kysely/sqlite] claimPending respects batchSize and leaves the rest claimable
+  ---
+  duration_ms: 228.931461
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markDelivered and markFailed refuse another workspace's row
+ok 2405 - [kysely/sqlite] markDelivered and markFailed refuse another workspace's row
+  ---
+  duration_ms: 312.933647
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markDelivered clears lastError and stamps deliveredAt
+ok 2406 - [kysely/sqlite] markDelivered clears lastError and stamps deliveredAt
+  ---
+  duration_ms: 142.081899
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markFailed re-enters pending, or dead when nextStatus is dead
+ok 2407 - [kysely/sqlite] markFailed re-enters pending, or dead when nextStatus is dead
+  ---
+  duration_ms: 187.301256
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] markFailed on a non-existent row is a silent no-op
+ok 2408 - [kysely/sqlite] markFailed on a non-existent row is a silent no-op
+  ---
+  duration_ms: 485.853837
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+ok 2409 - [kysely/sqlite] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+  ---
+  duration_ms: 338.05448
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] listBySubscription scopes by workspace + subscription and respects limit
+ok 2410 - [kysely/sqlite] listBySubscription scopes by workspace + subscription and respects limit
+  ---
+  duration_ms: 238.566397
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] listBySubscription orders newest-first with descending id ties before limiting
+ok 2411 - [kysely/sqlite] listBySubscription orders newest-first with descending id ties before limiting
+  ---
+  duration_ms: 272.621861
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+ok 2412 - [kysely/sqlite] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+  ---
+  duration_ms: 237.811221
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] find returns null when no envelope was ever saved
+ok 2413 - [kysely/sqlite] find returns null when no envelope was ever saved
+  ---
+  duration_ms: 132.006839
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+ok 2414 - [kysely/sqlite] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+  ---
+  duration_ms: 330.320805
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] outcomes fenced on claimedAttempts leave a newer claim alone
+ok 2415 - [kysely/sqlite] outcomes fenced on claimedAttempts leave a newer claim alone
+  ---
+  duration_ms: 238.48271
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+ok 2416 - [kysely/sqlite] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+  ---
+  duration_ms: 238.567197
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] enqueue + findById round-trips
+ok 2417 - [kysely/pglite] enqueue + findById round-trips
+  ---
+  duration_ms: 9746.714533
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+ok 2418 - [kysely/pglite] enqueue is idempotent on (workspace_id, subscription_id, event_id)
+  ---
+  duration_ms: 7.995811
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] claimPending claims due rows, sets delivering, and increments attempts
+ok 2419 - [kysely/pglite] claimPending claims due rows, sets delivering, and increments attempts
+  ---
+  duration_ms: 29.020557
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] claimPending orders multiple due rows oldest-nextAttemptAt-first
+ok 2420 - [kysely/pglite] claimPending orders multiple due rows oldest-nextAttemptAt-first
+  ---
+  duration_ms: 12.105133
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] claimPending respects batchSize and leaves the rest claimable
+ok 2421 - [kysely/pglite] claimPending respects batchSize and leaves the rest claimable
+  ---
+  duration_ms: 17.371324
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markDelivered and markFailed refuse another workspace's row
+ok 2422 - [kysely/pglite] markDelivered and markFailed refuse another workspace's row
+  ---
+  duration_ms: 11.971828
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markDelivered clears lastError and stamps deliveredAt
+ok 2423 - [kysely/pglite] markDelivered clears lastError and stamps deliveredAt
+  ---
+  duration_ms: 6.942086
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markFailed re-enters pending, or dead when nextStatus is dead
+ok 2424 - [kysely/pglite] markFailed re-enters pending, or dead when nextStatus is dead
+  ---
+  duration_ms: 31.806016
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] markFailed on a non-existent row is a silent no-op
+ok 2425 - [kysely/pglite] markFailed on a non-existent row is a silent no-op
+  ---
+  duration_ms: 5.783996
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+ok 2426 - [kysely/pglite] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it
+  ---
+  duration_ms: 7.81258
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] listBySubscription scopes by workspace + subscription and respects limit
+ok 2427 - [kysely/pglite] listBySubscription scopes by workspace + subscription and respects limit
+  ---
+  duration_ms: 10.933995
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] listBySubscription orders newest-first with descending id ties before limiting
+ok 2428 - [kysely/pglite] listBySubscription orders newest-first with descending id ties before limiting
+  ---
+  duration_ms: 20.660581
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+ok 2429 - [kysely/pglite] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)
+  ---
+  duration_ms: 43.17474
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] find returns null when no envelope was ever saved
+ok 2430 - [kysely/pglite] find returns null when no envelope was ever saved
+  ---
+  duration_ms: 58.146068
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+ok 2431 - [kysely/pglite] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows
+  ---
+  duration_ms: 71.157829
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] outcomes fenced on claimedAttempts leave a newer claim alone
+ok 2432 - [kysely/pglite] outcomes fenced on claimedAttempts leave a newer claim alone
+  ---
+  duration_ms: 43.073446
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+ok 2433 - [kysely/pglite] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced
+  ---
+  duration_ms: 33.835363
+  type: 'test'
+  ...
+# Subtest: safeTextAlign: the three real align keywords pass through unchanged
+ok 2434 - safeTextAlign: the three real align keywords pass through unchanged
+  ---
+  duration_ms: 1.426409
+  type: 'test'
+  ...
+# Subtest: safeTextAlign: 'left' (the CSS default) is rejected — the caller omits the attribute for it, same as any other unrecognized value
+ok 2435 - safeTextAlign: 'left' (the CSS default) is rejected — the caller omits the attribute for it, same as any other unrecognized value
+  ---
+  duration_ms: 0.20868
+  type: 'test'
+  ...
+# Subtest: safeTextAlign: a value that starts with a real keyword and smuggles a second declaration is rejected whole, not truncated to the keyword
+ok 2436 - safeTextAlign: a value that starts with a real keyword and smuggles a second declaration is rejected whole, not truncated to the keyword
+  ---
+  duration_ms: 0.154488
+  type: 'test'
+  ...
+# Subtest: safeTextAlign: an unrecognized keyword is rejected
+ok 2437 - safeTextAlign: an unrecognized keyword is rejected
+  ---
+  duration_ms: 0.140915
+  type: 'test'
+  ...
+# Subtest: safeAspectRatio: a real ratio passes through unchanged, including internal whitespace
+ok 2438 - safeAspectRatio: a real ratio passes through unchanged, including internal whitespace
+  ---
+  duration_ms: 0.273188
+  type: 'test'
+  ...
+# Subtest: safeAspectRatio: a value that starts with a real ratio and smuggles a second declaration is rejected whole
+ok 2439 - safeAspectRatio: a value that starts with a real ratio and smuggles a second declaration is rejected whole
+  ---
+  duration_ms: 0.122896
+  type: 'test'
+  ...
+# Subtest: safeAspectRatio: non-ratio-shaped values are rejected
+ok 2440 - safeAspectRatio: non-ratio-shaped values are rejected
+  ---
+  duration_ms: 4.712866
+  type: 'test'
+  ...
+# Subtest: AC-16 (pre-fix collision, historical regression guard): both call sites must NOT both still use bare purpose:"transactional" with no other discriminator
+ok 2441 - AC-16 (pre-fix collision, historical regression guard): both call sites must NOT both still use bare purpose:"transactional" with no other discriminator
+  ---
+  duration_ms: 9.995381
+  type: 'test'
+  ...
+# Subtest: AC-17: members' sign-in-link send resolves to the interactive lane
+ok 2442 - AC-17: members' sign-in-link send resolves to the interactive lane
+  ---
+  duration_ms: 0.280752
+  type: 'test'
+  ...
+# Subtest: AC-17: forms' notification send resolves to the notification lane
+ok 2443 - AC-17: forms' notification send resolves to the notification lane
+  ---
+  duration_ms: 0.162561
+  type: 'test'
+  ...
+# Subtest: INV-06 characterization: members' send call site still awaits deps.mailer.send(...) synchronously (no behavior change beyond the new field)
+ok 2444 - INV-06 characterization: members' send call site still awaits deps.mailer.send(...) synchronously (no behavior change beyond the new field)
+  ---
+  duration_ms: 0.147354
+  type: 'test'
+  ...
+# Subtest: real call sites use distinct lanes through the production gate and sign-in waits for send completion
+ok 2445 - real call sites use distinct lanes through the production gate and sign-in waits for send completion
+  ---
+  duration_ms: 313.693084
+  type: 'test'
+  ...
+# Subtest: parseResourceMetadataUrl reads the RFC 9728 resource_metadata parameter out of a real challenge
+ok 2446 - parseResourceMetadataUrl reads the RFC 9728 resource_metadata parameter out of a real challenge
+  ---
+  duration_ms: 2.513286
+  type: 'test'
+  ...
+# Subtest: parseResourceMetadataUrl tolerates unquoted values and odd spacing
+ok 2447 - parseResourceMetadataUrl tolerates unquoted values and odd spacing
+  ---
+  duration_ms: 0.360879
+  type: 'test'
+  ...
+# Subtest: parseResourceMetadataUrl returns null when the challenge carries no such parameter
+ok 2448 - parseResourceMetadataUrl returns null when the challenge carries no such parameter
+  ---
+  duration_ms: 0.852374
+  type: 'test'
+  ...
+# Subtest: parseWwwAuthenticateScopes splits the space-delimited scope parameter
+ok 2449 - parseWwwAuthenticateScopes splits the space-delimited scope parameter
+  ---
+  duration_ms: 1.31999
+  type: 'test'
+  ...
+# Subtest: parseWwwAuthenticateScopes returns an empty list when the challenge names no scope
+ok 2450 - parseWwwAuthenticateScopes returns an empty list when the challenge names no scope
+  ---
+  duration_ms: 0.208516
+  type: 'test'
+  ...
+# Subtest: discovery walks resource -> protected-resource metadata -> authorization-server metadata
+ok 2451 - discovery walks resource -> protected-resource metadata -> authorization-server metadata
+  ---
+  duration_ms: 75.713417
+  type: 'test'
+  ...
+# Subtest: discovery retains a device endpoint and refuses an unsafe advertised device endpoint
+ok 2452 - discovery retains a device endpoint and refuses an unsafe advertised device endpoint
+  ---
+  duration_ms: 5.243629
+  type: 'test'
+  ...
+# Subtest: a supplied WWW-Authenticate header is used verbatim rather than guessing the well-known path
+ok 2453 - a supplied WWW-Authenticate header is used verbatim rather than guessing the well-known path
+  ---
+  duration_ms: 22.109539
+  type: 'test'
+  ...
+# Subtest: the WWW-Authenticate challenge's own scope parameter wins over the resource's scopes_supported
+ok 2454 - the WWW-Authenticate challenge's own scope parameter wins over the resource's scopes_supported
+  ---
+  duration_ms: 5.933225
+  type: 'test'
+  ...
+# Subtest: a resource that publishes no protected-resource metadata falls back to its own origin as the issuer
+ok 2455 - a resource that publishes no protected-resource metadata falls back to its own origin as the issuer
+  ---
+  duration_ms: 11.412201
+  type: 'test'
+  ...
+# Subtest: a resource at /mcp is asked for the PATH-INSERTED protected-resource document first
+ok 2456 - a resource at /mcp is asked for the PATH-INSERTED protected-resource document first
+  ---
+  duration_ms: 16.442464
+  type: 'test'
+  ...
+# Subtest: the bare protected-resource path is a FALLBACK, tried only after the path-inserted one
+ok 2457 - the bare protected-resource path is a FALLBACK, tried only after the path-inserted one
+  ---
+  duration_ms: 13.526437
+  type: 'test'
+  ...
+# Subtest: the issuer's RFC 8414 document is asked for before any OpenID Connect fallback
+ok 2458 - the issuer's RFC 8414 document is asked for before any OpenID Connect fallback
+  ---
+  duration_ms: 15.456018
+  type: 'test'
+  ...
+# Subtest: OIDC-only discovery succeeds at /.well-known/openid-configuration
+ok 2459 - OIDC-only discovery succeeds at /.well-known/openid-configuration
+  ---
+  duration_ms: 5.287485
+  type: 'test'
+  ...
+# Subtest: OIDC-only discovery succeeds at /.well-known/openid-configuration/tenant-a
+ok 2460 - OIDC-only discovery succeeds at /.well-known/openid-configuration/tenant-a
+  ---
+  duration_ms: 6.453585
+  type: 'test'
+  ...
+# Subtest: OIDC-only discovery succeeds at /tenant-a/.well-known/openid-configuration
+ok 2461 - OIDC-only discovery succeeds at /tenant-a/.well-known/openid-configuration
+  ---
+  duration_ms: 5.808767
+  type: 'test'
+  ...
+# Subtest: a real hosted MCP server's 401 challenge parses to its exact metadata URL and scopes
+ok 2462 - a real hosted MCP server's 401 challenge parses to its exact metadata URL and scopes
+  ---
+  duration_ms: 0.309753
+  type: 'test'
+  ...
+# Subtest: an advertised authorization server that 404s its well-known path is skipped, not fatal
+ok 2463 - an advertised authorization server that 404s its well-known path is skipped, not fatal
+  ---
+  duration_ms: 9.313371
+  type: 'test'
+  ...
+# Subtest: an advertised authorization server whose metadata has no token endpoint is skipped, not fatal
+ok 2464 - an advertised authorization server whose metadata has no token endpoint is skipped, not fatal
+  ---
+  duration_ms: 9.472421
+  type: 'test'
+  ...
+# Subtest: when EVERY advertised authorization server fails, the error names the resource and does not retry
+ok 2465 - when EVERY advertised authorization server fails, the error names the resource and does not retry
+  ---
+  duration_ms: 11.715714
+  type: 'test'
+  ...
+# Subtest: a discovered token endpoint on an internal address is refused, not used
+ok 2466 - a discovered token endpoint on an internal address is refused, not used
+  ---
+  duration_ms: 6.313396
+  type: 'test'
+  ...
+# Subtest: a discovered authorization endpoint on plaintext http to a public host is refused
+ok 2467 - a discovered authorization endpoint on plaintext http to a public host is refused
+  ---
+  duration_ms: 14.747029
+  type: 'test'
+  ...
+# Subtest: a discovered registration endpoint carrying a javascript: scheme is refused
+ok 2468 - a discovered registration endpoint carrying a javascript: scheme is refused
+  ---
+  duration_ms: 7.599633
+  type: 'test'
+  ...
+# Subtest: an advertised authorization server issuer on an internal address is never fetched
+ok 2469 - an advertised authorization server issuer on an internal address is never fetched
+  ---
+  duration_ms: 4.717134
+  type: 'test'
+  ...
+# Subtest: a resource_metadata URL pointing at an internal address is refused before it is fetched
+ok 2470 - a resource_metadata URL pointing at an internal address is refused before it is fetched
+  ---
+  duration_ms: 0.81272
+  type: 'test'
+  ...
+# Subtest: the resource URL itself is safety-checked before anything is derived from it
+ok 2471 - the resource URL itself is safety-checked before anything is derived from it
+  ---
+  duration_ms: 0.240927
+  type: 'test'
+  ...
+# Subtest: an authorization-server metadata document past the byte cap is a malformed response, not an OOM
+ok 2472 - an authorization-server metadata document past the byte cap is a malformed response, not an OOM
+  ---
+  duration_ms: 9.459219
+  type: 'test'
+  ...
+# Subtest: oversized metadata cancels an unfinished stream as soon as the byte cap is exceeded
+ok 2473 - oversized metadata cancels an unfinished stream as soon as the byte cap is exceeded
+  ---
+  duration_ms: 2.365363
+  type: 'test'
+  ...
+# Subtest: a metadata endpoint that redirects is refused rather than followed to an unvalidated host
+ok 2474 - a metadata endpoint that redirects is refused rather than followed to an unvalidated host
+  ---
+  duration_ms: 4.782016
+  type: 'test'
+  ...
+# Subtest: a metadata document that is not a JSON object is a malformed response
+ok 2475 - a metadata document that is not a JSON object is a malformed response
+  ---
+  duration_ms: 3.412454
+  type: 'test'
+  ...
+# Subtest: RFC 8414 inserts the well-known segment BEFORE an issuer's path component
+ok 2476 - RFC 8414 inserts the well-known segment BEFORE an issuer's path component
+  ---
+  duration_ms: 5.862199
+  type: 'test'
+  ...
+# Subtest: discovery refuses a public issuer substitution
+ok 2477 - discovery refuses a public issuer substitution
+  ---
+  duration_ms: 5.066741
+  type: 'test'
+  ...
+# Subtest: discovery refuses a token endpoint at a different public origin
+ok 2478 - discovery refuses a token endpoint at a different public origin
+  ---
+  duration_ms: 4.619947
+  type: 'test'
+  ...
+# Subtest: path-scoped issuer discovery requires explicit origin fallback
+ok 2479 - path-scoped issuer discovery requires explicit origin fallback
+  ---
+  duration_ms: 2.187079
+  type: 'test'
+  ...
+# Subtest: a token that is not near expiry is returned without touching the provider
+ok 2480 - a token that is not near expiry is returned without touching the provider
+  ---
+  duration_ms: 7.857696
+  type: 'test'
+  ...
+# Subtest: a token inside the refresh skew is refreshed proactively, before it actually expires
+ok 2481 - a token inside the refresh skew is refreshed proactively, before it actually expires
+  ---
+  duration_ms: 9.764337
+  type: 'test'
+  ...
+# Subtest: concurrent callers collapse onto ONE refresh — the rotating token is redeemed once
+ok 2482 - concurrent callers collapse onto ONE refresh — the rotating token is redeemed once
+  ---
+  duration_ms: 62.363653
+  type: 'test'
+  ...
+# Subtest: the in-flight entry is cleared after a failure, so a later call can try again
+ok 2483 - the in-flight entry is cleared after a failure, so a later call can try again
+  ---
+  duration_ms: 25.826214
+  type: 'test'
+  ...
+# Subtest: the rotated token is persisted BEFORE it is handed out
+ok 2484 - the rotated token is persisted BEFORE it is handed out
+  ---
+  duration_ms: 15.322564
+  type: 'test'
+  ...
+# Subtest: a rejected persistence never hands out the rotated token and releases the lease
+ok 2485 - a rejected persistence never hands out the rotated token and releases the lease
+  ---
+  duration_ms: 1.160033
+  type: 'test'
+  ...
+# Subtest: a provider answering invalid_grant transitions the connection to needs_reauth and stops
+ok 2486 - a provider answering invalid_grant transitions the connection to needs_reauth and stops
+  ---
+  duration_ms: 0.9912
+  type: 'test'
+  ...
+# Subtest: a re-seal failure while marking needs_reauth still surfaces the REAUTH error, not the write's own error
+ok 2487 - a re-seal failure while marking needs_reauth still surfaces the REAUTH error, not the write's own error
+  ---
+  duration_ms: 0.479153
+  type: 'test'
+  ...
+# Subtest: a re-seal failure while marking needs_reauth (no-refresh-token case) still surfaces the REAUTH error
+ok 2488 - a re-seal failure while marking needs_reauth (no-refresh-token case) still surfaces the REAUTH error
+  ---
+  duration_ms: 2.327902
+  type: 'test'
+  ...
+# Subtest: a TRANSIENT refresh failure does NOT mark the connection needs_reauth
+ok 2489 - a TRANSIENT refresh failure does NOT mark the connection needs_reauth
+  ---
+  duration_ms: 0.501213
+  type: 'test'
+  ...
+# Subtest: a connection whose provider issued no refresh token goes to needs_reauth at expiry
+ok 2490 - a connection whose provider issued no refresh token goes to needs_reauth at expiry
+  ---
+  duration_ms: 1.34734
+  type: 'test'
+  ...
+# Subtest: a connection holding no token at all is needs_reauth, not a crash
+ok 2491 - a connection holding no token at all is needs_reauth, not a crash
+  ---
+  duration_ms: 2.425337
+  type: 'test'
+  ...
+# Subtest: a null expiry means never proactively refresh — no lifetime is fabricated
+ok 2492 - a null expiry means never proactively refresh — no lifetime is fabricated
+  ---
+  duration_ms: 0.241671
+  type: 'test'
+  ...
+# Subtest: losing the cross-process lease means re-reading, NOT refreshing behind the winner's back
+ok 2493 - losing the cross-process lease means re-reading, NOT refreshing behind the winner's back
+  ---
+  duration_ms: 0.309042
+  type: 'test'
+  ...
+# Subtest: a lease holder that never publishes leaves the loser on its still-valid token rather than racing
+ok 2494 - a lease holder that never publishes leaves the loser on its still-valid token rather than racing
+  ---
+  duration_ms: 0.170061
+  type: 'test'
+  ...
+# Subtest: a lease holder that never publishes, on an already-expired token, fails loudly
+ok 2495 - a lease holder that never publishes, on an already-expired token, fails loudly
+  ---
+  duration_ms: 0.316302
+  type: 'test'
+  ...
+# Subtest: a port with no lease support still gets the in-process single-flight guarantee
+ok 2496 - a port with no lease support still gets the in-process single-flight guarantee
+  ---
+  duration_ms: 0.215046
+  type: 'test'
+  ...
+# Subtest: Tovu binds its existing publication, scheduling and Trash policy to Jini routing
+ok 2497 - Tovu binds its existing publication, scheduling and Trash policy to Jini routing
+  ---
+  duration_ms: 9.385639
+  type: 'test'
+  ...
+# Subtest: redirect registration and site phase readers use the same Jini instance; stale teardown preserves its replacement
+ok 2498 - redirect registration and site phase readers use the same Jini instance; stale teardown preserves its replacement
+  ---
+  duration_ms: 5.316991
+  type: 'test'
+  ...
+# Subtest: Tovu shares the Jini capture slot and stale disposers cannot unbind a newer capture
+ok 2499 - Tovu shares the Jini capture slot and stale disposers cannot unbind a newer capture
+  ---
+  duration_ms: 0.398192
+  type: 'test'
+  ...
+# Subtest: a home outside /Users and /home (root's /root) is masked, which the username policy alone misses
+ok 2500 - a home outside /Users and /home (root's /root) is masked, which the username policy alone misses
+  ---
+  duration_ms: 4.507493
+  type: 'test'
+  ...
+# Subtest: a conventional home keeps the shared /home/<USER> and /Users/<USER> masking
+ok 2501 - a conventional home keeps the shared /home/<USER> and /Users/<USER> masking
+  ---
+  duration_ms: 0.451168
+  type: 'test'
+  ...
+# Subtest: a sibling path that only shares the home prefix stays readable
+ok 2502 - a sibling path that only shares the home prefix stays readable
+  ---
+  duration_ms: 0.19552
+  type: 'test'
+  ...
+# Subtest: a filesystem-root home masks no paths, because masking it would erase every absolute path
+ok 2503 - a filesystem-root home masks no paths, because masking it would erase every absolute path
+  ---
+  duration_ms: 0.122833
+  type: 'test'
+  ...
+# Subtest: credentials are still redacted alongside the home path
+ok 2504 - credentials are still redacted alongside the home path
+  ---
+  duration_ms: 0.305946
+  type: 'test'
+  ...
+# Subtest: without options the current process home is masked
+ok 2505 - without options the current process home is masked
+  ---
+  duration_ms: 0.656886
+  type: 'test'
+  ...
+# Subtest: a duplicate carries content, uploads, and themes, but never chat history, and gets a fresh identity
+ok 2506 - a duplicate carries content, uploads, and themes, but never chat history, and gets a fresh identity
+  ---
+  duration_ms: 1830.300988
+  type: 'test'
+  ...
+# Subtest: site-key plan §A.4: duplicateSite carries the source's own siteKeyId over — falls back to source.siteId for a pre-A4 source with none
+ok 2507 - site-key plan §A.4: duplicateSite carries the source's own siteKeyId over — falls back to source.siteId for a pre-A4 source with none
+  ---
+  duration_ms: 2251.857936
+  type: 'test'
+  ...
+# Subtest: site-key plan §A.4: a duplicate of a site with a sealed row can still decrypt it
+ok 2508 - site-key plan §A.4: a duplicate of a site with a sealed row can still decrypt it
+  ---
+  duration_ms: 2191.957392
+  type: 'test'
+  ...
+# Subtest: the schema stamp is carried from the SOURCE verbatim, never re-derived from the runtime
+ok 2509 - the schema stamp is carried from the SOURCE verbatim, never re-derived from the runtime
+  ---
+  duration_ms: 1386.653926
+  type: 'test'
+  ...
+# Subtest: R1d: the duplicate keeps the source's storage; a postgres source is refused before anything is written
+ok 2510 - R1d: the duplicate keeps the source's storage; a postgres source is refused before anything is written
+  ---
+  duration_ms: 1641.532426
+  type: 'test'
+  ...
+# Subtest: omitting name defaults the duplicate's display name to the target directory's basename
+ok 2511 - omitting name defaults the duplicate's display name to the target directory's basename
+  ---
+  duration_ms: 1979.087968
+  type: 'test'
+  ...
+# Subtest: refuses a non-empty target directory, and creates nothing new there
+ok 2512 - refuses a non-empty target directory, and creates nothing new there
+  ---
+  duration_ms: 1331.236227
+  type: 'test'
+  ...
+# Subtest: refuses a source that is not a valid site directory
+ok 2513 - refuses a source that is not a valid site directory
+  ---
+  duration_ms: 12.664202
+  type: 'test'
+  ...
+# Subtest: refuses an invalid target display name without creating anything
+ok 2514 - refuses an invalid target display name without creating anything
+  ---
+  duration_ms: 1720.302897
+  type: 'test'
+  ...
+# Subtest: the duplicate is independently readable via readSiteDir (both marker files are valid)
+ok 2515 - the duplicate is independently readable via readSiteDir (both marker files are valid)
+  ---
+  duration_ms: 1842.706767
+  type: 'test'
+  ...
+# Subtest: a duplicate carries none of the source's sidecar databases, restore points, backups, or derived output
+ok 2516 - a duplicate carries none of the source's sidecar databases, restore points, backups, or derived output
+  ---
+  duration_ms: 2572.882143
+  type: 'test'
+  ...
+# Subtest: an unclassified new top-level artifact is excluded from a duplicate by default (fail safe)
+ok 2517 - an unclassified new top-level artifact is excluded from a duplicate by default (fail safe)
+  ---
+  duration_ms: 2323.982531
+  type: 'test'
+  ...
+# Subtest: every directory the site layout calls portable is carried across, not just the ones initSite creates
+ok 2518 - every directory the site layout calls portable is carried across, not just the ones initSite creates
+  ---
+  duration_ms: 1611.965302
+  type: 'test'
+  ...
+# Subtest: a mid-copy failure leaves no half-populated directory behind, even in a pre-existing empty target
+ok 2519 - a mid-copy failure leaves no half-populated directory behind, even in a pre-existing empty target
+  ---
+  duration_ms: 1946.818421
+  type: 'test'
+  ...
+# Subtest: a source with no portable entries: a content.db failure into a pre-existing empty target leaves nothing behind
+ok 2520 - a source with no portable entries: a content.db failure into a pre-existing empty target leaves nothing behind
+  ---
+  duration_ms: 3077.0845
+  type: 'test'
+  ...
+# Subtest: after such a failure the operator's retry is not refused as 'not an empty directory'
+ok 2521 - after such a failure the operator's retry is not refused as 'not an empty directory'
+  ---
+  duration_ms: 3259.46302
+  type: 'test'
+  ...
+# Subtest: a successful duplicate into a pre-existing empty target still succeeds — the flag fix must not make cleanup fire on the happy path
+ok 2522 - a successful duplicate into a pre-existing empty target still succeeds — the flag fix must not make cleanup fire on the happy path
+  ---
+  duration_ms: 1557.134412
+  type: 'test'
+  ...
+# Subtest: a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/
+ok 2523 - a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/
+  ---
+  duration_ms: 1457.732772
+  type: 'test'
+  ...
+# Subtest: excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried
+ok 2524 - excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried
+  ---
+  duration_ms: 2873.09949
+  type: 'test'
+  ...
+# Subtest: ops/ (where the copy lives) is not a portable site entry
+ok 2525 - ops/ (where the copy lives) is not a portable site entry
+  ---
+  duration_ms: 2.502889
+  type: 'test'
+  ...
+# Subtest: duplicateSite never carries the source's pre-migrations copy
+ok 2526 - duplicateSite never carries the source's pre-migrations copy
+  ---
+  duration_ms: 2535.976346
+  type: 'test'
+  ...
+# Subtest: the site backup collects no pre-migrations copy from any scope
+ok 2527 - the site backup collects no pre-migrations copy from any scope
+  ---
+  duration_ms: 2779.317178
+  type: 'test'
+  ...
+# Subtest: a static export of the site writes no trace of the pre-migrations copy
+ok 2528 - a static export of the site writes no trace of the pre-migrations copy
+  ---
+  duration_ms: 28475.868469
+  type: 'test'
+  ...
+# Subtest: agent file tools and publish trees deny the copy and its sidecars by name
+ok 2529 - agent file tools and publish trees deny the copy and its sidecars by name
+  ---
+  duration_ms: 2.201432
+  type: 'test'
+  ...
+# Subtest: git and Docker ignore the copy in any site folder
+ok 2530 - git and Docker ignore the copy in any site folder
+  ---
+  duration_ms: 381.896316
+  type: 'test'
+  ...
+# Subtest: seeds tovu-starter into a site that has no themes/ yet
+ok 2531 - seeds tovu-starter into a site that has no themes/ yet
+  ---
+  duration_ms: 6.334202
+  type: 'test'
+  ...
+# Subtest: a new site gets ONLY tovu-starter — every other stock theme, and its original, stays in the package (owner 2026-10-08)
+ok 2532 - a new site gets ONLY tovu-starter — every other stock theme, and its original, stays in the package (owner 2026-10-08)
+  ---
+  duration_ms: 4.775732
+  type: 'test'
+  ...
+# Subtest: seeds exactly the default theme — the seeded list and the render fallback cannot disagree
+ok 2533 - seeds exactly the default theme — the seeded list and the render fallback cannot disagree
+  ---
+  duration_ms: 0.424285
+  type: 'test'
+  ...
+# Subtest: copies __original-themes__ — without it the site loses every theme's 'reset to original' source
+ok 2534 - copies __original-themes__ — without it the site loses every theme's 'reset to original' source
+  ---
+  duration_ms: 3.086138
+  type: 'test'
+  ...
+# Subtest: never overwrites an existing site themes dir — the owner's edits survive the next boot
+ok 2535 - never overwrites an existing site themes dir — the owner's edits survive the next boot
+  ---
+  duration_ms: 2.155984
+  type: 'test'
+  ...
+# Subtest: an existing but EMPTY site themes dir still counts as present — an operator's deliberate empty root is not refilled
+ok 2536 - an existing but EMPTY site themes dir still counts as present — an operator's deliberate empty root is not refilled
+  ---
+  duration_ms: 2.155123
+  type: 'test'
+  ...
+# Subtest: reports no-stock-source instead of throwing when the package has no themes tree
+ok 2537 - reports no-stock-source instead of throwing when the package has no themes tree
+  ---
+  duration_ms: 0.476842
+  type: 'test'
+  ...
+# Subtest: is idempotent: a second call after a successful seed is a no-op
+ok 2538 - is idempotent: a second call after a successful seed is a no-op
+  ---
+  duration_ms: 103.526785
+  type: 'test'
+  ...
+# Subtest: refuses missing site parents and never recreates a moved site
+ok 2539 - refuses missing site parents and never recreates a moved site
+  ---
+  duration_ms: 6.944511
+  type: 'test'
+  ...
+# Subtest: leaves no staging directory behind after a successful seed
+ok 2540 - leaves no staging directory behind after a successful seed
+  ---
+  duration_ms: 7.831824
+  type: 'test'
+  ...
+# Subtest: a mid-copy failure leaves themes absent, and a retry copies the complete seeded tree
+ok 2541 - a mid-copy failure leaves themes absent, and a retry copies the complete seeded tree
+  ---
+  duration_ms: 6.779646
+  type: 'test'
+  ...
+# Subtest: a leftover staging directory from an interrupted boot does not block the next seed
+ok 2542 - a leftover staging directory from an interrupted boot does not block the next seed
+  ---
+  duration_ms: 7.850471
+  type: 'test'
+  ...
+# Subtest: deskfx2 NIT: nested themes override inside an existing site is created atomically
+ok 2543 - deskfx2 NIT: nested themes override inside an existing site is created atomically
+  ---
+  duration_ms: 1.895018
+  type: 'test'
+  ...
+# Subtest: deskfx2 NIT: explicit site root must exist before creating override parents
+ok 2544 - deskfx2 NIT: explicit site root must exist before creating override parents
+  ---
+  duration_ms: 1.026559
+  type: 'test'
+  ...
+# Subtest: refuses a site root that is a file
+ok 2545 - refuses a site root that is a file
+  ---
+  duration_ms: 0.786339
+  type: 'test'
+  ...
+# Subtest: isOutsideRoot keeps nested paths inside and refuses parents, siblings and other drives
+ok 2546 - isOutsideRoot keeps nested paths inside and refuses parents, siblings and other drives
+  ---
+  duration_ms: 0.238969
+  type: 'test'
+  ...
+# Subtest: a creation-time site name is written into the seeded starter's pages
+ok 2547 - a creation-time site name is written into the seeded starter's pages
+  ---
+  duration_ms: 7.722635
+  type: 'test'
+  ...
+# Subtest: an existing themes parent is used as is, even outside the site root
+ok 2548 - an existing themes parent is used as is, even outside the site root
+  ---
+  duration_ms: 7.523312
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: a brand-new destination lands at 0600, not the loose fs.writeFileSync default
+ok 2549 - writeFileAtomic: a brand-new destination lands at 0600, not the loose fs.writeFileSync default
+  ---
+  duration_ms: 44.559124
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: overwriting an existing 0600 file (e.g. .env) preserves its mode
+ok 2550 - writeFileAtomic: overwriting an existing 0600 file (e.g. .env) preserves its mode
+  ---
+  duration_ms: 14.64062
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: overwriting an existing 0644 file preserves 0644 (preserve, not force-tighten)
+ok 2551 - writeFileAtomic: overwriting an existing 0644 file preserves 0644 (preserve, not force-tighten)
+  ---
+  duration_ms: 831.978966
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: statSync failure propagates and preserves destination bytes and mode
+ok 2552 - writeFileAtomic: statSync failure propagates and preserves destination bytes and mode
+  ---
+  duration_ms: 14.670851
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: chmodSync failure propagates and preserves destination bytes and mode
+ok 2553 - writeFileAtomic: chmodSync failure propagates and preserves destination bytes and mode
+  ---
+  duration_ms: 1.433331
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: renameSync failure propagates and preserves destination bytes and mode
+ok 2554 - writeFileAtomic: renameSync failure propagates and preserves destination bytes and mode
+  ---
+  duration_ms: 1.706953
+  type: 'test'
+  ...
+# Subtest: writeFileAtomic: a blocked write (INV-04) throws before any rename and leaves the destination untouched
+ok 2555 - writeFileAtomic: a blocked write (INV-04) throws before any rename and leaves the destination untouched # SKIP running as root ignores directory mode bits — this test cannot force EACCES
+  ---
+  duration_ms: 0.331041
+  type: 'test'
+  ...
+# Subtest: an unlistable nested folder leaves the workspace roots unchanged
+ok 2556 - an unlistable nested folder leaves the workspace roots unchanged
+  ---
+  duration_ms: 15.113378
+  type: 'test'
+  ...
+# Subtest: the sites settings store names itself and reports a lock timeout as locked settings
+ok 2557 - the sites settings store names itself and reports a lock timeout as locked settings
+  ---
+  duration_ms: 0.506203
+  type: 'test'
+  ...
+# Subtest: a nested folder holding a site is added to the roots once; one without a site is not
+ok 2558 - a nested folder holding a site is added to the roots once; one without a site is not
+  ---
+  duration_ms: 7.832762
+  type: 'test'
+  ...
+# Subtest: an explicit or saved home, or an unreadable setting, never qualifies
+ok 2559 - an explicit or saved home, or an unreadable setting, never qualifies
+  ---
+  duration_ms: 5.012549
+  type: 'test'
+  ...
+# Subtest: the nested root must be a real folder that is not itself a site
+ok 2560 - the nested root must be a real folder that is not itself a site
+  ---
+  duration_ms: 14.57424
+  type: 'test'
+  ...
+# Subtest: resolveWorkspace [sqlite]
+    # Subtest: zero rows reject with SiteCorruptError
+    ok 1 - zero rows reject with SiteCorruptError
+      ---
+      duration_ms: 204.236073
+      type: 'test'
+      ...
+    # Subtest: the oldest row wins without a selector; an explicit id wins over it; an unknown id rejects
+    ok 2 - the oldest row wins without a selector; an explicit id wins over it; an unknown id rejects
+      ---
+      duration_ms: 279.280925
+      type: 'test'
+      ...
+    1..2
+ok 2561 - resolveWorkspace [sqlite]
+  ---
+  duration_ms: 484.956826
+  type: 'suite'
+  ...

@@ -1,0 +1,11 @@
+cmd: (npx --yes -p @stryker-mutator/core@9.6.1 -p @stryker-mutator/vitest-runner@9.6.1 -p vitest@2.1.9 -p typescript@5.9.3, installed from /tmp) /root/.npm/_npx/8ad269a16e96c4a0/node_modules/.bin/stryker run stryker.protocol.config.json --concurrency 2
+[32m00:47:19 (22964) INFO ProjectReader[39m Found 12 of 136 file(s) to be mutated.
+[32m00:47:20 (22964) INFO Instrumenter[39m Instrumented 12 source file(s) with 308 mutant(s)
+[32m00:47:20 (22964) INFO ConcurrencyTokenProvider[39m Creating 2 test runner process(es).
+[32m00:47:21 (22964) INFO BroadcastReporter[39m Detected that current console does not support the "progress" reporter, downgrading to "progress-append-only" reporter
+[32m00:47:23 (22964) INFO DryRunExecutor[39m Starting initial test run (vitest test runner with "perTest" coverage analysis). This may take a while.
+[32m00:47:27 (22964) INFO DryRunExecutor[39m Initial test run succeeded. Ran 204 tests in 4 seconds (net 136.8616810000026 ms, overhead 4697.138318999998 ms).
+[33m00:47:27 (22964) WARN MutantTestPlanner[39m Detected 97 static mutants (31% of total) that are estimated to take 81% of the time running the tests!
+  You might want to enable "ignoreStatic" to ignore these static mutants for your next run. 
+  For more information about static mutants visit: https://stryker-mutator.io/docs/mutation-testing-elements/static-mutants
+  (disable "warnings.slow" to ignore this warning)

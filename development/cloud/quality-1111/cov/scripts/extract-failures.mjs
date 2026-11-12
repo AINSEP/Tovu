@@ -2,7 +2,7 @@
 // Classification is heuristic (column `basis` says which rule fired):
 //   ENV         error text names a missing container facility: Postgres socket/5432, Chromium/Playwright browser,
 //               IPv6/::1/EADDRNOTAVAIL, EPERM/EACCES, semgrep/docker missing.
-//   TEST DRIFT  assertion-shaped mismatch (AssertionError, expected/received, snapshot mismatch), a missing
+//   TEST DRIFT  assertion-shaped mismatch in the error message (AssertionError, expected/received, snapshot mismatch), a missing
 //               module/export the test imports, or a timeout — i.e. the test's expectation no longer matches.
 //   PRODUCT     a runtime exception thrown from non-test source (TypeError/ReferenceError/... whose first stack
 //               frame is outside __tests__/test files).
@@ -20,9 +20,9 @@ function classify(err, stack) {
   if (/\bEPERM\b|\bEACCES\b|operation not permitted/i.test(t)) return ['ENV', 'eperm'];
   if (/semgrep|docker: not found|spawn docker/i.test(t)) return ['ENV', 'tool-missing'];
   if (/ENOTFOUND|getaddrinfo|EAI_AGAIN|network/i.test(t) && /fetch|request|connect/i.test(t)) return ['ENV', 'network'];
-  if (/timed out|timeout|Test timed out|cancelledByParent/i.test(t)) return ['TEST DRIFT', 'timeout'];
   if (/Cannot find module|ERR_MODULE_NOT_FOUND|does not provide an export|is not exported|Failed to load url|Failed to resolve import/i.test(t)) return ['TEST DRIFT', 'module-resolution'];
-  if (/AssertionError|expected .* to |Expected|Received|toMatchSnapshot|Snapshot .* mismatched|deepStrictEqual|strictEqual|ERR_ASSERTION/i.test(t)) return ['TEST DRIFT', 'assertion-mismatch'];
+  if (/AssertionError|expected .* to |Expected|Received|toMatchSnapshot|Snapshot .* mismatched|deepStrictEqual|strictEqual|ERR_ASSERTION/i.test(err)) return ['TEST DRIFT', 'assertion-mismatch'];
+  if (/Test timed out|timed out after|ERR_TEST_TIMEOUT|cancelledByParent|test timed out/i.test(t)) return ['TEST DRIFT', 'timeout'];
   const firstFrame = (stack.split('\n').find(l => /\//.test(l)) || '');
   if (/(TypeError|ReferenceError|RangeError|SyntaxError|Error):/.test(err) && firstFrame && !/__tests__|\.test\.|\.spec\.|test-support|node:internal/.test(firstFrame)) return ['PRODUCT', 'exception-in-source'];
   return ['TEST DRIFT', 'default'];

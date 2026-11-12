@@ -1,0 +1,62 @@
+[32m00:46:13 (21357) INFO ProjectReader[39m Found 12 of 136 file(s) to be mutated.
+[32m00:46:13 (21357) INFO Instrumenter[39m Instrumented 12 source file(s) with 308 mutant(s)
+[91m00:46:13 (21357) ERROR Stryker[39m Unexpected error occurred while running Stryker Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript' imported from /root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/ts-config-preprocessor.js
+Did you mean to import "typescript/lib/typescript.js"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at node:internal/modules/esm/loader:636:32
+    at TracingChannel.tracePromise (node:diagnostics_channel:370:14)
+    at ModuleLoader.import (node:internal/modules/esm/loader:632:21)
+    at defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:226:31)
+    at importModuleDynamicallyCallback (node:internal/modules/esm/utils:268:12)
+    at TSConfigPreprocessor.rewriteTSConfigFile (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/ts-config-preprocessor.js:45:41)
+    at TSConfigPreprocessor.preprocess (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/ts-config-preprocessor.js:36:24)
+    at MultiPreprocessor.preprocess (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/multi-preprocessor.js:8:32)
+    at async MutantInstrumenterExecutor.execute (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/process/2-mutant-instrumenter-executor.js:30:9)
+    at async Stryker.run (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/stryker.js:49:48)
+    at async Stryker.runMutationTest (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/stryker.js:27:20)
+    at async Command.<anonymous> (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/stryker-cli.js:51:13) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+[32m00:46:13 (21357) INFO Stryker[39m This might be a known problem with a solution documented in our troubleshooting guide.
+[32m00:46:13 (21357) INFO Stryker[39m You can find it at https://stryker-mutator.io/docs/stryker-js/troubleshooting/
+[32m00:46:13 (21357) INFO Stryker[39m Still having trouble figuring out what went wrong? Try `npx stryker run --fileLogLevel trace --logLevel debug` to get some more info.
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript' imported from /root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/ts-config-preprocessor.js
+Did you mean to import "typescript/lib/typescript.js"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at node:internal/modules/esm/loader:636:32
+    at TracingChannel.tracePromise (node:diagnostics_channel:370:14)
+    at ModuleLoader.import (node:internal/modules/esm/loader:632:21)
+    at defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:226:31)
+    at importModuleDynamicallyCallback (node:internal/modules/esm/utils:268:12)
+    at TSConfigPreprocessor.rewriteTSConfigFile (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/ts-config-preprocessor.js:45:41)
+    at TSConfigPreprocessor.preprocess (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/ts-config-preprocessor.js:36:24)
+    at MultiPreprocessor.preprocess (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/sandbox/multi-preprocessor.js:8:32)
+    at async MutantInstrumenterExecutor.execute (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/process/2-mutant-instrumenter-executor.js:30:9)
+    at async Stryker.run (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/stryker.js:49:48)
+    at async Stryker.runMutationTest (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/stryker.js:27:20)
+    at async Command.<anonymous> (file:///root/.npm/_npx/cd76b17657147e7c/node_modules/@stryker-mutator/core/dist/src/stryker-cli.js:51:13) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.22.3
+exit 1 4s

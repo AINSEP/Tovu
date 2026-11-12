@@ -1,0 +1,3348 @@
+TAP version 13
+# Subtest: the preload, the contract and the handler all agree on the button's channel
+ok 1 - the preload, the contract and the handler all agree on the button's channel
+  ---
+  duration_ms: 2.86291
+  type: 'test'
+  ...
+# Subtest: CLICKING the button adds a pointer for an existing site folder
+ok 2 - CLICKING the button adds a pointer for an existing site folder
+  ---
+  duration_ms: 41.096301
+  type: 'test'
+  ...
+# Subtest: CLICKING the button REFUSES an empty folder and creates nothing in it
+ok 3 - CLICKING the button REFUSES an empty folder and creates nothing in it
+  ---
+  duration_ms: 6.406603
+  type: 'test'
+  ...
+# Subtest: CLICKING the button REFUSES a folder of unrelated files and an incomplete site
+ok 4 - CLICKING the button REFUSES a folder of unrelated files and an incomplete site
+  ---
+  duration_ms: 2.084285
+  type: 'test'
+  ...
+# Subtest: the button's dialog cannot create the folder it is about to refuse
+ok 5 - the button's dialog cannot create the folder it is about to refuse
+  ---
+  duration_ms: 29.062407
+  type: 'test'
+  ...
+# Subtest: a cancelled dialog returns null and writes nothing
+ok 6 - a cancelled dialog returns null and writes nothing
+  ---
+  duration_ms: 0.719477
+  type: 'test'
+  ...
+# Subtest: adding a copied folder gives it a fresh identity and leaves the original unchanged
+ok 7 - adding a copied folder gives it a fresh identity and leaves the original unchanged
+  ---
+  duration_ms: 119.748677
+  type: 'test'
+  ...
+# Subtest: adding a moved folder keeps its identity and uses the existing relocation owner
+ok 8 - adding a moved folder keeps its identity and uses the existing relocation owner
+  ---
+  duration_ms: 90.94422
+  type: 'test'
+  ...
+# Subtest: adding the same copied folder twice is idempotent
+ok 9 - adding the same copied folder twice is idempotent
+  ---
+  duration_ms: 42.494078
+  type: 'test'
+  ...
+# Subtest: adding a symlink alias keeps the original directory identity
+ok 10 - adding a symlink alias keeps the original directory identity
+  ---
+  duration_ms: 17.318814
+  type: 'test'
+  ...
+# Subtest: re-identifying a legacy copy preserves its implicit encryption key identity
+ok 11 - re-identifying a legacy copy preserves its implicit encryption key identity
+  ---
+  duration_ms: 33.609079
+  type: 'test'
+  ...
+# Subtest: a failed atomic identity replacement leaves both folders untouched and reports a plain sentence
+ok 12 - a failed atomic identity replacement leaves both folders untouched and reports a plain sentence
+  ---
+  duration_ms: 29.359426
+  type: 'test'
+  ...
+# Subtest: Start automatically re-identifies a copy already tracked by an older desktop
+ok 13 - Start automatically re-identifies a copy already tracked by an older desktop
+  ---
+  duration_ms: 64.417974
+  type: 'test'
+  ...
+# Subtest: Start keeps a moved folder's identity and relocates its existing reservation
+ok 14 - Start keeps a moved folder's identity and relocates its existing reservation
+  ---
+  duration_ms: 69.894205
+  type: 'test'
+  ...
+# Subtest: Start reports a plain sentence when a linked marker cannot safely be re-identified
+ok 15 - Start reports a plain sentence when a linked marker cannot safely be re-identified
+  ---
+  duration_ms: 70.449623
+  type: 'test'
+  ...
+# Subtest: the fixtures really are the folder states these tests claim to exercise
+ok 16 - the fixtures really are the folder states these tests claim to exercise
+  ---
+  duration_ms: 4.051666
+  type: 'test'
+  ...
+# Subtest: addSitePointer tracks a real site as `adopted`, so a later delete can never erase it
+ok 17 - addSitePointer tracks a real site as `adopted`, so a later delete can never erase it
+  ---
+  duration_ms: 12.752682
+  type: 'test'
+  ...
+# Subtest: addSitePointer never writes into the site folder it points at
+ok 18 - addSitePointer never writes into the site folder it points at
+  ---
+  duration_ms: 14.493728
+  type: 'test'
+  ...
+# Subtest: addSitePointer REFUSES an empty folder and initializes nothing in it
+ok 19 - addSitePointer REFUSES an empty folder and initializes nothing in it
+  ---
+  duration_ms: 1.662924
+  type: 'test'
+  ...
+# Subtest: addSitePointer REFUSES a path that does not exist
+ok 20 - addSitePointer REFUSES a path that does not exist
+  ---
+  duration_ms: 1.051873
+  type: 'test'
+  ...
+# Subtest: addSitePointer REFUSES a half-initialized site missing .site-meta.json
+ok 21 - addSitePointer REFUSES a half-initialized site missing .site-meta.json
+  ---
+  duration_ms: 0.899709
+  type: 'test'
+  ...
+# Subtest: addSitePointer REFUSES a half-initialized site missing config.json
+ok 22 - addSitePointer REFUSES a half-initialized site missing config.json
+  ---
+  duration_ms: 1.291196
+  type: 'test'
+  ...
+# Subtest: addSitePointer REFUSES a folder of unrelated files
+ok 23 - addSitePointer REFUSES a folder of unrelated files
+  ---
+  duration_ms: 1.438435
+  type: 'test'
+  ...
+# Subtest: addSitePointer REFUSES a path that is a file rather than a directory
+ok 24 - addSitePointer REFUSES a path that is a file rather than a directory
+  ---
+  duration_ms: 2.285841
+  type: 'test'
+  ...
+# Subtest: addSitePointer refuses an unmapped classification rather than admitting it
+ok 25 - addSitePointer refuses an unmapped classification rather than admitting it
+  ---
+  duration_ms: 1.027117
+  type: 'test'
+  ...
+# Subtest: addSitePointer is idempotent and reports the second call as already tracked
+ok 26 - addSitePointer is idempotent and reports the second call as already tracked
+  ---
+  duration_ms: 5.441828
+  type: 'test'
+  ...
+# Subtest: addSitePointer restores a project the operator had removed, and says so
+ok 27 - addSitePointer restores a project the operator had removed, and says so
+  ---
+  duration_ms: 11.993239
+  type: 'test'
+  ...
+# Subtest: addSitePointer resolves a relative path against cwd and records the absolute form
+ok 28 - addSitePointer resolves a relative path against cwd and records the absolute form
+  ---
+  duration_ms: 7.860879
+  type: 'test'
+  ...
+# Subtest: addSitePointer normalizes a trailing slash so one site cannot become two rows
+ok 29 - addSitePointer normalizes a trailing slash so one site cannot become two rows
+  ---
+  duration_ms: 12.648663
+  type: 'test'
+  ...
+# Subtest: addSitePointer does not touch the recently-opened list
+ok 30 - addSitePointer does not touch the recently-opened list
+  ---
+  duration_ms: 7.529403
+  type: 'test'
+  ...
+# Subtest: normalizeSiteDirPath leaves an absolute path absolute and ignores cwd
+ok 31 - normalizeSiteDirPath leaves an absolute path absolute and ignores cwd
+  ---
+  duration_ms: 0.173226
+  type: 'test'
+  ...
+# Subtest: a packaged app offers no candidate at all — the gate that keeps packaged behavior unchanged
+ok 32 - a packaged app offers no candidate at all — the gate that keeps packaged behavior unchanged
+  ---
+  duration_ms: 1.811498
+  type: 'test'
+  ...
+# Subtest: a checkout offers both schemes on Vite's port, because dev TLS is decided by cert files this process cannot read
+ok 33 - a checkout offers both schemes on Vite's port, because dev TLS is decided by cert files this process cannot read
+  ---
+  duration_ms: 0.397185
+  type: 'test'
+  ...
+# Subtest: TOVU_ADMIN_DEV_PORT moves the candidates, matching vite.config.ts's own default
+ok 34 - TOVU_ADMIN_DEV_PORT moves the candidates, matching vite.config.ts's own default
+  ---
+  duration_ms: 0.133966
+  type: 'test'
+  ...
+# Subtest: an operator-set origin is honored verbatim and ALONE — never silently widened to a guessed localhost
+ok 35 - an operator-set origin is honored verbatim and ALONE — never silently widened to a guessed localhost
+  ---
+  duration_ms: 0.090808
+  type: 'test'
+  ...
+# Subtest: a nonsense port yields no candidate rather than an unparseable origin
+ok 36 - a nonsense port yields no candidate rather than an unparseable origin
+  ---
+  duration_ms: 0.085143
+  type: 'test'
+  ...
+# Subtest: resolve returns the origin when something is actually listening there
+ok 37 - resolve returns the origin when something is actually listening there
+  ---
+  duration_ms: 32.283101
+  type: 'test'
+  ...
+# Subtest: resolve returns null when nothing is listening — the case that must NOT break a desktop with no Vite running
+ok 38 - resolve returns null when nothing is listening — the case that must NOT break a desktop with no Vite running
+  ---
+  duration_ms: 0.525869
+  type: 'test'
+  ...
+# Subtest: resolve returns null when packaged, without probing anything
+ok 39 - resolve returns null when packaged, without probing anything
+  ---
+  duration_ms: 0.541046
+  type: 'test'
+  ...
+# Subtest: buildServeEnv sets TOVU_ADMIN_DEV_PROXY_URL only when a resolved origin is passed
+ok 40 - buildServeEnv sets TOVU_ADMIN_DEV_PROXY_URL only when a resolved origin is passed
+  ---
+  duration_ms: 1.674244
+  type: 'test'
+  ...
+# Subtest: the dev proxy does not disturb the admin/site-chat dist variables the same env already carries
+ok 41 - the dev proxy does not disturb the admin/site-chat dist variables the same env already carries
+  ---
+  duration_ms: 0.670768
+  type: 'test'
+  ...
+# Subtest: resolve returns null for an operator-set origin that is not a URL, without sending any request
+ok 42 - resolve returns null for an operator-set origin that is not a URL, without sending any request
+  ---
+  duration_ms: 0.215764
+  type: 'test'
+  ...
+# Subtest: a probe that times out is destroyed and counts as not-ready, so a hung port cannot stall the launch
+ok 43 - a probe that times out is destroyed and counts as not-ready, so a hung port cannot stall the launch
+  ---
+  duration_ms: 0.243882
+  type: 'test'
+  ...
+# Subtest: an https origin is probed over TLS by default, so a plain-http listener on that port is not mistaken for Vite
+ok 44 - an https origin is probed over TLS by default, so a plain-http listener on that port is not mistaken for Vite
+  ---
+  duration_ms: 24.686898
+  type: 'test'
+  ...
+# Subtest: cleanCreateTokens: absent input is no tokens; values are trimmed and blank ones dropped
+ok 45 - cleanCreateTokens: absent input is no tokens; values are trimmed and blank ones dropped
+  ---
+  duration_ms: 2.107404
+  type: 'test'
+  ...
+# Subtest: cleanCreateTokens: at most 8 tokens of at most 4096 chars
+ok 46 - cleanCreateTokens: at most 8 tokens of at most 4096 chars
+  ---
+  duration_ms: 0.810402
+  type: 'test'
+  ...
+# Subtest: cleanCreateTokens: the plugin id is anchored lower-case [a-z0-9][a-z0-9-]{0,63}
+ok 47 - cleanCreateTokens: the plugin id is anchored lower-case [a-z0-9][a-z0-9-]{0,63}
+  ---
+  duration_ms: 0.363683
+  type: 'test'
+  ...
+# Subtest: cleanCreateTokens: wrong shapes are refused, never coerced
+ok 48 - cleanCreateTokens: wrong shapes are refused, never coerced
+  ---
+  duration_ms: 0.220839
+  type: 'test'
+  ...
+# Subtest: tokens may only be added to an empty folder; no tokens are always fine
+ok 49 - tokens may only be added to an empty folder; no tokens are always fine
+  ---
+  duration_ms: 0.263062
+  type: 'test'
+  ...
+# Subtest: initTokenOptions passes tokens and captures init output only when there are tokens
+ok 50 - initTokenOptions passes tokens and captures init output only when there are tokens
+  ---
+  duration_ms: 0.198923
+  type: 'test'
+  ...
+# Subtest: the created-tokens line is a whole line: status saved|failed, then lower-case ids
+ok 51 - the created-tokens line is a whole line: status saved|failed, then lower-case ids
+  ---
+  duration_ms: 0.540478
+  type: 'test'
+  ...
+# Subtest: listTokenSignInPlugins keeps only well-formed https plugins from the LAST JSON line, and removes its scratch site
+ok 52 - listTokenSignInPlugins keeps only well-formed https plugins from the LAST JSON line, and removes its scratch site
+  ---
+  duration_ms: 17.39904
+  type: 'test'
+  ...
+# Subtest: listTokenSignInPlugins: a non-zero exit fails with the trimmed stderr, and still removes its scratch site
+ok 53 - listTokenSignInPlugins: a non-zero exit fails with the trimmed stderr, and still removes its scratch site
+  ---
+  duration_ms: 18.549306
+  type: 'test'
+  ...
+# tovu desktop: dropped inherited TOVU_ADMIN_PASSWORD; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+# Subtest: cleanCreateTokens trims, drops blanks, and refuses anything but a small map of plugin ids to strings
+ok 54 - cleanCreateTokens trims, drops blanks, and refuses anything but a small map of plugin ids to strings
+  ---
+  duration_ms: 3.512509
+  type: 'test'
+  ...
+# Subtest: parseCreatedTokensLine reads tovu init's line, and nothing when there is none
+ok 55 - parseCreatedTokensLine reads tovu init's line, and nothing when there is none
+  ---
+  duration_ms: 0.61199
+  type: 'test'
+  ...
+# Subtest: assertTokensCanReachFolder refuses tokens for a folder that already holds a site, and nothing else
+ok 56 - assertTokensCanReachFolder refuses tokens for a folder that already holds a site, and nothing else
+  ---
+  duration_ms: 0.283216
+  type: 'test'
+  ...
+# Subtest: initSiteDir hands tokens to tovu init on stdin with the flag, never on argv or in env
+ok 57 - initSiteDir hands tokens to tovu init on stdin with the flag, never on argv or in env
+  ---
+  duration_ms: 27.312057
+  type: 'test'
+  ...
+# Subtest: initSiteDir without tokens selects the default create password: no token flag, stdin ignored
+ok 58 - initSiteDir without tokens selects the default create password: no token flag, stdin ignored
+  ---
+  duration_ms: 2.500619
+  type: 'test'
+  ...
+# Subtest: handleCreate passes the tokens to adoptSiteDir and returns tovu init's outcome on the record
+ok 59 - handleCreate passes the tokens to adoptSiteDir and returns tovu init's outcome on the record
+  ---
+  duration_ms: 80.047015
+  type: 'test'
+  ...
+# Subtest: handleCreate with no token is unchanged: no token options reach adoptSiteDir, no outcome on the record
+ok 60 - handleCreate with no token is unchanged: no token options reach adoptSiteDir, no outcome on the record
+  ---
+  duration_ms: 38.70853
+  type: 'test'
+  ...
+# Subtest: handleCreate refuses tokens for a folder that already holds a site, before adopting it
+ok 61 - handleCreate refuses tokens for a folder that already holds a site, before adopting it
+  ---
+  duration_ms: 2.693037
+  type: 'test'
+  ...
+# Subtest: handleCreate refuses a malformed token map before the folder picker opens
+ok 62 - handleCreate refuses a malformed token map before the folder picker opens
+  ---
+  duration_ms: 3.924971
+  type: 'test'
+  ...
+# Subtest: listTokenSignInPlugins runs the CLI's list command and keeps only well-formed https entries
+ok 63 - listTokenSignInPlugins runs the CLI's list command and keeps only well-formed https entries
+  ---
+  duration_ms: 4.959152
+  type: 'test'
+  ...
+# [desktop] could not list the services a new site can connect: cli missing
+# Subtest: a failing list is an empty list at the IPC boundary, never an error
+ok 64 - a failing list is an empty list at the IPC boundary, never an error
+  ---
+  duration_ms: 13.634568
+  type: 'test'
+  ...
+# Subtest: listTokenSignInPlugins spawns the real compiled CLI by default, in a scratch site dir it removes afterwards
+ok 65 - listTokenSignInPlugins spawns the real compiled CLI by default, in a scratch site dir it removes afterwards
+  ---
+  duration_ms: 217.940507
+  type: 'test'
+  ...
+# Subtest: a list with no JSON line, or one whose plugins is not an array, is an empty list
+ok 66 - a list with no JSON line, or one whose plugins is not an array, is an empty list
+  ---
+  duration_ms: 6.821668
+  type: 'test'
+  ...
+# Subtest: a failing list with no structured error line reports the CLI's raw stderr
+ok 67 - a failing list with no structured error line reports the CLI's raw stderr
+  ---
+  duration_ms: 3.646505
+  type: 'test'
+  ...
+# Subtest: packaged: version IPC registers the exact contract channel and reads app.getVersion on each request
+ok 68 - packaged: version IPC registers the exact contract channel and reads app.getVersion on each request
+  ---
+  duration_ms: 1.999056
+  type: 'test'
+  ...
+# Subtest: dev launch: the nearest desktop-v tag plus -dev, read once in the repo root
+ok 69 - dev launch: the nearest desktop-v tag plus -dev, read once in the repo root
+  ---
+  duration_ms: 0.409994
+  type: 'test'
+  ...
+# Subtest: dev launch without git or a tag falls back to package.json version plus -dev
+ok 70 - dev launch without git or a tag falls back to package.json version plus -dev
+  ---
+  duration_ms: 0.229269
+  type: 'test'
+  ...
+# Subtest: the preload forwards getAppVersion with no renderer-supplied payload
+ok 71 - the preload forwards getAppVersion with no renderer-supplied payload
+  ---
+  duration_ms: 101.277846
+  type: 'test'
+  ...
+# Subtest: main registers the version adapter with Electron's own app and the repo root
+ok 72 - main registers the version adapter with Electron's own app and the repo root
+  ---
+  duration_ms: 140.128391
+  type: 'test'
+  ...
+# Subtest: collects nested files under a directory prefix
+ok 73 - collects nested files under a directory prefix
+  ---
+  duration_ms: 2.335984
+  type: 'test'
+  ...
+# Subtest: a prefix naming a FILE directly (the nested Electron entry) is included as-is, not walked
+ok 74 - a prefix naming a FILE directly (the nested Electron entry) is included as-is, not walked
+  ---
+  duration_ms: 0.450139
+  type: 'test'
+  ...
+# Subtest: an entry-file prefix inside a directory prefix adds no second copy of that file
+ok 75 - an entry-file prefix inside a directory prefix adds no second copy of that file
+  ---
+  duration_ms: 0.279816
+  type: 'test'
+  ...
+# Subtest: symlinks are excluded — they carry no bytes of their own to compare
+ok 76 - symlinks are excluded — they carry no bytes of their own to compare
+  ---
+  duration_ms: 0.142602
+  type: 'test'
+  ...
+# Subtest: a prefix absent from the archive is silently skipped, not an error
+ok 77 - a prefix absent from the archive is silently skipped, not an error
+  ---
+  duration_ms: 0.17312
+  type: 'test'
+  ...
+# Subtest: only the requested prefixes are walked — an unrelated top-level entry (node_modules) never appears
+ok 78 - only the requested prefixes are walked — an unrelated top-level entry (node_modules) never appears
+  ---
+  duration_ms: 0.800264
+  type: 'test'
+  ...
+# Subtest: the report names every mismatched file individually and explains the failure class
+ok 79 - the report names every mismatched file individually and explains the failure class
+  ---
+  duration_ms: 0.640013
+  type: 'test'
+  ...
+# Subtest: an entry the header lists but extractFile cannot read is reported as a read failure, not a pass
+ok 80 - an entry the header lists but extractFile cannot read is reported as a read failure, not a pass
+  ---
+  duration_ms: 49.146307
+  type: 'test'
+  ...
+# Subtest: a clean archive matches source on every file, byte-for-byte
+ok 81 - a clean archive matches source on every file, byte-for-byte
+  ---
+  duration_ms: 34.26814
+  type: 'test'
+  ...
+# Subtest: DELIBERATE CORRUPTION: one entry rewritten in place, same length, different content — caught and named, no other file flagged
+ok 82 - DELIBERATE CORRUPTION: one entry rewritten in place, same length, different content — caught and named, no other file flagged
+  ---
+  duration_ms: 29.90491
+  type: 'test'
+  ...
+# Subtest: a checked prefix with NOTHING shipped under it is a mismatch, not a partial pass
+ok 83 - a checked prefix with NOTHING shipped under it is a mismatch, not a partial pass
+  ---
+  duration_ms: 9.452048
+  type: 'test'
+  ...
+# Subtest: the entry prefix is checked on its own: an archive shipping src/ WITHOUT src/main/index.ts is a mismatch, not a pass on src's count
+ok 84 - the entry prefix is checked on its own: an archive shipping src/ WITHOUT src/main/index.ts is a mismatch, not a pass on src's count
+  ---
+  duration_ms: 4.019813
+  type: 'test'
+  ...
+# Subtest: a file present in the archive but deleted from source is reported as missing, not silently skipped
+ok 85 - a file present in the archive but deleted from source is reported as missing, not silently skipped
+  ---
+  duration_ms: 5.984103
+  type: 'test'
+  ...
+# Subtest: VERIFIED_PREFIXES includes dist — the compiled preloads and the contracts they import are in scope
+ok 86 - VERIFIED_PREFIXES includes dist — the compiled preloads and the contracts they import are in scope
+  ---
+  duration_ms: 0.272512
+  type: 'test'
+  ...
+# Subtest: a corrupted compiled preload under dist/ IS caught, using the real production prefix list
+ok 87 - a corrupted compiled preload under dist/ IS caught, using the real production prefix list
+  ---
+  duration_ms: 21.430483
+  type: 'test'
+  ...
+# Subtest: REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin and the entry only, no dist) misses the same corruption
+ok 88 - REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin and the entry only, no dist) misses the same corruption
+  ---
+  duration_ms: 14.281237
+  type: 'test'
+  ...
+# Subtest: a .map file present in dist/ on disk but excluded from packing is never checked — not counted, not flagged missing
+ok 89 - a .map file present in dist/ on disk but excluded from packing is never checked — not counted, not flagged missing
+  ---
+  duration_ms: 9.335412
+  type: 'test'
+  ...
+# Subtest: a stale dist/ file left behind by an incremental build (no current .ts source) still verifies cleanly — dead code, not a false gate failure
+ok 90 - a stale dist/ file left behind by an incremental build (no current .ts source) still verifies cleanly — dead code, not a false gate failure
+  ---
+  duration_ms: 24.229628
+  type: 'test'
+  ...
+# Subtest: isEmptyVerification is true only when checkedCount is exactly 0
+ok 91 - isEmptyVerification is true only when checkedCount is exactly 0
+  ---
+  duration_ms: 0.571976
+  type: 'test'
+  ...
+# Subtest: toArchiveEntryPath is a no-op for POSIX separators (the default on this host)
+ok 92 - toArchiveEntryPath is a no-op for POSIX separators (the default on this host)
+  ---
+  duration_ms: 0.134617
+  type: 'test'
+  ...
+# Subtest: toArchiveEntryPath converts every POSIX segment separator to the given separator (win32 simulation)
+ok 93 - toArchiveEntryPath converts every POSIX segment separator to the given separator (win32 simulation)
+  ---
+  duration_ms: 0.060385
+  type: 'test'
+  ...
+# Subtest: toArchiveEntryPath defaults to the real host path.sep when none is passed
+ok 94 - toArchiveEntryPath defaults to the real host path.sep when none is passed
+  ---
+  duration_ms: 0.049167
+  type: 'test'
+  ...
+# Subtest: bundledNpmFailures: no resources dir to check is a failure, never a vacuous pass
+ok 95 - bundledNpmFailures: no resources dir to check is a failure, never a vacuous pass
+  ---
+  duration_ms: 0.145057
+  type: 'test'
+  ...
+# Subtest: bundledNpmFailures: passes when npx-cli.js and npm's own node_modules are both present, names each one missing otherwise
+ok 96 - bundledNpmFailures: passes when npx-cli.js and npm's own node_modules are both present, names each one missing otherwise
+  ---
+  duration_ms: 3.062765
+  type: 'test'
+  ...
+# Subtest: configures the updater: quiet download; install-on-quit only on Windows
+ok 97 - configures the updater: quiet download; install-on-quit only on Windows
+  ---
+  duration_ms: 2.200452
+  type: 'test'
+  ...
+# Subtest: the sole instance checks on its first tick and not again until the interval
+ok 98 - the sole instance checks on its first tick and not again until the interval
+  ---
+  duration_ms: 9.747295
+  type: 'test'
+  ...
+# Subtest: an instance that started later than a live sibling never checks
+ok 99 - an instance that started later than a live sibling never checks
+  ---
+  duration_ms: 0.857273
+  type: 'test'
+  ...
+# Subtest: an older dead sibling cannot suppress this instance's update check
+ok 100 - an older dead sibling cannot suppress this instance's update check
+  ---
+  duration_ms: 2.566455
+  type: 'test'
+  ...
+# Subtest: an older live sibling with a stale heartbeat cannot suppress this instance's update check
+ok 101 - an older live sibling with a stale heartbeat cannot suppress this instance's update check
+  ---
+  duration_ms: 3.179951
+  type: 'test'
+  ...
+# Subtest: a failed check is logged, not thrown, and frees the next due check
+ok 102 - a failed check is logged, not thrown, and frees the next due check
+  ---
+  duration_ms: 5.810362
+  type: 'test'
+  ...
+# Subtest: a download prompts once per version; Later leaves the install to the quit
+ok 103 - a download prompts once per version; Later leaves the install to the quit
+  ---
+  duration_ms: 2.379049
+  type: 'test'
+  ...
+# Subtest: Restart to update as the only instance quits through the normal drain, then relaunches
+ok 104 - Restart to update as the only instance quits through the normal drain, then relaunches
+  ---
+  duration_ms: 2.084645
+  type: 'test'
+  ...
+# Subtest: Restart to update with another copy open explains and does not quit
+ok 105 - Restart to update with another copy open explains and does not quit
+  ---
+  duration_ms: 2.420988
+  type: 'test'
+  ...
+# Subtest: macOS: the last instance's quit stages the update with Squirrel, without relaunching
+ok 106 - macOS: the last instance's quit stages the update with Squirrel, without relaunching
+  ---
+  duration_ms: 0.742801
+  type: 'test'
+  ...
+# Subtest: macOS: a failed Squirrel hand-off still quits the app
+ok 107 - macOS: a failed Squirrel hand-off still quits the app
+  ---
+  duration_ms: 0.572424
+  type: 'test'
+  ...
+# Subtest: a quit while another copy is open installs nothing, on either platform
+ok 108 - a quit while another copy is open installs nothing, on either platform
+  ---
+  duration_ms: 1.079048
+  type: 'test'
+  ...
+# Subtest: Windows: the last instance's quit lets electron-updater install silently on quit
+ok 109 - Windows: the last instance's quit lets electron-updater install silently on quit
+  ---
+  duration_ms: 0.338337
+  type: 'test'
+  ...
+# Subtest: Windows: a quit with no update switches install-on-quit off
+ok 110 - Windows: a quit with no update switches install-on-quit off
+  ---
+  duration_ms: 0.186879
+  type: 'test'
+  ...
+# Subtest: start records this instance at once; willQuit removes it
+ok 111 - start records this instance at once; willQuit removes it
+  ---
+  duration_ms: 0.702481
+  type: 'test'
+  ...
+# Subtest: without an injected liveness probe the real process table decides: a live older sibling suppresses the check, an exited one does not
+ok 112 - without an injected liveness probe the real process table decides: a live older sibling suppresses the check, an exited one does not
+  ---
+  duration_ms: 57.523997
+  type: 'test'
+  ...
+# Subtest: macOS: with no host override, a hung Squirrel hand-off quits the app after Jini's two-minute deadline
+ok 113 - macOS: with no host override, a hung Squirrel hand-off quits the app after Jini's two-minute deadline
+  ---
+  duration_ms: 2.042907
+  type: 'test'
+  ...
+# Subtest: desktop declares ownership using the same id its registration source uses
+ok 114 - desktop declares ownership using the same id its registration source uses
+  ---
+  duration_ms: 3.572465
+  type: 'test'
+  ...
+# Subtest: a full-size scan whose only violations are grandfathered passes and says how many
+ok 115 - a full-size scan whose only violations are grandfathered passes and says how many
+  ---
+  duration_ms: 3.104536
+  type: 'test'
+  ...
+# Subtest: a new violation fails, a fixed one is reported for removal, and paths are made repo-relative
+ok 116 - a new violation fails, a fixed one is reported for removal, and paths are made repo-relative
+  ---
+  duration_ms: 3.080843
+  type: 'test'
+  ...
+# Subtest: a shrunken scan is not a clean scan
+ok 117 - a shrunken scan is not a clean scan
+  ---
+  duration_ms: 1.531018
+  type: 'test'
+  ...
+# Subtest: an unusable ESLint run fails before any judgement, echoing its redacted stderr only when there is some
+ok 118 - an unusable ESLint run fails before any judgement, echoing its redacted stderr only when there is some
+  ---
+  duration_ms: 4.911146
+  type: 'test'
+  ...
+# Subtest: a missing debt file fails loudly rather than passing by default
+ok 119 - a missing debt file fails loudly rather than passing by default
+  ---
+  duration_ms: 0.364594
+  type: 'test'
+  ...
+# Subtest: --update reseeds the debt file from this run's violations instead of judging it
+ok 120 - --update reseeds the debt file from this run's violations instead of judging it
+  ---
+  duration_ms: 0.798252
+  type: 'test'
+  ...
+# Subtest: a corrupt debt file, or a non-Error failure, fails the gate with a readable line
+ok 121 - a corrupt debt file, or a non-Error failure, fails the gate with a readable line
+  ---
+  duration_ms: 2.117159
+  type: 'test'
+  ...
+# Subtest: lintAtCeiling runs ESLint from the repo root at 9/9 with test files ignored, and maps a signal to null
+ok 122 - lintAtCeiling runs ESLint from the repo root at 9/9 with test files ignored, and maps a signal to null
+  ---
+  duration_ms: 0.59034
+  type: 'test'
+  ...
+# Subtest: the real entry lints this checkout and exits with a verdict it explains
+ok 123 - the real entry lints this checkout and exits with a verdict it explains
+  ---
+  duration_ms: 28908.109546
+  type: 'test'
+  ...
+# Subtest: a passing suite whose areas meet their floors is OK, and the excluded list is printed by name
+ok 124 - a passing suite whose areas meet their floors is OK, and the excluded list is printed by name
+  ---
+  duration_ms: 24.570584
+  type: 'test'
+  ...
+# Subtest: an area under its floor fails the gate even though the suite passed
+ok 125 - an area under its floor fails the gate even though the suite passed
+  ---
+  duration_ms: 7.240342
+  type: 'test'
+  ...
+# Subtest: lcov records outside the package or in node_modules are dropped, and a summary-only duplicate keeps the better image
+ok 126 - lcov records outside the package or in node_modules are dropped, and a summary-only duplicate keeps the better image
+  ---
+  duration_ms: 7.509214
+  type: 'test'
+  ...
+# Subtest: a file both passes measured counts every line either pass ran — a union, not the better copy
+ok 127 - a file both passes measured counts every line either pass ran — a union, not the better copy
+  ---
+  duration_ms: 7.37371
+  type: 'test'
+  ...
+# Subtest: a file on disk with no coverage record, not declared as known, fails the area
+ok 128 - a file on disk with no coverage record, not declared as known, fails the area
+  ---
+  duration_ms: 5.717606
+  type: 'test'
+  ...
+# Subtest: a failed, killed or unspawnable pass is reported as the suite not passing
+ok 129 - a failed, killed or unspawnable pass is reported as the suite not passing
+  ---
+  duration_ms: 13.619485
+  type: 'test'
+  ...
+# Subtest: a pass whose globs match no test file is refused before spawning — node would call 0 tests a pass
+ok 130 - a pass whose globs match no test file is refused before spawning — node would call 0 tests a pass
+  ---
+  duration_ms: 4.571357
+  type: 'test'
+  ...
+# Subtest: a missing config, a corrupt config, and a config with no coverageInclude/excluded
+ok 131 - a missing config, a corrupt config, and a config with no coverageInclude/excluded
+  ---
+  duration_ms: 9.640938
+  type: 'test'
+  ...
+# Subtest: a config with no perFileBranch fails, so deleting the key cannot switch the per-file floor off
+ok 132 - a config with no perFileBranch fails, so deleting the key cannot switch the per-file floor off
+  ---
+  duration_ms: 5.922281
+  type: 'test'
+  ...
+# Subtest: an enforced per-file floor fails the gate for one weak file, though its area total passes
+ok 133 - an enforced per-file floor fails the gate for one weak file, though its area total passes
+  ---
+  duration_ms: 7.808801
+  type: 'test'
+  ...
+# Subtest: an unenforced per-file floor lists the weak file with its number and still passes
+ok 134 - an unenforced per-file floor lists the weak file with its number and still passes
+  ---
+  duration_ms: 4.49955
+  type: 'test'
+  ...
+# Subtest: a source file no area scans fails the gate by name, even with every area green
+ok 135 - a source file no area scans fails the gate by name, even with every area green
+  ---
+  duration_ms: 8.832044
+  type: 'test'
+  ...
+# Subtest: a source file at the desktop root fails unless excluded, and a stale exclusion fails too
+ok 136 - a source file at the desktop root fails unless excluded, and a stale exclusion fails too
+  ---
+  duration_ms: 9.290413
+  type: 'test'
+  ...
+# Subtest: a non-Error thrown from the spawn port still fails the gate with a readable line
+ok 137 - a non-Error thrown from the spawn port still fails the gate with a readable line
+  ---
+  duration_ms: 4.161013
+  type: 'test'
+  ...
+# Subtest: rootFromArgv defaults to the desktop root and resolves an explicit --root
+ok 138 - rootFromArgv defaults to the desktop root and resolves an explicit --root
+  ---
+  duration_ms: 0.199868
+  type: 'test'
+  ...
+# Subtest: the real entry pointed at a root with no config fails with exit 1
+ok 139 - the real entry pointed at a root with no config fails with exit 1
+  ---
+  duration_ms: 370.74561
+  type: 'test'
+  ...
+# Subtest: a manifest whose gates all pass exits 0
+ok 140 - a manifest whose gates all pass exits 0
+  ---
+  duration_ms: 362.901266
+  type: 'test'
+  ...
+# Subtest: ONE deliberately failing gate makes a non-zero code reach the caller
+ok 141 - ONE deliberately failing gate makes a non-zero code reach the caller
+  ---
+  duration_ms: 277.518643
+  type: 'test'
+  ...
+# Subtest: a gate failing with exit 2 also fails — ESLint's crash code must not read as a pass
+ok 142 - a gate failing with exit 2 also fails — ESLint's crash code must not read as a pass
+  ---
+  duration_ms: 326.098141
+  type: 'test'
+  ...
+# Subtest: a gate whose command does not exist at all fails, rather than being skipped
+ok 143 - a gate whose command does not exist at all fails, rather than being skipped
+  ---
+  duration_ms: 411.519795
+  type: 'test'
+  ...
+# Subtest: EVERY gate runs even after an earlier one fails, so one run reports every problem
+ok 144 - EVERY gate runs even after an earlier one fails, so one run reports every problem
+  ---
+  duration_ms: 462.737694
+  type: 'test'
+  ...
+# Subtest: a passing gate alongside a failing one still yields a non-zero code
+ok 145 - a passing gate alongside a failing one still yields a non-zero code
+  ---
+  duration_ms: 335.902736
+  type: 'test'
+  ...
+# Subtest: a disabled gate with no reason fails the run even though every enabled gate passed
+ok 146 - a disabled gate with no reason fails the run even though every enabled gate passed
+  ---
+  duration_ms: 371.966345
+  type: 'test'
+  ...
+# Subtest: a properly documented disabled gate does NOT fail the run — turning a gate off is allowed
+ok 147 - a properly documented disabled gate does NOT fail the run — turning a gate off is allowed
+  ---
+  duration_ms: 318.945367
+  type: 'test'
+  ...
+# Subtest: a stale disablement fails the run until the date is re-confirmed
+ok 148 - a stale disablement fails the run until the date is re-confirmed
+  ---
+  duration_ms: 278.623316
+  type: 'test'
+  ...
+# Subtest: an empty manifest fails rather than passing by measuring nothing
+ok 149 - an empty manifest fails rather than passing by measuring nothing
+  ---
+  duration_ms: 383.452638
+  type: 'test'
+  ...
+# Subtest: a malformed gate entry (null, valid JSON) fails clearly instead of an obscure crash
+ok 150 - a malformed gate entry (null, valid JSON) fails clearly instead of an obscure crash
+  ---
+  duration_ms: 385.994817
+  type: 'test'
+  ...
+# Subtest: a gate script on disk that the manifest does not run fails the run
+ok 151 - a gate script on disk that the manifest does not run fails the run
+  ---
+  duration_ms: 430.204781
+  type: 'test'
+  ...
+# Subtest: a gate script the manifest DOES run is not reported as drift
+ok 152 - a gate script the manifest DOES run is not reported as drift
+  ---
+  duration_ms: 496.203619
+  type: 'test'
+  ...
+# Subtest: the runner does not report ITSELF as an unregistered gate script
+ok 153 - the runner does not report ITSELF as an unregistered gate script
+  ---
+  duration_ms: 614.86593
+  type: 'test'
+  ...
+# Subtest: gate output is bounded and redacted while a failing child still fails the runner
+ok 154 - gate output is bounded and redacted while a failing child still fails the runner
+  ---
+  duration_ms: 510.916189
+  type: 'test'
+  ...
+# Subtest: a gate whose output overflows the capture buffer fails as unspawnable instead of passing on a truncated read
+ok 155 - a gate whose output overflows the capture buffer fails as unspawnable instead of passing on a truncated read
+  ---
+  duration_ms: 733.023444
+  type: 'test'
+  ...
+# Subtest: a gate killed by a signal fails the run and names the signal
+ok 156 - a gate killed by a signal fails the run and names the signal
+  ---
+  duration_ms: 634.922978
+  type: 'test'
+  ...
+# Subtest: an unreadable scripts directory means no planted scripts, not a crash
+ok 157 - an unreadable scripts directory means no planted scripts, not a crash
+  ---
+  duration_ms: 669.839871
+  type: 'test'
+  ...
+# Subtest: a trailing --scripts-dir with no value falls back to the real scripts/ directory
+ok 158 - a trailing --scripts-dir with no value falls back to the real scripts/ directory
+  ---
+  duration_ms: 594.828909
+  type: 'test'
+  ...
+# Subtest: a TypeScript-only tree (allowlisted exceptions included) passes
+ok 159 - a TypeScript-only tree (allowlisted exceptions included) passes
+  ---
+  duration_ms: 1.934501
+  type: 'test'
+  ...
+# Subtest: every JavaScript-family offender is named with its TypeScript rename
+ok 160 - every JavaScript-family offender is named with its TypeScript rename
+  ---
+  duration_ms: 0.464642
+  type: 'test'
+  ...
+# Subtest: a lister failure fails the gate with a bounded message, whether it throws an Error or not
+ok 161 - a lister failure fails the gate with a bounded message, whether it throws an Error or not
+  ---
+  duration_ms: 5.04757
+  type: 'test'
+  ...
+# Subtest: the real lister reads git's view of apps/desktop, and the real entry exits with the verdict
+ok 162 - the real lister reads git's view of apps/desktop, and the real entry exits with the verdict
+  ---
+  duration_ms: 384.245823
+  type: 'test'
+  ...
+# Subtest: a quiet checkout passes, having asked pgrep, git (scoped to the verified surface) and slept once
+ok 163 - a quiet checkout passes, having asked pgrep, git (scoped to the verified surface) and slept once
+  ---
+  duration_ms: 3.584592
+  type: 'test'
+  ...
+# Subtest: a live vite watcher, git-dirty paths, and a write inside the window are each reported
+ok 164 - a live vite watcher, git-dirty paths, and a write inside the window are each reported
+  ---
+  duration_ms: 1.358216
+  type: 'test'
+  ...
+# Subtest: a pgrep failure other than 'no match' fails the gate rather than reading as quiet
+ok 165 - a pgrep failure other than 'no match' fails the gate rather than reading as quiet
+  ---
+  duration_ms: 5.363584
+  type: 'test'
+  ...
+# Subtest: a non-Error thrown by a probe still fails the gate with a readable line
+ok 166 - a non-Error thrown by a probe still fails the gate with a readable line
+  ---
+  duration_ms: 1.009095
+  type: 'test'
+  ...
+# Subtest: snapshot fingerprints a missing path, a file, and a tree (symlinks are not counted)
+ok 167 - snapshot fingerprints a missing path, a file, and a tree (symlinks are not counted)
+  ---
+  duration_ms: 1.039225
+  type: 'test'
+  ...
+# Subtest: the real entry runs the check against this checkout and exits with its verdict
+ok 168 - the real entry runs the check against this checkout and exits with its verdict
+  ---
+  duration_ms: 1359.906325
+  type: 'test'
+  ...
+# Subtest: init, plugin tokens, owner-store and move-site CLI children never inherit daemon, tool or render authority
+ok 169 - init, plugin tokens, owner-store and move-site CLI children never inherit daemon, tool or render authority
+  ---
+  duration_ms: 5.883629
+  type: 'test'
+  ...
+# Subtest: identity is (rule, file, message) and excludes the line number
+ok 170 - identity is (rule, file, message) and excludes the line number
+  ---
+  duration_ms: 2.874949
+  type: 'test'
+  ...
+# Subtest: two identical messages in one file are TWO violations, not one
+ok 171 - two identical messages in one file are TWO violations, not one
+  ---
+  duration_ms: 0.45118
+  type: 'test'
+  ...
+# Subtest: a violation in the baseline that no longer reproduces is reported as removed, not as a failure
+ok 172 - a violation in the baseline that no longer reproduces is reported as removed, not as a failure
+  ---
+  duration_ms: 0.882096
+  type: 'test'
+  ...
+# Subtest: a run matching the baseline exactly passes
+ok 173 - a run matching the baseline exactly passes
+  ---
+  duration_ms: 0.239511
+  type: 'test'
+  ...
+# Subtest: a NEW violation fails the run
+ok 174 - a NEW violation fails the run
+  ---
+  duration_ms: 0.540765
+  type: 'test'
+  ...
+# Subtest: non-complexity rules are ignored entirely
+ok 175 - non-complexity rules are ignored entirely
+  ---
+  duration_ms: 0.435344
+  type: 'test'
+  ...
+# Subtest: a scan smaller than the expected minimum FAILS even with zero violations
+ok 176 - a scan smaller than the expected minimum FAILS even with zero violations
+  ---
+  duration_ms: 0.979901
+  type: 'test'
+  ...
+# Subtest: an EMPTY scan fails rather than reporting a perfect score
+ok 177 - an EMPTY scan fails rather than reporting a perfect score
+  ---
+  duration_ms: 0.199657
+  type: 'test'
+  ...
+# Subtest: exit 0 with a real report is usable
+ok 178 - exit 0 with a real report is usable
+  ---
+  duration_ms: 1.330536
+  type: 'test'
+  ...
+# Subtest: exit 1 with a real report is usable — ESLint exits 1 when it merely finds problems
+ok 179 - exit 1 with a real report is usable — ESLint exits 1 when it merely finds problems
+  ---
+  duration_ms: 0.334806
+  type: 'test'
+  ...
+# Subtest: exit 2 is rejected as a CRASH even if stdout somehow parses
+ok 180 - exit 2 is rejected as a CRASH even if stdout somehow parses
+  ---
+  duration_ms: 0.25765
+  type: 'test'
+  ...
+# Subtest: empty stdout is rejected — an empty report is not an empty result
+ok 181 - empty stdout is rejected — an empty report is not an empty result
+  ---
+  duration_ms: 0.080496
+  type: 'test'
+  ...
+# Subtest: a missing stdout (spawnSync's null when the pipe never opened) is rejected as no output, not crashed on
+ok 182 - a missing stdout (spawnSync's null when the pipe never opened) is rejected as no output, not crashed on
+  ---
+  duration_ms: 0.053768
+  type: 'test'
+  ...
+# Subtest: non-JSON stdout is rejected rather than throwing
+ok 183 - non-JSON stdout is rejected rather than throwing
+  ---
+  duration_ms: 0.076997
+  type: 'test'
+  ...
+# Subtest: a zero-file report is rejected — matching nothing is not finding nothing
+ok 184 - a zero-file report is rejected — matching nothing is not finding nothing
+  ---
+  duration_ms: 0.067022
+  type: 'test'
+  ...
+# Subtest: a null status (killed by signal) is rejected
+ok 185 - a null status (killed by signal) is rejected
+  ---
+  duration_ms: 0.471601
+  type: 'test'
+  ...
+# Subtest: Add copied folder with app-data database preserves WAL content in an independent database
+ok 186 - Add copied folder with app-data database preserves WAL content in an independent database
+  ---
+  duration_ms: 233.327906
+  type: 'test'
+  ...
+# Subtest: Add copied folder with symlinked database preserves WAL content in an independent database
+ok 187 - Add copied folder with symlinked database preserves WAL content in an independent database
+  ---
+  duration_ms: 230.767245
+  type: 'test'
+  ...
+# Subtest: Start of a legacy-tracked app-data copy snapshots its content before the server opens it
+ok 188 - Start of a legacy-tracked app-data copy snapshots its content before the server opens it
+  ---
+  duration_ms: 133.894742
+  type: 'test'
+  ...
+# Subtest: an unreadable external database refuses Add without changing identity or tracking the copy
+ok 189 - an unreadable external database refuses Add without changing identity or tracking the copy
+  ---
+  duration_ms: 117.69004
+  type: 'test'
+  ...
+# Subtest: a linked data.nosync directory gives the copy independent content and chat databases
+ok 190 - a linked data.nosync directory gives the copy independent content and chat databases
+  ---
+  duration_ms: 195.854047
+  type: 'test'
+  ...
+# Subtest: failed marker commit restores copied database links and removes its provisional snapshots
+ok 191 - failed marker commit restores copied database links and removes its provisional snapshots
+  ---
+  duration_ms: 123.907035
+  type: 'test'
+  ...
+# Subtest: pct treats zero-found as 100 — correct for a file with no branches
+ok 192 - pct treats zero-found as 100 — correct for a file with no branches
+  ---
+  duration_ms: 3.811528
+  type: 'test'
+  ...
+# Subtest: test files and .d.ts files are not production source
+ok 193 - test files and .d.ts files are not production source
+  ---
+  duration_ms: 0.351829
+  type: 'test'
+  ...
+# Subtest: a path inside an excluded directory, at any depth, is excluded
+ok 194 - a path inside an excluded directory, at any depth, is excluded
+  ---
+  duration_ms: 0.617808
+  type: 'test'
+  ...
+# Subtest: the excluded directory itself counts as excluded, so a walk can prune it
+ok 195 - the excluded directory itself counts as excluded, so a walk can prune it
+  ---
+  duration_ms: 0.124402
+  type: 'test'
+  ...
+# Subtest: a sibling that merely SHARES the prefix is not excluded — the match is on a directory boundary
+ok 196 - a sibling that merely SHARES the prefix is not excluded — the match is on a directory boundary
+  ---
+  duration_ms: 0.181018
+  type: 'test'
+  ...
+# Subtest: the match is anchored at the start of the path, not anywhere inside it
+ok 197 - the match is anchored at the start of the path, not anywhere inside it
+  ---
+  duration_ms: 0.170025
+  type: 'test'
+  ...
+# Subtest: a trailing slash in the configured directory changes nothing, including the boundary
+ok 198 - a trailing slash in the configured directory changes nothing, including the boundary
+  ---
+  duration_ms: 0.18368
+  type: 'test'
+  ...
+# Subtest: no excludeDirs — absent or empty — excludes nothing
+ok 199 - no excludeDirs — absent or empty — excludes nothing
+  ---
+  duration_ms: 0.103693
+  type: 'test'
+  ...
+# Subtest: a file on disk with NO coverage record fails the area, even at 100% on what was measured
+ok 200 - a file on disk with NO coverage record fails the area, even at 100% on what was measured
+  ---
+  duration_ms: 1.484908
+  type: 'test'
+  ...
+# Subtest: an explicitly grandfathered gap does NOT fail — debt is allowed when it is declared
+ok 201 - an explicitly grandfathered gap does NOT fail — debt is allowed when it is declared
+  ---
+  duration_ms: 0.954481
+  type: 'test'
+  ...
+# Subtest: a THIRD unmeasured file fails even when two are grandfathered — the list cannot grow
+ok 202 - a THIRD unmeasured file fails even when two are grandfathered — the list cannot grow
+  ---
+  duration_ms: 0.299844
+  type: 'test'
+  ...
+# Subtest: the grandfather list is an ENUMERATION, not a count — nine DIFFERENT files still fail
+ok 203 - the grandfather list is an ENUMERATION, not a count — nine DIFFERENT files still fail
+  ---
+  duration_ms: 0.164101
+  type: 'test'
+  ...
+# Subtest: swapping ONE grandfathered file for another fails, even at an identical count
+ok 204 - swapping ONE grandfathered file for another fails, even at an identical count
+  ---
+  duration_ms: 0.101513
+  type: 'test'
+  ...
+# Subtest: a grandfathered file that regained coverage is flagged so the list shrinks
+ok 205 - a grandfathered file that regained coverage is flagged so the list shrinks
+  ---
+  duration_ms: 0.145366
+  type: 'test'
+  ...
+# Subtest: an area whose directory vanished fails instead of reading as a clean 100%
+ok 206 - an area whose directory vanished fails instead of reading as a clean 100%
+  ---
+  duration_ms: 0.130763
+  type: 'test'
+  ...
+# Subtest: a partial disappearance fails too, not only a total one
+ok 207 - a partial disappearance fails too, not only a total one
+  ---
+  duration_ms: 0.101298
+  type: 'test'
+  ...
+# Subtest: an area below its line floor fails and names the axis
+ok 208 - an area below its line floor fails and names the axis
+  ---
+  duration_ms: 0.282724
+  type: 'test'
+  ...
+# Subtest: an axis with NO configured floor is never a failure
+ok 209 - an axis with NO configured floor is never a failure
+  ---
+  duration_ms: 0.181415
+  type: 'test'
+  ...
+# Subtest: an area at exactly its floor passes
+ok 210 - an area at exactly its floor passes
+  ---
+  duration_ms: 0.127855
+  type: 'test'
+  ...
+# Subtest: the rendered area names every unmeasured file, every run
+ok 211 - the rendered area names every unmeasured file, every run
+  ---
+  duration_ms: 0.474854
+  type: 'test'
+  ...
+# Subtest: an axis with no floor is rendered as such rather than as a silent pass
+ok 212 - an axis with no floor is rendered as such rather than as a silent pass
+  ---
+  duration_ms: 0.159114
+  type: 'test'
+  ...
+# Subtest: a chained node --test script parses into one pass per command, quotes stripped
+ok 213 - a chained node --test script parses into one pass per command, quotes stripped
+  ---
+  duration_ms: 0.372639
+  type: 'test'
+  ...
+# Subtest: the same globs under the same runners report no drift, whatever the glob order
+ok 214 - the same globs under the same runners report no drift, whatever the glob order
+  ---
+  duration_ms: 0.328831
+  type: 'test'
+  ...
+# Subtest: a glob moved from bare node to tsx is drift on both runners, by name
+ok 215 - a glob moved from bare node to tsx is drift on both runners, by name
+  ---
+  duration_ms: 0.271153
+  type: 'test'
+  ...
+# Subtest: a glob only one side runs is drift, whichever side it is on
+ok 216 - a glob only one side runs is drift, whichever side it is on
+  ---
+  duration_ms: 0.198093
+  type: 'test'
+  ...
+# Subtest: a command the guard cannot read throws instead of comparing as zero globs
+ok 217 - a command the guard cannot read throws instead of comparing as zero globs
+  ---
+  duration_ms: 0.629171
+  type: 'test'
+  ...
+# Subtest: production source covers every JS/TS extension and drops tests and declarations in all of them
+ok 218 - production source covers every JS/TS extension and drops tests and declarations in all of them
+  ---
+  duration_ms: 0.355776
+  type: 'test'
+  ...
+# Subtest: a name that merely CONTAINS test or spec is still production source
+ok 219 - a name that merely CONTAINS test or spec is still production source
+  ---
+  duration_ms: 0.123846
+  type: 'test'
+  ...
+# Subtest: an area owns a file under its dirs, outside its excludeDirs, with one of its extensions
+ok 220 - an area owns a file under its dirs, outside its excludeDirs, with one of its extensions
+  ---
+  duration_ms: 0.222206
+  type: 'test'
+  ...
+# Subtest: the Electron entry's new home, src/main/index.ts, lands in the main-process area with no special case
+ok 221 - the Electron entry's new home, src/main/index.ts, lands in the main-process area with no special case
+  ---
+  duration_ms: 0.314621
+  type: 'test'
+  ...
+# Subtest: an extension is matched whole: .ts does not own .mts, .tsx or .d.ts-shaped names by suffix accident
+ok 222 - an extension is matched whole: .ts does not own .mts, .tsx or .d.ts-shaped names by suffix accident
+  ---
+  duration_ms: 6.619702
+  type: 'test'
+  ...
+# Subtest: a dir is matched on a whole segment, and a root file is under no src area
+ok 223 - a dir is matched on a whole segment, and a root file is under no src area
+  ---
+  duration_ms: 1.646763
+  type: 'test'
+  ...
+# Subtest: an area with no dirs or no extensions owns nothing
+ok 224 - an area with no dirs or no extensions owns nothing
+  ---
+  duration_ms: 0.213217
+  type: 'test'
+  ...
+# Subtest: every file owned exactly once is a clean inventory
+ok 225 - every file owned exactly once is a clean inventory
+  ---
+  duration_ms: 0.178156
+  type: 'test'
+  ...
+# Subtest: a file no area scans FAILS by name — the .tsx-outside-every-area shape
+ok 226 - a file no area scans FAILS by name — the .tsx-outside-every-area shape
+  ---
+  duration_ms: 0.094344
+  type: 'test'
+  ...
+# Subtest: a root-level entry is in no area and fails unless it is excluded
+ok 227 - a root-level entry is in no area and fails unless it is excluded
+  ---
+  duration_ms: 0.197634
+  type: 'test'
+  ...
+# Subtest: a file two areas scan fails naming both, since its lines would count twice
+ok 228 - a file two areas scan fails naming both, since its lines would count twice
+  ---
+  duration_ms: 0.075341
+  type: 'test'
+  ...
+# Subtest: a file both in an area and excluded fails — exactly one, not both
+ok 229 - a file both in an area and excluded fails — exactly one, not both
+  ---
+  duration_ms: 0.059404
+  type: 'test'
+  ...
+# Subtest: an exclusion with no why fails — empty, blank, or missing
+ok 230 - an exclusion with no why fails — empty, blank, or missing
+  ---
+  duration_ms: 0.08213
+  type: 'test'
+  ...
+# Subtest: an exclusion naming a file that is not on disk fails as stale — after main.ts moves, its entry must go
+ok 231 - an exclusion naming a file that is not on disk fails as stale — after main.ts moves, its entry must go
+  ---
+  duration_ms: 0.05192
+  type: 'test'
+  ...
+# Subtest: an exclusion is an exact path, never a prefix or basename: excluding main.ts covers no other main.ts
+ok 232 - an exclusion is an exact path, never a prefix or basename: excluding main.ts covers no other main.ts
+  ---
+  duration_ms: 0.201953
+  type: 'test'
+  ...
+# Subtest: a mixed batch reports every problem, not just the first
+ok 233 - a mixed batch reports every problem, not just the first
+  ---
+  duration_ms: 0.183576
+  type: 'test'
+  ...
+# Subtest: an enforced floor fails a file under it even when the area total would hide it
+ok 234 - an enforced floor fails a file under it even when the area total would hide it
+  ---
+  duration_ms: 0.354178
+  type: 'test'
+  ...
+# Subtest: a file exactly at the floor passes
+ok 235 - a file exactly at the floor passes
+  ---
+  duration_ms: 0.160603
+  type: 'test'
+  ...
+# Subtest: an unenforced floor names every file under it with its number, and fails nothing
+ok 236 - an unenforced floor names every file under it with its number, and fails nothing
+  ---
+  duration_ms: 0.251348
+  type: 'test'
+  ...
+# Subtest: a debt floor is enforced even while the policy floor is not
+ok 237 - a debt floor is enforced even while the policy floor is not
+  ---
+  duration_ms: 0.161686
+  type: 'test'
+  ...
+# Subtest: a file at its debt floor passes, though it is still under the policy floor
+ok 238 - a file at its debt floor passes, though it is still under the policy floor
+  ---
+  duration_ms: 0.067807
+  type: 'test'
+  ...
+# Subtest: a debt file that reached the policy floor is reported repaid, so the debt list shrinks
+ok 239 - a debt file that reached the policy floor is reported repaid, so the debt list shrinks
+  ---
+  duration_ms: 0.105507
+  type: 'test'
+  ...
+# Subtest: a debt entry for a file with no coverage record fails as stale
+ok 240 - a debt entry for a file with no coverage record fails as stale
+  ---
+  duration_ms: 0.092488
+  type: 'test'
+  ...
+# Subtest: a file with no lcov record is left to the area's unmeasured check, and a branchless file reads 100%
+ok 241 - a file with no lcov record is left to the area's unmeasured check, and a branchless file reads 100%
+  ---
+  duration_ms: 0.06682
+  type: 'test'
+  ...
+# Subtest: a file scanned by the areas twice is judged once
+ok 242 - a file scanned by the areas twice is judged once
+  ---
+  duration_ms: 0.075437
+  type: 'test'
+  ...
+# Subtest: files tied on branch % are listed by name
+ok 243 - files tied on branch % are listed by name
+  ---
+  duration_ms: 6.114253
+  type: 'test'
+  ...
+# Subtest: the per-file report says when the floor is not enforced and lists each file with its number
+ok 244 - the per-file report says when the floor is not enforced and lists each file with its number
+  ---
+  duration_ms: 0.48951
+  type: 'test'
+  ...
+# Subtest: a clean enforced per-file report is one OK line
+ok 245 - a clean enforced per-file report is one OK line
+  ---
+  duration_ms: 0.119792
+  type: 'test'
+  ...
+# Subtest: a second image of the same file is named by every function it re-lists at a line that does not declare it
+ok 246 - a second image of the same file is named by every function it re-lists at a line that does not declare it
+  ---
+  duration_ms: 0.492481
+  type: 'test'
+  ...
+# Subtest: a single image is clean, even with a function whose start line does not spell its name
+ok 247 - a single image is clean, even with a function whose start line does not spell its name
+  ---
+  duration_ms: 0.224713
+  type: 'test'
+  ...
+# Subtest: two real closures that share a name, each on its own declaring line, are not a second image
+ok 248 - two real closures that share a name, each on its own declaring line, are not a second image
+  ---
+  duration_ms: 0.083334
+  type: 'test'
+  ...
+# Subtest: a duplicated name pointing past the end of the file is foreign; anonymous wrappers never are
+ok 249 - a duplicated name pointing past the end of the file is foreign; anonymous wrappers never are
+  ---
+  duration_ms: 0.065869
+  type: 'test'
+  ...
+# Subtest: a line, function or branch either image ran counts as run in the union
+ok 250 - a line, function or branch either image ran counts as run in the union
+  ---
+  duration_ms: 1.208232
+  type: 'test'
+  ...
+# Subtest: a function a transform lands on a neighbouring line is still the same function
+ok 251 - a function a transform lands on a neighbouring line is still the same function
+  ---
+  duration_ms: 0.235549
+  type: 'test'
+  ...
+# Subtest: two closures that share a name stay two functions, matched by their order
+ok 252 - two closures that share a name stay two functions, matched by their order
+  ---
+  duration_ms: 0.164809
+  type: 'test'
+  ...
+# Subtest: a branch lcov marks never taken with '-' is unrun, and one image alone keeps its own totals
+ok 253 - a branch lcov marks never taken with '-' is unrun, and one image alone keeps its own totals
+  ---
+  duration_ms: 0.179456
+  type: 'test'
+  ...
+# Subtest: an image with only summary counters cannot be unioned, so that axis keeps the image that hit more
+ok 254 - an image with only summary counters cannot be unioned, so that axis keeps the image that hit more
+  ---
+  duration_ms: 0.416941
+  type: 'test'
+  ...
+# Subtest: npm test builds the deployed preloads before either test pass on a clean checkout
+ok 255 - npm test builds the deployed preloads before either test pass on a clean checkout
+  ---
+  duration_ms: 1.194244
+  type: 'test'
+  ...
+# Subtest: desktop declares the DOM dependency its real renderer hook tests need
+ok 256 - desktop declares the DOM dependency its real renderer hook tests need
+  ---
+  duration_ms: 0.226922
+  type: 'test'
+  ...
+# Subtest: package.json's test script runs the same globs under the same runners as TEST_PASSES
+ok 257 - package.json's test script runs the same globs under the same runners as TEST_PASSES
+  ---
+  duration_ms: 1.445149
+  type: 'test'
+  ...
+# Subtest: every suite and coverage pass using module mocks enables Node's module-mock flag
+ok 258 - every suite and coverage pass using module mocks enables Node's module-mock flag
+  ---
+  duration_ms: 59.436818
+  type: 'test'
+  ...
+# Subtest: no bare-node test loads source through tsx in-process, which would write a second coverage image
+ok 259 - no bare-node test loads source through tsx in-process, which would write a second coverage image
+  ---
+  duration_ms: 13.404852
+  type: 'test'
+  ...
+# Subtest: every real desktop source file is in exactly one coverage area, or excluded with a why
+ok 260 - every real desktop source file is in exactly one coverage area, or excluded with a why
+  ---
+  duration_ms: 8.614413
+  type: 'test'
+  ...
+# Subtest: the real per-file branch policy is well formed, and every debt entry sits under the floor
+ok 261 - the real per-file branch policy is well formed, and every debt entry sits under the floor
+  ---
+  duration_ms: 0.55998
+  type: 'test'
+  ...
+# Subtest: an installed CLI is summarized with its probed models, reasoning options and custom-model flag
+ok 262 - an installed CLI is summarized with its probed models, reasoning options and custom-model flag
+  ---
+  duration_ms: 3.756466
+  type: 'test'
+  ...
+# Subtest: a failed model probe falls back to the def's own models rather than failing the list
+ok 263 - a failed model probe falls back to the def's own models rather than failing the list
+  ---
+  duration_ms: 0.627797
+  type: 'test'
+  ...
+# Subtest: an absent CLI is never probed, shows its fallbacks, and says why it is unavailable
+ok 264 - an absent CLI is never probed, shows its fallbacks, and says why it is unavailable
+  ---
+  duration_ms: 0.229681
+  type: 'test'
+  ...
+# Subtest: the inventory lists only tool-capable runtimes, installed ones first
+ok 265 - the inventory lists only tool-capable runtimes, installed ones first
+  ---
+  duration_ms: 0.323078
+  type: 'test'
+  ...
+# Subtest: the inventory probes once per process until a rescan forces a fresh probe
+ok 266 - the inventory probes once per process until a rescan forces a fresh probe
+  ---
+  duration_ms: 0.502147
+  type: 'test'
+  ...
+# Subtest: a failed probe does not poison the cache: the next call probes again
+ok 267 - a failed probe does not poison the cache: the next call probes again
+  ---
+  duration_ms: 0.766365
+  type: 'test'
+  ...
+# Subtest: a stale failed probe never clears the newer probe a rescan cached meanwhile
+ok 268 - a stale failed probe never clears the newer probe a rescan cached meanwhile
+  ---
+  duration_ms: 1.173177
+  type: 'test'
+  ...
+# Subtest: inventory metadata preserves model effort choices and suffix ownership for the shared picker
+ok 269 - inventory metadata preserves model effort choices and suffix ownership for the shared picker
+  ---
+  duration_ms: 0.642456
+  type: 'test'
+  ...
+# Subtest: desktop turn access defaults on locally and passes host exclusions to the login reader
+ok 270 - desktop turn access defaults on locally and passes host exclusions to the login reader
+  ---
+  duration_ms: 10.387616
+  type: 'test'
+  ...
+# Subtest: desktop turn access re-reads boolean grants with the captured addressee each turn
+ok 271 - desktop turn access re-reads boolean grants with the captured addressee each turn
+  ---
+  duration_ms: 1.236591
+  type: 'test'
+  ...
+# Subtest: desktop turn access preserves granular overrides without reading a disabled login environment
+ok 272 - desktop turn access preserves granular overrides without reading a disabled login environment
+  ---
+  duration_ms: 0.458389
+  type: 'test'
+  ...
+# Subtest: desktop turn access derives the native grant from capabilities rather than the master default
+ok 273 - desktop turn access derives the native grant from capabilities rather than the master default
+  ---
+  duration_ms: 0.385332
+  type: 'test'
+  ...
+# Subtest: desktop turn access skips settings and login reads when the host denies full CLI access
+ok 274 - desktop turn access skips settings and login reads when the host denies full CLI access
+  ---
+  duration_ms: 5.320947
+  type: 'test'
+  ...
+# Subtest: a desktop turn uses declared host facts while a packaged local runtime keeps CLI access
+ok 275 - a desktop turn uses declared host facts while a packaged local runtime keeps CLI access
+  ---
+  duration_ms: 0.362639
+  type: 'test'
+  ...
+# Subtest: desktop turn access propagates a settings read failure without reading the login environment
+ok 276 - desktop turn access propagates a settings read failure without reading the login environment
+  ---
+  duration_ms: 4.285827
+  type: 'test'
+  ...
+# Subtest: desktop turn access propagates a login environment read failure
+ok 277 - desktop turn access propagates a login environment read failure
+  ---
+  duration_ms: 0.658884
+  type: 'test'
+  ...
+# Subtest: desktop executor binds launch, state, environment and policies to the supplied runtime
+ok 278 - desktop executor binds launch, state, environment and policies to the supplied runtime
+  ---
+  duration_ms: 15.607045
+  type: 'test'
+  ...
+# Subtest: desktop chat detection and executor receive the same app runtime across list and rescan
+ok 279 - desktop chat detection and executor receive the same app runtime across list and rescan
+  ---
+  duration_ms: 6.944881
+  type: 'test'
+  ...
+# Subtest: desktop owner setting and environment control the same provider grant and scoped cwd on each turn
+ok 280 - desktop owner setting and environment control the same provider grant and scoped cwd on each turn
+  ---
+  duration_ms: 10.736614
+  type: 'test'
+  ...
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# Subtest: five simultaneous site demands spawn one child
+ok 281 - five simultaneous site demands spawn one child
+  ---
+  duration_ms: 17.824934
+  type: 'test'
+  ...
+# Subtest: site shutdown never stops the shared daemon
+ok 282 - site shutdown never stops the shared daemon
+  ---
+  duration_ms: 2.976494
+  type: 'test'
+  ...
+# Subtest: park wake races produce one replacement
+ok 283 - park wake races produce one replacement
+  ---
+  duration_ms: 3.543655
+  type: 'test'
+  ...
+# Subtest: spawn environments contain no shared or foreign-site credentials
+ok 284 - spawn environments contain no shared or foreign-site credentials
+  ---
+  duration_ms: 4.603751
+  type: 'test'
+  ...
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# Subtest: shared child output redacts the registered scopes' credentials
+# [desktop-agent-service] exit
+ok 285 - shared child output redacts the registered scopes' credentials
+  ---
+  duration_ms: 17.213761
+  type: 'test'
+  ...
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# Subtest: private-key bodies never reach either child output sink (1 writes)
+# [desktop-agent-service] exit
+ok 286 - private-key bodies never reach either child output sink (1 writes)
+  ---
+  duration_ms: 7.944703
+  type: 'test'
+  ...
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# [desktop-agent-service] spawn
+# [desktop-agent-service] exit
+# Subtest: private-key bodies never reach either child output sink (3 writes)
+ok 287 - private-key bodies never reach either child output sink (3 writes)
+  ---
+  duration_ms: 2.749956
+  type: 'test'
+  ...
+# Subtest: private-key bodies never reach either child output sink (2 writes)
+ok 288 - private-key bodies never reach either child output sink (2 writes)
+  ---
+  duration_ms: 3.03726
+  type: 'test'
+  ...
+# Subtest: shared child output preserves workspace identifiers and masks complete local paths
+ok 289 - shared child output preserves workspace identifiers and masks complete local paths
+  ---
+  duration_ms: 2.782164
+  type: 'test'
+  ...
+# Subtest: output redaction preserves site identities and masks paths on both streams
+ok 290 - output redaction preserves site identities and masks paths on both streams
+  ---
+  duration_ms: 2.528359
+  type: 'test'
+  ...
+# Subtest: an unterminated stderr key cannot suppress stdout or the next child's output
+ok 291 - an unterminated stderr key cannot suppress stdout or the next child's output
+  ---
+  duration_ms: 3.501349
+  type: 'test'
+  ...
+# Subtest: desktop withdraws on stop without server withdrawal; restart accepts the new boot
+ok 292 - desktop withdraws on stop without server withdrawal; restart accepts the new boot
+  ---
+  duration_ms: 3.123963
+  type: 'test'
+  ...
+# Subtest: desktop withdraws on crash without server withdrawal; restart accepts the new boot
+ok 293 - desktop withdraws on crash without server withdrawal; restart accepts the new boot
+  ---
+  duration_ms: 1.662766
+  type: 'test'
+  ...
+# Subtest: a boot with exitCode is replaced even before its exit listener runs
+ok 294 - a boot with exitCode is replaced even before its exit listener runs
+  ---
+  duration_ms: 2.443384
+  type: 'test'
+  ...
+# Subtest: a boot with signalCode is replaced even before its exit listener runs
+ok 295 - a boot with signalCode is replaced even before its exit listener runs
+  ---
+  duration_ms: 1.593404
+  type: 'test'
+  ...
+# Subtest: disconnect alone never authorizes a second live boot
+ok 296 - disconnect alone never authorizes a second live boot
+  ---
+  duration_ms: 1.934085
+  type: 'test'
+  ...
+# Subtest: a different directory under the same scope key remains refused, even after death
+ok 297 - a different directory under the same scope key remains refused, even after death
+  ---
+  duration_ms: 1.958836
+  type: 'test'
+  ...
+# Subtest: a second live boot gets a plain refusal and its exit cannot withdraw the first
+ok 298 - a second live boot gets a plain refusal and its exit cannot withdraw the first
+  ---
+  duration_ms: 1.593232
+  type: 'test'
+  ...
+# Subtest: an exit while demand is queued cannot recreate the departed boot's scope
+ok 299 - an exit while demand is queued cannot recreate the departed boot's scope
+  ---
+  duration_ms: 2.294361
+  type: 'test'
+  ...
+# Subtest: two sites sharing one workspace id each keep their own ready daemon scope
+ok 300 - two sites sharing one workspace id each keep their own ready daemon scope
+  ---
+  duration_ms: 2.687739
+  type: 'test'
+  ...
+# Subtest: shared daemon compiled launches and park wakes put the size flag before loaders
+ok 301 - shared daemon compiled launches and park wakes put the size flag before loaders
+  ---
+  duration_ms: 1.042219
+  type: 'test'
+  ...
+# Subtest: shared daemon source launches and park wakes put the size flag before loaders
+ok 302 - shared daemon source launches and park wakes put the size flag before loaders
+  ---
+  duration_ms: 1.2733
+  type: 'test'
+  ...
+# Subtest: sleep exit uses the existing control channel and P0 withdraws before the same directory registers again
+ok 303 - sleep exit uses the existing control channel and P0 withdraws before the same directory registers again
+  ---
+  duration_ms: 2.433123
+  type: 'test'
+  ...
+# Subtest: stopIfIdle treats a rejected, timed out or malformed reply as busy
+ok 304 - stopIfIdle treats a rejected, timed out or malformed reply as busy
+  ---
+  duration_ms: 1.770547
+  type: 'test'
+  ...
+# Subtest: stopIfIdle request timeout is busy and never withdraws or signals
+ok 305 - stopIfIdle request timeout is busy and never withdraws or signals
+  ---
+  duration_ms: 1.063807
+  type: 'test'
+  ...
+# Subtest: every shared desktop verb is offered under desktop., with its own description and read-only flag
+ok 306 - every shared desktop verb is offered under desktop., with its own description and read-only flag
+  ---
+  duration_ms: 2.832657
+  type: 'test'
+  ...
+# Subtest: every tool is the local operator's own: the policy allows any call
+ok 307 - every tool is the local operator's own: the policy allows any call
+  ---
+  duration_ms: 0.366335
+  type: 'test'
+  ...
+# Subtest: a shared desktop verb runs the real table and returns its text with the structured payload
+ok 308 - a shared desktop verb runs the real table and returns its text with the structured payload
+  ---
+  duration_ms: 28.233839
+  type: 'test'
+  ...
+# Subtest: a shared desktop verb's refusal stays a result the model can read, flagged isError
+ok 309 - a shared desktop verb's refusal stays a result the model can read, flagged isError
+  ---
+  duration_ms: 0.821474
+  type: 'test'
+  ...
+# Subtest: desktop.navigate switches to a known section and refuses anything else without navigating
+ok 310 - desktop.navigate switches to a known section and refuses anything else without navigating
+  ---
+  duration_ms: 1.364759
+  type: 'test'
+  ...
+# Subtest: site.* on a turn that started with no site on screen refuses, and never reaches a gateway
+ok 311 - site.* on a turn that started with no site on screen refuses, and never reaches a gateway
+  ---
+  duration_ms: 0.757173
+  type: 'test'
+  ...
+# Subtest: site.list_tools lists only the run's own site, captured at turn start
+ok 312 - site.list_tools lists only the run's own site, captured at turn start
+  ---
+  duration_ms: 0.54744
+  type: 'test'
+  ...
+# Subtest: site.call_tool runs the tool on the run's own site and returns its output
+ok 313 - site.call_tool runs the tool on the run's own site and returns its output
+  ---
+  duration_ms: 0.549346
+  type: 'test'
+  ...
+# Subtest: site.call_tool refuses a missing or empty toolId before reaching the site
+ok 314 - site.call_tool refuses a missing or empty toolId before reaching the site
+  ---
+  duration_ms: 1.452364
+  type: 'test'
+  ...
+# Subtest: an unreachable site degrades to a named, readable refusal on both site tools
+ok 315 - an unreachable site degrades to a named, readable refusal on both site tools
+  ---
+  duration_ms: 0.440369
+  type: 'test'
+  ...
+# Subtest: bearerToken reads the token from an Authorization header, case-insensitively and trimmed
+ok 316 - bearerToken reads the token from an Authorization header, case-insensitively and trimmed
+  ---
+  duration_ms: 1.36747
+  type: 'test'
+  ...
+# Subtest: the bridge gate denies by default and binds a delegated call to the credential's own run
+ok 317 - the bridge gate denies by default and binds a delegated call to the credential's own run
+  ---
+  duration_ms: 1.918733
+  type: 'test'
+  ...
+# Subtest: the catalog ranks by matched terms, honours the limit, and lists everything for an empty query
+ok 318 - the catalog ranks by matched terms, honours the limit, and lists everything for an empty query
+  ---
+  duration_ms: 0.745396
+  type: 'test'
+  ...
+# Subtest: the catalog describes a known tool with its schema when it has one, and null for an unknown id
+ok 319 - the catalog describes a known tool with its schema when it has one, and null for an unknown id
+  ---
+  duration_ms: 0.506726
+  type: 'test'
+  ...
+# Subtest: the turn prompt names the on-screen site, or says only desktop tools apply
+ok 320 - the turn prompt names the on-screen site, or says only desktop tools apply
+  ---
+  duration_ms: 0.19381
+  type: 'test'
+  ...
+# Subtest: the runtime registers the built tools plus the owner gap list, and wires the bridge into the executor
+ok 321 - the runtime registers the built tools plus the owner gap list, and wires the bridge into the executor
+  ---
+  duration_ms: 17.670772
+  type: 'test'
+  ...
+# Subtest: every listener request needs a credential for a live run; a turn's credential reaches its own catalog and tools
+ok 322 - every listener request needs a credential for a live run; a turn's credential reaches its own catalog and tools
+  ---
+  duration_ms: 136.857719
+  type: 'test'
+  ...
+# Subtest: a turn with full CLI access gets the full overlay, and attachments, model and reasoning reach the executor
+ok 323 - a turn with full CLI access gets the full overlay, and attachments, model and reasoning reach the executor
+  ---
+  duration_ms: 6.426499
+  type: 'test'
+  ...
+# Subtest: native tool use during a turn is recorded in the owner's gap store, redacted, and listed back
+ok 324 - native tool use during a turn is recorded in the owner's gap store, redacted, and listed back
+  ---
+  duration_ms: 5.758751
+  type: 'test'
+  ...
+# Subtest: a gap-store write failure is logged, not thrown into the turn
+ok 325 - a gap-store write failure is logged, not thrown into the turn
+  ---
+  duration_ms: 7.248729
+  type: 'test'
+  ...
+# Subtest: an executor that rejects before terminalizing the run fails the run with a readable error, never leaving it live
+ok 326 - an executor that rejects before terminalizing the run fails the run with a readable error, never leaving it live
+  ---
+  duration_ms: 6.611044
+  type: 'test'
+  ...
+# Subtest: an executor that rejects after the run already finished leaves the finished run alone
+ok 327 - an executor that rejects after the run already finished leaves the finished run alone
+  ---
+  duration_ms: 31.921869
+  type: 'test'
+  ...
+# Subtest: a hosted runtime runs every turn restricted, with no native tool access
+ok 328 - a hosted runtime runs every turn restricted, with no native tool access
+  ---
+  duration_ms: 4.887758
+  type: 'test'
+  ...
+# Subtest: a bridge credential can only be minted for a run that is live
+ok 329 - a bridge credential can only be minted for a run that is live
+  ---
+  duration_ms: 11.118794
+  type: 'test'
+  ...
+# Subtest: without an injected executor the turn runs on Jini's own executor, which fails an unknown agent cleanly
+ok 330 - without an injected executor the turn runs on Jini's own executor, which fails an unknown agent cleanly
+  ---
+  duration_ms: 8.388178
+  type: 'test'
+  ...
+# Subtest: with no injected reader, an enabled login environment is read from the real login shell
+ok 331 - with no injected reader, an enabled login environment is read from the real login shell
+  ---
+  duration_ms: 45.914621
+  type: 'test'
+  ...
+# Subtest: a run another path terminalizes while the failed start is being handled keeps that outcome, with no second terminal
+ok 332 - a run another path terminalizes while the failed start is being handled keeps that outcome, with no second terminal
+  ---
+  duration_ms: 5.757176
+  type: 'test'
+  ...
+# Subtest: the tool-gap audit is readable by the desktop operator only
+ok 333 - the tool-gap audit is readable by the desktop operator only
+  ---
+  duration_ms: 0.275519
+  type: 'test'
+  ...
+# Subtest: a failed start whose own fallback finish also fails is swallowed, after reporting the error to the run
+ok 334 - a failed start whose own fallback finish also fails is swallowed, after reporting the error to the run
+  ---
+  duration_ms: 6.038271
+  type: 'test'
+  ...
+# Subtest: Antigravity installs its static connector before a desktop turn and refuses an unapproved install
+ok 335 - Antigravity installs its static connector before a desktop turn and refuses an unapproved install
+  ---
+  duration_ms: 16.923812
+  type: 'test'
+  ...
+# Subtest: redemption drains a chunked response and waits for end before accepting the session
+ok 336 - redemption drains a chunked response and waits for end before accepting the session
+  ---
+  duration_ms: 7.668349
+  type: 'test'
+  ...
+# Subtest: session validity drains the principal body before reporting the server's answer
+ok 337 - session validity drains the principal body before reporting the server's answer
+  ---
+  duration_ms: 3.746859
+  type: 'test'
+  ...
+# Subtest: logout drains an error response and reports the HTTP failure after end
+ok 338 - logout drains an error response and reports the HTTP failure after end
+  ---
+  duration_ms: 1.871891
+  type: 'test'
+  ...
+# Subtest: a failed boot-token transport resolves with the cause so the shell can load the login form
+ok 339 - a failed boot-token transport resolves with the cause so the shell can load the login form
+  ---
+  duration_ms: 0.721527
+  type: 'test'
+  ...
+# Subtest: a failed logout transport resolves with the cause instead of blocking window close
+ok 340 - a failed logout transport resolves with the cause instead of blocking window close
+  ---
+  duration_ms: 0.655341
+  type: 'test'
+  ...
+# Subtest: accepts the loopback origins a spawned child actually binds
+ok 341 - accepts the loopback origins a spawned child actually binds
+  ---
+  duration_ms: 24.622298
+  type: 'test'
+  ...
+# Subtest: refuses every non-loopback host, including ones that merely LOOK loopback
+ok 342 - refuses every non-loopback host, including ones that merely LOOK loopback
+  ---
+  duration_ms: 0.642998
+  type: 'test'
+  ...
+# Subtest: refuses non-http schemes and unparseable input
+ok 343 - refuses non-http schemes and unparseable input
+  ---
+  duration_ms: 0.229582
+  type: 'test'
+  ...
+# Subtest: every site dir gets its own partition, and the same dir always gets the same one
+ok 344 - every site dir gets its own partition, and the same dir always gets the same one
+  ---
+  duration_ms: 0.893231
+  type: 'test'
+  ...
+# Subtest: the partition name does not leak the operator's directory layout
+ok 345 - the partition name does not leak the operator's directory layout
+  ---
+  duration_ms: 1.1337
+  type: 'test'
+  ...
+# Subtest: a 200 redemption reports success
+ok 346 - a 200 redemption reports success
+  ---
+  duration_ms: 1.441389
+  type: 'test'
+  ...
+# Subtest: a 401 RESOLVES as not-ok rather than throwing — the caller falls through to the login form
+ok 347 - a 401 RESOLVES as not-ok rather than throwing — the caller falls through to the login form
+  ---
+  duration_ms: 0.27927
+  type: 'test'
+  ...
+# Subtest: a 403 (non-loopback, refused at the route) also resolves rather than throwing
+ok 348 - a 403 (non-loopback, refused at the route) also resolves rather than throwing
+  ---
+  duration_ms: 0.152579
+  type: 'test'
+  ...
+# Subtest: posts the token to the boot-session route, with useSessionCookies
+ok 349 - posts the token to the boot-session route, with useSessionCookies
+  ---
+  duration_ms: 0.192303
+  type: 'test'
+  ...
+# Subtest: refuses to put the token on the wire for a non-loopback admin url
+ok 350 - refuses to put the token on the wire for a non-loopback admin url
+  ---
+  duration_ms: 0.329851
+  type: 'test'
+  ...
+# Subtest: reports no active session when the partition's cookie jar is empty
+ok 351 - reports no active session when the partition's cookie jar is empty
+  ---
+  duration_ms: 1.079142
+  type: 'test'
+  ...
+# Subtest: reports an active session when the partition already carries a tovu_session cookie
+ok 352 - reports an active session when the partition already carries a tovu_session cookie
+  ---
+  duration_ms: 0.197636
+  type: 'test'
+  ...
+# Subtest: looks the cookie up by NAME only — a port-scoped filter would never match a reused partition
+ok 353 - looks the cookie up by NAME only — a port-scoped filter would never match a reused partition
+  ---
+  duration_ms: 0.578427
+  type: 'test'
+  ...
+# Subtest: a 200 logout reports success
+ok 354 - a 200 logout reports success
+  ---
+  duration_ms: 0.381537
+  type: 'test'
+  ...
+# Subtest: a non-200 logout RESOLVES as not-ok rather than throwing
+ok 355 - a non-200 logout RESOLVES as not-ok rather than throwing
+  ---
+  duration_ms: 0.118993
+  type: 'test'
+  ...
+# Subtest: posts to the logout route, with useSessionCookies, so the revoke reaches THIS site's cookie
+ok 356 - posts to the logout route, with useSessionCookies, so the revoke reaches THIS site's cookie
+  ---
+  duration_ms: 0.102651
+  type: 'test'
+  ...
+# Subtest: refuses to call logout for a non-loopback admin url
+ok 357 - refuses to call logout for a non-loopback admin url
+  ---
+  duration_ms: 0.18613
+  type: 'test'
+  ...
+# Subtest: hasValidSession is false for a cookie the server no longer honours — the whole of DS-01
+ok 358 - hasValidSession is false for a cookie the server no longer honours — the whole of DS-01
+  ---
+  duration_ms: 0.308563
+  type: 'test'
+  ...
+# Subtest: hasValidSession is true only when the server itself confirms the session
+ok 359 - hasValidSession is true only when the server itself confirms the session
+  ---
+  duration_ms: 0.115624
+  type: 'test'
+  ...
+# Subtest: hasValidSession asks the server nothing when there is no cookie to ask about
+ok 360 - hasValidSession asks the server nothing when there is no cookie to ask about
+  ---
+  duration_ms: 0.083062
+  type: 'test'
+  ...
+# Subtest: hasValidSession treats an unreachable server as not-authenticated rather than throwing
+ok 361 - hasValidSession treats an unreachable server as not-authenticated rather than throwing
+  ---
+  duration_ms: 0.160371
+  type: 'test'
+  ...
+# Subtest: hasValidSession refuses a non-loopback origin, exactly like the other two callers
+ok 362 - hasValidSession refuses a non-loopback origin, exactly like the other two callers
+  ---
+  duration_ms: 0.121369
+  type: 'test'
+  ...
+# Subtest: ensureSiteSession redeems NOTHING when the server confirms the existing session
+ok 363 - ensureSiteSession redeems NOTHING when the server confirms the existing session
+  ---
+  duration_ms: 1.310003
+  type: 'test'
+  ...
+# Subtest: ensureSiteSession redeems when the cookie is stale — the recovery DS-01 had none of
+ok 364 - ensureSiteSession redeems when the cookie is stale — the recovery DS-01 had none of
+  ---
+  duration_ms: 0.281297
+  type: 'test'
+  ...
+# Subtest: ensureSiteSession redeems for a brand-new partition with no cookie at all
+ok 365 - ensureSiteSession redeems for a brand-new partition with no cookie at all
+  ---
+  duration_ms: 0.114182
+  type: 'test'
+  ...
+# Subtest: ensureSiteSession reports a failed redeem honestly rather than claiming a session
+ok 366 - ensureSiteSession reports a failed redeem honestly rather than claiming a session
+  ---
+  duration_ms: 0.084022
+  type: 'test'
+  ...
+# Subtest: deskfx2 MUST-1: only this session's exact bootstrap and reset URLs receive the capability header
+ok 367 - deskfx2 MUST-1: only this session's exact bootstrap and reset URLs receive the capability header
+  ---
+  duration_ms: 0.757229
+  type: 'test'
+  ...
+# tovu desktop: dropped inherited JINI_DESKTOP_RENDER_URL, JINI_DESKTOP_RENDER_TOKEN; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+# tovu desktop: dropped inherited JINI_DESKTOP_RENDER_URL, JINI_DESKTOP_RENDER_TOKEN; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+# Subtest: desktop capture capabilities are explicitly injected, never reused from a parent site
+ok 368 - desktop capture capabilities are explicitly injected, never reused from a parent site
+  ---
+  duration_ms: 6.208993
+  type: 'test'
+  ...
+# Subtest: capture bindings deny popups/permissions/downloads and expose awaited session cleanup
+ok 369 - capture bindings deny popups/permissions/downloads and expose awaited session cleanup
+  ---
+  duration_ms: 2.5492
+  type: 'test'
+  ...
+# Subtest: capture factory destroys the hidden window and rethrows when native setup fails
+ok 370 - capture factory destroys the hidden window and rethrows when native setup fails
+  ---
+  duration_ms: 0.732347
+  type: 'test'
+  ...
+# Subtest: the returned window adapts every Jini call onto the native window and page, with Jini argument shapes
+ok 371 - the returned window adapts every Jini call onto the native window and page, with Jini argument shapes
+  ---
+  duration_ms: 7.292858
+  type: 'test'
+  ...
+# Subtest: the capture bridge refuses a non-loopback URL before any window opens, and sends loopback URLs to the native factory
+ok 372 - the capture bridge refuses a non-loopback URL before any window opens, and sends loopback URLs to the native factory
+  ---
+  duration_ms: 106.372637
+  type: 'test'
+  ...
+# Subtest: a renderer-reported folder resolves only to a tracked site, normalized, with its display name
+ok 373 - a renderer-reported folder resolves only to a tracked site, normalized, with its display name
+  ---
+  duration_ms: 2.051663
+  type: 'test'
+  ...
+# Subtest: the agent runtime gets its work dir under userData, the conversation store for gaps, and the owner setting
+ok 374 - the agent runtime gets its work dir under userData, the conversation store for gaps, and the owner setting
+  ---
+  duration_ms: 3.845959
+  type: 'test'
+  ...
+# Subtest: without an owner setting the runtime uses the environment default (no reader is passed)
+ok 375 - without an owner setting the runtime uses the environment default (no reader is passed)
+  ---
+  duration_ms: 1.646119
+  type: 'test'
+  ...
+# Subtest: the built tools navigate the shell by broadcast and reach the unbuilt site gateway by default
+ok 376 - the built tools navigate the shell by broadcast and reach the unbuilt site gateway by default
+  ---
+  duration_ms: 6.964788
+  type: 'test'
+  ...
+# Subtest: a start's reported site becomes the turn's addressee only when this app tracks it
+ok 377 - a start's reported site becomes the turn's addressee only when this app tracks it
+  ---
+  duration_ms: 16.971149
+  type: 'test'
+  ...
+# Subtest: a runtime that fails to start is reported on the console instead of crashing main
+ok 378 - a runtime that fails to start is reported on the console instead of crashing main
+  ---
+  duration_ms: 15.695811
+  type: 'test'
+  ...
+# Subtest: by default the real desktop agent runtime starts with every built tool registered
+ok 379 - by default the real desktop agent runtime starts with every built tool registered
+  ---
+  duration_ms: 14.972797
+  type: 'test'
+  ...
+# Subtest: desktop payload selection {"resourcesPath":"","present":false}
+ok 380 - desktop payload selection {"resourcesPath":"","present":false}
+  ---
+  duration_ms: 1.708288
+  type: 'test'
+  ...
+# Subtest: desktop payload selection {"resourcesPath":"","present":true}
+ok 381 - desktop payload selection {"resourcesPath":"","present":true}
+  ---
+  duration_ms: 0.566261
+  type: 'test'
+  ...
+# Subtest: desktop payload selection {"resourcesPath":"/resources","present":false}
+ok 382 - desktop payload selection {"resourcesPath":"/resources","present":false}
+  ---
+  duration_ms: 0.180128
+  type: 'test'
+  ...
+# Subtest: desktop payload selection {"resourcesPath":"/resources","present":true}
+ok 383 - desktop payload selection {"resourcesPath":"/resources","present":true}
+  ---
+  duration_ms: 0.064294
+  type: 'test'
+  ...
+# Subtest: default desktop binding accepts a host with no platform hints
+ok 384 - default desktop binding accepts a host with no platform hints
+  ---
+  duration_ms: 7.973046
+  type: 'test'
+  ...
+# Subtest: default filesystem probe and reader degrade to no hints for an absent payload
+ok 385 - default filesystem probe and reader degrade to no hints for an absent payload
+  ---
+  duration_ms: 0.530257
+  type: 'test'
+  ...
+# Subtest: every leaf string is non-empty in English and translated (different) in every other locale
+ok 386 - every leaf string is non-empty in English and translated (different) in every other locale
+  ---
+  duration_ms: 6.514432
+  type: 'test'
+  ...
+# Subtest: locale lookup: case-insensitive exact key, underscore spelling, region fallback, and en for anything unknown
+ok 387 - locale lookup: case-insensitive exact key, underscore spelling, region fallback, and en for anything unknown
+  ---
+  duration_ms: 0.859132
+  type: 'test'
+  ...
+# Subtest: new desktop copy is translated in all Tovu locales
+ok 388 - new desktop copy is translated in all Tovu locales
+  ---
+  duration_ms: 5.749432
+  type: 'test'
+  ...
+# Subtest: the external-Stop confirm is translated in every locale and keeps `npm run dev` literal
+ok 389 - the external-Stop confirm is translated in every locale and keeps `npm run dev` literal
+  ---
+  duration_ms: 0.363138
+  type: 'test'
+  ...
+# Subtest: the tab close ask is translated in every locale and names the site
+ok 390 - the tab close ask is translated in every locale and names the site
+  ---
+  duration_ms: 1.050128
+  type: 'test'
+  ...
+# Subtest: the last-window quit ask is translated in every locale and keeps its count
+ok 391 - the last-window quit ask is translated in every locale and keeps its count
+  ---
+  duration_ms: 0.837212
+  type: 'test'
+  ...
+# Subtest: runtimeLocale reads the navigator language and falls back to en without a navigator
+ok 392 - runtimeLocale reads the navigator language and falls back to en without a navigator
+  ---
+  duration_ms: 0.414655
+  type: 'test'
+  ...
+# Subtest: one two and five sites share one main endpoint
+ok 393 - one two and five sites share one main endpoint
+  ---
+  duration_ms: 188.08327
+  type: 'test'
+  ...
+# Subtest: listener startup repairs automatically without delaying site hosting
+ok 394 - listener startup repairs automatically without delaying site hosting
+  ---
+  duration_ms: 2.095915
+  type: 'test'
+  ...
+# Subtest: quit drains an in-flight listener start and cancels retries
+ok 395 - quit drains an in-flight listener start and cancels retries
+  ---
+  duration_ms: 0.556882
+  type: 'test'
+  ...
+# Subtest: a site spawned during listener failure receives the recovered capability automatically
+ok 396 - a site spawned during listener failure receives the recovered capability automatically
+  ---
+  duration_ms: 3.583021
+  type: 'test'
+  ...
+# Subtest: missing wrong and other-instance tokens dispatch zero tools
+ok 397 - missing wrong and other-instance tokens dispatch zero tools
+  ---
+  duration_ms: 401.882781
+  type: 'test'
+  ...
+# Subtest: browser-origin request is refused before dispatch
+ok 398 - browser-origin request is refused before dispatch
+  ---
+  duration_ms: 23.33528
+  type: 'test'
+  ...
+# Subtest: mutating calls retain serialization
+ok 399 - mutating calls retain serialization
+  ---
+  duration_ms: 31.784261
+  type: 'test'
+  ...
+# Subtest: desktop tools work without keyring or stored row
+ok 400 - desktop tools work without keyring or stored row
+  ---
+  duration_ms: 76.57561
+  type: 'test'
+  ...
+# Subtest: queued desktop mutations cannot overtake an unfinished mutation
+ok 401 - queued desktop mutations cannot overtake an unfinished mutation
+  ---
+  duration_ms: 111.748254
+  type: 'test'
+  ...
+# tovu desktop: skipped shared catalog entry /tmp/desktop-stale-repro-1UPdT3/repo/sites/tovu-dev; its metadata, identity or folder is unavailable/invalid.
+# tovu desktop: removed stale duplicate site card /tmp/desktop-stale-repro-1UPdT3/repo/sites/tovu-dev; its valid twin is already tracked.
+# Subtest: Websites grid merges a themes-only stale tovu-dev card with its valid tracked identity
+ok 402 - Websites grid merges a themes-only stale tovu-dev card with its valid tracked identity
+  ---
+  duration_ms: 146.392643
+  type: 'test'
+  ...
+# Subtest: a themes-only stale card without relocation proof cannot Start
+ok 403 - a themes-only stale card without relocation proof cannot Start
+  ---
+  duration_ms: 26.560959
+  type: 'test'
+  ...
+# Subtest: desktop launch without NODE_ENV retains owner re-entry capability after logout
+ok 404 - desktop launch without NODE_ENV retains owner re-entry capability after logout
+  ---
+  duration_ms: 18.076711
+  type: 'test'
+  ...
+# Subtest: memory sums each owned PID once, excludes the Windows sampler, and labels Electron private bytes as committed
+ok 405 - memory sums each owned PID once, excludes the Windows sampler, and labels Electron private bytes as committed
+  ---
+  duration_ms: 1.869598
+  type: 'test'
+  ...
+# Subtest: M3 macOS batches owned PIDs once a minute while inventory follows the open-panel cadence
+ok 406 - M3 macOS batches owned PIDs once a minute while inventory follows the open-panel cadence
+  ---
+  duration_ms: 6.667438
+  type: 'test'
+  ...
+# Subtest: M3 top failures retain labelled RSS and CPU history, then retry after one minute
+ok 407 - M3 top failures retain labelled RSS and CPU history, then retry after one minute
+  ---
+  duration_ms: 2.459933
+  type: 'test'
+  ...
+# Subtest: M3 top partial results preserve each missing PID as RSS in mixed totals
+ok 408 - M3 top partial results preserve each missing PID as RSS in mixed totals
+  ---
+  duration_ms: 0.493814
+  type: 'test'
+  ...
+# Subtest: M3 explicit memory samplers take precedence over the default top wiring
+ok 409 - M3 explicit memory samplers take precedence over the default top wiring
+  ---
+  duration_ms: 0.265743
+  type: 'test'
+  ...
+# Subtest: M3 Windows and Linux defaults retain OS RSS without native memory wiring
+ok 410 - M3 Windows and Linux defaults retain OS RSS without native memory wiring
+  ---
+  duration_ms: 0.273067
+  type: 'test'
+  ...
+# Subtest: M3 missing desktop inventories never launch top for foreign PIDs
+ok 411 - M3 missing desktop inventories never launch top for foreign PIDs
+  ---
+  duration_ms: 0.17849
+  type: 'test'
+  ...
+# Subtest: M2 batches all requested macOS PIDs in one bounded top call and parses binary units and change suffixes
+ok 412 - M2 batches all requested macOS PIDs in one bounded top call and parses binary units and change suffixes
+  ---
+  duration_ms: 0.263349
+  type: 'test'
+  ...
+# Subtest: M2 top leaves missing, duplicate, malformed and unsafe readings unavailable per PID
+ok 413 - M2 top leaves missing, duplicate, malformed and unsafe readings unavailable per PID
+  ---
+  duration_ms: 0.210916
+  type: 'test'
+  ...
+# Subtest: M2 top failure discards partial output; empty and oversized PID sets never spawn
+ok 414 - M2 top failure discards partial output; empty and oversized PID sets never spawn
+  ---
+  duration_ms: 1.082923
+  type: 'test'
+  ...
+# Subtest: M2 batched top feeds owned totals and labelled RSS fallback without resetting CPU history
+ok 415 - M2 batched top feeds owned totals and labelled RSS fallback without resetting CPU history
+  ---
+  duration_ms: 1.056708
+  type: 'test'
+  ...
+# Subtest: Job M uses physical footprint for the total, site tree and warning thresholds
+ok 416 - Job M uses physical footprint for the total, site tree and warning thresholds
+  ---
+  duration_ms: 0.578334
+  type: 'test'
+  ...
+# Subtest: Job M keeps partial native failures visible as mixed RSS estimates, preserving CPU and ownership
+ok 417 - Job M keeps partial native failures visible as mixed RSS estimates, preserving CPU and ownership
+  ---
+  duration_ms: 0.36287
+  type: 'test'
+  ...
+# Subtest: Job M uses Windows private working set rather than Electron committed private bytes
+ok 418 - Job M uses Windows private working set rather than Electron committed private bytes
+  ---
+  duration_ms: 0.23744
+  type: 'test'
+  ...
+# Subtest: M2 Windows uses existing Electron committed bytes without adding a native working-set probe
+ok 419 - M2 Windows uses existing Electron committed bytes without adding a native working-set probe
+  ---
+  duration_ms: 0.34283
+  type: 'test'
+  ...
+# Subtest: M2 Linux retains labelled OS RSS even if Electron supplies another memory value
+ok 420 - M2 Linux retains labelled OS RSS even if Electron supplies another memory value
+  ---
+  duration_ms: 0.210252
+  type: 'test'
+  ...
+# Subtest: M2 invalid native readings fall back per PID while valid zero remains measured
+ok 421 - M2 invalid native readings fall back per PID while valid zero remains measured
+  ---
+  duration_ms: 0.257755
+  type: 'test'
+  ...
+# Subtest: Job M applies the inclusive site and total warning edges to footprint bytes
+ok 422 - Job M applies the inclusive site and total warning edges to footprint bytes
+  ---
+  duration_ms: 0.448811
+  type: 'test'
+  ...
+# Subtest: Job M labels RSS fallback after native sampling fails and retries after one minute
+ok 423 - Job M labels RSS fallback after native sampling fails and retries after one minute
+  ---
+  duration_ms: 0.505684
+  type: 'test'
+  ...
+# Subtest: Job M samples inventory at five seconds and private memory once a minute, sharing eager callers
+ok 424 - Job M samples inventory at five seconds and private memory once a minute, sharing eager callers
+  ---
+  duration_ms: 1.029986
+  type: 'test'
+  ...
+# Subtest: native Electron memory replaces RSS once per PID; packaged serve/daemon keep RSS
+ok 425 - native Electron memory replaces RSS once per PID; packaged serve/daemon keep RSS
+  ---
+  duration_ms: 0.330394
+  type: 'test'
+  ...
+# Subtest: native metric failure reports unavailable instead of silently reverting to inflated RSS
+ok 426 - native metric failure reports unavailable instead of silently reverting to inflated RSS
+  ---
+  duration_ms: 0.364391
+  type: 'test'
+  ...
+# Subtest: S2 groups owned server/daemon/agent trees and Electron helpers; excludes other desktops
+ok 427 - S2 groups owned server/daemon/agent trees and Electron helpers; excludes other desktops
+  ---
+  duration_ms: 0.279715
+  type: 'test'
+  ...
+# Subtest: S2 packaged daemon (Electron as node) shares the server executable name and is still labelled
+ok 428 - S2 packaged daemon (Electron as node) shares the server executable name and is still labelled
+  ---
+  duration_ms: 0.161612
+  type: 'test'
+  ...
+# Subtest: S2 overlapping site roots cannot double-count a pid in the total
+ok 429 - S2 overlapping site roots cannot double-count a pid in the total
+  ---
+  duration_ms: 0.121506
+  type: 'test'
+  ...
+# Subtest: S2 missing roots and empty/foreign-only samples are unavailable, never zero or stale rows
+ok 430 - S2 missing roots and empty/foreign-only samples are unavailable, never zero or stale rows
+  ---
+  duration_ms: 0.402793
+  type: 'test'
+  ...
+# Subtest: S2 inclusive site 1.5 GB and total 25% warnings; one byte below remains quiet
+ok 431 - S2 inclusive site 1.5 GB and total 25% warnings; one byte below remains quiet
+  ---
+  duration_ms: 0.176819
+  type: 'test'
+  ...
+# Subtest: S2 CPU uses elapsed seconds and warns at 80% on two measured intervals, then clears
+ok 432 - S2 CPU uses elapsed seconds and warns at 80% on two measured intervals, then clears
+  ---
+  duration_ms: 0.199128
+  type: 'test'
+  ...
+# Subtest: S2 CPU counters are forgotten when a pid vanishes, and decreasing counters are unknown
+ok 433 - S2 CPU counters are forgotten when a pid vanishes, and decreasing counters are unknown
+  ---
+  duration_ms: 0.364693
+  type: 'test'
+  ...
+# Subtest: S2 enforces 5s POSIX, 10s Windows and 60s collapsed cadence even with eager callers
+ok 434 - S2 enforces 5s POSIX, 10s Windows and 60s collapsed cadence even with eager callers
+  ---
+  duration_ms: 0.3876
+  type: 'test'
+  ...
+# Subtest: S2 concurrent calls share a single in-flight sample even when the clock passes its cadence
+ok 435 - S2 concurrent calls share a single in-flight sample even when the clock passes its cadence
+  ---
+  duration_ms: 0.277019
+  type: 'test'
+  ...
+# Subtest: S2 sampler rejection returns unavailable without native error text and can recover
+ok 436 - S2 sampler rejection returns unavailable without native error text and can recover
+  ---
+  duration_ms: 0.341636
+  type: 'test'
+  ...
+# Subtest: collapsed launch failures use the bounded panel retry cadence, then restore the normal cache
+ok 437 - collapsed launch failures use the bounded panel retry cadence, then restore the normal cache
+  ---
+  duration_ms: 0.343661
+  type: 'test'
+  ...
+# Subtest: the usage probe (ps; PowerShell on Windows) never counts itself, so the total CPU is measured
+ok 438 - the usage probe (ps; PowerShell on Windows) never counts itself, so the total CPU is measured
+  ---
+  duration_ms: 0.467374
+  type: 'test'
+  ...
+# Subtest: a ps that is not the desktop's own probe is still counted
+ok 439 - a ps that is not the desktop's own probe is still counted
+  ---
+  duration_ms: 0.250018
+  type: 'test'
+  ...
+# Subtest: B2 maintenance and panel reads share one sampler and bypass the collapsed 60 s cache
+ok 440 - B2 maintenance and panel reads share one sampler and bypass the collapsed 60 s cache
+  ---
+  duration_ms: 0.16931
+  type: 'test'
+  ...
+# Subtest: a newly running site gets its own reading before the collapsed cache expires
+ok 441 - a newly running site gets its own reading before the collapsed cache expires
+  ---
+  duration_ms: 0.185769
+  type: 'test'
+  ...
+# Subtest: replacing a site PID or stopping it withdraws the old process group before cache expiry
+ok 442 - replacing a site PID or stopping it withdraws the old process group before cache expiry
+  ---
+  duration_ms: 0.648086
+  type: 'test'
+  ...
+# Subtest: reordered site handles retain the cached sample
+ok 443 - reordered site handles retain the cached sample
+  ---
+  duration_ms: 0.226892
+  type: 'test'
+  ...
+# Subtest: a site opened during an in-flight sample gets a bounded retry without overlapping OS reads
+ok 444 - a site opened during an in-flight sample gets a bounded retry without overlapping OS reads
+  ---
+  duration_ms: 0.330847
+  type: 'test'
+  ...
+# Subtest: footprint reads are limited to once a minute; new PIDs use RSS until the next read
+ok 445 - footprint reads are limited to once a minute; new PIDs use RSS until the next read
+  ---
+  duration_ms: 0.381845
+  type: 'test'
+  ...
+# Subtest: updates default ON, persist OFF across reads, and preserve other settings
+ok 446 - updates default ON, persist OFF across reads, and preserve other settings
+  ---
+  duration_ms: 25.403285
+  type: 'test'
+  ...
+# Subtest: bad field values cannot accidentally disable updates
+ok 447 - bad field values cannot accidentally disable updates
+  ---
+  duration_ms: 35.824414
+  type: 'test'
+  ...
+# Subtest: a preferences file holding JSON that is not an object reads as defaults and is replaced by an object on write
+ok 448 - a preferences file holding JSON that is not an object reads as defaults and is replaced by an object on write
+  ---
+  duration_ms: 84.110422
+  type: 'test'
+  ...
+# Subtest: native checkbox applies the chosen value, and restores it after a persistence failure
+ok 449 - native checkbox applies the chosen value, and restores it after a persistence failure
+  ---
+  duration_ms: 5.18474
+  type: 'test'
+  ...
+# Subtest: a corrupt preferences file is preserved rather than overwritten by a toggle
+ok 450 - a corrupt preferences file is preserved rather than overwritten by a toggle
+  ---
+  duration_ms: 6.083861
+  type: 'test'
+  ...
+# Subtest: a later save failure restores the last successful checkbox value
+ok 451 - a later save failure restores the last successful checkbox value
+  ---
+  duration_ms: 0.242944
+  type: 'test'
+  ...
+# Subtest: DESKTOP_APP_NAME is package.json's own name, which is what Electron reads
+ok 452 - DESKTOP_APP_NAME is package.json's own name, which is what Electron reads
+  ---
+  duration_ms: 2.719497
+  type: 'test'
+  ...
+# Subtest: resolveDesktopUserDataDir returns the verified macOS location
+ok 453 - resolveDesktopUserDataDir returns the verified macOS location
+  ---
+  duration_ms: 0.231853
+  type: 'test'
+  ...
+# Subtest: TOVU_DESKTOP_USER_DATA_DIR wins over the platform default
+ok 454 - TOVU_DESKTOP_USER_DATA_DIR wins over the platform default
+  ---
+  duration_ms: 0.216421
+  type: 'test'
+  ...
+# Subtest: a blank override is ignored rather than resolving to the process cwd
+ok 455 - a blank override is ignored rather than resolving to the process cwd
+  ---
+  duration_ms: 0.090283
+  type: 'test'
+  ...
+# Subtest: linux honours XDG_CONFIG_HOME and falls back to ~/.config
+ok 456 - linux honours XDG_CONFIG_HOME and falls back to ~/.config
+  ---
+  duration_ms: 0.208009
+  type: 'test'
+  ...
+# Subtest: win32 honours APPDATA and falls back to the conventional Roaming path
+ok 457 - win32 honours APPDATA and falls back to the conventional Roaming path
+  ---
+  duration_ms: 0.218476
+  type: 'test'
+  ...
+# Subtest: an unknown platform THROWS rather than guessing a directory
+ok 458 - an unknown platform THROWS rather than guessing a directory
+  ---
+  duration_ms: 0.66268
+  type: 'test'
+  ...
+# Subtest: with no options it resolves from this process's own env, platform and home directory
+ok 459 - with no options it resolves from this process's own env, platform and home directory
+  ---
+  duration_ms: 0.827739
+  type: 'test'
+  ...
+# Subtest: a dev-only package imported by reachable code is reported with the file that imports it
+ok 460 - a dev-only package imported by reachable code is reported with the file that imports it
+  ---
+  duration_ms: 11.826307
+  type: 'test'
+  ...
+# Subtest: several undeclared packages are all listed in the boot-failure message, counted in the plural
+ok 461 - several undeclared packages are all listed in the boot-failure message, counted in the plural
+  ---
+  duration_ms: 1.366944
+  type: 'test'
+  ...
+# Subtest: builtins, declared packages, subpaths of declared packages and scoped packages pass
+ok 462 - builtins, declared packages, subpaths of declared packages and scoped packages pass
+  ---
+  duration_ms: 2.545863
+  type: 'test'
+  ...
+# Subtest: follows \#src/ subpath imports, re-exports and literal dynamic imports
+ok 463 - follows \#src/ subpath imports, re-exports and literal dynamic imports
+  ---
+  duration_ms: 10.081315
+  type: 'test'
+  ...
+# Subtest: files unreachable from the entry are not checked; comments and a local `require` are not imports
+ok 464 - files unreachable from the entry are not checked; comments and a local `require` are not imports
+  ---
+  duration_ms: 4.514869
+  type: 'test'
+  ...
+# Subtest: a missing relative target is reported rather than silently skipped
+ok 465 - a missing relative target is reported rather than silently skipped
+  ---
+  duration_ms: 0.670363
+  type: 'test'
+  ...
+# Subtest: the compiled daemon supervisor pulls no package outside root `dependencies` (0.1.26: dev-only tsx resolve failed every build)
+ok 466 - the compiled daemon supervisor pulls no package outside root `dependencies` (0.1.26: dev-only tsx resolve failed every build)
+  ---
+  duration_ms: 343.573355
+  type: 'test'
+  ...
+# Subtest: the website's local-site launcher references no dev-only package the packaged app lacks
+ok 467 - the website's local-site launcher references no dev-only package the packaged app lacks
+  ---
+  duration_ms: 48.036068
+  type: 'test'
+  ...
+# Subtest: readJsonFile tells missing, parsed and damaged apart, and hands the damaged bytes back
+ok 468 - readJsonFile tells missing, parsed and damaged apart, and hands the damaged bytes back
+  ---
+  duration_ms: 13.066956
+  type: 'test'
+  ...
+# Subtest: writeJsonFileAtomic leaves the file whole and its own temp file gone
+ok 469 - writeJsonFileAtomic leaves the file whole and its own temp file gone
+  ---
+  duration_ms: 6.070491
+  type: 'test'
+  ...
+# Subtest: quarantineUnreadableFile keeps the bytes and reports the path it moved them to
+ok 470 - quarantineUnreadableFile keeps the bytes and reports the path it moved them to
+  ---
+  duration_ms: 1.655936
+  type: 'test'
+  ...
+# Subtest: quarantineUnreadableFile treats an already-gone file as clear to write
+ok 471 - quarantineUnreadableFile treats an already-gone file as clear to write
+  ---
+  duration_ms: 0.346823
+  type: 'test'
+  ...
+# Subtest: withFileLock runs the change under a lock and releases it, even when the change throws
+ok 472 - withFileLock runs the change under a lock and releases it, even when the change throws
+  ---
+  duration_ms: 2.555263
+  type: 'test'
+  ...
+# Subtest: a lock held by a live process is waited for, then refused out loud — never broken
+ok 473 - a lock held by a live process is waited for, then refused out loud — never broken
+  ---
+  duration_ms: 50.800304
+  type: 'test'
+  ...
+# Subtest: a lock whose owner is gone, or an aged lock whose owner cannot be identified, is taken over; an aged live owner keeps it
+ok 474 - a lock whose owner is gone, or an aged lock whose owner cannot be identified, is taken over; an aged live owner keeps it
+  ---
+  duration_ms: 211.293439
+  type: 'test'
+  ...
+# Subtest: releasing does not delete a lock that now belongs to someone else
+ok 475 - releasing does not delete a lock that now belongs to someone else
+  ---
+  duration_ms: 0.925208
+  type: 'test'
+  ...
+# Subtest: salvageJsonPrefix recovers every element that ended before the damage, and nothing it cannot parse
+ok 476 - salvageJsonPrefix recovers every element that ended before the damage, and nothing it cannot parse
+  ---
+  duration_ms: 0.610219
+  type: 'test'
+  ...
+# Subtest: salvageJsonPrefix is not fooled by brackets or escaped quotes inside strings
+ok 477 - salvageJsonPrefix is not fooled by brackets or escaped quotes inside strings
+  ---
+  duration_ms: 6.066633
+  type: 'test'
+  ...
+# (node:22774) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:22774) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: the desktop journey harness loads through Playwright on the supported Node runtime
+ok 478 - the desktop journey harness loads through Playwright on the supported Node runtime
+  ---
+  duration_ms: 10058.739412
+  type: 'test'
+  ...
+# Subtest: the packaged app exposes desktop HTTP and excludes the retired stdio child
+ok 479 - the packaged app exposes desktop HTTP and excludes the retired stdio child
+  ---
+  duration_ms: 36.127818
+  type: 'test'
+  ...
+# Subtest: the pre-fix files: list is REFUSED, so the check above cannot pass vacuously
+ok 480 - the pre-fix files: list is REFUSED, so the check above cannot pass vacuously
+  ---
+  duration_ms: 6.295857
+  type: 'test'
+  ...
+# Subtest: the files: list still excludes test files it is meant to exclude
+ok 481 - the files: list still excludes test files it is meant to exclude
+  ---
+  duration_ms: 98.623644
+  type: 'test'
+  ...
+# Subtest: the packaged shell does NOT ship the Bun runtimes or the Rollup natives
+ok 482 - the packaged shell does NOT ship the Bun runtimes or the Rollup natives
+  ---
+  duration_ms: 3.555633
+  type: 'test'
+  ...
+# Subtest: those exclusions are narrow — the packages the shell actually loads still ship
+ok 483 - those exclusions are narrow — the packages the shell actually loads still ship
+  ---
+  duration_ms: 31.679153
+  type: 'test'
+  ...
+# Subtest: the node_modules matcher is not the main matcher — proved on the same patterns
+ok 484 - the node_modules matcher is not the main matcher — proved on the same patterns
+  ---
+  duration_ms: 5.6307
+  type: 'test'
+  ...
+# Subtest: extraResources ships the bundled npm package staged at staging/npm
+ok 485 - extraResources ships the bundled npm package staged at staging/npm
+  ---
+  duration_ms: 1.942905
+  type: 'test'
+  ...
+# Subtest: npm's own node_modules ships as a SEPARATE extraResources entry, not folded into staging/npm -> npm
+ok 486 - npm's own node_modules ships as a SEPARATE extraResources entry, not folded into staging/npm -> npm
+  ---
+  duration_ms: 1.56584
+  type: 'test'
+  ...
+#   • 
+# file source doesn't exist  from=/tmp/tovu-builder-fixture-aObfIB/staging/website-shared
+# Subtest: production extraResources copies Electron notices, npm CLIs, dependencies and Tovu payload
+ok 487 - production extraResources copies Electron notices, npm CLIs, dependencies and Tovu payload
+  ---
+  duration_ms: 281.859758
+  type: 'test'
+  ...
+# Subtest: production files includes every shell runtime entry point
+ok 488 - production files includes every shell runtime entry point
+  ---
+  duration_ms: 154.708335
+  type: 'test'
+  ...
+# Subtest: the updater reads the public GitHub repo's published releases
+ok 489 - the updater reads the public GitHub repo's published releases
+  ---
+  duration_ms: 2.28266
+  type: 'test'
+  ...
+# Subtest: macOS builds a zip (Squirrel.Mac installs only from a zip), named per arch like the dmg
+ok 490 - macOS builds a zip (Squirrel.Mac installs only from a zip), named per arch like the dmg
+  ---
+  duration_ms: 0.252885
+  type: 'test'
+  ...
+# Subtest: NSIS writes the blockmap for differential updates
+ok 491 - NSIS writes the blockmap for differential updates
+  ---
+  duration_ms: 0.08738
+  type: 'test'
+  ...
+# Subtest: the Store package keeps AppData unvirtualized, with the capability that requires
+ok 492 - the Store package keeps AppData unvirtualized, with the capability that requires
+  ---
+  duration_ms: 0.591774
+  type: 'test'
+  ...
+# Subtest: the custom Store manifest uses only macros electron-builder 26 fills (an unknown one fails the build)
+ok 493 - the custom Store manifest uses only macros electron-builder 26 fills (an unknown one fails the build)
+  ---
+  duration_ms: 0.314224
+  type: 'test'
+  ...
+# Subtest: the Store tile assets exist at the sizes the manifest names
+ok 494 - the Store tile assets exist at the sizes the manifest names
+  ---
+  duration_ms: 1.272112
+  type: 'test'
+  ...
+# Subtest: a process that started at the claim is ours; one ms later is a reused pid and is never targeted
+ok 495 - a process that started at the claim is ours; one ms later is a reused pid and is never targeted
+  ---
+  duration_ms: 13.003164
+  type: 'test'
+  ...
+# Subtest: the dev-launcher regex: start or after a space/slash, then end or a space
+ok 496 - the dev-launcher regex: start or after a space/slash, then end or a space
+  ---
+  duration_ms: 0.341344
+  type: 'test'
+  ...
+# Subtest: the ancestor walk stops at pid 1, a missing parent, and after 6 ancestors
+ok 497 - the ancestor walk stops at pid 1, a missing parent, and after 6 ancestors
+  ---
+  duration_ms: 0.2744
+  type: 'test'
+  ...
+# Subtest: stop re-checks before signalling: a replaced lease is left alone, a changed command is refused
+ok 498 - stop re-checks before signalling: a replaced lease is left alone, a changed command is refused
+  ---
+  duration_ms: 0.871059
+  type: 'test'
+  ...
+# Subtest: stop signals SIGTERM once and waits until the lease is gone and the pid no longer predates the claim
+ok 499 - stop signals SIGTERM once and waits until the lease is gone and the pid no longer predates the claim
+  ---
+  duration_ms: 0.441086
+  type: 'test'
+  ...
+# Subtest: the launcher cache keeps 64 tokens and evicts the oldest on the 65th
+ok 500 - the launcher cache keeps 64 tokens and evicts the oldest on the 65th
+  ---
+  duration_ms: 0.360769
+  type: 'test'
+  ...
+# Subtest: readProcessStartMs: ps lstart in the C locale for exactly this pid; win32, a failure or garbage is null
+ok 501 - readProcessStartMs: ps lstart in the C locale for exactly this pid; win32, a failure or garbage is null
+  ---
+  duration_ms: 0.362654
+  type: 'test'
+  ...
+# Subtest: npm run dev: the target is dev.mjs, never the lease pid or the npm parent
+ok 502 - npm run dev: the target is dev.mjs, never the lease pid or the npm parent
+  ---
+  duration_ms: 2.495337
+  type: 'test'
+  ...
+# Subtest: no dev.mjs ancestor: the lease pid itself, labelled other
+ok 503 - no dev.mjs ancestor: the lease pid itself, labelled other
+  ---
+  duration_ms: 0.343939
+  type: 'test'
+  ...
+# Subtest: PID reuse fails closed: a lease pid or launcher that started AFTER the claim is never a target
+ok 504 - PID reuse fails closed: a lease pid or launcher that started AFTER the claim is never a target
+  ---
+  duration_ms: 0.172902
+  type: 'test'
+  ...
+# Subtest: the ancestor walk is bounded, so a ps cycle cannot loop
+ok 505 - the ancestor walk is bounded, so a ps cycle cannot loop
+  ---
+  duration_ms: 0.188417
+  type: 'test'
+  ...
+# Subtest: stop SIGTERMs dev.mjs once and waits for both the lease and the launcher to be gone
+ok 506 - stop SIGTERMs dev.mjs once and waits for both the lease and the launcher to be gone
+  ---
+  duration_ms: 0.783177
+  type: 'test'
+  ...
+# Subtest: stop refuses without signalling when identity cannot be proved, or changed before the signal
+ok 507 - stop refuses without signalling when identity cannot be proved, or changed before the signal
+  ---
+  duration_ms: 1.007116
+  type: 'test'
+  ...
+# Subtest: a lease that changed hands before the signal is a no-op
+ok 508 - a lease that changed hands before the signal is a no-op
+  ---
+  duration_ms: 1.204541
+  type: 'test'
+  ...
+# Subtest: a stack that does not exit in time is reported, never SIGKILLed
+ok 509 - a stack that does not exit in time is reported, never SIGKILLed
+  ---
+  duration_ms: 0.523756
+  type: 'test'
+  ...
+# Subtest: stop polling waits for the matching lease even after the target exits
+ok 510 - stop polling waits for the matching lease even after the target exits
+  ---
+  duration_ms: 0.966486
+  type: 'test'
+  ...
+# Subtest: stop polling waits for the original launcher after the lease changes
+ok 511 - stop polling waits for the original launcher after the lease changes
+  ---
+  duration_ms: 0.752804
+  type: 'test'
+  ...
+# Subtest: stop polling returns immediately after drain, and times out without signalling
+ok 512 - stop polling returns immediately after drain, and times out without signalling
+  ---
+  duration_ms: 0.441444
+  type: 'test'
+  ...
+# Subtest: launcherOf caches proved answers per lease token, and never caches a failure
+ok 513 - launcherOf caches proved answers per lease token, and never caches a failure
+  ---
+  duration_ms: 1.189399
+  type: 'test'
+  ...
+# Subtest: the stopper's stop delegates to stopExternalSite with its ports
+ok 514 - the stopper's stop delegates to stopExternalSite with its ports
+  ---
+  duration_ms: 0.95741
+  type: 'test'
+  ...
+# Subtest: real ports read this test process, argv-only, and win32 reads nothing
+ok 515 - real ports read this test process, argv-only, and win32 reads nothing
+  ---
+  duration_ms: 54.188323
+  type: 'test'
+  ...
+# Subtest: readProcessStartMs asks ps for argv-free lstart and reads output that is not a date as unknown
+ok 516 - readProcessStartMs asks ps for argv-free lstart and reads output that is not a date as unknown
+  ---
+  duration_ms: 0.379483
+  type: 'test'
+  ...
+# Subtest: registerFindInPageIpc registers both channels
+ok 517 - registerFindInPageIpc registers both channels
+  ---
+  duration_ms: 2.974019
+  type: 'test'
+  ...
+# Subtest: the find handler runs findInPage on the CALLING window, with the query's forward/findNext
+ok 518 - the find handler runs findInPage on the CALLING window, with the query's forward/findNext
+  ---
+  duration_ms: 1.579407
+  type: 'test'
+  ...
+# Subtest: the stop handler stops findInPage on the calling window with clearSelection
+ok 519 - the stop handler stops findInPage on the calling window with clearSelection
+  ---
+  duration_ms: 0.338747
+  type: 'test'
+  ...
+# Subtest: a sender with no resolvable window is a no-op, not a throw
+ok 520 - a sender with no resolvable window is a no-op, not a throw
+  ---
+  duration_ms: 0.233338
+  type: 'test'
+  ...
+# Subtest: relayFindResults forwards found-in-page to the renderer, narrowed to activeMatchOrdinal/matches
+ok 521 - relayFindResults forwards found-in-page to the renderer, narrowed to activeMatchOrdinal/matches
+  ---
+  duration_ms: 0.830242
+  type: 'test'
+  ...
+# Subtest: relayFindResults sends nothing once the window is destroyed
+ok 522 - relayFindResults sends nothing once the window is destroyed
+  ---
+  duration_ms: 0.272756
+  type: 'test'
+  ...
+# Subtest: parseCount reads exactly "N of M", trimmed, and nothing else
+ok 523 - parseCount reads exactly "N of M", trimmed, and nothing else
+  ---
+  duration_ms: 3.38295
+  type: 'test'
+  ...
+# Subtest: a forward find lands one further, wrapping the last match back to the first
+ok 524 - a forward find lands one further, wrapping the last match back to the first
+  ---
+  duration_ms: 0.228416
+  type: 'test'
+  ...
+# Subtest: Shift+Enter lands one back, wrapping the first match to the last
+ok 525 - Shift+Enter lands one back, wrapping the first match to the last
+  ---
+  duration_ms: 0.162163
+  type: 'test'
+  ...
+# Subtest: advancesEveryStep holds only for consecutive +1 steps over the same total, across the wrap
+ok 526 - advancesEveryStep holds only for consecutive +1 steps over the same total, across the wrap
+  ---
+  duration_ms: 0.20835
+  type: 'test'
+  ...
+# Subtest: Find has one item, Find in Page… on CmdOrCtrl+F
+ok 527 - Find has one item, Find in Page… on CmdOrCtrl+F
+  ---
+  duration_ms: 1.922261
+  type: 'test'
+  ...
+# Subtest: clicking Find in Page… sends the toggle to the focused window's renderer
+ok 528 - clicking Find in Page… sends the toggle to the focused window's renderer
+  ---
+  duration_ms: 0.320389
+  type: 'test'
+  ...
+# Subtest: with no focused window, a destroyed one, or one without webContents, nothing is sent
+ok 529 - with no focused window, a destroyed one, or one without webContents, nothing is sent
+  ---
+  duration_ms: 0.230995
+  type: 'test'
+  ...
+# Subtest: the sites-home menu adds Find between History and Window
+ok 530 - the sites-home menu adds Find between History and Window
+  ---
+  duration_ms: 0.446046
+  type: 'test'
+  ...
+# Subtest: the inlined channel literal matches contracts/find-in-page.ts
+ok 531 - the inlined channel literal matches contracts/find-in-page.ts
+  ---
+  duration_ms: 0.305616
+  type: 'test'
+  ...
+# Subtest: the preload subscribes to that channel
+ok 532 - the preload subscribes to that channel
+  ---
+  duration_ms: 0.308529
+  type: 'test'
+  ...
+# Subtest: a trusted admin page opens the sites home's Import tab with its address, and brings the window forward
+ok 533 - a trusted admin page opens the sites home's Import tab with its address, and brings the window forward
+  ---
+  duration_ms: 2.39439
+  type: 'test'
+  ...
+# Subtest: without an address the Import tab still opens, empty
+ok 534 - without an address the Import tab still opens, empty
+  ---
+  duration_ms: 0.378547
+  type: 'test'
+  ...
+# Subtest: with no sites home window open, nothing is sent and the admin hears it was not opened
+ok 535 - with no sites home window open, nothing is sent and the admin hears it was not opened
+  ---
+  duration_ms: 0.151113
+  type: 'test'
+  ...
+# Subtest: an untrusted page is refused in plain words and no window is touched
+ok 536 - an untrusted page is refused in plain words and no window is touched
+  ---
+  duration_ms: 0.682946
+  type: 'test'
+  ...
+# Subtest: a request with no sender frame is refused
+ok 537 - a request with no sender frame is refused
+  ---
+  duration_ms: 0.225681
+  type: 'test'
+  ...
+# Subtest: the request keeps only a bounded, nonblank string address
+ok 538 - the request keeps only a bounded, nonblank string address
+  ---
+  duration_ms: 0.182269
+  type: 'test'
+  ...
+# Subtest: main/index.ts registers the hand-off with the speech channels' shell-page sender check and the sites home windows
+ok 539 - main/index.ts registers the hand-off with the speech channels' shell-page sender check and the sites home windows
+  ---
+  duration_ms: 0.912421
+  type: 'test'
+  ...
+# Subtest: the presence directory is `instances` inside userData
+ok 540 - the presence directory is `instances` inside userData
+  ---
+  duration_ms: 1.103823
+  type: 'test'
+  ...
+# Subtest: a written record reads back, and a heartbeat overwrites it in place
+ok 541 - a written record reads back, and a heartbeat overwrites it in place
+  ---
+  duration_ms: 2.657671
+  type: 'test'
+  ...
+# Subtest: a dead instance's record is dropped AND deleted on read
+ok 542 - a dead instance's record is dropped AND deleted on read
+  ---
+  duration_ms: 1.228958
+  type: 'test'
+  ...
+# Subtest: malformed and unrelated files are skipped, not trusted and not deleted
+ok 543 - malformed and unrelated files are skipped, not trusted and not deleted
+  ---
+  duration_ms: 1.209037
+  type: 'test'
+  ...
+# Subtest: a missing directory reads as no instances
+ok 544 - a missing directory reads as no instances
+  ---
+  duration_ms: 0.4037
+  type: 'test'
+  ...
+# Subtest: removing a record never throws, even when it is already gone
+ok 545 - removing a record never throws, even when it is already gone
+  ---
+  duration_ms: 0.80728
+  type: 'test'
+  ...
+# Subtest: this process is alive; a pid far past the range is not
+ok 546 - this process is alive; a pid far past the range is not
+  ---
+  duration_ms: 0.485858
+  type: 'test'
+  ...
+# Subtest: a process owned by another user (EPERM) still counts as alive
+ok 547 - a process owned by another user (EPERM) still counts as alive
+  ---
+  duration_ms: 0.620131
+  type: 'test'
+  ...

@@ -16206,3 +16206,3298 @@ ok 2409 - a transaction that reaches for a second connection to the same file fa
   duration_ms: 44.861605
   type: 'test'
   ...
+# Subtest: [sqlite] document ownership backfill includes Trash, excludes ordinary orphans and respects workspace
+ok 2410 - [sqlite] document ownership backfill includes Trash, excludes ordinary orphans and respects workspace
+  ---
+  duration_ms: 267.941622
+  type: 'test'
+  ...
+# Subtest: [pglite] document ownership backfill includes Trash, excludes ordinary orphans and respects workspace
+ok 2411 - [pglite] document ownership backfill includes Trash, excludes ordinary orphans and respects workspace
+  ---
+  duration_ms: 22430.037463
+  type: 'test'
+  ...
+# Subtest: 0000_legacy_baseline on SQLite
+    # Subtest: the chain is the frozen one
+    ok 1 - the chain is the frozen one
+      ---
+      duration_ms: 5.200428
+      type: 'test'
+      ...
+    # Subtest: a brand-new database and an adopted Drizzle database reach the same current schema
+    ok 2 - a brand-new database and an adopted Drizzle database reach the same current schema
+      ---
+      duration_ms: 4599.791708
+      type: 'test'
+      ...
+    # Subtest: a drizzle-migrated database is adopted with no schema change and no new drizzle rows
+    ok 3 - a drizzle-migrated database is adopted with no schema change and no new drizzle rows
+      ---
+      duration_ms: 2056.781853
+      type: 'test'
+      ...
+    # Subtest: a partial history gets exactly its missing tail, fake-2027 entries included
+    ok 4 - a partial history gets exactly its missing tail, fake-2027 entries included
+      ---
+      duration_ms: 1458.007678
+      type: 'test'
+      ...
+    # Subtest: a recorded hash that is not in the chain stops adoption, nothing recorded
+    ok 5 - a recorded hash that is not in the chain stops adoption, nothing recorded
+      ---
+      duration_ms: 12.677284
+      type: 'test'
+      ...
+    # Subtest: an entry missing before the last applied one stops adoption
+    ok 6 - an entry missing before the last applied one stops adoption
+      ---
+      duration_ms: 13.024272
+      type: 'test'
+      ...
+    # Subtest: tables without any drizzle history are not adopted
+    ok 7 - tables without any drizzle history are not adopted
+      ---
+      duration_ms: 3.174796
+      type: 'test'
+      ...
+    # Subtest: a schema that differs from the chain's head stops adoption and names the difference
+    ok 8 - a schema that differs from the chain's head stops adoption and names the difference
+      ---
+      duration_ms: 863.39318
+      type: 'test'
+      ...
+    # Subtest: extra tables (plugin data modules) are kept and reported, not refused
+    ok 9 - extra tables (plugin data modules) are kept and reported, not refused
+      ---
+      duration_ms: 1154.853275
+      type: 'test'
+      ...
+    # Subtest: a file-backed database is backed up before adoption
+    ok 10 - a file-backed database is backed up before adoption
+      ---
+      duration_ms: 1928.092015
+      type: 'test'
+      ...
+    1..10
+ok 2412 - 0000_legacy_baseline on SQLite
+  ---
+  duration_ms: 12102.588916
+  type: 'suite'
+  ...
+# Subtest: [sqlite] Library migration defaults legacy rows to media and retains document metadata
+ok 2413 - [sqlite] Library migration defaults legacy rows to media and retains document metadata
+  ---
+  duration_ms: 553.501218
+  type: 'test'
+  ...
+# Subtest: [pglite] Library migration defaults legacy rows to media and retains document metadata
+ok 2414 - [pglite] Library migration defaults legacy rows to media and retains document metadata
+  ---
+  duration_ms: 14798.896592
+  type: 'test'
+  ...
+# Subtest: search migration stems English words, retains stop words, and builds a GIN projection with cascading ownership
+ok 2415 - search migration stems English words, retains stop words, and builds a GIN projection with cascading ownership
+  ---
+  duration_ms: 9874.797685
+  type: 'test'
+  ...
+# Subtest: search step leaves SQLite schema and existing values unchanged
+ok 2416 - search step leaves SQLite schema and existing values unchanged
+  ---
+  duration_ms: 91.417947
+  type: 'test'
+  ...
+# Subtest: search migration propagates missing-posts DDL failure and rolls back in its caller's transaction
+ok 2417 - search migration propagates missing-posts DDL failure and rolls back in its caller's transaction
+  ---
+  duration_ms: 8113.909169
+  type: 'test'
+  ...
+# Subtest: runMigrations on sqlite
+    # Subtest: applies pending steps in order, records them, and a rerun applies nothing
+    ok 1 - applies pending steps in order, records them, and a rerun applies nothing
+      ---
+      duration_ms: 60.989837
+      type: 'test'
+      ...
+    # Subtest: a failing step rolls back its own changes, is not recorded, and stops later steps
+    ok 2 - a failing step rolls back its own changes, is not recorded, and stops later steps
+      ---
+      duration_ms: 3.982912
+      type: 'test'
+      ...
+    # Subtest: a recorded step whose checksum changed stops the run before anything is applied
+    ok 3 - a recorded step whose checksum changed stops the run before anything is applied
+      ---
+      duration_ms: 2.411579
+      type: 'test'
+      ...
+    # Subtest: a recorded step this runtime does not know stops the run (database from a newer Tovu)
+    ok 4 - a recorded step this runtime does not know stops the run (database from a newer Tovu)
+      ---
+      duration_ms: 3.145084
+      type: 'test'
+      ...
+    1..4
+ok 2418 - runMigrations on sqlite
+  ---
+  duration_ms: 72.035502
+  type: 'suite'
+  ...
+# Subtest: runMigrations on pglite
+    # Subtest: applies pending steps in order, records them, and a rerun applies nothing
+    ok 1 - applies pending steps in order, records them, and a rerun applies nothing
+      ---
+      duration_ms: 10353.763769
+      type: 'test'
+      ...
+    # Subtest: a failing step rolls back its own changes, is not recorded, and stops later steps
+    ok 2 - a failing step rolls back its own changes, is not recorded, and stops later steps
+      ---
+      duration_ms: 8233.169797
+      type: 'test'
+      ...
+    # Subtest: a recorded step whose checksum changed stops the run before anything is applied
+    ok 3 - a recorded step whose checksum changed stops the run before anything is applied
+      ---
+      duration_ms: 7721.070143
+      type: 'test'
+      ...
+    # Subtest: a recorded step this runtime does not know stops the run (database from a newer Tovu)
+    ok 4 - a recorded step this runtime does not know stops the run (database from a newer Tovu)
+      ---
+      duration_ms: 6620.194593
+      type: 'test'
+      ...
+    1..4
+ok 2419 - runMigrations on pglite
+  ---
+  duration_ms: 32935.491016
+  type: 'suite'
+  ...
+# Subtest: assertValidSteps
+    # Subtest: rejects malformed, unordered or duplicate ids and missing checksums
+    ok 1 - rejects malformed, unordered or duplicate ids and missing checksums
+      ---
+      duration_ms: 0.624863
+      type: 'test'
+      ...
+    1..1
+ok 2420 - assertValidSteps
+  ---
+  duration_ms: 0.798955
+  type: 'suite'
+  ...
+# Subtest: custom records reject a foreign kind before exposing credential data
+ok 2421 - custom records reject a foreign kind before exposing credential data
+  ---
+  duration_ms: 12.928738
+  type: 'test'
+  ...
+# Subtest: custom records reject a foreign ownerKey before exposing credential data
+ok 2422 - custom records reject a foreign ownerKey before exposing credential data
+  ---
+  duration_ms: 2.092681
+  type: 'test'
+  ...
+# Subtest: custom records reject a foreign principalId before exposing credential data
+ok 2423 - custom records reject a foreign principalId before exposing credential data
+  ---
+  duration_ms: 0.292771
+  type: 'test'
+  ...
+# Subtest: custom records reject a foreign binding before exposing credential data
+ok 2424 - custom records reject a foreign binding before exposing credential data
+  ---
+  duration_ms: 0.086669
+  type: 'test'
+  ...
+# Subtest: custom records reject a foreign provider before exposing credential data
+ok 2425 - custom records reject a foreign provider before exposing credential data
+  ---
+  duration_ms: 0.075351
+  type: 'test'
+  ...
+# Subtest: custom records reject a missing sealed envelope
+ok 2426 - custom records reject a missing sealed envelope
+  ---
+  duration_ms: 2.538426
+  type: 'test'
+  ...
+# Subtest: custom record summaries hide the envelope revision and preserve an explicit create CAS
+ok 2427 - custom record summaries hide the envelope revision and preserve an explicit create CAS
+  ---
+  duration_ms: 5.603587
+  type: 'test'
+  ...
+# Subtest: legacy metadata without a username produces a summary without a username field
+ok 2428 - legacy metadata without a username produces a summary without a username field
+  ---
+  duration_ms: 0.851167
+  type: 'test'
+  ...
+# Subtest: a revision-bearing DTO without a prepared row uses its explicit create CAS
+ok 2429 - a revision-bearing DTO without a prepared row uses its explicit create CAS
+  ---
+  duration_ms: 6.509432
+  type: 'test'
+  ...
+# Subtest: custom credentials list by label rather than by vault id
+ok 2430 - custom credentials list by label rather than by vault id
+  ---
+  duration_ms: 1.118867
+  type: 'test'
+  ...
+# Subtest: custom lookups ignore a different vault kind and leave that row intact on delete
+ok 2431 - custom lookups ignore a different vault kind and leave that row intact on delete
+  ---
+  duration_ms: 1.409956
+  type: 'test'
+  ...
+# Subtest: a DTO metadata update preserves the unchanged envelope's hints and provenance
+ok 2432 - a DTO metadata update preserves the unchanged envelope's hints and provenance
+  ---
+  duration_ms: 1.418125
+  type: 'test'
+  ...
+# Subtest: a custom DTO with a different envelope keyId clears the previous hint
+ok 2433 - a custom DTO with a different envelope keyId clears the previous hint
+  ---
+  duration_ms: 0.547597
+  type: 'test'
+  ...
+# Subtest: a custom DTO with a different envelope ciphertext clears the previous hint
+ok 2434 - a custom DTO with a different envelope ciphertext clears the previous hint
+  ---
+  duration_ms: 3.570062
+  type: 'test'
+  ...
+# Subtest: a custom DTO with a different envelope nonce clears the previous hint
+ok 2435 - a custom DTO with a different envelope nonce clears the previous hint
+  ---
+  duration_ms: 0.833374
+  type: 'test'
+  ...
+# Subtest: a custom DTO with a different envelope alg clears the previous hint
+ok 2436 - a custom DTO with a different envelope alg clears the previous hint
+  ---
+  duration_ms: 0.318038
+  type: 'test'
+  ...
+# Subtest: prepared custom writes preserve their caller's CAS and reject stale updates
+ok 2437 - prepared custom writes preserve their caller's CAS and reject stale updates
+  ---
+  duration_ms: 6.924035
+  type: 'test'
+  ...
+# Subtest: prepared custom writes cannot change the DTO workspaceId
+ok 2438 - prepared custom writes cannot change the DTO workspaceId
+  ---
+  duration_ms: 0.478966
+  type: 'test'
+  ...
+# Subtest: prepared custom writes cannot change the DTO id
+ok 2439 - prepared custom writes cannot change the DTO id
+  ---
+  duration_ms: 0.264409
+  type: 'test'
+  ...
+# Subtest: custom writes preserve storage unavailable when it is not a duplicate label
+ok 2440 - custom writes preserve storage unavailable when it is not a duplicate label
+  ---
+  duration_ms: 0.386171
+  type: 'test'
+  ...
+# Subtest: custom writes preserve Secrets vault: invalid-record when it is not a duplicate label
+ok 2441 - custom writes preserve Secrets vault: invalid-record when it is not a duplicate label
+  ---
+  duration_ms: 0.331775
+  type: 'test'
+  ...
+# Subtest: custom writes preserve Secrets vault: conflict when it is not a duplicate label
+ok 2442 - custom writes preserve Secrets vault: conflict when it is not a duplicate label
+  ---
+  duration_ms: 1.519822
+  type: 'test'
+  ...
+# Subtest: CustomCredentialSetRepoPort [sqlite]
+    # Subtest: findById returns null when no row exists
+    ok 1 - findById returns null when no row exists
+      ---
+      duration_ms: 450.624409
+      type: 'test'
+      ...
+    # Subtest: vault persistence retains safe hints, origin restrictions and username clears through the public store
+    ok 2 - vault persistence retains safe hints, origin restrictions and username clears through the public store
+      ---
+      duration_ms: 518.080704
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips a record exactly
+    ok 3 - insert then findById round-trips a record exactly
+      ---
+      duration_ms: 612.500573
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips a non-empty additionalHosts array
+    ok 4 - insert then findById round-trips a non-empty additionalHosts array
+      ---
+      duration_ms: 948.810247
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips an empty additionalHosts array back to []
+    ok 5 - insert then findById round-trips an empty additionalHosts array back to []
+      ---
+      duration_ms: 414.682186
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips a saved username
+    ok 6 - insert then findById round-trips a saved username
+      ---
+      duration_ms: 696.022596
+      type: 'test'
+      ...
+    # Subtest: insert then findById omits `username` entirely (not `undefined`, not `""`) when none was saved
+    ok 7 - insert then findById omits `username` entirely (not `undefined`, not `""`) when none was saved
+      ---
+      duration_ms: 789.182821
+      type: 'test'
+      ...
+    # Subtest: insert rejects a duplicate label within the same workspace (raw UNIQUE violation, not swallowed)
+    ok 8 - insert rejects a duplicate label within the same workspace (raw UNIQUE violation, not swallowed)
+      ---
+      duration_ms: 264.607049
+      type: 'test'
+      ...
+    # Subtest: the same label is allowed again in a DIFFERENT workspace
+    ok 9 - the same label is allowed again in a DIFFERENT workspace
+      ---
+      duration_ms: 236.501362
+      type: 'test'
+      ...
+    # Subtest: update replaces every field of the targeted row
+    ok 10 - update replaces every field of the targeted row
+      ---
+      duration_ms: 397.386193
+      type: 'test'
+      ...
+    # Subtest: update never crosses a workspace boundary
+    ok 11 - update never crosses a workspace boundary
+      ---
+      duration_ms: 324.337217
+      type: 'test'
+      ...
+    # Subtest: listByWorkspace returns every row for a workspace, scoped away from another workspace's rows
+    ok 12 - listByWorkspace returns every row for a workspace, scoped away from another workspace's rows
+      ---
+      duration_ms: 243.792909
+      type: 'test'
+      ...
+    # Subtest: delete removes exactly the targeted row and is a silent no-op when it doesn't exist
+    ok 13 - delete removes exactly the targeted row and is a silent no-op when it doesn't exist
+      ---
+      duration_ms: 261.48925
+      type: 'test'
+      ...
+    # Subtest: delete never crosses a workspace boundary
+    ok 14 - delete never crosses a workspace boundary
+      ---
+      duration_ms: 112.153111
+      type: 'test'
+      ...
+    1..14
+ok 2443 - CustomCredentialSetRepoPort [sqlite]
+  ---
+  duration_ms: 6271.553887
+  type: 'suite'
+  ...
+# Subtest: CustomCredentialSetRepoPort [pglite]
+    # Subtest: findById returns null when no row exists
+    ok 1 - findById returns null when no row exists
+      ---
+      duration_ms: 12485.464282
+      type: 'test'
+      ...
+    # Subtest: vault persistence retains safe hints, origin restrictions and username clears through the public store
+    ok 2 - vault persistence retains safe hints, origin restrictions and username clears through the public store
+      ---
+      duration_ms: 131.568338
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips a record exactly
+    ok 3 - insert then findById round-trips a record exactly
+      ---
+      duration_ms: 52.442616
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips a non-empty additionalHosts array
+    ok 4 - insert then findById round-trips a non-empty additionalHosts array
+      ---
+      duration_ms: 275.548642
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips an empty additionalHosts array back to []
+    ok 5 - insert then findById round-trips an empty additionalHosts array back to []
+      ---
+      duration_ms: 65.708755
+      type: 'test'
+      ...
+    # Subtest: insert then findById round-trips a saved username
+    ok 6 - insert then findById round-trips a saved username
+      ---
+      duration_ms: 103.957567
+      type: 'test'
+      ...
+    # Subtest: insert then findById omits `username` entirely (not `undefined`, not `""`) when none was saved
+    ok 7 - insert then findById omits `username` entirely (not `undefined`, not `""`) when none was saved
+      ---
+      duration_ms: 182.695286
+      type: 'test'
+      ...
+    # Subtest: insert rejects a duplicate label within the same workspace (raw UNIQUE violation, not swallowed)
+    ok 8 - insert rejects a duplicate label within the same workspace (raw UNIQUE violation, not swallowed)
+      ---
+      duration_ms: 141.315858
+      type: 'test'
+      ...
+    # Subtest: the same label is allowed again in a DIFFERENT workspace
+    ok 9 - the same label is allowed again in a DIFFERENT workspace
+      ---
+      duration_ms: 106.345804
+      type: 'test'
+      ...
+    # Subtest: update replaces every field of the targeted row
+    ok 10 - update replaces every field of the targeted row
+      ---
+      duration_ms: 213.20609
+      type: 'test'
+      ...
+    # Subtest: update never crosses a workspace boundary
+    ok 11 - update never crosses a workspace boundary
+      ---
+      duration_ms: 290.257058
+      type: 'test'
+      ...
+    # Subtest: listByWorkspace returns every row for a workspace, scoped away from another workspace's rows
+    ok 12 - listByWorkspace returns every row for a workspace, scoped away from another workspace's rows
+      ---
+      duration_ms: 109.766712
+      type: 'test'
+      ...
+    # Subtest: delete removes exactly the targeted row and is a silent no-op when it doesn't exist
+    ok 13 - delete removes exactly the targeted row and is a silent no-op when it doesn't exist
+      ---
+      duration_ms: 268.691684
+      type: 'test'
+      ...
+    # Subtest: delete never crosses a workspace boundary
+    ok 14 - delete never crosses a workspace boundary
+      ---
+      duration_ms: 157.061532
+      type: 'test'
+      ...
+    1..14
+ok 2444 - CustomCredentialSetRepoPort [pglite]
+  ---
+  duration_ms: 14589.641389
+  type: 'suite'
+  ...
+# Subtest: tryRedeem() refuses redemption when the database skips the status update
+ok 2445 - tryRedeem() refuses redemption when the database skips the status update
+  ---
+  duration_ms: 411.007165
+  type: 'test'
+  ...
+# Subtest: TokenStorePort [sqlite]
+    # Subtest: save() then findByToken() round-trips a minted record
+    ok 1 - save() then findByToken() round-trips a minted record
+      ---
+      duration_ms: 433.540231
+      type: 'test'
+      ...
+    # Subtest: findByToken() returns null for a token never saved
+    ok 2 - findByToken() returns null for a token never saved
+      ---
+      duration_ms: 457.400713
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() atomically transitions minted -> redeemed and reports the redeemed record
+    ok 3 - tryRedeem() atomically transitions minted -> redeemed and reports the redeemed record
+      ---
+      duration_ms: 530.465224
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() never double-redeems — the second call reports redeemed:false
+    ok 4 - tryRedeem() never double-redeems — the second call reports redeemed:false
+      ---
+      duration_ms: 329.135411
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() concurrent callers on the same token: exactly one wins (INV-03 no double-spend)
+    ok 5 - tryRedeem() concurrent callers on the same token: exactly one wins (INV-03 no double-spend)
+      ---
+      duration_ms: 193.949246
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() reports redeemed:false for an expired (past-TTL) token, without mutating it
+    ok 6 - tryRedeem() reports redeemed:false for an expired (past-TTL) token, without mutating it
+      ---
+      duration_ms: 344.48259
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() reports redeemed:false and record:null for an unrecognized token
+    ok 7 - tryRedeem() reports redeemed:false and record:null for an unrecognized token
+      ---
+      duration_ms: 471.327708
+      type: 'test'
+      ...
+    # Subtest: save() upserts — expireToken()'s save-with-mutated-status call updates the existing row, not a duplicate
+    ok 8 - save() upserts — expireToken()'s save-with-mutated-status call updates the existing row, not a duplicate
+      ---
+      duration_ms: 190.848817
+      type: 'test'
+      ...
+    # Subtest: expire() revokes only a minted token; a redeemed token stays terminal and an unknown token is a no-op
+    ok 9 - expire() revokes only a minted token; a redeemed token stays terminal and an unknown token is a no-op
+      ---
+      duration_ms: 1278.707021
+      type: 'test'
+      ...
+    # Subtest: count() reflects total records ever saved
+    ok 10 - count() reflects total records ever saved
+      ---
+      duration_ms: 599.480011
+      type: 'test'
+      ...
+    1..10
+ok 2446 - TokenStorePort [sqlite]
+  ---
+  duration_ms: 4830.775449
+  type: 'suite'
+  ...
+# Subtest: TokenStorePort [pglite]
+    # Subtest: save() then findByToken() round-trips a minted record
+    ok 1 - save() then findByToken() round-trips a minted record
+      ---
+      duration_ms: 16522.24855
+      type: 'test'
+      ...
+    # Subtest: findByToken() returns null for a token never saved
+    ok 2 - findByToken() returns null for a token never saved
+      ---
+      duration_ms: 3.77183
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() atomically transitions minted -> redeemed and reports the redeemed record
+    ok 3 - tryRedeem() atomically transitions minted -> redeemed and reports the redeemed record
+      ---
+      duration_ms: 8.295296
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() never double-redeems — the second call reports redeemed:false
+    ok 4 - tryRedeem() never double-redeems — the second call reports redeemed:false
+      ---
+      duration_ms: 8.840993
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() concurrent callers on the same token: exactly one wins (INV-03 no double-spend)
+    ok 5 - tryRedeem() concurrent callers on the same token: exactly one wins (INV-03 no double-spend)
+      ---
+      duration_ms: 33.288977
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() reports redeemed:false for an expired (past-TTL) token, without mutating it
+    ok 6 - tryRedeem() reports redeemed:false for an expired (past-TTL) token, without mutating it
+      ---
+      duration_ms: 19.352182
+      type: 'test'
+      ...
+    # Subtest: tryRedeem() reports redeemed:false and record:null for an unrecognized token
+    ok 7 - tryRedeem() reports redeemed:false and record:null for an unrecognized token
+      ---
+      duration_ms: 13.423542
+      type: 'test'
+      ...
+    # Subtest: save() upserts — expireToken()'s save-with-mutated-status call updates the existing row, not a duplicate
+    ok 8 - save() upserts — expireToken()'s save-with-mutated-status call updates the existing row, not a duplicate
+      ---
+      duration_ms: 86.592369
+      type: 'test'
+      ...
+    # Subtest: expire() revokes only a minted token; a redeemed token stays terminal and an unknown token is a no-op
+    ok 9 - expire() revokes only a minted token; a redeemed token stays terminal and an unknown token is a no-op
+      ---
+      duration_ms: 68.153066
+      type: 'test'
+      ...
+    # Subtest: count() reflects total records ever saved
+    ok 10 - count() reflects total records ever saved
+      ---
+      duration_ms: 22.409864
+      type: 'test'
+      ...
+    1..10
+ok 2447 - TokenStorePort [pglite]
+  ---
+  duration_ms: 16787.368647
+  type: 'suite'
+  ...
+# Subtest: SiteAssistantCredentialRepoPort [sqlite]
+    # Subtest: findByWorkspaceId returns null when no row exists
+    ok 1 - findByWorkspaceId returns null when no row exists
+      ---
+      duration_ms: 963.700413
+      type: 'test'
+      ...
+    # Subtest: upsert then findByWorkspaceId round-trips a sealed record exactly
+    ok 2 - upsert then findByWorkspaceId round-trips a sealed record exactly
+      ---
+      duration_ms: 666.757238
+      type: 'test'
+      ...
+    # Subtest: upsert is a true upsert — a second call on the same workspace updates the one row, not a second row
+    ok 3 - upsert is a true upsert — a second call on the same workspace updates the one row, not a second row
+      ---
+      duration_ms: 506.104944
+      type: 'test'
+      ...
+    # Subtest: vault identity survives insert and envelope rotation while upsert and clearKey isolate workspaces
+    ok 4 - vault identity survives insert and envelope rotation while upsert and clearKey isolate workspaces
+      ---
+      duration_ms: 288.496283
+      type: 'test'
+      ...
+    # Subtest: clearKey nulls the sealed columns and masked, and leaves provider/baseUrl/model untouched
+    ok 5 - clearKey nulls the sealed columns and masked, and leaves provider/baseUrl/model untouched
+      ---
+      duration_ms: 414.252563
+      type: 'test'
+      ...
+    # Subtest: raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+    ok 6 - raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+      ---
+      duration_ms: 424.455853
+      type: 'test'
+      ...
+    # Subtest: clearKey on a workspace with no row is a harmless no-op
+    ok 7 - clearKey on a workspace with no row is a harmless no-op
+      ---
+      duration_ms: 276.533011
+      type: 'test'
+      ...
+    1..7
+ok 2448 - SiteAssistantCredentialRepoPort [sqlite]
+  ---
+  duration_ms: 3544.04779
+  type: 'suite'
+  ...
+# Subtest: SiteAssistantCredentialRepoPort [pglite]
+    # Subtest: findByWorkspaceId returns null when no row exists
+    ok 1 - findByWorkspaceId returns null when no row exists
+      ---
+      duration_ms: 13446.947215
+      type: 'test'
+      ...
+    # Subtest: upsert then findByWorkspaceId round-trips a sealed record exactly
+    ok 2 - upsert then findByWorkspaceId round-trips a sealed record exactly
+      ---
+      duration_ms: 175.913038
+      type: 'test'
+      ...
+    # Subtest: upsert is a true upsert — a second call on the same workspace updates the one row, not a second row
+    ok 3 - upsert is a true upsert — a second call on the same workspace updates the one row, not a second row
+      ---
+      duration_ms: 53.836865
+      type: 'test'
+      ...
+    # Subtest: vault identity survives insert and envelope rotation while upsert and clearKey isolate workspaces
+    ok 4 - vault identity survives insert and envelope rotation while upsert and clearKey isolate workspaces
+      ---
+      duration_ms: 209.677096
+      type: 'test'
+      ...
+    # Subtest: clearKey nulls the sealed columns and masked, and leaves provider/baseUrl/model untouched
+    ok 5 - clearKey nulls the sealed columns and masked, and leaves provider/baseUrl/model untouched
+      ---
+      duration_ms: 218.317244
+      type: 'test'
+      ...
+    # Subtest: raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+    ok 6 - raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+      ---
+      duration_ms: 163.234159
+      type: 'test'
+      ...
+    # Subtest: clearKey on a workspace with no row is a harmless no-op
+    ok 7 - clearKey on a workspace with no row is a harmless no-op
+      ---
+      duration_ms: 79.913347
+      type: 'test'
+      ...
+    1..7
+ok 2449 - SiteAssistantCredentialRepoPort [pglite]
+  ---
+  duration_ms: 14348.924711
+  type: 'suite'
+  ...
+# Subtest: the vault CHECK constraint rejects a half-sealed row written outside this adapter
+ok 2450 - the vault CHECK constraint rejects a half-sealed row written outside this adapter
+  ---
+  duration_ms: 246.986718
+  type: 'test'
+  ...
+# Subtest: openContentDbReadOnly: never advances a database sitting one migration behind, unlike openContentDb
+ok 2451 - openContentDbReadOnly: never advances a database sitting one migration behind, unlike openContentDb
+  ---
+  duration_ms: 244.76744
+  type: 'test'
+  ...
+# Subtest: openContentDbReadOnly: rejects a write at the driver level, not just by this module's own discipline
+ok 2452 - openContentDbReadOnly: rejects a write at the driver level, not just by this module's own discipline
+  ---
+  duration_ms: 305.661214
+  type: 'test'
+  ...
+# Subtest: openContentDbReadOnly: throws rather than creating a new file when the path does not exist
+ok 2453 - openContentDbReadOnly: throws rather than creating a new file when the path does not exist
+  ---
+  duration_ms: 4.88959
+  type: 'test'
+  ...
+# Subtest: a refused file migration preserves the database and keeps both the pre-change copy and earlier backups
+ok 2454 - a refused file migration preserves the database and keeps both the pre-change copy and earlier backups
+  ---
+  duration_ms: 901.967747
+  type: 'test'
+  ...
+# Subtest: hydrates content.db from the seed on a fresh volume with no content.db yet
+ok 2455 - hydrates content.db from the seed on a fresh volume with no content.db yet
+  ---
+  duration_ms: 24.305755
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a second boot never touches an existing content.db -- redeploying must not clobber live production data
+ok 2456 - REGRESSION: a second boot never touches an existing content.db -- redeploying must not clobber live production data
+  ---
+  duration_ms: 108.143441
+  type: 'test'
+  ...
+# Subtest: reports no-seed-source instead of throwing when no stock seed ships for this site
+ok 2457 - reports no-seed-source instead of throwing when no stock seed ships for this site
+  ---
+  duration_ms: 0.940724
+  type: 'test'
+  ...
+# Subtest: a failed copyFileSync leaves no live file and the next boot copies the complete seed
+ok 2458 - a failed copyFileSync leaves no live file and the next boot copies the complete seed
+  ---
+  duration_ms: 111.916791
+  type: 'test'
+  ...
+# Subtest: a failed renameSync leaves no live file and the next boot copies the complete seed
+ok 2459 - a failed renameSync leaves no live file and the next boot copies the complete seed
+  ---
+  duration_ms: 37.32528
+  type: 'test'
+  ...
+# Subtest: is idempotent across many boots: seeds once, then leaves every later boot's edits untouched
+ok 2460 - is idempotent across many boots: seeds once, then leaves every later boot's edits untouched
+  ---
+  duration_ms: 45.807834
+  type: 'test'
+  ...
+# Subtest: creates missing parent directories of the site's content.db path
+ok 2461 - creates missing parent directories of the site's content.db path
+  ---
+  duration_ms: 3.957059
+  type: 'test'
+  ...
+# Subtest: leaves no staging file behind after a successful hydration
+ok 2462 - leaves no staging file behind after a successful hydration
+  ---
+  duration_ms: 118.63335
+  type: 'test'
+  ...
+# Subtest: a leftover staging file from an interrupted boot does not block the next hydration
+ok 2463 - a leftover staging file from an interrupted boot does not block the next hydration
+  ---
+  duration_ms: 3.223755
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a stray -wal/-shm sidecar left at the target path does not survive a fresh hydration
+ok 2464 - REGRESSION: a stray -wal/-shm sidecar left at the target path does not survive a fresh hydration
+  ---
+  duration_ms: 3.784737
+  type: 'test'
+  ...
+# Subtest: a peer round-trips through the real secrets_vault table, sealed at rest
+ok 2465 - a peer round-trips through the real secrets_vault table, sealed at rest
+  ---
+  duration_ms: 651.153435
+  type: 'test'
+  ...
+# Subtest: the real (workspace_id, label) UNIQUE index produces the driver error the store translates
+ok 2466 - the real (workspace_id, label) UNIQUE index produces the driver error the store translates
+  ---
+  duration_ms: 349.640689
+  type: 'test'
+  ...
+# Subtest: a row whose sealed group is absent reads back as hasCredential:false, not as a torn record
+ok 2467 - a row whose sealed group is absent reads back as hasCredential:false, not as a torn record
+  ---
+  duration_ms: 286.476516
+  type: 'test'
+  ...
+# Subtest: update and delete hit the real table by (workspace_id, id)
+ok 2468 - update and delete hit the real table by (workspace_id, id)
+  ---
+  duration_ms: 280.314502
+  type: 'test'
+  ...
+# Subtest: credential rotation and moving or removing a connected destination preserve the unrelated outgoing peer
+ok 2469 - credential rotation and moving or removing a connected destination preserve the unrelated outgoing peer
+  ---
+  duration_ms: 778.698429
+  type: 'test'
+  ...
+# Subtest: no supervisor env var means no port (tovu serve, npm start, desktop, hosted)
+ok 2470 - no supervisor env var means no port (tovu serve, npm start, desktop, hosted)
+  ---
+  duration_ms: 1.444564
+  type: 'test'
+  ...
+# Subtest: an acknowledged request returns the supervisor's decision, not a completed-restart claim
+ok 2471 - an acknowledged request returns the supervisor's decision, not a completed-restart claim
+  ---
+  duration_ms: 7.484303
+  type: 'test'
+  ...
+# Subtest: acknowledgements are bounded and fail closed on missing, malformed or unreadable replies
+ok 2472 - acknowledgements are bounded and fail closed on missing, malformed or unreadable replies
+  ---
+  duration_ms: 0.774427
+  type: 'test'
+  ...
+# Subtest: an acknowledgement request write failure returns a plain refusal without exposing error text
+ok 2473 - an acknowledgement request write failure returns a plain refusal without exposing error text
+  ---
+  duration_ms: 0.617977
+  type: 'test'
+  ...
+# Subtest: a slow supervisor precheck can acknowledge after the former five-second deadline
+ok 2474 - a slow supervisor precheck can acknowledge after the former five-second deadline
+  ---
+  duration_ms: 6.246339
+  type: 'test'
+  ...
+# Subtest: an explicit launcher site pin withdraws Switch now capability
+ok 2475 - an explicit launcher site pin withdraws Switch now capability
+  ---
+  duration_ms: 0.229185
+  type: 'test'
+  ...
+# Subtest: requestRestart writes the request file only after the delay, with the reason
+ok 2476 - requestRestart writes the request file only after the delay, with the reason
+  ---
+  duration_ms: 0.333109
+  type: 'test'
+  ...
+# Subtest: a failed write is logged, not thrown into a timer
+ok 2477 - a failed write is logged, not thrown into a timer
+  ---
+  duration_ms: 2.424596
+  type: 'test'
+  ...
+# Subtest: the native environment and writer produce a supervisor request in the configured temp directory
+ok 2478 - the native environment and writer produce a supervisor request in the configured temp directory
+  ---
+  duration_ms: 27.521262
+  type: 'test'
+  ...
+# Subtest: the native scheduler delivers a zero-delay request asynchronously
+ok 2479 - the native scheduler delivers a zero-delay request asynchronously
+  ---
+  duration_ms: 11.392141
+  type: 'test'
+  ...
+# Subtest: a non-Error write failure uses the native error logger without rejecting the request
+ok 2480 - a non-Error write failure uses the native error logger without rejecting the request
+  ---
+  duration_ms: 0.818692
+  type: 'test'
+  ...
+# Subtest: calling without options outside a supervisor returns no port
+ok 2481 - calling without options outside a supervisor returns no port
+  ---
+  duration_ms: 0.424118
+  type: 'test'
+  ...
+# Subtest: each send through an observed client is one tracked outbound call with the response status
+ok 2482 - each send through an observed client is one tracked outbound call with the response status
+  ---
+  duration_ms: 16.845437
+  type: 'test'
+  ...
+# Subtest: a refused egress is tracked as a failed call and still surfaces Tovu's refusal error
+ok 2483 - a refused egress is tracked as a failed call and still surfaces Tovu's refusal error
+  ---
+  duration_ms: 1.073426
+  type: 'test'
+  ...
+# Subtest: without an observability port the client sends exactly as before
+ok 2484 - without an observability port the client sends exactly as before
+  ---
+  duration_ms: 0.285914
+  type: 'test'
+  ...
+# Subtest: the default native client records a refused literal target without contacting it
+ok 2485 - the default native client records a refused literal target without contacting it
+  ---
+  duration_ms: 0.570589
+  type: 'test'
+  ...
+# Subtest: U-001-B1/EC-04: an unrecognized lane-discriminator value resolves to notification lane (fail closed), not interactive
+ok 2486 - U-001-B1/EC-04: an unrecognized lane-discriminator value resolves to notification lane (fail closed), not interactive
+  ---
+  duration_ms: 6.917986
+  type: 'test'
+  ...
+# Subtest: AC-16: a legacy transactional send without a lane defaults to notification
+ok 2487 - AC-16: a legacy transactional send without a lane defaults to notification
+  ---
+  duration_ms: 10.461466
+  type: 'test'
+  ...
+# Subtest: AC-17: post-fix vocabulary split resolves members (interactive) and forms (notification) to distinct lanes
+ok 2488 - AC-17: post-fix vocabulary split resolves members (interactive) and forms (notification) to distinct lanes
+  ---
+  duration_ms: 1.01378
+  type: 'test'
+  ...
+# Subtest: AC-18: notification-lane send refused in production without a durable path — structured refusal, not silent drop
+ok 2489 - AC-18: notification-lane send refused in production without a durable path — structured refusal, not silent drop
+  ---
+  duration_ms: 3.222767
+  type: 'test'
+  ...
+# Subtest: AC-19: interactive-lane send proceeds under the same conditions (no durable path) that refuse notification-lane
+ok 2490 - AC-19: interactive-lane send proceeds under the same conditions (no durable path) that refuse notification-lane
+  ---
+  duration_ms: 0.482328
+  type: 'test'
+  ...
+# Subtest: AC-20: notification-lane readiness is scoped to the sending capability
+ok 2491 - AC-20: notification-lane readiness is scoped to the sending capability
+  ---
+  duration_ms: 0.387465
+  type: 'test'
+  ...
+# Subtest: U-001-B3/INV-06: local mode never refuses, regardless of lane or durable-path readiness
+ok 2492 - U-001-B3/INV-06: local mode never refuses, regardless of lane or durable-path readiness
+  ---
+  duration_ms: 0.435538
+  type: 'test'
+  ...
+# Subtest: U-001-ORD1: mode is resolved once and cached, not re-read from process.env on every send
+ok 2493 - U-001-ORD1: mode is resolved once and cached, not re-read from process.env on every send
+  ---
+  duration_ms: 0.266505
+  type: 'test'
+  ...
+# Subtest: permitted sends forward the complete message, options and successful or failed delivery result
+ok 2494 - permitted sends forward the complete message, options and successful or failed delivery result
+  ---
+  duration_ms: 0.763413
+  type: 'test'
+  ...
+# Subtest: sendBatch gates notification delivery and forwards permitted batches and capabilities
+ok 2495 - sendBatch gates notification delivery and forwards permitted batches and capabilities
+  ---
+  duration_ms: 0.640122
+  type: 'test'
+  ...
+# Subtest: OAuth GET defaults and POST credentials reach the guarded port and return its exact response
+ok 2496 - OAuth GET defaults and POST credentials reach the guarded port and return its exact response
+  ---
+  duration_ms: 7.123455
+  type: 'test'
+  ...
+# Subtest: OAuth preserves bodyless 204 responses
+ok 2497 - OAuth preserves bodyless 204 responses
+  ---
+  duration_ms: 0.446414
+  type: 'test'
+  ...
+# Subtest: OAuth preserves bodyless 205 responses
+ok 2498 - OAuth preserves bodyless 205 responses
+  ---
+  duration_ms: 0.194969
+  type: 'test'
+  ...
+# Subtest: OAuth preserves bodyless 304 responses
+ok 2499 - OAuth preserves bodyless 304 responses
+  ---
+  duration_ms: 0.266074
+  type: 'test'
+  ...
+# Subtest: OAuth refuses unsupported method before any outbound send
+ok 2500 - OAuth refuses unsupported method before any outbound send
+  ---
+  duration_ms: 0.844136
+  type: 'test'
+  ...
+# Subtest: OAuth refuses non-string body before any outbound send
+ok 2501 - OAuth refuses non-string body before any outbound send
+  ---
+  duration_ms: 0.145274
+  type: 'test'
+  ...
+# Subtest: OAuth refuses implicit Request credentials before any outbound send
+ok 2502 - OAuth refuses implicit Request credentials before any outbound send
+  ---
+  duration_ms: 0.120801
+  type: 'test'
+  ...
+# Subtest: guarded send failures retain their identity and a later fetch succeeds
+ok 2503 - guarded send failures retain their identity and a later fetch succeeds
+  ---
+  duration_ms: 0.60201
+  type: 'test'
+  ...
+# Subtest: host copy preserves success and untouched errors, and retains retry metadata when adapting copy
+ok 2504 - host copy preserves success and untouched errors, and retains retry metadata when adapting copy
+  ---
+  duration_ms: 0.713349
+  type: 'test'
+  ...
+# Subtest: issuer policy rejects malformed and credential-bearing authorization_endpoint while permitting same-origin paths
+ok 2505 - issuer policy rejects malformed and credential-bearing authorization_endpoint while permitting same-origin paths
+  ---
+  duration_ms: 1.470405
+  type: 'test'
+  ...
+# Subtest: issuer policy rejects malformed and credential-bearing token_endpoint while permitting same-origin paths
+ok 2506 - issuer policy rejects malformed and credential-bearing token_endpoint while permitting same-origin paths
+  ---
+  duration_ms: 0.237309
+  type: 'test'
+  ...
+# Subtest: issuer policy rejects malformed and credential-bearing registration_endpoint while permitting same-origin paths
+ok 2507 - issuer policy rejects malformed and credential-bearing registration_endpoint while permitting same-origin paths
+  ---
+  duration_ms: 0.218858
+  type: 'test'
+  ...
+# Subtest: issuer policy rejects malformed and credential-bearing device_authorization_endpoint while permitting same-origin paths
+ok 2508 - issuer policy rejects malformed and credential-bearing device_authorization_endpoint while permitting same-origin paths
+  ---
+  duration_ms: 0.21547
+  type: 'test'
+  ...
+# Subtest: issuer policy rejects password-only userinfo on the issuer origin
+ok 2509 - issuer policy rejects password-only userinfo on the issuer origin
+  ---
+  duration_ms: 0.244255
+  type: 'test'
+  ...
+# Subtest: host copy preserves unreachable errors unless their cause is specifically a clipped OAuth response
+ok 2510 - host copy preserves unreachable errors unless their cause is specifically a clipped OAuth response
+  ---
+  duration_ms: 0.320603
+  type: 'test'
+  ...
+# Subtest: OAuth omits a null caller signal from the guarded request
+ok 2511 - OAuth omits a null caller signal from the guarded request
+  ---
+  duration_ms: 0.350054
+  type: 'test'
+  ...
+# Subtest: OAuth clipped responses refuse with the bounded-response copy
+ok 2512 - OAuth clipped responses refuse with the bounded-response copy
+  ---
+  duration_ms: 0.207213
+  type: 'test'
+  ...
+# Subtest: OAuth ports pass the explicit loopback exception to their guard and default it closed
+ok 2513 - OAuth ports pass the explicit loopback exception to their guard and default it closed
+  ---
+  duration_ms: 0.204765
+  type: 'test'
+  ...
+# Subtest: issuer policy refuses a metadata document naming a different issuer
+ok 2514 - issuer policy refuses a metadata document naming a different issuer
+  ---
+  duration_ms: 0.119399
+  type: 'test'
+  ...
+# Subtest: issuer policy refuses an internal-address issuer through the guard
+ok 2515 - issuer policy refuses an internal-address issuer through the guard
+  ---
+  duration_ms: 0.525269
+  type: 'test'
+  ...
+# Subtest: issuer policy labels guard refusals of discovered endpoints with spaced key names
+ok 2516 - issuer policy labels guard refusals of discovered endpoints with spaced key names
+  ---
+  duration_ms: 0.270661
+  type: 'test'
+  ...
+# Subtest: issuer policy ignores metadata fields that are not one of the four endpoints
+ok 2517 - issuer policy ignores metadata fields that are not one of the four endpoints
+  ---
+  duration_ms: 0.162512
+  type: 'test'
+  ...
+# Subtest: issuer policy refuses a same-host endpoint on a different port
+ok 2518 - issuer policy refuses a same-host endpoint on a different port
+  ---
+  duration_ms: 0.236855
+  type: 'test'
+  ...
+# Subtest: noop: trackRequest() returns a tracker whose end() never throws, for every (request, outcome) pair
+ok 2519 - noop: trackRequest() returns a tracker whose end() never throws, for every (request, outcome) pair
+  ---
+  duration_ms: 1.515776
+  type: 'test'
+  ...
+# Subtest: noop: trackRequest() itself never throws, independent of whether end() is ever called
+ok 2520 - noop: trackRequest() itself never throws, independent of whether end() is ever called
+  ---
+  duration_ms: 0.423191
+  type: 'test'
+  ...
+# Subtest: noop: two trackRequest() calls in flight at once produce two independent trackers (ending one must not end the other)
+ok 2521 - noop: two trackRequest() calls in flight at once produce two independent trackers (ending one must not end the other)
+  ---
+  duration_ms: 0.179337
+  type: 'test'
+  ...
+# Subtest: otel: trackRequest() returns a tracker whose end() never throws, for every (request, outcome) pair
+ok 2522 - otel: trackRequest() returns a tracker whose end() never throws, for every (request, outcome) pair
+  ---
+  duration_ms: 6.556701
+  type: 'test'
+  ...
+# Subtest: otel: trackRequest() itself never throws, independent of whether end() is ever called
+ok 2523 - otel: trackRequest() itself never throws, independent of whether end() is ever called
+  ---
+  duration_ms: 0.675148
+  type: 'test'
+  ...
+# Subtest: otel: two trackRequest() calls in flight at once produce two independent trackers (ending one must not end the other)
+ok 2524 - otel: two trackRequest() calls in flight at once produce two independent trackers (ending one must not end the other)
+  ---
+  duration_ms: 0.505572
+  type: 'test'
+  ...
+# Subtest: boot and feature reads share api-connection formats and retain validated recovery annotations
+ok 2525 - boot and feature reads share api-connection formats and retain validated recovery annotations
+  ---
+  duration_ms: 9.669299
+  type: 'test'
+  ...
+# Subtest: api-connection formats reject extra fields, bad attempts and malformed recovery annotations
+ok 2526 - api-connection formats reject extra fields, bad attempts and malformed recovery annotations
+  ---
+  duration_ms: 1.902667
+  type: 'test'
+  ...
+# Subtest: only the api-connection kind dispatches OAuth metadata; legacy MCP metadata remains supported
+ok 2527 - only the api-connection kind dispatches OAuth metadata; legacy MCP metadata remains supported
+  ---
+  duration_ms: 0.384084
+  type: 'test'
+  ...
+# Subtest: host metadata policy receives parsed fields and returns its catalog decision with migration provenance
+ok 2528 - host metadata policy receives parsed fields and returns its catalog decision with migration provenance
+  ---
+  duration_ms: 1.323822
+  type: 'test'
+  ...
+# Subtest: preserves the missing-key recovery status
+ok 2529 - preserves the missing-key recovery status
+  ---
+  duration_ms: 0.569535
+  type: 'test'
+  ...
+# Subtest: preserves the unopenable recovery status
+ok 2530 - preserves the unopenable recovery status
+  ---
+  duration_ms: 0.4607
+  type: 'test'
+  ...
+# Subtest: preserves the invalid-meta recovery status
+ok 2531 - preserves the invalid-meta recovery status
+  ---
+  duration_ms: 4.160444
+  type: 'test'
+  ...
+# Subtest: preserves the catalog-unavailable recovery status
+ok 2532 - preserves the catalog-unavailable recovery status
+  ---
+  duration_ms: 0.42605
+  type: 'test'
+  ...
+# Subtest: preserves the conflict recovery status
+ok 2533 - preserves the conflict recovery status
+  ---
+  duration_ms: 0.1956
+  type: 'test'
+  ...
+# Subtest: rejects unknown normalization as ordinary metadata
+ok 2534 - rejects unknown normalization as ordinary metadata
+  ---
+  duration_ms: 0.23568
+  type: 'test'
+  ...
+# Subtest: rejects null normalization as ordinary metadata
+ok 2535 - rejects null normalization as ordinary metadata
+  ---
+  duration_ms: 0.087883
+  type: 'test'
+  ...
+# Subtest: rejects null migration as ordinary metadata
+ok 2536 - rejects null migration as ordinary metadata
+  ---
+  duration_ms: 0.094257
+  type: 'test'
+  ...
+# Subtest: rejects scalar migration as ordinary metadata
+ok 2537 - rejects scalar migration as ordinary metadata
+  ---
+  duration_ms: 0.122051
+  type: 'test'
+  ...
+# Subtest: rejects array migration as ordinary metadata
+ok 2538 - rejects array migration as ordinary metadata
+  ---
+  duration_ms: 0.11955
+  type: 'test'
+  ...
+# Subtest: migration fields may be absent or non-string JSON without losing provenance
+ok 2539 - migration fields may be absent or non-string JSON without losing provenance
+  ---
+  duration_ms: 11.09183
+  type: 'test'
+  ...
+# Subtest: baseUrl cannot move credentials into plain media-provider metadata
+ok 2540 - baseUrl cannot move credentials into plain media-provider metadata
+  ---
+  duration_ms: 0.468143
+  type: 'test'
+  ...
+# Subtest: model cannot move credentials into plain site-assistant metadata
+ok 2541 - model cannot move credentials into plain site-assistant metadata
+  ---
+  duration_ms: 0.274134
+  type: 'test'
+  ...
+# Subtest: username cannot move credentials into plain custom metadata
+ok 2542 - username cannot move credentials into plain custom metadata
+  ---
+  duration_ms: 0.185009
+  type: 'test'
+  ...
+# Subtest: accountLabel cannot move credentials into plain vendor metadata
+ok 2543 - accountLabel cannot move credentials into plain vendor metadata
+  ---
+  duration_ms: 0.122392
+  type: 'test'
+  ...
+# Subtest: database descriptions cannot hold credentials in an otherwise valid field
+ok 2544 - database descriptions cannot hold credentials in an otherwise valid field
+  ---
+  duration_ms: 0.43204
+  type: 'test'
+  ...
+# Subtest: migration originalLabel cannot contain a credential
+ok 2545 - migration originalLabel cannot contain a credential
+  ---
+  duration_ms: 0.316509
+  type: 'test'
+  ...
+# Subtest: migration mappedLabel cannot contain a credential
+ok 2546 - migration mappedLabel cannot contain a credential
+  ---
+  duration_ms: 0.193795
+  type: 'test'
+  ...
+# Subtest: legacy AAD markers are rejected on every kind's metadata
+ok 2547 - legacy AAD markers are rejected on every kind's metadata
+  ---
+  duration_ms: 0.14721
+  type: 'test'
+  ...
+# Subtest: a legacy AAD marker is refused before migration labels are inspected for credentials
+ok 2548 - a legacy AAD marker is refused before migration labels are inspected for credentials
+  ---
+  duration_ms: 0.113164
+  type: 'test'
+  ...
+# Subtest: a recovery status wrapped in an array is rejected
+ok 2549 - a recovery status wrapped in an array is rejected
+  ---
+  duration_ms: 0.079508
+  type: 'test'
+  ...
+# Subtest: migration credentials are refused before ordinary structural checks
+ok 2550 - migration credentials are refused before ordinary structural checks
+  ---
+  duration_ms: 0.271075
+  type: 'test'
+  ...
+# Subtest: savedAt belongs only to database destinations and must be a string there
+ok 2551 - savedAt belongs only to database destinations and must be a string there
+  ---
+  duration_ms: 0.186582
+  type: 'test'
+  ...
+# Subtest: vendor-subtype credentials skip the custom category catalog
+ok 2552 - vendor-subtype credentials skip the custom category catalog
+  ---
+  duration_ms: 0.263585
+  type: 'test'
+  ...
+# Subtest: vendor credentials default worksFor to their provider
+ok 2553 - vendor credentials default worksFor to their provider
+  ---
+  duration_ms: 0.458364
+  type: 'test'
+  ...
+# Subtest: a token-shaped additional origin cannot hold a credential
+ok 2554 - a token-shaped additional origin cannot hold a credential
+  ---
+  duration_ms: 0.373317
+  type: 'test'
+  ...
+# Subtest: additional hosts are checked one at a time, in order
+ok 2555 - additional hosts are checked one at a time, in order
+  ---
+  duration_ms: 0.229156
+  type: 'test'
+  ...
+# Subtest: worksFor entries cannot hold a credential
+ok 2556 - worksFor entries cannot hold a credential
+  ---
+  duration_ms: 0.324548
+  type: 'test'
+  ...
+# Subtest: a missing custom category is refused before credential-shaped fields are inspected
+ok 2557 - a missing custom category is refused before credential-shaped fields are inspected
+  ---
+  duration_ms: 0.119622
+  type: 'test'
+  ...
+# Subtest: publish peer shape is refused before its base URL is inspected for credentials
+ok 2558 - publish peer shape is refused before its base URL is inspected for credentials
+  ---
+  duration_ms: 0.159049
+  type: 'test'
+  ...
+# Subtest: database description shape is refused before its values are inspected for credentials
+ok 2559 - database description shape is refused before its values are inspected for credentials
+  ---
+  duration_ms: 2.534988
+  type: 'test'
+  ...
+# Subtest: the host policy is never consulted for metadata a host rule refuses
+ok 2560 - the host policy is never consulted for metadata a host rule refuses
+  ---
+  duration_ms: 0.269901
+  type: 'test'
+  ...
+# Subtest: a host policy refusal propagates unchanged
+ok 2561 - a host policy refusal propagates unchanged
+  ---
+  duration_ms: 0.255446
+  type: 'test'
+  ...
+# Subtest: all custom credential categories accept canonical additional origins and optional username under unified and legacy kinds
+ok 2562 - all custom credential categories accept canonical additional origins and optional username under unified and legacy kinds
+  ---
+  duration_ms: 7.52726
+  type: 'test'
+  ...
+# Subtest: additional host must be an origin: https://api.example.test/
+ok 2563 - additional host must be an origin: https://api.example.test/
+  ---
+  duration_ms: 0.203406
+  type: 'test'
+  ...
+# Subtest: additional host must be an origin: https://api.example.test?token=abc
+ok 2564 - additional host must be an origin: https://api.example.test?token=abc
+  ---
+  duration_ms: 0.083852
+  type: 'test'
+  ...
+# Subtest: malformed additional host URLs fail instead of reaching the host policy
+ok 2565 - malformed additional host URLs fail instead of reaching the host policy
+  ---
+  duration_ms: 0.159522
+  type: 'test'
+  ...
+# Subtest: publish peers require a nonempty remote workspace and a string base URL
+ok 2566 - publish peers require a nonempty remote workspace and a string base URL
+  ---
+  duration_ms: 0.38938
+  type: 'test'
+  ...
+# Subtest: database destinations retain savedAt and accept metadata-only saves and both run outcomes
+ok 2567 - database destinations retain savedAt and accept metadata-only saves and both run outcomes
+  ---
+  duration_ms: 1.116061
+  type: 'test'
+  ...
+# Subtest: database description rejects missing
+ok 2568 - database description rejects missing
+  ---
+  duration_ms: 0.163963
+  type: 'test'
+  ...
+# Subtest: database description rejects null
+ok 2569 - database description rejects null
+  ---
+  duration_ms: 0.077328
+  type: 'test'
+  ...
+# Subtest: database description rejects missing field
+ok 2570 - database description rejects missing field
+  ---
+  duration_ms: 0.119104
+  type: 'test'
+  ...
+# Subtest: database description rejects null field
+ok 2571 - database description rejects null field
+  ---
+  duration_ms: 0.056167
+  type: 'test'
+  ...
+# Subtest: database description rejects extra field
+ok 2572 - database description rejects extra field
+  ---
+  duration_ms: 0.123291
+  type: 'test'
+  ...
+# Subtest: database last run rejects absent
+ok 2573 - database last run rejects absent
+  ---
+  duration_ms: 0.2737
+  type: 'test'
+  ...
+# Subtest: database last run rejects missing time
+ok 2574 - database last run rejects missing time
+  ---
+  duration_ms: 0.203743
+  type: 'test'
+  ...
+# Subtest: database last run rejects invalid copied flag
+ok 2575 - database last run rejects invalid copied flag
+  ---
+  duration_ms: 0.176971
+  type: 'test'
+  ...
+# Subtest: database last run rejects extra success field
+ok 2576 - database last run rejects extra success field
+  ---
+  duration_ms: 0.467998
+  type: 'test'
+  ...
+# Subtest: database last run rejects extra failure field
+ok 2577 - database last run rejects extra failure field
+  ---
+  duration_ms: 0.30432
+  type: 'test'
+  ...
+# Subtest: database last run rejects missing code
+ok 2578 - database last run rejects missing code
+  ---
+  duration_ms: 0.192662
+  type: 'test'
+  ...
+# Subtest: database last run rejects missing message
+ok 2579 - database last run rejects missing message
+  ---
+  duration_ms: 0.230481
+  type: 'test'
+  ...
+# Subtest: successful run rejects tableCount=null
+ok 2580 - successful run rejects tableCount=null
+  ---
+  duration_ms: 0.280297
+  type: 'test'
+  ...
+# Subtest: successful run rejects tableCount=1.5
+ok 2581 - successful run rejects tableCount=1.5
+  ---
+  duration_ms: 0.188151
+  type: 'test'
+  ...
+# Subtest: successful run rejects tableCount=-1
+ok 2582 - successful run rejects tableCount=-1
+  ---
+  duration_ms: 0.168469
+  type: 'test'
+  ...
+# Subtest: successful run rejects tableCount=9007199254740992
+ok 2583 - successful run rejects tableCount=9007199254740992
+  ---
+  duration_ms: 0.241343
+  type: 'test'
+  ...
+# Subtest: successful run rejects rowCount=null
+ok 2584 - successful run rejects rowCount=null
+  ---
+  duration_ms: 0.186757
+  type: 'test'
+  ...
+# Subtest: successful run rejects rowCount=1.5
+ok 2585 - successful run rejects rowCount=1.5
+  ---
+  duration_ms: 2.186501
+  type: 'test'
+  ...
+# Subtest: successful run rejects rowCount=-1
+ok 2586 - successful run rejects rowCount=-1
+  ---
+  duration_ms: 7.610206
+  type: 'test'
+  ...
+# Subtest: successful run rejects rowCount=9007199254740992
+ok 2587 - successful run rejects rowCount=9007199254740992
+  ---
+  duration_ms: 0.229957
+  type: 'test'
+  ...
+# Subtest: store metadata parsing retains safe nullable fields and binary label order
+ok 2588 - store metadata parsing retains safe nullable fields and binary label order
+  ---
+  duration_ms: 0.422763
+  type: 'test'
+  ...
+# Subtest: store vault rejects an absent repository and missing generated identity
+ok 2589 - store vault rejects an absent repository and missing generated identity
+  ---
+  duration_ms: 1.561557
+  type: 'test'
+  ...
+# Subtest: store vault defaults its timestamp to epoch and uses an injected singleton id
+ok 2590 - store vault defaults its timestamp to epoch and uses an injected singleton id
+  ---
+  duration_ms: 6.711134
+  type: 'test'
+  ...
+# Subtest: store vault rejects new unified custom records missing credentialType or worksFor with invalid-meta
+ok 2591 - store vault rejects new unified custom records missing credentialType or worksFor with invalid-meta
+  ---
+  duration_ms: 1.923484
+  type: 'test'
+  ...
+# Subtest: store vault honors a principal-bound workspace and injected clock
+ok 2592 - store vault honors a principal-bound workspace and injected clock
+  ---
+  duration_ms: 2.408565
+  type: 'test'
+  ...
+# Subtest: store vault refuses foreign kind before persistence
+ok 2593 - store vault refuses foreign kind before persistence
+  ---
+  duration_ms: 14.77509
+  type: 'test'
+  ...
+# Subtest: store vault refuses foreign ownerKey before persistence
+ok 2594 - store vault refuses foreign ownerKey before persistence
+  ---
+  duration_ms: 0.301963
+  type: 'test'
+  ...
+# Subtest: store vault refuses foreign principalId before persistence
+ok 2595 - store vault refuses foreign principalId before persistence
+  ---
+  duration_ms: 29.670357
+  type: 'test'
+  ...
+# Subtest: store vault refuses foreign binding before persistence
+ok 2596 - store vault refuses foreign binding before persistence
+  ---
+  duration_ms: 0.291222
+  type: 'test'
+  ...
+# Subtest: store listing accepts an unbound query without a binding property
+ok 2597 - store listing accepts an unbound query without a binding property
+  ---
+  duration_ms: 5.672329
+  type: 'test'
+  ...
+# Subtest: the store passes the original crypto error to its feature storage-error translator
+ok 2598 - the store passes the original crypto error to its feature storage-error translator
+  ---
+  duration_ms: 0.72847
+  type: 'test'
+  ...
+# Subtest: a missing keyring is translated twice: the inner storage error becomes the outer one's argument
+ok 2599 - a missing keyring is translated twice: the inner storage error becomes the outer one's argument
+  ---
+  duration_ms: 0.494255
+  type: 'test'
+  ...
+# Subtest: store vault translates missing-keyring failures without publishing crypto details
+ok 2600 - store vault translates missing-keyring failures without publishing crypto details
+  ---
+  duration_ms: 0.796807
+  type: 'test'
+  ...
+# Subtest: store vault translates active-key failures without publishing crypto details
+ok 2601 - store vault translates active-key failures without publishing crypto details
+  ---
+  duration_ms: 5.591864
+  type: 'test'
+  ...
+# Subtest: store vault translates seal failures without publishing crypto details
+ok 2602 - store vault translates seal failures without publishing crypto details
+  ---
+  duration_ms: 0.7209
+  type: 'test'
+  ...
+# Subtest: store vault translates open failures without publishing crypto details
+ok 2603 - store vault translates open failures without publishing crypto details
+  ---
+  duration_ms: 6.885862
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="ws-older"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: ws-newer.
+# Subtest: AC-08/REQ-06: bootSiteDir resolves workspaceId to the db's single actual row
+ok 2604 - AC-08/REQ-06: bootSiteDir resolves workspaceId to the db's single actual row
+  ---
+  duration_ms: 570.307151
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: B1: bootSiteDir with 2 workspace rows succeeds and resolves to the OLDEST by default (no more boot-bricking on a legitimately multi-workspace install)
+ok 2605 - B1: bootSiteDir with 2 workspace rows succeeds and resolves to the OLDEST by default (no more boot-bricking on a legitimately multi-workspace install)
+  ---
+  duration_ms: 380.905401
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: B1: bootSiteDir({ dir }, { workspaceId }) resolves to the explicitly named workspace even when it is not the oldest
+ok 2606 - B1: bootSiteDir({ dir }, { workspaceId }) resolves to the explicitly named workspace even when it is not the oldest
+  ---
+  duration_ms: 321.732791
+  type: 'test'
+  ...
+# Subtest: B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the id matches no workspace row
+ok 2607 - B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the id matches no workspace row
+  ---
+  duration_ms: 420.959332
+  type: 'test'
+  ...
+# Subtest: a SQLite site whose content.db is missing is refused as invalid before anything is opened
+ok 2608 - a SQLite site whose content.db is missing is refused as invalid before anything is opened
+  ---
+  duration_ms: 464.208664
+  type: 'test'
+  ...
+# Subtest: AC-09/REQ-06: zero workspace rows -> SiteCorruptError
+ok 2609 - AC-09/REQ-06: zero workspace rows -> SiteCorruptError
+  ---
+  duration_ms: 179.04537
+  type: 'test'
+  ...
+# Subtest: AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRuntimeError, content.db is not written
+ok 2610 - AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRuntimeError, content.db is not written
+  ---
+  duration_ms: 186.308385
+  type: 'test'
+  ...
+# Subtest: RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> SiteNewerThanRuntimeError (not treated as compatible)
+ok 2611 - RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> SiteNewerThanRuntimeError (not treated as compatible)
+  ---
+  duration_ms: 589.659062
+  type: 'test'
+  ...
+# [migrations] /tmp/tovu-boot-site-dir-7SSePB/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   backed up the database to /tmp/tovu-boot-site-dir-7SSePB/ops/pre-migrations-2026-11-12T00-45-05-334Z.db before migrating it
+# [migrations]   applied legacy migrations 0077_external_mcp_tool_approvals … 0077_external_mcp_tool_approvals (1)
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+schemaTag are bumped together, and a follow-up serve of the now-current site passes the guard cleanly (round-trip)
+ok 2612 - AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+schemaTag are bumped together, and a follow-up serve of the now-current site passes the guard cleanly (round-trip)
+  ---
+  duration_ms: 2708.976784
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: EC-07: an unknown .site-meta.json.templateId does not block serving — it is provenance only, and a warning is logged
+ok 2613 - EC-07: an unknown .site-meta.json.templateId does not block serving — it is provenance only, and a warning is logged
+  ---
+  duration_ms: 220.382461
+  type: 'test'
+  ...
+# Subtest: EC-05: content.db locked by another process -> SiteCorruptError-class failure naming the lock cause
+ok 2614 - EC-05: content.db locked by another process -> SiteCorruptError-class failure naming the lock cause
+  ---
+  duration_ms: 5293.498417
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration preserves the OLD stamp byte-for-byte, and a retry bumps both fields together
+ok 2615 - U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration preserves the OLD stamp byte-for-byte, and a retry bumps both fields together
+  ---
+  duration_ms: 682.009305
+  type: 'test'
+  ...
+# Subtest: verified import refuses a missing owner password before anything is created
+ok 2616 - verified import refuses a missing owner password before anything is created
+  ---
+  duration_ms: 6.130349
+  type: 'test'
+  ...
+# Subtest: verified import refuses non-SQLite storage before anything is created
+ok 2617 - verified import refuses non-SQLite storage before anything is created
+  ---
+  duration_ms: 4.985737
+  type: 'test'
+  ...
+# Subtest: verified import restores the database instead of seeding the template and commits the marker
+ok 2618 - verified import restores the database instead of seeding the template and commits the marker
+  ---
+  duration_ms: 2211.17608
+  type: 'test'
+  ...
+# Subtest: verified import with a live signal completes
+ok 2619 - verified import with a live signal completes
+  ---
+  duration_ms: 1582.858991
+  type: 'test'
+  ...
+# Subtest: an import aborted during restore removes the partial site
+ok 2620 - an import aborted during restore removes the partial site
+  ---
+  duration_ms: 2397.117585
+  type: 'test'
+  ...
+# Subtest: onAllocated journals the minted identity and database path before any site bytes exist
+ok 2621 - onAllocated journals the minted identity and database path before any site bytes exist
+  ---
+  duration_ms: 1583.9504
+  type: 'test'
+  ...
+# Subtest: app-data placement creates the database outside the site folder
+ok 2622 - app-data placement creates the database outside the site folder
+  ---
+  duration_ms: 1874.449253
+  type: 'test'
+  ...
+# Subtest: app-data placement refuses an existing database folder for the minted site and keeps it
+ok 2623 - app-data placement refuses an existing database folder for the minted site and keeps it
+  ---
+  duration_ms: 20.650008
+  type: 'test'
+  ...
+# Subtest: a failed import under app-data placement removes the database folder it created
+ok 2624 - a failed import under app-data placement removes the database folder it created
+  ---
+  duration_ms: 183.44539
+  type: 'test'
+  ...
+# Subtest: a non-sealed storage refuses a connection string before anything is created
+ok 2625 - a non-sealed storage refuses a connection string before anything is created
+  ---
+  duration_ms: 0.923585
+  type: 'test'
+  ...
+# Subtest: an env-named Postgres site refuses a whitespace-only variable before anything is created
+ok 2626 - an env-named Postgres site refuses a whitespace-only variable before anything is created
+  ---
+  duration_ms: 0.869817
+  type: 'test'
+  ...
+# Subtest: a sealed Postgres site refuses a missing connection string
+ok 2627 - a sealed Postgres site refuses a missing connection string
+  ---
+  duration_ms: 0.564191
+  type: 'test'
+  ...
+# Subtest: a sealed Postgres site refuses a whitespace-only connection string before anything is created
+ok 2628 - a sealed Postgres site refuses a whitespace-only connection string before anything is created
+  ---
+  duration_ms: 4.803583
+  type: 'test'
+  ...
+# Subtest: an env-named Postgres site refuses a connection string handed to init
+ok 2629 - an env-named Postgres site refuses a connection string handed to init
+  ---
+  duration_ms: 0.781346
+  type: 'test'
+  ...
+# Subtest: a Postgres site whose database cannot be reached fails before any folder is made
+ok 2630 - a Postgres site whose database cannot be reached fails before any folder is made
+  ---
+  duration_ms: 38.383708
+  type: 'test'
+  ...
+# Subtest: init reads stock themes from TOVU_STOCK_THEMES_DIR when it is set
+ok 2631 - init reads stock themes from TOVU_STOCK_THEMES_DIR when it is set
+  ---
+  duration_ms: 1102.27157
+  type: 'test'
+  ...
+# Subtest: init refuses a target whose parent folder does not exist, creating no ancestors
+ok 2632 - init refuses a target whose parent folder does not exist, creating no ancestors
+  ---
+  duration_ms: 2.328316
+  type: 'test'
+  ...
+# Subtest: cleanupAndRethrow names the partial folder when its own removal fails
+ok 2633 - cleanupAndRethrow names the partial folder when its own removal fails
+  ---
+  duration_ms: 0.6697
+  type: 'test'
+  ...
+# Subtest: cleanupAndRethrow removes a written partial folder and wraps an unexpected error
+ok 2634 - cleanupAndRethrow removes a written partial folder and wraps an unexpected error
+  ---
+  duration_ms: 2.996433
+  type: 'test'
+  ...
+# Subtest: cleanupAndRethrow rethrows ValidationError unchanged and leaves an unwritten target alone
+ok 2635 - cleanupAndRethrow rethrows ValidationError unchanged and leaves an unwritten target alone
+  ---
+  duration_ms: 0.716484
+  type: 'test'
+  ...
+# Subtest: cleanupAndRethrow rethrows InitDirNotEmptyError unchanged and leaves an unwritten target alone
+ok 2636 - cleanupAndRethrow rethrows InitDirNotEmptyError unchanged and leaves an unwritten target alone
+  ---
+  duration_ms: 0.745786
+  type: 'test'
+  ...
+# Subtest: cleanupAndRethrow rethrows InternalError unchanged and leaves an unwritten target alone
+ok 2637 - cleanupAndRethrow rethrows InternalError unchanged and leaves an unwritten target alone
+  ---
+  duration_ms: 0.586282
+  type: 'test'
+  ...
+# Subtest: REGRESSION: init seeds admin / tovu-dev even with TOVU_ADMIN_PASSWORD set; first serve still logs in
+ok 2638 - REGRESSION: init seeds admin / tovu-dev even with TOVU_ADMIN_PASSWORD set; first serve still logs in
+  ---
+  duration_ms: 2369.26479
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: init uses the exact explicit password on SQLite and PGlite; neither init nor serve replaces it with env
+ok 2639 - init uses the exact explicit password on SQLite and PGlite; neither init nor serve replaces it with env
+  ---
+  duration_ms: 16932.060593
+  type: 'test'
+  ...
+# Subtest: site-registry creation shares init's explicit/default owner contract
+ok 2640 - site-registry creation shares init's explicit/default owner contract
+  ---
+  duration_ms: 3480.316342
+  type: 'test'
+  ...
+# Subtest: new-site password validation reuses the current policy and never discloses rejected values
+ok 2641 - new-site password validation reuses the current policy and never discloses rejected values
+  ---
+  duration_ms: 1.982686
+  type: 'test'
+  ...
+# Subtest: listSites with no options scans the process cwd checkout
+ok 2642 - listSites with no options scans the process cwd checkout
+  ---
+  duration_ms: 238.213215
+  type: 'test'
+  ...
+# Subtest: listSites lists a site reached through two roots only once
+ok 2643 - listSites lists a site reached through two roots only once
+  ---
+  duration_ms: 70.762982
+  type: 'test'
+  ...
+# Subtest: listSites lists a site once when a catalog row reaches it through a later symlink
+ok 2644 - listSites lists a site once when a catalog row reaches it through a later symlink
+  ---
+  duration_ms: 318.657301
+  type: 'test'
+  ...
+# Subtest: listSites rethrows a root that cannot be listed for a reason other than absence
+ok 2645 - listSites rethrows a root that cannot be listed for a reason other than absence
+  ---
+  duration_ms: 9.505198
+  type: 'test'
+  ...
+# Subtest: listSites routes unsafe, overlong and duplicate folder names by their site id
+ok 2646 - listSites routes unsafe, overlong and duplicate folder names by their site id
+  ---
+  duration_ms: 51.601371
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding treats a catalog-registered folder outside every sites root as switcher-compatible
+ok 2647 - describeSiteBinding treats a catalog-registered folder outside every sites root as switcher-compatible
+  ---
+  duration_ms: 34.055724
+  type: 'test'
+  ...
+# Subtest: createSite passes the display name and onAllocated with the picked folder name
+ok 2648 - createSite passes the display name and onAllocated with the picked folder name
+  ---
+  duration_ms: 87.909745
+  type: 'test'
+  ...
+# Subtest: createSite without onAllocated still creates and registers the site
+ok 2649 - createSite without onAllocated still creates and registers the site
+  ---
+  duration_ms: 231.767778
+  type: 'test'
+  ...
+# Subtest: createSite refuses an unavailable sites home volume before creating anything
+ok 2650 - createSite refuses an unavailable sites home volume before creating anything
+  ---
+  duration_ms: 7.904711
+  type: 'test'
+  ...
+# Subtest: an ordinary create whose catalog write fails keeps the committed site (no verified restore)
+ok 2651 - an ordinary create whose catalog write fails keeps the committed site (no verified restore)
+  ---
+  duration_ms: 62.446284
+  type: 'test'
+  ...
+# Subtest: a verified import whose catalog write fails rolls back the site and its external database folder
+ok 2652 - a verified import whose catalog write fails rolls back the site and its external database folder
+  ---
+  duration_ms: 73.294999
+  type: 'test'
+  ...
+# Subtest: a verified import rollback keeps no stray in-site database folder
+ok 2653 - a verified import rollback keeps no stray in-site database folder
+  ---
+  duration_ms: 45.02926
+  type: 'test'
+  ...
+# Subtest: collision-safe creation picks the next free suffix past existing folders and catalog names
+ok 2654 - collision-safe creation picks the next free suffix past existing folders and catalog names
+  ---
+  duration_ms: 114.822288
+  type: 'test'
+  ...
+# Subtest: collision-safe creation retries the next suffix when initSite finds the folder occupied
+ok 2655 - collision-safe creation retries the next suffix when initSite finds the folder occupied
+  ---
+  duration_ms: 51.329526
+  type: 'test'
+  ...
+# Subtest: collision-safe creation rethrows a failure that is not an occupied folder
+ok 2656 - collision-safe creation rethrows a failure that is not an occupied folder
+  ---
+  duration_ms: 32.647502
+  type: 'test'
+  ...
+# Subtest: collision-safe creation moves on when an ordinary create filled the folder while it waited for the lock
+ok 2657 - collision-safe creation moves on when an ordinary create filled the folder while it waited for the lock
+  ---
+  duration_ms: 239.664965
+  type: 'test'
+  ...
+# Subtest: collision-safe creation gives up when every suffix is taken
+ok 2658 - collision-safe creation gives up when every suffix is taken
+  ---
+  duration_ms: 886.847337
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation reports a registered, matching import as ready
+ok 2659 - reconcileSiteCreation reports a registered, matching import as ready
+  ---
+  duration_ms: 97.193305
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation refuses a catalog row for this folder owned by another site id
+ok 2660 - reconcileSiteCreation refuses a catalog row for this folder owned by another site id
+  ---
+  duration_ms: 54.269894
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation refuses a catalog row for this site id at another folder
+ok 2661 - reconcileSiteCreation refuses a catalog row for this site id at another folder
+  ---
+  duration_ms: 192.058488
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation refuses a matching catalog row whose folder marker names another site
+ok 2662 - reconcileSiteCreation refuses a matching catalog row whose folder marker names another site
+  ---
+  duration_ms: 19.382621
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation refuses to remove an unregistered folder that belongs to another site
+ok 2663 - reconcileSiteCreation refuses to remove an unregistered folder that belongs to another site
+  ---
+  duration_ms: 37.827625
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation removes an unregistered import of this site and reports failed
+ok 2664 - reconcileSiteCreation removes an unregistered import of this site and reports failed
+  ---
+  duration_ms: 49.371411
+  type: 'test'
+  ...
+# Subtest: reconcileSiteCreation removes a markerless import and its external database folder
+ok 2665 - reconcileSiteCreation removes a markerless import and its external database folder
+  ---
+  duration_ms: 17.494231
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding with no options reads the process cwd and environment
+ok 2666 - describeSiteBinding with no options reads the process cwd and environment
+  ---
+  duration_ms: 47.379146
+  type: 'test'
+  ...
+# Subtest: listSitesForBinding uses the real listSites for a switchable binding by default
+ok 2667 - listSitesForBinding uses the real listSites for a switchable binding by default
+  ---
+  duration_ms: 74.989284
+  type: 'test'
+  ...
+# Subtest: a ValidationError is the refusal type for an invalid name
+ok 2668 - a ValidationError is the refusal type for an invalid name
+  ---
+  duration_ms: 0.321811
+  type: 'test'
+  ...
+# Subtest: includeServingSite dates an unregistered served folder by mtime when the filesystem has no birth time
+ok 2669 - includeServingSite dates an unregistered served folder by mtime when the filesystem has no birth time
+  ---
+  duration_ms: 36.79003
+  type: 'test'
+  ...
+# Subtest: site-dir typed domain errors: constructors set name, message, and inherit from Error
+ok 2670 - site-dir typed domain errors: constructors set name, message, and inherit from Error
+  ---
+  duration_ms: 13.517141
+  type: 'test'
+  ...
+# Subtest: SQLite current identity uses the content head, including empty and unknown heads, before falling back when absent
+ok 2671 - SQLite current identity uses the content head, including empty and unknown heads, before falling back when absent
+  ---
+  duration_ms: 311.789097
+  type: 'test'
+  ...
+# Subtest: SQLite legacy-stamp ignores an adopted content ledger and reports matched, divergent, empty, and absent legacy history
+ok 2672 - SQLite legacy-stamp ignores an adopted content ledger and reports matched, divergent, empty, and absent legacy history
+  ---
+  duration_ms: 256.473544
+  type: 'test'
+  ...
+# Subtest: Postgres current always uses the content ledger, including absent, empty, known, and unknown heads
+ok 2673 - Postgres current always uses the content ledger, including absent, empty, known, and unknown heads
+  ---
+  duration_ms: 7671.256798
+  type: 'test'
+  ...
+# Subtest: Postgres legacy-stamp always uses the content ledger, including absent, empty, known, and unknown heads
+ok 2674 - Postgres legacy-stamp always uses the content ledger, including absent, empty, known, and unknown heads
+  ---
+  duration_ms: 6509.543861
+  type: 'test'
+  ...
+# Subtest: zero workspace rows: resolveWorkspace throws a SiteCorruptError naming zero rows
+ok 2675 - zero workspace rows: resolveWorkspace throws a SiteCorruptError naming zero rows
+  ---
+  duration_ms: 607.842417
+  type: 'test'
+  ...
+# Subtest: exactly one workspace row: resolveWorkspace returns that row's WorkspaceRecord unchanged
+ok 2676 - exactly one workspace row: resolveWorkspace returns that row's WorkspaceRecord unchanged
+  ---
+  duration_ms: 510.220052
+  type: 'test'
+  ...
+# Subtest: multiple workspace rows, no selector: resolveWorkspace returns the OLDEST row by createdAt (B1 fix) and logs a warning naming it
+ok 2677 - multiple workspace rows, no selector: resolveWorkspace returns the OLDEST row by createdAt (B1 fix) and logs a warning naming it
+  ---
+  duration_ms: 328.885533
+  type: 'test'
+  ...
+# Subtest: multiple workspace rows, tie in createdAt: resolveWorkspace breaks ties by id
+ok 2678 - multiple workspace rows, tie in createdAt: resolveWorkspace breaks ties by id
+  ---
+  duration_ms: 402.43715
+  type: 'test'
+  ...
+# Subtest: multiple workspace rows, explicit workspaceId: resolveWorkspace returns the matching row even when it is not the oldest
+ok 2679 - multiple workspace rows, explicit workspaceId: resolveWorkspace returns the matching row even when it is not the oldest
+  ---
+  duration_ms: 260.236262
+  type: 'test'
+  ...
+# Subtest: explicit workspaceId matching no row: resolveWorkspace throws a ValidationError naming the missing id
+ok 2680 - explicit workspaceId matching no row: resolveWorkspace throws a ValidationError naming the missing id
+  ---
+  duration_ms: 367.95656
+  type: 'test'
+  ...
+# Subtest: listSites: returns [] when sites/ does not exist at all (fresh checkout, before any tovu init)
+ok 2681 - listSites: returns [] when sites/ does not exist at all (fresh checkout, before any tovu init)
+  ---
+  duration_ms: 37.359462
+  type: 'test'
+  ...
+# Subtest: listSites: skips a non-directory entry and a directory missing .site-meta.json, without throwing
+ok 2682 - listSites: skips a non-directory entry and a directory missing .site-meta.json, without throwing
+  ---
+  duration_ms: 50.772968
+  type: 'test'
+  ...
+# Subtest: createSite: rejects an invalid folder name before writing anything to disk
+ok 2683 - createSite: rejects an invalid folder name before writing anything to disk
+  ---
+  duration_ms: 38.536054
+  type: 'test'
+  ...
+# Subtest: SITE_NAME_PATTERN: accepts lowercase/digits/dashes only, rejecting anything that could escape sitesRoot
+ok 2684 - SITE_NAME_PATTERN: accepts lowercase/digits/dashes only, rejecting anything that could escape sitesRoot
+  ---
+  duration_ms: 0.529173
+  type: 'test'
+  ...
+# Subtest: createSite + listSites: a created site is listed with the right name/dir/displayName, and is NOT marked active under an unrelated cwd/env
+ok 2685 - createSite + listSites: a created site is listed with the right name/dir/displayName, and is NOT marked active under an unrelated cwd/env
+  ---
+  duration_ms: 2038.198499
+  type: 'test'
+  ...
+# Subtest: listSites: marks the site matching TOVU_SITE as active, and every sibling as not
+ok 2686 - listSites: marks the site matching TOVU_SITE as active, and every sibling as not
+  ---
+  duration_ms: 4371.087808
+  type: 'test'
+  ...
+# Subtest: createSite: the resulting content.db starts with only the Blog listing page
+ok 2687 - createSite: the resulting content.db starts with only the Blog listing page
+  ---
+  duration_ms: 1540.501184
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: falls back to the default site name when neither override is set
+ok 2688 - describeSiteBinding: falls back to the default site name when neither override is set
+  ---
+  duration_ms: 6.12967
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: TOVU_SITE names a folder under sites/, and is NOT reported as an override
+ok 2689 - describeSiteBinding: TOVU_SITE names a folder under sites/, and is NOT reported as an override
+  ---
+  duration_ms: 3.373724
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it OUTRANKS the TOVU_SITE line activate writes
+ok 2690 - describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it OUTRANKS the TOVU_SITE line activate writes
+  ---
+  duration_ms: 4.056867
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: switcherCompatible stays true for every binding that really is <cwd>/sites-relative
+ok 2691 - describeSiteBinding: switcherCompatible stays true for every binding that really is <cwd>/sites-relative
+  ---
+  duration_ms: 7.069854
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not switcher-compatible (2026-09-07)
+ok 2692 - describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not switcher-compatible (2026-09-07)
+  ---
+  duration_ms: 0.75673
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: an install-dir-pinned boot marks its binding non-switchable for every process that inherits its env
+ok 2693 - describeSiteBinding: an install-dir-pinned boot marks its binding non-switchable for every process that inherits its env
+  ---
+  duration_ms: 0.216236
+  type: 'test'
+  ...
+# Subtest: describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site
+ok 2694 - describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site
+  ---
+  duration_ms: 1431.138847
+  type: 'test'
+  ...
+# Subtest: includeServingSite: appends the served directory as `unregistered` when it carries no init markers
+ok 2695 - includeServingSite: appends the served directory as `unregistered` when it carries no init markers
+  ---
+  duration_ms: 11.927787
+  type: 'test'
+  ...
+# Subtest: includeServingSite: marks a real initialized site `registered` and appends nothing
+ok 2696 - includeServingSite: marks a real initialized site `registered` and appends nothing
+  ---
+  duration_ms: 1653.658623
+  type: 'test'
+  ...
+# Subtest: includeServingSite: appends nothing when the served directory does not exist on disk
+ok 2697 - includeServingSite: appends nothing when the served directory does not exist on disk
+  ---
+  duration_ms: 3.078104
+  type: 'test'
+  ...
+# Subtest: includeServingSite: appends nothing when the served path is a FILE rather than a directory
+ok 2698 - includeServingSite: appends nothing when the served path is a FILE rather than a directory
+  ---
+  duration_ms: 5.016899
+  type: 'test'
+  ...
+# Subtest: includeServingSite: keeps every registered sibling, and the appended entry is the ONLY active one
+ok 2699 - includeServingSite: keeps every registered sibling, and the appended entry is the ONLY active one
+  ---
+  duration_ms: 4326.162322
+  type: 'test'
+  ...
+# Subtest: includeServingSite: does NOT loosen readSiteDir — a half-written site is still absent from both the strict and the composed listing
+ok 2700 - includeServingSite: does NOT loosen readSiteDir — a half-written site is still absent from both the strict and the composed listing
+  ---
+  duration_ms: 8.379809
+  type: 'test'
+  ...
+# Subtest: switcherBaseForBinding: the base above <base>/sites for a switchable binding, null for an install dir
+ok 2701 - switcherBaseForBinding: the base above <base>/sites for a switchable binding, null for an install dir
+  ---
+  duration_ms: 0.263776
+  type: 'test'
+  ...
+# Subtest: listSitesForBinding: a switchable binding lists its own base, with `active` read against the binding, not the env
+ok 2702 - listSitesForBinding: a switchable binding lists its own base, with `active` read against the binding, not the env
+  ---
+  duration_ms: 0.289856
+  type: 'test'
+  ...
+# Subtest: listSitesForBinding: an install-dir binding without init markers lists nothing, and never scans a sites/ root
+ok 2703 - listSitesForBinding: an install-dir binding without init markers lists nothing, and never scans a sites/ root
+  ---
+  duration_ms: 0.805578
+  type: 'test'
+  ...
+# User config is unreadable: /tmp/tovu-sites-home-WtppxK/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# User config is unreadable: /tmp/tovu-sites-home-WtppxK/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# User config is unreadable: /tmp/tovu-sites-home-WtppxK/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# User config is unreadable: /tmp/tovu-sites-home-9sTXFo/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# User config is unreadable: /tmp/tovu-sites-home-9sTXFo/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# User config is unreadable: /tmp/tovu-sites-home-9sTXFo/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# User config is unreadable: /tmp/tovu-sites-home-9sTXFo/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+# Subtest: a Tovu checkout cwd adds its sites folder as the default source root
+ok 2704 - a Tovu checkout cwd adds its sites folder as the default source root
+  ---
+  duration_ms: 25.74558
+  type: 'test'
+  ...
+# Subtest: a cwd without the checkout layout adds no default source root
+ok 2705 - a cwd without the checkout layout adds no default source root
+  ---
+  duration_ms: 67.204304
+  type: 'test'
+  ...
+# Subtest: explicit sourceRoots replace the checkout default
+ok 2706 - explicit sourceRoots replace the checkout default
+  ---
+  duration_ms: 32.446033
+  type: 'test'
+  ...
+# Subtest: TOVU_DESKTOP_USER_DATA_DIR is trimmed and resolved against cwd for the shared desktop profile
+ok 2707 - TOVU_DESKTOP_USER_DATA_DIR is trimmed and resolved against cwd for the shared desktop profile
+  ---
+  duration_ms: 123.309117
+  type: 'test'
+  ...
+# Subtest: a blank TOVU_DESKTOP_USER_DATA_DIR keeps the platform app-data default
+ok 2708 - a blank TOVU_DESKTOP_USER_DATA_DIR keeps the platform app-data default
+  ---
+  duration_ms: 95.120003
+  type: 'test'
+  ...
+# Subtest: an explicit appDataDir wins over TOVU_DESKTOP_USER_DATA_DIR
+ok 2709 - an explicit appDataDir wins over TOVU_DESKTOP_USER_DATA_DIR
+  ---
+  duration_ms: 176.553791
+  type: 'test'
+  ...
+# Subtest: projectsPaths default to the running platform and the resolved app-data folder
+ok 2710 - projectsPaths default to the running platform and the resolved app-data folder
+  ---
+  duration_ms: 100.046937
+  type: 'test'
+  ...
+# Subtest: catalogRecovery discards stale minted fixture ids from the catalog
+ok 2711 - catalogRecovery discards stale minted fixture ids from the catalog
+  ---
+  duration_ms: 117.147466
+  type: 'test'
+  ...
+# Subtest: without catalogRecovery a stale fixture id stays listed
+ok 2712 - without catalogRecovery a stale fixture id stays listed
+  ---
+  duration_ms: 495.536427
+  type: 'test'
+  ...
+# Subtest: TOVU_SITE_ROOTS entries are trimmed and resolved against cwd before the isolation check
+ok 2713 - TOVU_SITE_ROOTS entries are trimmed and resolved against cwd before the isolation check
+  ---
+  duration_ms: 2.444264
+  type: 'test'
+  ...
+# Subtest: blank TOVU_SITE_ROOTS entries are ignored rather than resolved to cwd
+ok 2714 - blank TOVU_SITE_ROOTS entries are ignored rather than resolved to cwd
+  ---
+  duration_ms: 12.462962
+  type: 'test'
+  ...
+# Subtest: XDG_CONFIG_HOME, sourceRoots and appDataDir inside the owner home are refused under node:test
+ok 2715 - XDG_CONFIG_HOME, sourceRoots and appDataDir inside the owner home are refused under node:test
+  ---
+  duration_ms: 4.209133
+  type: 'test'
+  ...
+# Subtest: assertTestHomeIsolation is a no-op outside node:test, even for the real home
+ok 2716 - assertTestHomeIsolation is a no-op outside node:test, even for the real home
+  ---
+  duration_ms: 0.368372
+  type: 'test'
+  ...
+# Subtest: assertTestHomeIsolation refuses the real home as homeDir
+ok 2717 - assertTestHomeIsolation refuses the real home as homeDir
+  ---
+  duration_ms: 0.230053
+  type: 'test'
+  ...
+# Subtest: assertTestHomeIsolation refuses the real home itself as a path
+ok 2718 - assertTestHomeIsolation refuses the real home itself as a path
+  ---
+  duration_ms: 0.208916
+  type: 'test'
+  ...
+# Subtest: assertTestHomeIsolation refuses every protected owner storage root and its descendants
+ok 2719 - assertTestHomeIsolation refuses every protected owner storage root and its descendants
+  ---
+  duration_ms: 4.70909
+  type: 'test'
+  ...
+# Subtest: assertTestHomeIsolation treats a child whose name starts with two dots as inside the root
+ok 2720 - assertTestHomeIsolation treats a child whose name starts with two dots as inside the root
+  ---
+  duration_ms: 0.299598
+  type: 'test'
+  ...
+# Subtest: assertTestHomeIsolation allows owner-home siblings that only share a protected prefix
+ok 2721 - assertTestHomeIsolation allows owner-home siblings that only share a protected prefix
+  ---
+  duration_ms: 0.195048
+  type: 'test'
+  ...
+# Subtest: the nested 0.1.14 sites folder is discovered and its sites join the roots once
+ok 2722 - the nested 0.1.14 sites folder is discovered and its sites join the roots once
+  ---
+  duration_ms: 30.268294
+  type: 'test'
+  ...
+# Subtest: a nested folder already listed as a root is not duplicated
+ok 2723 - a nested folder already listed as a root is not duplicated
+  ---
+  duration_ms: 3.752639
+  type: 'test'
+  ...
+# Subtest: a nested folder without site children stays out of the roots
+ok 2724 - a nested folder without site children stays out of the roots
+  ---
+  duration_ms: 17.061022
+  type: 'test'
+  ...
+# Subtest: no nested folder means no compatibility root
+ok 2725 - no nested folder means no compatibility root
+  ---
+  duration_ms: 14.282806
+  type: 'test'
+  ...
+# Subtest: a file named sites is not a compatibility root
+ok 2726 - a file named sites is not a compatibility root
+  ---
+  duration_ms: 20.625338
+  type: 'test'
+  ...
+# Subtest: a website named sites is a website, not a compatibility root
+ok 2727 - a website named sites is a website, not a compatibility root
+  ---
+  duration_ms: 12.301134
+  type: 'test'
+  ...
+# Subtest: a TOVU_SITES_HOME override never qualifies for the nested compatibility root
+ok 2728 - a TOVU_SITES_HOME override never qualifies for the nested compatibility root
+  ---
+  duration_ms: 11.60211
+  type: 'test'
+  ...
+# Subtest: a saved sitesHome setting never qualifies for the nested compatibility root
+ok 2729 - a saved sitesHome setting never qualifies for the nested compatibility root
+  ---
+  duration_ms: 32.542034
+  type: 'test'
+  ...
+# Subtest: an unreadable saved setting never authorizes the nested compatibility root
+ok 2730 - an unreadable saved setting never authorizes the nested compatibility root
+  ---
+  duration_ms: 23.436883
+  type: 'test'
+  ...
+# Subtest: a saved setting without sitesHome, or a null setting, keeps the nested compatibility root
+ok 2731 - a saved setting without sitesHome, or a null setting, keeps the nested compatibility root
+  ---
+  duration_ms: 43.123932
+  type: 'test'
+  ...
+# Subtest: resolveSitesHome returns the shared creation home
+ok 2732 - resolveSitesHome returns the shared creation home
+  ---
+  duration_ms: 7.863939
+  type: 'test'
+  ...
+# Subtest: reportSitesSyncWarning names both remedies for a synced sites home
+ok 2733 - reportSitesSyncWarning names both remedies for a synced sites home
+  ---
+  duration_ms: 15.276152
+  type: 'test'
+  ...
+# Subtest: reportSitesSyncWarning defaults to console.warn
+ok 2734 - reportSitesSyncWarning defaults to console.warn
+  ---
+  duration_ms: 12.745575
+  type: 'test'
+  ...
+# Subtest: reportSitesSyncWarning stays silent without a warning, using the ambient workspace by default
+ok 2735 - reportSitesSyncWarning stays silent without a warning, using the ambient workspace by default
+  ---
+  duration_ms: 1.436424
+  type: 'test'
+  ...

@@ -4325,3 +4325,654 @@ stdout | src/lib/__tests__/assistant-transport.closed-stream.unit.test.ts > unre
  ✓ src/lib/__tests__/api-fs-files-custom-root.unit.test.ts (3 tests) 20ms
  ✓ src/lib/__tests__/publish-criteria-deep-link.unit.test.ts (4 tests) 9ms
  ✓ src/features/plugins/__tests__/selected-skills.unit.test.ts (8 tests) 47ms
+ ✓ src/features/deployment/hooks/__tests__/use-publish-credentials-wired.unit.test.tsx (1 test) 118ms
+ ✓ src/features/deployment/__tests__/PureTabs.unit.test.tsx (2 tests) 211ms
+ ✓ src/lib/__tests__/admin-boot-scope.unit.test.tsx (4 tests) 124ms
+ ✓ src/lib/__tests__/api-widgets-endpoints.unit.test.ts (2 tests) 56ms
+ ✓ src/features/security/hooks/__tests__/security-permissions-dependencies.unit.test.tsx (2 tests) 163ms
+ ✓ src/components/AssistantDock/__tests__/FolderDropError.unit.test.tsx (7 tests) 486ms
+ ✓ src/features/plugins/__tests__/agent-plugin-sign-in-status.unit.test.tsx (6 tests) 547ms
+   ✓ Agent Plugins displays connected separately from Enabled  423ms
+ ✓ src/lib/__tests__/assistant-transport.aborted-subscription.unit.test.ts (2 tests) 63ms
+ ✓ src/features/media/__tests__/use-media-card-details.hooks.unit.test.tsx (2 tests) 32ms
+ ✓ src/features/analytics/__tests__/analytics-i18n.unit.test.ts (14 tests) 18ms
+ ✓ src/features/forms/__tests__/forms-field-settings-i18n.unit.test.ts (4 tests) 77ms
+ ✓ src/__tests__/unit/agent-plugins-page-scroll-css.unit.test.ts (2 tests) 39ms
+ ✓ src/components/__tests__/status-labels.unit.test.ts (5 tests) 123ms
+ ✓ src/features/sites/__tests__/SiteExportTab.secret.unit.test.tsx (1 test) 559ms
+   ✓ keeps export-password reveal, value and copy human-only while retaining human actions  557ms
+ ✓ src/hooks/__tests__/use-credential-hint.unit.test.tsx (2 tests) 87ms
+ ✓ src/features/plugins/__tests__/plugin-visuals.unit.test.tsx (18 tests) 81ms
+ ✓ src/lib/__tests__/site-key-state-parity.unit.test.ts (2 tests) 12ms
+ ✓ src/lib/__tests__/api-request-page-unload.unit.test.ts (2 tests) 35ms
+ ✓ src/__tests__/unit/main-entry.unit.test.tsx (1 test) 559ms
+   ✓ installs the icon-font override, rewrites a legacy hash URL and mounts the app into #root  552ms
+ ✓ src/features/plugins/__tests__/plugin-install-size.unit.test.ts (5 tests) 36ms
+ ✓ src/features/menus/__tests__/page-link-fields.unit.test.tsx (2 tests) 283ms
+ ✓ src/__tests__/unit/sites-sidebar-label-css.unit.test.ts (3 tests) 435ms
+     ✓ clips the shared full label whenever the split visual label is present, keyed on an unmanaged attribute not a row class  305ms
+ ✓ src/lib/__tests__/assistant-agents-snapshot.unit.test.ts (11 tests) 18ms
+ ✓ src/lib/__tests__/standing-draft-local-backup.unit.test.ts (2 tests) 9ms
+ ✓ src/features/dashboard/__tests__/use-recent-activity-disclosure.unit.test.ts (4 tests) 35ms
+ ✓ src/__tests__/unit/chart-tokens-css.unit.test.ts (4 tests) 57ms
+ ✓ src/hooks/__tests__/use-admin-document-locale.unit.test.ts (24 tests) 127ms
+ ✓ src/features/observability/__tests__/use-recent-error-item.hooks.unit.test.ts (3 tests) 45ms
+ ✓ src/features/media/__tests__/media-card-metadata.unit.test.tsx (1 test) 817ms
+     ✓ renders size and upload date beneath status with the original timestamp on time  815ms
+ ✓ src/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test.tsx (4 tests) 450ms
+ ✓ src/features/plugins/__tests__/confirm-dialogs-lifecycle.unit.test.tsx (3 tests) 501ms
+     ✓ delivers Escape only to the current callback and removes its listener on unmount  407ms
+ ✓ src/features/sites/__tests__/use-created-site-return.hooks.unit.test.ts (2 tests) 33ms
+ ✓ src/features/playground/__tests__/Playground.canvas-lifecycle.unit.test.tsx (1 test) 70ms
+ ✓ src/lib/__tests__/api-boot-session.unit.test.ts (2 tests) 20ms
+stderr | src/__tests__/unit/main-entry-signed-in.unit.test.tsx > mounts the signed-in shell, not the login screen, once the session has a user
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/main-entry-signed-in.unit.test.tsx > mounts the signed-in shell, not the login screen, once the session has a user
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/__tests__/unit/main-entry-signed-in.unit.test.tsx (1 test) 5991ms
+   ✓ mounts the signed-in shell, not the login screen, once the session has a user  5948ms
+ ✓ src/components/AssistantDock/__tests__/conversation-title.unit.test.ts (4 tests) 5ms
+ ✓ src/components/InstallTabCard/__tests__/InstallTabCard.unit.test.tsx (3 tests) 479ms
+     ✓ swallows the browser's default submit when the host gives no handler  318ms
+ ✓ src/hooks/__tests__/use-desktop-view-release.unit.test.tsx (4 tests) 48ms
+ ✓ src/lib/__tests__/admin-dev-origin.unit.test.ts (5 tests) 6ms
+ ✓ src/features/settings/__tests__/ai-agent-card-presentation.unit.test.tsx (2 tests) 404ms
+     ✓ omits the real divider and tagline for description ""  318ms
+ ✓ src/__tests__/fqfix-rationale.unit.test.ts (10 tests) 10ms
+ ✓ src/features/deployment/hooks/__tests__/dockerfile-source-dependencies.unit.test.ts (2 tests) 7ms
+ ✓ src/lib/__tests__/content-type-field-kind.sync.test.ts (1 test) 11ms
+ ✓ src/__tests__/unit/app-session-failure-reset.unit.test.tsx (1 test) 105ms
+ ✓ src/features/webmcp/__tests__/admin-page-action-policy.unit.test.ts (1 test) 14ms
+ ✓ src/features/menus/__tests__/legacy-page-picker.unit.test.tsx (1 test) 616ms
+   ✓ shows the Page picker for a migrated unhinted UUID and retains both fields after Save/reload  614ms
+ ✓ src/styles/__tests__/page-preview-fab-css.unit.test.ts (2 tests) 5ms
+ ✓ src/lib/__tests__/visitor-tools.unit.test.ts (3 tests) 32ms
+ ✓ src/features/media/__tests__/media-created-by.unit.test.ts (4 tests) 10ms
+ ✓ src/features/sites/__tests__/SiteExportTab.history.unit.test.tsx (2 tests) 992ms
+   ✓ labels backup and static exports even when their dates and sizes match  895ms
+ ✓ src/components/AssistantDock/__tests__/use-assistant-empty-state.hooks.unit.test.ts (2 tests) 47ms
+ ✓ src/features/security/__tests__/site-key-status.rules.unit.test.ts (7 tests) 6ms
+ ✓ src/features/security/__tests__/use-security-permissions.unit.test.tsx (6 tests) 727ms
+ ✓ src/lib/__tests__/api-user-facing-fallback.unit.test.ts (3 tests) 17ms
+ ✓ src/lib/__tests__/plain-text-blocks.unit.test.ts (6 tests) 7ms
+ ✓ src/features/security/__tests__/CopyKeysDialog.unit.test.tsx (2 tests) 642ms
+   ✓ approves one Shared Keys reference without source-site or overwrite controls  477ms
+ ✓ src/__tests__/unit/access-tokens-chips-css.unit.test.ts (3 tests) 38ms
+ ✓ src/components/AssistantDock/__tests__/conversation-refresh.hooks.unit.test.ts (3 tests) 52ms
+ ✓ src/lib/__tests__/api-describe-error.unit.test.ts (5 tests) 5ms
+ ✓ src/components/AssistantDock/__tests__/daemon-prewarm-error.unit.test.tsx (2 tests) 39ms
+ ✓ src/__tests__/unit/slow-css-selectors.unit.test.ts (6 tests) 190ms
+ ✓ src/features/themes/__tests__/use-theme-card-preview.hooks.unit.test.ts (3 tests) 27ms
+ ✓ src/components/__tests__/ComingSoonPanel.unit.test.tsx (2 tests) 265ms
+ ✓ src/features/plugins/__tests__/surface-copy.contract.test.ts (2 tests) 12ms
+ ✓ src/components/__tests__/device-preview-icons.unit.test.tsx (3 tests) 137ms
+ ✓ src/features/users/__tests__/change-username.unit.test.tsx (1 test) 231ms
+ ✓ src/features/fs-files/__tests__/folder-drop-port.unit.test.ts (4 tests) 18ms
+ ✓ src/__tests__/unit/app-i18n.unit.test.ts (11 tests) 6ms
+ ✓ src/features/collections/__tests__/native-dialog-dismissal.unit.test.ts (3 tests) 411ms
+ ✓ src/lib/__tests__/widget-embed-placement-content.unit.test.ts (7 tests) 22ms
+ ✓ src/lib/__tests__/slug-redirect-path.unit.test.ts (5 tests) 10ms
+ ✓ src/features/media/__tests__/media-import-dependencies.unit.test.ts (2 tests) 40ms
+ ✓ src/features/admin-ui/__tests__/redirects.unit.test.tsx (4 tests) 458ms
+   ✓ replaces /admin/admin-ui?tab=design-system with its Admin UI tab  322ms
+ ✓ src/lib/__tests__/merge-locale-overlays.unit.test.ts (4 tests) 12ms
+ ✓ src/integrations/jini-admin/__tests__/media-session.unit.test.ts (1 test) 92ms
+ ✓ src/features/forms/__tests__/forms-leave-guard-i18n.unit.test.ts (3 tests) 14ms
+ ✓ src/features/database/__tests__/use-schema-state-section.wired.unit.test.tsx (1 test) 98ms
+ ✓ src/styles/__tests__/expanded-code-viewer-css.unit.test.ts (2 tests) 8ms
+ ✓ src/lib/__tests__/page-lifecycle.unit.test.ts (3 tests) 9ms
+ ✓ src/features/observability/__tests__/observability-visuals.unit.test.tsx (6 tests) 62ms
+ ✓ src/lib/__tests__/import-export-routes.unit.test.ts (4 tests) 9ms
+ ✓ src/features/publish-content/__tests__/use-publish-section-button.hooks.unit.test.tsx (1 test) 538ms
+   ✓ uses the loaded locale for its section label and reacts to live-site availability changes  536ms
+ ✓ src/features/workspace/__tests__/WorkspaceRedirect.unit.test.tsx (1 test) 80ms
+ ✓ src/features/source-control/__tests__/source-control-i18n.unit.test.ts (4 tests) 5ms
+ ✓ src/features/settings/__tests__/settings-memory-i18n.unit.test.ts (2 tests) 5ms
+stdout | src/lib/__tests__/assistant-transport.restart.unit.test.ts > restart with running recovery preserves the logical answer until its saved completion
+[durable-subscription] {"runId":"old","reason":"stream-error","cursor":"","retryDelayMs":1000}
+
+stdout | src/lib/__tests__/assistant-transport.restart.unit.test.ts > restart with unreachable recovery preserves the logical answer until its saved completion
+[durable-subscription] {"runId":"old","reason":"stream-error","cursor":"","retryDelayMs":1000}
+
+ ✓ src/lib/__tests__/assistant-transport.restart.unit.test.ts (2 tests) 11ms
+ ✓ src/components/__tests__/PlainTextBlocks.unit.test.tsx (6 tests) 134ms
+ ✓ src/lib/__tests__/assistant-transport.a2ui.test.ts (2 tests) 12ms
+ ✓ src/features/ai-assistant/__tests__/assistant-daemon-restart-dependencies.unit.test.ts (2 tests) 11ms
+ ✓ src/features/webmcp/__tests__/admin-page-human-gate.unit.test.ts (1 test) 8ms
+ ✓ src/features/forms/__tests__/rules.unit.test.ts (1 test) 20ms
+ ✓ src/styles/__tests__/preview-note-css.unit.test.ts (2 tests) 312ms
+ ✓ src/features/forms/__tests__/index-aligned-translations.unit.test.ts (3 tests) 10ms
+ ✓ src/features/plugins/__tests__/agent-plugin-replace.unit.test.ts (1 test) 106ms
+ ✓ src/hooks/__tests__/admin-execution-credential-dependencies.unit.test.ts (1 test) 12ms
+ ✓ src/features/authentication/__tests__/provider-schemas.unit.test.ts (4 tests) 6ms
+ ✓ src/__tests__/unit/app-assistant-alias.unit.test.tsx (9 tests) 10ms
+ ✓ src/__tests__/unit/select-panel-surface-css.unit.test.ts (2 tests) 621ms
+     ✓ re-points .select-panel.select-panel's Jini surface and text tokens at the admin's own  494ms
+ ✓ src/styles/__tests__/editor-youtube-css.unit.test.ts (1 test) 426ms
+   ✓ constrains fixed YouTube dimensions only inside the editable TipTap surface  424ms
+ ✓ src/lib/__tests__/version-conflict.unit.test.ts (7 tests) 8ms
+ ✓ src/components/AssistantDock/__tests__/confirm-request-package-contract.unit.test.tsx (2 tests) 54ms
+ ✓ src/features/auth/__tests__/auth-i18n.unit.test.ts (6 tests) 6ms
+ ✓ src/features/settings/__tests__/settings-execution-i18n.unit.test.ts (22 tests) 11ms
+ ✓ src/features/settings/__tests__/settings-i18n.unit.test.ts (1 test) 4ms
+ ✓ src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.unit.test.ts (2 tests) 7ms
+ ✓ src/features/plugins/__tests__/plugins-i18n.unit.test.ts (2 tests) 4ms
+ ✓ src/components/__tests__/ServerRestartingBanner.unit.test.tsx (1 test) 320ms
+     ✓ shows while the server is restarting and hides once it answers  315ms
+ ✓ src/features/auth/__tests__/login-default-credential.unit.test.tsx (1 test) 22ms
+ ✓ src/features/database/__tests__/database-visuals.unit.test.tsx (2 tests) 71ms
+ ✓ src/features/observability/__tests__/queries-panel-default.unit.test.tsx (1 test) 487ms
+     ✓ lazy-loads TanStack's production devtools panel behind a loading status  484ms
+ ✓ src/features/security/__tests__/security-visuals.unit.test.tsx (5 tests) 66ms
+ ✓ src/components/AssistantDock/__tests__/FolderPathButton.unit.test.tsx (2 tests) 494ms
+     ✓ is a labelled button styled exactly like the composer's + and opens the picker  456ms
+ ✓ src/features/plugins/__tests__/agent-plugin-sign-in-refresh.hooks.unit.test.ts (1 test) 138ms
+ ✓ src/features/source-control/__tests__/source-control-visuals.unit.test.tsx (3 tests) 47ms
+ ✓ src/styles/__tests__/sites-settings-dialog-css.unit.test.ts (1 test) 4ms
+ ✓ src/features/voice-input/__tests__/voice-input-port.unit.test.ts (2 tests) 5ms
+ ✓ src/features/taxonomy/__tests__/embed-header-alignment.unit.test.tsx (1 test) 331ms
+   ✓ groups copy embed with the taxonomy row actions at the right of the header  329ms
+ ✓ src/lib/__tests__/mediawidget-extension.unit.test.ts (1 test) 142ms
+ ✓ src/features/sites/__tests__/sites-visuals.unit.test.tsx (3 tests) 72ms
+ ✓ src/features/posts/__tests__/post-editor-route-key.unit.test.ts (3 tests) 6ms
+ ✓ src/features/skills/__tests__/skill-failure.unit.test.ts (2 tests) 15ms
+ ✓ __tests__/vitest-coverage-config.unit.test.ts (1 test) 5ms
+ ✓ src/features/playground/__tests__/playground-i18n.unit.test.ts (2 tests) 9ms
+ ✓ src/lib/__tests__/tab-event-source.park.unit.test.ts (1 test) 9ms
+ ✓ src/features/media/__tests__/import-alt-placeholder.unit.test.tsx (1 test) 366ms
+   ✓ uses the upload dialog's short alt label while keeping a distinct accessible name  364ms
+ ✓ src/features/plugins/__tests__/add-plugin-tab-soon.unit.test.ts (4 tests) 5ms
+ ✓ src/__tests__/unit/list-table-detail-card-css.unit.test.ts (1 test) 5ms
+ ✓ src/styles/__tests__/accent-swatch-ring-css.unit.test.ts (1 test) 28ms
+ ✓ src/features/sites/__tests__/site-publish.unit.test.tsx (2 tests) 8ms
+ ✓ src/lib/__tests__/page-lifecycle.node.unit.test.ts (1 test) 823ms
+   ✓ can be imported outside a browser and reports a live document  821ms
+ ✓ src/__tests__/unit/phone-row-wrap-css.unit.test.ts (2 tests) 612ms
+     ✓ sizes a plugin row's summary to its own text, so three actions wrap under it instead of squeezing the name  463ms
+ ✓ src/__tests__/unit/folder-window-note-css.unit.test.ts (1 test) 57ms
+ ✓ src/features/seo/__tests__/seo-i18n-parity.unit.test.ts (21 tests) 25ms
+ ✓ src/features/email/__tests__/email-api.unit.test.ts (1 test) 20ms
+ ✓ src/components/AssistantDock/__tests__/commit-folder-approval.contract.unit.test.ts (1 test) 23ms
+ ✓ src/components/AssistantDock/__tests__/interactive-ui-styles.unit.test.ts (1 test) 11ms
+ ✓ src/features/sites/__tests__/site-export-error.unit.test.ts (1 test) 11ms
+ ✓ src/features/roles/__tests__/Roles.hooks.unit.test.tsx (1 test) 24ms
+ ✓ src/features/menus/__tests__/menu-page-catalogue.unit.test.ts (1 test) 11ms
+ ✓ src/__tests__/unit/login-card-width-css.unit.test.ts (1 test) 4ms
+ ✓ src/features/voice-input/__tests__/VoiceInputPlaceholder.unit.test.tsx (1 test) 325ms
+   ✓ is a disabled mic that says voice input is coming, and stays focusable  324ms
+ ✓ src/components/AssistantDock/__tests__/SlowRunNoticeCard.hooks.unit.test.ts (5 tests) 10ms
+ ✓ src/lib/__tests__/cli-probe-rescan.unit.test.ts (1 test) 10ms
+ ✓ src/features/forms/__tests__/html-mode.unit.test.tsx (1 test) 7ms
+ ✓ __tests__/vite-config-api-proxy.unit.test.ts (1 test) 10ms
+ ✓ src/lib/__tests__/execution-provider-catalog.unit.test.ts (1 test) 4ms
+ ✓ src/components/AssistantDock/__tests__/daemon-starting-label-i18n.unit.test.ts (21 tests) 37ms
+ ✓ src/__tests__/unit/commerce-off.unit.test.ts (1 test) 5ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts [ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts ]
+Error: Cannot find module 'file:///home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.24/client/provider.js' imported from /home/user/Tovu/apps/admin/src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:21:20
+     19| const bundleUrl = pathToFileURL(path.join(packageRoot, "plugins/charts…
+     20| // Plain ESM bundle with no type declarations; the shape used is asser…
+     21| const { mount } = (await import(/* @vite-ignore */ bundleUrl)) as { mo…
+       |                    ^
+     22|
+     23| type Instance = { ready: Promise<void>; destroy: () => void };
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/chat-fab-z-order-css.unit.test.ts > chat FAB z-order > sits above every in-page layer; only blocking modals and their popovers go higher
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "components/AdminFailureNotice/admin-failure-notice.css .admin-failure-notice z-index: 1000",
++ ]
+
+ ❯ src/__tests__/unit/chat-fab-z-order-css.unit.test.ts:82:19
+     80|       .filter((layer) => !ABOVE_FAB.has(layer.selector))
+     81|       .map((layer) => `${layer.file} ${layer.selector} z-index: ${laye…
+     82|     expect(above).toEqual([]);
+       |                   ^
+     83|   });
+     84|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx > AssistantDock Chat settings > passes the effective current CLI limits to the picker before a message is sent
+AssertionError: expected { nativeToolAccess: true, …(3) } to deeply equal { nativeToolAccess: true, …(3) }
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head>[39m
+    [36m<link[39m
+      [33mdata-jini-remixicon[39m=[32m""[39m
+      [33mhref[39m=[32m"http://localhost:3000/@fs/home/user/Jini/packages/ui/dist/react/components/remixicon-font/remixicon.css"[39m
+      [33mrel[39m=[32m"stylesheet"[39m
+    [36m/>[39m
+  [36m</head>[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"admin-chat-dock-drop"[39m
+        [33mdata-conversation-id[39m=[32m""[39m
+        [33mdata-testid[39m=[32m"admin-chat-driver-root"[39m
+        [33mdata-tovu-local-cli[39m=[32m"available"[39m
+        [33mstyle[39m=[32m"display: contents;"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mdata-testid[39m=[32m"chat-pane"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"jini-chat-pane__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"jini-chat-pane__heading"[39m
+            [36m>[39m
+              [36m<h2[39m
+                [33maria-label[39m=[32m"Tovu assistant"[39m
+                [33mclass[39m=[32m"jini-chat-pane__title"[39m
+                [33mtitle[39m=[32m"Tovu assistant"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-label[39m=[32m"Rename chat"[39m
+                  [33mclass[39m=[32m"jini-conv-title-button"[39m
+                  [33mdisabled[39m=[32m""[39m
+                  [33mtitle[39m=[32m"Tovu assistant"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [0mTovu assistant[0m
+                [36m</button>[39m
+              [36m</h2>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"jini-chat-pane__subagents"[39m
+              [33mrole[39m=[32m"status"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"info-tip"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"This chat can use subagents"[39m
+                  [33mclass[39m=[32m"info-tip-icon info-tip-icon--custom"[39m
+                  [33mdata-agent-element[39m=[32m"assistant-subagents-indicator"[39m
+                  [33mdata-agent-label[39m=[32m"This chat can use subagents"[39m
+                  [33mdata-agent-role[39m=[32m"button"[39m
+                  [33mrole[39m=[32m"button"[39m
+                  [33mtabindex[39m=[32m"0"[39m
+                [36m>[39m
+                  [36m<i[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"ri-group-line"[39m
+                    [33mstyle[39m=[32m"font-size: 16px; line-height: 1; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;"[39m
+                  [36m/>[39m
+                [36m</span>[39m
+              [36m</span>[39m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"dock-header-tip"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"jini-conv"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"menu"[39m
+                  [33maria-label[39m=[32m"Chats"[39m
+                  [33mclass[39m=[32m"jini-conv-trigger"[39m
+                  [33mdata-testid[39m=[32m"conversation-trigger"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mfocusable[39m=[32m"false"[39m
+                    [33mheight[39m=[32m"16"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"1.6"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"16"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"dock-header-tip"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-expanded[39m=[32m"false"[39m
+                [33maria-haspopup[39m=[32m"menu"[39m
+                [33maria-label[39m=[32m"Settings"[39m
+                [33mclass[39m=[32m"assistant-dock-icon-button"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<i[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ri-settings-3-line"[39m
+                  [33mstyle[39m=[32m"font-size: 16px; line-height: 1; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;"[39m
+                [36m/>[39m
+              [36m</button>[39m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"assistant-empty-state"[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0mHello! Ask me to help with your site.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<dialog[39m
+          [33maria-labelledby[39m=[32m"_r_q_"[39m
+          [33mclass[39m=[32m"confirm-dialog"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mid[39m=[32m"_r_q_"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"confirm-dialog-body"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"confirm-dialog-actions"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-busy[39m=[32m"false"[39m
+              [33mclass[39m=[32m"btn-secondary"[39m
+              [33mdata-agent-element[39m=[32m"kit-h-64456a5d4bd0aad1-confirm-cancel"[39m
+              [33mdata-agent-label[39m=[32m"Cancel — leaves \"\" unconfirmed; no action taken"[39m
+              [33mdata-agent-role[39m=[32m"button"[39m
+              [33mdata-jini-part[39m=[32m"confirm.cancel"[39m
+              [33mdata-jini-s...
+
+- Expected
++ Received
+
+@@ -3,11 +3,11 @@
+    "nativeCapabilities": {
+      "fileWrite": true,
+      "loginEnvironment": true,
+      "shell": true,
+      "subagents": true,
+-     "userMcp": false,
++     "userMcp": true,
+      "userSettings": true,
+      "web": true,
+      "workflows": true,
+    },
+    "nativeToolAccess": true,
+
+ ❯ src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx:125:81
+    123|   it("passes the effective current CLI limits to the picker before a m…
+    124|     render(<AssistantDock useChats={fakeChats} />);
+    125|     await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeTo…
+       |                                                                                 ^
+    126|       nativeToolAccess: true, cliParity: true, permissionMode: "bypass…
+    127|         shell: true, fileWrite: true, userMcp: false, subagents: true,
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx > AssistantDock Chat settings > keeps personal MCP opt-in and the master OFF while other local-owner permissions default ON
+Error: [2mexpect([22m[31melement[39m[2m).not.toBeChecked()[22m
+
+Received element is checked:
+  [31m<input
+  aria-describedby="_r_7j_-master"
+  checked=""
+  class="jini-checkbox jini-chat-settings-switch"
+  id="_r_8b_"
+  role="switch"
+  type="checkbox"
+/>[39m
+ ❯ src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx:245:80
+    243|     // 4d39ba5232 requires an explicit grant for personal MCP, even wi…
+    244|     await waitFor(() => expect(within(modal).getByRole("switch", { nam…
+    245|     expect(within(modal).getByRole("switch", { name: "Full CLI access"…
+       |                                                                                ^
+    246|     expect(within(modal).getByRole("switch", { name: "Your MCP servers…
+    247|     for (const name of ["Bash/shell", "File edit/write", "Subagents/Ta…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/lib/__tests__/admin-literal-copy.unit.test.ts > production admin features and shared components add no untranslated JSX copy
+AssertionError: Translate new copy through its owner:
+features/sites/SiteImportTab.tsx:223 placeholder "https://": expected [ { …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "file": "features/sites/SiteImportTab.tsx",
++     "kind": "placeholder",
++     "line": 223,
++     "text": "https://",
++   },
++ ]
+
+ ❯ src/lib/__tests__/admin-literal-copy.unit.test.ts:120:174
+    118|   const actual = ["features", "components"].flatMap((directory) => sca…
+    119|   const additions = newLiteralCopy({ actual, baseline: baseline.sites …
+    120|   expect(additions, `Translate new copy through its owner:\n${addition…
+       |                                                                                                                                                                              ^
+    121|   // The ratchet only shrinks: a resolved site left in the baseline wo…
+    122|   const stale = newLiteralCopy({ actual: baseline.sites, baseline: act…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  4 failed | 887 passed (891)
+      Tests  4 failed | 14464 passed | 2 skipped (14470)
+   Start at  00:15:56
+   Duration  1787.62s (transform 100.45s, setup 206.37s, import 1114.18s, tests 857.20s, environment 802.18s)
+
+JSON report written to /tmp/claude-0/cov/admin-results.json
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   98.82 |     97.7 |   98.31 |   99.15 |                   
+ src               |   98.49 |    99.65 |   96.76 |     100 |                   
+  App.hooks.ts     |   99.69 |    99.37 |     100 |     100 | 455               
+  panel-pages.ts   |    92.5 |      100 |   88.75 |     100 |                   
+ src/admin-themes  |     100 |    98.86 |     100 |     100 |                   
+  ...heme.hooks.ts |     100 |    98.46 |     100 |     100 | 123               
+ ...nFailureNotice |     100 |    85.71 |     100 |     100 |                   
+  ...ureNotice.tsx |     100 |    85.71 |     100 |     100 | 14                
+ .../AssistantDock |    97.7 |    95.84 |   99.04 |   98.65 |                   
+  ...Card.hooks.ts |     100 |    97.36 |     100 |     100 | 50                
+  ...stantDock.tsx |     100 |    93.33 |     100 |     100 | 467               
+  ...e-scanners.ts |   90.47 |    77.38 |     100 |   95.41 | 45,80-82,85       
+  ...es.adapter.ts |      80 |     87.5 |   71.42 |   77.77 | 12,18             
+ ...tantDock/hooks |   99.88 |    99.63 |     100 |     100 |                   
+  ...ock.hooks.tsx |    99.8 |    99.38 |     100 |     100 | 713,986           
+ ...ts/SecretInput |     100 |    91.66 |     100 |     100 |                   
+  SecretInput.tsx  |     100 |    91.66 |     100 |     100 | 37                
+ ...s/ai-assistant |     100 |       99 |     100 |     100 |                   
+  ...stantTabs.tsx |     100 |       75 |     100 |     100 | 31,45             
+  ...oolsPanel.tsx |     100 |    98.18 |     100 |     100 | 117               
+ ...ssistant/hooks |    98.7 |    97.49 |   98.11 |   99.22 |                   
+  ...ents.hooks.ts |   95.65 |    94.73 |   95.45 |    97.5 | 41                
+  ...ools.hooks.ts |   94.02 |    91.83 |   89.47 |   96.15 | 117,126           
+ src/features/auth |   88.63 |    78.57 |   85.71 |   93.33 |                   
+  Login.tsx        |      70 |    73.33 |   66.66 |      75 | 40,57             
+  ...erySignIn.tsx |   92.59 |     90.9 |     100 |     100 | 19                
+  auth-i18n.ts     |     100 |       50 |     100 |     100 | 57                
+ ...res/auth/hooks |    92.3 |      100 |   84.61 |      95 |                   
+  ...cies.hooks.ts |    87.5 |      100 |      75 |   85.71 | 12                
+  ...ogin.hooks.ts |   94.44 |      100 |   88.88 |     100 |                   
+ ...atures/consent |     100 |    98.12 |     100 |     100 |                   
+  ...ieConsent.tsx |     100 |    96.22 |     100 |     100 | 33,124            
+  ...page.hooks.ts |     100 |    96.15 |     100 |     100 | 86,195            
+ ...res/deployment |   99.71 |    99.71 |     100 |     100 |                   
+  ...icSiteTab.tsx |   99.07 |    99.35 |     100 |     100 | 43                
+ ...features/email |   85.06 |    74.84 |   77.24 |   86.84 |                   
+  Email.tsx        |     100 |    87.87 |     100 |     100 | 154-164,188       
+  ...tivityTab.tsx |   91.83 |       68 |      88 |   91.48 | 102,180,228-229   
+  ...erviewTab.tsx |      68 |    60.71 |      50 |   70.83 | 43-53,96,108-111  
+  EmailParts.tsx   |   86.36 |    72.72 |   91.66 |   88.23 | 67-68             
+  ...oviderTab.tsx |   93.58 |    83.03 |   93.93 |   96.92 | 250,265           
+  ...SenderTab.tsx |   94.87 |    82.14 |   93.33 |   97.22 | 58                
+  ...ateEditor.tsx |   95.23 |       77 |   93.93 |   98.61 | 133               
+  ...platesTab.tsx |   60.86 |    64.28 |   63.15 |      65 | 62,81-100         
+  email-api.ts     |      25 |    16.66 |    8.33 |      25 | ...27-260,264-267 
+ ...es/email/hooks |   94.25 |    82.58 |   90.83 |   95.36 |                   
+  ...load.hooks.ts |     100 |    93.33 |     100 |     100 | 40                
+  ...vity.hooks.ts |   95.74 |    74.35 |   91.66 |   97.46 | 118,179           
+  ...view.hooks.ts |   94.73 |    88.88 |   83.33 |   94.11 | 65                
+  ...ider.hooks.ts |   98.19 |    86.84 |   96.29 |    97.7 | 155,169           
+  ...nder.hooks.ts |   96.96 |    89.65 |   93.33 |   98.14 | 126               
+  ...itor.hooks.ts |   87.65 |    79.06 |   81.81 |   90.47 | ...01,136-137,157 
+  ...ates.hooks.ts |   89.65 |    69.23 |    92.3 |   91.66 | 84-86,112         
+  ...mail.hooks.ts |      90 |     90.9 |   83.33 |      90 | 79-80             
+ ...fs-files/hooks |   99.16 |       96 |     100 |     100 |                   
+  ...drop.hooks.ts |   98.86 |    96.36 |     100 |     100 | 152,276           
+  ...cker.hooks.ts |     100 |       95 |     100 |     100 | 68                
+ ...t-export/hooks |     100 |    97.87 |     100 |     100 |                   
+  ...ckup.hooks.ts |     100 |     97.5 |     100 |     100 | 114               
+ ...grations/hooks |   94.11 |      100 |   90.62 |   94.59 |                   
+  ...cies.hooks.ts |      80 |      100 |   66.66 |      80 | 12                
+  ...ries.hooks.ts |   55.55 |      100 |      50 |    62.5 | 70-72             
+ ...features/media |     100 |    99.63 |     100 |     100 |                   
+  Media.tsx        |     100 |    99.17 |     100 |     100 | 315               
+ ...es/media/hooks |   99.68 |    98.01 |     100 |     100 |                   
+  ...size.hooks.ts |   88.88 |      100 |     100 |     100 |                   
+  ...view.hooks.ts |     100 |    77.77 |     100 |     100 | 82-86             
+  ...edia.hooks.ts |     100 |    97.05 |     100 |     100 | 245               
+ ...features/menus |   99.35 |    99.31 |     100 |   99.18 |                   
+  MenuEditor.tsx   |   98.41 |    97.61 |     100 |   97.91 | 152               
+ .../observability |   96.79 |    92.99 |     100 |   97.77 |                   
+  ...rvability.tsx |     100 |    86.66 |     100 |     100 | ...-79,81,122,128 
+  ...rors-rules.ts |   95.14 |     90.9 |     100 |   96.51 | 84-87             
+ ...vability/hooks |   97.91 |    97.67 |   96.96 |   98.73 |                   
+  ...cies.hooks.ts |   85.71 |      100 |      75 |   83.33 | 14                
+  ...atus.hooks.ts |   96.15 |     87.5 |     100 |     100 | 60                
+ ...es/pages/hooks |   99.87 |     99.5 |     100 |     100 |                   
+  ...itor.hooks.ts |   99.69 |    98.75 |     100 |     100 | 626-627           
+ ...ures/pages/lib |     100 |    98.38 |     100 |     100 |                   
+  ...laceholder.ts |     100 |       96 |     100 |     100 | 149-150           
+ ...atures/plugins |   99.83 |    97.91 |     100 |     100 |                   
+  ...tingField.tsx |     100 |    94.28 |     100 |     100 | 32,42             
+  ...ngsDialog.tsx |     100 |    92.68 |     100 |     100 | 80,106-110        
+  Plugins.tsx      |     100 |    85.71 |     100 |     100 | ...32-333,390-394 
+  ...ser-source.ts |   97.56 |    97.72 |     100 |     100 | 63                
+ .../plugins/hooks |   97.77 |    95.72 |   97.32 |   98.05 |                   
+  ...cies.hooks.ts |   94.31 |     90.9 |   89.65 |   95.45 | 13,18-19          
+  ...-tip.hooks.ts |   92.59 |     62.5 |     100 |    92.3 | 43-44             
+  ...ings.hooks.ts |   82.14 |    66.66 |   78.57 |   86.66 | 83-84,87,95-97    
+  ...gins.hooks.ts |   98.63 |    90.47 |   96.55 |    98.3 | 230               
+ ...es/posts/hooks |   99.83 |    98.89 |   99.46 |    99.8 |                   
+  ...tate.rules.ts |     100 |    96.77 |     100 |     100 | 135               
+  ...itor.hooks.ts |   99.64 |    97.52 |   98.36 |   99.59 | 1004              
+ ...ures/providers |   97.87 |      100 |     100 |   97.61 |                   
+  Providers.tsx    |   91.66 |      100 |     100 |   91.66 | 138               
+ ...ublish-content |   97.82 |     98.7 |     100 |     100 |                   
+  ...entDialog.tsx |   96.15 |    98.27 |     100 |     100 | 274               
+ ...-content/hooks |     100 |    99.75 |     100 |     100 |                   
+  ...firm.hooks.ts |     100 |    99.69 |     100 |     100 | 351               
+ ...tures/security |   97.73 |     97.9 |   98.34 |   98.75 |                   
+  ...TokensTab.tsx |   99.25 |    99.27 |   98.59 |   99.19 | 417               
+  ...eysDialog.tsx |     100 |    83.33 |     100 |     100 | 20-22             
+  ...CodesCard.tsx |   85.91 |    85.29 |   94.44 |    92.3 | 68-70             
+  Security.tsx     |   93.75 |      100 |   85.71 |   93.75 | 189               
+  security-i18n.ts |   97.43 |    90.47 |   93.33 |   97.14 | 2175              
+ ...security/hooks |   99.59 |    98.08 |   99.28 |   99.48 |                   
+  ...cies.hooks.ts |   95.65 |    96.96 |   95.12 |   94.87 | 31,70             
+  ...kens.hooks.ts |     100 |    99.48 |     100 |     100 | 619               
+  ...keys.hooks.ts |   98.38 |    84.61 |     100 |   97.67 | 60                
+ ...tures/settings |   97.67 |    97.86 |   97.81 |   98.12 |                   
+  ...ingsPanel.tsx |    87.5 |       88 |   82.75 |   91.54 | ...78,321,344,370 
+  ...redChoice.tsx |   89.36 |       90 |     100 |   85.71 | 16,23,29,35       
+  rules.ts         |     100 |    98.46 |     100 |     100 | 485               
+ ...settings/hooks |    97.4 |    96.23 |   96.58 |   98.26 |                   
+  ...nect.hooks.ts |      88 |    75.86 |   78.94 |   92.06 | ...07,123,139-140 
+ ...features/sites |   99.04 |    98.25 |   99.13 |   99.41 |                   
+  AllSitesTab.tsx  |   97.95 |    94.44 |     100 |   97.56 | 116               
+  ...lWarnings.tsx |   95.23 |    88.88 |     100 |     100 | 19,28             
+  ...ExportTab.tsx |     100 |    97.56 |     100 |     100 | 51,158            
+  ...ImportTab.tsx |   97.33 |    98.96 |   96.77 |   98.48 | 226               
+  Sites.tsx        |     100 |    94.59 |     100 |     100 | 285-290           
+  ...ortPicker.tsx |      96 |      100 |    90.9 |      95 | 27                
+  ...ndoff-port.ts |     100 |     87.5 |     100 |     100 | 31                
+  ...port-error.ts |    92.3 |    95.23 |     100 |     100 | 29                
+ ...es/sites/hooks |   95.93 |    91.25 |   94.46 |   98.32 |                   
+  ...cies.hooks.ts |   88.67 |    83.33 |   84.84 |   95.45 | 129,172           
+  ...cies.hooks.ts |    92.3 |      100 |   91.66 |    92.3 | 7                 
+  ...port.hooks.ts |     100 |    91.66 |     100 |     100 | 46                
+  ...site.hooks.ts |   96.07 |    83.87 |      80 |     100 | 32,65,96          
+  ...ites.hooks.ts |     100 |     98.3 |     100 |     100 | 42                
+  ...gate.hooks.ts |   95.31 |    80.55 |     100 |     100 | ...68,81-86,94-96 
+  ...refs.hooks.ts |      90 |    71.42 |      75 |   86.95 | 35-36,75          
+  ...sfer.hooks.ts |   95.65 |     91.3 |     100 |   99.47 | 118               
+  ...ites.hooks.ts |   93.82 |    96.66 |   89.47 |   95.89 | 329-331           
+  ...tion.hooks.ts |   96.29 |       88 |     100 |     100 | 32-33             
+ ...eatures/skills |   99.69 |     98.5 |   99.09 |     100 |                   
+  ...firmation.tsx |     100 |     92.3 |     100 |     100 | 18                
+  ...irmDialog.tsx |     100 |    85.71 |     100 |     100 | 9                 
+  ...iles.hooks.ts |   96.55 |    95.83 |    87.5 |     100 | 56                
+ ...s/themes/hooks |     100 |     99.8 |     100 |     100 |                   
+  ...lore.hooks.ts |     100 |    99.64 |     100 |     100 | 1492              
+ src/hooks         |   99.65 |    98.84 |     100 |   99.59 |                   
+  ...cies.hooks.ts |    87.5 |    88.23 |     100 |    87.5 | 75-76             
+  ...hats.hooks.ts |     100 |     87.5 |     100 |     100 | 45                
+  ...ease.hooks.ts |     100 |    85.71 |     100 |     100 | 12                
+ ...ons/jini-admin |     100 |    99.51 |     100 |     100 |                   
+  kit.ts           |     100 |    66.66 |     100 |     100 | 10                
+ src/lib           |   98.11 |     98.9 |   96.27 |   98.26 |                   
+  ...re-channel.ts |     100 |    89.13 |     100 |     100 | 18,31-34          
+  ...n-entities.ts |   63.15 |    85.71 |   57.14 |    62.5 | 18-27             
+  api.ts           |   97.45 |    99.21 |   96.06 |   97.22 | ...4005-4012,4069 
+  ...activation.ts |   96.66 |       88 |   85.71 |     100 | 14,25,28          
+  ...-telemetry.ts |    90.9 |    85.71 |   81.81 |      90 | 50-51             
+  owner-mfa-api.ts |   42.85 |      100 |      20 |      50 | 14-16             
+  ...asskey-api.ts |      40 |      100 |   14.28 |   66.66 | 11,14             
+  ...covery-api.ts |      50 |      100 |   33.33 |   57.14 | 24-26             
+  unique-id.ts     |      80 |       75 |     100 |   77.77 | 20-21             
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 98.82% ( 23864/24147 )
+Branches     : 97.7% ( 15999/16375 )
+Functions    : 98.31% ( 8527/8673 )
+Lines        : 99.15% ( 19752/19921 )
+================================================================================
+ERROR: Coverage for branches (97.7%) does not meet global threshold (98%)
+exit 1 1792s

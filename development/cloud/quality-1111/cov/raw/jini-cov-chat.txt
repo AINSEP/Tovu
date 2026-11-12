@@ -356,3 +356,218 @@ stdout | src/server/durable-runs/__tests__/missing-resume.test.ts > reconstructs
  ✓ src/core/durable-runs/__tests__/policies.test.ts (1 test) 3ms
  ✓ src/store/__tests__/transactions.test.ts (4 tests) 689ms
    ✓ SQLite: independent connections serialize gap-free positions 418ms
+ ✓ src/store/__tests__/pglite.socket.test.ts (51 tests) 237060ms
+   ✓ PGlite socket clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 7352ms
+   ✓ PGlite socket clock and object methods > applies the second paging bag and binds continuation to the owner 3661ms
+   ✓ PGlite socket clock and object methods > uses system wall time when no clock is supplied 3375ms
+   ✓ PGlite socket > cross-owner reads > returns null when another user fetches a chat by id 4724ms
+   ✓ PGlite socket > cross-owner reads > returns null across workspaces even for the same owner id 5408ms
+   ✓ PGlite socket > cross-owner reads > returns null across owner kinds even for the same owner id 4656ms
+   ✓ PGlite socket > cross-owner reads > omits other owners chats from list 5189ms
+   ✓ PGlite socket > cross-owner reads > returns no messages when another user asks for them 4699ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not delete another owners chat 3581ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not rename another owners chat 5091ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 3964ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 4316ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not touch another owners chat 4528ms
+   ✓ PGlite socket > append semantics > updates a message in place when the same id is appended again to the same chat 4682ms
+   ✓ PGlite socket > append semantics > keeps position stable across an in-place update 5046ms
+   ✓ PGlite socket > deletion > cascades to the conversation messages 4072ms
+   ✓ PGlite socket > title source > lets a generated title replace a fallback one 4772ms
+   ✓ PGlite socket > title source > never lets a generated title clobber a manual rename 4281ms
+   ✓ PGlite socket > retention sweep > deletes only expired rows and never touches never-expiring history 3800ms
+   ✓ PGlite socket > retention sweep > honours its chunk limit so one call cannot hold a long write lock 5920ms
+   ✓ PGlite socket > message ordering > assigns sequential positions and returns messages in that order 5216ms
+   ✓ PGlite socket > message ordering > updates a message in place without allocating a new position 4689ms
+   ✓ PGlite socket parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 4665ms
+   ✓ PGlite socket parity > create then get and list round-trip every conversation field 6977ms
+   ✓ PGlite socket parity > list is most-recently-updated first and counts messages 5083ms
+   ✓ PGlite socket parity > messages round-trip every stored field, in position order 3812ms
+   ✓ PGlite socket parity > a malformed events column reads as no events, not an error 5088ms
+   ✓ PGlite socket parity > appending an existing id updates it in place at the same position 5404ms
+   ✓ PGlite socket parity > appending bumps the conversation's updatedAt 4847ms
+   ✓ PGlite socket parity > rename: a generated title replaces a fallback one but never a manual one 3529ms
+   ✓ PGlite socket parity > touch bumps updatedAt and, when asked, the expiry 4324ms
+   ✓ PGlite socket parity > delete cascades to messages, agent sessions and tool approvals 4366ms
+   ✓ PGlite socket parity > another owner, workspace or owner kind sees nothing and changes nothing 3941ms
+   ✓ PGlite socket parity > appending an id that lives in another owner's chat never overwrites that row 3536ms
+   ✓ PGlite socket parity > an append inside a rolled-back transaction leaves nothing 5078ms
+   ✓ PGlite socket parity > concurrent appends to one chat get distinct, gap-free positions 4759ms
+   ✓ PGlite socket paging > provides bounded conversation and message reads on the owner-scoped store 4564ms
+   ✓ PGlite socket paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 4467ms
+   ✓ PGlite socket paging > orders different recencies descending and retains deleted anchor continuations 3596ms
+   ✓ PGlite socket paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 4512ms
+   ✓ PGlite socket paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 4599ms
+   ✓ PGlite socket paging > keeps message positions on updates and discovers append after a deleted anchor 4768ms
+   ✓ PGlite socket paging > unknown and other-owned message pages have exactly the same empty output 6012ms
+   ✓ PGlite socket paging > a page selects only limit plus one rows instead of loading the compatibility transcript 5480ms
+   ✓ PGlite socket additional invariants > copies the owner tuple so mutation cannot rebind a store 4904ms
+   ✓ PGlite socket additional invariants > duplicate creates hide the existing owner and preserve their causes 4643ms
+   ✓ PGlite socket additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 3997ms
+   ✓ PGlite socket additional invariants > malformed optional JSON leaves readable text and no damaged optional values 4395ms
+   ✓ PGlite socket additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 3858ms
+   ✓ PGlite socket transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 4683ms
+   ✓ PGlite socket transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 4142ms
+ ✓ src/store/__tests__/clock-methods.test.ts (3 tests) 187ms
+ ✓ src/store/__tests__/additional.test.ts (5 tests) 51ms
+ ✓ src/store/__tests__/sqlite.test.ts (19 tests) 129ms
+ ✓ src/store/__tests__/paging.test.ts (8 tests) 223ms
+ ✓ src/store/__tests__/parity.test.ts (14 tests) 281ms
+ ✓ src/store/__tests__/pglite.test.ts (51 tests) 168587ms
+   ✓ PGlite clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 6046ms
+   ✓ PGlite clock and object methods > applies the second paging bag and binds continuation to the owner 3360ms
+   ✓ PGlite clock and object methods > uses system wall time when no clock is supplied 3136ms
+   ✓ PGlite > cross-owner reads > returns null when another user fetches a chat by id 3085ms
+   ✓ PGlite > cross-owner reads > returns null across workspaces even for the same owner id 3049ms
+   ✓ PGlite > cross-owner reads > returns null across owner kinds even for the same owner id 3243ms
+   ✓ PGlite > cross-owner reads > omits other owners chats from list 3182ms
+   ✓ PGlite > cross-owner reads > returns no messages when another user asks for them 3476ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not delete another owners chat 2665ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not rename another owners chat 3243ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 3044ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 3560ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not touch another owners chat 3272ms
+   ✓ PGlite > append semantics > updates a message in place when the same id is appended again to the same chat 3114ms
+   ✓ PGlite > append semantics > keeps position stable across an in-place update 3239ms
+   ✓ PGlite > deletion > cascades to the conversation messages 3422ms
+   ✓ PGlite > title source > lets a generated title replace a fallback one 2989ms
+   ✓ PGlite > title source > never lets a generated title clobber a manual rename 3049ms
+   ✓ PGlite > retention sweep > deletes only expired rows and never touches never-expiring history 2899ms
+   ✓ PGlite > retention sweep > honours its chunk limit so one call cannot hold a long write lock 3150ms
+   ✓ PGlite > message ordering > assigns sequential positions and returns messages in that order 3840ms
+   ✓ PGlite > message ordering > updates a message in place without allocating a new position 3355ms
+   ✓ PGlite parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 2974ms
+   ✓ PGlite parity > create then get and list round-trip every conversation field 2389ms
+   ✓ PGlite parity > list is most-recently-updated first and counts messages 2581ms
+   ✓ PGlite parity > messages round-trip every stored field, in position order 2559ms
+   ✓ PGlite parity > a malformed events column reads as no events, not an error 2697ms
+   ✓ PGlite parity > appending an existing id updates it in place at the same position 3117ms
+   ✓ PGlite parity > appending bumps the conversation's updatedAt 2812ms
+   ✓ PGlite parity > rename: a generated title replaces a fallback one but never a manual one 3152ms
+   ✓ PGlite parity > touch bumps updatedAt and, when asked, the expiry 3503ms
+   ✓ PGlite parity > delete cascades to messages, agent sessions and tool approvals 3750ms
+   ✓ PGlite parity > another owner, workspace or owner kind sees nothing and changes nothing 2993ms
+   ✓ PGlite parity > appending an id that lives in another owner's chat never overwrites that row 3150ms
+   ✓ PGlite parity > an append inside a rolled-back transaction leaves nothing 3211ms
+   ✓ PGlite parity > concurrent appends to one chat get distinct, gap-free positions 3344ms
+   ✓ PGlite paging > provides bounded conversation and message reads on the owner-scoped store 2678ms
+   ✓ PGlite paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 3911ms
+   ✓ PGlite paging > orders different recencies descending and retains deleted anchor continuations 3604ms
+   ✓ PGlite paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 4129ms
+   ✓ PGlite paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 3822ms
+   ✓ PGlite paging > keeps message positions on updates and discovers append after a deleted anchor 3315ms
+   ✓ PGlite paging > unknown and other-owned message pages have exactly the same empty output 3159ms
+   ✓ PGlite paging > a page selects only limit plus one rows instead of loading the compatibility transcript 3673ms
+   ✓ PGlite additional invariants > copies the owner tuple so mutation cannot rebind a store 3782ms
+   ✓ PGlite additional invariants > duplicate creates hide the existing owner and preserve their causes 3249ms
+   ✓ PGlite additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 3481ms
+   ✓ PGlite additional invariants > malformed optional JSON leaves readable text and no damaged optional values 3252ms
+   ✓ PGlite additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 3637ms
+   ✓ PGlite transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 2887ms
+   ✓ PGlite transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 4331ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/dbpkg-chat-manifest.test.ts > publishes every isolated extraction entry with its browser or universal classification
+AssertionError: expected { react: '^18.3.0 || ^19.0.0', …(14) } to deeply equal { react: '^18.3.0 || ^19.0.0', …(14) }
+
+- Expected
++ Received
+
+  Object {
+    "@ag-ui/core": "0.0.58",
+    "@electric-sql/pglite": "0.5.8",
+-   "@jini-ai/agent-runtime": "^0.6.10",
+-   "@jini-ai/protocol": "^0.6.10",
+-   "@jini-ai/ui": "^0.6.10",
++   "@jini-ai/agent-runtime": "^0.7.0",
++   "@jini-ai/protocol": "^0.7.0",
++   "@jini-ai/ui": "^0.7.0",
+    "@mcp-ui/client": "7.1.1",
+    "@radix-ui/react-checkbox": "^1.3.11",
+    "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-radio-group": "^1.4.7",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-slot": "^1.3.3",
+    "better-sqlite3": "^13.0.0",
+    "pg": "^8.23.0",
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+  }
+
+ ❯ src/__tests__/dbpkg-chat-manifest.test.ts:32:37
+     30|     '@jini-ai/ui': '^0.6.10',
+     31|   };
+     32|   expect(manifest.peerDependencies).toEqual(expectedPeers);
+       |                                     ^
+     33|   expect(manifest.peerDependenciesMeta).toEqual(
+     34|     Object.fromEntries(Object.keys(expectedPeers).map(name => [name, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/store/__tests__/manifest.test.ts > makes every SQL, React and surface-card UI peer optional, with one pinned dev Kysely and PGlite
+AssertionError: expected { react: '^18.3.0 || ^19.0.0', …(14) } to deeply equal { 'better-sqlite3': '^13.0.0', …(14) }
+
+- Expected
++ Received
+
+  Object {
+    "@ag-ui/core": "0.0.58",
+    "@electric-sql/pglite": "0.5.8",
+-   "@jini-ai/agent-runtime": "^0.6.10",
+-   "@jini-ai/protocol": "^0.6.10",
+-   "@jini-ai/ui": "^0.6.10",
++   "@jini-ai/agent-runtime": "^0.7.0",
++   "@jini-ai/protocol": "^0.7.0",
++   "@jini-ai/ui": "^0.7.0",
+    "@mcp-ui/client": "7.1.1",
+    "@radix-ui/react-checkbox": "^1.3.11",
+    "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-radio-group": "^1.4.7",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-slot": "^1.3.3",
+    "better-sqlite3": "^13.0.0",
+    "pg": "^8.23.0",
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+  }
+
+ ❯ src/store/__tests__/manifest.test.ts:21:36
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx > useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass
+AssertionError: expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+- Expected: 
+/streaming/
+
++ Received: 
+"cannot send: A reply is still running. Stop it first."
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx:183:5
+    181|     await waitFor(() => expect(pane().conversation.isStreaming).toBe(t…
+    182| 
+    183|     await expect(
+       |     ^
+    184|       context.tools.get('chat.send_message')?.execute({ prompt: 'secon…
+    185|     ).rejects.toThrow(/streaming/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  3 failed | 292 passed | 1 skipped (296)
+      Tests  3 failed | 4369 passed | 1 skipped (4373)
+   Start at  00:31:45
+   Duration  944.91s (transform 16.02s, setup 43.65s, collect 117.38s, tests 552.00s, environment 80.32s, prepare 26.05s)
+
+JSON report written to /tmp/claude-0/cov/jini/chat.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.93% ( 4884/4887 )
+Branches     : 99.22% ( 2938/2961 )
+Functions    : 100% ( 487/487 )
+Lines        : 99.93% ( 4884/4887 )
+================================================================================
+chat exit 1 947s

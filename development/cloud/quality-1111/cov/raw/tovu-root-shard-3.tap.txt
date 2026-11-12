@@ -47,3 +47,2287 @@ ok 8 - public widget accent override beats the later injected user-bubble defaul
   duration_ms: 1033.884682
   type: 'test'
   ...
+# Subtest: a throwing helper teardown no longer skips a later helper's server close
+ok 9 - a throwing helper teardown no longer skips a later helper's server close
+  ---
+  duration_ms: 6.810484
+  type: 'test'
+  ...
+# Subtest: several teardown failures are all reported
+ok 10 - several teardown failures are all reported
+  ---
+  duration_ms: 0.462711
+  type: 'test'
+  ...
+# Subtest: a real test context runs queued steps in one hook when the subtest ends
+    # Subtest: helper user
+    ok 1 - helper user
+      ---
+      duration_ms: 8.975622
+      type: 'test'
+      ...
+    1..1
+ok 11 - a real test context runs queued steps in one hook when the subtest ends
+  ---
+  duration_ms: 9.364973
+  type: 'test'
+  ...
+# Subtest: frontend owner uses verified proxy principal and the originating tab
+ok 12 - frontend owner uses verified proxy principal and the originating tab
+  ---
+  duration_ms: 2.133208
+  type: 'test'
+  ...
+# Subtest: frontend streams use the same tab identity as response requests
+ok 13 - frontend streams use the same tab identity as response requests
+  ---
+  duration_ms: 0.297401
+  type: 'test'
+  ...
+# Subtest: missing principal, ambiguous tab and missing tab never create an owner
+ok 14 - missing principal, ambiguous tab and missing tab never create an owner
+  ---
+  duration_ms: 0.226618
+  type: 'test'
+  ...
+# Subtest: run binding uses the server-stamped principal and current tab, refusing malformed context
+ok 15 - run binding uses the server-stamped principal and current tab, refusing malformed context
+  ---
+  duration_ms: 0.217668
+  type: 'test'
+  ...
+# Subtest: human approval asking stays in the shared owner and its named host transports
+ok 16 - human approval asking stays in the shared owner and its named host transports
+  ---
+  duration_ms: 26537.897228
+  type: 'test'
+  ...
+# Subtest: the automatic plugin renderer exception does not permit other choice approval calls
+ok 17 - the automatic plugin renderer exception does not permit other choice approval calls
+  ---
+  duration_ms: 0.839755
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: Auto preflight delivers full primary guidance once before guarded writes
+ok 18 - Auto preflight delivers full primary guidance once before guarded writes
+  ---
+  duration_ms: 139.864858
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: pending Ask use: real recovery replaces the attempt without another card
+ok 19 - pending Ask use: real recovery replaces the attempt without another card
+  ---
+  duration_ms: 87.076523
+  type: 'test'
+  ...
+# Subtest: pending Ask use: process loss ends the turn and honours a late answer
+ok 20 - pending Ask use: process loss ends the turn and honours a late answer
+  ---
+  duration_ms: 52.303692
+  type: 'test'
+  ...
+# Subtest: pending Ask skip: real recovery replaces the attempt without another card
+ok 21 - pending Ask skip: real recovery replaces the attempt without another card
+  ---
+  duration_ms: 83.457369
+  type: 'test'
+  ...
+# Subtest: pending Ask skip: process loss ends the turn and honours a late answer
+ok 22 - pending Ask skip: process loss ends the turn and honours a late answer
+  ---
+  duration_ms: 195.830067
+  type: 'test'
+  ...
+# Subtest: controller identity binds principal and conversation; disposal removes every attempt alias
+ok 23 - controller identity binds principal and conversation; disposal removes every attempt alias
+  ---
+  duration_ms: 275.32912
+  type: 'test'
+  ...
+# Subtest: Don't ask again writes Auto only for the answering principal through the real setting service
+ok 24 - Don't ask again writes Auto only for the answering principal through the real setting service
+  ---
+  duration_ms: 48.017115
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: CLI onStarted retains the Codex prompt carrier and explicit reads stay complete
+ok 25 - CLI onStarted retains the Codex prompt carrier and explicit reads stay complete
+  ---
+  duration_ms: 885.18287
+  type: 'test'
+  ...
+# Subtest: CLI preflight preserves the answer receipt channel in the durable run stream
+ok 26 - CLI preflight preserves the answer receipt channel in the durable run stream
+  ---
+  duration_ms: 543.685216
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: load_agent_plugin carries maturity untested
+ok 27 - load_agent_plugin carries maturity untested
+  ---
+  duration_ms: 74.61534
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity soon
+ok 28 - load_agent_plugin carries maturity soon
+  ---
+  duration_ms: 48.877263
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity (absent)
+ok 29 - load_agent_plugin carries maturity (absent)
+  ---
+  duration_ms: 57.91463
+  type: 'test'
+  ...
+# Subtest: automatic tool guidance warns before actions for an untested plugin
+ok 30 - automatic tool guidance warns before actions for an untested plugin
+  ---
+  duration_ms: 29.898451
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor
+ok 31 - load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor
+  ---
+  duration_ms: 174.920401
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: inactive plugin returns setup guidance and the activation call while tools remain off
+ok 32 - inactive plugin returns setup guidance and the activation call while tools remain off
+  ---
+  duration_ms: 817.581371
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: the first theme write loads installed tovu-theme after a note-only preflight
+ok 33 - the first theme write loads installed tovu-theme after a note-only preflight
+  ---
+  duration_ms: 97.785169
+  type: 'test'
+  ...
+# Subtest: the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance
+ok 34 - the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance
+  ---
+  duration_ms: 43.945704
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: 50 relevant ids are discoverable by paging the existing search tool and all load through the executor
+ok 35 - 50 relevant ids are discoverable by paging the existing search tool and all load through the executor
+  ---
+  duration_ms: 21209.303505
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse ask through the real executor
+ok 36 - explicit loader and guarded write refuse ask through the real executor
+  ---
+  duration_ms: 57.584499
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse off through the real executor
+ok 37 - explicit loader and guarded write refuse off through the real executor
+  ---
+  duration_ms: 28.790898
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse untrusted through the real executor
+ok 38 - explicit loader and guarded write refuse untrusted through the real executor
+  ---
+  duration_ms: 80.745582
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse unavailable through the real executor
+ok 39 - explicit loader and guarded write refuse unavailable through the real executor
+  ---
+  duration_ms: 93.62118
+  type: 'test'
+  ...
+# Subtest: a turn whose signal is already aborted registers no controller and returns no note
+ok 40 - a turn whose signal is already aborted registers no controller and returns no note
+  ---
+  duration_ms: 34.075506
+  type: 'test'
+  ...
+# Subtest: a tool without guidance capabilities loads no plugin guidance
+ok 41 - a tool without guidance capabilities loads no plugin guidance
+  ---
+  duration_ms: 43.529656
+  type: 'test'
+  ...
+# Subtest: a failing guidance preparation is logged without detail and yields no guidance
+ok 42 - a failing guidance preparation is logged without detail and yields no guidance
+  ---
+  duration_ms: 79.537521
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin refuses unknown input keys
+ok 43 - load_agent_plugin refuses unknown input keys
+  ---
+  duration_ms: 57.453341
+  type: 'test'
+  ...
+# Subtest: a disposed Ask turn publishes nothing after its pending question is aborted
+ok 44 - a disposed Ask turn publishes nothing after its pending question is aborted
+  ---
+  duration_ms: 62.584593
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin reads a supporting file after load without any per-plugin registration
+ok 45 - load_agent_plugin reads a supporting file after load without any per-plugin registration
+  ---
+  duration_ms: 104.255925
+  type: 'test'
+  ...
+# Subtest: pending plugin use cannot override a newer personal Off preference
+ok 46 - pending plugin use cannot override a newer personal Off preference
+  ---
+  duration_ms: 47.346582
+  type: 'test'
+  ...
+# Subtest: pending plugin auto cannot override a newer personal Off preference
+ok 47 - pending plugin auto cannot override a newer personal Off preference
+  ---
+  duration_ms: 111.624228
+  type: 'test'
+  ...
+# Subtest: automatic plugin access rechecks the real active person after the answer
+ok 48 - automatic plugin access rechecks the real active person after the answer
+  ---
+  duration_ms: 27.336797
+  type: 'test'
+  ...
+# Subtest: a real Auto CAS failure after the post-card read retains no consent on the same controller
+ok 49 - a real Auto CAS failure after the post-card read retains no consent on the same controller
+  ---
+  duration_ms: 116.107713
+  type: 'test'
+  ...
+# Subtest: fresh child reads complete guidance after parent pinned delivery
+ok 50 - fresh child reads complete guidance after parent pinned delivery
+  ---
+  duration_ms: 119.770824
+  type: 'test'
+  ...
+# Subtest: fresh child reads complete guidance after parent explicit delivery
+ok 51 - fresh child reads complete guidance after parent explicit delivery
+  ---
+  duration_ms: 124.460439
+  type: 'test'
+  ...
+# Subtest: replacement preflight retains the exact prepared bytes without another resolution
+ok 52 - replacement preflight retains the exact prepared bytes without another resolution
+  ---
+  duration_ms: 463.990067
+  type: 'test'
+  ...
+# Subtest: a rejected preflight promise is cleared so the same turn can retry
+ok 53 - a rejected preflight promise is cleared so the same turn can retry
+  ---
+  duration_ms: 50.687481
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false)
+ok 54 - accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=false)
+  ---
+  duration_ms: 875.376753
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: accepted adapter prompt budget preserves preflight delivery (claude, pinned=false)
+ok 55 - accepted adapter prompt budget preserves preflight delivery (claude, pinned=false)
+  ---
+  duration_ms: 711.163746
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true)
+ok 56 - accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true)
+  ---
+  duration_ms: 746.402221
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: preflight carries only delivered plugin ids through real RPC (automatic)
+ok 57 - preflight carries only delivered plugin ids through real RPC (automatic)
+  ---
+  duration_ms: 1051.318219
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: preflight carries only delivered plugin ids through real RPC (pinned)
+ok 58 - preflight carries only delivered plugin ids through real RPC (pinned)
+  ---
+  duration_ms: 1387.924447
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: preflight carries only delivered plugin ids through real RPC (pinned-off)
+ok 59 - preflight carries only delivered plugin ids through real RPC (pinned-off)
+  ---
+  duration_ms: 405.826206
+  type: 'test'
+  ...
+# Subtest: later chat turns retain delivered IDs without repeating primary text
+ok 60 - later chat turns retain delivered IDs without repeating primary text
+  ---
+  duration_ms: 149.416421
+  type: 'test'
+  ...
+# Subtest: BYOK: site_describe_capabilities lists every tool this surface's describe_tool resolves, and only those
+ok 61 - BYOK: site_describe_capabilities lists every tool this surface's describe_tool resolves, and only those
+  ---
+  duration_ms: 390.913326
+  type: 'test'
+  ...
+# Subtest: BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader
+ok 62 - BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader
+  ---
+  duration_ms: 112.856059
+  type: 'test'
+  ...
+# Subtest: t02: content_read.content_post accepts optional query/status/fields from the list schema
+ok 63 - t02: content_read.content_post accepts optional query/status/fields from the list schema
+  ---
+  duration_ms: 606.501945
+  type: 'test'
+  ...
+# Subtest: t02: content_read.content_post forwards query/fields/status unchanged to list when id is absent
+ok 64 - t02: content_read.content_post forwards query/fields/status unchanged to list when id is absent
+  ---
+  duration_ms: 331.499311
+  type: 'test'
+  ...
+# Subtest: t02: present id still selects get rather than list with the new optional fields
+ok 65 - t02: present id still selects get rather than list with the new optional fields
+  ---
+  duration_ms: 514.475465
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: t10 credential_save ranks top 3 for credential setup requests
+ok 66 - t10 credential_save ranks top 3 for credential setup requests
+  ---
+  duration_ms: 1021.470268
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: t10 deployment_ops_set_secret ranks top 3 for credential setup requests
+ok 67 - t10 deployment_ops_set_secret ranks top 3 for credential setup requests
+  ---
+  duration_ms: 570.191159
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: t10 media_list_providers ranks top 3 for credential setup requests
+ok 68 - t10 media_list_providers ranks top 3 for credential setup requests
+  ---
+  duration_ms: 897.518933
+  type: 'test'
+  ...
+# (node:19048) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:19048) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: bundled keywords are read only on first search use and then reused on both indexing paths
+ok 69 - bundled keywords are read only on first search use and then reused on both indexing paths
+  ---
+  duration_ms: 531.230324
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [assistant-byok] mcp-federation: 'tovu-desktop' registered 1 federated tool(s): mcp__tovu-desktop__list_sites
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'add_site_pointer' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'reveal_site_folder' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# Subtest: desktop tools work without keyring or stored row
+ok 70 - desktop tools work without keyring or stored row
+  ---
+  duration_ms: 1053.623434
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [assistant-byok] mcp-federation: 'tovu-desktop' registered 1 federated tool(s): mcp__tovu-desktop__list_sites
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'add_site_pointer' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'reveal_site_folder' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'unrelated' failed, continuing without its tools — Error: stored stdio fixture
+#     at federationConnect (/home/user/Tovu/apps/website/src/assistant/__tests__/desktop-mcp-runtime.integration.test.ts:27:101)
+#     at connect (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:199:34)
+#     at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:300:21)
+#     at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:199:28)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+#     at async attachFederatedMcpTools (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:18)
+#     at async runStart (/home/user/Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:138:24)
+#     at async Object.readFederationAdmissions (/home/user/Tovu/apps/website/src/assistant/byok-tool-surface.ts:699:5)
+#     at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/desktop-mcp-runtime.integration.test.ts:51:20)
+#     at async Test.run (node:internal/test_runner/test:1409:7)
+# Subtest: legacy managed connection is not admitted twice
+ok 71 - legacy managed connection is not admitted twice
+  ---
+  duration_ms: 454.330337
+  type: 'test'
+  ...
+# Subtest: runtime bearer is scoped to the exact owner endpoint and removed from child environment
+ok 72 - runtime bearer is scoped to the exact owner endpoint and removed from child environment
+  ---
+  duration_ms: 320.255815
+  type: 'test'
+  ...
+# Subtest: a web server never launches the retired desktop bridge without a spawning main
+ok 73 - a web server never launches the retired desktop bridge without a spawning main
+  ---
+  duration_ms: 335.560037
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: only the spawning main can complete an initial handoff and its endpoint cannot be replaced
+ok 74 - only the spawning main can complete an initial handoff and its endpoint cannot be replaced
+  ---
+  duration_ms: 564.346127
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [assistant-byok] mcp-federation: 'tovu-desktop' registered 1 federated tool(s): mcp__tovu-desktop__list_sites
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'add_site_pointer' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'reveal_site_folder' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# Subtest: listener recovery after a cold server start admits the desktop preset without manual action
+ok 75 - listener recovery after a cold server start admits the desktop preset without manual action
+  ---
+  duration_ms: 548.577316
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'add_site_pointer' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'reveal_site_folder' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'add_site_pointer' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'tovu-desktop' allowlists 'reveal_site_folder' but the server never advertised it — check the allowlist for a typo, or the server's --features
+# [assistant-byok] mcp-federation: 'tovu-desktop' registered 1 federated tool(s): mcp__tovu-desktop__list_sites
+# [assistant-byok] mcp-federation: 'tovu-desktop' registered 1 federated tool(s): mcp__tovu-desktop__list_sites
+# Subtest: owner restart recovers without manual action
+ok 76 - owner restart recovers without manual action
+  ---
+  duration_ms: 1011.974883
+  type: 'test'
+  ...
+# Subtest: stored config preserves plugin provenance for roster resolution
+ok 77 - stored config preserves plugin provenance for roster resolution
+  ---
+  duration_ms: 22.390711
+  type: 'test'
+  ...
+# Subtest: read defaults match both normalized server identity and exact URL, never only URL
+ok 78 - read defaults match both normalized server identity and exact URL, never only URL
+  ---
+  duration_ms: 7.196166
+  type: 'test'
+  ...
+# Subtest: each roster read loads the current manifest; URL-only servers never receive read metadata
+ok 79 - each roster read loads the current manifest; URL-only servers never receive read metadata
+  ---
+  duration_ms: 99.592662
+  type: 'test'
+  ...
+# Subtest: plugin resolution failure grants no read metadata and preserves the unrelated roster
+ok 80 - plugin resolution failure grants no read metadata and preserves the unrelated roster
+  ---
+  duration_ms: 135.273603
+  type: 'test'
+  ...
+# Subtest: a read-only manifest does not enable the plugin or change grants on first sign-in
+ok 81 - a read-only manifest does not enable the plugin or change grants on first sign-in
+  ---
+  duration_ms: 2.585147
+  type: 'test'
+  ...
+# Plugin 'read-plugin' has no publisher-qualified id; using 'unknown/read-plugin'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: real manifest resolver grants only a build-seeded plugin at the exact endpoint
+ok 82 - real manifest resolver grants only a build-seeded plugin at the exact endpoint
+  ---
+  duration_ms: 254.153916
+  type: 'test'
+  ...
+# Subtest: without an injected resolver the real manifest lookup runs and an unseeded plugin gets no read names
+ok 83 - without an injected resolver the real manifest lookup runs and an unseeded plugin gets no read names
+  ---
+  duration_ms: 4.085534
+  type: 'test'
+  ...
+# Subtest: a plugin resolver throwing an Error logs the server and the failure detail
+ok 84 - a plugin resolver throwing an Error logs the server and the failure detail
+  ---
+  duration_ms: 4.611474
+  type: 'test'
+  ...
+# Subtest: a plugin resolver throwing a non-Error value logs the server and the failure detail
+ok 85 - a plugin resolver throwing a non-Error value logs the server and the failure detail
+  ---
+  duration_ms: 3.605547
+  type: 'test'
+  ...
+# Subtest: a roster read rejecting with a non-Error value logs it and resolves to no connections
+ok 86 - a roster read rejecting with a non-Error value logs it and resolves to no connections
+  ---
+  duration_ms: 2.356793
+  type: 'test'
+  ...
+# Subtest: a plugin-provisioned stdio server is never sent to manifest resolution
+ok 87 - a plugin-provisioned stdio server is never sent to manifest resolution
+  ---
+  duration_ms: 4.89479
+  type: 'test'
+  ...
+# Subtest: no capability reaching createFrontendControl requires confirmation
+ok 88 - no capability reaching createFrontendControl requires confirmation
+  ---
+  duration_ms: 2.336111
+  type: 'test'
+  ...
+# Subtest: all seven chat.* verbs are present, including chat.reset_conversation
+ok 89 - all seven chat.* verbs are present, including chat.reset_conversation
+  ---
+  duration_ms: 0.32273
+  type: 'test'
+  ...
+# Subtest: chat.reset_conversation is present, self-confirmed via inputSchema, and requires no confirmation transport
+ok 90 - chat.reset_conversation is present, self-confirmed via inputSchema, and requires no confirmation transport
+  ---
+  duration_ms: 0.319321
+  type: 'test'
+  ...
+# Subtest: page.* capabilities are still present alongside the chat verbs
+ok 91 - page.* capabilities are still present alongside the chat verbs
+  ---
+  duration_ms: 65.236698
+  type: 'test'
+  ...
+# Subtest: page clicks use the server chat-card exchange without requiring a second browser dialog
+ok 92 - page clicks use the server chat-card exchange without requiring a second browser dialog
+  ---
+  duration_ms: 0.219469
+  type: 'test'
+  ...
+# Subtest: admin.publish_content is registered, a write, session-scoped, and requires no confirmation transport
+ok 93 - admin.publish_content is registered, a write, session-scoped, and requires no confirmation transport
+  ---
+  duration_ms: 0.12971
+  type: 'test'
+  ...
+# Subtest: admin.capture_screenshot is registered, read-only, session-scoped, and states its fidelity limits
+ok 94 - admin.capture_screenshot is registered, read-only, session-scoped, and states its fidelity limits
+  ---
+  duration_ms: 0.353257
+  type: 'test'
+  ...
+# Subtest: createFrontendControl registers exactly the seven chat.* verbs as callable tools, plus page.*, and no confirming tool
+ok 95 - createFrontendControl registers exactly the seven chat.* verbs as callable tools, plus page.*, and no confirming tool
+  ---
+  duration_ms: 0.68648
+  type: 'test'
+  ...
+# Subtest: only page.find_elements, admin.capture_screenshot and chat.get_state are registered read-only
+ok 96 - only page.find_elements, admin.capture_screenshot and chat.get_state are registered read-only
+  ---
+  duration_ms: 0.446028
+  type: 'test'
+  ...
+# Subtest: marking read-only projects domain metadata and keeps each registration's handler and policy
+ok 97 - marking read-only projects domain metadata and keeps each registration's handler and policy
+  ---
+  duration_ms: 0.334429
+  type: 'test'
+  ...
+# Subtest: chat.get_state is read-only while chat.send_message is not
+ok 98 - chat.get_state is read-only while chat.send_message is not
+  ---
+  duration_ms: 0.18101
+  type: 'test'
+  ...
+# [agent-daemon] mcp-federation: 'hosted-vendor' registered 1 federated tool(s): mcp__hosted-vendor__ping
+# [agent-daemon] mcp-federation: 'namecom' failed, continuing without its tools — Error: connect timed out after 15000ms
+#     at connect (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-federation.bootstrap.test.ts:212:13)
+#     at connect (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:199:34)
+#     at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:300:21)
+#     at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:199:28)
+#     at attachFederatedMcpTools (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:24)
+#     at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-federation.bootstrap.test.ts:207:24)
+#     at async Test.run (node:internal/test_runner/test:1409:7)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+# Subtest: attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+ok 99 - attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+  ---
+  duration_ms: 447.245341
+  type: 'test'
+  ...
+# Subtest: createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailableError prevents any spawn and is reported through logger.warn
+ok 100 - createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailableError prevents any spawn and is reported through logger.warn
+  ---
+  duration_ms: 8.443502
+  type: 'test'
+  ...
+# Subtest: a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+ok 101 - a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+  ---
+  duration_ms: 13.594316
+  type: 'test'
+  ...
+# Subtest: createDefaultConnect: a resolved stdio launch is handed to the injected spawnChannel, and a channel that closes fails only that connection
+ok 102 - createDefaultConnect: a resolved stdio launch is handed to the injected spawnChannel, and a channel that closes fails only that connection
+  ---
+  duration_ms: 5.735057
+  type: 'test'
+  ...
+# Subtest: attachFederatedMcpTools without a logger reports through the console with the agent-daemon prefix
+ok 103 - attachFederatedMcpTools without a logger reports through the console with the agent-daemon prefix
+  ---
+  duration_ms: 8.202083
+  type: 'test'
+  ...
+# Subtest: the handshake sends initialize first, then notifications/initialized with no id
+ok 104 - the handshake sends initialize first, then notifications/initialized with no id
+  ---
+  duration_ms: 2.80695
+  type: 'test'
+  ...
+# Subtest: initialize advertises no client capabilities, so the remote may not ask Tovu to do anything
+ok 105 - initialize advertises no client capabilities, so the remote may not ask Tovu to do anything
+  ---
+  duration_ms: 1.143293
+  type: 'test'
+  ...
+# Subtest: a server that never answers initialize fails the connect rather than hanging, and the channel is closed
+ok 106 - a server that never answers initialize fails the connect rather than hanging, and the channel is closed
+  ---
+  duration_ms: 143.676252
+  type: 'test'
+  ...
+# Subtest: a server that rejects initialize with a JSON-RPC error surfaces that error
+ok 107 - a server that rejects initialize with a JSON-RPC error surfaces that error
+  ---
+  duration_ms: 1.716863
+  type: 'test'
+  ...
+# Subtest: tools/list is drained across cursor pagination
+ok 108 - tools/list is drained across cursor pagination
+  ---
+  duration_ms: 1.315846
+  type: 'test'
+  ...
+# Subtest: a server paginating forever is cut off rather than spinning the daemon's boot
+ok 109 - a server paginating forever is cut off rather than spinning the daemon's boot
+  ---
+  duration_ms: 1.526148
+  type: 'test'
+  ...
+# Subtest: annotations are carried through verbatim, so the trust tier can see what the remote claimed
+ok 110 - annotations are carried through verbatim, so the trust tier can see what the remote claimed
+  ---
+  duration_ms: 0.497225
+  type: 'test'
+  ...
+# Subtest: a malformed tool entry is dropped without costing the operator every other tool on the server
+ok 111 - a malformed tool entry is dropped without costing the operator every other tool on the server
+  ---
+  duration_ms: 0.453204
+  type: 'test'
+  ...
+# Subtest: tools/call sends the remote's own name and arguments, and returns its content
+ok 112 - tools/call sends the remote's own name and arguments, and returns its content
+  ---
+  duration_ms: 0.983084
+  type: 'test'
+  ...
+# Subtest: a remote's own isError claim is reported, not swallowed
+ok 113 - a remote's own isError claim is reported, not swallowed
+  ---
+  duration_ms: 0.552082
+  type: 'test'
+  ...
+# Subtest: an aborted call rejects instead of leaving the caller waiting on a remote that may never answer
+ok 114 - an aborted call rejects instead of leaving the caller waiting on a remote that may never answer
+  ---
+  duration_ms: 0.545988
+  type: 'test'
+  ...
+# Subtest: a pre-aborted stdio call sends no tools/call frame
+ok 115 - a pre-aborted stdio call sends no tools/call frame
+  ---
+  duration_ms: 1.007332
+  type: 'test'
+  ...
+# Subtest: a late reply to a timed-out request never resolves a different, later call
+ok 116 - a late reply to a timed-out request never resolves a different, later call
+  ---
+  duration_ms: 31.141842
+  type: 'test'
+  ...
+# Subtest: a duplicate reply to an already-settled id is ignored rather than throwing
+ok 117 - a duplicate reply to an already-settled id is ignored rather than throwing
+  ---
+  duration_ms: 0.869069
+  type: 'test'
+  ...
+# Subtest: non-JSON banner noise on the stream is dropped, not treated as a protocol failure
+ok 118 - non-JSON banner noise on the stream is dropped, not treated as a protocol failure
+  ---
+  duration_ms: 11.029885
+  type: 'test'
+  ...
+# Subtest: the channel dying mid-flight rejects every in-flight request instead of hanging forever
+ok 119 - the channel dying mid-flight rejects every in-flight request instead of hanging forever
+  ---
+  duration_ms: 0.856586
+  type: 'test'
+  ...
+# Subtest: an unsolicited server request (sampling/createMessage) is refused with method-not-found, never honoured
+ok 120 - an unsolicited server request (sampling/createMessage) is refused with method-not-found, never honoured
+  ---
+  duration_ms: 0.584901
+  type: 'test'
+  ...
+# Subtest: a tools/list_changed notification is ignored — the admitted set is frozen at connect (trust.ts R5)
+ok 121 - a tools/list_changed notification is ignored — the admitted set is frozen at connect (trust.ts R5)
+  ---
+  duration_ms: 0.222551
+  type: 'test'
+  ...
+# Subtest: close() shuts the channel down and makes further calls fail fast
+ok 122 - close() shuts the channel down and makes further calls fail fast
+  ---
+  duration_ms: 0.243214
+  type: 'test'
+  ...
+# Subtest: real stdout framing reassembles a split reply and drains two replies in one write
+ok 123 - real stdout framing reassembles a split reply and drains two replies in one write
+  ---
+  duration_ms: 96.904295
+  type: 'test'
+  ...
+# Subtest: real stdout framing closes on an unterminated message over the 4 MiB cap
+ok 124 - real stdout framing closes on an unterminated message over the 4 MiB cap
+  ---
+  duration_ms: 574.687189
+  type: 'test'
+  ...
+# Subtest: real round trip: an mcp-ui submission of assistant_ask_choice's form is redeemed, not refused as unallowlisted
+ok 125 - real round trip: an mcp-ui submission of assistant_ask_choice's form is redeemed, not refused as unallowlisted
+  ---
+  duration_ms: 263.547121
+  type: 'test'
+  ...
+# Subtest: secret-card POSTs only answer a principal-bound open exchange and never execute a fresh tool
+ok 126 - secret-card POSTs only answer a principal-bound open exchange and never execute a fresh tool
+  ---
+  duration_ms: 606.22147
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: every way an operator asks to look at an image ranks media_view_image in the top 3 of the real catalog
+ok 127 - every way an operator asks to look at an image ranks media_view_image in the top 3 of the real catalog
+  ---
+  duration_ms: 642.460432
+  type: 'test'
+  ...
+# Subtest: the authenticated owner sees every supported permanent delete even when the site grant is off
+ok 128 - the authenticated owner sees every supported permanent delete even when the site grant is off
+  ---
+  duration_ms: 6.658877
+  type: 'test'
+  ...
+# Subtest: non-owners and missing identities retain the explicit grant and cannot inherit an owner run
+ok 129 - non-owners and missing identities retain the explicit grant and cannot inherit an owner run
+  ---
+  duration_ms: 0.89913
+  type: 'test'
+  ...
+# Subtest: owner lookup errors fail closed instead of granting deletion
+ok 130 - owner lookup errors fail closed instead of granting deletion
+  ---
+  duration_ms: 8.92283
+  type: 'test'
+  ...
+# Subtest: a valid stored grant is returned as a copy, read from this workspace's own setting
+ok 131 - a valid stored grant is returned as a copy, read from this workspace's own setting
+  ---
+  duration_ms: 0.622015
+  type: 'test'
+  ...
+# Subtest: absent or malformed stored grants deny
+ok 132 - absent or malformed stored grants deny
+  ---
+  duration_ms: 0.524312
+  type: 'test'
+  ...
+# Subtest: settings that are not ready propagate instead of granting
+ok 133 - settings that are not ready propagate instead of granting
+  ---
+  duration_ms: 0.270982
+  type: 'test'
+  ...
+# [plugin-enable-test] mcp-federation: 'media' registered 1 federated tool(s): mcp__media__read
+# Subtest: approved plugin grants hot-reload through the real host policy; writes run and permanent deletes still ask
+ok 134 - approved plugin grants hot-reload through the real host policy; writes run and permanent deletes still ask
+  ---
+  duration_ms: 13.480681
+  type: 'test'
+  ...
+# [plugin-enable-test] mcp-federation: 'media' refused remote tool 'generate' — not-in-operator-allowlist
+# [plugin-enable-test] mcp-federation: 'media' refused remote tool 'delete_image' — not-in-operator-allowlist
+# Subtest: registers unconditionally — no environment can switch this tool off
+ok 135 - registers unconditionally — no environment can switch this tool off
+  ---
+  duration_ms: 3.481937
+  type: 'test'
+  ...
+# Subtest: the tool description says a drawing may land on the screen's canvas, not only in the chat
+ok 136 - the tool description says a drawing may land on the screen's canvas, not only in the chat
+  ---
+  duration_ms: 0.413971
+  type: 'test'
+  ...
+# Subtest: returns rendered: true when nothing reports a refusal
+ok 137 - returns rendered: true when nothing reports a refusal
+  ---
+  duration_ms: 19.271324
+  type: 'test'
+  ...
+# Subtest: a button action during the grace period is not a renderer refusal
+ok 138 - a button action during the grace period is not a renderer refusal
+  ---
+  duration_ms: 1.130239
+  type: 'test'
+  ...
+# Subtest: returns rendered: false with the real reason when the browser relays a catalog-validation refusal — not a silent false success
+ok 139 - returns rendered: false with the real reason when the browser relays a catalog-validation refusal — not a silent false success
+  ---
+  duration_ms: 10.440769
+  type: 'test'
+  ...
+# Subtest: with the production grace period, a relayed non-refusal answer settles the call at once as rendered
+ok 140 - with the production grace period, a relayed non-refusal answer settles the call at once as rendered
+  ---
+  duration_ms: 3.108889
+  type: 'test'
+  ...
+# Subtest: falls back to a generic detail string when the relayed refusal carries no string error.message
+ok 141 - falls back to a generic detail string when the relayed refusal carries no string error.message
+  ---
+  duration_ms: 1.682694
+  type: 'test'
+  ...
+# Subtest: without a live surface channel nothing is opened and the call says why
+ok 142 - without a live surface channel nothing is opened and the call says why
+  ---
+  duration_ms: 0.453021
+  type: 'test'
+  ...
+# Subtest: a component list the A2UI schema refuses is reported as schema-rejected, not drawn
+ok 143 - a component list the A2UI schema refuses is reported as schema-rejected, not drawn
+  ---
+  duration_ms: 1.411354
+  type: 'test'
+  ...
+# Subtest: an input without components is treated as an empty list, which the A2UI schema refuses
+ok 144 - an input without components is treated as an empty list, which the A2UI schema refuses
+  ---
+  duration_ms: 0.405286
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: system_read_server_logs is registered and found for recent-error questions
+ok 145 - system_read_server_logs is registered and found for recent-error questions
+  ---
+  duration_ms: 841.223688
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: theme_duplicate is registered in the real catalog and ranks top-3 for operator phrasings
+ok 146 - theme_duplicate is registered in the real catalog and ranks top-3 for operator phrasings
+  ---
+  duration_ms: 751.41343
+  type: 'test'
+  ...
+# Subtest: BYOK: search_tools finds theme_duplicate and describe_tool returns its registered schema
+ok 147 - BYOK: search_tools finds theme_duplicate and describe_tool returns its registered schema
+  ---
+  duration_ms: 120.914395
+  type: 'test'
+  ...
+# Subtest: search finds a tool by an id-term match
+ok 148 - search finds a tool by an id-term match
+  ---
+  duration_ms: 122.868459
+  type: 'test'
+  ...
+# Subtest: search ranks a tool matching more query terms above one matching fewer
+ok 149 - search ranks a tool matching more query terms above one matching fewer
+  ---
+  duration_ms: 1.527679
+  type: 'test'
+  ...
+# Subtest: search returns an empty array, not an error, for no matches
+ok 150 - search returns an empty array, not an error, for no matches
+  ---
+  duration_ms: 5.289887
+  type: 'test'
+  ...
+# Subtest: search respects the limit parameter
+ok 151 - search respects the limit parameter
+  ---
+  duration_ms: 1.67313
+  type: 'test'
+  ...
+# Subtest: search derives 'source' from the id's domain prefix
+ok 152 - search derives 'source' from the id's domain prefix
+  ---
+  duration_ms: 5.904907
+  type: 'test'
+  ...
+# Subtest: every hit carries a positive score
+ok 153 - every hit carries a positive score
+  ---
+  duration_ms: 1.323249
+  type: 'test'
+  ...
+# Subtest: describe returns the full entry including inputSchema for a known id
+ok 154 - describe returns the full entry including inputSchema for a known id
+  ---
+  duration_ms: 1.423734
+  type: 'test'
+  ...
+# Subtest: describe returns null, not throws, for an unknown id
+ok 155 - describe returns null, not throws, for an unknown id
+  ---
+  duration_ms: 5.305098
+  type: 'test'
+  ...
+# Subtest: describe content_read lists only registered cards and their first authored sentence
+ok 156 - describe content_read lists only registered cards and their first authored sentence
+  ---
+  duration_ms: 2.19124
+  type: 'test'
+  ...
+# Subtest: a family without registered cards is absent; a card without prose still has a purpose
+ok 157 - a family without registered cards is absent; a card without prose still has a purpose
+  ---
+  duration_ms: 5.968691
+  type: 'test'
+  ...
+# Subtest: describe omits inputSchema for a descriptor that declared none
+ok 158 - describe omits inputSchema for a descriptor that declared none
+  ---
+  duration_ms: 1.033049
+  type: 'test'
+  ...
+# Subtest: an empty registry seeds an empty, non-throwing catalog
+ok 159 - an empty registry seeds an empty, non-throwing catalog
+  ---
+  duration_ms: 0.933381
+  type: 'test'
+  ...
+# Subtest: search vocabulary makes a tool findable by a word its authored description never contains
+ok 160 - search vocabulary makes a tool findable by a word its authored description never contains
+  ---
+  duration_ms: 5.397357
+  type: 'test'
+  ...
+# Subtest: no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description
+ok 161 - no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description
+  ---
+  duration_ms: 1.342351
+  type: 'test'
+  ...
+# Subtest: a descriptor with no description at all seeds an empty string, both with and without keyword folding
+ok 162 - a descriptor with no description at all seeds an empty string, both with and without keyword folding
+  ---
+  duration_ms: 10.240153
+  type: 'test'
+  ...
+# Subtest: an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu'
+ok 163 - an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu'
+  ---
+  duration_ms: 1.268538
+  type: 'test'
+  ...
+# Subtest: includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index
+ok 164 - includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index
+  ---
+  duration_ms: 1.935969
+  type: 'test'
+  ...
+# Subtest: a tool with no keyword entry is untouched, and the seam can disable folding entirely
+ok 165 - a tool with no keyword entry is untouched, and the seam can disable folding entirely
+  ---
+  duration_ms: 5.949886
+  type: 'test'
+  ...
+# Subtest: a finished principal's disposable tool catalog releases its search database
+ok 166 - a finished principal's disposable tool catalog releases its search database
+  ---
+  duration_ms: 1.43428
+  type: 'test'
+  ...
+# Subtest: owner_guide_never_infers_missing_grants
+ok 167 - owner_guide_never_infers_missing_grants # SKIP
+  ---
+  duration_ms: 15.41607
+  type: 'test'
+  ...
+# Subtest: expired_confirmation_is_not_reissued
+ok 168 - expired_confirmation_is_not_reissued # SKIP
+  ---
+  duration_ms: 0.252947
+  type: 'test'
+  ...
+# Subtest: database: exactly the 8 wireable entries are registered
+ok 169 - database: exactly the 8 wireable entries are registered
+  ---
+  duration_ms: 14.641751
+  type: 'test'
+  ...
+# Subtest: recovery: exactly the 6 wireable entries are registered, PLUS backup_create_restore_point shows up here too by id membership only — it is Database's handler, not Recovery's own (see the dedicated collision test below)
+ok 170 - recovery: exactly the 6 wireable entries are registered, PLUS backup_create_restore_point shows up here too by id membership only — it is Database's handler, not Recovery's own (see the dedicated collision test below)
+  ---
+  duration_ms: 3.465644
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+ok 171 - database_execute_migrate_forward is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+  ---
+  duration_ms: 2.807853
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+ok 172 - backup_execute_restore is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+  ---
+  duration_ms: 1.718869
+  type: 'test'
+  ...
+# Subtest: the human-confirmer guard itself refuses a plain handler for a confirmer-must-equal-own-delegatedBy tool, given a matching risk classification
+ok 173 - the human-confirmer guard itself refuses a plain handler for a confirmer-must-equal-own-delegatedBy tool, given a matching risk classification
+  ---
+  duration_ms: 0.397927
+  type: 'test'
+  ...
+# Subtest: migrate-forward and restore are the only execute tools here, and each says the user confirms first
+ok 174 - migrate-forward and restore are the only execute tools here, and each says the user confirms first
+  ---
+  duration_ms: 9.646148
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point is registered exactly ONCE across the whole assistant tool set, despite being catalogued in both Database and Recovery
+ok 175 - backup_create_restore_point is registered exactly ONCE across the whole assistant tool set, despite being catalogued in both Database and Recovery
+  ---
+  duration_ms: 1.344042
+  type: 'test'
+  ...
+# Subtest: every wired database/recovery registration publishes its catalog entry's inputSchema and description verbatim
+ok 176 - every wired database/recovery registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 4.723053
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired database/recovery tool — the execute tools ask inside their own handler
+ok 177 - requiresConfirmation is unset on every wired database/recovery tool — the execute tools ask inside their own handler
+  ---
+  duration_ms: 3.214622
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for every wired database/recovery tool
+ok 178 - the independent risk classification agrees with the catalog for every wired database/recovery tool
+  ---
+  duration_ms: 3.833277
+  type: 'test'
+  ...
+# Subtest: a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build
+ok 179 - a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build
+  ---
+  duration_ms: 0.192209
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired database/recovery registration
+ok 180 - the ToolPolicy layer is a pass-through 'allow' for every wired database/recovery registration
+  ---
+  duration_ms: 6.709076
+  type: 'test'
+  ...
+# Subtest: every wired database/recovery tool has a known input fixture — a newly wired tool must be added here, not silently skipped
+ok 181 - every wired database/recovery tool has a known input fixture — a newly wired tool must be added here, not silently skipped
+  ---
+  duration_ms: 5.09838
+  type: 'test'
+  ...
+# Subtest: database_query_timeline: calls authorize() with its catalog's declared permission and the run's principal
+ok 182 - database_query_timeline: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 3.858725
+  type: 'test'
+  ...
+# Subtest: database_query_timeline: a denied principal is rejected and nothing is written
+ok 183 - database_query_timeline: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 31.830851
+  type: 'test'
+  ...
+# Subtest: content_read.database_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+ok 184 - content_read.database_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 3.918909
+  type: 'test'
+  ...
+# Subtest: content_read.database_restore_point: a denied principal is rejected and nothing is written
+ok 185 - content_read.database_restore_point: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 4.913342
+  type: 'test'
+  ...
+# Subtest: database_plan_migrate_forward: calls authorize() with its catalog's declared permission and the run's principal
+ok 186 - database_plan_migrate_forward: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 4.431795
+  type: 'test'
+  ...
+# Subtest: database_plan_migrate_forward: a denied principal is rejected and nothing is written
+ok 187 - database_plan_migrate_forward: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 3.738916
+  type: 'test'
+  ...
+# Subtest: database_get_health: calls authorize() with its catalog's declared permission and the run's principal
+ok 188 - database_get_health: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 3.127088
+  type: 'test'
+  ...
+# Subtest: database_get_health: a denied principal is rejected and nothing is written
+ok 189 - database_get_health: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 7.183026
+  type: 'test'
+  ...
+# Subtest: database_get_schema_state: calls authorize() with its catalog's declared permission and the run's principal
+ok 190 - database_get_schema_state: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.399457
+  type: 'test'
+  ...
+# Subtest: database_get_schema_state: a denied principal is rejected and nothing is written
+ok 191 - database_get_schema_state: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 11.672773
+  type: 'test'
+  ...
+# Subtest: content_read.database_pending_migration: calls authorize() with its catalog's declared permission and the run's principal
+ok 192 - content_read.database_pending_migration: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.558479
+  type: 'test'
+  ...
+# Subtest: content_read.database_pending_migration: a denied principal is rejected and nothing is written
+ok 193 - content_read.database_pending_migration: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 3.753179
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+ok 194 - backup_create_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 3.60551
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point: a denied principal is rejected and nothing is written
+ok 195 - backup_create_restore_point: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 3.764324
+  type: 'test'
+  ...
+# Subtest: content_read.backup_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+ok 196 - content_read.backup_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.346629
+  type: 'test'
+  ...
+# Subtest: content_read.backup_restore_point: a denied principal is rejected and nothing is written
+ok 197 - content_read.backup_restore_point: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 2.255665
+  type: 'test'
+  ...
+# Subtest: backup_get_capabilities: calls authorize() with its catalog's declared permission and the run's principal
+ok 198 - backup_get_capabilities: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.472883
+  type: 'test'
+  ...
+# Subtest: backup_get_capabilities: a denied principal is rejected and nothing is written
+ok 199 - backup_get_capabilities: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 9.510389
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: calls authorize() with its catalog's declared permission and the run's principal
+ok 200 - backup_plan_restore: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 4.478666
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: a denied principal is rejected and nothing is written
+ok 201 - backup_plan_restore: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 4.360862
+  type: 'test'
+  ...
+# Subtest: recovery_get_status: calls authorize() with its catalog's declared permission and the run's principal
+ok 202 - recovery_get_status: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.866464
+  type: 'test'
+  ...
+# Subtest: recovery_get_status: a denied principal is rejected and nothing is written
+ok 203 - recovery_get_status: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 2.040086
+  type: 'test'
+  ...
+# Subtest: recovery_resolve_deep_link: calls authorize() with its catalog's declared permission and the run's principal
+ok 204 - recovery_resolve_deep_link: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.801248
+  type: 'test'
+  ...
+# Subtest: recovery_resolve_deep_link: a denied principal is rejected and nothing is written
+ok 205 - recovery_resolve_deep_link: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 2.301802
+  type: 'test'
+  ...
+# Subtest: database_query_timeline / backup_list_restore_points / plugins-style reads: a denial throws core/commands's ForbiddenError specifically (no gateway involved)
+ok 206 - database_query_timeline / backup_list_restore_points / plugins-style reads: a denial throws core/commands's ForbiddenError specifically (no gateway involved)
+  ---
+  duration_ms: 5.434795
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point: authorize() runs before any write
+ok 207 - backup_create_restore_point: authorize() runs before any write
+  ---
+  duration_ms: 4.74311
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: authorize() is checked twice — once defensively by this tool ahead of planRestore's own cost-class short-circuit, once again inside the gateway's plan() — both agree
+ok 208 - backup_plan_restore: authorize() is checked twice — once defensively by this tool ahead of planRestore's own cost-class short-circuit, once again inside the gateway's plan() — both agree
+  ---
+  duration_ms: 3.630444
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: an unknown restorePointId is rejected with a ToolInputError naming it, not passed through to planRestore
+ok 209 - backup_plan_restore: an unknown restorePointId is rejected with a ToolInputError naming it, not passed through to planRestore
+  ---
+  duration_ms: 9.15298
+  type: 'test'
+  ...
+# Subtest: database_get_health returns exactly what routeDeps.databaseIntrospection.getHealth() returns
+ok 210 - database_get_health returns exactly what routeDeps.databaseIntrospection.getHealth() returns
+  ---
+  duration_ms: 2.033898
+  type: 'test'
+  ...
+# Subtest: database_get_schema_state returns exactly what routeDeps.databaseIntrospection.getSchemaState() returns
+ok 211 - database_get_schema_state returns exactly what routeDeps.databaseIntrospection.getSchemaState() returns
+  ---
+  duration_ms: 6.250682
+  type: 'test'
+  ...
+# Subtest: database_list_pending_migrations returns exactly what routeDeps.databaseIntrospection.listPendingMigrations() returns
+ok 212 - database_list_pending_migrations returns exactly what routeDeps.databaseIntrospection.listPendingMigrations() returns
+  ---
+  duration_ms: 2.26449
+  type: 'test'
+  ...
+# Subtest: database_get_health / database_get_schema_state / database_list_pending_migrations all reject a populated input — they are parameterless tools
+ok 213 - database_get_health / database_get_schema_state / database_list_pending_migrations all reject a populated input — they are parameterless tools
+  ---
+  duration_ms: 10.621515
+  type: 'test'
+  ...
+# Subtest: timeline, capabilities, recovery status and deep links return the adapter state
+ok 214 - timeline, capabilities, recovery status and deep links return the adapter state
+  ---
+  duration_ms: 4.408295
+  type: 'test'
+  ...
+# Subtest: workflow (Database only): database_plan_migrate_forward's reported cost class feeds backup_create_restore_point's costAck, then database_list_restore_points confirms the new point
+ok 215 - workflow (Database only): database_plan_migrate_forward's reported cost class feeds backup_create_restore_point's costAck, then database_list_restore_points confirms the new point
+  ---
+  duration_ms: 5.977826
+  type: 'test'
+  ...
+# Subtest: workflow (Database create -> Recovery list -> Recovery plan): a restore point minted via Database is visible and previewable through Recovery, using the exact id each step handed to the next
+ok 216 - workflow (Database create -> Recovery list -> Recovery plan): a restore point minted via Database is visible and previewable through Recovery, using the exact id each step handed to the next
+  ---
+  duration_ms: 2.426841
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore applies the selected artifact only after confirmation
+ok 217 - backup_execute_restore applies the selected artifact only after confirmation
+  ---
+  duration_ms: 37.593607
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: the human confirms in the dialog, then it runs
+ok 218 - database_execute_migrate_forward: the human confirms in the dialog, then it runs
+  ---
+  duration_ms: 76.170564
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: the human cancels — notConfirmedResult comes back and nothing runs
+ok 219 - database_execute_migrate_forward: the human cancels — notConfirmedResult comes back and nothing runs
+  ---
+  duration_ms: 187.136645
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+ok 220 - database_execute_migrate_forward: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+  ---
+  duration_ms: 8.686013
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: a click from anyone but the delegating human is refused and leaves the dialog waiting
+ok 221 - database_execute_migrate_forward: a click from anyone but the delegating human is refused and leaves the dialog waiting
+  ---
+  duration_ms: 21.55323
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: a denied principal is refused before any dialog is shown
+ok 222 - database_execute_migrate_forward: a denied principal is refused before any dialog is shown
+  ---
+  duration_ms: 1.937351
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: the human confirms in the dialog, then it runs
+ok 223 - backup_execute_restore: the human confirms in the dialog, then it runs
+  ---
+  duration_ms: 23.351906
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: the human cancels — notConfirmedResult comes back and nothing runs
+ok 224 - backup_execute_restore: the human cancels — notConfirmedResult comes back and nothing runs
+  ---
+  duration_ms: 36.918145
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+ok 225 - backup_execute_restore: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+  ---
+  duration_ms: 2.369847
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: a click from anyone but the delegating human is refused and leaves the dialog waiting
+ok 226 - backup_execute_restore: a click from anyone but the delegating human is refused and leaves the dialog waiting
+  ---
+  duration_ms: 24.031091
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: a denied principal is refused before any dialog is shown
+ok 227 - backup_execute_restore: a denied principal is refused before any dialog is shown
+  ---
+  duration_ms: 1.734786
+  type: 'test'
+  ...
+# Subtest: owner-approved Members create/profile tools are wired alongside the existing roster tools
+ok 228 - owner-approved Members create/profile tools are wired alongside the existing roster tools
+  ---
+  duration_ms: 13.812011
+  type: 'test'
+  ...
+# Subtest: billing and consent transitions remain absent after the approved profile addition
+ok 229 - billing and consent transitions remain absent after the approved profile addition
+  ---
+  duration_ms: 3.484196
+  type: 'test'
+  ...
+# Subtest: every wired Members registration publishes its catalog entry's inputSchema and description
+ok 230 - every wired Members registration publishes its catalog entry's inputSchema and description
+  ---
+  duration_ms: 4.316924
+  type: 'test'
+  ...
+# Subtest: the real Members catalog and tool-registrations' independent risk classification agree
+ok 231 - the real Members catalog and tool-registrations' independent risk classification agree
+  ---
+  duration_ms: 2.250363
+  type: 'test'
+  ...
+# Subtest: a Members catalog entry cannot downgrade its own risk
+ok 232 - a Members catalog entry cannot downgrade its own risk
+  ---
+  duration_ms: 0.619064
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every Members registration
+ok 233 - the ToolPolicy layer is a pass-through 'allow' for every Members registration
+  ---
+  duration_ms: 2.153453
+  type: 'test'
+  ...
+# Subtest: members_list: authorize() is called with 'member.manage', no entityId
+ok 234 - members_list: authorize() is called with 'member.manage', no entityId
+  ---
+  duration_ms: 4.058564
+  type: 'test'
+  ...
+# Subtest: members_list: a denied caller is refused and gets no rows back
+ok 235 - members_list: a denied caller is refused and gets no rows back
+  ---
+  duration_ms: 2.683918
+  type: 'test'
+  ...
+# Subtest: members_get_by_id: authorize() is called with entityId set to the requested member
+ok 236 - members_get_by_id: authorize() is called with entityId set to the requested member
+  ---
+  duration_ms: 2.123272
+  type: 'test'
+  ...
+# Subtest: members_get_by_id: an unknown member id throws ToolInputError('MEMBERS_NOT_FOUND: ...'), not a silent null
+ok 237 - members_get_by_id: an unknown member id throws ToolInputError('MEMBERS_NOT_FOUND: ...'), not a silent null
+  ---
+  duration_ms: 3.367242
+  type: 'test'
+  ...
+# Subtest: members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view
+ok 238 - members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view
+  ---
+  duration_ms: 2.142863
+  type: 'test'
+  ...
+# Subtest: members_list: afterId and limit are threaded through from tool input when provided
+ok 239 - members_list: afterId and limit are threaded through from tool input when provided
+  ---
+  duration_ms: 2.057652
+  type: 'test'
+  ...
+# Subtest: members_disable: a denied caller is refused and the member is left unchanged
+ok 240 - members_disable: a denied caller is refused and the member is left unchanged
+  ---
+  duration_ms: 2.036403
+  type: 'test'
+  ...
+# Subtest: members_disable: authorize() runs before the write, and disabling revokes every live session
+ok 241 - members_disable: authorize() runs before the write, and disabling revokes every live session
+  ---
+  duration_ms: 3.242619
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: authorize() is checked strictly BEFORE the rate limiter is consulted (INV-NEW-03) — a denied call spends no rate-limit budget
+ok 242 - members_request_magic_link: authorize() is checked strictly BEFORE the rate limiter is consulted (INV-NEW-03) — a denied call spends no rate-limit budget
+  ---
+  duration_ms: 10.670405
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: delivers {delivered:true} for a valid email and sends mail
+ok 243 - members_request_magic_link: delivers {delivered:true} for a valid email and sends mail
+  ---
+  duration_ms: 103.317929
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: a unknown email reports the actual send to the operator
+ok 244 - members_request_magic_link: a unknown email reports the actual send to the operator
+  ---
+  duration_ms: 135.817148
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: a disabled email reports the actual send to the operator
+ok 245 - members_request_magic_link: a disabled email reports the actual send to the operator
+  ---
+  duration_ms: 47.962034
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: a string redirectPath in the input is threaded through to the write service
+ok 246 - members_request_magic_link: a string redirectPath in the input is threaded through to the write service
+  ---
+  duration_ms: 142.612631
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after
+ok 247 - members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after
+  ---
+  duration_ms: 300.269427
+  type: 'test'
+  ...
+# Subtest: workflow: members_list -> members_get_by_id -> members_disable chains correctly and leaves consistent state
+ok 248 - workflow: members_list -> members_get_by_id -> members_disable chains correctly and leaves consistent state
+  ---
+  duration_ms: 7.898028
+  type: 'test'
+  ...
+# Subtest: exactly the 6 wireable redirects entries plus redirects_import are registered — nothing else
+ok 249 - exactly the 6 wireable redirects entries plus redirects_import are registered — nothing else
+  ---
+  duration_ms: 16.052235
+  type: 'test'
+  ...
+# Subtest: redirects_import is agent-callable across the whole assistant tool set
+ok 250 - redirects_import is agent-callable across the whole assistant tool set
+  ---
+  duration_ms: 5.056029
+  type: 'test'
+  ...
+# Subtest: every wired redirects registration publishes its catalog entry's inputSchema and description verbatim
+ok 251 - every wired redirects registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 3.600332
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired redirects tool
+ok 252 - requiresConfirmation is unset on every wired redirects tool
+  ---
+  duration_ms: 1.455988
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for every wired redirects tool
+ok 253 - the independent risk classification agrees with the catalog for every wired redirects tool
+  ---
+  duration_ms: 2.157468
+  type: 'test'
+  ...
+# Subtest: a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build
+ok 254 - a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build
+  ---
+  duration_ms: 0.613753
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired redirects registration
+ok 255 - the ToolPolicy layer is a pass-through 'allow' for every wired redirects registration
+  ---
+  duration_ms: 29.182809
+  type: 'test'
+  ...
+# Subtest: content_read.redirect: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 256 - content_read.redirect: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 2.826559
+  type: 'test'
+  ...
+# Subtest: content_read.redirect: a denied principal is rejected and nothing is written
+ok 257 - content_read.redirect: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 7.631151
+  type: 'test'
+  ...
+# Subtest: redirects_update: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 258 - redirects_update: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 10.782929
+  type: 'test'
+  ...
+# Subtest: redirects_update: a denied principal is rejected and nothing is written
+ok 259 - redirects_update: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 2.942157
+  type: 'test'
+  ...
+# Subtest: redirects_get_hits: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 260 - redirects_get_hits: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 4.323696
+  type: 'test'
+  ...
+# Subtest: redirects_get_hits: a denied principal is rejected and nothing is written
+ok 261 - redirects_get_hits: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.732348
+  type: 'test'
+  ...
+# Subtest: redirects_create: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 262 - redirects_create: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 1.965393
+  type: 'test'
+  ...
+# Subtest: redirects_create: a denied principal is rejected and nothing is written
+ok 263 - redirects_create: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.60184
+  type: 'test'
+  ...
+# Subtest: redirects_import: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 264 - redirects_import: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 4.949959
+  type: 'test'
+  ...
+# Subtest: redirects_import: a denied principal is rejected and nothing is written
+ok 265 - redirects_import: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.522722
+  type: 'test'
+  ...
+# Subtest: redirects_get: an unknown id reaches the model as its not-found message
+ok 266 - redirects_get: an unknown id reaches the model as its not-found message
+  ---
+  duration_ms: 1.595278
+  type: 'test'
+  ...
+# Subtest: redirects_create: rejects matchType 'regex' the same way the chokepoint does
+ok 267 - redirects_create: rejects matchType 'regex' the same way the chokepoint does
+  ---
+  duration_ms: 1.625193
+  type: 'test'
+  ...
+# Subtest: redirects_import: rejects a non-array 'rules' with the exact validation text, before any write
+ok 268 - redirects_import: rejects a non-array 'rules' with the exact validation text, before any write
+  ---
+  duration_ms: 1.662102
+  type: 'test'
+  ...
+# Subtest: redirects_import: rejects an empty 'rules' array with the exact validation text
+ok 269 - redirects_import: rejects an empty 'rules' array with the exact validation text
+  ---
+  duration_ms: 1.908667
+  type: 'test'
+  ...
+# Subtest: redirects_import: rejects a batch over 500 rules with the exact validation text
+ok 270 - redirects_import: rejects a batch over 500 rules with the exact validation text
+  ---
+  duration_ms: 2.021413
+  type: 'test'
+  ...
+# Subtest: redirects_import: a non-object rule entry is refused by index, not silently coerced
+ok 271 - redirects_import: a non-object rule entry is refused by index, not silently coerced
+  ---
+  duration_ms: 1.32942
+  type: 'test'
+  ...
+# Subtest: redirects_import: a per-rule failure (duplicate fromPattern) does NOT abort the rest of the batch — mixed created/failed in one response
+ok 272 - redirects_import: a per-rule failure (duplicate fromPattern) does NOT abort the rest of the batch — mixed created/failed in one response
+  ---
+  duration_ms: 5.474096
+  type: 'test'
+  ...
+# Subtest: redirects_import: every created row is source:'import', distinguishable from a manual redirects_create row
+ok 273 - redirects_import: every created row is source:'import', distinguishable from a manual redirects_create row
+  ---
+  duration_ms: 2.194171
+  type: 'test'
+  ...
+# Subtest: redirects_import: every row lands under the caller's real workspace and actor, not per-row input — mirrors redirects_create's attribution
+ok 274 - redirects_import: every row lands under the caller's real workspace and actor, not per-row input — mirrors redirects_create's attribution
+  ---
+  duration_ms: 1.816638
+  type: 'test'
+  ...
+# Subtest: workflow: create a redirect, update it, tombstone it — state stays consistent at every step
+ok 275 - workflow: create a redirect, update it, tombstone it — state stays consistent at every step
+  ---
+  duration_ms: 34.936316
+  type: 'test'
+  ...
+# Subtest: redirects_get_hits selects the requested redirect's counts
+ok 276 - redirects_get_hits selects the requested redirect's counts
+  ---
+  duration_ms: 14.599993
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: overwrites a diverged live file with the catalog's original bytes
+ok 277 - theme_reset_file: overwrites a diverged live file with the catalog's original bytes
+  ---
+  duration_ms: 26.871769
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false
+ok 278 - theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false
+  ---
+  duration_ms: 16.313591
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a CRLF-only difference from an LF original counts as modified, and the LF bytes are restored
+ok 279 - theme_reset_file: a CRLF-only difference from an LF original counts as modified, and the LF bytes are restored
+  ---
+  duration_ms: 6.717874
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then compares unmodified
+ok 280 - theme_reset_file: restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then compares unmodified
+  ---
+  duration_ms: 7.585192
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a file over the 1 MB text-read limit resets to its exact bytes, and content is null
+ok 281 - theme_reset_file: a file over the 1 MB text-read limit resets to its exact bytes, and content is null
+  ---
+  duration_ms: 148.563984
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true
+ok 282 - theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true
+  ---
+  duration_ms: 8.961967
+  type: 'test'
+  ...
+# Subtest: theme_reset_file's description states the unmodified-file no-op, and no longer claims there is no modified check
+ok 283 - theme_reset_file's description states the unmodified-file no-op, and no longer claims there is no modified check
+  ---
+  duration_ms: 0.622538
+  type: 'test'
+  ...
+# Subtest: theme_reset_file's search keywords carry modified/changed vocabulary
+ok 284 - theme_reset_file's search keywords carry modified/changed vocabulary
+  ---
+  duration_ms: 0.349177
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a theme with no stored original at all is refused, and nothing is touched
+ok 285 - theme_reset_file: a theme with no stored original at all is refused, and nothing is touched
+  ---
+  duration_ms: 8.758992
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a theme with no site original resets from the package's read-only catalog via packageThemesDir, byte for byte
+ok 286 - theme_reset_file: a theme with no site original resets from the package's read-only catalog via packageThemesDir, byte for byte
+  ---
+  duration_ms: 13.58097
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a file the author added after install has no catalog counterpart and is refused
+ok 287 - theme_reset_file: a file the author added after install has no catalog counterpart and is refused
+  ---
+  duration_ms: 13.543216
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a built theme's generated-readonly file is refused outright — no whole-tree revert is offered here
+ok 288 - theme_reset_file: a built theme's generated-readonly file is refused outright — no whole-tree revert is offered here
+  ---
+  duration_ms: 6.482983
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a path inside .trash/ is refused — restore it first
+ok 289 - theme_reset_file: a path inside .trash/ is refused — restore it first
+  ---
+  duration_ms: 3.237744
+  type: 'test'
+  ...
+# Subtest: theme_reset_file refuses when authorize() denies, and never touches disk
+ok 290 - theme_reset_file refuses when authorize() denies, and never touches disk
+  ---
+  duration_ms: 3.062455
+  type: 'test'
+  ...
+# Subtest: theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched
+ok 291 - theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched
+  ---
+  duration_ms: 3.546176
+  type: 'test'
+  ...
+# Subtest: theme_reset_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling
+ok 292 - theme_reset_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling
+  ---
+  duration_ms: 6.584424
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a theme whose original is a different layout version refuses theme.json, and the live manifest keeps apiVersion 2
+ok 293 - theme_reset_file: a theme whose original is a different layout version refuses theme.json, and the live manifest keeps apiVersion 2
+  ---
+  duration_ms: 3.208465
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: duplicates a file under the next available name, byte-for-byte
+ok 294 - theme_copy_file: duplicates a file under the next available name, byte-for-byte
+  ---
+  duration_ms: 4.299541
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: when 'name-1' is already taken, the collision loop runs again and lands on '-2'
+ok 295 - theme_copy_file: when 'name-1' is already taken, the collision loop runs again and lands on '-2'
+  ---
+  duration_ms: 9.178527
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: a source path that does not exist in the theme is refused
+ok 296 - theme_copy_file: a source path that does not exist in the theme is refused
+  ---
+  duration_ms: 14.273361
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: a built theme's generated-readonly file is refused
+ok 297 - theme_copy_file: a built theme's generated-readonly file is refused
+  ---
+  duration_ms: 10.207184
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: a path inside .trash/ is refused — copying a trashed file would be a second, unaudited way out of the trash
+ok 298 - theme_copy_file: a path inside .trash/ is refused — copying a trashed file would be a second, unaudited way out of the trash
+  ---
+  duration_ms: 2.915245
+  type: 'test'
+  ...
+# Subtest: theme_copy_file refuses when authorize() denies, and never touches disk
+ok 299 - theme_copy_file refuses when authorize() denies, and never touches disk
+  ---
+  duration_ms: 4.529273
+  type: 'test'
+  ...
+# Subtest: theme_copy_file refuses a ../ escape into a sibling theme's folder, and creates nothing there
+ok 300 - theme_copy_file refuses a ../ escape into a sibling theme's folder, and creates nothing there
+  ---
+  duration_ms: 3.433618
+  type: 'test'
+  ...
+# Subtest: theme_copy_file refreshes the live routeDeps.themes entry, and the copy shows up in a subsequent listing
+ok 301 - theme_copy_file refreshes the live routeDeps.themes entry, and the copy shows up in a subsequent listing
+  ---
+  duration_ms: 6.53412
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin actions discover page tools before the fallback; explicit links discover the link tool
+ok 302 - admin actions discover page tools before the fallback; explicit links discover the link tool
+  ---
+  duration_ms: 612.115081
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: 'copy this theme file' ranks the actual theme_copy_file tool first in the full catalog
+ok 303 - 'copy this theme file' ranks the actual theme_copy_file tool first in the full catalog
+  ---
+  duration_ms: 1108.362965
+  type: 'test'
+  ...
+# Subtest: listed tools are read-only without hints; an unlisted remote read hint cannot grant descriptor readOnly
+ok 304 - listed tools are read-only without hints; an unlisted remote read hint cannot grant descriptor readOnly
+  ---
+  duration_ms: 7.14063
+  type: 'test'
+  ...
+# Subtest: a fresh roster admission drops readOnly when the remote contradicts the read list, and ordinary writes run without confirmation
+ok 305 - a fresh roster admission drops readOnly when the remote contradicts the read list, and ordinary writes run without confirmation
+  ---
+  duration_ms: 1.51361
+  type: 'test'
+  ...
+# Subtest: operator read metadata cannot bypass the separate admission allowlist
+ok 306 - operator read metadata cannot bypass the separate admission allowlist
+  ---
+  duration_ms: 0.591198
+  type: 'test'
+  ...
+# Subtest: a reviewed read with a query input runs without a card, while a contradictory read hint removes descriptor readOnly
+ok 307 - a reviewed read with a query input runs without a card, while a contradictory read hint removes descriptor readOnly
+  ---
+  duration_ms: 1.132047
+  type: 'test'
+  ...
+# Subtest: conversation tool approval store [sqlite]
+    # Subtest: has is false until granted, then true for the exact fingerprint only
+    ok 1 - has is false until granted, then true for the exact fingerprint only
+      ---
+      duration_ms: 19.140322
+      type: 'test'
+      ...
+    # Subtest: native identity lookup survives another chat and revokes with the granting chat
+    ok 2 - native identity lookup survives another chat and revokes with the granting chat
+      ---
+      duration_ms: 9.006877
+      type: 'test'
+      ...
+    # Subtest: every key part scopes the approval
+    ok 3 - every key part scopes the approval
+      ---
+      duration_ms: 10.479258
+      type: 'test'
+      ...
+    # Subtest: a regrant replaces the fingerprint and time in the one row
+    ok 4 - a regrant replaces the fingerprint and time in the one row
+      ---
+      duration_ms: 10.618846
+      type: 'test'
+      ...
+    # Subtest: two different tools in one chat retain independent approval rows
+    ok 5 - two different tools in one chat retain independent approval rows
+      ---
+      duration_ms: 29.677303
+      type: 'test'
+      ...
+    # Subtest: grant throws for a conversation that does not exist; deleting a chat deletes its approvals
+    ok 6 - grant throws for a conversation that does not exist; deleting a chat deletes its approvals
+      ---
+      duration_ms: 7.135432
+      type: 'test'
+      ...
+    # Subtest: a grant inside a rolled-back transaction leaves nothing
+    ok 7 - a grant inside a rolled-back transaction leaves nothing
+      ---
+      duration_ms: 2.110842
+      type: 'test'
+      ...
+    # Subtest: concurrent grants of one key leave exactly one row
+    ok 8 - concurrent grants of one key leave exactly one row
+      ---
+      duration_ms: 7.824796
+      type: 'test'
+      ...
+    1..8
+ok 308 - conversation tool approval store [sqlite]
+  ---
+  duration_ms: 97.751219
+  type: 'suite'
+  ...
+# Subtest: conversation tool approval store [pglite]
+    # Subtest: has is false until granted, then true for the exact fingerprint only
+    ok 1 - has is false until granted, then true for the exact fingerprint only
+      ---
+      duration_ms: 8460.867229
+      type: 'test'
+      ...
+    # Subtest: native identity lookup survives another chat and revokes with the granting chat
+    ok 2 - native identity lookup survives another chat and revokes with the granting chat
+      ---
+      duration_ms: 74.26296
+      type: 'test'
+      ...
+    # Subtest: every key part scopes the approval
+    ok 3 - every key part scopes the approval
+      ---
+      duration_ms: 37.591884
+      type: 'test'
+      ...
+    # Subtest: a regrant replaces the fingerprint and time in the one row
+    ok 4 - a regrant replaces the fingerprint and time in the one row
+      ---
+      duration_ms: 27.961622
+      type: 'test'
+      ...
+    # Subtest: two different tools in one chat retain independent approval rows
+    ok 5 - two different tools in one chat retain independent approval rows
+      ---
+      duration_ms: 19.550634
+      type: 'test'
+      ...
+    # Subtest: grant throws for a conversation that does not exist; deleting a chat deletes its approvals
+    ok 6 - grant throws for a conversation that does not exist; deleting a chat deletes its approvals
+      ---
+      duration_ms: 15.728661
+      type: 'test'
+      ...
+    # Subtest: a grant inside a rolled-back transaction leaves nothing
+    ok 7 - a grant inside a rolled-back transaction leaves nothing
+      ---
+      duration_ms: 24.152325
+      type: 'test'
+      ...
+    # Subtest: concurrent grants of one key leave exactly one row
+    ok 8 - concurrent grants of one key leave exactly one row
+      ---
+      duration_ms: 45.595551
+      type: 'test'
+      ...
+    1..8
+ok 309 - conversation tool approval store [pglite]
+  ---
+  duration_ms: 8720.347427
+  type: 'suite'
+  ...
+# Subtest: hashSessionKey
+    # Subtest: returns the sha256 hex digest of the raw session key
+    ok 1 - returns the sha256 hex digest of the raw session key
+      ---
+      duration_ms: 1.001045
+      type: 'test'
+      ...
+    # Subtest: is deterministic for the same input
+    ok 2 - is deterministic for the same input
+      ---
+      duration_ms: 0.182444
+      type: 'test'
+      ...
+    # Subtest: produces different digests for different inputs
+    ok 3 - produces different digests for different inputs
+      ---
+      duration_ms: 0.120771
+      type: 'test'
+      ...
+    1..3
+ok 310 - hashSessionKey
+  ---
+  duration_ms: 2.608195
+  type: 'suite'
+  ...
+# Subtest: createTenantScopedChatStore
+    # Subtest: scopes an admin principal's rows by workspaceId, owner_kind='user', and the raw userId
+    ok 1 - scopes an admin principal's rows by workspaceId, owner_kind='user', and the raw userId
+      ---
+      duration_ms: 30.205745
+      type: 'test'
+      ...
+    # Subtest: scopes a guest principal's rows by owner_kind='guest' and the HASHED session key, never the raw cookie
+    ok 2 - scopes a guest principal's rows by owner_kind='guest' and the HASHED session key, never the raw cookie
+      ---
+      duration_ms: 2.754221
+      type: 'test'
+      ...
+    # Subtest: keeps two different owners' histories independent on the same db
+    ok 3 - keeps two different owners' histories independent on the same db
+      ---
+      duration_ms: 3.791032
+      type: 'test'
+      ...
+    1..3
+ok 311 - createTenantScopedChatStore
+  ---
+  duration_ms: 37.092954
+  type: 'suite'
+  ...
+# Subtest: chatExpiryFor
+    # Subtest: returns undefined for an admin principal — retained indefinitely
+    ok 1 - returns undefined for an admin principal — retained indefinitely
+      ---
+      duration_ms: 0.349583
+      type: 'test'
+      ...
+    # Subtest: retains guest chats for exactly two days
+    ok 2 - retains guest chats for exactly two days
+      ---
+      duration_ms: 0.176546
+      type: 'test'
+      ...
+    # Subtest: defaults `now` to Date.now() when omitted
+    ok 3 - defaults `now` to Date.now() when omitted
+      ---
+      duration_ms: 0.242384
+      type: 'test'
+      ...
+    1..3
+ok 312 - chatExpiryFor
+  ---
+  duration_ms: 0.933216
+  type: 'suite'
+  ...
+# Subtest: Ask advertises but never runs until this visitor clicks allow=true
+ok 313 - Ask advertises but never runs until this visitor clicks allow=true
+  ---
+  duration_ms: 23.592313
+  type: 'test'
+  ...
+# Subtest: Ask advertises but never runs until this visitor clicks allow=false
+ok 314 - Ask advertises but never runs until this visitor clicks allow=false
+  ---
+  duration_ms: 3.687673
+  type: 'test'
+  ...
+# Subtest: timeout while waiting refuses uniformly with a terminal audit
+ok 315 - timeout while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 3.277498
+  type: 'test'
+  ...
+# Subtest: disconnect while waiting refuses uniformly with a terminal audit
+ok 316 - disconnect while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 2.440167
+  type: 'test'
+  ...
+# Subtest: off while waiting refuses uniformly with a terminal audit
+ok 317 - off while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 4.630005
+  type: 'test'
+  ...
+# Subtest: restored while waiting refuses uniformly with a terminal audit
+ok 318 - restored while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 2.131484
+  type: 'test'
+  ...
+# Subtest: corrupt while waiting refuses uniformly with a terminal audit
+ok 319 - corrupt while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.90429
+  type: 'test'
+  ...
+# Subtest: storage-error while waiting refuses uniformly with a terminal audit
+ok 320 - storage-error while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 2.174477
+  type: 'test'
+  ...
+# Subtest: input is detached before the confirmation wait
+ok 321 - input is detached before the confirmation wait
+  ---
+  duration_ms: 3.275555
+  type: 'test'
+  ...
+# Subtest: a revision change after the click is refused before the effect
+ok 322 - a revision change after the click is refused before the effect
+  ---
+  duration_ms: 3.153075
+  type: 'test'
+  ...
+# Subtest: policy read failure before a prompt fails closed and retains diagnostics
+ok 323 - policy read failure before a prompt fails closed and retains diagnostics
+  ---
+  duration_ms: 0.64437
+  type: 'test'
+  ...
+# Subtest: a policy switch before the delegate and an Auto-to-Ask switch cannot bypass the click
+ok 324 - a policy switch before the delegate and an Auto-to-Ask switch cannot bypass the click
+  ---
+  duration_ms: 0.678619
+  type: 'test'
+  ...
+# Subtest: without a value-row snapshot Ask fails closed
+ok 325 - without a value-row snapshot Ask fails closed
+  ---
+  duration_ms: 0.371033
+  type: 'test'
+  ...
+# Subtest: parameterless Ask settles after confirmation without an optional signal port
+ok 326 - parameterless Ask settles after confirmation without an optional signal port
+  ---
+  duration_ms: 4.374452
+  type: 'test'
+  ...
+# Subtest: 30/hour/IP includes the boundary; other tools/sites/IPs have separate counters
+ok 327 - 30/hour/IP includes the boundary; other tools/sites/IPs have separate counters
+  ---
+  duration_ms: 7.475715
+  type: 'test'
+  ...
+# Subtest: 1000/day/site/tool is shared across IPs and renewed only at the day boundary
+ok 328 - 1000/day/site/tool is shared across IPs and renewed only at the day boundary
+  ---
+  duration_ms: 73.199562
+  type: 'test'
+  ...
+# Subtest: IP refusals never charge the site allowance or lock out another visitor
+ok 329 - IP refusals never charge the site allowance or lock out another visitor
+  ---
+  duration_ms: 185.112558
+  type: 'test'
+  ...
+# Subtest: lowering or restoring limits cannot reset counters, including concurrent profile changes
+ok 330 - lowering or restoring limits cannot reset counters, including concurrent profile changes
+  ---
+  duration_ms: 12.79968
+  type: 'test'
+  ...
+# Subtest: independent processes have independent counters; queue recovers after a clock failure
+ok 331 - independent processes have independent counters; queue recovers after a clock failure
+  ---
+  duration_ms: 3.762236
+  type: 'test'
+  ...
+# Subtest: renamed page grants keep an already consumed legacy budget
+ok 332 - renamed page grants keep an already consumed legacy budget
+  ---
+  duration_ms: 0.349472
+  type: 'test'
+  ...
