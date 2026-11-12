@@ -1,0 +1,38 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/capability-providers
+      Coverage enabled with v8
+
+ ✓ src/visitor-auth/__tests__/lifecycle.test.ts (28 tests) 17ms
+ ✓ src/adapters/ws/__tests__/index.test.ts (21 tests) 90ms
+ ✓ src/adapters/jwt-auth/__tests__/index.test.ts (19 tests) 887ms
+ ✓ src/visitor-auth/__tests__/lifecycle.guards.test.ts (28 tests) 19ms
+ ✓ src/adapters/blob-storage/__tests__/index.test.ts (12 tests) 18ms
+ ✓ src/visitor-auth/__tests__/definitions-registry.test.ts (13 tests) 13ms
+ ✓ src/comments/__tests__/comments.test.ts (4 tests) 10ms
+ ✓ src/adapters/sqlite/__tests__/index.test.ts (16 tests) 28ms
+ ✓ src/unsafe-reference/__tests__/auth.test.ts (11 tests) 11ms
+ ✓ src/unsafe-reference/__tests__/db.test.ts (12 tests) 9ms
+ ✓ src/__tests__/index.test.ts (3 tests) 4ms
+ ✓ src/unsafe-reference/__tests__/storage.test.ts (10 tests) 14ms
+ ✓ src/unsafe-reference/__tests__/realtime.test.ts (7 tests) 8ms
+ ✓ src/unsafe-reference/__tests__/payments.test.ts (8 tests) 8ms
+ ✓ src/adapters/ws/__tests__/optional-peer.test.ts (1 test) 157ms
+ ✓ src/visitor-auth/__tests__/tokens-exports.test.ts (2 tests) 3ms
+ ✓ src/__tests__/tokens.test.ts (2 tests) 3ms
+ ✓ src/unsafe-reference/__tests__/index.test.ts (1 test) 3ms
+JSON report written to /tmp/claude-0/cov/jini/capability-providers.results.json
+
+ Test Files  18 passed (18)
+      Tests  198 passed (198)
+   Start at  00:31:32
+   Duration  11.84s (transform 1.81s, setup 0ms, collect 3.53s, tests 1.30s, environment 4ms, prepare 1.61s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1075/1075 )
+Branches     : 100% ( 425/425 )
+Functions    : 100% ( 115/115 )
+Lines        : 100% ( 1075/1075 )
+================================================================================
+capability-providers exit 0 13s

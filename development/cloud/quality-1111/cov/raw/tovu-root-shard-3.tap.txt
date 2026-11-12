@@ -1,0 +1,49 @@
+TAP version 13
+# Subtest: React held turn waits for visitor click allow=true, using the existing proposal strip
+ok 1 - React held turn waits for visitor click allow=true, using the existing proposal strip
+  ---
+  duration_ms: 836.013778
+  type: 'test'
+  ...
+# Subtest: React held turn waits for visitor click allow=false, using the existing proposal strip
+ok 2 - React held turn waits for visitor click allow=false, using the existing proposal strip
+  ---
+  duration_ms: 558.039059
+  type: 'test'
+  ...
+# Subtest: every asset gets its raw and gzip size, then the two widget totals
+ok 3 - every asset gets its raw and gzip size, then the two widget totals
+  ---
+  duration_ms: 4.222299
+  type: 'test'
+  ...
+# Subtest: the loader budget passes below 3 KB gzip and fails at it
+ok 4 - the loader budget passes below 3 KB gzip and fails at it
+  ---
+  duration_ms: 0.638199
+  type: 'test'
+  ...
+# Subtest: main reads each asset from the dist directory, prints the table, then enforces the budget
+ok 5 - main reads each asset from the dist directory, prints the table, then enforces the budget
+  ---
+  duration_ms: 2.097045
+  type: 'test'
+  ...
+# Subtest: run as a script against a dist directory, it prints the table; a missing dist fails
+ok 6 - run as a script against a dist directory, it prints the table; a missing dist fails
+  ---
+  duration_ms: 478.346819
+  type: 'test'
+  ...
+# Subtest: isEntryPoint is true only for the script node was started with
+ok 7 - isEntryPoint is true only for the script node was started with
+  ---
+  duration_ms: 5.03698
+  type: 'test'
+  ...
+# Subtest: public widget accent override beats the later injected user-bubble defaults
+ok 8 - public widget accent override beats the later injected user-bubble defaults
+  ---
+  duration_ms: 1033.884682
+  type: 'test'
+  ...

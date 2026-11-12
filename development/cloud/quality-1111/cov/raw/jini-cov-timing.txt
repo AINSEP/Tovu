@@ -1,3 +1,7 @@
 admin exit 0 350s
 agent-plugins exit 1 148s
 agent-runtime exit 1 134s
+agentic exit 0 52s
+analytics exit 0 10s
+artifacts exit 0 9s
+capability-providers exit 0 13s

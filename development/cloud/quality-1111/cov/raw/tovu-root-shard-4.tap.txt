@@ -1,0 +1,13 @@
+TAP version 13
+# Subtest: public widget dialog: empty greeting
+ok 1 - public widget dialog: empty greeting
+  ---
+  duration_ms: 1427.534057
+  type: 'test'
+  ...
+# Subtest: public widget dialog: restored thread
+ok 2 - public widget dialog: restored thread
+  ---
+  duration_ms: 1894.434702
+  type: 'test'
+  ...
