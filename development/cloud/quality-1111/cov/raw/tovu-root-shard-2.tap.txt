@@ -9871,3 +9871,102 @@ ok 1525 - two plugins can declare the same local route and tool names and both r
   duration_ms: 422.021234
   type: 'test'
   ...
+# Subtest: failed replacement restores working routes, tools and widgets without disabling the plugin
+ok 1526 - failed replacement restores working routes, tools and widgets without disabling the plugin
+  ---
+  duration_ms: 511.188789
+  type: 'test'
+  ...
+# Subtest: undefined route results are 204; failures are logged with plugin id and redacted publicly
+ok 1527 - undefined route results are 204; failures are logged with plugin id and redacted publicly
+  ---
+  duration_ms: 684.163594
+  type: 'test'
+  ...
+# Subtest: setup failure cannot publish a partial route or tool generation
+ok 1528 - setup failure cannot publish a partial route or tool generation
+  ---
+  duration_ms: 386.322556
+  type: 'test'
+  ...
+# Subtest: chat can scaffold, write, seal and enable after one owner confirmation; updates replace helper module snapshots
+ok 1529 - chat can scaffold, write, seal and enable after one owner confirmation; updates replace helper module snapshots
+  ---
+  duration_ms: 1494.977999
+  type: 'test'
+  ...
+# Subtest: new versions update active pointers across workspaces and the existing poll reloads another process once
+ok 1530 - new versions update active pointers across workspaces and the existing poll reloads another process once
+  ---
+  duration_ms: 1051.876271
+  type: 'test'
+  ...
+# Subtest: removing a filter from a sealed manifest clears the old running hook
+ok 1531 - removing a filter from a sealed manifest clears the old running hook
+  ---
+  duration_ms: 504.342145
+  type: 'test'
+  ...
+# Subtest: a newly installed package does not replace the active pointer at boot until controlled reload
+ok 1532 - a newly installed package does not replace the active pointer at boot until controlled reload
+  ---
+  duration_ms: 153.362301
+  type: 'test'
+  ...
+# Subtest: reload failures return installed:true with a reason and pin the restored working version
+ok 1533 - reload failures return installed:true with a reason and pin the restored working version
+  ---
+  duration_ms: 410.256819
+  type: 'test'
+  ...
+# [plugin-runtime] Plugin 'site-rules' restored-version reload failed PluginLoadError: plugin 'site-rules' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"site-rules","reason":"INTEGRITY_FAILED"}
+# Subtest: reload quarantines only when the restored version also cannot load
+ok 1534 - reload quarantines only when the restored version also cannot load
+  ---
+  duration_ms: 97.67746
+  type: 'test'
+  ...
+# Subtest: the scaffold documents real route/tool/widget registrations and required manifest grants
+ok 1535 - the scaffold documents real route/tool/widget registrations and required manifest grants
+  ---
+  duration_ms: 11.086961
+  type: 'test'
+  ...
+# Subtest: consent gap (2026-10-12): an assistant-sealed plugin cannot enable without an owner confirmation naming what it adds
+ok 1536 - consent gap (2026-10-12): an assistant-sealed plugin cannot enable without an owner confirmation naming what it adds
+  ---
+  duration_ms: 69.957214
+  type: 'test'
+  ...
+# Subtest: an unchanged re-seal keeps its capability approval; each enable gets fresh consent and widening lists only additions
+ok 1537 - an unchanged re-seal keeps its capability approval; each enable gets fresh consent and widening lists only additions
+  ---
+  duration_ms: 1115.518573
+  type: 'test'
+  ...
+# Subtest: copied site packages lack site-owned provenance and keep their enable confirmation
+ok 1538 - copied site packages lack site-owned provenance and keep their enable confirmation
+  ---
+  duration_ms: 255.951754
+  type: 'test'
+  ...
+# Subtest: hosted source sealing retains the Tovu opt-in hint and publishes no package
+ok 1539 - hosted source sealing retains the Tovu opt-in hint and publishes no package
+  ---
+  duration_ms: 48.977491
+  type: 'test'
+  ...
+# Subtest: the deployment adapter treats desktop and dev as local and production/Fly as hosted
+ok 1540 - the deployment adapter treats desktop and dev as local and production/Fly as hosted
+  ---
+  duration_ms: 0.798951
+  type: 'test'
+  ...
+# Subtest: install policy uses injected host facts even when the env has no hosted hint
+ok 1541 - install policy uses injected host facts even when the env has no hosted hint
+  ---
+  duration_ms: 0.169344
+  type: 'test'
+  ...

@@ -2056,3 +2056,13 @@ stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > 
    ✓ serving card: status, default star, Open in a new tab, and no lifecycle or Delete  392ms
  ✓ src/features/plugins/__tests__/AgentPluginDetailsModal.unit.test.tsx (9 tests) 1258ms
      ✓ shows the maturity pill in the package inspector  648ms
+ ✓ src/features/providers/__tests__/Providers.unit.test.tsx (13 tests) 1541ms
+     ✓ tags MCP Server and Webhooks Soon, and leaves External MCP untagged  328ms
+ ✓ src/features/plugins/__tests__/use-plugin-install.hooks.unit.test.ts (14 tests) 163ms
+ ✓ src/components/AssistantDock/__tests__/composer-selected-skills.unit.test.tsx (7 tests) 2024ms
+   ✓ pick adds a removable chip, preserves the user's draft, and only the run payload receives guidance  555ms
+   ✓ the real ChatPane sends a chip-only turn under the skill name, with an empty draft until send  1306ms
+ ✓ src/features/media/__tests__/remote-image-import.unit.test.tsx (9 tests) 1708ms
+     ✓ closes the URL dialog without submitting or clearing its draft  991ms
+ ✓ src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx (14 tests) 739ms
+   ✓ does not re-render the host on keystrokes that change neither blankness nor the slash query  471ms

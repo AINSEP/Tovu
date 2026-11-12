@@ -6970,3 +6970,693 @@ ok 947 - [sqlite] findBySlug() round-trips and is scoped by workspace (2026-09-0
   duration_ms: 183.777371
   type: 'test'
   ...
+# Subtest: [pglite] save() then findById() round-trips
+ok 948 - [pglite] save() then findById() round-trips
+  ---
+  duration_ms: 9079.446927
+  type: 'test'
+  ...
+# Subtest: [pglite] save() preserves populated nullable metadata and can clear it
+ok 949 - [pglite] save() preserves populated nullable metadata and can clear it
+  ---
+  duration_ms: 52.325306
+  type: 'test'
+  ...
+# Subtest: [pglite] save() upserts (an update replaces the prior state)
+ok 950 - [pglite] save() upserts (an update replaces the prior state)
+  ---
+  duration_ms: 43.567975
+  type: 'test'
+  ...
+# Subtest: [pglite] list() scopes strictly by workspace
+ok 951 - [pglite] list() scopes strictly by workspace
+  ---
+  duration_ms: 113.209602
+  type: 'test'
+  ...
+# Subtest: [pglite] remove() deletes the row
+ok 952 - [pglite] remove() deletes the row
+  ---
+  duration_ms: 167.567839
+  type: 'test'
+  ...
+# Subtest: [pglite] findBySlug() round-trips and is scoped by workspace (2026-09-07)
+ok 953 - [pglite] findBySlug() round-trips and is scoped by workspace (2026-09-07)
+  ---
+  duration_ms: 145.368477
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] save() then findById() round-trips
+ok 954 - [memory-versioned] save() then findById() round-trips
+  ---
+  duration_ms: 0.569561
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] save() preserves populated nullable metadata and can clear it
+ok 955 - [memory-versioned] save() preserves populated nullable metadata and can clear it
+  ---
+  duration_ms: 0.193324
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] save() upserts (an update replaces the prior state)
+ok 956 - [memory-versioned] save() upserts (an update replaces the prior state)
+  ---
+  duration_ms: 0.075161
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] list() scopes strictly by workspace
+ok 957 - [memory-versioned] list() scopes strictly by workspace
+  ---
+  duration_ms: 0.104839
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] remove() deletes the row
+ok 958 - [memory-versioned] remove() deletes the row
+  ---
+  duration_ms: 0.129711
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] findBySlug() round-trips and is scoped by workspace (2026-09-07)
+ok 959 - [memory-versioned] findBySlug() round-trips and is scoped by workspace (2026-09-07)
+  ---
+  duration_ms: 0.751378
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] saveIfVersion() applies the write when the row is at the expected version
+ok 960 - [memory-versioned] saveIfVersion() applies the write when the row is at the expected version
+  ---
+  duration_ms: 1.830924
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata
+ok 961 - [memory-versioned] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata
+  ---
+  duration_ms: 0.818158
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] saveIfVersion() refuses a stale version and leaves the row untouched
+ok 962 - [memory-versioned] saveIfVersion() refuses a stale version and leaves the row untouched
+  ---
+  duration_ms: 0.599033
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] saveIfVersion() refuses a missing row and inserts nothing
+ok 963 - [memory-versioned] saveIfVersion() refuses a missing row and inserts nothing
+  ---
+  duration_ms: 0.345751
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace
+ok 964 - [memory-versioned] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace
+  ---
+  duration_ms: 0.189375
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] insertIfAbsent() inserts once, then refuses and leaves the original row intact
+ok 965 - [memory-versioned] insertIfAbsent() inserts once, then refuses and leaves the original row intact
+  ---
+  duration_ms: 0.150693
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion() applies the write when the row is at the expected version
+ok 966 - [sqlite] saveIfVersion() applies the write when the row is at the expected version
+  ---
+  duration_ms: 179.410235
+  type: 'test'
+  ...
+# Subtest: [sqlite] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata
+ok 967 - [sqlite] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata
+  ---
+  duration_ms: 243.360514
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion() refuses a stale version and leaves the row untouched
+ok 968 - [sqlite] saveIfVersion() refuses a stale version and leaves the row untouched
+  ---
+  duration_ms: 107.119375
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion() refuses a missing row and inserts nothing
+ok 969 - [sqlite] saveIfVersion() refuses a missing row and inserts nothing
+  ---
+  duration_ms: 118.12877
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace
+ok 970 - [sqlite] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace
+  ---
+  duration_ms: 207.536807
+  type: 'test'
+  ...
+# Subtest: [sqlite] insertIfAbsent() inserts once, then refuses and leaves the original row intact
+ok 971 - [sqlite] insertIfAbsent() inserts once, then refuses and leaves the original row intact
+  ---
+  duration_ms: 239.783522
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion() applies the write when the row is at the expected version
+ok 972 - [pglite] saveIfVersion() applies the write when the row is at the expected version
+  ---
+  duration_ms: 192.973118
+  type: 'test'
+  ...
+# Subtest: [pglite] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata
+ok 973 - [pglite] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata
+  ---
+  duration_ms: 46.981655
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion() refuses a stale version and leaves the row untouched
+ok 974 - [pglite] saveIfVersion() refuses a stale version and leaves the row untouched
+  ---
+  duration_ms: 277.932218
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion() refuses a missing row and inserts nothing
+ok 975 - [pglite] saveIfVersion() refuses a missing row and inserts nothing
+  ---
+  duration_ms: 10.497633
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace
+ok 976 - [pglite] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace
+  ---
+  duration_ms: 40.907068
+  type: 'test'
+  ...
+# Subtest: [pglite] insertIfAbsent() inserts once, then refuses and leaves the original row intact
+ok 977 - [pglite] insertIfAbsent() inserts once, then refuses and leaves the original row intact
+  ---
+  duration_ms: 164.776707
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] a slug rename retires the old slug — findBySlug(old) still resolves the same asset
+ok 978 - [memory-versioned] a slug rename retires the old slug — findBySlug(old) still resolves the same asset
+  ---
+  duration_ms: 0.409101
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] a DIFFERENT asset cannot claim a slug still listed as retired
+ok 979 - [memory-versioned] a DIFFERENT asset cannot claim a slug still listed as retired
+  ---
+  duration_ms: 2.439146
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] an asset may reclaim its own retired slug, which removes it from history
+ok 980 - [memory-versioned] an asset may reclaim its own retired slug, which removes it from history
+  ---
+  duration_ms: 0.348805
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] remove() drops that asset's retired-slug history too
+ok 981 - [memory-versioned] remove() drops that asset's retired-slug history too
+  ---
+  duration_ms: 0.145332
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] listRetiredSlugs lists every slug this asset has ever retired
+ok 982 - [memory-versioned] listRetiredSlugs lists every slug this asset has ever retired
+  ---
+  duration_ms: 0.131995
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] saveIfVersion renames retire the old slug too
+ok 983 - [memory-versioned] saveIfVersion renames retire the old slug too
+  ---
+  duration_ms: 0.197586
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] saveIfVersion lets an asset reclaim its own retired slug, removing it from history
+ok 984 - [memory-versioned] saveIfVersion lets an asset reclaim its own retired slug, removing it from history
+  ---
+  duration_ms: 0.165017
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] a stale saveIfVersion leaves slug history untouched
+ok 985 - [memory-versioned] a stale saveIfVersion leaves slug history untouched
+  ---
+  duration_ms: 0.288666
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug
+ok 986 - [memory-versioned] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug
+  ---
+  duration_ms: 0.355818
+  type: 'test'
+  ...
+# Subtest: [memory-versioned] remove() frees a retired slug for a different asset, which then owns it
+ok 987 - [memory-versioned] remove() frees a retired slug for a different asset, which then owns it
+  ---
+  duration_ms: 0.132404
+  type: 'test'
+  ...
+# Subtest: [sqlite] a slug rename retires the old slug — findBySlug(old) still resolves the same asset
+ok 988 - [sqlite] a slug rename retires the old slug — findBySlug(old) still resolves the same asset
+  ---
+  duration_ms: 137.998335
+  type: 'test'
+  ...
+# Subtest: [sqlite] a DIFFERENT asset cannot claim a slug still listed as retired
+ok 989 - [sqlite] a DIFFERENT asset cannot claim a slug still listed as retired
+  ---
+  duration_ms: 139.281402
+  type: 'test'
+  ...
+# Subtest: [sqlite] an asset may reclaim its own retired slug, which removes it from history
+ok 990 - [sqlite] an asset may reclaim its own retired slug, which removes it from history
+  ---
+  duration_ms: 93.914217
+  type: 'test'
+  ...
+# Subtest: [sqlite] remove() drops that asset's retired-slug history too
+ok 991 - [sqlite] remove() drops that asset's retired-slug history too
+  ---
+  duration_ms: 96.244433
+  type: 'test'
+  ...
+# Subtest: [sqlite] listRetiredSlugs lists every slug this asset has ever retired
+ok 992 - [sqlite] listRetiredSlugs lists every slug this asset has ever retired
+  ---
+  duration_ms: 113.407684
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion renames retire the old slug too
+ok 993 - [sqlite] saveIfVersion renames retire the old slug too
+  ---
+  duration_ms: 124.643671
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion lets an asset reclaim its own retired slug, removing it from history
+ok 994 - [sqlite] saveIfVersion lets an asset reclaim its own retired slug, removing it from history
+  ---
+  duration_ms: 140.413798
+  type: 'test'
+  ...
+# Subtest: [sqlite] a stale saveIfVersion leaves slug history untouched
+ok 995 - [sqlite] a stale saveIfVersion leaves slug history untouched
+  ---
+  duration_ms: 147.509869
+  type: 'test'
+  ...
+# Subtest: [sqlite] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug
+ok 996 - [sqlite] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug
+  ---
+  duration_ms: 151.437448
+  type: 'test'
+  ...
+# Subtest: [sqlite] remove() frees a retired slug for a different asset, which then owns it
+ok 997 - [sqlite] remove() frees a retired slug for a different asset, which then owns it
+  ---
+  duration_ms: 124.848224
+  type: 'test'
+  ...
+# Subtest: [pglite] a slug rename retires the old slug — findBySlug(old) still resolves the same asset
+ok 998 - [pglite] a slug rename retires the old slug — findBySlug(old) still resolves the same asset
+  ---
+  duration_ms: 109.353029
+  type: 'test'
+  ...
+# Subtest: [pglite] a DIFFERENT asset cannot claim a slug still listed as retired
+ok 999 - [pglite] a DIFFERENT asset cannot claim a slug still listed as retired
+  ---
+  duration_ms: 69.626675
+  type: 'test'
+  ...
+# Subtest: [pglite] an asset may reclaim its own retired slug, which removes it from history
+ok 1000 - [pglite] an asset may reclaim its own retired slug, which removes it from history
+  ---
+  duration_ms: 44.490205
+  type: 'test'
+  ...
+# Subtest: [pglite] remove() drops that asset's retired-slug history too
+ok 1001 - [pglite] remove() drops that asset's retired-slug history too
+  ---
+  duration_ms: 68.923437
+  type: 'test'
+  ...
+# Subtest: [pglite] listRetiredSlugs lists every slug this asset has ever retired
+ok 1002 - [pglite] listRetiredSlugs lists every slug this asset has ever retired
+  ---
+  duration_ms: 240.273249
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion renames retire the old slug too
+ok 1003 - [pglite] saveIfVersion renames retire the old slug too
+  ---
+  duration_ms: 134.504811
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion lets an asset reclaim its own retired slug, removing it from history
+ok 1004 - [pglite] saveIfVersion lets an asset reclaim its own retired slug, removing it from history
+  ---
+  duration_ms: 116.103306
+  type: 'test'
+  ...
+# Subtest: [pglite] a stale saveIfVersion leaves slug history untouched
+ok 1005 - [pglite] a stale saveIfVersion leaves slug history untouched
+  ---
+  duration_ms: 426.484424
+  type: 'test'
+  ...
+# Subtest: [pglite] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug
+ok 1006 - [pglite] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug
+  ---
+  duration_ms: 121.823791
+  type: 'test'
+  ...
+# Subtest: [pglite] remove() frees a retired slug for a different asset, which then owns it
+ok 1007 - [pglite] remove() frees a retired slug for a different asset, which then owns it
+  ---
+  duration_ms: 133.249616
+  type: 'test'
+  ...
+# Subtest: [sqlite] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation
+ok 1008 - [sqlite] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation
+  ---
+  duration_ms: 136.051669
+  type: 'test'
+  ...
+# Subtest: [pglite] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation
+ok 1009 - [pglite] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation
+  ---
+  duration_ms: 129.191678
+  type: 'test'
+  ...
+# Subtest: [sqlite] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false
+ok 1010 - [sqlite] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false
+  ---
+  duration_ms: 271.631103
+  type: 'test'
+  ...
+# Subtest: [pglite] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false
+ok 1011 - [pglite] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false
+  ---
+  duration_ms: 158.353006
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError
+ok 1012 - [sqlite] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError
+  ---
+  duration_ms: 129.076513
+  type: 'test'
+  ...
+# Subtest: [pglite] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError
+ok 1013 - [pglite] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError
+  ---
+  duration_ms: 121.01291
+  type: 'test'
+  ...
+# Subtest: [sqlite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)
+ok 1014 - [sqlite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)
+  ---
+  duration_ms: 116.345669
+  type: 'test'
+  ...
+# Subtest: [pglite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)
+ok 1015 - [pglite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)
+  ---
+  duration_ms: 53.783174
+  type: 'test'
+  ...
+# Subtest: [sqlite] a pre-backfill row with a NULL slug reads back under its own id
+ok 1016 - [sqlite] a pre-backfill row with a NULL slug reads back under its own id
+  ---
+  duration_ms: 176.1861
+  type: 'test'
+  ...
+# Subtest: [sqlite] insertIfAbsent reclaims an imported retired slug left by the same asset id, dropping that history row
+ok 1017 - [sqlite] insertIfAbsent reclaims an imported retired slug left by the same asset id, dropping that history row
+  ---
+  duration_ms: 149.087822
+  type: 'test'
+  ...
+# Subtest: [sqlite] replaceFileIfVersion refuses a source with no active blob and leaves the asset untouched
+ok 1018 - [sqlite] replaceFileIfVersion refuses a source with no active blob and leaves the asset untouched
+  ---
+  duration_ms: 190.718311
+  type: 'test'
+  ...
+# Subtest: [sqlite] saveIfVersion refuses when the database skips the version-guarded UPDATE
+ok 1019 - [sqlite] saveIfVersion refuses when the database skips the version-guarded UPDATE
+  ---
+  duration_ms: 131.868438
+  type: 'test'
+  ...
+# Subtest: [pglite] a pre-backfill row with a NULL slug reads back under its own id
+ok 1020 - [pglite] a pre-backfill row with a NULL slug reads back under its own id
+  ---
+  duration_ms: 80.847885
+  type: 'test'
+  ...
+# Subtest: [pglite] insertIfAbsent reclaims an imported retired slug left by the same asset id, dropping that history row
+ok 1021 - [pglite] insertIfAbsent reclaims an imported retired slug left by the same asset id, dropping that history row
+  ---
+  duration_ms: 72.007084
+  type: 'test'
+  ...
+# Subtest: [pglite] replaceFileIfVersion refuses a source with no active blob and leaves the asset untouched
+ok 1022 - [pglite] replaceFileIfVersion refuses a source with no active blob and leaves the asset untouched
+  ---
+  duration_ms: 102.980019
+  type: 'test'
+  ...
+# Subtest: [sqlite] list() returns newest-first by createdAt, regardless of insertion order
+ok 1023 - [sqlite] list() returns newest-first by createdAt, regardless of insertion order
+  ---
+  duration_ms: 179.189989
+  type: 'test'
+  ...
+# Subtest: [pglite] list() returns newest-first by createdAt, regardless of insertion order
+ok 1024 - [pglite] list() returns newest-first by createdAt, regardless of insertion order
+  ---
+  duration_ms: 324.69184
+  type: 'test'
+  ...
+# Subtest: [sqlite] list() breaks a createdAt tie deterministically by id
+ok 1025 - [sqlite] list() breaks a createdAt tie deterministically by id
+  ---
+  duration_ms: 150.133754
+  type: 'test'
+  ...
+# Subtest: [pglite] list() breaks a createdAt tie deterministically by id
+ok 1026 - [pglite] list() breaks a createdAt tie deterministically by id
+  ---
+  duration_ms: 155.479419
+  type: 'test'
+  ...
+# Subtest: [memory] save() then findByHash() round-trips
+ok 1027 - [memory] save() then findByHash() round-trips
+  ---
+  duration_ms: 0.398382
+  type: 'test'
+  ...
+# Subtest: [memory] save() upserts on (workspaceId, sha256)
+ok 1028 - [memory] save() upserts on (workspaceId, sha256)
+  ---
+  duration_ms: 0.148179
+  type: 'test'
+  ...
+# Subtest: [memory] list() scopes strictly by workspace
+ok 1029 - [memory] list() scopes strictly by workspace
+  ---
+  duration_ms: 0.185847
+  type: 'test'
+  ...
+# Subtest: [memory] remove() deletes the row
+ok 1030 - [memory] remove() deletes the row
+  ---
+  duration_ms: 0.147528
+  type: 'test'
+  ...
+# Subtest: [sqlite] save() then findByHash() round-trips
+ok 1031 - [sqlite] save() then findByHash() round-trips
+  ---
+  duration_ms: 145.074898
+  type: 'test'
+  ...
+# Subtest: [sqlite] save() upserts on (workspaceId, sha256)
+ok 1032 - [sqlite] save() upserts on (workspaceId, sha256)
+  ---
+  duration_ms: 128.975812
+  type: 'test'
+  ...
+# Subtest: [sqlite] list() scopes strictly by workspace
+ok 1033 - [sqlite] list() scopes strictly by workspace
+  ---
+  duration_ms: 118.331223
+  type: 'test'
+  ...
+# Subtest: [sqlite] remove() deletes the row
+ok 1034 - [sqlite] remove() deletes the row
+  ---
+  duration_ms: 142.526693
+  type: 'test'
+  ...
+# Subtest: [pglite] save() then findByHash() round-trips
+ok 1035 - [pglite] save() then findByHash() round-trips
+  ---
+  duration_ms: 10.814796
+  type: 'test'
+  ...
+# Subtest: [pglite] save() upserts on (workspaceId, sha256)
+ok 1036 - [pglite] save() upserts on (workspaceId, sha256)
+  ---
+  duration_ms: 15.013804
+  type: 'test'
+  ...
+# Subtest: [pglite] list() scopes strictly by workspace
+ok 1037 - [pglite] list() scopes strictly by workspace
+  ---
+  duration_ms: 11.094618
+  type: 'test'
+  ...
+# Subtest: [pglite] remove() deletes the row
+ok 1038 - [pglite] remove() deletes the row
+  ---
+  duration_ms: 12.414707
+  type: 'test'
+  ...
+# Subtest: [memory] save() then findOne() round-trips on (assetId, transformName, version)
+ok 1039 - [memory] save() then findOne() round-trips on (assetId, transformName, version)
+  ---
+  duration_ms: 0.710092
+  type: 'test'
+  ...
+# Subtest: [memory] save() upserts (a second save with the same id replaces the prior row, not a duplicate)
+ok 1040 - [memory] save() upserts (a second save with the same id replaces the prior row, not a duplicate)
+  ---
+  duration_ms: 0.423013
+  type: 'test'
+  ...
+# Subtest: [memory] listByAsset returns every rendition for that asset
+ok 1041 - [memory] listByAsset returns every rendition for that asset
+  ---
+  duration_ms: 10.219819
+  type: 'test'
+  ...
+# Subtest: [memory] removeByAsset deletes every rendition for that asset, none other
+ok 1042 - [memory] removeByAsset deletes every rendition for that asset, none other
+  ---
+  duration_ms: 0.764072
+  type: 'test'
+  ...
+# Subtest: [sqlite] save() then findOne() round-trips on (assetId, transformName, version)
+ok 1043 - [sqlite] save() then findOne() round-trips on (assetId, transformName, version)
+  ---
+  duration_ms: 169.045763
+  type: 'test'
+  ...
+# Subtest: [sqlite] save() upserts (a second save with the same id replaces the prior row, not a duplicate)
+ok 1044 - [sqlite] save() upserts (a second save with the same id replaces the prior row, not a duplicate)
+  ---
+  duration_ms: 109.738548
+  type: 'test'
+  ...
+# Subtest: [sqlite] listByAsset returns every rendition for that asset
+ok 1045 - [sqlite] listByAsset returns every rendition for that asset
+  ---
+  duration_ms: 119.004559
+  type: 'test'
+  ...
+# Subtest: [sqlite] removeByAsset deletes every rendition for that asset, none other
+ok 1046 - [sqlite] removeByAsset deletes every rendition for that asset, none other
+  ---
+  duration_ms: 128.681386
+  type: 'test'
+  ...
+# Subtest: [pglite] save() then findOne() round-trips on (assetId, transformName, version)
+ok 1047 - [pglite] save() then findOne() round-trips on (assetId, transformName, version)
+  ---
+  duration_ms: 7.398722
+  type: 'test'
+  ...
+# Subtest: [pglite] save() upserts (a second save with the same id replaces the prior row, not a duplicate)
+ok 1048 - [pglite] save() upserts (a second save with the same id replaces the prior row, not a duplicate)
+  ---
+  duration_ms: 28.491862
+  type: 'test'
+  ...
+# Subtest: [pglite] listByAsset returns every rendition for that asset
+ok 1049 - [pglite] listByAsset returns every rendition for that asset
+  ---
+  duration_ms: 14.105104
+  type: 'test'
+  ...
+# Subtest: [pglite] removeByAsset deletes every rendition for that asset, none other
+ok 1050 - [pglite] removeByAsset deletes every rendition for that asset, none other
+  ---
+  duration_ms: 28.83186
+  type: 'test'
+  ...
+# Subtest: [memory] insert() then findByNameVersion() round-trips
+ok 1051 - [memory] insert() then findByNameVersion() round-trips
+  ---
+  duration_ms: 0.824508
+  type: 'test'
+  ...
+# Subtest: [memory] listByName returns every version
+ok 1052 - [memory] listByName returns every version
+  ---
+  duration_ms: 0.439556
+  type: 'test'
+  ...
+# Subtest: [memory] insert() rejects a duplicate (workspaceId, name, version) — append-only
+ok 1053 - [memory] insert() rejects a duplicate (workspaceId, name, version) — append-only
+  ---
+  duration_ms: 0.213874
+  type: 'test'
+  ...
+# Subtest: [sqlite] insert() then findByNameVersion() round-trips
+ok 1054 - [sqlite] insert() then findByNameVersion() round-trips
+  ---
+  duration_ms: 131.046524
+  type: 'test'
+  ...
+# Subtest: [sqlite] listByName returns every version
+ok 1055 - [sqlite] listByName returns every version
+  ---
+  duration_ms: 151.249794
+  type: 'test'
+  ...
+# Subtest: [sqlite] insert() rejects a duplicate (workspaceId, name, version) — append-only
+ok 1056 - [sqlite] insert() rejects a duplicate (workspaceId, name, version) — append-only
+  ---
+  duration_ms: 118.913802
+  type: 'test'
+  ...
+# Subtest: [pglite] insert() then findByNameVersion() round-trips
+ok 1057 - [pglite] insert() then findByNameVersion() round-trips
+  ---
+  duration_ms: 70.979306
+  type: 'test'
+  ...
+# Subtest: [pglite] listByName returns every version
+ok 1058 - [pglite] listByName returns every version
+  ---
+  duration_ms: 17.301961
+  type: 'test'
+  ...
+# Subtest: [pglite] insert() rejects a duplicate (workspaceId, name, version) — append-only
+ok 1059 - [pglite] insert() rejects a duplicate (workspaceId, name, version) — append-only
+  ---
+  duration_ms: 8.153326
+  type: 'test'
+  ...
+# Subtest: SqlTransformDefinitionRepo [sqlite] insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error
+ok 1060 - SqlTransformDefinitionRepo [sqlite] insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error
+  ---
+  duration_ms: 167.359287
+  type: 'test'
+  ...
+# Subtest: SqlTransformDefinitionRepo [pglite] insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error
+ok 1061 - SqlTransformDefinitionRepo [pglite] insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error
+  ---
+  duration_ms: 5.598725
+  type: 'test'
+  ...
+# Subtest: ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_registry all survive a simulated process restart (real on-disk file)
+ok 1062 - ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_registry all survive a simulated process restart (real on-disk file)
+  ---
+  duration_ms: 227.002086
+  type: 'test'
+  ...

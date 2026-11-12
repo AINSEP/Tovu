@@ -5016,3 +5016,165 @@ ok 711 - a declined proposal keeps the approver of the live write list
   duration_ms: 5.697309
   type: 'test'
   ...
+# Subtest: identity deprecations warn once per package across repeated indexes and host bindings
+ok 712 - identity deprecations warn once per package across repeated indexes and host bindings
+  ---
+  duration_ms: 41.090075
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: installs a valid package and indexes its skills
+ok 713 - installs a valid package and indexes its skills
+  ---
+  duration_ms: 167.297252
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: carries plugin.json's description/keywords/author/license through onto InstalledAgentPlugin (search_agent_plugin_local's ranking signal)
+ok 714 - carries plugin.json's description/keywords/author/license through onto InstalledAgentPlugin (search_agent_plugin_local's ranking signal)
+  ---
+  duration_ms: 47.187997
+  type: 'test'
+  ...
+# Subtest: a symlink ENTRY is rejected outright, and no package is published
+ok 715 - a symlink ENTRY is rejected outright, and no package is published
+  ---
+  duration_ms: 33.743603
+  type: 'test'
+  ...
+# Subtest: a lexical zip-slip path ('../../..') is rejected
+ok 716 - a lexical zip-slip path ('../../..') is rejected
+  ---
+  duration_ms: 22.379828
+  type: 'test'
+  ...
+# Subtest: a duplicate archive entry path is rejected (never silently overwritten)
+ok 717 - a duplicate archive entry path is rejected (never silently overwritten)
+  ---
+  duration_ms: 9.574317
+  type: 'test'
+  ...
+# Subtest: a file exceeding the declared per-file size cap is rejected
+ok 718 - a file exceeding the declared per-file size cap is rejected
+  ---
+  duration_ms: 8.141061
+  type: 'test'
+  ...
+# Subtest: a decompression bomb (actual bytes exceed the declared size) is caught while streaming, not after
+ok 719 - a decompression bomb (actual bytes exceed the declared size) is caught while streaming, not after
+  ---
+  duration_ms: 111.685551
+  type: 'test'
+  ...
+# Subtest: the total-extracted-bytes cap is enforced across many small files (the 'many files' bomb variant)
+ok 720 - the total-extracted-bytes cap is enforced across many small files (the 'many files' bomb variant)
+  ---
+  duration_ms: 684.63973
+  type: 'test'
+  ...
+# Subtest: the entry-count cap is enforced
+ok 721 - the entry-count cap is enforced
+  ---
+  duration_ms: 85.751354
+  type: 'test'
+  ...
+# Subtest: a SHA-256 digest mismatch is rejected before any extraction is attempted
+ok 722 - a SHA-256 digest mismatch is rejected before any extraction is attempted
+  ---
+  duration_ms: 56.71695
+  type: 'test'
+  ...
+# Subtest: identical installs stage twice to identify the plugin, then deduplicate publication
+ok 723 - identical installs stage twice to identify the plugin, then deduplicate publication
+  ---
+  duration_ms: 69.528759
+  type: 'test'
+  ...
+# Subtest: explicit directory entries are extracted and excluded from the file index
+ok 724 - explicit directory entries are extracted and excluded from the file index
+  ---
+  duration_ms: 42.76239
+  type: 'test'
+  ...
+# Subtest: an in-flight install recovers when another install publishes the same digest first
+ok 725 - an in-flight install recovers when another install publishes the same digest first
+  ---
+  duration_ms: 150.52755
+  type: 'test'
+  ...
+# Subtest: publication failure preserves an obstructing file and cleans all staging output
+ok 726 - publication failure preserves an obstructing file and cleans all staging output
+  ---
+  duration_ms: 62.788063
+  type: 'test'
+  ...
+# Subtest: a publication permission failure without a concurrent winner is still rejected
+ok 727 - a publication permission failure without a concurrent winner is still rejected # SKIP requires Unix write permissions enforced for a non-root user
+  ---
+  duration_ms: 0.514815
+  type: 'test'
+  ...
+# Subtest: a missing plugin.json is rejected
+ok 728 - a missing plugin.json is rejected
+  ---
+  duration_ms: 41.013747
+  type: 'test'
+  ...
+# Subtest: a manifest that fails Agent Plugins grammar validation is rejected
+ok 729 - a manifest that fails Agent Plugins grammar validation is rejected
+  ---
+  duration_ms: 26.27569
+  type: 'test'
+  ...
+# Subtest: a published package root is frozen read-only
+ok 730 - a published package root is frozen read-only
+  ---
+  duration_ms: 77.730874
+  type: 'test'
+  ...
+# Subtest: TENANT-GRADE: two workspaces installing the identical archive extract INDEPENDENTLY -- no sharing
+ok 731 - TENANT-GRADE: two workspaces installing the identical archive extract INDEPENDENTLY -- no sharing
+  ---
+  duration_ms: 30.349631
+  type: 'test'
+  ...
+# Subtest: CLOSED: a layout literal stitching workspace A's `packages` onto workspace B's `staging` is now a compile-time type error, and a cast-bypassed call fails at runtime instead of publishing into the wrong tree
+ok 732 - CLOSED: a layout literal stitching workspace A's `packages` onto workspace B's `staging` is now a compile-time type error, and a cast-bypassed call fails at runtime instead of publishing into the wrong tree
+  ---
+  duration_ms: 3.977681
+  type: 'test'
+  ...
+# Subtest: CLOSED: a layout never derived from forWorkspace() at all -- arbitrary strings -- is now a compile-time type error, and a cast-bypassed call fails at runtime instead of extracting outside the agent-plugins tree
+ok 733 - CLOSED: a layout never derived from forWorkspace() at all -- arbitrary strings -- is now a compile-time type error, and a cast-bypassed call fails at runtime instead of extracting outside the agent-plugins tree
+  ---
+  duration_ms: 2.338687
+  type: 'test'
+  ...
+# Plugin 'images' has no publisher-qualified id; using 'unknown/images'.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: composition preview and the approved provision grant revalidate with the host projections
+ok 734 - composition preview and the approved provision grant revalidate with the host projections
+  ---
+  duration_ms: 154.191948
+  type: 'test'
+  ...
+# Subtest: the composed classifier keeps host validation identity through the preview
+ok 735 - the composed classifier keeps host validation identity through the preview
+  ---
+  duration_ms: 10.900569
+  type: 'test'
+  ...
+# Subtest: sign-in eligibility uses the host credential projection, not Tovu default
+ok 736 - sign-in eligibility uses the host credential projection, not Tovu default
+  ---
+  duration_ms: 7.801489
+  type: 'test'
+  ...
+# Subtest: status and stored-credential reads use the host pure projections
+ok 737 - status and stored-credential reads use the host pure projections
+  ---
+  duration_ms: 1.065152
+  type: 'test'
+  ...

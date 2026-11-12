@@ -6,3 +6,18 @@
  ✓ src/__tests__/claude-stream.test.ts (188 tests) 78ms
  ✓ src/__tests__/json-event-stream.test.ts (152 tests) 80ms
  ✓ src/providers/__tests__/openai-chat.test.ts (108 tests) 122ms
+ ✓ src/providers/__tests__/anthropic-messages.test.ts (98 tests) 84ms
+ ✓ src/providers/__tests__/google-messages.test.ts (69 tests) 70ms
+ ✓ src/__tests__/executables.test.ts (95 tests) 407ms
+ ✓ src/providers/__tests__/ollama-chat.test.ts (75 tests) 78ms
+ ✓ src/__tests__/detection.test.ts (47 tests) 1411ms
+ ✓ src/providers/__tests__/tool-turn.test.ts (67 tests) 90ms
+ ✓ src/__tests__/model-discovery-policy.test.ts (76 tests) 131ms
+ ✓ src/agent-protocol/core/__tests__/json-line-stream.test.ts (140 tests) 583ms
+ ✓ src/agent-protocol/acp/__tests__/session.handlers.unit.test.ts (84 tests) 67ms
+ ✓ src/providers/__tests__/azure-chat.test.ts (38 tests) 78ms
+ ✓ src/__tests__/auth.test.ts (175 tests) 49ms
+ ✓ src/__tests__/model-discovery-adapters.test.ts (68 tests) 1513ms
+   ✓ default process port (real node child processes) > kills the whole process group when the timeout expires 330ms
+   ✓ default process port (real node child processes) > kills the process group when the probe is cancelled mid-run 310ms
+ ✓ src/providers/__tests__/model-catalog.test.ts (53 tests) 102ms
