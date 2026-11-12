@@ -1,0 +1,27 @@
+Loaded  vitest@3.2.7  and  @vitest/coverage-v8@2.1.9 .
+Running mixed versions is not supported and may lead into bugs
+Update your dependencies and make sure the versions match.
+
+ RUN  v3.2.7 /home/user/Jini/packages/sandbox
+      Coverage enabled with v8
+
+···················································································································································································
+
+ Test Files  18 passed (18)
+      Tests  179 passed (179)
+   Start at  01:05:07
+   Duration  10.08s (transform 922ms, setup 0ms, collect 1.97s, tests 6.55s, environment 3ms, prepare 1.97s)
+
+JSON report written to /tmp/claude-0/cov/jini/sandbox.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.79% ( 497/498 )
+Branches     : 98.67% ( 224/227 )
+Functions    : 100% ( 44/44 )
+Lines        : 99.79% ( 497/498 )
+================================================================================
+ERROR: Coverage for lines (99.79%) does not meet global threshold (100%)
+ERROR: Coverage for statements (99.79%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.67%) does not meet global threshold (100%)
+sandbox exit 1 11s

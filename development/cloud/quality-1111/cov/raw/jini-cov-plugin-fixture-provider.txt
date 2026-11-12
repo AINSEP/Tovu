@@ -1,0 +1,43 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-fixture-provider
+      Coverage enabled with v8
+
+ ❯ __tests__/package.test.ts (2 tests | 1 failed) 530ms
+   × declares only its artifact exports, build-time contracts, and publication hooks 18ms
+     → expected '0.7.1' to be '0.6.19' // Object.is equality
+   ✓ packs exactly the selected versioned payload with verified integrity and retained attribution 511ms
+JSON report written to /tmp/claude-0/cov/jini/plugin-fixture-provider.results.json
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/package.test.ts > declares only its artifact exports, build-time contracts, and publication hooks
+AssertionError: expected '0.7.1' to be '0.6.19' // Object.is equality
+
+Expected: "0.6.19"
+Received: "0.7.1"
+
+ ❯ __tests__/package.test.ts:25:23
+     23|   const pkg = JSON.parse(await readFile(path.join(packageRoot, 'packag…
+     24|   expect(pkg.name).toBe(`@jini-ai/plugin-${id}`);
+     25|   expect(pkg.version).toBe('0.6.19');
+       |                       ^
+     26|   expect(pkg.exports).toEqual({ './package.json': './package.json', '.…
+     27|   expect(pkg.files).toEqual(['plugins', 'README.md', 'LICENSE', 'NOTIC…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  01:08:51
+   Duration  2.00s (transform 591ms, setup 0ms, collect 1.02s, tests 530ms, environment 0ms, prepare 100ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 0% ( 0/22 )
+Branches     : 0% ( 0/1 )
+Functions    : 0% ( 0/1 )
+Lines        : 0% ( 0/22 )
+================================================================================
+plugin-fixture-provider exit 1 3s

@@ -1,0 +1,43 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/sidecar
+      Coverage enabled with v8
+
+ ✓ src/supervision/__tests__/supervisor.test.ts (38 tests) 63ms
+ ✓ src/__tests__/index.test.ts (67 tests | 2 skipped) 484ms
+ ✓ src/__tests__/json-ipc.contract.test.ts (37 tests) 662ms
+ ✓ src/__tests__/supervisor.conditions.test.ts (17 tests) 84ms
+ ✓ src/__tests__/daemon-registry.test.ts (22 tests) 379ms
+ ✓ src/supervision/__tests__/supervisor-node.l178.test.ts (14 tests) 27ms
+ ✓ src/supervision/__tests__/supervisor-node.windows.test.ts (12 tests) 77ms
+ ✓ src/supervision/__tests__/supervisor-node.test.ts (7 tests) 13ms
+ ✓ src/supervision/__tests__/native-ipc.test.ts (8 tests) 24ms
+ ✓ src/supervision/__tests__/startup-secrets.test.ts (8 tests) 388ms
+   ✓ a spawned child authenticates from IPC while its environment and grandchild contain no token key 350ms
+ ✓ src/supervision/__tests__/respawn-policy.test.ts (9 tests) 5ms
+ ✓ src/__tests__/atomic-json-kernel.test.ts (5 tests) 71ms
+ ✓ src/__tests__/file-race-regressions.test.ts (4 tests) 51ms
+ ✓ src/__tests__/port.errors.test.ts (18 tests) 64ms
+ ✓ src/supervision/__tests__/respawn-policy.l178.test.ts (24 tests) 21ms
+ ✓ src/__tests__/daemon-registry.validation.test.ts (18 tests) 92ms
+ ✓ src/__tests__/audit-regressions.test.ts (2 tests) 22ms
+ ✓ src/__tests__/daemon-registry.l178.test.ts (27 tests) 202ms
+ ✓ src/__tests__/integration-surface.test.ts (2 tests) 4ms
+ ✓ src/__tests__/supervisor-isolation.test.ts (1 test) 4ms
+ ✓ src/__tests__/args-convention.test.ts (1 test) 128ms
+JSON report written to /tmp/claude-0/cov/jini/sidecar.results.json
+
+ Test Files  21 passed (21)
+      Tests  339 passed | 2 skipped (341)
+   Start at  01:03:08
+   Duration  10.19s (transform 2.00s, setup 0ms, collect 5.19s, tests 2.87s, environment 5ms, prepare 2.49s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1179/1179 )
+Branches     : 97.92% ( 614/627 )
+Functions    : 100% ( 135/135 )
+Lines        : 100% ( 1179/1179 )
+================================================================================
+ERROR: Coverage for branches (97.92%) does not meet global threshold (98%)
+sidecar exit 1 12s

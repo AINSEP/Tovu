@@ -22092,3 +22092,4691 @@ ok 2688 - [unrun] recovery restore [pglite]: capturing a restore point is 409 RE
   duration_ms: 38966.157937
   type: 'test'
   ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: slug change [sqlite]: a published page renamed through PUT /pages leaves a 301 from its old URL
+ok 2689 - slug change [sqlite]: a published page renamed through PUT /pages leaves a 301 from its old URL
+  ---
+  duration_ms: 6066.268724
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: slug change [sqlite]: a published post renamed through PUT /posts leaves a 301 from its old URL
+ok 2690 - slug change [sqlite]: a published post renamed through PUT /posts leaves a 301 from its old URL
+  ---
+  duration_ms: 4047.93016
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: slug change [sqlite]: a draft renamed leaves no redirect, and its old URL stays a 404
+ok 2691 - slug change [sqlite]: a draft renamed leaves no redirect, and its old URL stays a 404
+  ---
+  duration_ms: 3988.395815
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: slug change [sqlite]: the content_post_update agent tool's rename leaves a 301 too
+ok 2692 - slug change [sqlite]: the content_post_update agent tool's rename leaves a 301 too
+  ---
+  duration_ms: 3298.112915
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: reserved slug [sqlite]: renaming a page to 'admin' is 400 with create's message, and nothing moves
+ok 2693 - reserved slug [sqlite]: renaming a page to 'admin' is 400 with create's message, and nothing moves
+  ---
+  duration_ms: 4512.237216
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: slug length [sqlite]: a 121-character rename is 400 with create's message on PUT and the agent tool; 120 passes
+ok 2694 - slug length [sqlite]: a 121-character rename is 400 with create's message on PUT and the agent tool; 120 passes
+  ---
+  duration_ms: 3934.702936
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: title length [sqlite]: a 201-character retitle is 400 with create's message on PUT /posts, PUT /pages and the agent tool; 200 passes
+ok 2695 - title length [sqlite]: a 201-character retitle is 400 with create's message on PUT /posts, PUT /pages and the agent tool; 200 passes
+  ---
+  duration_ms: 4784.895277
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: slug change [pglite]: a published page renamed through PUT /pages leaves a 301 from its old URL
+ok 2696 - slug change [pglite]: a published page renamed through PUT /pages leaves a 301 from its old URL
+  ---
+  duration_ms: 30369.833485
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: slug change [pglite]: a published post renamed through PUT /posts leaves a 301 from its old URL
+ok 2697 - slug change [pglite]: a published post renamed through PUT /posts leaves a 301 from its old URL
+  ---
+  duration_ms: 23948.053807
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: slug change [pglite]: a draft renamed leaves no redirect, and its old URL stays a 404
+ok 2698 - slug change [pglite]: a draft renamed leaves no redirect, and its old URL stays a 404
+  ---
+  duration_ms: 26361.459105
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: slug change [pglite]: the content_post_update agent tool's rename leaves a 301 too
+ok 2699 - slug change [pglite]: the content_post_update agent tool's rename leaves a 301 too
+  ---
+  duration_ms: 24049.256183
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: reserved slug [pglite]: renaming a page to 'admin' is 400 with create's message, and nothing moves
+ok 2700 - reserved slug [pglite]: renaming a page to 'admin' is 400 with create's message, and nothing moves
+  ---
+  duration_ms: 20350.385435
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: slug length [pglite]: a 121-character rename is 400 with create's message on PUT and the agent tool; 120 passes
+ok 2701 - slug length [pglite]: a 121-character rename is 400 with create's message on PUT and the agent tool; 120 passes
+  ---
+  duration_ms: 21329.050528
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: title length [pglite]: a 201-character retitle is 400 with create's message on PUT /posts, PUT /pages and the agent tool; 200 passes
+ok 2702 - title length [pglite]: a 201-character retitle is 400 with create's message on PUT /posts, PUT /pages and the agent tool; 200 passes
+  ---
+  duration_ms: 24671.048408
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: public SVG originals have image/svg+xml, nosniff and CSP, including legacy unsanitized blobs and ranges
+ok 2703 - public SVG originals have image/svg+xml, nosniff and CSP, including legacy unsanitized blobs and ranges
+  ---
+  duration_ms: 6105.469361
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media original video route: a real mp4 serves 200 with the sniffed video content type and the exact uploaded bytes
+ok 2704 - media original video route: a real mp4 serves 200 with the sniffed video content type and the exact uploaded bytes
+  ---
+  duration_ms: 463.105414
+  type: 'test'
+  ...
+# Subtest: media original video route: a wholly unexpected error (e.g. a blob-store read failure after the gate/lookup already succeeded) is an opaque 500 'internal error', this route's own catch block distinct from the rendition route's
+ok 2705 - media original video route: a wholly unexpected error (e.g. a blob-store read failure after the gate/lookup already succeeded) is an opaque 500 'internal error', this route's own catch block distinct from the rendition route's
+  ---
+  duration_ms: 913.775682
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media original video route: Range requests are honored — a <video> tag can seek without buffering the whole file
+ok 2706 - media original video route: Range requests are honored — a <video> tag can seek without buffering the whole file
+  ---
+  duration_ms: 1160.918887
+  type: 'test'
+  ...
+# Subtest: media original video route: an IMAGE asset 404s here — a picture's only public URL stays the sanitizing transform route, never this bypass
+ok 2707 - media original video route: an IMAGE asset 404s here — a picture's only public URL stays the sanitizing transform route, never this bypass
+  ---
+  duration_ms: 444.21157
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media original video route: a trashed video asset responds 410, mirroring the rendition route's gone mapping
+ok 2708 - media original video route: a trashed video asset responds 410, mirroring the rendition route's gone mapping
+  ---
+  duration_ms: 1402.824383
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media original video route: an unknown assetId 404s byte-for-byte like the gate-denied 404 above it — status, Cache-Control AND body (2026-09-23 existence-oracle close, S2b)
+ok 2709 - media original video route: an unknown assetId 404s byte-for-byte like the gate-denied 404 above it — status, Cache-Control AND body (2026-09-23 existence-oracle close, S2b)
+  ---
+  duration_ms: 1574.420064
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media original video route: an anonymous caller is 404'd for a video whose ONLY referencing post is members-only, and an entitled signed-in member still gets it (ADR-030 §4, 2026-09-03 sweep)
+ok 2710 - media original video route: an anonymous caller is 404'd for a video whose ONLY referencing post is members-only, and an entitled signed-in member still gets it (ADR-030 §4, 2026-09-03 sweep)
+  ---
+  duration_ms: 549.609687
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media original video route: a PUBLIC draft's reference leaves its video unrestricted, while a GATED draft still gates it
+ok 2711 - media original video route: a PUBLIC draft's reference leaves its video unrestricted, while a GATED draft still gates it
+  ---
+  duration_ms: 985.07674
+  type: 'test'
+  ...
+# Subtest: media original video route: does not collide with the versioned rendition route's URL shape
+ok 2712 - media original video route: does not collide with the versioned rendition route's URL shape
+  ---
+  duration_ms: 742.910576
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: analytics/recent-hits: authorize failure preserves the canonical 500 with generated requestId
+ok 2713 - analytics/recent-hits: authorize failure preserves the canonical 500 with generated requestId
+  ---
+  duration_ms: 30.834764
+  type: 'test'
+  ...
+# Subtest: analytics/recent-hits: authorize failure preserves the canonical 500 with existing requestId
+ok 2714 - analytics/recent-hits: authorize failure preserves the canonical 500 with existing requestId
+  ---
+  duration_ms: 3.332159
+  type: 'test'
+  ...
+# Subtest: analytics/recent-hits: sink failure preserves the canonical 500 with generated requestId
+ok 2715 - analytics/recent-hits: sink failure preserves the canonical 500 with generated requestId
+  ---
+  duration_ms: 6.168805
+  type: 'test'
+  ...
+# Subtest: analytics/recent-hits: sink failure preserves the canonical 500 with existing requestId
+ok 2716 - analytics/recent-hits: sink failure preserves the canonical 500 with existing requestId
+  ---
+  duration_ms: 3.846848
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: comments: the Starter post page is no-store, the form 303s to \#comment-pending, and approval shows on the next GET
+ok 2717 - comments: the Starter post page is no-store, the form 303s to \#comment-pending, and approval shows on the next GET
+  ---
+  duration_ms: 1976.483347
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content-types routes: scoped grants survive register, field update and every lifecycle re-check
+ok 2718 - content-types routes: scoped grants survive register, field update and every lifecycle re-check
+  ---
+  duration_ms: 961.360192
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content-types routes: register -> list -> update-fields -> lifecycle golden path
+ok 2719 - content-types routes: register -> list -> update-fields -> lifecycle golden path
+  ---
+  duration_ms: 395.974815
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content-types routes: a principal without grants is denied by each route before changing stored definitions
+ok 2720 - content-types routes: a principal without grants is denied by each route before changing stored definitions
+  ---
+  duration_ms: 751.247562
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content-types routes: registering a reserved key ('post') is rejected VALIDATION_ERROR (ADR-043 §4)
+ok 2721 - content-types routes: registering a reserved key ('post') is rejected VALIDATION_ERROR (ADR-043 §4)
+  ---
+  duration_ms: 462.983619
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content-types routes: an unrecognized lifecycle 'op' is rejected VALIDATION_ERROR before any write-service call (ADR-042 closed-union-dispatch)
+ok 2722 - content-types routes: an unrecognized lifecycle 'op' is rejected VALIDATION_ERROR before any write-service call (ADR-042 closed-union-dispatch)
+  ---
+  duration_ms: 268.682183
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: 404 CONTENT_TYPE_NOT_FOUND for a key that was never registered
+ok 2723 - UPDATE-FIELDS: 404 CONTENT_TYPE_NOT_FOUND for a key that was never registered
+  ---
+  duration_ms: 225.122969
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: 409 VERSION_CONFLICT for a stale expectedVersion
+ok 2724 - UPDATE-FIELDS: 409 VERSION_CONFLICT for a stale expectedVersion
+  ---
+  duration_ms: 588.231797
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: rejects an empty fields array with the write-service's own 'fields_empty' ValidationError — distinct from the route's shape guard (an empty array is legal shape, REGISTER allows it)
+ok 2725 - UPDATE-FIELDS: rejects an empty fields array with the write-service's own 'fields_empty' ValidationError — distinct from the route's shape guard (an empty array is legal shape, REGISTER allows it)
+  ---
+  duration_ms: 680.649248
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: a shape-valid but grammar-invalid field name is rejected by the write-service's own guard chain (InvalidFieldNameGrammarError), not the route's shape boundary
+ok 2726 - UPDATE-FIELDS: a shape-valid but grammar-invalid field name is rejected by the write-service's own guard chain (InvalidFieldNameGrammarError), not the route's shape boundary
+  ---
+  duration_ms: 277.699068
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: a kind outside the closed enum is rejected by the write-service's own guard chain (InvalidFieldKindError)
+ok 2727 - UPDATE-FIELDS: a kind outside the closed enum is rejected by the write-service's own guard chain (InvalidFieldKindError)
+  ---
+  duration_ms: 546.090199
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: exceeding the queryable-field cap is rejected by the write-service's own guard chain (QueryableFieldCapExceededError)
+ok 2728 - UPDATE-FIELDS: exceeding the queryable-field cap is rejected by the write-service's own guard chain (QueryableFieldCapExceededError)
+  ---
+  duration_ms: 490.161722
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: statusFor's own ForbiddenError branch — the write-service's internal re-check of admin.collections.manage, distinct from the route's own inline 403 (which runs first)
+ok 2729 - UPDATE-FIELDS: statusFor's own ForbiddenError branch — the write-service's internal re-check of admin.collections.manage, distinct from the route's own inline 403 (which runs first)
+  ---
+  duration_ms: 612.030847
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/content-types/update-fields] {
+#   errorId: '99ca0d8d-a86f-46ad-947c-821003dc57e8',
+#   diagnostic: 'Error: simulated repo failure\\n' +
+#     '    at InMemoryContentTypeRepo.deps.contentTypeRepo.transaction (/home/user/Tovu/apps/website/src/server/__tests__/routes/content-types-routes.test.ts:356:11)\\n' +
+#     '    at updateContentTypeFields (/home/user/Jini/packages/cms/src/content-types/write-service.ts:413:19)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/update-fields.ts:53:22)'
+# }
+# Subtest: UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the route's outer catch, concealed behind the shared incident envelope (88f429c25 stopped echoing the raw message)
+ok 2730 - UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the route's outer catch, concealed behind the shared incident envelope (88f429c25 stopped echoing the raw message)
+  ---
+  duration_ms: 676.302735
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/content-types/update-fields] {
+#   errorId: '74c7e404-5287-4588-8fb9-52be5b73c841',
+#   diagnostic: 'simulated non-Error rejection'
+# }
+# Subtest: UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the same concealed 'internal error' incident envelope
+ok 2731 - UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the same concealed 'internal error' incident envelope
+  ---
+  duration_ms: 592.216282
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: UPDATE-FIELDS: `req.body ?? {}` fallback, forced via a direct handler call past auth with a real seeded principal
+ok 2732 - UPDATE-FIELDS: `req.body ?? {}` fallback, forced via a direct handler call past auth with a real seeded principal
+  ---
+  duration_ms: 431.650981
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: /api/admin/v1/content-types: a request with no body at all is a 400 VALIDATION_ERROR, not a crash
+ok 2733 - /api/admin/v1/content-types: a request with no body at all is a 400 VALIDATION_ERROR, not a crash
+  ---
+  duration_ms: 210.185757
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: /api/admin/v1/content-types/:key/lifecycle: a request with no body at all is a 400 VALIDATION_ERROR, not a crash
+ok 2734 - /api/admin/v1/content-types/:key/lifecycle: a request with no body at all is a 400 VALIDATION_ERROR, not a crash
+  ---
+  duration_ms: 329.260787
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: deployment-overview: TOVU_SITE_KEY row is site-aware — reads THIS site's per-site key file, not just the legacy default (site-key plan §A3b)
+ok 2735 - deployment-overview: TOVU_SITE_KEY row is site-aware — reads THIS site's per-site key file, not just the legacy default (site-key plan §A3b)
+  ---
+  duration_ms: 1656.112369
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: deployment-overview: falls back to today's behavior when this site has no resolvable siteKeyId
+ok 2736 - deployment-overview: falls back to today's behavior when this site has no resolvable siteKeyId
+  ---
+  duration_ms: 1370.390025
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: AC-07/REQ-05 — no Authorization header required, returns 201
+ok 2737 - POST /forms/:slug/submit: AC-07/REQ-05 — no Authorization header required, returns 201
+  ---
+  duration_ms: 418.02586
+  type: 'test'
+  ...
+# Subtest: live timing: json refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries
+ok 2738 - live timing: json refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries
+  ---
+  duration_ms: 221.518304
+  type: 'test'
+  ...
+# Subtest: live timing: urlencoded refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries
+ok 2739 - live timing: urlencoded refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries
+  ---
+  duration_ms: 76.492572
+  type: 'test'
+  ...
+# Subtest: live timing: multipart refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries
+ok 2740 - live timing: multipart refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries
+  ---
+  duration_ms: 95.218935
+  type: 'test'
+  ...
+# Subtest: live timing: native POST redirects with plain retry copy and restores eligible text without flashing its token
+ok 2741 - live timing: native POST redirects with plain retry copy and restores eligible text without flashing its token
+  ---
+  duration_ms: 32.261265
+  type: 'test'
+  ...
+# Subtest: live timing: a consented fast refusal emits no analytics; its persisted retry counts once
+ok 2742 - live timing: a consented fast refusal emits no analytics; its persisted retry counts once
+  ---
+  duration_ms: 48.571027
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: AC-11/REQ-07 — a nonexistent slug returns 404 FORMS_DEFINITION_NOT_FOUND
+ok 2743 - POST /forms/:slug/submit: AC-11/REQ-07 — a nonexistent slug returns 404 FORMS_DEFINITION_NOT_FOUND
+  ---
+  duration_ms: 22.289254
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: AC-12/REQ-07 — a disabled slug returns the identical 404 FORMS_DEFINITION_NOT_FOUND
+ok 2744 - POST /forms/:slug/submit: AC-12/REQ-07 — a disabled slug returns the identical 404 FORMS_DEFINITION_NOT_FOUND
+  ---
+  duration_ms: 70.790575
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: an invalid payload returns 400 FORMS_SUBMISSION_VALIDATION_ERROR
+ok 2745 - POST /forms/:slug/submit: an invalid payload returns 400 FORMS_SUBMISSION_VALIDATION_ERROR
+  ---
+  duration_ms: 23.893637
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response
+not ok 2746 - POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response
+  ---
+  duration_ms: 82.100978
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/__tests__/routes/forms-submit.test.ts:1:11458'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection (FormRateLimitExceededError).'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/forms-submit.test.ts:305:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: POST /forms/:slug/submit: AC-14 — the 6th submission in-window is rate-limited 429
+ok 2747 - POST /forms/:slug/submit: AC-14 — the 6th submission in-window is rate-limited 429
+  ---
+  duration_ms: 32.634581
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html + a valid submission redirects 303 back to the Referer with a success indicator, instead of the raw 201 JSON screen
+ok 2748 - POST /forms/:slug/submit: Accept: text/html + a valid submission redirects 303 back to the Referer with a success indicator, instead of the raw 201 JSON screen
+  ---
+  duration_ms: 15.951313
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a real browser's application/x-www-form-urlencoded body is parsed (not silently dropped) — without this, every JS-disabled submission would fail REQUIRED-field validation regardless of the redirect fix
+ok 2749 - POST /forms/:slug/submit: a real browser's application/x-www-form-urlencoded body is parsed (not silently dropped) — without this, every JS-disabled submission would fail REQUIRED-field validation regardless of the redirect fix
+  ---
+  duration_ms: 5.210385
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a double-clicked Send on a JS-disabled form (two identical browser POSTs) stores one submission and redirects both to the same success page
+ok 2750 - POST /forms/:slug/submit: a double-clicked Send on a JS-disabled form (two identical browser POSTs) stores one submission and redirects both to the same success page
+  ---
+  duration_ms: 7.797528
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: the page's _attempt token decides — one token posted twice stores one row, two page loads with the same answer store two, and the token is never stored
+ok 2751 - POST /forms/:slug/submit: the page's _attempt token decides — one token posted twice stores one row, two page loads with the same answer store two, and the token is never stored
+  ---
+  duration_ms: 19.143243
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a CHECKED checkbox on a real browser form POST (urlencoded `field=on`, the only value the rendered `<input type="checkbox">` without a value attribute ever sends) is accepted and stored as true — not rejected as 'must be a boolean'
+ok 2752 - POST /forms/:slug/submit: a CHECKED checkbox on a real browser form POST (urlencoded `field=on`, the only value the rendered `<input type="checkbox">` without a value attribute ever sends) is accepted and stored as true — not rejected as 'must be a boolean'
+  ---
+  duration_ms: 6.852409
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html + a validation failure redirects 303 with the field errors encoded, never the raw 400 JSON screen
+ok 2753 - POST /forms/:slug/submit: Accept: text/html + a validation failure redirects 303 with the field errors encoded, never the raw 400 JSON screen
+  ---
+  duration_ms: 4.711487
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html + rate limit redirects 303 with the retry-after seconds encoded, never the raw 429 JSON screen
+ok 2754 - POST /forms/:slug/submit: Accept: text/html + rate limit redirects 303 with the retry-after seconds encoded, never the raw 429 JSON screen
+  ---
+  duration_ms: 16.619862
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html with NO Referer falls back to redirecting to '/' rather than erroring or guessing
+ok 2755 - POST /forms/:slug/submit: Accept: text/html with NO Referer falls back to redirecting to '/' rather than erroring or guessing
+  ---
+  duration_ms: 5.950792
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a cross-origin Referer is REJECTED as the redirect target (open-redirect guard) — falls back to '/' instead of trusting a visitor-controlled header
+ok 2756 - POST /forms/:slug/submit: a cross-origin Referer is REJECTED as the redirect target (open-redirect guard) — falls back to '/' instead of trusting a visitor-controlled header
+  ---
+  duration_ms: 5.678046
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a SAME-host Referer whose path starts with '//' is rejected too — its pathname alone is a protocol-relative Location that leaves the site
+ok 2757 - POST /forms/:slug/submit: a SAME-host Referer whose path starts with '//' is rejected too — its pathname alone is a protocol-relative Location that leaves the site
+  ---
+  duration_ms: 98.094203
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: application/json (an explicit API caller) still gets the untouched JSON contract, not a redirect
+ok 2758 - POST /forms/:slug/submit: Accept: application/json (an explicit API caller) still gets the untouched JSON contract, not a redirect
+  ---
+  duration_ms: 67.10147
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html + a validation failure sets a short-lived, HttpOnly, SameSite=Lax flash cookie carrying the OTHER submitted fields' values
+ok 2759 - POST /forms/:slug/submit: Accept: text/html + a validation failure sets a short-lived, HttpOnly, SameSite=Lax flash cookie carrying the OTHER submitted fields' values
+  ---
+  duration_ms: 28.704722
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a field of a type NOT in the repopulatable allowlist (e.g. a future 'password' type this codebase has not added yet) is never included in the flash cookie
+ok 2760 - POST /forms/:slug/submit: a field of a type NOT in the repopulatable allowlist (e.g. a future 'password' type this codebase has not added yet) is never included in the flash cookie
+  ---
+  duration_ms: 8.987587
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: the flash cookie's Secure attribute reflects the request's real scheme — absent over plain HTTP, present when X-Forwarded-Proto: https
+ok 2761 - POST /forms/:slug/submit: the flash cookie's Secure attribute reflects the request's real scheme — absent over plain HTTP, present when X-Forwarded-Proto: https
+  ---
+  duration_ms: 34.715905
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a SUCCESSFUL submission never sets a flash cookie — only a validation failure does
+ok 2762 - POST /forms/:slug/submit: a SUCCESSFUL submission never sets a flash cookie — only a validation failure does
+  ---
+  duration_ms: 17.326381
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: the JSON API path is completely unaffected by the flash-cookie fix — no Set-Cookie header on a validation failure without Accept: text/html
+ok 2763 - POST /forms/:slug/submit: the JSON API path is completely unaffected by the flash-cookie fix — no Set-Cookie header on a validation failure without Accept: text/html
+  ---
+  duration_ms: 10.979782
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: boundBody passes a non-string field value through UNTRUNCATED (a JSON caller can send a number/boolean, not just strings) -- validateSubmissionPayload then rejects it by type
+ok 2764 - POST /forms/:slug/submit: boundBody passes a non-string field value through UNTRUNCATED (a JSON caller can send a number/boolean, not just strings) -- validateSubmissionPayload then rejects it by type
+  ---
+  duration_ms: 11.96911
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: `(req.get("accept") ?? "").includes("text/html")` fallback, reached only via a raw request that sends NO Accept header at all -- fetch() always injects a default one, so every other test in this file takes the other side
+ok 2765 - POST /forms/:slug/submit: `(req.get("accept") ?? "").includes("text/html")` fallback, reached only via a raw request that sends NO Accept header at all -- fetch() always injects a default one, so every other test in this file takes the other side
+  ---
+  duration_ms: 16.461048
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html + a Referer that isn't a valid URL at all is caught, not thrown -- falls back to '/' the same as an absent Referer
+ok 2766 - POST /forms/:slug/submit: Accept: text/html + a Referer that isn't a valid URL at all is caught, not thrown -- falls back to '/' the same as an absent Referer
+  ---
+  duration_ms: 15.754883
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: an extremely long slug alone exceeds the flash cookie's 3000-byte budget -- setFormFlashCookie's `if (!json) return` skips the cookie entirely rather than emitting a broken header
+ok 2767 - POST /forms/:slug/submit: an extremely long slug alone exceeds the flash cookie's 3000-byte budget -- setFormFlashCookie's `if (!json) return` skips the cookie entirely rather than emitting a broken header
+  ---
+  duration_ms: 13.29166
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: Accept: text/html + a validation failure whose form definition disappears between submitForm's own lookup and this route's own second lookup (a race) degrades to no flash cookie, never throws
+ok 2768 - POST /forms/:slug/submit: Accept: text/html + a validation failure whose form definition disappears between submitForm's own lookup and this route's own second lookup (a race) degrades to no flash cookie, never throws
+  ---
+  duration_ms: 16.545907
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: an error submitForm never actually raises today (a plain, untyped repo failure) still degrades to a generic 500 INTERNAL_ERROR, not an unhandled rejection
+ok 2769 - POST /forms/:slug/submit: an error submitForm never actually raises today (a plain, untyped repo failure) still degrades to a generic 500 INTERNAL_ERROR, not an unhandled rejection
+  ---
+  duration_ms: 13.094412
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: `req.get("host") ?? "localhost"` and `req.params.slug ?? ""` fallbacks, forced via a direct handler call -- Host is mandated by HTTP/1.1 but not enforced by Express, so no real request can omit it
+ok 2770 - POST /forms/:slug/submit: `req.get("host") ?? "localhost"` and `req.params.slug ?? ""` fallbacks, forced via a direct handler call -- Host is mandated by HTTP/1.1 but not enforced by Express, so no real request can omit it
+  ---
+  duration_ms: 10.025726
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: a DB failure in the flash-cookie's own second findBySlug lookup (setFormFlashCookieForValidationFailure) still answers the validation failure — not a hung request
+ok 2771 - POST /forms/:slug/submit: a DB failure in the flash-cookie's own second findBySlug lookup (setFormFlashCookieForValidationFailure) still answers the validation failure — not a hung request
+  ---
+  duration_ms: 62.251679
+  type: 'test'
+  ...
+# Subtest: POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely
+ok 2772 - POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely
+  ---
+  duration_ms: 16.42614
+  type: 'test'
+  ...
+# Subtest: validation flash cookies preserve upstream cookies and expire in 120 seconds
+ok 2773 - validation flash cookies preserve upstream cookies and expire in 120 seconds
+  ---
+  duration_ms: 65.948662
+  type: 'test'
+  ...
+# Subtest: form analytics captures only a committed submission, never honeypots or duplicate attempts
+ok 2774 - form analytics captures only a committed submission, never honeypots or duplicate attempts
+  ---
+  duration_ms: 88.678726
+  type: 'test'
+  ...
+# Subtest: form refusal analytics classifies schema_changed without exposing submitted answers
+ok 2775 - form refusal analytics classifies schema_changed without exposing submitted answers
+  ---
+  duration_ms: 5.745745
+  type: 'test'
+  ...
+# Subtest: form refusal analytics classifies attachment_space without exposing submitted answers
+ok 2776 - form refusal analytics classifies attachment_space without exposing submitted answers
+  ---
+  duration_ms: 4.373311
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media list: carries the content type sniffed from the uploaded bytes
+ok 2777 - admin media list: carries the content type sniffed from the uploaded bytes
+  ---
+  duration_ms: 1365.125677
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media list: the stored content type comes from the BYTES, never the declared upload string
+ok 2778 - admin media list: the stored content type comes from the BYTES, never the declared upload string
+  ---
+  duration_ms: 849.514587
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media list: unrecognized bytes are reported as application/octet-stream, not as an absent type
+ok 2779 - admin media list: unrecognized bytes are reported as application/octet-stream, not as an absent type
+  ---
+  duration_ms: 648.788092
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media list: a metadata PATCH does not wipe the stored content type
+ok 2780 - admin media list: a metadata PATCH does not wipe the stored content type
+  ---
+  duration_ms: 695.783551
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media list: backfills and persists the content type of a row that predates the column
+ok 2781 - admin media list: backfills and persists the content type of a row that predates the column
+  ---
+  duration_ms: 894.180007
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media upload: video/mp4 and video/webm are accepted by the widened upload allowlist
+ok 2782 - admin media upload: video/mp4 and video/webm are accepted by the widened upload allowlist
+  ---
+  duration_ms: 882.204482
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media upload: malformed SVG is rejected and valid SVG is sanitized before storage
+ok 2783 - admin media upload: malformed SVG is rejected and valid SVG is sanitized before storage
+  ---
+  duration_ms: 2463.558598
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: admin media upload: a real AVIF is accepted and persisted as image/avif, not video/mp4
+ok 2784 - admin media upload: a real AVIF is accepted and persisted as image/avif, not video/mp4
+  ---
+  duration_ms: 743.879585
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [mail:console] to=budget-a@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a76d67ef6643addbed967f7e91dbb299ef88d0b3653ed9162691a24761357e63 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=2f29848f583e51de1538a9b9f048bfe242b3c3e2037608ee2798a2c3bd9b878e\\nOr enter this one-time code: 857364"
+# Subtest: T015/W-002: MAGIC_LINK_PER_EMAIL — the 6th sign-in request for the same email is denied 429; a different email is unaffected
+ok 2785 - T015/W-002: MAGIC_LINK_PER_EMAIL — the 6th sign-in request for the same email is denied 429; a different email is unaffected
+  ---
+  duration_ms: 2430.826525
+  type: 'test'
+  ...
+# [mail:console] to=budget-a@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:c2de701254ad45c6cb2c67d6193daaedbdd6954cd44ca5ffb6d77a357a4c68cd sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=91bd8380cb08000a26735a86a711979a5375f64e8d4869b78ff59607b082c4a2\\nOr enter this one-time code: 848622"
+# [mail:console] to=budget-a@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:75a1a506aaaaf9de2a57fd9e4f1ab3c382a2f205935601e76a6200c52b588f00 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=604a52dcaa2d587cf0ad7d2c5568df2e333d4ec7c9720bd51e04480524aff697\\nOr enter this one-time code: 952142"
+# [mail:console] to=budget-a@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:dc724d768ec41e3531294e835f395ef24fbf0cda9ee21ecf30dc3a38962da42d sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=9c8a43fb8def2f437cb15784fc9e88017b5aa7078e7040790e2a61ff14aabfe7\\nOr enter this one-time code: 557317"
+# [mail:console] to=budget-b@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a17fb714c10bdac2a6bbc9ea926b071460e0444be6b03bf15623c5a2d9b1c68a sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=b31e162ad948419b16787da97c20899a45a3b05428e28e9292c348554bc4d098\\nOr enter this one-time code: 782875"
+# [mail:console] to=budget-a@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:7b18e4a74587937c8e8df682e3da792c53f1d6660c50e3410a0437addf185471 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=24695c1adad31cdc15373edfd57668a997c28dad766b048f42721da094b38015\\nOr enter this one-time code: 287146"
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [mail:console] to=distinct-0@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:1d95e0dcbbb8e1b529b2664271d4f4d012a8d94c7ec54db0a4b72a73841b1924 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=11152966c31fb642069451ffcf0ff2a510b7cde4f10d661dfe93e425eabf3a8c\\nOr enter this one-time code: 508911"
+# [mail:console] to=distinct-1@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:2faab55e87227e350a0d71770660973b1f0042a8ab1115af48b5a71b35483183 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=3f895993f506c0dee0731a863f8767d7eac21e21081efa876a510209a068ca82\\nOr enter this one-time code: 954368"
+# [mail:console] to=distinct-3@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a3c859e81e6e13c31000548bdb908463ea2c8b8ad804c542c1314064fda16a2c sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=651a1ad08f590711f737c0d2a72546e9411b752794af5ba4ab44009bd12944e9\\nOr enter this one-time code: 073324"
+# [mail:console] to=distinct-2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:1afc869c4382fc36b20239f27e41e091364717956e910e4c75b8729ae0230741 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=64f2ede72f7f7933a01fb1e81ba20e3306ac440c8b84d2f471bda94f4b773651\\nOr enter this one-time code: 380032"
+# Subtest: T015/W-003: MAGIC_LINK_PER_IP — the 21st sign-in request from this IP (across distinct emails) is denied 429
+ok 2786 - T015/W-003: MAGIC_LINK_PER_IP — the 21st sign-in request from this IP (across distinct emails) is denied 429
+  ---
+  duration_ms: 1873.433229
+  type: 'test'
+  ...
+# [mail:console] to=distinct-4@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:06964f3a05c25ad3cad3a0a51b222a6fd339b892a53b4f307e21db02977f653c sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=626e66d37be94df94ba8b1cb36e12e3db01462dcfe669d84fd7f6524ee0db26d\\nOr enter this one-time code: 976021"
+# [mail:console] to=distinct-5@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:5d718a4956666e92386d20aad2f1630f58a9af76371d09bf8849326a8e2fec28 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=b8d3d5396687e7612e046ad4bb95364b3fb2acb520d6dc6c9dd3cdacccc97dd8\\nOr enter this one-time code: 044095"
+# [mail:console] to=distinct-7@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a56ec752be42965bd9bd7278084baf13d80f9986d56f192d175b4ec26dc9ac89 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=bd3ef1f0278e821c6cbde73d15db2228789a20855900ff492e763ef568d27a6f\\nOr enter this one-time code: 708898"
+# [mail:console] to=distinct-6@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:c226cea668b1fff51624281e63776810dff39512202efba4b5b6cf4c3f26e2cc sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=b68f5819d8f08aaf450bdc09a7205ac950c8d961c21ca1dd97d98f1e8a9d485e\\nOr enter this one-time code: 807659"
+# [mail:console] to=distinct-8@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:d5c84984bd8217f0bc0a22add8a4fffb58f6291de7ab45a02da32ed1407ba2d3 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=326d2173f473d5378e62c171702194777c0880cfc5dfca93f6a44a13a748793e\\nOr enter this one-time code: 140234"
+# [mail:console] to=distinct-9@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:bcbef636c6ea9094c8eba08fcde0b409aa07ea38fd18d238b41e4a817ec5f682 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=f61380fabfcead3a781ac24d9696f4aae962e8dd406192daf69d0c1ad26cb43a\\nOr enter this one-time code: 371051"
+# [mail:console] to=distinct-10@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:434a0d1974570afc397ed4500f5d1425db4346fc462a89cd23db9d5d59e04008 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=d29cef53250bd2a206ef43032befc71321a24631da32a81cd98715c6e80e676b\\nOr enter this one-time code: 004533"
+# [mail:console] to=distinct-11@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a3c17bd18fd12a3f983692295d7b3e6e52a4a91e48c6af3c0c64e327330fc1ca sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=e52ccc6fd30af51fded1c5d9715cc367bea9b1ad9d0eb0a6be338b06d8da8388\\nOr enter this one-time code: 263746"
+# Subtest: INV-06: a registered and an unregistered email both get {accepted:true} below the limit, identically
+ok 2787 - INV-06: a registered and an unregistered email both get {accepted:true} below the limit, identically
+  ---
+  duration_ms: 858.164194
+  type: 'test'
+  ...
+# [mail:console] to=distinct-13@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:2d86fa6d6fbc63b68a7edb105069ebe8aade5bfeb642ea445913016137c2684c sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=2c1713923729ee889895517c6cfb2d61348500f5af95d4b9e6ca837fee257006\\nOr enter this one-time code: 700224"
+# [mail:console] to=distinct-12@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:7899c13a1eb214475041dfd4e9c5c6b72d14078f0832aa1b4b7f7857c26e697a sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=4f31ac4b448bcf72f137ab020f46f62455dca2dd1312a9df9d4f095d35e041b5\\nOr enter this one-time code: 800818"
+# [mail:console] to=distinct-15@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:060ee6e37a342fc04da2a4455ee797803d74520593f16c011d4c1d7b2df91b6a sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=440b22662edf1c3f3be6714cb447bd0a4b8458a0c7a561c341c66b9685f01aba\\nOr enter this one-time code: 314495"
+# [mail:console] to=distinct-18@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:b58ef94df23dff440470b3e9b459af2b6e37fa4ee32fc8113e0365e47ce0c2a9 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=88ca101f9a32fe8d78ffcad852cefea8596d2594706ca0a008e733bcd54f8277\\nOr enter this one-time code: 959203"
+# [mail:console] to=distinct-19@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:9065d1e07eaaf6da62987210bf1dc871ccef019314f9cc3d8ab215f48cc22e6e sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=f808dbe63e0d84af4156d6655b6d93209ba63f7c4323e8909a618ab6379005e1\\nOr enter this one-time code: 376348"
+# [mail:console] to=distinct-14@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:38587eb7d05a18872ed1c9af153c465e76c3d660009f0d1aedc8a4688d2fa627 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=1fca147a0687018defd31d17ad97960872b2375db970d35585bcfa08eba8deea\\nOr enter this one-time code: 208385"
+# [mail:console] to=distinct-17@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:759eb11f16f2d6a3c3e6ce47e63e17275cab744dae4af8082d4d4b7c42455b14 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=d62eb424288c81f469b66bb07071632d6d131f3f10041c7947592b2b4dacd411\\nOr enter this one-time code: 883031"
+# [mail:console] to=distinct-16@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:e5008405f39e535720ca1be53baba35a5d29b376d47ac46e2036202c055d0f42 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=0db04ffa4ccdcb4b8c99c37a2408c839d382fdf55108ea3bb3c847234f6d100c\\nOr enter this one-time code: 473362"
+# [mail:console] to=never-seen@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:66b4417afa11e595633013c4608332d3810f5227bbfc0c18e62304e0233b0387 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=a20be755b0e6ce4984cbbe1db65d2e4d6bfeca2cb9d9731e3779c0502ff39c5d\\nOr enter this one-time code: 891334"
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [mail:console] to=registered@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:9ba0d16587fe6442b5bbf0b07187c23d0be95ecf3d51182b36c22981fc54b859 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=4239d5718db9c53820f0cdfb29eed842be8587df56b63a06ad165bf38da13ebc\\nOr enter this one-time code: 339526"
+# [mail:console] to=registered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:8157ce273c2de8c294b633b9c11f3dff810d401be02063078d5c572e2758d9ec sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=5fff77796b4a37454eecb19514d78c63c45b5b8aabc570f9f07c4766dfeeef5d\\nOr enter this one-time code: 370796"
+# [mail:console] to=registered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:bd535cfbc641d2938306a0f8134b1c9248cb990f7f0fd2d20982659deb933602 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=81e55c2f4742d06d67a236ceccae0d9b66552f0fa96a903f14657be41c7e7de4\\nOr enter this one-time code: 687053"
+# [mail:console] to=registered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:280f9bf45554e145116ec2e3662d03a65e12611724735606ef4f4cd8d54ea71f sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=37e5dc600c35a7a3077dda0af36b66d6b3980c77827b96585c868589bb0597e2\\nOr enter this one-time code: 565844"
+# Subtest: INV-06: a registered and an unregistered email both get 429 identically once exceeded
+ok 2788 - INV-06: a registered and an unregistered email both get 429 identically once exceeded
+  ---
+  duration_ms: 986.794378
+  type: 'test'
+  ...
+# [mail:console] to=unregistered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:ffc89b8adc3bf1b5a95862c41cdbe34375ab87b99b0334e6efef8537b7ed1147 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=b1c169048237582c6a4307039d506ade92c87f56cde2d842a6c1c2aa51184179\\nOr enter this one-time code: 658671"
+# [mail:console] to=registered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:66c4bf157f42b61453ac86de9fc224860ca6b858545a8f11cec90c9c2aea5a27 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=122cfb0b59ae08091f4d9320ee16620607701a816122a0ab4fbf6b9a0b5b1e3a\\nOr enter this one-time code: 813405"
+# [mail:console] to=unregistered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a9566b683279b09fd39bbeeb50a2c8037e8d792f20e8363390675d4eb8449a44 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=80c171af28a6fd31b43187ae8ca608b2e7140592dc4892adacdbc64e01552b19\\nOr enter this one-time code: 896259"
+# [mail:console] to=unregistered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:5e89288b5feba2ae1621940e7675c048986587cb734246dc1552c160f9261797 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=243fb0c72045f48b916b508fc3ceb66feeb678f50aad1fece8d8c58dcbc9ce6d\\nOr enter this one-time code: 246915"
+# [mail:console] to=registered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a7f58ac7acd90469258a95501843af39b3e44ce3ef6090ab2ed24882d82f9072 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=043d0aef593a91c9483974fd24795781576afcd2b341047ddfe128c49dbd65b3\\nOr enter this one-time code: 130815"
+# [mail:console] to=unregistered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:92657e06defd92cf1145b54688eb5386cee7a577a313c3b69e4af5779e30a53f sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=640a5471b6e9ad585519383b45e0cc2fd3c44584e5e444fae2bab4b37e1b2002\\nOr enter this one-time code: 131214"
+# [mail:console] to=unregistered2@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:4a74d7690bddc6edc296619e5605907270cba7dd58a9e4a3ae2c37a1214b6481 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=23cbf7984c80622f740733dd41c2e21b89a7a1f0a3e036937841caec3f25a7d3\\nOr enter this one-time code: 644403"
+# Subtest: 404s on a workspace id that does not match the deployed workspace
+ok 2789 - 404s on a workspace id that does not match the deployed workspace
+  ---
+  duration_ms: 662.266605
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a malformed email is rejected 400 with the MemberValidationError message, below any rate limit
+ok 2790 - a malformed email is rejected 400 with the MemberValidationError message, below any rate limit
+  ---
+  duration_ms: 390.738933
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [mail:console] to=redirect-path@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:147a09d26393edbce4d9c5baa23be3f3f32ffe72b8529c29489d3acca0c1af5b sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=2a6fe4bd421eeeca7b210257d8350749ce14aac59768797c28930b557c70f692&redirect=%2Fwelcome\\nOr enter this one-time code: 00…"
+# Subtest: a redirectPath is carried into the minted sign-in link
+ok 2791 - a redirectPath is carried into the minted sign-in link
+  ---
+  duration_ms: 362.919192
+  type: 'test'
+  ...
+# Subtest: a detached mailer failure keeps the public acceptance response
+ok 2792 - a detached mailer failure keeps the public acceptance response
+  ---
+  duration_ms: 1024.092758
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: blank emails return validation errors without allocating empty limiter buckets
+ok 2793 - blank emails return validation errors without allocating empty limiter buckets
+  ---
+  duration_ms: 828.745813
+  type: 'test'
+  ...
+# Member authentication delivery failed after acceptance
+# Subtest: an email-less JSON body ({}) is treated as an empty, invalid email — not a crash
+ok 2794 - an email-less JSON body ({}) is treated as an empty, invalid email — not a crash
+  ---
+  duration_ms: 821.807378
+  type: 'test'
+  ...
+# Subtest: req.params.workspaceId ?? "": an unpopulated param (impossible via real Express routing) still 404s rather than throwing
+ok 2795 - req.params.workspaceId ?? "": an unpopulated param (impossible via real Express routing) still 404s rather than throwing
+  ---
+  duration_ms: 570.188207
+  type: 'test'
+  ...
+# Subtest: req.body ?? {}: an undefined body (impossible with express.json() mounted) still resolves to an empty-email 400 rather than throwing
+ok 2796 - req.body ?? {}: an undefined body (impossible with express.json() mounted) still resolves to an empty-email 400 rather than throwing
+  ---
+  duration_ms: 347.993248
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: MAGIC_LINK_PER_EMAIL shares one budget across case and whitespace variants
+ok 2797 - MAGIC_LINK_PER_EMAIL shares one budget across case and whitespace variants
+  ---
+  duration_ms: 456.862424
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: step 1: console returns a clear identical site-level 503 for known, missing and disabled addresses
+ok 2798 - step 1: console returns a clear identical site-level 503 for known, missing and disabled addresses
+  ---
+  duration_ms: 171.514557
+  type: 'test'
+  ...
+# [mail:console] to=budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:a3f72b82413030bbcfc746cf69eba1cfb6e6517f489eaf47fb984ee67d5f00d7 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=5e5d95267abc55fd065d5ee359233f2ff81fac2f1e3eac341000baf4ac538d1c\\nOr enter this one-time code: 959239"
+# [mail:console] to=budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:3f41a35a36f53bd012675f266666af1ff0485f1d970704e2ad824eed81cb6b95 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=5137a90ea514ca6cece4caa9d693f6e839ef150946b9c57686b976905631e4e4\\nOr enter this one-time code: 974905"
+# [mail:console] to=budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:595ce84139a383389032706b18e77cf324113096f7b68ffd9e4923b628c3675e sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=c2d16f316c17970e76a501438dab6cbbbfe06b1535a04b080b0ed2d0f5b75e93\\nOr enter this one-time code: 883977"
+# [mail:console] to=budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:da8959ee891ce583928fd8f9b3ac2a815d8bdcd9993ef1799f814bf5241395eb sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=1fabb60971926f332b46ed66cb7742db72b17e747ba4e9c41c44b7a708bcdfc7\\nOr enter this one-time code: 579274"
+# [mail:console] to=different@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:c1e313bac85b463628d21191cbed5ab3590b0ecc9406a8ffffbbcfc5f731c63f sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=09bdbb250811f19d92b95942155a61fc5f6b2c1d59c7a34d0ab07a54e9d08894\\nOr enter this one-time code: 120557"
+# [mail:console] to=budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:97c6d76ec96d79af4edb4bd5b07b0fa3be177f585064946486bf083bf6c2126c sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin\#magic=8fe0ec5444d1e5a0bf4d9947ae13fc67464c50480715fddc15e241a7d2946e7f\\nOr enter this one-time code: 852901"
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: step 1: missing_credential returns a clear identical site-level 503 for known, missing and disabled addresses
+ok 2799 - step 1: missing_credential returns a clear identical site-level 503 for known, missing and disabled addresses
+  ---
+  duration_ms: 736.997245
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: step 1: sender_missing returns a clear identical site-level 503 for known, missing and disabled addresses
+ok 2800 - step 1: sender_missing returns a clear identical site-level 503 for known, missing and disabled addresses
+  ---
+  duration_ms: 996.198128
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: step 1: public acceptance hides suppressed and failed sends and disabled membership
+ok 2801 - step 1: public acceptance hides suppressed and failed sends and disabled membership
+  ---
+  duration_ms: 720.125994
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: step 1: createApp wires MailStatus and the trusted https localhost origin into public members
+ok 2802 - step 1: createApp wires MailStatus and the trusted https localhost origin into public members
+  ---
+  duration_ms: 958.440357
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: post_created, then post_published once on the draft → published transition only
+ok 2803 - post_created, then post_published once on the draft → published transition only
+  ---
+  duration_ms: 2330.639966
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: assistant_chat_started on a new chat, carrying no chat text
+ok 2804 - assistant_chat_started on a new chat, carrying no chat text
+  ---
+  duration_ms: 1136.374821
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site_publish_started when an owner starts a publish run
+ok 2805 - site_publish_started when an owner starts a publish run
+  ---
+  duration_ms: 1613.99413
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: plugin_toggled identifies the plugin family and direction without settings
+ok 2806 - plugin_toggled identifies the plugin family and direction without settings
+  ---
+  duration_ms: 634.309646
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha 404s when the URL workspace does not match this composition's own workspace
+ok 2807 - PUT .../blobs/:sha 404s when the URL workspace does not match this composition's own workspace
+  ---
+  duration_ms: 2093.023738
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha is 401 without a credential and 403 for a principal lacking publish_content.apply
+ok 2808 - PUT .../blobs/:sha is 401 without a credential and 403 for a principal lacking publish_content.apply
+  ---
+  duration_ms: 1389.30937
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha writes real bytes once, then reports written:false on re-upload of the same sha (idempotent dedupe)
+ok 2809 - PUT .../blobs/:sha writes real bytes once, then reports written:false on re-upload of the same sha (idempotent dedupe)
+  ---
+  duration_ms: 1114.134923
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha REFUSES bytes that do not hash to the claimed sha256 (security property, plan §4 task 6)
+ok 2810 - PUT .../blobs/:sha REFUSES bytes that do not hash to the claimed sha256 (security property, plan §4 task 6)
+  ---
+  duration_ms: 771.108576
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha 400s on malformed base64 even when the claimed sha is what a lenient decoder would produce
+ok 2811 - PUT .../blobs/:sha 400s on malformed base64 even when the claimed sha is what a lenient decoder would produce
+  ---
+  duration_ms: 829.347811
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha 400s on a malformed sha param (not lowercase 64-hex)
+ok 2812 - PUT .../blobs/:sha 400s on a malformed sha param (not lowercase 64-hex)
+  ---
+  duration_ms: 1134.105958
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: POST .../blobs/probe SHORT-CIRCUITS an already-present sha (required Task 6 property)
+ok 2813 - POST .../blobs/probe SHORT-CIRCUITS an already-present sha (required Task 6 property)
+  ---
+  duration_ms: 1078.049186
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: POST .../blobs/probe 400s on a non-array / oversized / malformed shas payload
+ok 2814 - POST .../blobs/probe 400s on a non-array / oversized / malformed shas payload
+  ---
+  duration_ms: 860.645514
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha 400s on a missing, empty or non-string dataBase64
+ok 2815 - PUT .../blobs/:sha 400s on a missing, empty or non-string dataBase64
+  ---
+  duration_ms: 775.420483
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/publish-content/blob-put] {
+#   errorId: 'f0d1d3fc-b3fa-42f7-80e6-e1d09a45eed9',
+#   diagnostic: 'Error: EACCES: /var/private/blobs\\n' +
+#     '    at InMemoryBlobStore.deps.blobStore.putIfAbsent (/home/user/Tovu/apps/website/src/server/__tests__/routes/publish-content-blobs.test.ts:353:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/blob-put.ts:86:48)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# Subtest: PUT .../blobs/:sha 500s generically (no internals) when the blob store write fails
+ok 2816 - PUT .../blobs/:sha 500s generically (no internals) when the blob store write fails
+  ---
+  duration_ms: 1453.507709
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: PUT .../blobs/:sha (direct invoke): missing params fall back safely, a body-less request 400s, and an over-limit blob is 413 before any write
+ok 2817 - PUT .../blobs/:sha (direct invoke): missing params fall back safely, a body-less request 400s, and an over-limit blob is 413 before any write
+  ---
+  duration_ms: 2618.121201
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/publish-content/blobs-probe] {
+#   errorId: '554d5797-024e-4457-857d-0618487e587f',
+#   diagnostic: 'Error: store offline\\n' +
+#     '    at InMemoryBlobStore.deps.blobStore.exists (/home/user/Tovu/apps/website/src/server/__tests__/routes/publish-content-blobs.test.ts:421:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/blobs-probe.ts:78:48)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+# }
+# Subtest: POST .../blobs/probe 404s a foreign workspace, 400s an empty shas array, and 500s generically when the store fails
+ok 2818 - POST .../blobs/probe 404s a foreign workspace, 400s an empty shas array, and 500s generically when the store fails
+  ---
+  duration_ms: 616.702634
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: POST .../blobs/probe (direct invoke): a missing :workspaceId 404s and a body-less request is the shas 400
+ok 2819 - POST .../blobs/probe (direct invoke): a missing :workspaceId 404s and a body-less request is the shas 400
+  ---
+  duration_ms: 2099.302979
+  type: 'test'
+  ...
+# Subtest: the HTTP report mapper preserves every client-visible field and creates a wire DTO
+ok 2820 - the HTTP report mapper preserves every client-visible field and creates a wire DTO
+  ---
+  duration_ms: 10.271097
+  type: 'test'
+  ...
+# Subtest: the HTTP report mapper carries a row's referencedBy holders onto the wire, and omits the key entirely when the planner didn't set it
+ok 2821 - the HTTP report mapper carries a row's referencedBy holders onto the wire, and omits the key entirely when the planner didn't set it
+  ---
+  duration_ms: 0.35332
+  type: 'test'
+  ...
+# Subtest: a post-only grant may write a post, even though page and media declare the same permission
+ok 2822 - a post-only grant may write a post, even though page and media declare the same permission
+  ---
+  duration_ms: 2.608243
+  type: 'test'
+  ...
+# Subtest: a post-only grant may NOT write a page or media through the shared permission
+ok 2823 - a post-only grant may NOT write a page or media through the shared permission
+  ---
+  duration_ms: 0.300274
+  type: 'test'
+  ...
+# Subtest: each granted type is answered for itself — the narrowing is per type, not per permission
+ok 2824 - each granted type is answered for itself — the narrowing is per type, not per permission
+  ---
+  duration_ms: 0.176523
+  type: 'test'
+  ...
+# Subtest: a publish type with no registered handler is refused, even when the grant names it
+ok 2825 - a publish type with no registered handler is refused, even when the grant names it
+  ---
+  duration_ms: 0.147869
+  type: 'test'
+  ...
+# Subtest: a caller with no publish-type stamp is not answered by the grant — the permission alone is too coarse
+ok 2826 - a caller with no publish-type stamp is not answered by the grant — the permission alone is too coarse
+  ---
+  duration_ms: 0.248673
+  type: 'test'
+  ...
+# Subtest: a read-only grant authorizes no write for a type it names
+ok 2827 - a read-only grant authorizes no write for a type it names
+  ---
+  duration_ms: 0.229777
+  type: 'test'
+  ...
+# Subtest: worklist \#5 regression: a real HTTP request for a too-deep post serves 200 with a placeholder, not a 500
+ok 2828 - worklist \#5 regression: a real HTTP request for a too-deep post serves 200 with a placeholder, not a 500
+  ---
+  duration_ms: 611.449259
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: worklist \#5 regression: an ordinary post (well within the bound) is completely unaffected
+ok 2829 - worklist \#5 regression: an ordinary post (well within the bound) is completely unaffected
+  ---
+  duration_ms: 542.820836
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_REGISTER_DEFINITIONS: denied 403 FORBIDDEN without settings.definitions.manage; owner succeeds
+ok 2830 - SETTINGS_REGISTER_DEFINITIONS: denied 403 FORBIDDEN without settings.definitions.manage; owner succeeds
+  ---
+  duration_ms: 1921.674065
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_GET_EFFECTIVE: denied 403 FORBIDDEN without settings.read; owner succeeds
+ok 2831 - SETTINGS_GET_EFFECTIVE: denied 403 FORBIDDEN without settings.read; owner succeeds
+  ---
+  duration_ms: 1324.978058
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_SET: denied 403 FORBIDDEN without the scope-derived write permission; owner succeeds
+ok 2832 - SETTINGS_SET: denied 403 FORBIDDEN without the scope-derived write permission; owner succeeds
+  ---
+  duration_ms: 1155.151604
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_CLEAR: denied 403 FORBIDDEN without the scope-derived write permission; owner succeeds
+ok 2833 - SETTINGS_CLEAR: denied 403 FORBIDDEN without the scope-derived write permission; owner succeeds
+  ---
+  duration_ms: 953.417311
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_RESET: denied 403 FORBIDDEN without settings.reset.<scope>; owner succeeds
+ok 2834 - SETTINGS_RESET: denied 403 FORBIDDEN without settings.reset.<scope>; owner succeeds
+  ---
+  duration_ms: 1486.865971
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_GET_RAW: denied 403 FORBIDDEN without settings.read.raw; owner sees per-layer values + default
+ok 2835 - SETTINGS_GET_RAW: denied 403 FORBIDDEN without settings.read.raw; owner sees per-layer values + default
+  ---
+  duration_ms: 1264.453184
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_GET_RAW: 400 VALIDATION_ERROR when namespace/key are missing; 404 DEFINITION_NOT_FOUND for an unknown key
+ok 2836 - SETTINGS_GET_RAW: 400 VALIDATION_ERROR when namespace/key are missing; 404 DEFINITION_NOT_FOUND for an unknown key
+  ---
+  duration_ms: 654.800804
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_LIST_DEFINITIONS: denied 403 FORBIDDEN without settings.read.definitions; owner sees platform + site definitions
+ok 2837 - SETTINGS_LIST_DEFINITIONS: denied 403 FORBIDDEN without settings.read.definitions; owner sees platform + site definitions
+  ---
+  duration_ms: 800.791093
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: SETTINGS_RESET: clears exactly its namespace overrides, restores defaults, and preserves another namespace
+ok 2838 - SETTINGS_RESET: clears exactly its namespace overrides, restores defaults, and preserves another namespace
+  ---
+  duration_ms: 496.476921
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site profile route: a mismatched workspaceId in the URL 404s
+ok 2839 - site profile route: a mismatched workspaceId in the URL 404s
+  ---
+  duration_ms: 1649.576825
+  type: 'test'
+  ...
+# Subtest: site profile route: an unauthenticated request never reaches the handler
+ok 2840 - site profile route: an unauthenticated request never reaches the handler
+  ---
+  duration_ms: 1228.604786
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site profile route: the seeded owner gets every section, with real data
+ok 2841 - site profile route: the seeded owner gets every section, with real data
+  ---
+  duration_ms: 647.355556
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site profile route: a principal with no grants gets 200 with EVERY section forbidden — not a blanket 403
+ok 2842 - site profile route: a principal with no grants gets 200 with EVERY section forbidden — not a blanket 403
+  ---
+  duration_ms: 1527.311576
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site profile route: '?sections=' scopes the response to exactly what was asked for
+ok 2843 - site profile route: '?sections=' scopes the response to exactly what was asked for
+  ---
+  duration_ms: 1284.748242
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site profile route: an unknown section or a bad pageLimit is a 400, never a silent default
+ok 2844 - site profile route: an unknown section or a bad pageLimit is a 400, never a silent default
+  ---
+  duration_ms: 1016.893439
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site profile route: no canary seeded in any credential store reaches the response body
+ok 2845 - site profile route: no canary seeded in any credential store reaches the response body
+  ---
+  duration_ms: 1571.258889
+  type: 'test'
+  ...
+# Subtest: site profile route: a request with no :workspaceId param at all 404s (the `?? ""` fallback, forced via a direct handler call)
+ok 2846 - site profile route: a request with no :workspaceId param at all 404s (the `?? ""` fallback, forced via a direct handler call)
+  ---
+  duration_ms: 681.286947
+  type: 'test'
+  ...
+# Subtest: site profile route: an unexpected failure while building the profile is a fixed 500 that never echoes the cause
+ok 2847 - site profile route: an unexpected failure while building the profile is a fixed 500 that never echoes the cause
+  ---
+  duration_ms: 982.02795
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

@@ -14,3 +14,17 @@ cms exit 1 453s
 commerce exit 0 12s
 cookie-consent exit 0 22s
 core exit 1 133s
+ui exit 1 715s
+daemon exit 0 286s
+sqlite exit 0 31s
+sidecar exit 1 12s
+server exit 1 100s
+search exit 0 7s
+sandbox exit 1 11s
+registry exit 0 13s
+provider-plugins exit 1 116s
+protocol exit 0 6s
+plugins exit 0 78s
+plugin-fixture-provider exit 1 3s
+plugin-catalog exit 0 3s
+db exit 1 424s

@@ -1,0 +1,370 @@
+TAP version 13
+# Not implemented: navigation to another Document
+# Not implemented: Window's alert() method
+# Subtest: fail throws a BundleCheckError carrying the message
+ok 1 - fail throws a BundleCheckError carrying the message
+  ---
+  duration_ms: 1.816264
+  type: 'test'
+  ...
+# Subtest: isNavigationError recognises only jsdom's navigation report
+ok 2 - isNavigationError recognises only jsdom's navigation report
+  ---
+  duration_ms: 0.252583
+  type: 'test'
+  ...
+# Subtest: a bundle that mounts passes, with the page stubs real browsers provide in place
+ok 3 - a bundle that mounts passes, with the page stubs real browsers provide in place
+  ---
+  duration_ms: 688.943334
+  type: 'test'
+  ...
+# Subtest: a bundle that throws while evaluating fails before mounting is even checked
+ok 4 - a bundle that throws while evaluating fails before mounting is even checked
+  ---
+  duration_ms: 367.382644
+  type: 'test'
+  ...
+# Subtest: an error raised after evaluation is reported as a post-mount failure
+ok 5 - an error raised after evaluation is reported as a post-mount failure
+  ---
+  duration_ms: 62.309076
+  type: 'test'
+  ...
+# Subtest: a bundle that removes the mount point, or never renders into it, fails
+ok 6 - a bundle that removes the mount point, or never renders into it, fails
+  ---
+  duration_ms: 182.269206
+  type: 'test'
+  ...
+# Subtest: the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry
+ok 7 - the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry
+  ---
+  duration_ms: 334.702441
+  type: 'test'
+  ...
+# Subtest: retired queue data cannot scroll, highlight or navigate on mount
+ok 8 - retired queue data cannot scroll, highlight or navigate on mount
+  ---
+  duration_ms: 136.184879
+  type: 'test'
+  ...
+# Subtest: the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt
+ok 9 - the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt
+  ---
+  duration_ms: 144.336843
+  type: 'test'
+  ...
+# Subtest: checkBundleMounts runs every scenario in order and stops at the first failure
+ok 10 - checkBundleMounts runs every scenario in order and stops at the first failure
+  ---
+  duration_ms: 299.774489
+  type: 'test'
+  ...
+# Subtest: main reads the bundle, runs the check, and reports success as 0
+ok 11 - main reads the bundle, runs the check, and reports success as 0
+  ---
+  duration_ms: 0.959118
+  type: 'test'
+  ...
+# Subtest: main reports an unreadable bundle or a failed scenario on stderr with exit status 1
+ok 12 - main reports an unreadable bundle or a failed scenario on stderr with exit status 1
+  ---
+  duration_ms: 0.662108
+  type: 'test'
+  ...
+# Subtest: main's default reader reads the bundle file from disk
+ok 13 - main's default reader reads the bundle file from disk
+  ---
+  duration_ms: 2.784414
+  type: 'test'
+  ...
+# Subtest: isEntryPoint is true only when the module is the script node was started with
+ok 14 - isEntryPoint is true only when the module is the script node was started with
+  ---
+  duration_ms: 0.278088
+  type: 'test'
+  ...
+# Subtest: a bundle honouring every contract passes every scenario
+ok 15 - a bundle honouring every contract passes every scenario
+  ---
+  duration_ms: 262.043867
+  type: 'test'
+  ...
+# Subtest: run as a script against a missing bundle, it fails loudly with exit status 1
+ok 16 - run as a script against a missing bundle, it fails loudly with exit status 1
+  ---
+  duration_ms: 1967.660923
+  type: 'test'
+  ...
+# Subtest: createSiteAssistantTransport
+    # Subtest: startRun
+        # Subtest: throws without calling fetch when history has no user turn
+        ok 1 - throws without calling fetch when history has no user turn
+          ---
+          duration_ms: 3.724727
+          type: 'test'
+          ...
+        # Subtest: posts the latest message with same-origin credentials and no provider auth header
+        ok 2 - posts the latest message with same-origin credentials and no provider auth header
+          ---
+          duration_ms: 31.71294
+          type: 'test'
+          ...
+        # Subtest: streams text and client_directive frames through onEvent and collects both for onDone
+        ok 3 - streams text and client_directive frames through onEvent and collects both for onDone
+          ---
+          duration_ms: 2.484872
+          type: 'test'
+          ...
+        # Subtest: preserves split frames, split delimiters, and split UTF-8 bytes
+        ok 4 - preserves split frames, split delimiters, and split UTF-8 bytes
+          ---
+          duration_ms: 1.871916
+          type: 'test'
+          ...
+        # Subtest: delivers text while the response is still open, before end or EOF
+        ok 5 - delivers text while the response is still open, before end or EOF
+          ---
+          duration_ms: 51.511422
+          type: 'test'
+          ...
+        # Subtest: drains multiple coalesced frames exactly once and in order
+        ok 6 - drains multiple coalesced frames exactly once and in order
+          ---
+          duration_ms: 1.618669
+          type: 'test'
+          ...
+        # Subtest: drops unknown and retired client directives before transcript events
+        ok 7 - drops unknown and retired client directives before transcript events
+          ---
+          duration_ms: 1.572412
+          type: 'test'
+          ...
+        # Subtest: surfaces an error frame via onError without ending the run, then still ends on a later end frame
+        ok 8 - surfaces an error frame via onError without ending the run, then still ends on a later end frame
+          ---
+          duration_ms: 4.99329
+          type: 'test'
+          ...
+        # Subtest: falls back to a generic error message when an error frame carries no message
+        ok 9 - falls back to a generic error message when an error frame carries no message
+          ---
+          duration_ms: 1.636997
+          type: 'test'
+          ...
+        # Subtest: ends the run when the stream closes with no explicit end frame
+        ok 10 - ends the run when the stream closes with no explicit end frame
+          ---
+          duration_ms: 0.894687
+          type: 'test'
+          ...
+        # Subtest: reports malformed JSON once, finishes once, and removes the active run
+        ok 11 - reports malformed JSON once, finishes once, and removes the active run
+          ---
+          duration_ms: 1.686111
+          type: 'test'
+          ...
+        # Subtest: skips a keep-alive comment frame (no data: line) without crashing or forwarding it
+        ok 12 - skips a keep-alive comment frame (no data: line) without crashing or forwarding it
+          ---
+          duration_ms: 0.777581
+          type: 'test'
+          ...
+        # Subtest: ignores a frame with no event: line (defaults to "message", matches no known kind)
+        ok 13 - ignores a frame with no event: line (defaults to "message", matches no known kind)
+          ---
+          duration_ms: 0.993153
+          type: 'test'
+          ...
+        # Subtest: reports onError with the server's parsed error body when the response is not ok
+        ok 14 - reports onError with the server's parsed error body when the response is not ok
+          ---
+          duration_ms: 4.241466
+          type: 'test'
+          ...
+        # Subtest: falls back to a status-coded message when a non-ok response body is not JSON
+        ok 15 - falls back to a status-coded message when a non-ok response body is not JSON
+          ---
+          duration_ms: 0.723778
+          type: 'test'
+          ...
+        # Subtest: throws 'no stream body' when the response has no body at all
+        ok 16 - throws 'no stream body' when the response has no body at all
+          ---
+          duration_ms: 0.44377
+          type: 'test'
+          ...
+        # Subtest: finishes with no onError when input.signal aborts before the response resolves
+        ok 17 - finishes with no onError when input.signal aborts before the response resolves
+          ---
+          duration_ms: 1.010671
+          type: 'test'
+          ...
+        # Subtest: finishes with no onError when stopRun aborts an in-flight request
+        ok 18 - finishes with no onError when stopRun aborts an in-flight request
+          ---
+          duration_ms: 0.434384
+          type: 'test'
+          ...
+        # Subtest: reports onError for a DOMException that is not an AbortError (e.g. a dropped stream)
+        ok 19 - reports onError for a DOMException that is not an AbortError (e.g. a dropped stream)
+          ---
+          duration_ms: 1.121283
+          type: 'test'
+          ...
+        # Subtest: wraps a non-Error stream rejection reason in an Error before reporting it
+        ok 20 - wraps a non-Error stream rejection reason in an Error before reporting it
+          ---
+          duration_ms: 0.518502
+          type: 'test'
+          ...
+        # Subtest: bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars
+        ok 21 - bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars
+          ---
+          duration_ms: 0.999197
+          type: 'test'
+          ...
+        1..21
+    ok 1 - startRun
+      ---
+      duration_ms: 117.349539
+      type: 'suite'
+      ...
+    # Subtest: startRun failure reporting (DI fetch)
+        # Subtest: reports an end-only stream (no text, no page action) as one no-reply error and still finishes
+        ok 1 - reports an end-only stream (no text, no page action) as one no-reply error and still finishes
+          ---
+          duration_ms: 0.615777
+          type: 'test'
+          ...
+        # Subtest: treats whitespace-only text that closes without an end frame as no reply
+        ok 2 - treats whitespace-only text that closes without an end frame as no reply
+          ---
+          duration_ms: 0.57783
+          type: 'test'
+          ...
+        # Subtest: a retired page action alone is not a reply
+        ok 3 - a retired page action alone is not a reply
+          ---
+          duration_ms: 1.057115
+          type: 'test'
+          ...
+        # Subtest: does not add a no-reply error on top of a server error frame
+        ok 4 - does not add a no-reply error on top of a server error frame
+          ---
+          duration_ms: 0.632946
+          type: 'test'
+          ...
+        # Subtest: stays silent for an error frame that arrives after the run already ended
+        ok 5 - stays silent for an error frame that arrives after the run already ended
+          ---
+          duration_ms: 18.381259
+          type: 'test'
+          ...
+        # Subtest: does not re-arm or fire the idle timer for chunks received after end
+        ok 6 - does not re-arm or fire the idle timer for chunks received after end
+          ---
+          duration_ms: 5.492635
+          type: 'test'
+          ...
+        # Subtest: removes the input abort listener at end even while the response remains open
+        ok 7 - removes the input abort listener at end even while the response remains open
+          ---
+          duration_ms: 1.183985
+          type: 'test'
+          ...
+        # Subtest: ignores all frames after end in the same chunk
+        ok 8 - ignores all frames after end in the same chunk
+          ---
+          duration_ms: 3.663168
+          type: 'test'
+          ...
+        # Subtest: ignores all frames after end in the later chunk
+        ok 9 - ignores all frames after end in the later chunk
+          ---
+          duration_ms: 2.137305
+          type: 'test'
+          ...
+        # Subtest: words a fetch network failure as an unreachable site
+        ok 10 - words a fetch network failure as an unreachable site
+          ---
+          duration_ms: 0.8232
+          type: 'test'
+          ...
+        # Subtest: times out a request that never answers: aborts fetch, reports once, finishes
+        ok 11 - times out a request that never answers: aborts fetch, reports once, finishes
+          ---
+          duration_ms: 25.032921
+          type: 'test'
+          ...
+        # Subtest: restarts the idle timer on every received chunk, so a slow but live reply is not cut off
+        ok 12 - restarts the idle timer on every received chunk, so a slow but live reply is not cut off
+          ---
+          duration_ms: 612.104152
+          type: 'test'
+          ...
+        1..12
+    ok 2 - startRun failure reporting (DI fetch)
+      ---
+      duration_ms: 673.03879
+      type: 'suite'
+      ...
+    # Subtest: reattachRun
+        # Subtest: resolves immediately by calling onDone with an empty event log, without calling fetch
+        ok 1 - resolves immediately by calling onDone with an empty event log, without calling fetch
+          ---
+          duration_ms: 0.371811
+          type: 'test'
+          ...
+        1..1
+    ok 3 - reattachRun
+      ---
+      duration_ms: 0.454413
+      type: 'suite'
+      ...
+    # Subtest: fetchRunStatus
+        # Subtest: always resolves null (no server-side run registry to query)
+        ok 1 - always resolves null (no server-side run registry to query)
+          ---
+          duration_ms: 0.524165
+          type: 'test'
+          ...
+        1..1
+    ok 4 - fetchRunStatus
+      ---
+      duration_ms: 0.666071
+      type: 'suite'
+      ...
+    # Subtest: stopRun
+        # Subtest: is a no-op for an unknown or already-finished runId
+        ok 1 - is a no-op for an unknown or already-finished runId
+          ---
+          duration_ms: 0.302066
+          type: 'test'
+          ...
+        1..1
+    ok 5 - stopRun
+      ---
+      duration_ms: 0.36328
+      type: 'suite'
+      ...
+    1..5
+ok 17 - createSiteAssistantTransport
+  ---
+  duration_ms: 818.693836
+  type: 'suite'
+  ...
+# Subtest: history scanning when the latest user turn is not the last entry
+    # Subtest: sends the latest user turn as the message and only the turns before it as history
+    ok 1 - sends the latest user turn as the message and only the turns before it as history
+      ---
+      duration_ms: 1.152994
+      type: 'test'
+      ...
+    1..1
+ok 18 - history scanning when the latest user turn is not the last entry
+  ---
+  duration_ms: 1.251506
+  type: 'suite'
+  ...

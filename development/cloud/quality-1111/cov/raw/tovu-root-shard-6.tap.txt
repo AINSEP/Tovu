@@ -1,0 +1,80 @@
+TAP version 13
+# Subtest: lazy bundle uses the resolved-path admin import guard
+ok 1 - lazy bundle uses the resolved-path admin import guard
+  ---
+  duration_ms: 2.195286
+  type: 'test'
+  ...
+# Subtest: visitorFacingError
+    # Subtest: keeps the server's reason and drops its trailing period so the sentence reads once
+    ok 1 - keeps the server's reason and drops its trailing period so the sentence reads once
+      ---
+      duration_ms: 1.338517
+      type: 'test'
+      ...
+    # Subtest: stringifies a non-Error reason
+    ok 2 - stringifies a non-Error reason
+      ---
+      duration_ms: 0.184336
+      type: 'test'
+      ...
+    # Subtest: falls back to a generic reason when the message is blank
+    ok 3 - falls back to a generic reason when the message is blank
+      ---
+      duration_ms: 0.255823
+      type: 'test'
+      ...
+    # Subtest: maps each browser's fetch network TypeError to one plain reason
+    ok 4 - maps each browser's fetch network TypeError to one plain reason
+      ---
+      duration_ms: 0.27592
+      type: 'test'
+      ...
+    # Subtest: passes a non-network TypeError's own message through
+    ok 5 - passes a non-network TypeError's own message through
+      ---
+      duration_ms: 0.105958
+      type: 'test'
+      ...
+    1..5
+ok 2 - visitorFacingError
+  ---
+  duration_ms: 153.333499
+  type: 'suite'
+  ...
+# Subtest: visitor markdown supports GFM, escapes raw HTML and rejects executable links
+ok 3 - visitor markdown supports GFM, escapes raw HTML and rejects executable links
+  ---
+  duration_ms: 417.076933
+  type: 'test'
+  ...
+# Subtest: model image https://evil.test/beacon?q=private never enters the rendered DOM
+ok 4 - model image https://evil.test/beacon?q=private never enters the rendered DOM
+  ---
+  duration_ms: 99.08879
+  type: 'test'
+  ...
+# Subtest: model image //evil.test/beacon never enters the rendered DOM
+ok 5 - model image //evil.test/beacon never enters the rendered DOM
+  ---
+  duration_ms: 74.907792
+  type: 'test'
+  ...
+# Subtest: model image data:image/png;base64,AAAA never enters the rendered DOM
+ok 6 - model image data:image/png;base64,AAAA never enters the rendered DOM
+  ---
+  duration_ms: 43.589349
+  type: 'test'
+  ...
+# Subtest: model image http://[invalid never enters the rendered DOM
+ok 7 - model image http://[invalid never enters the rendered DOM
+  ---
+  duration_ms: 199.654619
+  type: 'test'
+  ...
+# Subtest: encoded executable links and GFM footnotes cannot introduce active links or repeated IDs
+ok 8 - encoded executable links and GFM footnotes cannot introduce active links or repeated IDs
+  ---
+  duration_ms: 64.282271
+  type: 'test'
+  ...

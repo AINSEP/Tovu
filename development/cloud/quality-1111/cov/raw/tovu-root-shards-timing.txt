@@ -1,2 +1,8 @@
 ALL-DONE
 (note: ALL-DONE above was written when the first-wave xargs was replaced by tovu-shards-rest.sh at 00:41; shards 0-2 were still running)
+shard 1 exit 137 3272s
+shard 2 exit 137 3272s
+shard 0 exit 137 3272s
+shard 4 exit 137 1725s
+shard 3 exit 137 1731s
+(note 01:10: the five 'exit 137' lines above are the 80m timeout WRAPPERS being SIGKILLed on purpose so shards 0-4 could run past 80 min; the node test processes kept running. Real completion times are recorded below by shard-watch.)

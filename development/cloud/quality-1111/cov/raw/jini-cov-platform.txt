@@ -1,0 +1,187 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+      Coverage enabled with v8
+
+ ✓ src/http/guarded/__tests__/client.test.ts (73 tests) 44ms
+ ✓ src/fs/__tests__/guarded-reader.test.ts (58 tests) 2347ms
+   ✓ paged recursive listings continue beyond the legacy result cap and keep secrets excluded 828ms
+   ✓ the traversal bound never fires before the result cap — a wide directory still yields MAX_LISTED_FILES results, and says it was truncated 1298ms
+ ✓ src/__tests__/download.test.ts (108 tests | 3 skipped) 5032ms
+ ✓ src/secrets/__tests__/vault.service.test.ts (25 tests) 46ms
+ ✓ src/secrets/__tests__/keyring.env.test.ts (37 tests) 99ms
+ ✓ src/fs/__tests__/directory-workspace.test.ts (32 tests) 714ms
+ ✓ src/__tests__/blob-storage.test.ts (85 tests) 177ms
+ ✓ src/secrets/__tests__/vault.service.pins.test.ts (87 tests) 63ms
+ ✓ src/__tests__/process.test.ts (77 tests) 6297ms
+   ✓ @jini-ai/platform — process — spawnBackgroundProcess > spawns a detached background process and resolves its pid once it starts 309ms
+   ✓ @jini-ai/platform — process — stopProcesses > escalates to SIGKILL when a child ignores SIGTERM 5171ms
+ ✓ src/__tests__/terminal.test.ts (40 tests) 489ms
+ ✓ src/mail/__tests__/resolve-mailer.test.ts (44 tests) 61ms
+ ✓ src/web/__tests__/web-page-boundaries.test.ts (82 tests) 153ms
+ ✓ src/fs/__tests__/atomic-write.boundaries.test.ts (54 tests) 214ms
+ ✓ src/__tests__/asset-cache.test.ts (41 tests) 312ms
+stderr | src/fs/__tests__/user-data-config.test.ts > one durable user config > keeps boot available without mutating corrupt bytes, then quarantines before saving
+User config is unreadable: /tmp/user-data-config-JoFJE8/.local/share/Example/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/user-data-config-JoFJE8/.local/share/Example/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/user-data-config-JoFJE8/.local/share/Example/config.json. Using defaults; the original was left untouched.
+Directory workspace: user config /tmp/user-data-config-JoFJE8/.local/share/Example/config.json was unreadable (torn or corrupt). Moved it aside to /tmp/user-data-config-JoFJE8/.local/share/Example/config.json.corrupt-1794445750618; Using default settings; existing databases keep their locations.
+
+stderr | src/fs/__tests__/user-data-config.test.ts > interrupted moves recover using .home2-backup without creating a second live database
+Recovered interrupted database move using /tmp/user-data-config-N2aMsm/site/data.nosync/content.db. Keep the backup files (/tmp/user-data-config-N2aMsm/site/content.db.home2-backup); finish the move before changing database placement.
+
+stderr | src/fs/__tests__/user-data-config.test.ts > interrupted moves recover using .relocation-fixture-backup without creating a second live database
+Recovered interrupted database move using /tmp/user-data-config-NGIMBZ/site/data.nosync/content.db. Keep the backup files (/tmp/user-data-config-NGIMBZ/site/content.db.relocation-fixture-backup); finish the move before changing database placement.
+
+ ✓ src/fs/__tests__/user-data-config.test.ts (22 tests) 961ms
+   ✓ one durable user config > keeps catalog and leases in app-data while changing the home 479ms
+ ✓ src/secrets/__tests__/vault.repo.memory.test.ts (37 tests) 19ms
+ ✓ src/__tests__/index.test.ts (28 tests | 2 skipped) 757ms
+   ✓ @jini-ai/platform — http > resolves once the URL answers OK, retrying through initial failures 345ms
+   ✓ @jini-ai/platform — http > rejects once the timeout elapses without an OK response 305ms
+ ✓ src/mail/__tests__/policy.test.ts (25 tests) 25ms
+ ✓ src/__tests__/toolchain.test.ts (32 tests) 206ms
+ ✓ src/__tests__/proxy-env.test.ts (43 tests) 32ms
+ ✓ src/fs/__tests__/file-lock.boundaries.test.ts (20 tests) 285ms
+ ✓ src/mail/__tests__/resolve-mailer-lifecycle.test.ts (22 tests) 18ms
+ ✓ src/__tests__/blob-storage-boundaries.test.ts (67 tests) 433ms
+ ✓ src/mail/__tests__/purpose-scoped-mailer.test.ts (11 tests) 8ms
+ ✓ src/mail/__tests__/smtp.test.ts (15 tests) 9ms
+ ✓ src/fs/__tests__/guarded-reader.boundaries.test.ts (63 tests) 248ms
+ ✓ src/fs/__tests__/directory-registry.boundaries.test.ts (56 tests) 24ms
+ ✓ src/__tests__/asset-cache-boundaries.test.ts (44 tests) 179ms
+ ✓ src/mail/__tests__/sender-domain-verification.test.ts (24 tests) 22ms
+ ✓ src/web/__tests__/web-page-render.test.ts (26 tests) 66ms
+ ✓ src/fs/__tests__/file-lock.agent-plugins.test.ts (15 tests) 1997ms
+   ✓ U9: pid 0, -1, 1.5, a string, and 2**60 never reach the liveness probe, and each times out 547ms
+   ✓ U14: a lock that is re-taken the instant each stale break removes it still times out, instead of spinning past timeoutMs 404ms
+ ✓ src/http/guarded/__tests__/client-boundaries.test.ts (50 tests) 59ms
+ ✓ src/http/guarded/__tests__/body-bytes.test.ts (12 tests) 8ms
+ ✓ src/__tests__/sandbox-env.test.ts (28 tests) 118ms
+ ✓ src/__tests__/fetch-text-details.test.ts (36 tests) 61ms
+ ✓ src/secrets/__tests__/vault.copy.test.ts (8 tests) 61ms
+ ✓ src/fs/__tests__/directory-user-config.test.ts (16 tests) 44ms
+ ✓ src/fs/__tests__/verified-directory-move.boundaries.test.ts (21 tests) 306ms
+ ✓ src/fs/__tests__/durable-json.test.ts (15 tests) 400ms
+ ✓ src/fs/__tests__/guarded-reader.binary.test.ts (21 tests) 65ms
+stderr | src/fs/__tests__/directory-registry.test.ts > deskfx2 SHOULD-1: recovery retains existing temp sites and all home/sites-home paths
+Directory workspace: removed 1 test/temporary catalog entries: dead-temp
+
+ ✓ src/fs/__tests__/directory-registry.test.ts (7 tests) 1916ms
+   ✓ concurrent processes cannot lose each other's registrations 1539ms
+ ✓ src/mail/__tests__/provider.test.ts (21 tests) 20ms
+ ✓ src/fs/__tests__/verified-file-relocation.test.ts (10 tests) 584ms
+ ✓ src/fs/__tests__/file-lock.test.ts (12 tests) 126ms
+ ✓ src/mail/__tests__/delivery-wrapper.test.ts (11 tests) 24ms
+ ✓ src/web/__tests__/html-to-markdown.test.ts (35 tests) 6076ms
+   ✓ pathologically deep nesting degrades to text BEFORE recursive library traversal 5217ms
+   ✓ review wf: direct conversion caps input before its synchronous parser pipeline 690ms
+ ✓ src/fs/__tests__/atomic-async.test.ts (13 tests) 641ms
+ ✓ src/fs/__tests__/guarded-reader.descriptor.test.ts (36 tests) 75ms
+ ✓ src/secrets/__tests__/secret-sealer.aesgcm.test.ts (15 tests) 21ms
+ ✓ src/mail/__tests__/feedback.test.ts (11 tests) 8ms
+ ✓ src/web/__tests__/web-page.test.ts (14 tests) 6682ms
+   ✓ the fixed HTML safety cap never splits a surrogate pair and reports truncation 672ms
+   ✓ markdown with render=false fills the excerpt after a huge head and leaves small pages unchanged 2020ms
+   ✓ text with render=false fills the excerpt after a huge head and leaves small pages unchanged 1185ms
+   ✓ markdown with render=true fills the excerpt after a huge head and leaves small pages unchanged 1310ms
+   ✓ text with render=true fills the excerpt after a huge head and leaves small pages unchanged 1458ms
+ ✓ src/mail/__tests__/email-sender.unit.test.ts (9 tests) 8ms
+ ✓ src/http/guarded/__tests__/transport-response.test.ts (1 test) 1347ms
+   ✓ production transport response, request-body and failure contracts 1346ms
+ ✓ src/http/guarded/__tests__/adapters.test.ts (16 tests) 55ms
+ ✓ src/__tests__/fetch-text-guards.test.ts (25 tests) 108ms
+ ✓ src/fs/__tests__/user-data-directories.test.ts (26 tests) 34ms
+ ✓ src/fs/__tests__/file-lock.no-age-steal.test.ts (10 tests) 116ms
+ ✓ src/__tests__/resource-paths.test.ts (23 tests) 60ms
+ ✓ src/__tests__/command.test.ts (18 tests) 19ms
+ ✓ src/fs/__tests__/verified-directory-move.test.ts (9 tests) 358ms
+ ✓ src/fs/__tests__/durable-json.boundaries.test.ts (26 tests) 84ms
+ ✓ src/secrets/__tests__/vault.meta.test.ts (30 tests) 13ms
+ ✓ src/fs/__tests__/directory-sync.test.ts (12 tests) 22ms
+ ✓ src/fs/__tests__/atomic-failures.test.ts (18 tests) 8ms
+ ✓ src/fs/__tests__/file-lock.incomplete-holder.test.ts (39 tests) 336ms
+ ✓ src/__tests__/object-store-local-fs.test.ts (11 tests) 131ms
+ ✓ src/web/__tests__/html-document.test.ts (30 tests) 40ms
+ ✓ src/secrets/__tests__/passphrase-envelope.test.ts (44 tests) 5984ms
+   ✓ portable JSON round-trips UTF-8 payload without a host key or filesystem 330ms
+   ✓ empty payload round-trips; an empty passphrase is refused before any KDF work 877ms
+   ✓ each export gets a fresh salt and nonce 473ms
+   ✓ wrong passphrase fails without disclosing input values 682ms
+   ✓ passphrases are not trimmed or normalized 767ms
+   ✓ the complete header is AAD even when a salt spelling derives the same key 310ms
+   ✓ additional header metadata cannot be added without invalidating authentication 454ms
+   ✓ modified ciphertext never returns partial plaintext 477ms
+   ✓ modified nonce never returns partial plaintext 463ms
+   ✓ exports contain only the public header and sealed data, never derived or wrapped keys 649ms
+ ✓ src/http/guarded/__tests__/client-request-pins.test.ts (37 tests) 57ms
+ ✓ src/__tests__/fetch-with-timeout.test.ts (14 tests) 91ms
+ ✓ src/mail/__tests__/adapter-module.test.ts (16 tests) 14ms
+ ✓ src/net/__tests__/api-host.integrations.test.ts (21 tests) 9ms
+ ✓ src/__tests__/deadline-signal.test.ts (20 tests) 71ms
+ ✓ src/fs/__tests__/directory-running-lock.test.ts (8 tests) 9ms
+ ✓ src/fs/__tests__/verified-file-relocation.boundaries.test.ts (11 tests) 606ms
+ ✓ src/secrets/__tests__/vault.types.test.ts (27 tests) 24ms
+ ✓ src/secrets/__tests__/keyring.env.boundaries.test.ts (23 tests) 53ms
+ ✓ src/fs/__tests__/directory-home.test.ts (8 tests) 10ms
+ ✓ src/net/__tests__/local-http-probe.integration.test.ts (17 tests) 829ms
+   ✓ loopback HTTP readiness over real TLS > expires a request even when the TLS server never sends response headers 510ms
+ ✓ src/__tests__/unit/deadline-wait.unit.test.ts (8 tests) 11ms
+ ✓ src/__tests__/child-environment.test.ts (11 tests) 127ms
+ ✓ src/http/guarded/__tests__/transport-boundaries.test.ts (1 test) 25ms
+ ✓ src/fs/__tests__/directory-running-lock.boundaries.test.ts (33 tests) 26ms
+ ✓ src/__tests__/aws-sigv4.test.ts (15 tests) 27ms
+ ✓ src/fs/__tests__/boot-identity.test.ts (12 tests) 98ms
+ ✓ src/secrets/__tests__/provider-matches.test.ts (6 tests) 5ms
+ ✓ src/fs/__tests__/directory-home.boundaries.test.ts (25 tests) 17ms
+ ✓ src/fs/__tests__/guarded-reader.traversal-budget.test.ts (11 tests) 52ms
+ ✓ src/http/guarded/__tests__/transport-request-port.test.ts (4 tests) 1833ms
+   ✓ the response uses the explicit byte limit 314572800 or the 100 MiB default 1429ms
+   ✓ byte-only responses preserve non-ASCII data without decoding or re-encoding text 397ms
+ ✓ src/secrets/__tests__/passphrase-envelope.f1-parse.test.ts (42 tests) 2034ms
+   ✓ sealed > ciphertext of exactly 16777232 bytes passes the bound (then fails authentication) 756ms
+ ✓ src/mail/__tests__/engine-contracts.test.ts (4 tests) 5ms
+ ✓ src/secrets/__tests__/credential-token.test.ts (28 tests) 33ms
+ ✓ src/http/guarded/__tests__/fetch-adapter.test.ts (14 tests) 27ms
+ ✓ src/secrets/__tests__/vault-archive.test.ts (4 tests) 14ms
+ ✓ src/fs/__tests__/app-data-profile.test.ts (7 tests) 156ms
+ ✓ src/mail/__tests__/domain-read.test.ts (6 tests) 11ms
+stdout | src/net/__tests__/unit/address.property.unit.test.ts
+[fast-check platform/address] seed=20261020, numRuns=150
+
+ ✓ src/net/__tests__/unit/address.property.unit.test.ts (10 tests) 2550ms
+   ✓ address classification properties > refuses private IPv4 ranges and every embedded spelling (0) 401ms
+   ✓ address classification properties > refuses private IPv4 ranges and every embedded spelling (1) 478ms
+   ✓ address classification properties > refuses private IPv4 ranges and every embedded spelling (2) 404ms
+   ✓ address classification properties > refuses native ULA/link-local, local-use NAT64 and Teredo regardless of tail 315ms
+ ✓ src/__tests__/aws-sigv4.f1.test.ts (8 tests) 11ms
+ ✓ src/net/__tests__/api-host.agent-runtime.test.ts (14 tests) 22ms
+ ❯ src/secrets/__tests__/exports.test.ts (2 tests | 1 failed) 46ms
+   × retains published subpaths and declares adapter dependencies as optional peers 38ms
+     → expected { '@jini-ai/core': '^0.7.1', …(1) } to deeply equal { '@jini-ai/core': '^0.6.13', …(1) }
+ ✓ src/net/__tests__/address.test.ts (17 tests) 18ms
+ ✓ src/secrets/__tests__/keyring-defaults.test.ts (12 tests) 62ms
+ ✓ src/fs/__tests__/file-lock.hostname-variants.test.ts (16 tests) 173ms
+ ✓ src/__tests__/asset-cache-ports.test.ts (4 tests) 77ms
+ ✓ src/http/guarded/__tests__/own-origin.test.ts (6 tests) 22ms
+ ✓ src/__tests__/shell.test.ts (9 tests) 733ms
+ ✓ src/fs/__tests__/directory-running-lock.characterization.test.ts (64 tests) 20ms
+ ✓ src/mail/__tests__/sender-identity.test.ts (3 tests) 4ms
+ ✓ src/net/__tests__/address.boundaries.test.ts (86 tests) 24ms
+ ✓ src/web/__tests__/optional-peers.test.ts (1 test) 1661ms
+   ✓ root and default dispatcher use installed dependencies; web entry needs opt-in peers 1660ms
+ ✓ src/mail/__tests__/mail-status-cache.test.ts (5 tests) 5ms
+ ✓ src/mail/__tests__/purpose-gate-predicate.test.ts (4 tests) 5ms
+ ✓ src/__tests__/asset-cache-dispatcher.test.ts (7 tests) 8ms
+ ✓ src/net/__tests__/endpoint-policy.contract.test.ts (56 tests) 36ms
+ ✓ src/fs/__tests__/atomic-write.test.ts (4 tests | 1 skipped) 74ms
+ ✓ src/secrets/__tests__/vault.api-connection-kind.test.ts (4 tests) 10ms
+ ✓ src/net/__tests__/endpoint-policy.parity.test.ts (26 tests) 86ms
+ ✓ src/fs/__tests__/durable-json-transaction.test.ts (5 tests) 28ms
+ ✓ src/mail/__tests__/provider-error.test.ts (13 tests) 15ms
+ ✓ src/__tests__/atomic-copy.unit.test.ts (3 tests) 286ms
+ ✓ src/__tests__/integration-contracts.test.ts (4 tests) 181ms
+ ✓ src/secrets/__tests__/credential-token.f1-detect.test.ts (47 tests) 20ms
+ ✓ src/http/__tests__/multipart.test.ts (4 tests) 13ms
+ ✓ src/fs/__tests__/reviewed-file.test.ts (9 tests) 11ms
+ ✓ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests) 7ms
+ ✓ src/http/guarded/__tests__/render-rebinding.test.ts (4 tests) 15ms

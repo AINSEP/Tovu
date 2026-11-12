@@ -1,0 +1,205 @@
+TAP version 13
+# Subtest: hook discards expiry, repeated clicks and teardown without posting an approval
+ok 1 - hook discards expiry, repeated clicks and teardown without posting an approval
+  ---
+  duration_ms: 300.326352
+  type: 'test'
+  ...
+# Subtest: transcript-storage
+    # Subtest: loadPersistedState — fail-soft rehydrate
+        # Subtest: returns the empty default when nothing is stored
+        ok 1 - returns the empty default when nothing is stored
+          ---
+          duration_ms: 2.801889
+          type: 'test'
+          ...
+        # Subtest: rehydrates a validly-shaped entry
+        ok 2 - rehydrates a validly-shaped entry
+          ---
+          duration_ms: 0.367583
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty on malformed JSON
+        ok 3 - clears the key and starts empty on malformed JSON
+          ---
+          duration_ms: 0.43143
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when the envelope is not an object
+        ok 4 - clears the key and starts empty when the envelope is not an object
+          ---
+          duration_ms: 0.364909
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when open is the wrong type
+        ok 5 - clears the key and starts empty when open is the wrong type
+          ---
+          duration_ms: 0.163561
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's id is not a string
+        ok 6 - clears the whole entry when a message's id is not a string
+          ---
+          duration_ms: 0.137946
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's content is not a string
+        ok 7 - clears the whole entry when a message's content is not a string
+          ---
+          duration_ms: 0.110469
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message entry is not an object at all
+        ok 8 - clears the whole entry when a message entry is not an object at all
+          ---
+          duration_ms: 0.127608
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when even one message in the array is wrong-shaped
+        ok 9 - clears the whole entry when even one message in the array is wrong-shaped
+          ---
+          duration_ms: 0.229101
+          type: 'test'
+          ...
+        # Subtest: never throws when storage access itself throws
+        ok 10 - never throws when storage access itself throws
+          ---
+          duration_ms: 0.299183
+          type: 'test'
+          ...
+        1..10
+    ok 1 - loadPersistedState — fail-soft rehydrate
+      ---
+      duration_ms: 20.887367
+      type: 'suite'
+      ...
+    # Subtest: savePersistedState — bounded, oldest-dropped-first
+        # Subtest: round-trips through loadPersistedState
+        ok 1 - round-trips through loadPersistedState
+          ---
+          duration_ms: 0.333412
+          type: 'test'
+          ...
+        # Subtest: drops the oldest messages first once the count cap is exceeded
+        ok 2 - drops the oldest messages first once the count cap is exceeded
+          ---
+          duration_ms: 0.267921
+          type: 'test'
+          ...
+        # Subtest: drops oldest messages first once the byte cap is exceeded, even under the count cap
+        ok 3 - drops oldest messages first once the byte cap is exceeded, even under the count cap
+          ---
+          duration_ms: 27.583603
+          type: 'test'
+          ...
+        # Subtest: drops a single message larger than the byte cap while retaining pane state
+        ok 4 - drops a single message larger than the byte cap while retaining pane state
+          ---
+          duration_ms: 0.758181
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 界 transcripts
+        ok 5 - enforces the UTF-8 byte cap for 界 transcripts
+          ---
+          duration_ms: 2.103257
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 🙂 transcripts
+        ok 6 - enforces the UTF-8 byte cap for 🙂 transcripts
+          ---
+          duration_ms: 8.3825
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying setItem throws (e.g. quota exceeded)
+        ok 7 - never throws when the underlying setItem throws (e.g. quota exceeded)
+          ---
+          duration_ms: 0.336705
+          type: 'test'
+          ...
+        1..7
+    ok 2 - savePersistedState — bounded, oldest-dropped-first
+      ---
+      duration_ms: 40.299793
+      type: 'suite'
+      ...
+    # Subtest: clearPersistedState
+        # Subtest: removes the stored key
+        ok 1 - removes the stored key
+          ---
+          duration_ms: 0.181315
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying removeItem throws
+        ok 2 - never throws when the underlying removeItem throws
+          ---
+          duration_ms: 0.156555
+          type: 'test'
+          ...
+        1..2
+    ok 3 - clearPersistedState
+      ---
+      duration_ms: 0.474985
+      type: 'suite'
+      ...
+    1..3
+ok 2 - transcript-storage
+  ---
+  duration_ms: 62.223629
+  type: 'suite'
+  ...
+# Subtest: real-sessionStorage-bound wrappers
+    # Subtest: react: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 1 - react: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 647.751965
+      type: 'test'
+      ...
+    # Subtest: vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 2 - vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 116.016689
+      type: 'test'
+      ...
+    # Subtest: loadSiteAssistantState reads through to the real sessionStorage, not a private store
+    ok 3 - loadSiteAssistantState reads through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 7.707659
+      type: 'test'
+      ...
+    # Subtest: saveSiteAssistantState writes through to the real sessionStorage, not a private store
+    ok 4 - saveSiteAssistantState writes through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 6.956923
+      type: 'test'
+      ...
+    # Subtest: clearSiteAssistantState removes the real sessionStorage entry
+    ok 5 - clearSiteAssistantState removes the real sessionStorage entry
+      ---
+      duration_ms: 7.300336
+      type: 'test'
+      ...
+    1..5
+ok 3 - real-sessionStorage-bound wrappers
+  ---
+  duration_ms: 818.266019
+  type: 'suite'
+  ...
+# Subtest: the storage guard sees aliases and computed accesses, while ignoring comments
+ok 4 - the storage guard sees aliases and computed accesses, while ignoring comments
+  ---
+  duration_ms: 63.410577
+  type: 'test'
+  ...
+# Subtest: storage encapsulation guard
+    # Subtest: only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+    ok 1 - only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+      ---
+      duration_ms: 1801.976961
+      type: 'test'
+      ...
+    1..1
+ok 5 - storage encapsulation guard
+  ---
+  duration_ms: 1802.120681
+  type: 'suite'
+  ...
